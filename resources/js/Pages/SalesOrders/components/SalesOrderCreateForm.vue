@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
@@ -119,7 +120,7 @@ const customerPOOptions = computed(() => {
     ];
 });
 
-const defaultStart = new Date();
+const defaultStart = entityCalendarDate();
 
 const form = useForm({
     prefix: 'SO',

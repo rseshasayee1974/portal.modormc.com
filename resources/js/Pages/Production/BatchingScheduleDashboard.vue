@@ -1,4 +1,5 @@
 <script setup>
+import { entityToday, entityLocaleTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import BatchingScheduleForm from './components/BatchingScheduleForm.vue';
@@ -37,7 +38,7 @@ const props = defineProps({
 const activeView = ref('list');
 const selectedSchedule = ref(null);
 
-const scheduleDate = ref(props.initialDate || new Date().toISOString().substring(0, 10));
+const scheduleDate = ref(props.initialDate || entityToday());
 const statusFilter = ref(props.initialFilters?.status || 'all');
 const pourSearch = ref('');
 const siteFilter = ref('all');
@@ -118,7 +119,7 @@ const onPourSearchInput = () => {
 };
 
 const resetFilters = () => {
-    scheduleDate.value = new Date().toISOString().substring(0, 10);
+    scheduleDate.value = entityToday();
     siteFilter.value = 'all';
     statusFilter.value = 'all';
     pourSearch.value = '';
@@ -227,7 +228,7 @@ const formatTime = (ts) => {
         const normalized = ts.replace('t', 'T');
         const d = new Date(normalized);
         if (isNaN(d.getTime())) return ts;
-        return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+        return entityLocaleTime(normalized, [], { hour: 'numeric', minute: '2-digit', hour12: true });
     } catch (e) {
         return ts;
     }

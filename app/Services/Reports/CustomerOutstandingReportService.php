@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Models\Invoice;
+use App\Models\AccountDiscount;
 use App\Models\JournalEntryLine;
 use App\Models\Patron;
 use App\Models\Payment;
@@ -79,10 +80,15 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             ->orderBy('id', 'desc')
             ->get();
 
-        // 3. Collect distinct patron IDs across invoices and payment/receipt transactions
+        // Discount-module records are authoritative, including records without a journal.
+        $discounts = $this->discountQuery($plantId)
+            ->when($end, fn($q) => $q->where('date', '<=', substr($end, 0, 10)))->get();
+        $discountsByCustomer = $discounts->groupBy('partner_id');
+
+        // 3. Collect distinct patron IDs across all outstanding-balance sources.
         $patronIdsFromInvoices = $invoices->pluck('partner_id')->filter()->unique()->all();
         $patronIdsFromPayments = $allPaymentsAndReceipts->pluck('patron_id')->filter()->unique()->all();
-        $allPatronIds = array_values(array_unique(array_merge($patronIdsFromInvoices, $patronIdsFromPayments)));
+        $allPatronIds = array_values(array_unique(array_merge($patronIdsFromInvoices, $patronIdsFromPayments, $discounts->pluck('partner_id')->filter()->all())));
 
         if ($patronId && !in_array($patronId, $allPatronIds)) {
             $allPatronIds[] = $patronId;
@@ -131,12 +137,13 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $totalInvoiced = round((float)$custInvoices->sum(fn($i) => (float)($i->total_amount ?? 0)), 2);
             $totalReceipt  = round((float)$custReceipts->sum(fn($p) => (float)($p->amount ?? 0)), 2);
             $totalPayment  = round((float)$custPayments->sum(fn($p) => (float)($p->amount ?? 0)), 2);
+            $totalDiscount = round($discountsByCustomer->get($cId, collect())->sum(fn($d) => abs((float)$d->amount)), 2);
 
-            // Net collections from customer = Receipts - Payments / Refunds
-            $netCollections = max(0.00, round($totalReceipt - $totalPayment, 2));
+            // Receipts and discounts both settle outstanding invoices; refunds increase it.
+            $netCollections = max(0.00, round($totalReceipt + $totalDiscount - $totalPayment, 2));
 
-            // Outstanding Balance = Total Invoiced + Total Payments - Total Receipts
-            $netOutstanding = round($totalInvoiced + $totalPayment - $totalReceipt, 2);
+            // Discount-module amounts always subtract, regardless of journal direction.
+            $netOutstanding = round($totalInvoiced + $totalPayment - $totalReceipt - $totalDiscount, 2);
 
             $aging0to30    = 0.00;
             $aging31to60   = 0.00;
@@ -299,6 +306,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'total_invoiced'      => $totalInvoiced,
                 'total_receipt'       => $totalReceipt,
                 'total_payment'       => $totalPayment,
+                'total_discount'      => $totalDiscount,
                 'total_paid'          => $totalReceipt,
                 'total_outstanding'   => $finalOutstanding,
                 'unallocated_advance' => $unallocatedAdvance,
@@ -349,6 +357,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'total_invoiced_amount'      => $totalInvoiced,
             'total_receipt_amount'       => $totalReceipt,
             'total_payment_amount'       => $totalPayment,
+            'total_discount_amount'      => round(collect($customersList)->sum('total_discount'), 2),
             'total_paid_amount'          => $totalReceipt,
             'total_outstanding_amount'   => $totalOutstanding,
             'total_amount'               => $totalOutstanding,
@@ -445,13 +454,15 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                   ->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))
                   ->where(function ($sq) {
                       $sq->whereNull('ref_module')
-                         ->orWhereNotIn('ref_module', ['invoice', 'payment']);
+                         ->orWhereNotIn('ref_module', ['invoice', 'payment', 'discount']);
                   });
             });
 
         if ($plantId) {
             $jelQuery->where('plant_id', $plantId);
         }
+
+        $discountQuery = $this->discountQuery($plantId)->where('partner_id', $patronId);
 
         // 4. Calculate Opening Balance prior to start date
         if ($startDateOnly) {
@@ -477,10 +488,14 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
             $openingJel = (clone $jelQuery)
                 ->whereHas('entry', fn($q) => $q->where('voucher_date', '<', $startDateOnly))
-                ->selectRaw('SUM(debit_amount) - SUM(credit_amount) as bal')
-                ->value('bal') ?: 0;
+                ->get()->sum(fn($line) => $this->isDiscountLine($line)
+                    ? -abs((float)$line->credit_amount ?: (float)$line->debit_amount)
+                    : (float)$line->debit_amount - (float)$line->credit_amount);
 
-            $openingBalance = round((float)$openingInvoiced - (float)$openingReceipts + (float)$openingPayments + (float)$openingJel, 2);
+            $openingDiscount = (clone $discountQuery)->where('date', '<', $startDateOnly)
+                ->get()->sum(fn($discount) => abs((float)$discount->amount));
+
+            $openingBalance = round((float)$openingInvoiced - (float)$openingReceipts + (float)$openingPayments + (float)$openingJel - $openingDiscount, 2);
         } else {
             $openingBalance = 0.00;
         }
@@ -505,6 +520,10 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             ->when($endDateOnly, fn($q) => $q->whereHas('entry', fn($sq) => $sq->where('voucher_date', '<=', $endDateOnly)))
             ->get();
 
+        $periodDiscounts = (clone $discountQuery)
+            ->when($startDateOnly, fn($q) => $q->where('date', '>=', $startDateOnly))
+            ->when($endDateOnly, fn($q) => $q->where('date', '<=', $endDateOnly))->get();
+
         // 6. Compute Account Summary Totals
         $invoicedTaxTotal    = 0.0;
         $invoicedNonTaxTotal = 0.0;
@@ -517,7 +536,6 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             } else {
                 $invoicedNonTaxTotal += $invTotal;
             }
-            $salesDiscount += (float)($inv->discount_amount ?? 0);
         }
 
         $totalInvoiced = round($invoicedTaxTotal + $invoicedNonTaxTotal, 2);
@@ -640,16 +658,10 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $cr        = round((float)($line->credit_amount ?? 0), 2);
             $vNum      = $line->entry?->voucher_number ?: ('JV-' . $line->id);
             $vType     = strtoupper($line->entry?->voucher_type ?? 'JOURNAL');
-            $refMod    = strtolower($line->entry?->ref_module ?? '');
-            $narration = strtolower(($line->line_narration ?? '') . ' ' . ($line->entry?->narration ?? ''));
-
-            $isDiscount = $refMod === 'discount'
-                || str_contains(strtolower($vType), 'discount')
-                || str_contains(strtolower($vNum), 'disc')
-                || str_contains($narration, 'discount');
+            $isDiscount = $this->isDiscountLine($line);
 
             if ($isDiscount) {
-                $discAmt = $cr > 0 ? $cr : $dr;
+                $discAmt = abs($cr != 0 ? $cr : $dr);
                 $details = $vNum . "\n" . ($line->line_narration ?: $line->entry?->narration ?: 'Sales Discount');
                 $vDate   = $line->entry?->voucher_date;
 
@@ -697,6 +709,19 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             }
         }
 
+        foreach ($periodDiscounts as $discount) {
+            $date = Carbon::parse($discount->date);
+            $number = $discount->reference_number ?: 'DISC-'.$discount->id;
+            $items->push([
+                'timestamp' => $date->timestamp, 'raw_date' => $date->format('Y-m-d'),
+                'date' => $date->format('d-m-Y'), 'sort_order' => 4, 'id' => $discount->id,
+                'transactions' => 'Sales Discount', 'narration' => 'Discount '.$number,
+                'details' => $number.($discount->note ? "\n".$discount->note : ''),
+                'type' => 'DISCOUNT', 'voucher_type' => 'DISCOUNT', 'voucher_no' => $number,
+                'debit' => 0.0, 'credit' => 0.0, 'discount' => abs((float)$discount->amount),
+            ]);
+        }
+
         // Sort items by raw_date asc, then sort_order asc, then id asc
         $sortedItems = $items->sort(function ($a, $b) {
             if ($a['raw_date'] !== $b['raw_date']) {
@@ -741,7 +766,10 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $credit = (float)$it['credit'];
             $disc   = (float)$it['discount'];
 
-            $runningBalance = round($runningBalance + $debit - $credit - $disc, 2);
+            // Invoice totals already include their own discounts. Only standalone
+            // discount rows cause an additional subtraction from outstanding.
+            $balanceDiscount = $it['transactions'] === 'Sales Invoice' ? 0.0 : abs($disc);
+            $runningBalance = round($runningBalance + $debit - $credit - $balanceDiscount, 2);
             $salesDiscount  += $disc;
 
             $rows[] = [
@@ -815,6 +843,20 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'generated_at'         => now()->format('d/m/Y h:i A'),
             'filters'              => $params,
         ];
+    }
+
+    private function discountQuery(?int $plantId): \Illuminate\Database\Eloquent\Builder
+    {
+        return AccountDiscount::query()->where('status', 1)->whereNull('deleted_at')
+            ->when($plantId, fn($q) => $q->where('plant_id', $plantId));
+    }
+
+    private function isDiscountLine(JournalEntryLine $line): bool
+    {
+        return strtolower($line->entry?->ref_module ?? '') === 'discount'
+            || str_contains(strtolower($line->entry?->voucher_type ?? ''), 'discount')
+            || str_contains(strtolower($line->entry?->voucher_number ?? ''), 'disc')
+            || str_contains(strtolower(($line->line_narration ?? '').' '.($line->entry?->narration ?? '')), 'discount');
     }
 
     public function targetName(array $params): string

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate, entityDateTime } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -201,7 +202,7 @@ const addLine = () => {
     form.lines.push({
         name: '',
         product_quantity: '1',
-        date_planned: new Date(),
+        date_planned: entityDateTime(),
         product_uom: null,
         product_id: null,
         description: '',
@@ -546,7 +547,7 @@ watch(() => page.props.flash, (flash: any) => {
                         <Column header="Deadline">
                             <template #body="slotProps">
                                 <span class="text-xs font-mono font-medium text-slate-500">
-                                    {{ new Date(slotProps.data.dead_line).toLocaleDateString() }}
+                                    {{ entityLocaleDate(slotProps.data.dead_line, ) }}
                                 </span>
                             </template>
                         </Column>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleTime, entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -224,7 +225,7 @@ const formatDate = (date: string | Date) => {
 
     const d = new Date(date);
 
-    return d.toLocaleDateString('en-GB', {
+    return entityLocaleDate(date, 'en-GB', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -407,8 +408,8 @@ const formatOtDuration = (hours: number | string | null | undefined) => {
                             <Column header="Clock In/Out">
                                 <template #body="slotProps">
                                     <div class="flex flex-col text-[11px]">
-                                        <span>IN: {{ slotProps.data.check_in ? new Date(slotProps.data.check_in).toLocaleTimeString() : '-' }}</span>
-                                        <span>OUT: {{ slotProps.data.check_out ? new Date(slotProps.data.check_out).toLocaleTimeString() : '-' }}</span>
+                                        <span>IN: {{ slotProps.data.check_in ? entityLocaleTime(slotProps.data.check_in, ) : '-' }}</span>
+                                        <span>OUT: {{ slotProps.data.check_out ? entityLocaleTime(slotProps.data.check_out, ) : '-' }}</span>
                                     </div>
                                 </template>
                             </Column>

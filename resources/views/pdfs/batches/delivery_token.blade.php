@@ -637,7 +637,7 @@
                 $sno = 1;
             @endphp
             
-            <div class="section-title">Delivery Challan Items & Ingredient Details</div>
+            <div class="section-title">Delivery Challan Items</div>
             <table class="materials-table">
                 <thead>
                     <tr>
@@ -743,14 +743,9 @@
         </table>
         @endif
 
-        <!-- Ingredients Section -->
+        <!-- Ingredients Section (Hidden on A4 Delivery Token) -->
         @php
-            $showIngredients = $settings['print_delivery_ingredients'] ?? true;
-            if ($showIngredients === '0' || $showIngredients === 0 || $showIngredients === false || $showIngredients === 'false') {
-                $showIngredients = false;
-            } else {
-                $showIngredients = true;
-            }
+            $showIngredients = false;
         @endphp
         @if ($showIngredients && $batch->salesOrder?->mixDesign?->items?->count() > 0)
             <div class="section-title" style="margin-top: 25px;">Batching &amp; Ingredients Details</div>

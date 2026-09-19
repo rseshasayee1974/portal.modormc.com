@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { 
     UserIcon, 
     PhoneIcon, 
@@ -149,7 +150,7 @@ const addSalaryStructure = () => {
     form.salary_structures.push({
         salary_component_id: null,
         amount: 0,
-        effective_from: new Date(),
+        effective_from: entityCalendarDate(),
         effective_to: null
     });
 };

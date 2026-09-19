@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDateTime, entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -87,7 +88,7 @@ console.log('paymentMethodOptions',paymentMethodOptions.value);
 const getInitialForm = () => ({
     machine_id: null as number | null,
     driver_id: null as number | null,
-    log_date: new Date(),
+    log_date: entityCalendarDate(),
     quantity: 0,
     rate_per_liter: 0,
     odometer_reading: 0,
@@ -131,7 +132,7 @@ watch(expandedRows, (newVal) => {
             editingId.value = log.id;
             editForm.machine_id = log.machine_id;
             editForm.driver_id = log.driver_id;
-            editForm.log_date = log.log_date ? new Date(log.log_date) : new Date();
+            editForm.log_date = log.log_date ? entityCalendarDate(log.log_date) : entityCalendarDate();
             editForm.quantity = Number(log.quantity);
             editForm.rate_per_liter = Number(log.rate_per_liter);
             editForm.odometer_reading = Number(log.odometer_reading);
@@ -167,7 +168,7 @@ const submitCreate = () => {
     const formData = new FormData();
     formData.append('machine_id', String(createForm.machine_id || ''));
     formData.append('driver_id', String(createForm.driver_id || ''));
-    formData.append('log_date', createForm.log_date ? createForm.log_date.toISOString() : '');
+    formData.append('log_date', createForm.log_date ? calendarDateTimeString(createForm.log_date) : '');
     formData.append('quantity', String(createForm.quantity || 0));
     formData.append('rate_per_liter', String(createForm.rate_per_liter || 0));
     formData.append('odometer_reading', String(createForm.odometer_reading || 0));
@@ -198,7 +199,7 @@ const submitEdit = () => {
         const formData = new FormData();
         formData.append('machine_id', String(editForm.machine_id || ''));
         formData.append('driver_id', String(editForm.driver_id || ''));
-        formData.append('log_date', editForm.log_date ? editForm.log_date.toISOString() : '');
+        formData.append('log_date', editForm.log_date ? calendarDateTimeString(editForm.log_date) : '');
         formData.append('quantity', String(editForm.quantity || 0));
         formData.append('rate_per_liter', String(editForm.rate_per_liter || 0));
         formData.append('odometer_reading', String(editForm.odometer_reading || 0));
@@ -327,7 +328,7 @@ watch(() => page.props.flash, (flash: any) => {
                             <Column header="Date & Time" sortable field="log_date">
                                 <template #body="slotProps">
                                     <span class="text-xs font-mono text-slate-650 dark:text-slate-350">
-                                        {{ new Date(slotProps.data.log_date).toLocaleString([], {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'}) }}
+                                        {{ entityLocaleDateTime(slotProps.data.log_date, [], {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'}) }}
                                     </span>
                                 </template>
                             </Column>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
@@ -20,7 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['success', 'close']);
 
-const transactionDate = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Kolkata' });
+const transactionDate = entityToday();
 const form = useForm({
     transaction_date: (props.payment.transaction_date || props.payment.created_at || transactionDate).split('T')[0],
     ledger_id: props.payment.ledger_id,

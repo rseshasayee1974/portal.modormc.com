@@ -1,4 +1,5 @@
 <script setup>
+import { entityToday, entityLocaleTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import PumpDeploymentForm from './components/PumpDeploymentForm.vue';
@@ -51,7 +52,7 @@ const dropdownsLoaded = ref(false);
 
 // 7 Operational Filters: Schedule date, Site, Pour location, Pump type, Pump number, Operator, Status
 const filters = ref({
-    schedule_date: props.initialDate || new Date().toISOString().substring(0, 10),
+    schedule_date: props.initialDate || entityToday(),
     site_id: 'all',
     pour_location: '',
     pump_type: props.initialFilters?.pump_type || 'all',
@@ -165,7 +166,7 @@ const onLocationSearchInput = () => {
 
 const resetFilters = () => {
     filters.value = {
-        schedule_date: new Date().toISOString().substring(0, 10),
+        schedule_date: entityToday(),
         site_id: 'all',
         pour_location: '',
         pump_type: 'all',
@@ -390,7 +391,7 @@ const formatTime = (ts) => {
         const normalized = ts.replace('t', 'T');
         const d = new Date(normalized);
         if (isNaN(d.getTime())) return ts;
-        return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+        return entityLocaleTime(normalized, [], { hour: 'numeric', minute: '2-digit', hour12: true });
     } catch (e) {
         return ts;
     }

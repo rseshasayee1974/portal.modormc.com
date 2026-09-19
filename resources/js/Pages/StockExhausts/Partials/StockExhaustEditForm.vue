@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { computed, watch, reactive } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -152,7 +153,7 @@ const runFrontendValidation = (): boolean => {
 const addLine = () => {
     form.lines.push({
         product_id: null,
-        issue_date: new Date(),
+        issue_date: entityToday(),
         quantity_issued: null,
         no_items_issued: 1,
         units: 'pcs',

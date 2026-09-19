@@ -52,6 +52,7 @@ const processing = ref(false);
 const blankForm = () => ({
     entity_type: null as number | null,
     legal_name: '',
+    time_zone: 'Asia/Kolkata',
     alias: '',
     email: '',
     url: '',
@@ -98,6 +99,7 @@ const populateEditForm = async (entity: Entity) => {
         ...blankForm(),
         entity_type: entity.entity_type,
         legal_name: entity.legal_name,
+        time_zone: entity.time_zone || 'Asia/Kolkata',
         alias: entity.alias ?? '',
         email: entity.email ?? '',
         url: entity.url ?? '',
@@ -116,6 +118,7 @@ const populateEditForm = async (entity: Entity) => {
     try {
         const res = await axios.get(route('entities.show', entity.id));
         const full = res.data.entity;
+        editForm.value.time_zone = full.time_zone || 'Asia/Kolkata';
         editForm.value.addresses = full.addresses || [];
         editForm.value.contacts = full.contacts || [];
         editForm.value.bank_accounts = full.bankAccounts || full.bank_accounts || [];

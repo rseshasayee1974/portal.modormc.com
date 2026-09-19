@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -23,7 +24,7 @@ const emit = defineEmits<{
 }>();
 
 const form = useForm({
-    sample_date: props.sample?.sample_date ? props.sample.sample_date.substring(0, 10) : new Date().toISOString().substring(0, 10),
+    sample_date: props.sample?.sample_date ? props.sample.sample_date.substring(0, 10) : entityToday(),
     tested_by: props.sample?.tested_by || props.sample?.sampled_by || null,
     concrete_grade_id: props.sample?.concrete_grade_id || null,
     material_id: props.sample?.material_id || null,
@@ -99,7 +100,7 @@ const batchOptions = computed(() => {
         const truck = dispatch?.truck?.registration || '';
 
         const date = b.start_time
-            ? new Date(b.start_time).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })
+            ? entityLocaleDate(b.start_time, 'en-IN', { day: '2-digit', month: 'short', year: '2-digit' })
             : '';
 
         const batchNum = b.batch_no

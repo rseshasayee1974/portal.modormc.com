@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday, entityCalendarDate } from '@/Utils/entityDateTime';
 import { ref, onMounted, watch, onUnmounted, onUpdated } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import Button from 'primevue/button';
@@ -114,7 +115,7 @@ console.log(currentBatch,'batch');
             prefix: currentDispatch.prefix || '',
             dispatch_no: currentDispatch.dispatch_no || '',
             dispatch_reference: currentDispatch.dispatch_reference || '',
-            dispatch_time: currentDispatch.dispatch_time ? new Date(currentDispatch.dispatch_time) : new Date(),
+            dispatch_time: currentDispatch.dispatch_time ? entityCalendarDate(currentDispatch.dispatch_time) : entityCalendarDate(),
             delivered_qty: Number(currentDispatch.delivered_qty || currentBatch?.batch_size || 0),
             truck_id: currentDispatch.truck_id ? Number(currentDispatch.truck_id) : (currentBatch?.truck_id ? Number(currentBatch.truck_id) : null),
             transport_id: currentDispatch.transport_id ? Number(currentDispatch.transport_id) : (currentBatch?.transport_id ? Number(currentBatch.transport_id) : null),
@@ -131,7 +132,7 @@ console.log(currentBatch,'batch');
             cancelled_notes: currentDispatch.cancelled_notes || '',
             generate_invoice: true,
             ledger_id: currentDispatch.ledger_id || currentDispatch.status?.invoice?.account_id || null,
-            invoice_date: currentDispatch.invoice_date ? new Date(currentDispatch.invoice_date) : (currentDispatch.status?.invoice_date ? new Date(currentDispatch.status.invoice_date) : new Date()),
+            invoice_date: currentDispatch.invoice_date ? entityCalendarDate(currentDispatch.invoice_date) : (currentDispatch.status?.invoice_date ? entityCalendarDate(currentDispatch.status.invoice_date) : entityCalendarDate()),
             invoice_number: currentDispatch.status?.invoice?.invoice_number || currentDispatch.status?.invoice_number || '',
             invoice_notes: currentDispatch.status?.invoice?.notes || '',
             created_at: currentDispatch.created_at || null,
@@ -143,8 +144,8 @@ console.log(currentBatch,'batch');
             weights: {
                 empty_weight_truck: Number(currentDispatch.empty_weight_truck || 0),
                 loaded_weight_truck: Number(currentDispatch.loaded_weight_truck || 0),
-                empty_weight_time_load: currentDispatch.empty_time ? new Date(currentDispatch.empty_time) : null,
-                loaded_weight_time_load: currentDispatch.load_time ? new Date(currentDispatch.load_time) : null,
+                empty_weight_time_load: currentDispatch.empty_time ? entityCalendarDate(currentDispatch.empty_time) : null,
+                loaded_weight_time_load: currentDispatch.load_time ? entityCalendarDate(currentDispatch.load_time) : null,
                 empty_weight_unload: Number(currentDispatch.empty_weight_unload || 0),
                 loaded_weight_unload: Number(currentDispatch.loaded_weight_unload || 0),
                 empty_weight_time_unload: currentDispatch.empty_weight_time_unload ? new Date(currentDispatch.empty_weight_time_unload) : null,
@@ -238,7 +239,7 @@ console.log(currentBatch,'batch');
         prefix: '',
         dispatch_no: '',
         dispatch_reference: '',
-        dispatch_time: new Date(),
+        dispatch_time: entityCalendarDate(),
         delivered_qty: Number(currentBatch?.batch_size || 0),
         truck_id: truckId,
         transport_id: transportId,
@@ -254,7 +255,7 @@ console.log(currentBatch,'batch');
         dispatch_status: 'Draft',
         generate_invoice: false,
         ledger_id: null,
-        invoice_date: new Date(),
+        invoice_date: entityCalendarDate(),
         invoice_number: '',
         invoice_notes: '',
         created_at: null,
@@ -265,8 +266,8 @@ console.log(currentBatch,'batch');
         weights: {
             empty_weight_truck: Number(emptyWeightTruck),
             loaded_weight_truck: Number(loadedWeightTruck),
-            empty_weight_time_load: currentBatch?.dispatches?.[0]?.empty_time ? new Date(currentBatch.dispatches[0].empty_time) : null,
-            loaded_weight_time_load: currentBatch?.dispatches?.[0]?.load_time ? new Date(currentBatch.dispatches[0].load_time) : null,
+            empty_weight_time_load: currentBatch?.dispatches?.[0]?.empty_time ? entityCalendarDate(currentBatch.dispatches[0].empty_time) : null,
+            loaded_weight_time_load: currentBatch?.dispatches?.[0]?.load_time ? entityCalendarDate(currentBatch.dispatches[0].load_time) : null,
             empty_weight_unload: 0,
             loaded_weight_unload: 0,
             empty_weight_time_unload: null,
@@ -702,7 +703,7 @@ const ewbForm = ref({
     transporter_id: '',
     transporter_name: '',
     trans_doc_no: '',
-    trans_doc_date: new Date().toISOString().split('T')[0],
+    trans_doc_date: entityToday(),
     errors: {} as Record<string, string>,
 });
 
@@ -736,7 +737,7 @@ const handleGenerateEwayBill = () => {
         ? ('DP-' + props.batch.dispatches[0].dispatch_no) 
         : '';
 
-    const defaultDocDate = new Date().toISOString().split('T')[0];
+    const defaultDocDate = entityToday();
 
     ewbForm.value = {
         veh_no: defaultVehNo,

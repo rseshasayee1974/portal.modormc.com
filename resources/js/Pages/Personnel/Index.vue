@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
@@ -276,7 +277,7 @@ const addSalaryStructure = (f: any) => {
     f.salary_structures.push({
         salary_component_id: null,
         amount: 0,
-        effective_from: new Date(),
+        effective_from: entityCalendarDate(),
         effective_to: null
     });
 };

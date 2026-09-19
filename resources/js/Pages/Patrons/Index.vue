@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { computed, ref } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
@@ -343,7 +344,7 @@ const exportPatrons = () => {
         (patron.displayed ?? true) ? 'true' : 'false',
     ]);
 
-    downloadCsv(`patrons-${new Date().toISOString().slice(0, 10)}.csv`, [importTemplateColumns, ...rows]);
+    downloadCsv(`patrons-${entityToday()}.csv`, [importTemplateColumns, ...rows]);
     toast.add({ severity: 'success', summary: 'Export ready', detail: 'Patron CSV downloaded.', life: 1500 });
 };
 

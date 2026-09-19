@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
 import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
@@ -98,7 +99,7 @@ const isRateTaxLocked = computed(() => {
     return isLocked.value || !!form.customer_po_id;
 });
 
-const defaultStart = new Date();
+const defaultStart = entityCalendarDate();
 
 const form = useForm({
     prefix: props.salesOrder?.prefix ?? 'SO',
@@ -117,8 +118,8 @@ const form = useForm({
     status: Number(props.salesOrder?.status ?? 1),
     concrete_pump: props.salesOrder?.concrete_pump ?? null,
     pump_rate: Number(props.salesOrder?.pump_rate ?? 0),
-    scheduled_start: props.salesOrder?.scheduled_start ? new Date(props.salesOrder.scheduled_start) : defaultStart,
-    scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : null,
+    scheduled_start: props.salesOrder?.scheduled_start ? entityCalendarDate(props.salesOrder.scheduled_start) : defaultStart,
+    scheduled_end: props.salesOrder?.scheduled_end ? entityCalendarDate(props.salesOrder.scheduled_end) : null,
 });
 
 const safeSites = computed(() => {
@@ -232,8 +233,8 @@ onMounted(async () => {
             form.status = Number(fullData.status ?? 1);
             form.concrete_pump = fullData.concrete_pump ?? null;
             form.pump_rate = Number(fullData.pump_rate ?? 0);
-            form.scheduled_start = fullData.scheduled_start ? new Date(fullData.scheduled_start) : defaultStart;
-            form.scheduled_end = fullData.scheduled_end ? new Date(fullData.scheduled_end) : null;
+            form.scheduled_start = fullData.scheduled_start ? entityCalendarDate(fullData.scheduled_start) : defaultStart;
+            form.scheduled_end = fullData.scheduled_end ? entityCalendarDate(fullData.scheduled_end) : null;
 
             form.defaults(form.data());
         }

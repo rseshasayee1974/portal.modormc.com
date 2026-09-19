@@ -16,6 +16,15 @@ class Dispatch extends Model
 
     protected static function booted()
     {
+        static::saving(function (self $dispatch) {
+            if ($dispatch->batch_id) {
+                $status = $dispatch->batch()->value('status');
+                if ($status !== null) {
+                    $dispatch->applyBatchLoadTime((int) $status);
+                }
+            }
+        });
+
         static::saved(function (self $dispatch) {
             $dispatch->syncWithBatchingSchedule();
             if ($dispatch->sales_order_id) {
@@ -31,6 +40,17 @@ class Dispatch extends Model
     }
 
     protected $table = 'mm_dispatches';
+
+    /** Loading is not finished until the batch is completed or dispatched. */
+    public function applyBatchLoadTime(int $batchStatus): void
+    {
+        if (in_array($batchStatus, [Batch::STATUS_PLANNED, Batch::STATUS_LOADING], true)) {
+            $this->load_time = null;
+        } elseif (in_array($batchStatus, [Batch::STATUS_COMPLETED, Batch::STATUS_DISPATCHED], true)) {
+            // Preserve captured load times and do not reset them on subsequent edits.
+            $this->load_time = $this->load_time ?? $this->getOriginal('load_time') ?? now();
+        }
+    }
 
     protected $guarded = [];
 

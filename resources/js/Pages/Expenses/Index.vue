@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
@@ -72,7 +73,7 @@ const formatCurrency = (val: number) => {
                             
                             <Column field="date" header="Date" sortable>
                                 <template #body="slotProps">
-                                    <span class="text-xs font-bold text-slate-600">{{ new Date(slotProps.data.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
+                                    <span class="text-xs font-bold text-slate-600">{{ entityLocaleDate(slotProps.data.date, 'en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
                                 </template>
                             </Column>
 

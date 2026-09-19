@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -41,7 +42,7 @@ const form = useForm({
     site_id: null as number | null,
     sales_executive_id: null as number | null,
     is_tax_inclusive: false,
-    order_date: new Date().toISOString().split('T')[0],
+    order_date: entityToday(),
     notes: '',
     items: [
         { mix_design_id: null as number | null, quantity: null as number | null, rate: null as number | null, tax_id: null as number | null, tax_amount: 0, concrete_pump: null as number | null, pump_rate: 0, pump_rates: [] }
@@ -320,7 +321,7 @@ const submit = () => {
             });
             form.reset();
             form.clearErrors();
-            form.order_date = new Date().toISOString().split('T')[0];
+            form.order_date = entityToday();
         },
     });
 };

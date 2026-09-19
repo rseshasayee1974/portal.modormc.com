@@ -21,11 +21,39 @@ class DateTimeHelper
             // For now, direct find is fine as it's often already loaded in the request.
             $entity = Entity::find($id);
             if ($entity && !empty($entity->time_zone)) {
-                return $entity->time_zone;
+                return self::validTimezone($entity->time_zone);
             }
         }
 
         return 'Asia/Kolkata';
+    }
+
+    public static function validTimezone(?string $timezone): string
+    {
+        return in_array($timezone, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true)
+            ? $timezone : 'Asia/Kolkata';
+    }
+
+    public static function timezoneForPlant(?int $plantId): string
+    {
+        $entityId = $plantId ? \App\Models\Plant::whereKey($plantId)->value('entity_id') : null;
+        return $entityId ? self::getEntityTimezone((int) $entityId) : 'Asia/Kolkata';
+    }
+
+    /** Always restore process state, including on errors and between queue jobs. */
+    public static function inTimezone(string $timezone, callable $callback): mixed
+    {
+        $previous = date_default_timezone_get();
+        $previousConfig = config('app.timezone');
+        $timezone = self::validTimezone($timezone);
+        date_default_timezone_set($timezone);
+        config(['app.timezone' => $timezone]);
+        try {
+            return $callback();
+        } finally {
+            date_default_timezone_set($previous);
+            config(['app.timezone' => $previousConfig]);
+        }
     }
 
     /**

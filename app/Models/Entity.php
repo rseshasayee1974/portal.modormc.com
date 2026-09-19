@@ -49,6 +49,13 @@ class Entity extends Model
 	use SoftDeletes;
 	protected $table = 'mm_entities';
 
+    protected $attributes = ['time_zone' => 'Asia/Kolkata'];
+
+    public function setTimeZoneAttribute(?string $value): void
+    {
+        $this->attributes['time_zone'] = trim($value ?? '') ?: 'Asia/Kolkata';
+    }
+
 	protected $casts = [
 		'entity_type' => 'int',
 		'parent_id' => 'int',

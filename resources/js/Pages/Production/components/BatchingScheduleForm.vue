@@ -1,4 +1,5 @@
 <script setup>
+import { entityToday, entityDateTime } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -38,7 +39,7 @@ const props = defineProps({
     },
     defaultScheduleDate: {
         type: String,
-        default: () => new Date().toISOString().substring(0, 10),
+        default: () => entityToday(),
     },
 });
 
@@ -114,7 +115,7 @@ const normalizePumpType = (raw) => {
 };
 
 const onStatusChange = () => {
-    const nowStr = new Date().toISOString().substring(0, 16);
+    const nowStr = entityDateTime().replace(' ', 'T').substring(0, 16);
     if (form.value.status === 'batching' && !form.value.batching_time) {
         form.value.batching_time = nowStr;
     } else if (form.value.status === 'in_transit') {
@@ -211,7 +212,7 @@ const initForm = () => {
         };
     } else {
         form.value = {
-            schedule_date: props.defaultScheduleDate || new Date().toISOString().substring(0, 10),
+            schedule_date: props.defaultScheduleDate || entityToday(),
             pour_reference: '',
             site_id: props.dropdowns.sites?.[0]?.id ? Number(props.dropdowns.sites[0].id) : null,
             mix_design_id: props.dropdowns.mixDesigns?.[0]?.id ? Number(props.dropdowns.mixDesigns[0].id) : null,

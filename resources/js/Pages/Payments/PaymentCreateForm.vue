@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
 import axios from 'axios';
@@ -21,9 +22,7 @@ const props = defineProps<{
 }>();
 
 const createForm = useForm({
- transaction_date : new Date().toLocaleDateString('en-CA', {
-    timeZone: 'Asia/Kolkata'
-}),   ledger_id: null as number | null,
+ transaction_date : entityToday(),   ledger_id: null as number | null,
     patron_id: null as number | null,
     partner_type: 'Customer', // Default to Customer
     amount: 0,
@@ -424,7 +423,7 @@ const handleCreate = () => {
                                     </span>
                                 </td>
                                 <td class="px-4 py-2 text-slate-500 dark:text-slate-400">
-                                    {{ new Date(inv.invoice_date).toLocaleDateString('en-CA', {timeZone: 'Asia/Kolkata' }) }}
+                                    {{ entityLocaleDate(inv.invoice_date, 'en-CA') }}
                                 </td>
                                 <td class="px-4 py-2 text-right text-slate-500 dark:text-slate-400 font-mono text-xs">
                                     {{ Number(inv.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}

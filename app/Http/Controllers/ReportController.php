@@ -414,7 +414,7 @@ class ReportController extends Controller
             ], 404);
         }
 
-        return response()->json($status);
+        return response()->json($status)->header('Cache-Control', 'private, no-store');
     }
 
     /**

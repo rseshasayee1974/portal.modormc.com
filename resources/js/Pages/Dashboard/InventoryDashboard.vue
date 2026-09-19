@@ -1,4 +1,5 @@
 <script setup>
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed, defineAsyncComponent } from 'vue';
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
@@ -66,7 +67,7 @@ const formatRelativeTime = (isoString) => {
     if (diffMins < 60) return `${diffMins}m ago`;
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours}h ago`;
-    return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    return entityLocaleDate(date, 'en-IN', { day: '2-digit', month: 'short' });
 };
 
 // State for filtering & search

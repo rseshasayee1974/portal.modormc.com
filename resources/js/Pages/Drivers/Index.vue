@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -278,7 +279,7 @@ watch(() => page.props.flash, (flash: any) => {
                             <Column header="License Expiry" sortable field="license_expiry_date">
                                 <template #body="slotProps">
                                     <span class="text-xs font-mono text-slate-500">
-                                        {{ slotProps.data.license_expiry_date ? new Date(slotProps.data.license_expiry_date).toLocaleDateString() : 'N/A' }}
+                                        {{ slotProps.data.license_expiry_date ? entityLocaleDate(slotProps.data.license_expiry_date, ) : 'N/A' }}
                                     </span>
                                 </template>
                             </Column>

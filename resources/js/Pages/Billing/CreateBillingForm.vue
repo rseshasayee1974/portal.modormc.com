@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityDaysAgo, entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
@@ -58,7 +59,7 @@ const form = useForm({
     ref_id: null,
     ref_title: '',
     truck_id: null,
-    invoice_date: new Date().toISOString().split('T')[0],
+    invoice_date: entityToday(),
     due_date: null,
     period: '',
     global_discount_type: '₹',
@@ -72,8 +73,8 @@ const form = useForm({
     amount_total: 0,
     items: [] as any[],
     purchase_order_ids: [] as number[],
-    startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: entityDaysAgo(30),
+    endDate: entityToday()
 });
 
 const billingMode = ref('manual'); // 'manual' or 'po'
@@ -714,7 +715,7 @@ const taxOptions = computed(() => props.taxes);
                                     <div class="flex justify-between items-start">
                                         <div>
                                             <p class="text-[10px] font-black text-slate-800 uppercase">{{ po.po_number }}</p>
-                                            <p class="text-[9px] font-bold text-slate-400">{{ new Date(po.date_order).toLocaleDateString() }}</p>
+                                            <p class="text-[9px] font-bold text-slate-400">{{ entityLocaleDate(po.date_order, ) }}</p>
                                         </div>
                                         <div 
                                             :class="selectedPOs.includes(po.id) ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-200'"

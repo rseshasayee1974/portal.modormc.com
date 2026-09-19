@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate, calendarDateString } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -99,8 +100,8 @@ const journalForm = useForm({
     voucher_id: (defaultVoucher?.id ?? null) as number | null,
     voucher_name: (defaultVoucher?.journal_name ?? '') as string,
     voucher_number: (props.initialVoucherNumber || '') as string,
-    voucher_date: new Date(),
-    posting_date: new Date(),
+    voucher_date: entityCalendarDate(),
+    posting_date: entityCalendarDate(),
     narration: '',
     lines: [
         { account_id: null, debit_amount: 0, credit_amount: 0, partner_id: null, line_narration: '' },
@@ -112,7 +113,7 @@ const refreshVoucherNumber = async () => {
     if (editingEntryId.value) return;
     try {
         const vType = journalForm.voucher_type || 'JV';
-        const vDate = journalForm.voucher_date instanceof Date ? journalForm.voucher_date.toISOString().slice(0, 10) : (journalForm.voucher_date || '');
+        const vDate = journalForm.voucher_date instanceof Date ? calendarDateString(journalForm.voucher_date) : (journalForm.voucher_date || '');
         const res = await axios.get(route('journalentries.voucher-number'), {
             params: {
                 voucher_type: vType,
@@ -134,8 +135,8 @@ const resetForm = () => {
     journalForm.voucher_type = defaultVType;
     journalForm.voucher_id = defaultVoucher?.id ?? null;
     journalForm.voucher_name = defaultVoucher?.journal_name ?? '';
-    journalForm.voucher_date = new Date();
-    journalForm.posting_date = new Date();
+    journalForm.voucher_date = entityCalendarDate();
+    journalForm.posting_date = entityCalendarDate();
     journalForm.narration = '';
     journalForm.lines = [
         { account_id: null, debit_amount: 0, credit_amount: 0, partner_id: null, line_narration: '' },
@@ -280,7 +281,7 @@ const kpiStats = computed(() => {
     const totalDebitSum = list.reduce((acc, e) => acc + (Number(e.total_debit) || 0), 0);
     const totalCreditSum = list.reduce((acc, e) => acc + (Number(e.total_credit) || 0), 0);
 
-    const now = new Date();
+    const now = entityCalendarDate();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
     const thisMonthCount = list.filter(e => {
@@ -416,8 +417,8 @@ const submitForm = async () => {
             ...journalForm.data(),
             voucher_id: selectedVoucher ? selectedVoucher.id : journalForm.voucher_id,
             voucher_name: selectedVoucher ? selectedVoucher.journal_name : journalForm.voucher_name,
-            voucher_date: journalForm.voucher_date instanceof Date ? journalForm.voucher_date.toISOString().slice(0, 10) : journalForm.voucher_date,
-            posting_date: journalForm.posting_date instanceof Date ? journalForm.posting_date.toISOString().slice(0, 10) : journalForm.posting_date,
+            voucher_date: journalForm.voucher_date instanceof Date ? calendarDateString(journalForm.voucher_date) : journalForm.voucher_date,
+            posting_date: journalForm.posting_date instanceof Date ? calendarDateString(journalForm.posting_date) : journalForm.posting_date,
             lines: (journalForm.lines || []).map(l => ({
                 account_id: l.account_id || null,
                 partner_id: l.partner_id || null,

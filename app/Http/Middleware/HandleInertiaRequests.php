@@ -279,6 +279,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            'entity_timezone' => \Inertia\Inertia::always(fn () => $request->attributes->get('entity_timezone', 'Asia/Kolkata')),
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,

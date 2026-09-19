@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday, entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { 
@@ -50,8 +51,8 @@ const showBillingPanel = ref(true);
 
 const billForm = ref({
     account_id: null,
-    invoice_date: new Date().toISOString().substring(0, 10),
-    due_date: props.form.due_date || new Date().toISOString().substring(0, 10)
+    invoice_date: entityToday(),
+    due_date: props.form.due_date || entityToday()
 });
 
 const toggle = () => {
@@ -450,7 +451,7 @@ const handleDeleteBill = () => {
                         <div class="flex items-center gap-2">
                             <i class="pi pi-calendar text-slate-400 text-xs"></i>
                             <span class="text-slate-700 font-bold text-sm">
-                                {{ new Date(props.purchaseOrder.bill.created_at).toLocaleString() }}
+                                {{ entityLocaleDateTime(props.purchaseOrder.bill.created_at, ) }}
                             </span>
                         </div>
                     </div>

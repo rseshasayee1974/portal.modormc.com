@@ -1,4 +1,5 @@
 <script setup>
+import { entityToday } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
@@ -54,7 +55,7 @@ const form = useForm({
     prefix: props.ref_no?.prefix,
     referencenumber: props.ref_no?.formatted || props.purchaseOrder?.ref_no,
     ref_no: props.ref_no?.ref_no || props.purchaseOrder?.ref_no,
-    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : new Date().toISOString().substring(0, 10),
+    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : entityToday(),
     date_planned: props.purchaseOrder?.date_planned ? props.purchaseOrder.date_planned.substring(0, 10) : null,
     due_date: props.purchaseOrder?.due_date ? props.purchaseOrder.due_date.substring(0, 10) : null,
     exchange_rate: props.purchaseOrder?.exchange_rate || 1.0,

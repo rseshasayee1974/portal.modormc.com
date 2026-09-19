@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { computed, watch, type PropType } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -24,8 +25,7 @@ const props = defineProps({
 const emit = defineEmits<{ saved: []; cancel: [] }>();
 
 const today = () => {
-    const date = new Date();
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return entityToday();
 };
 
 const values = () => ({

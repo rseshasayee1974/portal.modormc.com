@@ -31,7 +31,7 @@ class UpdateEntityRequest extends FormRequest
             'api_key' => 'nullable|string|max:255',
             'logo_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'description' => 'nullable|string',
-            'time_zone' => 'nullable|string|max:100',
+            'time_zone' => 'nullable|timezone:all',
             'is_active' => 'boolean',
             'is_suspended' => 'boolean',
             

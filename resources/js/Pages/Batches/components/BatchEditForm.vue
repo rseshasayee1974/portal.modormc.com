@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -100,10 +101,10 @@ const form = useForm({
     net_weight: Number(props.batch?.dispatches?.[0]?.net_weight ?? props.batch?.net_weight ?? 0),
     uom_id: props.batch?.uom_id ? Number(props.batch.uom_id) : (props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null),
     status: Number(props.batch?.status ?? 1),
-    start_time: props.batch?.start_time ? new Date(props.batch.start_time) : new Date(),
-    end_time: props.batch?.end_time ? new Date(props.batch.end_time) : new Date(),
-    empty_time: props.batch?.dispatches?.[0]?.empty_time ? new Date(props.batch.dispatches[0].empty_time) : new Date(),
-    load_time: props.batch?.dispatches?.[0]?.load_time ? new Date(props.batch.dispatches[0].load_time) : new Date(),
+    start_time: props.batch?.start_time ? entityCalendarDate(props.batch.start_time) : entityCalendarDate(),
+    end_time: props.batch?.end_time ? entityCalendarDate(props.batch.end_time) : entityCalendarDate(),
+    empty_time: props.batch?.dispatches?.[0]?.empty_time ? entityCalendarDate(props.batch.dispatches[0].empty_time) : entityCalendarDate(),
+    load_time: props.batch?.dispatches?.[0]?.load_time ? entityCalendarDate(props.batch.dispatches[0].load_time) : null,
     materials: (() => {
         let initialMaterials = props.batch?.materials || [];
         if (!initialMaterials.length) return [blankMaterial()];
@@ -378,13 +379,13 @@ const applyBatchToForm = (newBatch: any) => {
     form.empty_weight_truck = Number(emptyWt);
     form.loaded_weight_truck = Number(loadedWt);
     form.net_weight = Number(netWt);
-    form.empty_time = dispatch?.empty_time ? new Date(dispatch.empty_time) : new Date();
-    form.load_time = dispatch?.load_time ? new Date(dispatch.load_time) : new Date();
+    form.empty_time = dispatch?.empty_time ? entityCalendarDate(dispatch.empty_time) : entityCalendarDate();
+    form.load_time = dispatch?.load_time ? entityCalendarDate(dispatch.load_time) : null;
     
     form.uom_id = newBatch.uom_id ? Number(newBatch.uom_id) : (props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null);
     form.status = Number(newBatch.status ?? 1);
-    form.start_time = newBatch.start_time ? new Date(newBatch.start_time) : new Date();
-    form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();
+    form.start_time = newBatch.start_time ? entityCalendarDate(newBatch.start_time) : entityCalendarDate();
+    form.end_time = newBatch.end_time ? entityCalendarDate(newBatch.end_time) : entityCalendarDate();
     
     let initialMaterials = newBatch?.materials || [];
     if (!initialMaterials || !initialMaterials.length) {
@@ -465,10 +466,10 @@ const handleWeightCapture = (type: 'empty' | 'loaded') => {
     captureWeight(async (w) => {
         if (type === 'empty') {
             form.empty_weight_truck = w;
-            form.empty_time = new Date();
+            form.empty_time = entityCalendarDate();
         } else {
             form.loaded_weight_truck = w;
-            form.load_time = new Date();
+            form.load_time = entityCalendarDate();
         }
         
         if (customSettings?.batching?.camera == 1 && (customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_1 || customSettings?.batching?.camera_url_2)) {
@@ -568,7 +569,7 @@ const parseTimeString = (timeStr: any): Date | null => {
     if (!s) return null;
     if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) {
         const parts = s.split(':').map(Number);
-        const d = new Date();
+        const d = entityCalendarDate();
         d.setHours(parts[0], parts[1], parts[2] || 0, 0);
         return d;
     }
@@ -879,10 +880,6 @@ const submit = (onSuccessCallback?: () => void) => {
         }
         if (!form.empty_time) {
             form.setError('empty_time', 'Empty Time is required');
-            hasErrors = true;
-        }
-        if (!form.load_time) {
-            form.setError('load_time', 'Load Time is required');
             hasErrors = true;
         }
     if (canEditBatchNo.value) {
@@ -1610,4 +1607,3 @@ console.log('test');
     transform: scale(0.97);
 }
 </style>
-

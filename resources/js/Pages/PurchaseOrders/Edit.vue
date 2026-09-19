@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import PurchaseOrderEditForm from './components/PurchaseOrderEditForm.vue';
@@ -33,7 +34,7 @@ const form = useForm({
     vehicle_id: props.purchaseOrder?.vehicle_id || null,
     po_number: props.purchaseOrder?.po_number || null,
     referencenumber: props.purchaseOrder?.ref_no || null, // In edit we use the existing ref_no
-    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : new Date().toISOString().substring(0, 10),
+    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : entityToday(),
     date_planned: props.purchaseOrder?.date_planned ? props.purchaseOrder.date_planned.substring(0, 10) : null,
     due_date: props.purchaseOrder?.due_date ? props.purchaseOrder.due_date.substring(0, 10) : null,
     exchange_rate: props.purchaseOrder?.exchange_rate || 0.0,
@@ -56,7 +57,7 @@ const form = useForm({
         price_tax: Number(i.price_tax) || 0,
         price_total: Number(i.price_total) || 0,
         received_now: 0,
-        received_date: new Date().toISOString().substring(0, 10),
+        received_date: entityToday(),
         inward_no: ''
     })) : []
 });
@@ -77,7 +78,7 @@ function createNewItem() {
         price_tax: 0,
         price_total: 0,
         received_now: 0,
-        received_date: new Date().toISOString().substring(0, 10),
+        received_date: entityToday(),
         inward_no: ''
     };
 }

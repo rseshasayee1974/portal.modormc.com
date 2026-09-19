@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -63,7 +64,7 @@ const formatDate = (date: string | null) => {
     if (!date) return '--';
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) return '--';
-    return parsed.toLocaleDateString('en-IN');
+    return entityLocaleDate(date, 'en-IN');
 };
 
 const getStatusLabel = (status: number) => {

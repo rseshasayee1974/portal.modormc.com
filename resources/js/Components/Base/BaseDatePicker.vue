@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import BaseField from './BaseField.vue';
+import { entityToday, entityDateTime, entityCalendarDate } from '@/Utils/entityDateTime';
 
 defineOptions({ inheritAttrs: false });
 
@@ -55,7 +56,7 @@ onMounted(() => {
     if (form) {
         form.addEventListener('submit', () => {
             if (props.modelValue === null || props.modelValue === undefined || props.modelValue === '') {
-                emit('update:modelValue', props.showTime ? new Date() : formatDate(new Date())); // fallback to current date on submit if empty
+                emit('update:modelValue', props.showTime ? entityDateTime() : entityToday());
             }
         }, { capture: true });
     }
@@ -96,7 +97,7 @@ const internalValue = computed({
                     return new Date(Number(y), Number(m) - 1, Number(d), Number(h), Number(min), Number(s || 0));
                 }
                 const parsed = new Date(val);
-                return isNaN(parsed.getTime()) ? null : parsed;
+                return isNaN(parsed.getTime()) ? null : entityCalendarDate(parsed);
             }
             if (Array.isArray(val)) return val.map(parseValue);
             return val;

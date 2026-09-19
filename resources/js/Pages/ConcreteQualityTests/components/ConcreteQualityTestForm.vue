@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { ref, computed, watch, onMounted } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import Dialog from 'primevue/dialog';
@@ -25,7 +26,7 @@ const defaultSpecimens = [
     { id: null, ident_mark: 'EB', weight_kg: '', load_kn: '', compressive_strength: '' },
 ];
 
-const today = new Date().toISOString().substring(0, 10);
+const today = entityToday();
 
 const form = useForm({
     id: props.initialData?.id ?? null,

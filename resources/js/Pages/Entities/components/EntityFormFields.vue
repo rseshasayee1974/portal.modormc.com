@@ -99,6 +99,11 @@ watch(() => props.form.errors, (errors) => {
                     </div>
 
                     <!-- Alias -->
+                    <div class="col-span-12 md:col-span-3">
+                        <BaseInput v-model="form.time_zone" label="Timezone" :disabled="readonly" placeholder="Asia/Kolkata" fluid />
+                        <small class="text-gray-500">Business dates and times use this timezone (e.g. America/New_York). Blank uses Asia/Kolkata.</small>
+                        <small v-if="form.errors?.time_zone" class="text-red-500">{{ form.errors.time_zone }}</small>
+                    </div>
                     <div class="col-span-12 md:col-span-3 flex flex-col gap-1">
                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Alias / Short Name</label>
                         <BaseInput v-model="form.alias" fluid :disabled="readonly" placeholder="e.g. ACME Corp" />

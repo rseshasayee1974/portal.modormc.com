@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 usePage;
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -183,7 +184,7 @@ const formatLastSeen = (timestamp: string | null) => {
     const diffHrs = Math.floor(diffMins / 60);
     if (diffHrs < 24) return `${diffHrs}h ago`;
 
-    return date.toLocaleDateString();
+    return entityLocaleDate(date, );
 };
 
 watch(() => page.props.flash, (flash: any) => {

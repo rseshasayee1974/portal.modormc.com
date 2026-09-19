@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm,usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -68,10 +69,10 @@ const form = useForm({
     uom_id: null as number | null,
     site_id: null as number | null,
     status: 1,
-    start_time: new Date() as Date | null,
+    start_time: entityCalendarDate() as Date | null,
     end_time: null as Date | null,
-    empty_time: new Date() as Date | null,
-    load_time: new Date() as Date | null,
+    empty_time: entityCalendarDate() as Date | null,
+    load_time: null as Date | null,
     is_tax_inclusive: 0,
     empty_weight_photo: null as string | null,
 });
@@ -88,7 +89,7 @@ const startLiveTimer = () => {
     liveTimerInterval = setInterval(() => {
         if (!isTimeManuallySet.value) {
             updatingProgrammatically.value = true;
-            form.empty_time = new Date();
+            form.empty_time = entityCalendarDate();
             updatingProgrammatically.value = false;
         }
     }, 1000);
@@ -385,7 +386,7 @@ const { isScaleConnected, captureWeight, captureCameraSnap } = useWeighbridge();
 const handleWeightCapture = () => {
     captureWeight(async (w) => {
         form.empty_weight_truck = w;
-        form.empty_time = new Date();
+        form.empty_time = entityCalendarDate();
         
         if (customSettings?.batching?.camera == 1 && (customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_1)) {
             const cameraUrl = customSettings.batching.camera_url_1 || customSettings.batching.camera_url;
@@ -492,10 +493,10 @@ const submit = () => {
         form.empty_weight_truck = 0;
         form.empty_weight_photo = null;
         form.status = 1;
-        form.start_time = new Date();
+        form.start_time = entityCalendarDate();
         form.end_time = null;
-        form.empty_time = new Date();
-        form.load_time = new Date();
+        form.empty_time = entityCalendarDate();
+        form.load_time = null;
         isTimeManuallySet.value = false;
         if (!liveTimerInterval) {
             startLiveTimer();
@@ -521,7 +522,7 @@ const submit = () => {
             uom_id: form.uom_id,
             site_id: form.site_id,
             status: 1,
-            start_time: formatDateTime(form.start_time) || formatDateTime(new Date()),
+            start_time: formatDateTime(form.start_time) || formatDateTime(entityCalendarDate()),
             end_time: formatDateTime(form.end_time),
             empty_time: formatDateTime(form.empty_time),
             load_time: formatDateTime(form.load_time),
@@ -877,7 +878,6 @@ const submit = () => {
         </Dialog>
     </div>
 </template>
-
 
 
 

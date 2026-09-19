@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate, entityLocaleTime } from '@/Utils/entityDateTime';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
@@ -106,12 +107,12 @@ const isValidDate = (dateVal: any) => {
 
 const formatDate = (dateVal: any) => {
     if (!isValidDate(dateVal)) return '---';
-    return new Date(dateVal).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    return entityLocaleDate(dateVal, 'en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 };
 
 const formatTime = (dateVal: any) => {
     if (!isValidDate(dateVal)) return '';
-    return new Date(dateVal).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return entityLocaleTime(dateVal, 'en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
 console.log('jkghkjgk', props.modelValue);

@@ -1,3 +1,4 @@
+import { entityToday } from '@/Utils/entityDateTime';
 /**
  * Schwing ERP Integration - Production / Process Order API Service
  * 
@@ -109,7 +110,7 @@ export function formatSalesOrderForSchwing(params: {
 
     const formattedDate = so.order_date
         ? String(so.order_date).substring(0, 10)
-        : new Date().toISOString().substring(0, 10);
+        : entityToday();
 
     const materials: SchwingRecipeMaterialTarget[] = (mix?.materials || []).map(m => ({
         item: m.name,

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
 import { useForm, router, usePage } from '@inertiajs/vue3';
 
@@ -55,7 +56,7 @@ const poOptions = computed(() => {
 
 const form = useForm({
     order_id: props.purchase_order?.id || (null as number | null),
-    received_date: new Date().toISOString().substring(0, 10),
+    received_date: entityToday(),
     inward_no: '',
     items: [] as any[]
 });
@@ -133,7 +134,7 @@ watch(selectedPoId, (newId) => {
 
 const formatDate = (date: string) => {
     if (!date) return '--';
-    return new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    return entityLocaleDate(date, 'en-IN', { day: '2-digit', month: 'short' });
 };
 
 const submit = () => {

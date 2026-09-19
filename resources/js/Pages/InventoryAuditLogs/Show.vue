@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import { router, Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -42,7 +43,7 @@ const searchFieldQuery = ref('');
 // ── Formatting Helpers ────────────────────────────────────────────────────────
 function formatDate(value?: string | null): string {
     if (!value) return 'N/A';
-    return new Date(value).toLocaleString('en-IN', {
+    return entityLocaleDateTime(value, 'en-IN', {
         day: '2-digit', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
     });

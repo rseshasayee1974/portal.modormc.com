@@ -1,3 +1,4 @@
+import { entityToday } from '@/Utils/entityDateTime';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -27,7 +28,7 @@ export function useInvoiceActions(
         const ledgersOptionsHtml = props.sales_ledgers
             .map(l => `<option value="${l.value}">${l.label}</option>`)
             .join('');
-        const defaultDate = new Date().toISOString().substring(0, 10);
+        const defaultDate = entityToday();
 
         Swal.fire({
             title: 'Generate Invoice',
@@ -311,7 +312,7 @@ export function useInvoiceActions(
             ? ('DP-' + batchOrInvoice.dispatches[0].dispatch_no) 
             : (batchOrInvoice.full_number || batchOrInvoice.invoice_number || '');
 
-        const defaultDocDate = new Date().toISOString().split('T')[0];
+        const defaultDocDate = entityToday();
 
         Swal.fire({
             title: 'Generate E-Way Bill',

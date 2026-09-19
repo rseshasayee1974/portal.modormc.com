@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -46,7 +47,7 @@ const filteredInwards = computed(() => {
 
 const formatDate = (date: string) => {
     if (!date) return '--';
-    return new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    return entityLocaleDate(date, 'en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const previewVisible = ref(false);

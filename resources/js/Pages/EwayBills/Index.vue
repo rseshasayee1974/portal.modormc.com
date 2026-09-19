@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -52,8 +53,8 @@ const inboundCount = computed(() => ewaybillList.value.filter((e: any) => e.gene
 const syncDialogVisible = ref(false);
 const syncLoading = ref(false);
 const syncForm = ref({
-    from: new Date().toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0],
+    from: entityToday(),
+    to: entityToday(),
 });
 
 // Details Modal state

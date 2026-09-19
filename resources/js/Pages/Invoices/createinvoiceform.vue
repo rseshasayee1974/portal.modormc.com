@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityDaysAgo, entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
@@ -55,7 +56,7 @@ const form = useForm({
     ref_id: null,
     ref_title: '',
     truck_id: null,
-    invoice_date: new Date().toISOString().split('T')[0],
+    invoice_date: entityToday(),
     due_date: null,
     period: '',
     is_tax_inclusive: false,
@@ -73,8 +74,8 @@ const form = useForm({
 
 const billingMode = ref('manual'); // 'manual' or 'dispatch'
 const dispatchFilters = ref({
-    startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: entityDaysAgo(30),
+    endDate: entityToday()
 });
 const uninvoicedDispatches = ref<any[]>([]);
 const selectedDispatches = ref<number[]>([]);
@@ -748,7 +749,7 @@ const taxOptions = computed(() => props.taxes);
                                             <input type="checkbox" :value="d.id" v-model="selectedDispatches" class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
                                         </td>
                                         <td class="p-4 font-black text-emerald-700">{{ d.dispatch_no }}</td>
-                                        <td class="p-4 text-center text-slate-500">{{ (d.dispatch_time || d.dispatch_date || d.created_at) ? new Date(d.dispatch_time || d.dispatch_date || d.created_at).toLocaleDateString('en-GB') : '-' }}</td>
+                                        <td class="p-4 text-center text-slate-500">{{ (d.dispatch_time || d.dispatch_date || d.created_at) ? entityLocaleDate(d.dispatch_time || d.dispatch_date || d.created_at, 'en-GB') : '-' }}</td>
                                         <td class="p-4  text-slate-700">{{ d.mix_design?.design_name || 'RMC' }}</td>
                                         <td class="p-4 font-medium text-slate-500">{{ d.truck?.registration || '-' }}</td>
                                         <td class="p-4 text-right font-black text-slate-900 pr-4">{{ Number(d.delivered_qty || d.batch?.batch_size || 0).toFixed(3) }}</td>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday, entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import { 
@@ -211,7 +212,7 @@ const complianceForm = useForm({
     transporter_id: '',
     transporter_name: '',
     trans_doc_no: '',
-    trans_doc_date: new Date().toISOString().split('T')[0],
+    trans_doc_date: entityToday(),
     cancel_reason: '2',
     cancel_remarks: '',
 });
@@ -462,7 +463,7 @@ const setupDemoCompliance = () => {
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Created On</span>
                                 <span class="text-[11px] font-bold text-slate-700 uppercase tracking-tight mt-0.5">
-                                    {{ new Date(invoice.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                    {{ entityLocaleDateTime(invoice.created_at, 'en-IN', { dateStyle: 'medium', timeStyle: 'short' }) }}
                                 </span>
                             </div>
                         </div>
@@ -639,7 +640,7 @@ const setupDemoCompliance = () => {
                                 </div>
                                 <div class="flex flex-col gap-1 p-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg">
                                     <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Acknowledgement Date</span>
-                                    <span class="font-bold text-slate-700 dark:text-slate-200">{{ new Date(invoice.einvoice_ack_date).toLocaleString('en-IN') }}</span>
+                                    <span class="font-bold text-slate-700 dark:text-slate-200">{{ entityLocaleDateTime(invoice.einvoice_ack_date, 'en-IN') }}</span>
                                 </div>
                             </div>
                         </div>
@@ -673,11 +674,11 @@ const setupDemoCompliance = () => {
                             </div>
                             <div class="flex flex-col gap-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg">
                                 <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Generated Date</span>
-                                <span class="font-bold text-slate-700 dark:text-slate-200">{{ new Date(invoice.eway_bill_date).toLocaleString('en-IN') }}</span>
+                                <span class="font-bold text-slate-700 dark:text-slate-200">{{ entityLocaleDateTime(invoice.eway_bill_date, 'en-IN') }}</span>
                             </div>
                             <div class="flex flex-col gap-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg">
                                 <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Valid Until</span>
-                                <span class="font-bold text-slate-700 dark:text-slate-200">{{ new Date(invoice.eway_bill_valid_until).toLocaleString('en-IN') }}</span>
+                                <span class="font-bold text-slate-700 dark:text-slate-200">{{ entityLocaleDateTime(invoice.eway_bill_valid_until, 'en-IN') }}</span>
                             </div>
                         </div>
 

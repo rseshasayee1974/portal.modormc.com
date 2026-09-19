@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -261,7 +262,7 @@ const deletePayslip = (id: number) => {
 const formatDate = (val: string | null | undefined) => {
     if (!val) return '-';
     const d = new Date(val);
-    return isNaN(d.getTime()) ? val : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return isNaN(d.getTime()) ? val : entityLocaleDate(val, 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const getStatusSeverity = (status: string) => {

@@ -1,6 +1,7 @@
 /**
  * Utility functions for formatting dates, currency, and quantities across reports.
  */
+import { entityToday } from './entityDateTime';
 
 /**
  * Format any date object or string into clean YYYY-MM-DD format.
@@ -9,6 +10,7 @@
 export const formatDate = (val, fallback = '---') => {
     if (!val) return fallback;
     try {
+        if (typeof val === 'string') return entityToday(val) || String(val);
         const d = new Date(val);
         if (isNaN(d.getTime())) return String(val);
         const year = d.getFullYear();

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { computed, ref, watch } from 'vue';
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -66,7 +67,7 @@ const getDefaultValidityDate = (quoteDateStr: string) => {
     return date.toISOString().substring(0, 10);
 };
 
-const initialQuoteDate = new Date().toISOString().substring(0, 10);
+const initialQuoteDate = entityToday();
 
 const form = useForm({
     patron_id: null as number | null,

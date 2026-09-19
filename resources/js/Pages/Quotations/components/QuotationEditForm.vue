@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { computed, ref, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -90,7 +91,7 @@ const form = useForm({
     site_id: props.quotation.site_id ?? null,
     sales_executive_id: props.quotation.sales_executive_id ?? null,
     is_tax_inclusive: props.quotation.is_tax_inclusive ? true : false,
-    quote_date: props.quotation.quote_date ? String(props.quotation.quote_date).substring(0, 10) : new Date().toISOString().substring(0, 10),
+    quote_date: props.quotation.quote_date ? String(props.quotation.quote_date).substring(0, 10) : entityToday(),
     validity_date: props.quotation.validity_date ? String(props.quotation.validity_date).substring(0, 10) : null,
     notes: props.quotation.notes ?? '',
     status: Number(props.quotation.status ?? 0),

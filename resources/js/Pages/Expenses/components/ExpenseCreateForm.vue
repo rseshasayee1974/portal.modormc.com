@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { 
@@ -36,7 +37,7 @@ const form = useForm({
     expense_type_id: null,
     paid_through: null,
     amount: 0,
-    date: new Date().toISOString().split('T')[0],
+    date: entityToday(),
     vendor_id: null,
     customer_id: null,
     machine_id: null,

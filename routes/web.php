@@ -363,6 +363,10 @@ Route::middleware([
         Route::get('gps/playback-data', [\App\Http\Controllers\GpsTrackingController::class, 'playbackData'])->name('gps.playback-data');
     });
   Route::prefix('reports')->group(function () {
+      Route::get('bulk-documents', [\App\Http\Controllers\BulkDocumentReportController::class, 'index'])->name('reports.bulk-documents');
+      Route::get('bulk-documents/preview', [\App\Http\Controllers\BulkDocumentReportController::class, 'documents'])->name('reports.bulk-documents.preview');
+      Route::post('bulk-documents/export', [\App\Http\Controllers\BulkDocumentReportController::class, 'documents'])->name('reports.bulk-documents.export');
+      Route::post('bulk-documents/export-zip', [\App\Http\Controllers\BulkDocumentReportController::class, 'exportZip'])->name('reports.bulk-documents.export-zip');
       // Unified Reports
          Route::get('report', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
          Route::get('generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('reports.generate');

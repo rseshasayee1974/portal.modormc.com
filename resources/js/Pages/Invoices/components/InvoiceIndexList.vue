@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref } from 'vue';
 import axios from 'axios';
 import Popover from 'primevue/popover';
@@ -216,7 +217,7 @@ const shareEmail = () => {
 const formatDate = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-GB');
+    return isNaN(date.getTime()) ? dateString : entityLocaleDate(dateString, 'en-GB');
 };
 
 </script>
@@ -258,7 +259,7 @@ const formatDate = (dateString: string) => {
                                 :value="slotProps.data.invoice_type" 
                                 class="!text-[8px] !font-black !uppercase !tracking-widest !rounded !px-1.5"
                             />
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ new Date(slotProps.data.invoice_date).toLocaleDateString('en-GB') }}</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ entityLocaleDate(slotProps.data.invoice_date, 'en-GB') }}</span>
                             <span v-if="slotProps.data.period" class="text-[9px] font-bold text-slate-300 ml-1">({{ slotProps.data.period }})</span>
                         </div>
                     </div>

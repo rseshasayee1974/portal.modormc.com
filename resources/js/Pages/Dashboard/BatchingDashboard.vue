@@ -1,4 +1,5 @@
 <script setup>
+import { entityToday, entityDaysAgo, entityLocaleTime, entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
@@ -30,13 +31,11 @@ const loading = ref(true);
 const activeTab = ref('overview'); // overview, quotations, customer_pos, sales_orders, production_dispatches
 
 const getPastDateString = (daysAgo) => {
-    const d = new Date();
-    d.setDate(d.getDate() - daysAgo);
-    return d.toISOString().substring(0, 10);
+    return entityDaysAgo(daysAgo);
 };
 
 const startDate = ref(getPastDateString(30));
-const endDate = ref(new Date().toISOString().substring(0, 10));
+const endDate = ref(entityToday());
 
 const dashboardData = ref({
     kpis: {
@@ -133,7 +132,7 @@ const formatNumber = (val) => {
 const formatTime = (isoString) => {
     if (!isoString) return 'Pending';
     const date = new Date(isoString);
-    return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) + ' | ' + date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    return entityLocaleTime(isoString, 'en-IN', { hour: '2-digit', minute: '2-digit' }) + ' | ' + entityLocaleDate(isoString, 'en-IN', { day: '2-digit', month: 'short' });
 };
 
 // Filtered Ledger computation

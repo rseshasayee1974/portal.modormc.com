@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate, entityLocaleTime } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -284,8 +285,8 @@ const viewHistorySession = async (id: number) => {
 const formatHistoryDate = (ts: string) => {
     if (!ts) return '';
     const d = new Date(ts);
-    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-        + ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    return entityLocaleDate(ts, 'en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        + ' ' + entityLocaleTime(ts, 'en-IN', { hour: '2-digit', minute: '2-digit' });
 };
 
 

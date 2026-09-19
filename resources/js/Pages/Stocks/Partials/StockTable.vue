@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
@@ -80,7 +81,7 @@ const filteredStocks = computed(() => props.stocks);
                 <template #body="{ data }">
                     <div class="flex items-center gap-2">
                         <CalendarDaysIcon class="w-3.5 h-3.5 text-slate-400" />
-                        <span class="text-xs font-semibold text-slate-600">{{ new Date(data.date).toLocaleDateString() }}</span>
+                        <span class="text-xs font-semibold text-slate-600">{{ entityLocaleDate(data.date, ) }}</span>
                     </div>
                 </template>
             </Column>

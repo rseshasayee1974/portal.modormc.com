@@ -1,7 +1,8 @@
 <script setup>
+import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, router, Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import BaseButton from '@/Components/Base/BaseButton.vue';
@@ -40,6 +41,7 @@ import EsiPfChallanReport from './components/EsiPfChallanReport.vue';
 import VoucherReport from './components/VoucherReport.vue';
 import CustomerOutstandingReport from './components/CustomerOutstandingReport.vue';
 import OverallReport from './components/OverallReport.vue';
+import BulkDocumentReport from './components/BulkDocumentReport.vue';
 
 import { 
     ChartBarIcon,
@@ -55,7 +57,9 @@ import {
     InboxIcon,
     AdjustmentsHorizontalIcon,
     ChevronUpIcon,
-    ChevronDownIcon
+    ChevronDownIcon,
+    ArrowTopRightOnSquareIcon,
+    DocumentDuplicateIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -88,6 +92,7 @@ const modules = [
         name: 'Accounting & Finance',
         reports: [
             { id: 'overall', name: 'Overall Daily Report', description: 'Complete day book: production, dispatch, pump, invoices, billing, e-invoice, e-way bill, collections & taxes' },
+            { id: 'bulk_documents', name: 'Bulk Invoice / Bill Export', description: 'Filter invoices and bills and download one combined PDF, one document per page' },
             { id: 'ledger', name: 'General Ledger', description: 'Account balances, running ledgers and transaction history' },
             { id: 'customer_outstanding', name: 'Customer Outstanding Report', description: 'Customer receivables, billed vs received, outstanding balance and aging analysis' },
             { id: 'patron', name: 'Patron Statement', description: 'Partner transactions, invoice status and balances' },
@@ -523,6 +528,9 @@ onMounted(() => {
 });
 
 const generateReport = async () => {
+    if (reportType.value === 'bulk_documents') {
+        return;
+    }
     loading.value = true;
     try {
         let url = route('reports.generate');
@@ -968,6 +976,16 @@ const shareEmail = () => {
                         </div>
                     </div>
 
+                    <!-- Bulk Documents Report (General Ledger Report UI style) -->
+                    <BulkDocumentReport 
+                        v-if="reportType === 'bulk_documents'"
+                        :patrons="patrons"
+                        :ledgers="ledgers"
+                        :default-start-date="startDate"
+                        :default-end-date="endDate"
+                    />
+
+                    <template v-else>
                     <!-- SAP Fiori Smart Filter Bar (Collapsible) -->
                     <div class="bg-white rounded border border-slate-200 shadow-sm mb-6 transition-all duration-200">
                         <div class="px-5 py-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
@@ -1287,7 +1305,7 @@ const shareEmail = () => {
                                                 {{ sch.email_recipients }}
                                             </td>
                                             <td class="px-4 py-3 text-slate-400">
-                                                {{ sch.last_run_at ? new Date(sch.last_run_at).toLocaleString('en-IN') : 'Never' }}
+                                                {{ sch.last_run_at ? entityLocaleDateTime(sch.last_run_at, 'en-IN') : 'Never' }}
                                             </td>
                                             <td class="px-4 py-3 text-right">
                                                 <button @click="deleteSchedule(sch.id)" class="text-rose-600 hover:text-rose-800 font-bold hover:underline">
@@ -1345,6 +1363,7 @@ const shareEmail = () => {
                         <h3 class="text-xs font-bold text-slate-700 uppercase tracking-widest">Execute Query Statement</h3>
                         <p class="text-slate-400 max-w-xs mx-auto mt-2 text-[11px] leading-relaxed">Choose a report from the master list catalog pane, set smart filter query scopes, and click Execute to load database rows.</p>
                     </div>
+                    </template>
                 </div>
 
             </div>

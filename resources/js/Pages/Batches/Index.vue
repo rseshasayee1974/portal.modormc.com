@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate, entityLocaleTime } from '@/Utils/entityDateTime';
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -842,13 +843,13 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                             <template #body="slotProps">
                                 <div v-if="slotProps.data.start_time" class="flex flex-col">
                                     <span class="text-xs font-bold text-slate-700">
-                                        {{ new Date(slotProps.data.start_time).toLocaleDateString('en-IN', {
+                                        {{ entityLocaleDate(slotProps.data.start_time, 'en-IN', {
                                             day:
                                                 '2-digit', month: '2-digit', year: 'numeric'
                                         }).replace(/\//g, '-') }}
                                     </span>
                                     <span class="text-[10px] text-slate-400 font-medium uppercase">
-                                        {{ new Date(slotProps.data.start_time).toLocaleTimeString('en-IN', {
+                                        {{ entityLocaleTime(slotProps.data.start_time, 'en-IN', {
                                             hour:
                                                 '2-digit', minute: '2-digit'
                                         }) }}

@@ -789,8 +789,8 @@ const mobileMenuOpen = ref(false);
         </div>
 
         <!-- Floating Customer Support Chat Widget -->
-        <AIChatWidget :voiceEnabled="true" :entityId="activeEntity?.entity_id" :plantId="activePlant?.plant_id" />
-        <OSAIChatDrawer />
+        <!-- <AIChatWidget :voiceEnabled="true" :entityId="activeEntity?.entity_id" :plantId="activePlant?.plant_id" />
+        <OSAIChatDrawer /> -->
 
         <!-- Session Timeout Modal -->
         <div v-if="showTimeoutModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">

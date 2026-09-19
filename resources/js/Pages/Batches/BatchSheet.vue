@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate, entityLocaleTime, entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { computed, onMounted } from 'vue';
 import { Head, usePage } from '@inertiajs/vue3';
 
@@ -8,7 +9,7 @@ const props = defineProps<{
 
 const formatDate = (date: string | null) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-IN', {
+    return entityLocaleDate(date, 'en-IN', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
@@ -17,7 +18,7 @@ const formatDate = (date: string | null) => {
 
 const formatTime = (date: string | null) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleTimeString('en-IN', {
+    return entityLocaleTime(date, 'en-IN', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
@@ -27,7 +28,7 @@ const formatTime = (date: string | null) => {
 
 const formatDateTime = (date: string | null) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleString('en-IN', {
+    return entityLocaleDateTime(date, 'en-IN', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

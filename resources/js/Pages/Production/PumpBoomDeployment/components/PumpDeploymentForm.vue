@@ -1,4 +1,5 @@
 <script setup>
+import { entityToday } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -38,7 +39,7 @@ const props = defineProps({
     },
     defaultScheduleDate: {
         type: String,
-        default: () => new Date().toISOString().substring(0, 10),
+        default: () => entityToday(),
     },
 });
 
@@ -174,7 +175,7 @@ const initForm = () => {
         };
     } else {
         form.value = {
-            schedule_date: props.defaultScheduleDate || new Date().toISOString().substring(0, 10),
+            schedule_date: props.defaultScheduleDate || entityToday(),
             pour_reference: '',
             site_id: props.dropdowns.sites?.[0]?.id ? Number(props.dropdowns.sites[0].id) : null,
             site_name: props.dropdowns.sites?.[0]?.name || '',

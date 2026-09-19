@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { computed, reactive } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -63,7 +64,7 @@ const form = useForm({
     ledger_id: null as number | null,
     lines: Array.from({ length: 5 }, () => ({
         product_id: null,
-        issue_date: new Date(),
+        issue_date: entityToday(),
         quantity_issued: null,
         no_items_issued: 1,
         units: 'pcs',
@@ -143,7 +144,7 @@ const runFrontendValidation = (): boolean => {
 const addLine = () => {
     form.lines.push({
         product_id: null,
-        issue_date: new Date(),
+        issue_date: entityToday(),
         quantity_issued: null,
         no_items_issued: 1,
         units: 'pcs',
@@ -231,7 +232,7 @@ const submitForm = () => {
     }
 
     if (!form.name) {
-        form.name = 'Stock Exhaust - ' + new Date().toISOString().slice(0, 10);
+        form.name = 'Stock Exhaust - ' + entityToday();
     }
     form.transform((data) => ({
         ...data,

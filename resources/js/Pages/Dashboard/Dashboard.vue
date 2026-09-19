@@ -1,4 +1,5 @@
 <script setup>
+import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -562,7 +563,7 @@ function formatDateTime(value) {
     if (!value) return 'Just now';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString('en-IN', {
+    return entityLocaleDateTime(value, 'en-IN', {
         day: '2-digit',
         month: 'short',
         hour: '2-digit',

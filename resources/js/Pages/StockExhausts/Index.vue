@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate, entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -193,7 +194,7 @@ watch(() => page.props.flash, (flash: any) => {
                     <Column header="Billed Date">
                         <template #body="slotProps">
                             <span class="text-xs font-mono text-slate-500">
-                                {{ slotProps.data.billed_date ? new Date(slotProps.data.billed_date).toLocaleDateString() : '—' }}
+                                {{ slotProps.data.billed_date ? entityLocaleDate(slotProps.data.billed_date, ) : '—' }}
                             </span>
                         </template>
                     </Column>
@@ -211,7 +212,7 @@ watch(() => page.props.flash, (flash: any) => {
                     <Column header="Issued Date">
                         <template #body="slotProps">
                             <span class="text-xs font-mono text-slate-500">
-                                {{ new Date(slotProps.data.issued_date).toLocaleDateString() }}
+                                {{ entityLocaleDate(slotProps.data.issued_date, ) }}
                             </span>
                         </template>
                     </Column>
@@ -271,7 +272,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 </Column>
                                 <Column header="Issue Date">
                                     <template #body="subProps">
-                                        {{ new Date(subProps.data.issue_date).toLocaleString() }}
+                                        {{ entityLocaleDateTime(subProps.data.issue_date, ) }}
                                     </template>
                                 </Column>
                                 <Column field="notes" header="Notes" />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDate, entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { ref, computed, reactive, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -56,12 +57,12 @@ const userOptions = computed(() => props.users.map(u => ({ label: u.name, value:
 
 const makeBlankItem = (): PcItem => ({
     expense_id: null, amount: 0, debit: 0, credit: 0,
-    date: new Date(),
+    date: entityCalendarDate(),
     description: '', remarks: ''
 });
 
 const createForm = useForm({
-    date:            new Date(),
+    date:            entityCalendarDate(),
     opening_balance: 0 as number,
     paid_by:         null as number | null,
     paid_to:         null as number | null,
@@ -71,7 +72,7 @@ const createForm = useForm({
 
 const editForm = useForm({
     id:              null as number | null,
-    date:            new Date(),
+    date:            entityCalendarDate(),
     opening_balance: 0 as number,
     paid_by:         null as number | null,
     paid_to:         null as number | null,
@@ -88,10 +89,10 @@ const removeItem = (form: any, idx: number) => form.items.splice(idx, 1);
 const submitCreate = () => {
     const data = {
         ...createForm.data(),
-        date: createForm.date.toISOString().slice(0, 19).replace('T', ' '),
+        date: calendarDateTimeString(createForm.date),
         items: createForm.items.map(i => ({
             ...i,
-            date: i.date.toISOString().slice(0, 19).replace('T', ' ')
+            date: calendarDateTimeString(i.date)
         }))
     };
 
@@ -102,7 +103,7 @@ const submitCreate = () => {
 
 const startEdit = (row: any) => {
     editForm.id              = row.id;
-    editForm.date            = new Date(row.date);
+    editForm.date            = entityCalendarDate(row.date);
     editForm.opening_balance = parseFloat(row.opening_balance);
     editForm.paid_by         = row.paid_by;
     editForm.paid_to         = row.paid_to;
@@ -110,7 +111,7 @@ const startEdit = (row: any) => {
     editForm.items           = row.items.map((i: any) => ({
         id: i.id, expense_id: i.expense_id, amount: parseFloat(i.amount),
         debit: parseFloat(i.debit), credit: parseFloat(i.credit),
-        date: new Date(i.date), description: i.description || '', remarks: i.remarks || ''
+        date: entityCalendarDate(i.date), description: i.description || '', remarks: i.remarks || ''
     }));
 };
 
@@ -123,10 +124,10 @@ const submitEdit = () => {
     if (!editForm.id) return;
     const data = {
         ...editForm.data(),
-        date: editForm.date.toISOString().slice(0, 19).replace('T', ' '),
+        date: calendarDateTimeString(editForm.date),
         items: editForm.items.map(i => ({
             ...i,
-            date: i.date.toISOString().slice(0, 19).replace('T', ' ')
+            date: calendarDateTimeString(i.date)
         }))
     };
 
@@ -336,7 +337,7 @@ watch(() => page.props.flash, (flash: any) => {
                     <Column header="Date">
                         <template #body="slotProps">
                             <span class="text-sm font-medium text-gray-700 dark:text-slate-300">
-                                {{ new Date(slotProps.data.date).toLocaleDateString('en-IN') }}
+                                {{ entityLocaleDate(slotProps.data.date, 'en-IN') }}
                             </span>
                         </template>
                     </Column>

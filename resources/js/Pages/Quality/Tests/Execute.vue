@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
@@ -646,7 +647,7 @@ const getParameterAverage = (paramId: number, isCalculated: boolean, formula: st
 
 // Form state
 const form = useForm({
-    test_date: props.test.test_date ? props.test.test_date.substring(0, 10) : new Date().toISOString().substring(0, 10),
+    test_date: props.test.test_date ? props.test.test_date.substring(0, 10) : entityToday(),
     remarks: props.test.remarks || '',
     measurements: [] as any[],
 });

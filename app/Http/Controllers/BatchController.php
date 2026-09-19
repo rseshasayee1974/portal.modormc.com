@@ -483,7 +483,7 @@ class BatchController extends Controller
                     'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? 0,
                     'net_weight'          => $payload['net_weight'] ?? 0,
                     'empty_time'          => $payload['empty_time'] ?? null,
-                    'load_time'           => $payload['load_time'] ?? null,
+                    'load_time'           => null,
                     'dispatch_status'     => 'Draft',
                     'prefix'              => $prefix,
                     'dispatch_no'         => (string)(($maxNumber ?: 0) + 1),

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDateTime, entityLocaleDate, entityLocaleTime } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
 import { router, Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -194,14 +195,14 @@ const handlePageChange = (event: any) => {
 function formatDateCompact(value: string): { date: string; time: string } {
     if (!value) return { date: 'N/A', time: '' };
     const d = new Date(value);
-    const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const dateStr = entityLocaleDate(value, 'en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = entityLocaleTime(value, 'en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
     return { date: dateStr, time: timeStr };
 }
 
 function formatDate(value: string): string {
     if (!value) return 'N/A';
-    return new Date(value).toLocaleString('en-IN', {
+    return entityLocaleDateTime(value, 'en-IN', {
         day: '2-digit', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
     });

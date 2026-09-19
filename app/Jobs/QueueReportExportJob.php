@@ -37,6 +37,7 @@ class QueueReportExportJob implements ShouldQueue
     {
         $this->type = $type;
         $this->filters = $filters;
+        $this->filters['plant_id'] ??= session('active_plant_id');
         $this->statusCacheKey = $statusCacheKey;
         $this->format = $format;
     }
@@ -44,6 +45,11 @@ class QueueReportExportJob implements ShouldQueue
     /**
      * Execute the job.
      */
+    public function middleware(): array
+    {
+        return [new \App\Jobs\Middleware\UseEntityTimezone(isset($this->filters['plant_id']) ? (int) $this->filters['plant_id'] : null)];
+    }
+
     public function handle(ReportRepository $repository): void
     {
         try {
@@ -302,4 +308,3 @@ class QueueReportExportJob implements ShouldQueue
         return '';
     }
 }
-

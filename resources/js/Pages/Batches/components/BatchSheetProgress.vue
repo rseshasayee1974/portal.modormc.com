@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleTime } from '@/Utils/entityDateTime';
 import { computed } from 'vue';
 
 const props = defineProps<{
@@ -31,7 +32,7 @@ const statusColorClass = computed(() => {
 
 const formatTime = (timeStr: string) => {
     try {
-        return new Date(timeStr).toLocaleTimeString('en-IN', { hour12: false });
+        return entityLocaleTime(timeStr, 'en-IN', { hour12: false });
     } catch (e) {
         return '';
     }

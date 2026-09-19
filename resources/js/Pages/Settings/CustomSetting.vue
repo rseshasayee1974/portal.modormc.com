@@ -61,7 +61,7 @@ const form = useForm({
         is_grade_or_is_mix_design: props.batchingSettings?.is_grade_or_is_mix_design !== undefined ? Number(props.batchingSettings.is_grade_or_is_mix_design) : 2,
         print_delivery_ingredients: props.batchingSettings?.print_delivery_ingredients !== undefined 
             ? (props.batchingSettings?.print_delivery_ingredients == 1 || props.batchingSettings?.print_delivery_ingredients === true || props.batchingSettings?.print_delivery_ingredients === "true") 
-            : true,
+            : false,
         quotation_price_list: props.batchingSettings?.quotation_price_list !== undefined
             ? (props.batchingSettings?.quotation_price_list == 1 || props.batchingSettings?.quotation_price_list === true || props.batchingSettings?.quotation_price_list === "true")
             : false,

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import { 
@@ -309,7 +310,7 @@ const invoiceTypeOptions = [
                     <div class="flex flex-col">
                         <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Created On</span>
                         <span class="text-[11px] font-bold text-slate-700 uppercase tracking-tight mt-0.5">
-                            {{ new Date(invoice.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                            {{ entityLocaleDateTime(invoice.created_at, 'en-IN', { dateStyle: 'medium', timeStyle: 'short' }) }}
                         </span>
                     </div>
                 </div>

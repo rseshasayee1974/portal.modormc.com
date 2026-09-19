@@ -47,6 +47,9 @@ self.addEventListener('fetch', (event) => {
     // Ignore cross-origin requests (e.g., local weighbridge API at localhost:8089, external CDNs)
     if (url.origin !== self.location.origin) return;
 
+    // Live export status must go straight to the server, without cached fallbacks.
+    if (url.pathname.startsWith('/reports/export-status/')) return;
+
     // 1. Static Assets (Compiled Vite bundles, fonts, images) -> Cache-First
     if (url.pathname.includes('/build/assets/') || url.pathname.includes('/assets/') || request.destination === 'font') {
         event.respondWith(

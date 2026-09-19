@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityToday } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
 import PurchaseOrderEditForm from './PurchaseOrderEditForm.vue';
@@ -35,7 +36,7 @@ const form = useForm({
     vehicle_id: props.purchaseOrder?.vehicle_id || null,
     po_number: props.purchaseOrder?.po_number || null,
     referencenumber: props.purchaseOrder?.ref_no || null, 
-    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : new Date().toISOString().substring(0, 10),
+    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : entityToday(),
     billed_date: props.purchaseOrder?.billed_date ? props.purchaseOrder.billed_date.substring(0, 10) : null,
     due_date: props.purchaseOrder?.due_date ? props.purchaseOrder.due_date.substring(0, 10) : null,
     exchange_rate: props.purchaseOrder?.exchange_rate || 0.0,
