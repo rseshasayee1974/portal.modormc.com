@@ -45,7 +45,7 @@ const getShiftLabel = (shiftVal: number) => {
             :expandedRows="expandedRows" @update:expandedRows="emit('update:expandedRows', $event)"
             class="tracker-table">
             <!-- Expander Column -->
-            <Column expander style="width: 3rem" />
+            <!-- <Column expander style="width: 3rem" /> -->
 
             <!-- Machine / Vehicle Asset -->
             <Column header="Vehicle" sortable field="machine.registration">
@@ -58,13 +58,13 @@ const getShiftLabel = (shiftVal: number) => {
             </Column>
 
             <!-- Shift -->
-            <Column header="Shift" sortable field="shift">
+            <!-- <Column header="Shift" sortable field="shift">
                 <template #body="slotProps">
                     <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">
                         {{ getShiftLabel(slotProps.data.shift) }}
                     </span>
                 </template>
-            </Column>
+            </Column> -->
 
             <!-- Operator -->
             <Column header="Operator" sortable field="operator.first_name">
@@ -115,7 +115,8 @@ const getShiftLabel = (shiftVal: number) => {
                         <span class="text-[10px] text-slate-400">
                             ₹{{ Number(slotProps.data.amount || 0).toLocaleString('en-IN', {
                                 minimumFractionDigits: 2,
-                            maximumFractionDigits: 2 }) }}
+                                maximumFractionDigits: 2
+                            }) }}
                         </span>
                     </div>
                 </template>

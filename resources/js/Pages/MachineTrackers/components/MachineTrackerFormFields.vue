@@ -21,16 +21,16 @@ defineProps<{
             <h4 class="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
                 Asset & Schedule Information
             </h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 <div>
                     <BaseSelect v-model="form.machine_id" :options="machineOptions" label="Machine / Vehicle Asset"
                         required optionLabel="label" optionValue="value" placeholder="Select Asset"
                         :error="form.errors?.machine_id" />
                 </div>
-                <div>
+                <!-- <div>
                     <BaseSelect v-model="form.shift" :options="shiftOptions" label="Shift" required optionLabel="label"
                         optionValue="value" placeholder="Select Shift" :error="form.errors?.shift" />
-                </div>
+                </div> -->
                 <div>
                     <BaseSelect v-model="form.operator_id" :options="operatorOptions" label="Assigned Operator"
                         optionLabel="label" optionValue="value" placeholder="Select Operator"

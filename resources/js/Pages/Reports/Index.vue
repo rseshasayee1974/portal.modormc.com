@@ -19,6 +19,7 @@ import InventoryStockReport from './components/InventoryStockReport.vue';
 import InventoryInwardReport from './components/InventoryInwardReport.vue';
 import ProductionBatchReport from './components/ProductionBatchReport.vue';
 import MachinesListReport from './components/MachinesListReport.vue';
+import MachineTrackerReport from './components/MachineTrackerReport.vue';
 import MachineSummaryReport from './components/MachineSummaryReport.vue';
 import VehiclePLReport from './components/VehiclePLReport.vue';
 import PayrollPersonnelReport from './components/PayrollPersonnelReport.vue';
@@ -128,6 +129,7 @@ const modules = [
         name: 'Fleet & Machinery',
         reports: [
             { id: 'machines_list', name: 'Machine Fleet Inventory', description: 'Active fleet list, mixer capacities and vehicle specs' },
+            { id: 'machine_tracker', name: 'Machine Tracker Log Sheet', description: 'Daily machine runtime, odometer, hourmeter, EB units, fuel logs, and costs' },
             { id: 'driver', name: 'Driver Trip Report', description: 'Driver transit mixer trips, volume, and vehicle weights' },
             { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
             { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
@@ -218,6 +220,7 @@ const getReportComponent = (type) => {
         case 'inventory_inward': return InventoryInwardReport;
         case 'production_batch': return ProductionBatchReport;
         case 'machines_list': return MachinesListReport;
+        case 'machine_tracker': return MachineTrackerReport;
         case 'machine_summary': return MachineSummaryReport;
         case 'vehicle_pl': return VehiclePLReport;
         case 'payroll_personnel': return PayrollPersonnelReport;
@@ -1096,7 +1099,7 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Truck Dropdown -->
-                                <div v-if="['machines_list', 'truck_consolidated', 'driver'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['machines_list', 'machine_tracker', 'truck_consolidated', 'driver'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Truck / Vehicle</span>
                                     <BaseSelect 
                                         v-model="truckId"
@@ -1110,14 +1113,14 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Driver Dropdown -->
-                                <div v-if="reportType === 'driver'" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Driver</span>
+                                <div v-if="['driver', 'machine_tracker'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Driver / Operator</span>
                                     <BaseSelect 
                                         v-model="driverId"
                                         :options="driverOptions"
                                         optionLabel="name"
                                         optionValue="id"
-                                        placeholder="All Drivers"
+                                        placeholder="All Drivers / Operators"
                                         filter
                                         showClear
                                     />

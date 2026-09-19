@@ -187,6 +187,7 @@ class ReportController extends Controller
             'INVENTORY_INWARD'     => 'reports.generic_report',
             'PRODUCTION_BATCH'     => 'reports.generic_report',
             'MACHINES_LIST'        => 'reports.generic_report',
+            'MACHINE_TRACKER'     => 'reports.generic_report',
             'PAYROLL_PERSONNEL'    => 'reports.generic_report',
             'SILO_STOCK_VALUATION' => 'reports.generic_report',
             'GSTR1'                => 'reports.gstr1_report',
@@ -235,6 +236,16 @@ class ReportController extends Controller
                 'fields'     => ['registration', 'vehicle_model', 'vehicle_type', 'make_year', 'capacity', 'owner'],
                 'alignments' => ['center', 'left', 'center', 'center', 'right', 'left']
             ];
+        } elseif (str_contains(strtolower($type), 'machine_tracker')) {
+            $extraParams = [
+                'headers'    => ['Date', 'Machine / Vehicle', 'Shift', 'Operator', 'Odometer (KM | KM/L)', 'Hourmeter (Hrs | Hrs/L)', 'EB Units', 'Fuel (L)', 'Fuel Cost (₹)'],
+                'fields'     => ['date', 'machine_registration', 'shift_label', 'operator_name', 'odometer_display', 'hourmeter_display', 'eb_display', 'fuel', 'fuel_amount'],
+                'alignments' => ['center', 'left', 'center', 'left', 'center', 'center', 'center', 'right', 'right'],
+                'totals'     => [
+                    'fuel'        => $data['total_fuel_liters'] ?? 0,
+                    'fuel_amount' => $data['total_fuel_amount'] ?? 0,
+                ]
+            ];
         } elseif (str_contains(strtolower($type), 'payroll_personnel')) {
             $extraParams = [
                 'headers'    => ['Name', 'Role / Employee Type', 'Joining Date', 'Status', 'Email', 'Phone'],
@@ -258,6 +269,11 @@ class ReportController extends Controller
         $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->format('d-m-Y')) : '';
         $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->format('d-m-Y')) : '';
 
+        $orientation = 'portrait';
+        if (in_array(strtoupper($type), ['SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER'])) {
+            $orientation = 'landscape';
+        }
+
         $css = $this->getReportCss($type);
 
         $pdfData = array_merge([
@@ -273,7 +289,7 @@ class ReportController extends Controller
         ], $data, $extraParams);
 
         $pdf = Pdf::loadView($view, $pdfData)
-            ->setPaper('a4', 'portrait')
+            ->setPaper('a4', $orientation)
             ->setOption([
                 'defaultFont' => 'DejaVu Sans',
                 'isHtml5ParserEnabled' => true,
