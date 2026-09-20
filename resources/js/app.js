@@ -5,6 +5,7 @@ import 'primeicons/primeicons.css';
 import { createApp, h } from 'vue';
 import { createInertiaApp, router, usePage } from '@inertiajs/vue3';
 import { configureEntityTimezone } from '@/Utils/entityDateTime';
+import { installUserPresence } from '@/Services/userPresence';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import PrimeVue from 'primevue/config';
@@ -166,6 +167,7 @@ createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
     setup({ el, App, props, plugin }) {
+        installUserPresence(props.initialPage.props.presence, router);
         configureEntityTimezone(() => usePage().props.entity_timezone || props.initialPage.props.entity_timezone);
         const pinia = createPinia();
 

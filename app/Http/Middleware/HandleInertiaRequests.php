@@ -279,6 +279,12 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            'presence' => \Inertia\Inertia::always(fn () => $request->user() ? [
+                'user_id' => $request->user()->id,
+                'csrf_token' => $request->session()->token(),
+                'heartbeat_url' => route('session.presence'),
+                'close_url' => route('session.presence.close'),
+            ] : null),
             'entity_timezone' => \Inertia\Inertia::always(fn () => $request->attributes->get('entity_timezone', 'Asia/Kolkata')),
             'auth' => [
                 'user' => $user ? [

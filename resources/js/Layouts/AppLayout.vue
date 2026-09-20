@@ -193,7 +193,6 @@ const lastActivity = ref(getStoredLastActivity());
 const showTimeoutModal = ref(false);
 const remainingTime = ref(0);
 let idleInterval = null;
-let heartbeatInterval = null;
 
 const resetTimer = () => {
     const now = Date.now();
@@ -228,7 +227,6 @@ const checkIdleTime = () => {
     if (idleDuration >= IDLE_LOGOUT_TIME) {
         logout();
         clearInterval(idleInterval);
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
     } else if (idleDuration >= IDLE_WARN_TIME) {
         showTimeoutModal.value = true;
         remainingTime.value = Math.floor((IDLE_LOGOUT_TIME - idleDuration) / 1000);
@@ -246,16 +244,7 @@ onMounted(() => {
 
     idleInterval = setInterval(checkIdleTime, CHECK_INTERVAL);
     
-    // Send a heartbeat to the server every 4 minutes if the user is active in ANY tab
-    heartbeatInterval = setInterval(() => {
-        const idleDuration = Date.now() - getStoredLastActivity();
-        if (idleDuration < 5 * 60 * 1000) {
-            // Only ping from the visible/focused tab to avoid duplicate heartbeat spam
-            if (document.visibilityState === 'visible') {
-                pingSession();
-            }
-        }
-    }, 4 * 60 * 1000);
+    // The global per-tab presence heartbeat also keeps active sessions alive.
 });
 
 onUnmounted(() => {
@@ -263,7 +252,6 @@ onUnmounted(() => {
     events.forEach(event => window.removeEventListener(event, resetTimer));
     
     if (idleInterval) clearInterval(idleInterval);
-    if (heartbeatInterval) clearInterval(heartbeatInterval);
 });
 
 const mobileMenuOpen = ref(false);

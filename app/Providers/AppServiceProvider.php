@@ -113,11 +113,23 @@ class AppServiceProvider extends ServiceProvider
                 'ip_address'     => $ip,
                 'login_location' => $location,
             ])->saveQuietly();
+            if ($event->guard === 'web' && request()->hasSession()) {
+                request()->session()->put('presence_login_session', request()->session()->getId());
+                app(\App\Services\UserPresenceService::class)->record(
+                    (int) $event->user->id, request()->session()->getId(), 'login', 0
+                );
+            }
         });
 
         // Set login_status = false and clear ip_address when user logs out
         Event::listen(Logout::class, function (Logout $event) {
             if ($event->user) {
+                if ($event->guard === 'web' && request()->hasSession()) {
+                    app(\App\Services\UserPresenceService::class)->logout(
+                        (int) $event->user->id, request()->session()->getId(), request()->session()->get('presence_login_session')
+                    );
+                    return;
+                }
                 $event->user->forceFill([
                     'login_status' => false,
                 ])->saveQuietly();

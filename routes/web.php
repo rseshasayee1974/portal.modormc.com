@@ -26,6 +26,16 @@ Route::middleware(['auth', config('jetstream.auth_session')])->group(function ()
     Route::post('/resendotp', [\App\Http\Controllers\OtpController::class, 'resend'])->name('otp.resend');
 });
 
+Route::middleware('auth')->withoutMiddleware([
+    \App\Http\Middleware\SetEntityContext::class,
+    \App\Http\Middleware\SetEntityTimezone::class,
+    \App\Http\Middleware\RequireOtpVerification::class,
+    \App\Http\Middleware\HandleInertiaRequests::class,
+])->group(function () {
+    Route::post('/session/presence', [\App\Http\Controllers\UserPresenceController::class, 'update'])->name('session.presence');
+    Route::post('/session/presence/close', [\App\Http\Controllers\UserPresenceController::class, 'update'])->name('session.presence.close');
+});
+
 Route::middleware([
     'auth',
     config('jetstream.auth_session'),
