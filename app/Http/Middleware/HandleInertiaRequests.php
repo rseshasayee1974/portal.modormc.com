@@ -284,6 +284,7 @@ class HandleInertiaRequests extends Middleware
                 'csrf_token' => $request->session()->token(),
                 'heartbeat_url' => route('session.presence'),
                 'close_url' => route('session.presence.close'),
+                'login_url' => route('login'),
             ] : null),
             'entity_timezone' => \Inertia\Inertia::always(fn () => $request->attributes->get('entity_timezone', 'Asia/Kolkata')),
             'auth' => [

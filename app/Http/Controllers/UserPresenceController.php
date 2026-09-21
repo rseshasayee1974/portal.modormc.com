@@ -13,9 +13,10 @@ class UserPresenceController extends Controller
             'tab_id' => 'required|uuid',
             'sequence' => 'required|integer|min:1|max:2147483646',
         ]);
-        $presence->record((int) $request->user()->id, $request->session()->getId(),
+        $accepted = $presence->record((int) $request->user()->id, $request->session()->getId(),
             $data['tab_id'], (int) $data['sequence'], $request->routeIs('session.presence.close'),
             $request->session()->get('presence_login_session'));
+        abort_unless($accepted, 401, 'Your browser session has ended. Please log in again.');
         return response()->noContent();
     }
 }

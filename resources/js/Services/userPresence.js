@@ -39,7 +39,10 @@ export function installUserPresence(initialPresence, router) {
                 method: 'POST', body: body(), credentials: 'same-origin',
                 headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000),
             });
-            if (presence === currentPresence && [401, 403, 419].includes(response.status)) presence = null;
+            if (presence === currentPresence && [401, 403, 419].includes(response.status)) {
+                presence = null;
+                window.location.assign(currentPresence.login_url || '/login');
+            }
         } catch {
             // The server expires the lease if the browser cannot reach it.
         } finally { inFlight = false; }
