@@ -15,11 +15,16 @@ class ProcessBulkDocumentExport extends Command
     {
         $statusKey = $this->argument('statusKey');
         $plantId = (int) $this->argument('plantId');
-        $filters = json_decode(base64_decode($this->argument('filtersJson')), true) ?: [];
 
         $this->info("Processing bulk document export for status key: {$statusKey}");
 
         try {
+            $filters = $this->argument('filtersJson') === 'cached'
+                ? Cache::get($statusKey . ':filters')
+                : json_decode(base64_decode($this->argument('filtersJson')), true);
+            if (!is_array($filters)) {
+                throw new \RuntimeException('Export filters are missing or expired. Please start a new export.');
+            }
             // Resolve inside the try so startup failures also reach the status endpoint.
             $service = app(BulkDocumentZipExportService::class);
             \App\Helpers\DateTimeHelper::inTimezone(
@@ -36,6 +41,8 @@ class ProcessBulkDocumentExport extends Command
             ], now()->addHours(2));
             $this->error("Export failed: " . $e->getMessage());
             return Command::FAILURE;
+        } finally {
+            if ($this->argument('filtersJson') === 'cached') Cache::forget($statusKey . ':filters');
         }
     }
 }

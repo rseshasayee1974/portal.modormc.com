@@ -68,6 +68,8 @@ const props = defineProps({
     machines: Array,
     drivers: Array,
     salesExecutives: Array,
+    employees: Array,
+    payrollPeriods: Array,
     concreteGrades: Array,
     mixDesigns: Array,
     filters: Object,
@@ -188,6 +190,8 @@ const patronId = ref(null);
 const truckId = ref(null);
 const driverId = ref(null);
 const salesExecutiveId = ref(null);
+const selectedEmployeeId = ref(null);
+const selectedMonth = ref(null);
 const mixDesignId = ref(null);
 const startDate = ref(props.filters.start_date);
 const endDate = ref(props.filters.end_date);
@@ -388,7 +392,7 @@ const activeReport = computed(() => {
 });
 
 const isCustomerReport = computed(() => {
-    return ['sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'customer_outstanding', 'sales', 'cancelled_dispatch'].includes(reportType.value);
+    return ['overall', 'sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'customer_outstanding', 'sales', 'cancelled_dispatch'].includes(reportType.value);
 });
 
 const isSupplierReport = computed(() => {
@@ -408,7 +412,11 @@ const patronPlaceholder = computed(() => {
 });
 
 const patronOptions = computed(() => {
-    const list = props.patrons || [];
+    const list = (props.patrons || []).filter(patron => {
+        if (reportType.value !== 'overall') return true;
+        const types = Array.isArray(patron.patron_type) ? patron.patron_type : [patron.patron_type];
+        return types.includes('Customer');
+    });
     const allLabel = patronPlaceholder.value;
     return [
         {
@@ -453,7 +461,7 @@ const mixDesignOptions = computed(() => {
 const truckOptions = computed(() => {
     const list = props.machines || [];
     return [
-        { id: null, registration: '-- All Trucks / Vehicles --' },
+        { id: null, registration: ['machine_summary', 'vehicle_pl'].includes(reportType.value) ? '-- All Machines --' : '-- All Trucks / Vehicles --' },
         ...list
     ];
 });
@@ -474,6 +482,60 @@ const salesExecutiveOptions = computed(() => {
     ];
 });
 
+const employeeOptions = computed(() => {
+    const list = props.employees || [];
+    return [
+        { id: null, name: '-- All Employees --' },
+        ...list
+    ];
+});
+
+const monthOptions = computed(() => {
+    const options = [
+        { label: '-- All Months / Custom Range --', value: null }
+    ];
+
+    if (props.payrollPeriods && props.payrollPeriods.length > 0) {
+        props.payrollPeriods.forEach(p => {
+            options.push({
+                label: `${p.name} (Payroll Period)`,
+                value: `period_${p.id}`,
+                startDate: p.from_date ? `${p.from_date} 00:00:00` : null,
+                endDate: p.to_date ? `${p.to_date} 23:59:59` : null
+            });
+        });
+    }
+
+    const now = new Date();
+    for (let i = 0; i < 18; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const monthNum = String(d.getMonth() + 1).padStart(2, '0');
+        const monthKey = `${year}-${monthNum}`;
+
+        if (!options.some(o => o.value === monthKey)) {
+            const monthName = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+            const lastDay = new Date(year, d.getMonth() + 1, 0).getDate();
+            options.push({
+                label: monthName,
+                value: monthKey,
+                startDate: `${year}-${monthNum}-01 00:00:00`,
+                endDate: `${year}-${monthNum}-${String(lastDay).padStart(2, '0')} 23:59:59`
+            });
+        }
+    }
+    return options;
+});
+
+watch(selectedMonth, (newVal) => {
+    if (!newVal) return;
+    const opt = monthOptions.value.find(o => o.value === newVal);
+    if (opt && opt.startDate && opt.endDate) {
+        startDate.value = opt.startDate;
+        endDate.value = opt.endDate;
+    }
+});
+
 // Watch module change to select first report automatically
 watch(selectedModuleId, (newModuleId) => {
     if (isNavigatingToStatement.value) return;
@@ -487,6 +549,8 @@ watch(selectedModuleId, (newModuleId) => {
         truckId.value = null;
         driverId.value = null;
         salesExecutiveId.value = null;
+        selectedEmployeeId.value = null;
+        selectedMonth.value = null;
         gstType.value = null;
         paymentStatus.value = null;
         currentPage.value = 1;
@@ -510,6 +574,8 @@ watch(reportType, () => {
     truckId.value = null;
     driverId.value = null;
     salesExecutiveId.value = null;
+    selectedEmployeeId.value = null;
+    selectedMonth.value = null;
     currentPage.value = 1;
     if (pollingInterval.value) {
         clearInterval(pollingInterval.value);
@@ -519,7 +585,7 @@ watch(reportType, () => {
     generateReport();
 });
 
-watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId, driverId, salesExecutiveId, ledgerVoucherFilter], () => {
+watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId, driverId, salesExecutiveId, selectedEmployeeId, ledgerVoucherFilter], () => {
     generateReport();
 });
 
@@ -545,6 +611,8 @@ const generateReport = async () => {
             truck_id: truckId.value,
             driver_id: driverId.value,
             sales_executive_id: salesExecutiveId.value,
+            employee_id: selectedEmployeeId.value,
+            month: selectedMonth.value,
             voucher_type_filter: ledgerVoucherFilter.value,
             export: 'view'
         };
@@ -573,6 +641,7 @@ const generateReport = async () => {
             params = {
                 from_date: startDate.value,
                 to_date: endDate.value,
+                machine_id: truckId.value,
                 page: currentPage.value
             };
         } else if (reportType.value === 'vehicle_pl') {
@@ -580,6 +649,7 @@ const generateReport = async () => {
             params = {
                 from_date: startDate.value,
                 to_date: endDate.value,
+            machine_id: truckId.value,
                 page: currentPage.value
             };
         }
@@ -647,6 +717,8 @@ const exportPdf = () => {
         truck_id: truckId.value,
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
+        employee_id: selectedEmployeeId.value,
+        month: selectedMonth.value,
         export: 'pdf'
     });
 
@@ -671,12 +743,14 @@ const exportPdf = () => {
         url = route('reports.machine-summary', {
             from_date: startDate.value,
             to_date: endDate.value,
+            machine_id: truckId.value,
             export: 'pdf'
         });
     } else if (reportType.value === 'vehicle_pl') {
         url = route('reports.vehicle-pl', {
             from_date: startDate.value,
             to_date: endDate.value,
+            machine_id: truckId.value,
             export: 'pdf'
         });
     }
@@ -698,6 +772,8 @@ const exportExcel = () => {
         truck_id: truckId.value,
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
+        employee_id: selectedEmployeeId.value,
+        month: selectedMonth.value,
         export: 'excel'
     });
 
@@ -722,12 +798,14 @@ const exportExcel = () => {
         url = route('reports.machine-summary', {
             from_date: startDate.value,
             to_date: endDate.value,
+            machine_id: truckId.value,
             export: 'excel'
         });
     } else if (reportType.value === 'vehicle_pl') {
         url = route('reports.vehicle-pl', {
             from_date: startDate.value,
             to_date: endDate.value,
+            machine_id: truckId.value,
             export: 'excel'
         });
     }
@@ -828,6 +906,8 @@ const generateShareLink = async () => {
                 gst_type: gstType.value,
                 payment_status: paymentStatus.value,
                 truck_id: truckId.value,
+                employee_id: selectedEmployeeId.value,
+                month: selectedMonth.value,
             }
         });
         
@@ -1001,8 +1081,8 @@ const shareEmail = () => {
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span v-if="['payroll_personnel'].includes(reportType)" class="text-[10px] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-500 font-semibold">
-                                    Live Database Scoped
+                                <span v-if="['payroll_personnel'].includes(reportType)" class="text-[10px] px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[#0064d2] font-semibold">
+                                    Payroll Period Scoped
                                 </span>
                                 <!-- Quick Run when Collapsed -->
                                 <button 
@@ -1062,7 +1142,7 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Patron / Customer Dropdown -->
-                                <div v-if="['ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['overall', 'ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                         {{ patronLabel }}
                                     </span>
@@ -1117,14 +1197,14 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Truck Dropdown -->
-                                <div v-if="['machines_list', 'machine_tracker', 'truck_consolidated', 'driver'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Truck / Vehicle</span>
+                                <div v-if="['machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">{{ ['machine_summary', 'vehicle_pl'].includes(reportType) ? 'Select Machine' : 'Select Truck / Vehicle' }}</span>
                                     <BaseSelect 
                                         v-model="truckId"
                                         :options="truckOptions"
                                         optionLabel="registration"
                                         optionValue="id"
-                                        placeholder="All Trucks"
+                                        :placeholder="['machine_summary', 'vehicle_pl'].includes(reportType) ? 'All Machines' : 'All Trucks'"
                                         filter
                                         showClear
                                     />
@@ -1173,8 +1253,36 @@ const shareEmail = () => {
                                     />
                                 </div>
 
+                                <!-- Employee Dropdown (Payroll & Personnel Directory) -->
+                                <div v-if="reportType === 'payroll_personnel'" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Employee</span>
+                                    <BaseSelect 
+                                        v-model="selectedEmployeeId"
+                                        :options="employeeOptions"
+                                        optionLabel="name"
+                                        optionValue="id"
+                                        placeholder="-- All Employees --"
+                                        filter
+                                        showClear
+                                    />
+                                </div>
+
+                                <!-- Month Select (Payroll Month / Cycle) -->
+                                <div v-if="reportType === 'payroll_personnel'" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Month / Cycle</span>
+                                    <BaseSelect 
+                                        v-model="selectedMonth"
+                                        :options="monthOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="-- All Months / Custom Range --"
+                                        filter
+                                        showClear
+                                    />
+                                </div>
+
                                 <!-- Date & Time Range -->
-                                <div v-if="reportType !== 'payroll_personnel'" class="lg:col-span-2 grid grid-cols-2 gap-4">
+                                <div class="lg:col-span-2 grid grid-cols-2 gap-4">
                                     <div>
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">From Date & Time</span>
                                         <BaseDatePicker v-model="startDate" :showTime="true" hourFormat="12" fluid placeholder="Select start date & time" />

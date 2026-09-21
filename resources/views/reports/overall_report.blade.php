@@ -5,6 +5,12 @@
     <title>Daily Overall Business & Operational MIS Report</title>
     <style>
         {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '') !!}
+        .summary-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 14px 0 18px; }
+        .summary-table th, .summary-table td { border: 1px solid #cbd5e1; padding: 8px 7px; vertical-align: middle; text-align: left; font-size: 8pt; width: 25%; }
+        .summary-table th { background: #1d2d3e; color: #fff; font-size: 7pt; }
+        .summary-table tr:nth-child(even) td { background: #f1f5f9; }
+        .summary-table .summary-amount { text-align: right; white-space: nowrap; font-weight: bold; }
+        .summary-table tr { page-break-inside: avoid; }
     </style>
 </head>
 <body>
@@ -44,92 +50,25 @@
     <div class="title-banner">
         DAILY OVERALL BUSINESS & OPERATIONAL MIS REPORT
         <div class="period-text">
-            @if(!empty($filters['start']) && !empty($filters['end']))
-                Reporting Period: {{ \Carbon\Carbon::parse($filters['start'])->format('d/m/Y') }} to {{ \Carbon\Carbon::parse($filters['end'])->format('d/m/Y') }}
+            @if(!empty($filters['start_date']) && !empty($filters['end_date']))
+                Reporting Period: {{ \Carbon\Carbon::parse($filters['start_date'])->format('d/m/Y') }} to {{ \Carbon\Carbon::parse($filters['end_date'])->format('d/m/Y') }}
             @else
                 Reporting Date: {{ now()->format('d/m/Y') }}
             @endif
         </div>
     </div>
 
-    <!-- Executive KPI Grid -->
-    <table class="kpi-table">
-        <tr>
-            <td style="width: 16.6%;">
-                <div class="kpi-card" style="background: #f0fdf4; border-color: #bbf7d0;">
-                    <div class="kpi-label" style="color: #166534;">Daily Billed Sales</div>
-                    <div class="kpi-val kpi-success">₹ {{ number_format($executive_summary['sales_revenue'] ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 16.6%;">
-                <div class="kpi-card" style="background: #eff6ff; border-color: #bfdbfe;">
-                    <div class="kpi-label" style="color: #1e40af;">Total Collections</div>
-                    <div class="kpi-val kpi-info">₹ {{ number_format($executive_summary['total_receipts_collected'] ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 16.6%;">
-                <div class="kpi-card" style="background: #fff7ed; border-color: #fed7aa;">
-                    <div class="kpi-label" style="color: #9a3412;">Payments Made</div>
-                    <div class="kpi-val" style="color: #9a3412;">₹ {{ number_format($executive_summary['total_payments_made'] ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 16.6%;">
-                <div class="kpi-card" style="background: #f8fafc;">
-                    <div class="kpi-label">Net Cash Flow</div>
-                    <div class="kpi-val {{ ($executive_summary['net_cash_flow'] ?? 0) >= 0 ? 'kpi-success' : 'kpi-danger' }}">
-                        ₹ {{ number_format($executive_summary['net_cash_flow'] ?? 0, 2) }}
-                    </div>
-                </div>
-            </td>
-            <td style="width: 16.6%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">Dispatched Volume</div>
-                    <div class="kpi-val">{{ number_format($executive_summary['total_dispatched_volume'] ?? 0, 2) }} m³</div>
-                </div>
-            </td>
-            <td style="width: 16.6%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">Batches Mixed</div>
-                    <div class="kpi-val">{{ $executive_summary['total_batches_count'] ?? 0 }} Batches</div>
-                </div>
-            </td>
-        </tr>
-    </table>
-
-    <!-- Secondary Mini Scorecard -->
-    <table class="kpi-table" style="margin-bottom: 15px;">
-        <tr>
-            <td style="width: 20%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">Cash Collections: ₹ {{ number_format($executive_summary['cash_receipts'] ?? 0, 2) }}</div>
-                    <div style="font-size: 6pt; color: #64748b;">Bank/Online: ₹ {{ number_format($executive_summary['bank_receipts'] ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 20%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">Pending Credit Balance</div>
-                    <div class="kpi-val" style="color: #b91c1c;">₹ {{ number_format($executive_summary['credit_sales_balance'] ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 20%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">Pump Charges Billed</div>
-                    <div class="kpi-val">₹ {{ number_format($executive_summary['pump_charges_billed'] ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 20%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">Hire / Shipping Charges</div>
-                    <div class="kpi-val">₹ {{ number_format($executive_summary['hire_charges_billed'] ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 20%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">Net GST Liability</div>
-                    <div class="kpi-val">₹ {{ number_format($executive_summary['net_tax_liability'] ?? 0, 2) }}</div>
-                </div>
-            </td>
-        </tr>
+    <!-- Fixed columns keep labels and amounts aligned in the PDF renderer. -->
+    <table class="summary-table">
+        <thead><tr><th>Summary Metric</th><th class="summary-amount">Amount / Quantity</th><th>Summary Metric</th><th class="summary-amount">Amount / Quantity</th></tr></thead>
+        <tbody>
+            <tr><td>Daily Billed Sales</td><td class="summary-amount">₹ {{ number_format($executive_summary['sales_revenue'] ?? 0, 2) }}</td><td>Total Collections</td><td class="summary-amount">₹ {{ number_format($executive_summary['total_receipts'] ?? 0, 2) }}</td></tr>
+            <tr><td>Payments Made</td><td class="summary-amount">₹ {{ number_format($executive_summary['total_payments'] ?? 0, 2) }}</td><td>Net Cash Flow</td><td class="summary-amount">₹ {{ number_format($executive_summary['net_cash_flow'] ?? 0, 2) }}</td></tr>
+            <tr><td>Dispatched Volume</td><td class="summary-amount">{{ number_format($executive_summary['total_dispatched_volume'] ?? 0, 2) }} m³</td><td>Batches Mixed</td><td class="summary-amount">{{ number_format($executive_summary['total_batches_count'] ?? 0) }} Batches</td></tr>
+            <tr><td>Cash Collections</td><td class="summary-amount">₹ {{ number_format($executive_summary['cash_receipts'] ?? 0, 2) }}</td><td>Bank / Online Collections</td><td class="summary-amount">₹ {{ number_format($executive_summary['bank_receipts'] ?? 0, 2) }}</td></tr>
+            <tr><td>Pending Credit Balance</td><td class="summary-amount">₹ {{ number_format($executive_summary['credit_sales_amount'] ?? 0, 2) }}</td><td>Pump Charges Billed</td><td class="summary-amount">₹ {{ number_format($executive_summary['pump_charges_earned'] ?? 0, 2) }}</td></tr>
+            <tr><td>Hire / Shipping Charges</td><td class="summary-amount">₹ {{ number_format($executive_summary['hire_charges_billed'] ?? 0, 2) }}</td><td>Net GST Liability</td><td class="summary-amount">₹ {{ number_format($executive_summary['net_gst_payable'] ?? 0, 2) }}</td></tr>
+        </tbody>
     </table>
 
     <!-- Section 1: Dispatches Log -->
@@ -142,7 +81,7 @@
         <thead>
             <tr>
                 <th width="4%" class="text-center">#</th>
-                <th width="12%">DSP / Docket No</th>
+                <th width="12%">Batch Number</th>
                 <th width="22%">Customer Name</th>
                 <th width="16%">Unloading Site</th>
                 <th width="10%">Truck</th>
@@ -156,7 +95,7 @@
             @forelse($dispatches['list'] ?? [] as $d)
                 <tr>
                     <td class="text-center">{{ $d['index'] }}</td>
-                    <td style="font-weight: bold; color: #0284c7;">{{ $d['docket_no'] }}</td>
+                    <td style="font-weight: bold; color: #0284c7;">{{ $d['batch_number'] ?? '-' }}</td>
                     <td style="font-weight: bold; color: #0f172a;">{{ $d['customer_name'] }}</td>
                     <td style="color: #475569;">{{ $d['site_name'] }}</td>
                     <td style="font-weight: bold; color: #4338ca;">{{ $d['truck_no'] }}</td>

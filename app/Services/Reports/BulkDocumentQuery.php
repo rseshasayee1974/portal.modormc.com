@@ -28,6 +28,9 @@ class BulkDocumentQuery
                 ->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(invoice_label)'), $labels);
         }
         if ($patron = $filters['patron_id'] ?? null) $query->where('partner_id', $patron);
+        if (!empty($filters['invoice_ids'])) {
+            $query->whereIn('mm_invoices.id', $filters['invoice_ids']);
+        }
         // Match only live journals belonging to this document and plant.
         $journal = function ($q) use ($plantId) {
             $q->selectRaw('1')->from('mm_journal_entries as j')

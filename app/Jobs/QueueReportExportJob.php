@@ -235,9 +235,9 @@ class QueueReportExportJob implements ShouldQueue
             ];
         } elseif (str_contains(strtolower($type), 'payroll_personnel')) {
             $extraParams = [
-                'headers'    => ['Name', 'Role / Employee Type', 'Joining Date', 'Status', 'Email', 'Phone'],
-                'fields'     => ['name', 'employee_type', 'joining_date', 'status', 'email', 'phone'],
-                'alignments' => ['left', 'left', 'center', 'center', 'left', 'center']
+                'headers'    => ['Emp Code', 'Employee Name', 'Department', 'Period', 'Payslip No', 'Gross (₹)', 'Deductions (₹)', 'Net Pay (₹)', 'Status'],
+                'fields'     => ['employee_code', 'name', 'department', 'period_name', 'payslip_no', 'total_earnings', 'total_deductions', 'net_salary', 'payslip_status'],
+                'alignments' => ['center', 'left', 'left', 'center', 'center', 'right', 'right', 'right', 'center']
             ];
         } elseif (str_contains(strtolower($type), 'silo_stock_valuation')) {
             $extraParams = [
