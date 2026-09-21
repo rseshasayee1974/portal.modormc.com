@@ -30,7 +30,7 @@ const fieldError = (field) => {
 
 const submit = () => {
     submitted.value = true;
-    form.post(route('password.update'), {
+    form.post(route('password.store'), {
         onFinish: () => {
             submitted.value = false;
             form.reset('password', 'password_confirmation');
