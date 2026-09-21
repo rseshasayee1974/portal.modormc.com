@@ -578,14 +578,22 @@ class ExcelExportService
                     '', ''
                 ];
             } elseif ($type === 'payroll_personnel') {
-                $headersList = ['Name', 'Role / Employee Type', 'Joining Date', 'Status', 'Email', 'Phone'];
+                $headersList = ['Emp Code', 'Employee Name', 'Department', 'Designation', 'Joining Date', 'Period / Month', 'Payslip No', 'Working Days', 'Present Days', 'Gross Earnings', 'Deductions', 'Net Salary', 'Payslip Status', 'Phone'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
+                        $row['employee_code'] ?? '',
                         $row['name'] ?? '',
-                        $row['employee_type'] ?? '',
+                        $row['department'] ?? '',
+                        $row['designation'] ?? '',
                         $row['joining_date'] ?? '',
-                        $row['status'] ?? '',
-                        $row['email'] ?? '',
+                        $row['period_name'] ?? '',
+                        $row['payslip_no'] ?? '',
+                        $row['working_days'] ?? 0,
+                        $row['present_days'] ?? 0,
+                        (float)($row['total_earnings'] ?? 0),
+                        (float)($row['total_deductions'] ?? 0),
+                        (float)($row['net_salary'] ?? 0),
+                        $row['payslip_status'] ?? '',
                         $row['phone'] ?? ''
                     ];
                 }
@@ -976,7 +984,7 @@ class ExcelExportService
                     foreach ($data['dispatches']['list'] as $di => $d) {
                         $dRows[] = [
                             $di + 1,
-                            $d['docket_no'] ?? '',
+                            $d['batch_number'] ?? '-',
                             $d['customer_name'] ?? '',
                             $d['site_name'] ?? '',
                             $d['truck_no'] ?? '',
@@ -990,7 +998,7 @@ class ExcelExportService
                     }
                     $extraSections['tables'][] = [
                         'title' => 'DISPATCHES & LOGISTICS LOG (' . count($dRows) . ' DELIVERIES)',
-                        'headers' => ['#', 'DSP', 'Customer Name', 'Unload Site', 'Truck No', 'Driver', 'Qty (m³)', 'Net Wt (T)', 'Pump Chg (₹)', 'Total Value (₹)', 'Time'],
+                        'headers' => ['#', 'Batch Number', 'Customer Name', 'Unload Site', 'Truck No', 'Driver', 'Qty (m³)', 'Net Wt (T)', 'Pump Chg (₹)', 'Total Value (₹)', 'Time'],
                         'rows' => $dRows,
                     ];
                 }

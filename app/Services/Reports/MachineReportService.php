@@ -222,11 +222,11 @@ class MachineReportService
     {
         $raw = $this->repository->getVehiclePLTotals($filters);
 
-        $revenue     = (float) ($raw['total_revenue'] ?? 0);
-        $tripCost    = (float) ($raw['total_trip_cost'] ?? 0);
-        $fuel        = (float) ($raw['total_fuel_expenses'] ?? 0);
-        $maintenance = (float) ($raw['total_maintenance_expenses'] ?? 0);
-        $other       = (float) ($raw['total_other_expenses'] ?? 0);
+        $revenue     = (float) ($raw['trip_revenue'] ?? 0);
+        $tripCost    = (float) ($raw['trip_cost'] ?? 0);
+        $fuel        = (float) ($raw['fuel_expenses'] ?? 0);
+        $maintenance = (float) ($raw['maintenance_expenses'] ?? 0);
+        $other       = (float) ($raw['other_expenses'] ?? 0);
 
         $totalCost = $tripCost + $fuel + $maintenance + $other;
         $netProfit = $revenue - $totalCost;

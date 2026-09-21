@@ -360,27 +360,8 @@ class ReportRepository
         $fromDate = isset($filters['from_date']) ? Carbon::parse($filters['from_date'])->startOfDay() : now()->startOfMonth();
         $toDate   = isset($filters['to_date'])   ? Carbon::parse($filters['to_date'])->endOfDay()     : now()->endOfDay();
 
-        // Subquery for trip metrics
-        $tripSub = DB::table('mm_trips as t')
-            ->join('mm_trip_financials as tf', 't.id', '=', 'tf.trip_id')
-            ->leftJoin('mm_trip_weights as tw', 't.id', '=', 'tw.trip_id')
-            ->selectRaw('
-                t.truck_id,
-                COUNT(t.id) as total_trips,
-                SUM(COALESCE(tf.product_units, 0)) as total_qty,
-                SUM(COALESCE(tw.loaded_weight_load - tw.empty_weight_load, 0)) / 1000.0 as total_weight_tons,
-                SUM(COALESCE(CASE WHEN tf.updated_product_amount > 0 THEN tf.updated_product_amount ELSE tf.product_amount END, 0) + 
-                    COALESCE(CASE WHEN tf.updated_product_amount > 0 THEN tf.updated_product_amount * COALESCE(tf.updated_tax_rate, 0) / 100.0 ELSE tf.product_tax_amount END, 0) + 
-                    COALESCE(tf.transport_unit * tf.transport_rate, 0) + 
-                    COALESCE(tf.transport_unit * tf.transport_rate * COALESCE(tf.transport_tax_rate, 0) / 100.0, 0) + 
-                    COALESCE(tf.pass_amount, 0) - 
-                    COALESCE(tf.discount_amount, 0)
-                ) as total_revenue,
-                SUM(COALESCE(tf.cost_of_product, 0) + COALESCE(tf.transport_expenses, 0)) as total_trip_cost
-            ')
-            ->whereNull('t.deleted_at')
-            ->whereBetween('t.created_at', [$fromDate, $toDate])
-            ->groupBy('t.truck_id');
+        $tripSub = $this->dispatchMachineMetrics($fromDate, $toDate, $plantId)
+            ->addSelect('d.truck_id')->groupBy('d.truck_id');
 
         // Subquery for general expenses from mm_expenses
         $expSub = DB::table('mm_expenses as e')
@@ -419,6 +400,10 @@ class ReportRepository
             $query->where('mm_machines.plant_id', $plantId);
         }
 
+        if (!empty($filters['machine_id'])) {
+            $query->where('mm_machines.id', $filters['machine_id']);
+        }
+
         return $query;
     }
 
@@ -431,32 +416,12 @@ class ReportRepository
         $fromDate = isset($filters['from_date']) ? Carbon::parse($filters['from_date'])->startOfDay() : now()->startOfMonth();
         $toDate   = isset($filters['to_date'])   ? Carbon::parse($filters['to_date'])->endOfDay()     : now()->endOfDay();
 
-        // 1. Sum trip metrics directly
-        $tripMetrics = DB::table('mm_trips as t')
-            ->join('mm_trip_financials as tf', 't.id', '=', 'tf.trip_id')
-            ->leftJoin('mm_trip_weights as tw', 't.id', '=', 'tw.trip_id')
-            ->join('mm_machines as m', 't.truck_id', '=', 'm.id')
-            ->whereNull('t.deleted_at')
+        $tripTotals = $this->dispatchMachineMetrics($fromDate, $toDate, $plantId)
+            ->join('mm_machines as m', 'd.truck_id', '=', 'm.id')
             ->whereNull('m.deleted_at')
-            ->whereBetween('t.created_at', [$fromDate, $toDate]);
-
-        if ($plantId) {
-            $tripMetrics->where('m.plant_id', $plantId);
-        }
-
-        $tripTotals = $tripMetrics->selectRaw('
-            COUNT(t.id) as total_trips,
-            SUM(COALESCE(tf.product_units, 0)) as total_qty,
-            SUM(COALESCE(tw.loaded_weight_load - tw.empty_weight_load, 0)) / 1000.0 as total_weight_tons,
-            SUM(COALESCE(CASE WHEN tf.updated_product_amount > 0 THEN tf.updated_product_amount ELSE tf.product_amount END, 0) + 
-                COALESCE(CASE WHEN tf.updated_product_amount > 0 THEN tf.updated_product_amount * COALESCE(tf.updated_tax_rate, 0) / 100.0 ELSE tf.product_tax_amount END, 0) + 
-                COALESCE(tf.transport_unit * tf.transport_rate, 0) + 
-                COALESCE(tf.transport_unit * tf.transport_rate * COALESCE(tf.transport_tax_rate, 0) / 100.0, 0) + 
-                COALESCE(tf.pass_amount, 0) - 
-                COALESCE(tf.discount_amount, 0)
-            ) as total_revenue,
-            SUM(COALESCE(tf.cost_of_product, 0) + COALESCE(tf.transport_expenses, 0)) as total_trip_cost
-        ')->first();
+            ->when($plantId, fn ($query) => $query->where('m.plant_id', $plantId))
+            ->when(!empty($filters['machine_id']), fn ($query) => $query->where('m.id', $filters['machine_id']))
+            ->first();
 
         // 2. Sum general expenses directly
         $expMetrics = DB::table('mm_expenses as e')
@@ -467,6 +432,10 @@ class ReportRepository
 
         if ($plantId) {
             $expMetrics->where('m.plant_id', $plantId);
+        }
+
+        if (!empty($filters['machine_id'])) {
+            $expMetrics->where('m.id', $filters['machine_id']);
         }
 
         $totalGeneralExpenses = $expMetrics->sum(DB::raw('COALESCE(e.amount, 0)'));
@@ -491,23 +460,8 @@ class ReportRepository
         $fromDate = isset($filters['from_date']) ? Carbon::parse($filters['from_date'])->startOfDay() : now()->startOfMonth();
         $toDate   = isset($filters['to_date'])   ? Carbon::parse($filters['to_date'])->endOfDay()     : now()->endOfDay();
 
-        // Subquery for trip metrics
-        $tripSub = DB::table('mm_trips as t')
-            ->join('mm_trip_financials as tf', 't.id', '=', 'tf.trip_id')
-            ->selectRaw('
-                t.truck_id,
-                SUM(COALESCE(CASE WHEN tf.updated_product_amount > 0 THEN tf.updated_product_amount ELSE tf.product_amount END, 0) + 
-                    COALESCE(CASE WHEN tf.updated_product_amount > 0 THEN tf.updated_product_amount * COALESCE(tf.updated_tax_rate, 0) / 100.0 ELSE tf.product_tax_amount END, 0) + 
-                    COALESCE(tf.transport_unit * tf.transport_rate, 0) + 
-                    COALESCE(tf.transport_unit * tf.transport_rate * COALESCE(tf.transport_tax_rate, 0) / 100.0, 0) + 
-                    COALESCE(tf.pass_amount, 0) - 
-                    COALESCE(tf.discount_amount, 0)
-                ) as total_revenue,
-                SUM(COALESCE(tf.cost_of_product, 0) + COALESCE(tf.transport_expenses, 0)) as total_trip_cost
-            ')
-            ->whereNull('t.deleted_at')
-            ->whereBetween('t.created_at', [$fromDate, $toDate])
-            ->groupBy('t.truck_id');
+        $tripSub = $this->dispatchMachineMetrics($fromDate, $toDate, $plantId)
+            ->addSelect('d.truck_id')->groupBy('d.truck_id');
 
         // Subquery for categorized expenses from mm_expenses
         $expSub = DB::table('mm_expenses as e')
@@ -544,6 +498,10 @@ class ReportRepository
             $query->where('mm_machines.plant_id', $plantId);
         }
 
+        if (!empty($filters['machine_id'])) {
+            $query->where('mm_machines.id', $filters['machine_id']);
+        }
+
         return $query;
     }
 
@@ -556,28 +514,12 @@ class ReportRepository
         $fromDate = isset($filters['from_date']) ? Carbon::parse($filters['from_date'])->startOfDay() : now()->startOfMonth();
         $toDate   = isset($filters['to_date'])   ? Carbon::parse($filters['to_date'])->endOfDay()     : now()->endOfDay();
 
-        // 1. Sum trip metrics directly
-        $tripMetrics = DB::table('mm_trips as t')
-            ->join('mm_trip_financials as tf', 't.id', '=', 'tf.trip_id')
-            ->join('mm_machines as m', 't.truck_id', '=', 'm.id')
-            ->whereNull('t.deleted_at')
+        $tripTotals = $this->dispatchMachineMetrics($fromDate, $toDate, $plantId)
+            ->join('mm_machines as m', 'd.truck_id', '=', 'm.id')
             ->whereNull('m.deleted_at')
-            ->whereBetween('t.created_at', [$fromDate, $toDate]);
-
-        if ($plantId) {
-            $tripMetrics->where('m.plant_id', $plantId);
-        }
-
-        $tripTotals = $tripMetrics->selectRaw('
-            SUM(COALESCE(CASE WHEN tf.updated_product_amount > 0 THEN tf.updated_product_amount ELSE tf.product_amount END, 0) + 
-                COALESCE(CASE WHEN tf.updated_product_amount > 0 THEN tf.updated_product_amount * COALESCE(tf.updated_tax_rate, 0) / 100.0 ELSE tf.product_tax_amount END, 0) + 
-                COALESCE(tf.transport_unit * tf.transport_rate, 0) + 
-                COALESCE(tf.transport_unit * tf.transport_rate * COALESCE(tf.transport_tax_rate, 0) / 100.0, 0) + 
-                COALESCE(tf.pass_amount, 0) - 
-                COALESCE(tf.discount_amount, 0)
-            ) as total_revenue,
-            SUM(COALESCE(tf.cost_of_product, 0) + COALESCE(tf.transport_expenses, 0)) as total_trip_cost
-        ')->first();
+            ->when($plantId, fn ($query) => $query->where('m.plant_id', $plantId))
+            ->when(!empty($filters['machine_id']), fn ($query) => $query->where('m.id', $filters['machine_id']))
+            ->first();
 
         // 2. Sum categorized expenses directly
         $expMetrics = DB::table('mm_expenses as e')
@@ -589,6 +531,10 @@ class ReportRepository
 
         if ($plantId) {
             $expMetrics->where('m.plant_id', $plantId);
+        }
+
+        if (!empty($filters['machine_id'])) {
+            $expMetrics->where('m.id', $filters['machine_id']);
         }
 
         $expTotals = $expMetrics->selectRaw("
@@ -605,4 +551,28 @@ class ReportRepository
             'other_expenses' => (float) ($expTotals->total_other_expenses ?? 0),
         ];
     }
+    /** Shared dispatch aggregates for report rows, totals and exports. */
+    private function dispatchMachineMetrics(Carbon $fromDate, Carbon $toDate, $plantId): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('mm_dispatches as d')
+            ->leftJoin('mm_batches as b', function ($join) {
+                $join->on('b.id', '=', 'd.batch_id')->on('b.plant_id', '=', 'd.plant_id');
+            })
+            ->whereNull('d.deleted_at')
+            ->whereNull('b.deleted_at')
+            ->where(fn ($query) => $query->whereNull('b.status')->orWhere('b.status', '!=', \App\Models\Batch::STATUS_CANCELLED))
+            ->where(fn ($query) => $query->whereNull('d.dispatch_status')->orWhere('d.dispatch_status', '!=', 'Cancelled'))
+            ->when($plantId, fn ($query) => $query->where('d.plant_id', $plantId))
+            ->whereBetween(DB::raw('COALESCE(d.dispatch_time, d.created_at)'), [$fromDate, $toDate])
+            // Weights are stored in MT; saved totals already include tax and adjustments.
+            // Production cost is not recorded here; use the available transport cost.
+            ->selectRaw('
+                COUNT(d.id) as total_trips,
+                SUM(CASE WHEN d.delivered_qty > 0 THEN d.delivered_qty ELSE COALESCE(b.batch_size, 0) END) as total_qty,
+                SUM(COALESCE(d.net_weight, d.loaded_weight_truck - d.empty_weight_truck, 0)) as total_weight_tons,
+                SUM(COALESCE(d.load_total_amount, 0)) as total_revenue,
+                SUM(COALESCE(d.transport_expenses, 0)) as total_trip_cost
+            ');
+    }
+
 }

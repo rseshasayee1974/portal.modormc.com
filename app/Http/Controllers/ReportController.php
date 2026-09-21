@@ -60,12 +60,30 @@ class ReportController extends Controller
           ->orderBy('design_name')
           ->get(['id', 'design_name', 'design_code']);
 
+        $employees = \App\Models\Personnel::where(function ($q) use ($plantId) {
+            $q->where('plant_id', $plantId)->orWhereNull('plant_id');
+        })->whereNull('deleted_at')
+          ->orderBy('first_name')
+          ->get(['id', 'first_name', 'last_name', 'employee_code'])
+          ->map(fn($p) => [
+              'id'   => $p->id,
+              'name' => trim($p->first_name . ' ' . $p->last_name) . ($p->employee_code ? " ({$p->employee_code})" : '')
+          ]);
+
+        $payrollPeriods = \App\Models\PayrollPeriod::where(function ($q) use ($plantId) {
+            $q->where('plant_id', $plantId)->orWhereNull('plant_id');
+        })->whereNull('deleted_at')
+          ->orderByDesc('from_date')
+          ->get(['id', 'name', 'from_date', 'to_date']);
+
         return Inertia::render('Reports/Index', [
             'ledgers'          => $ledgers,
             'patrons'          => $patrons,
             'machines'         => $machines,
             'drivers'          => $drivers,
             'salesExecutives'  => $salesExecutives,
+            'employees'        => $employees,
+            'payrollPeriods'   => $payrollPeriods,
             'concreteGrades'   => $concreteGrades,
             'mixDesigns'       => $mixDesigns,
             'filters' => [
@@ -109,19 +127,21 @@ class ReportController extends Controller
                 : now()->endOfDay()->toDateTimeString();
 
             $params = [
-                'start'              => $startFormatted,
-                'end'                => $endFormatted,
-                'id'                 => $id,
-                'patron_id'          => $patronId,
-                'voucher_type'       => strtoupper($type),
-                'valuation_method'   => $request->input('valuation_method', 'FIFO'),
-                'consolidation'      => $request->input('consolidation', 'po'),
-                'plant_id'           => session('active_plant_id'),
-                'truck_id'           => $request->input('truck_id'),
-                'driver_id'          => $request->input('driver_id'),
-                'sales_executive_id' => $request->input('sales_executive_id'),
-                'grade_id'           => $request->input('grade_id'),
-                'mix_design_id'      => $request->input('mix_design_id'),
+                'start'               => $startFormatted,
+                'end'                 => $endFormatted,
+                'id'                  => $id,
+                'patron_id'           => $patronId,
+                'voucher_type'        => strtoupper($type),
+                'valuation_method'    => $request->input('valuation_method', 'FIFO'),
+                'consolidation'       => $request->input('consolidation', 'po'),
+                'plant_id'            => session('active_plant_id'),
+                'truck_id'            => $request->input('truck_id'),
+                'driver_id'           => $request->input('driver_id'),
+                'sales_executive_id'  => $request->input('sales_executive_id'),
+                'employee_id'         => $request->input('employee_id') ?? $request->input('personnel_id'),
+                'month'               => $request->input('month'),
+                'grade_id'            => $request->input('grade_id'),
+                'mix_design_id'       => $request->input('mix_design_id'),
                 'voucher_type_filter' => $request->input('voucher_type_filter'),
             ];
 
@@ -428,6 +448,7 @@ class ReportController extends Controller
             'to_date'   => 'required|date|after_or_equal:from_date',
             'branch_id' => 'nullable|integer',
             'plant_id'  => 'nullable|integer',
+            'machine_id' => 'nullable|integer|min:1',
             'per_page'  => 'nullable|integer|min:1|max:500',
             'export'    => 'nullable|string|in:excel,pdf',
             'refresh'   => 'nullable|boolean',
@@ -454,6 +475,7 @@ class ReportController extends Controller
             'to_date'   => 'required|date|after_or_equal:from_date',
             'branch_id' => 'nullable|integer',
             'plant_id'  => 'nullable|integer',
+            'machine_id' => 'nullable|integer|min:1',
             'per_page'  => 'nullable|integer|min:1|max:500',
             'export'    => 'nullable|string|in:excel,pdf',
             'refresh'   => 'nullable|boolean',

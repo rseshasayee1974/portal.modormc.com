@@ -47,7 +47,7 @@ const filteredDispatches = computed(() => {
     if (dispatchSearch.value.trim()) {
         const q = dispatchSearch.value.trim().toLowerCase();
         list = list.filter(d =>
-            (d.docket_no && d.docket_no.toLowerCase().includes(q)) ||
+            String(d.batch_number ?? '').toLowerCase().includes(q) ||
             (d.customer_name && d.customer_name.toLowerCase().includes(q)) ||
             (d.site_name && d.site_name.toLowerCase().includes(q)) ||
             (d.truck_no && d.truck_no.toLowerCase().includes(q)) ||
@@ -330,7 +330,7 @@ const filteredPayments = computed(() => {
                     <div class="relative w-72">
                         <MagnifyingGlassIcon class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
                         <input type="text" v-model="dispatchSearch"
-                            placeholder="Search docket, customer, mixer, site..."
+                            placeholder="Search batch, customer, mixer, site..."
                             class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0064d2]" />
                     </div>
 
@@ -349,7 +349,7 @@ const filteredPayments = computed(() => {
                             <tr
                                 class="bg-slate-50 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
                                 <th class="py-2.5 px-3 text-center" width="4%">#</th>
-                                <th class="py-2.5 px-3" width="13%">Docket / DSP #</th>
+                                <th class="py-2.5 px-3" width="13%">Batch Number</th>
                                 <th class="py-2.5 px-3" width="20%">Customer Name</th>
                                 <th class="py-2.5 px-3" width="15%">Unload Site</th>
                                 <th class="py-2.5 px-3 text-center" width="10%">Mixer</th>
@@ -363,7 +363,7 @@ const filteredPayments = computed(() => {
                             <tr v-for="d in filteredDispatches" :key="d.id"
                                 class="hover:bg-slate-50/80 transition-colors">
                                 <td class="py-2 px-3 text-center text-slate-400 font-bold">{{ d.index }}</td>
-                                <td class="py-2 px-3 font-bold text-[#0064d2] font-mono">{{ d.docket_no }}</td>
+                                <td class="py-2 px-3 font-bold text-[#0064d2] font-mono">{{ d.batch_number ?? '-' }}</td>
                                 <td class="py-2 px-3 font-bold text-slate-900">{{ d.customer_name }}</td>
                                 <td class="py-2 px-3 text-slate-600 text-[11px]">{{ d.site_name }}</td>
                                 <td class="py-2 px-3 text-center font-bold text-indigo-700">{{ d.truck_no }}</td>

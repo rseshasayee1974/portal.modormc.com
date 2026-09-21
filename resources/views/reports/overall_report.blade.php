@@ -142,7 +142,7 @@
         <thead>
             <tr>
                 <th width="4%" class="text-center">#</th>
-                <th width="12%">DSP / Docket No</th>
+                <th width="12%">Batch Number</th>
                 <th width="22%">Customer Name</th>
                 <th width="16%">Unloading Site</th>
                 <th width="10%">Truck</th>
@@ -156,7 +156,7 @@
             @forelse($dispatches['list'] ?? [] as $d)
                 <tr>
                     <td class="text-center">{{ $d['index'] }}</td>
-                    <td style="font-weight: bold; color: #0284c7;">{{ $d['docket_no'] }}</td>
+                    <td style="font-weight: bold; color: #0284c7;">{{ $d['batch_number'] ?? '-' }}</td>
                     <td style="font-weight: bold; color: #0f172a;">{{ $d['customer_name'] }}</td>
                     <td style="color: #475569;">{{ $d['site_name'] }}</td>
                     <td style="font-weight: bold; color: #4338ca;">{{ $d['truck_no'] }}</td>
