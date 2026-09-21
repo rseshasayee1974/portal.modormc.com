@@ -386,19 +386,19 @@ const getBadgeStyle = (txType) => {
 
             <!-- 3. Ledger Transactions Table (9-Column Table matching reference PDF) -->
             <div class="mt-4 overflow-x-auto max-h-[600px] overflow-y-auto border border-slate-200 rounded-lg">
-                <table class="w-full text-left border-collapse min-w-[850px] text-xs">
+                <table class="w-full text-left border-collapse text-xs min-w-[750px]">
                     <thead>
                         <tr
                             class="sticky top-0 bg-[#1e293b] text-white text-[10px] font-bold uppercase tracking-wider z-10 shadow-xs">
-                            <th class="py-2.5 px-1 text-center" width="4%">S/No</th>
-                            <th class="py-2.5 px-1" width="5%">Date</th>
-                            <th class="py-2.5 px-1" width="12%">Transactions</th>
-                            <th class="py-2.5 px-1" width="25%">Details</th>
-                            <th class="py-2.5 px-1 text-center" width="13%">Type</th>
-                            <th class="py-2.5 px-1 text-right" width="13%">Invoice / Bill</th>
-                            <th class="py-2.5 px-1 text-right" width="11%">Receipt / Payment</th>
-                            <th class="py-2.5 px-1 text-right" width="4%">Discount</th>
-                            <th class="py-2.5 px-1 text-right" width="15%">Balance</th>
+                            <th class="py-2.5 px-2 text-center" width="5%">S/No</th>
+                            <th class="py-2.5 px-2" width="9%">Date</th>
+                            <th class="py-2.5 px-2" width="13%">Transactions</th>
+                            <th class="py-2.5 px-2" width="22%">Details</th>
+                            <th class="py-2.5 px-2 text-center" width="6%">Type</th>
+                            <th class="py-2.5 px-2 text-right" width="13%">Invoice / Bill</th>
+                            <th class="py-2.5 px-2 text-right" width="13%">Receipt / Payment</th>
+                            <th class="py-2.5 px-2 text-right" width="6%">Discount</th>
+                            <th class="py-2.5 px-2 text-right" width="13%">Balance</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 text-[11px]">

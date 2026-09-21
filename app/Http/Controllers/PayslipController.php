@@ -143,19 +143,26 @@ class PayslipController extends Controller
         $this->authorizeModule('create');
 
         $request->validate([
-            'payroll_period_id' => 'required|exists:mm_payroll_periods,id'
+            'payroll_period_id' => 'required|exists:mm_payroll_periods,id',
+            'personnel_ids'     => 'nullable|array',
+            'personnel_ids.*'   => 'exists:mm_personnels,id',
         ]);
 
         $period = PayrollPeriod::findOrFail($request->payroll_period_id);
         $activePlantId = session('active_plant_id');
 
-        $personnelList = Personnel::with(['salaryStructures.salaryComponent'])
+        $query = Personnel::with(['salaryStructures.salaryComponent'])
             ->where('plant_id', $activePlantId)
-            ->where('status', 'active')
-            ->get();
+            ->where('status', 'active');
+
+        if ($request->filled('personnel_ids')) {
+            $query->whereIn('id', $request->input('personnel_ids'));
+        }
+
+        $personnelList = $query->get();
 
         if ($personnelList->isEmpty()) {
-            return redirect()->back()->with('error', 'No active personnel found to generate payslips.');
+            return redirect()->back()->with('error', 'No active personnel found to generate payslips for the selection.');
         }
 
         $startDate = $period->from_date;

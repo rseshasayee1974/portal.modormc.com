@@ -35,8 +35,31 @@ class PatronReportService implements ReportServiceInterface
             $query->whereNotNull('partner_id')->where('partner_type', 'Patron');
         }
 
+        $startDateStr = substr($start, 0, 10);
+        $endDateStr   = substr($end, 0, 10);
+
         $openingBalance = (clone $query)
-            ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))->where('voucher_date', '<', $start))
+            ->whereHas('entry', function ($q) use ($startDateStr) {
+                $q->whereNull('deleted_at')
+                  ->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))
+                  ->where(function ($dateQ) use ($startDateStr) {
+                      $dateQ->where(function ($normalQ) use ($startDateStr) {
+                          $normalQ->where('voucher_date', '<', $startDateStr)
+                                  ->where(function ($sq) {
+                                      $sq->whereNull('ref_module')->orWhere('ref_module', '!=', 'opening_balance');
+                                  })
+                                  ->where(function ($sq) {
+                                      $sq->whereNull('voucher_type')->orWhere('voucher_type', '!=', 'OPENING');
+                                  });
+                      })->orWhere(function ($obQ) use ($startDateStr) {
+                          $obQ->where('voucher_date', '<=', $startDateStr)
+                              ->where(function ($sq) {
+                                  $sq->where('ref_module', 'opening_balance')
+                                     ->orWhere('voucher_type', 'OPENING');
+                              });
+                      });
+                  });
+            })
             ->selectRaw('SUM(debit_amount) - SUM(credit_amount) as balance')
             ->value('balance') ?: 0;
 
@@ -47,7 +70,17 @@ class PatronReportService implements ReportServiceInterface
                 'entry.lines.ledger', 
                 'partner'
             ])
-            ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))->whereBetween('voucher_date', [$start, $end]))
+            ->whereHas('entry', function ($q) use ($startDateStr, $endDateStr) {
+                $q->whereNull('deleted_at')
+                  ->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))
+                  ->whereBetween('voucher_date', [$startDateStr, $endDateStr])
+                  ->where(function ($sq) {
+                      $sq->whereNull('ref_module')->orWhere('ref_module', '!=', 'opening_balance');
+                  })
+                  ->where(function ($sq) {
+                      $sq->whereNull('voucher_type')->orWhere('voucher_type', '!=', 'OPENING');
+                  });
+            })
             ->get()
             ->sortBy(fn($line) => $line->entry->voucher_date . $line->entry->id)
             ->map(function ($line) use ($patronId) {

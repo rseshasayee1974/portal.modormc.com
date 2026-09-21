@@ -37,7 +37,7 @@ class UpdateBatchRequest extends FormRequest
             'operator_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'shift' => ['nullable', 'string', 'max:50'],
             'empty_time' => ['nullable', 'date'],
-            'load_time' => ['nullable', 'date'],
+            'load_time' => ['required', 'date'],
             'truck_id' => ['nullable', 'integer', 'exists:mm_machines,id'],
             'transport_id' => ['nullable', 'integer', 'exists:mm_patrons,id'],
             'driver_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],

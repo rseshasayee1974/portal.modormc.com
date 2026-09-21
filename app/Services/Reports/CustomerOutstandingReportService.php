@@ -487,17 +487,42 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 ->sum('amount') ?: 0;
 
             $openingJel = (clone $jelQuery)
-                ->whereHas('entry', fn($q) => $q->where('voucher_date', '<', $startDateOnly))
-                ->get()->sum(fn($line) => $this->isDiscountLine($line)
-                    ? -abs((float)$line->credit_amount ?: (float)$line->debit_amount)
-                    : (float)$line->debit_amount - (float)$line->credit_amount);
+                ->whereHas('entry', function ($q) use ($startDateOnly) {
+                    $q->where(function ($dateQ) use ($startDateOnly) {
+                        $dateQ->where(function ($normalQ) use ($startDateOnly) {
+                            $normalQ->where('voucher_date', '<', $startDateOnly)
+                                    ->where(function ($sq) {
+                                        $sq->whereNull('ref_module')->orWhere('ref_module', '!=', 'opening_balance');
+                                    })
+                                    ->where(function ($sq) {
+                                        $sq->whereNull('voucher_type')->orWhere('voucher_type', '!=', 'OPENING');
+                                    });
+                        })->orWhere(function ($obQ) use ($startDateOnly) {
+                            $obQ->where('voucher_date', '<=', $startDateOnly)
+                                ->where(function ($sq) {
+                                    $sq->where('ref_module', 'opening_balance')
+                                       ->orWhere('voucher_type', 'OPENING');
+                                });
+                        });
+                    });
+                })
+                ->selectRaw('SUM(debit_amount) - SUM(credit_amount) as bal')
+                ->value('bal') ?: 0;
 
             $openingDiscount = (clone $discountQuery)->where('date', '<', $startDateOnly)
                 ->get()->sum(fn($discount) => abs((float)$discount->amount));
 
             $openingBalance = round((float)$openingInvoiced - (float)$openingReceipts + (float)$openingPayments + (float)$openingJel - $openingDiscount, 2);
         } else {
-            $openingBalance = 0.00;
+            $openingJel = (clone $jelQuery)
+                ->whereHas('entry', function ($q) {
+                    $q->where('ref_module', 'opening_balance')
+                      ->orWhere('voucher_type', 'OPENING');
+                })
+                ->selectRaw('SUM(debit_amount) - SUM(credit_amount) as bal')
+                ->value('bal') ?: 0;
+
+            $openingBalance = round((float)$openingJel, 2);
         }
 
         // 5. Fetch transactions within period
@@ -516,6 +541,13 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             ->get();
 
         $periodJel = (clone $jelQuery)
+            ->whereHas('entry', function ($q) {
+                $q->where(function ($sq) {
+                    $sq->whereNull('ref_module')->orWhere('ref_module', '!=', 'opening_balance');
+                })->where(function ($sq) {
+                    $sq->whereNull('voucher_type')->orWhere('voucher_type', '!=', 'OPENING');
+                });
+            })
             ->when($startDateOnly, fn($q) => $q->whereHas('entry', fn($sq) => $sq->where('voucher_date', '>=', $startDateOnly)))
             ->when($endDateOnly, fn($q) => $q->whereHas('entry', fn($sq) => $sq->where('voucher_date', '<=', $endDateOnly)))
             ->get();
@@ -737,6 +769,9 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $runningBalance = $openingBalance;
         $rows = [];
 
+        $openingDr = $openingBalance > 0 ? abs($openingBalance) : 0.0;
+        $openingCr = $openingBalance < 0 ? abs($openingBalance) : 0.0;
+
         // Row 1: Opening Balance Row
         $rows[] = [
             's_no'                    => 1,
@@ -748,14 +783,14 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'type'                    => '-',
             'voucher_type'            => 'OPENING',
             'voucher_no'              => '---',
-            'invoice_bill_display'    => '0',
-            'receipt_payment_display' => '0',
-            'discount_display'        => '0',
+            'invoice_bill_display'    => $openingDr > 0 ? '₹ ' . number_format($openingDr, 2) : '-',
+            'receipt_payment_display' => $openingCr > 0 ? '₹ ' . number_format($openingCr, 2) : '-',
+            'discount_display'        => '-',
             'balance_display'         => ($openingBalance != 0 ? ($openingBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($openingBalance), 2),
             'balance_type'            => $openingBalance >= 0 ? 'Dr' : 'Cr',
             'balance'                 => $openingBalance,
-            'debit'                   => 0.0,
-            'credit'                  => 0.0,
+            'debit'                   => $openingDr,
+            'credit'                  => $openingCr,
             'discount'                => 0.0,
             'is_opening'              => true,
         ];
@@ -783,9 +818,9 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'type'                    => $it['type'],
                 'voucher_type'            => $it['voucher_type'],
                 'voucher_no'              => $it['voucher_no'],
-                'invoice_bill_display'    => $debit > 0 ? '₹ ' . number_format($debit, 2) : '0',
-                'receipt_payment_display' => $credit > 0 ? '₹ ' . number_format($credit, 2) : '0',
-                'discount_display'        => $disc > 0 ? '₹ ' . number_format($disc, 2) : '0',
+                'invoice_bill_display'    => $debit > 0 ? '₹ ' . number_format($debit, 2) : '-',
+                'receipt_payment_display' => $credit > 0 ? '₹ ' . number_format($credit, 2) : '-',
+                'discount_display'        => $disc > 0 ? '₹ ' . number_format($disc, 2) : '-',
                 'balance_display'         => ($runningBalance != 0 ? ($runningBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($runningBalance), 2),
                 'balance_type'            => $runningBalance >= 0 ? 'Dr' : 'Cr',
                 'balance'                 => $runningBalance,

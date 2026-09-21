@@ -12,6 +12,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
+import Popover from 'primevue/popover';
 import Dropdown from '@/Components/Dropdown.vue';
 import {
     WrenchScrewdriverIcon,
@@ -32,7 +33,8 @@ import {
     EllipsisVerticalIcon,
     ExclamationTriangleIcon,
     ListBulletIcon,
-    DocumentTextIcon
+    DocumentTextIcon,
+    PhoneIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -79,7 +81,8 @@ const dropdowns = ref({
     machines: [],
     operators: [],
     pumpTypes: [],
-    salesOrders: []
+    salesOrders: [],
+    dispatches: []
 });
 
 // Dropdown option maps for filter dropdowns
@@ -213,7 +216,12 @@ const filteredDeployments = computed(() => {
                 return false;
             }
         }
-        if (pourSearch.value && !d.pour_reference?.toLowerCase().includes(pourSearch.value.toLowerCase()) && !d.pour_location?.toLowerCase().includes(pourSearch.value.toLowerCase())) return false;
+        if (pourSearch.value) {
+            const labelStr = getPourReferenceLabel(d.sales_order_id)?.toLowerCase() || '';
+            const locStr = d.pour_location?.toLowerCase() || '';
+            const searchStr = pourSearch.value.toLowerCase();
+            if (!labelStr.includes(searchStr) && !locStr.includes(searchStr)) return false;
+        }
         return true;
     });
 });
@@ -263,30 +271,22 @@ const getPourReferenceLabel = (refVal) => {
     return refVal;
 };
 
-// Floating Action Menu Popover (Teleported to avoid overflow clipping)
+// Floating Action Menu Popover
+const actionMenu = ref(null);
 const activeActionMenu = ref(null);
 
 const openActionMenu = (event, item) => {
-    event.stopPropagation();
-    if (activeActionMenu.value?.id === item.id) {
-        activeActionMenu.value = null;
-        return;
+    activeActionMenu.value = item;
+    if (actionMenu.value) {
+        actionMenu.value.toggle(event);
     }
-    const rect = event.currentTarget.getBoundingClientRect();
-    const menuHeight = 240;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const openUpwards = spaceBelow < menuHeight && rect.top > menuHeight;
-
-    activeActionMenu.value = {
-        item,
-        id: item.id,
-        top: openUpwards ? Math.max(10, rect.top - menuHeight) : rect.bottom + 4,
-        right: Math.max(12, window.innerWidth - rect.right),
-    };
 };
 
 const closeActionMenu = () => {
     activeActionMenu.value = null;
+    if (actionMenu.value) {
+        actionMenu.value.hide();
+    }
 };
 
 // 1-Click Operational Status Transition
@@ -336,7 +336,7 @@ const markDelayed = async (item) => {
 const markCancelled = async (item) => {
     const { value: reason, isConfirmed } = await Swal.fire({
         title: 'Cancel Pour Deployment?',
-        text: `Are you sure you want to cancel pour "${item.pour_reference}"? This requires planner confirmation.`,
+        text: `Are you sure you want to cancel pour "${getPourReferenceLabel(item.sales_order_id)}"? This requires planner confirmation.`,
         input: 'text',
         inputLabel: 'Reason for cancellation (optional)',
         inputValue: item.notes || '',
@@ -360,7 +360,7 @@ const markCancelled = async (item) => {
 const deleteDeployment = async (item) => {
     const result = await Swal.fire({
         title: 'Delete Deployment Schedule?',
-        text: `Delete pump allocation for pour "${item.pour_reference}"?`,
+        text: `Delete pump allocation for pour "${getPourReferenceLabel(item.sales_order_id)}"?`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -432,77 +432,18 @@ const getStatusBadge = (status) => {
             <ModuleSubTopNav />
 
             <div class="w-full mt-3 space-y-3">
-                
-                <!-- Main Header Card in Indigo Theme -->
-                <!-- <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                            <WrenchScrewdriverIcon class="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 dark:text-indigo-400">
-                                    Placement & Production Logistics
-                                </span>
-                                <span class="text-[9px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded font-mono font-semibold border border-indigo-100 dark:border-indigo-900">
-                                    Plant Active
-                                </span>
-                            </div>
-                            <h1 class="text-sm sm:text-base font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
-                                Concrete Pour Schedule & Pump Deployments
-                            </h1>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <Link 
-                            :href="route('production.batching-schedules.index')" 
-                            class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
-                        >
-                            <CalendarIcon class="w-3.5 h-3.5 text-indigo-600" />
-                            <span>Batching Schedules</span>
-                        </Link>
-
-                        <button 
-                            @click="fetchData" 
-                            :disabled="loading"
-                            class="p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center transition-colors shadow-xs"
-                            title="Refresh Live Data"
-                        >
-                            <ArrowPathIcon class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
-                        </button>
-
-                        <button 
-                            @click="openCreateForm"
-                            class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                        >
-                            <PlusIcon class="w-3.5 h-3.5 stroke-[2.5]" />
-                            <span>New Deployment</span>
-                        </button>
-
-                        <button 
-                            @click="scrollToSchedules"
-                            class="px-3.5 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                        >
-                            <ListBulletIcon class="w-3.5 h-3.5" />
-                            <span>View All Schedules</span>
-                        </button>
-                    </div>
-                </div> -->
 
                 <!-- Always-visible create / edit form above the schedules. -->
                 <div ref="deploymentForm" class="scroll-mt-24">
-                    <PumpDeploymentForm
-                        v-if="dropdownsLoaded"
-                        :key="formVersion"
-                        :isEditing="activeView === 'edit'"
-                        :initialData="selectedDeployment"
-                        :dropdowns="dropdowns"
-                        :defaultScheduleDate="filters.schedule_date"
-                        @saved="handleFormSaved"
-                        @cancel="handleFormCancel"
-                    />
-                    <div v-else role="status" class="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-gray-500">
+                    <template v-if="dropdownsLoaded">
+                        <PumpDeploymentForm :key="(activeView === 'edit' ? 'edit-' : 'create-') + formVersion"
+                            :isEditing="activeView === 'edit'"
+                            :initialData="activeView === 'edit' ? selectedDeployment : null" :dropdowns="dropdowns"
+                            :defaultScheduleDate="filters.schedule_date" @saved="handleFormSaved"
+                            @cancel="handleFormCancel" />
+                    </template>
+                    <div v-else role="status"
+                        class="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-gray-500">
                         Loading deployment form…
                     </div>
                 </div>
@@ -512,168 +453,142 @@ const getStatusBadge = (status) => {
                     <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">Deployment Schedule List</h2>
 
                     <!-- 1. Operational KPI Cards -->
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider block">Total Deployments</span>
+                    <!-- <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider block">Total
+                                Deployments</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-gray-900 dark:text-gray-100">{{ metrics.total_deployments }}</span>
+                                <span class="text-lg font-black text-gray-900 dark:text-gray-100">{{
+                                    metrics.total_deployments }}</span>
                                 <span class="text-[10px] font-semibold text-gray-400">Rigs</span>
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-indigo-600 dark:text-indigo-400 tracking-wider block">Planned Volume</span>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-indigo-600 dark:text-indigo-400 tracking-wider block">Planned
+                                Volume</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-indigo-600 dark:text-indigo-400">{{ metrics.total_planned_m3 }}</span>
+                                <span class="text-lg font-black text-indigo-600 dark:text-indigo-400">{{
+                                    metrics.total_planned_m3
+                                    }}</span>
                                 <span class="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">m³</span>
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-blue-600 dark:text-blue-400 tracking-wider block">Active Pumping</span>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-blue-600 dark:text-blue-400 tracking-wider block">Active
+                                Pumping</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-blue-600 dark:text-blue-400">{{ metrics.active_pumping_count }}</span>
+                                <span class="text-lg font-black text-blue-600 dark:text-blue-400">{{
+                                    metrics.active_pumping_count
+                                    }}</span>
                                 <span class="text-[10px] font-semibold text-blue-600 dark:text-blue-400">Pumps</span>
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-amber-600 dark:text-amber-400 tracking-wider block">Setup & Rigging</span>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-amber-600 dark:text-amber-400 tracking-wider block">Setup
+                                &
+                                Rigging</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-amber-600 dark:text-amber-400">{{ metrics.setup_in_progress }}</span>
+                                <span class="text-lg font-black text-amber-600 dark:text-amber-400">{{
+                                    metrics.setup_in_progress
+                                    }}</span>
                                 <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Rigs</span>
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider block">Completed Pours</span>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider block">Completed
+                                Pours</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">{{ metrics.completed_deployments }}</span>
-                                <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Pours</span>
+                                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">{{
+                                    metrics.completed_deployments
+                                    }}</span>
+                                <span
+                                    class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Pours</span>
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-orange-600 dark:text-orange-400 tracking-wider block">Delayed Pours</span>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-orange-600 dark:text-orange-400 tracking-wider block">Delayed
+                                Pours</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-orange-600 dark:text-orange-400">{{ metrics.delayed_count }}</span>
-                                <span class="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Alerts</span>
+                                <span class="text-lg font-black text-orange-600 dark:text-orange-400">{{
+                                    metrics.delayed_count }}</span>
+                                <span
+                                    class="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Alerts</span>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
 
                     <!-- 2. Main Filter & Schedule Table Card -->
-                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs overflow-hidden text-xs">
-                        
+                    <div
+                        class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs overflow-hidden text-xs">
+
                         <!-- 7 Operational Filter Bar -->
-                        <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 space-y-2.5">
+                        <div
+                            class="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 space-y-2.5">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-1.5">
                                     <FunnelIcon class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+                                    <span
+                                        class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
                                         Operational Filters
                                     </span>
                                 </div>
-                                <button 
-                                    @click="resetFilters" 
-                                    class="text-[10px] font-bold text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors flex items-center gap-1"
-                                >
+                                <button @click="resetFilters"
+                                    class="text-[10px] font-bold text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors flex items-center gap-1">
                                     <ArrowPathIcon class="w-3 h-3" />
                                     <span>Reset Filters</span>
                                 </button>
                             </div>
 
-                            <!-- Filter Grid -->
+                            <!-- Filter Grid (Commented out per request) -->
+                            <!--
                             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
-                                
-                                <!-- 1. Date -->
                                 <div>
-                                    <BaseInput
-                                        v-model="filters.schedule_date"
-                                        type="date"
-                                        label="Date"
-                                        @update:modelValue="fetchData"
-                                    />
+                                    <BaseInput v-model="filters.schedule_date" type="date" label="Date" @update:modelValue="fetchData" />
                                 </div>
-
-                                <!-- 2. Site -->
                                 <div>
-                                    <BaseSelect
-                                        v-model="filters.site_id"
-                                        :options="siteFilterOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        label="Site"
-                                        @change="fetchData"
-                                    />
+                                    <BaseSelect v-model="filters.site_id" :options="siteFilterOptions" optionLabel="label" optionValue="value" label="Site" @change="fetchData" />
                                 </div>
-
-                                <!-- 3. Pour Location -->
                                 <div>
-                                    <BaseInput
-                                        v-model="filters.pour_location"
-                                        type="text"
-                                        label="Location"
-                                        placeholder="Raft, Slab..."
-                                        @update:modelValue="onLocationSearchInput"
-                                    />
+                                    <BaseInput v-model="filters.pour_location" type="text" label="Location" placeholder="Raft, Slab..." @update:modelValue="onLocationSearchInput" />
                                 </div>
-
-                                <!-- 4. Pump Type -->
                                 <div>
-                                    <BaseSelect
-                                        v-model="filters.pump_type"
-                                        :options="pumpTypeFilterOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        label="Pump Type"
-                                        @change="fetchData"
-                                    />
+                                    <BaseSelect v-model="filters.pump_type" :options="pumpTypeFilterOptions" optionLabel="label" optionValue="value" label="Pump Type" @change="fetchData" />
                                 </div>
-
-                                <!-- 5. Pump Rig Number -->
                                 <div>
-                                    <BaseSelect
-                                        v-model="filters.pump_no"
-                                        :options="machineFilterOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        label="Machine"
-                                        @change="fetchData"
-                                    />
+                                    <BaseSelect v-model="filters.pump_no" :options="machineFilterOptions" optionLabel="label" optionValue="value" label="Machine" @change="fetchData" />
                                 </div>
-
-                                <!-- 6. Operator -->
                                 <div>
-                                    <BaseSelect
-                                        v-model="filters.operator_id"
-                                        :options="operatorFilterOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        label="Operator"
-                                        @change="fetchData"
-                                    />
+                                    <BaseSelect v-model="filters.operator_id" :options="operatorFilterOptions" optionLabel="label" optionValue="value" label="Operator" @change="fetchData" />
                                 </div>
-
-                                <!-- 7. Status -->
                                 <div>
-                                    <BaseSelect
-                                        v-model="filters.status"
-                                        :options="statusFilterOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        label="Status"
-                                        @change="fetchData"
-                                    />
+                                    <BaseSelect v-model="filters.status" :options="statusFilterOptions" optionLabel="label" optionValue="value" label="Status" @change="fetchData" />
                                 </div>
-
                             </div>
+                            -->
 
-                            <!-- Quick Status Filter Pills in Indigo Theme -->
-                            <div class="flex items-center gap-1.5 pt-0.5 overflow-x-auto whitespace-nowrap">
-                                <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mr-1">Status:</span>
-                                <button 
-                                    v-for="st in [
+                            <!-- Quick Status Filter Pills & Global Search -->
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-0.5">
+                                <div class="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap">
+                                    <span
+                                        class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mr-1">Status:</span>
+                                    <button v-for="st in [
                                         { id: 'all', label: 'All' },
                                         { id: 'scheduled', label: 'Scheduled' },
                                         { id: 'in_progress', label: 'In Progress' },
@@ -682,39 +597,41 @@ const getStatusBadge = (status) => {
                                         { id: 'completed', label: 'Completed' },
                                         { id: 'delayed', label: 'Delayed' },
                                         { id: 'cancelled', label: 'Cancelled' }
-                                    ]"
-                                    :key="st.id"
-                                    @click="filters.status = st.id; fetchData()"
-                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all border"
-                                    :class="filters.status === st.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600'"
-                                >
-                                    {{ st.label }}
-                                </button>
+                                    ]" :key="st.id" @click="filters.status = st.id; fetchData()"
+                                        class="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all border"
+                                        :class="filters.status === st.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600'">
+                                        {{ st.label }}
+                                    </button>
+                                </div>
+
+                                <div class="w-full sm:w-64 shrink-0">
+                                    <BaseInput v-model="pourSearch" type="text"
+                                        placeholder="Search orders, locations..."
+                                        @update:modelValue="onLocationSearchInput" />
+                                </div>
                             </div>
                         </div>
 
                         <!-- Data Table using BaseDataTable -->
                         <div class="w-full">
-                            <BaseDataTable
-                                :value="filteredDeployments"
-                                :loading="loading"
-                                dataKey="id"
-                                :paginator="true"
-                                :rows="20"
-                                :rowsPerPageOptions="[10, 20, 50, 100]"
-                                :showSerial="true"
-                                :rowClass="getRowClass"
-                                class="text-xs"
-                            >
+                            <BaseDataTable :value="filteredDeployments" :loading="loading" dataKey="id"
+                                :paginator="true" :rows="20" :rowsPerPageOptions="[10, 20, 50, 100]" :showSerial="true"
+                                :rowClass="getRowClass" class="text-xs">
                                 <!-- Pour Reference & Mix -->
-                                <Column field="pour_reference" header="Pour Reference" :sortable="true">
+                                <Column field="sales_order_id" header="Sales Order" :sortable="true">
                                     <template #body="{ data }">
                                         <div class="font-semibold text-gray-900 dark:text-gray-100 text-xs">
-                                            {{ getPourReferenceLabel(data.pour_reference) }}
+                                            {{ getPourReferenceLabel(data.sales_order_id) }}
                                         </div>
-                                        <div class="mt-0.5">
-                                            <span class="inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900">
+                                        <div class="mt-0.5 flex flex-col gap-0.5">
+                                            <span
+                                                class="inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900 w-max">
                                                 {{ data.grade || data.mix_design?.name || 'Standard Mix' }}
+                                            </span>
+                                            <span v-if="data.billing_name"
+                                                class="text-[9px] text-gray-500 font-medium truncate max-w-[140px]"
+                                                :title="data.billing_name">
+                                                {{ data.billing_name }}
                                             </span>
                                         </div>
                                     </template>
@@ -723,12 +640,21 @@ const getStatusBadge = (status) => {
                                 <!-- Destination & Site -->
                                 <Column field="site_name" header="Destination & Site" :sortable="true">
                                     <template #body="{ data }">
-                                        <div class="font-semibold text-gray-800 dark:text-gray-200 text-xs flex items-center gap-1">
+                                        <div
+                                            class="font-semibold text-gray-800 dark:text-gray-200 text-xs flex items-center gap-1">
                                             <MapPinIcon class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                            <span class="truncate max-w-[140px]" :title="data.site_name || data.site?.name">{{ data.site_name || data.site?.name || 'Unspecified Site' }}</span>
+                                            <span class="truncate max-w-[140px]"
+                                                :title="data.site_name || data.site?.name">{{ data.site_name ||
+                                                    data.site?.name || 'Unspecified Site' }}</span>
                                         </div>
-                                        <div v-if="data.pour_location" class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 pl-4.5 truncate max-w-[140px]" :title="data.pour_location">
+                                        <div v-if="data.pour_location"
+                                            class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 pl-4.5 truncate max-w-[140px]"
+                                            :title="data.pour_location">
                                             {{ data.pour_location }}
+                                        </div>
+                                        <div v-if="data.site_contact_number"
+                                            class="text-[9px] text-gray-400 pl-4.5 mt-0.5 truncate max-w-[140px]">
+                                            📞 {{ data.site_contact_number }}
                                         </div>
                                     </template>
                                 </Column>
@@ -736,50 +662,65 @@ const getStatusBadge = (status) => {
                                 <!-- Timelines -->
                                 <Column field="schedule_date" header="Timelines" :sortable="true">
                                     <template #body="{ data }">
-                                        <div class="flex items-center gap-1 text-[11px] text-gray-700 dark:text-gray-300 font-medium">
+                                        <div
+                                            class="flex items-center gap-1 text-[11px] text-gray-700 dark:text-gray-300 font-medium">
                                             <CalendarIcon class="w-3 h-3 text-gray-400 shrink-0" />
                                             <span>{{ data.schedule_date }}</span>
                                         </div>
-                                        <div class="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5 flex items-center gap-1 whitespace-nowrap">
+                                        <div
+                                            class="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5 flex items-center gap-1 whitespace-nowrap">
                                             <span class="text-gray-400">Target:</span>
-                                            <span class="font-medium text-gray-800 dark:text-gray-200">{{ formatTime(data.pour_start_time) }} - {{ formatTime(data.planned_end_time) }}</span>
+                                            <span class="font-medium text-gray-800 dark:text-gray-200">{{
+                                                formatTime(data.pour_start_time) }} - {{
+                                                    formatTime(data.planned_end_time) }}</span>
                                         </div>
-                                        <div v-if="data.actual_start_time || data.actual_end_time" class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1 whitespace-nowrap">
+                                        <div v-if="data.actual_start_time || data.actual_end_time"
+                                            class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1 whitespace-nowrap">
                                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                            <span>Act: {{ formatTime(data.actual_start_time) }} <template v-if="data.actual_end_time">- {{ formatTime(data.actual_end_time) }}</template></span>
+                                            <span>Act: {{ formatTime(data.actual_start_time) }} <template
+                                                    v-if="data.actual_end_time">- {{ formatTime(data.actual_end_time)
+                                                    }}</template></span>
                                         </div>
                                     </template>
                                 </Column>
 
                                 <!-- Volume -->
-                                <Column field="planned_qty_m3" header="Volume" :sortable="true" align="right" headerClass="text-right">
+                                <Column field="planned_qty_m3" header="Volume" :sortable="true" align="right"
+                                    headerClass="text-right">
                                     <template #body="{ data }">
                                         <div class="font-bold text-gray-900 dark:text-gray-100 text-xs">
-                                            {{ Number(data.planned_qty_m3 || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }} <span class="text-[9px] font-normal text-gray-500">m³</span>
+                                            {{ Number(data.planned_qty_m3 || 0).toLocaleString(undefined, {
+                                                minimumFractionDigits: 0, maximumFractionDigits: 2
+                                            }) }} <span class="text-[9px] font-normal text-gray-500">m³</span>
                                         </div>
-                                        <div v-if="data.pumping_rate_m3_per_hour" class="text-[9px] text-teal-600 dark:text-teal-400 font-medium mt-0.5">
+                                        <div v-if="data.pumping_rate_m3_per_hour"
+                                            class="text-[9px] text-teal-600 dark:text-teal-400 font-medium mt-0.5">
                                             ~{{ Number(data.pumping_rate_m3_per_hour).toFixed(1) }} m³/h
                                         </div>
                                     </template>
                                 </Column>
 
                                 <!-- Pump Rig & Reach -->
-                                <Column field="pump_no" header="Pump Rig & Reach" :sortable="true">
+                                <Column field="pump_no" header="Pump" :sortable="true">
                                     <template #body="{ data }">
                                         <div class="flex items-center gap-1">
-                                            <span 
+                                            <!-- <span
                                                 class="px-1 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider border shrink-0"
-                                                :class="data.pump_type === 'boom_pump' ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'"
-                                            >
-                                                {{ data.pump_type === 'boom_pump' ? 'Boom' : (data.pump_type === 'stationary_pump' ? 'Stationary' : (data.pump_type === 'line_pump' ? 'Line' : data.pump_type)) }}
-                                            </span>
-                                            <span class="font-semibold text-gray-800 dark:text-gray-200 text-xs whitespace-nowrap">
+                                                :class="data.pump_type === 'boom_pump' ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'">
+                                                {{ data.pump_type === 'boom_pump' ? 'Boom' : (data.pump_type ===
+                                                    'stationary_pump' ? 'Stationary' : (data.pump_type === 'line_pump' ?
+                                                        'Line' : data.pump_type)) }}
+                                            </span> -->
+                                            <span
+                                                class="font-semibold text-gray-800 dark:text-gray-200 text-xs whitespace-nowrap">
                                                 {{ data.pump_no || data.pump_machine?.registration || 'TBD' }}
                                             </span>
                                         </div>
-                                        <div v-if="data.boom_length_m" class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                            Reach: <span class="font-medium text-gray-700 dark:text-gray-300">{{ Number(data.boom_length_m).toFixed(0) }}m</span>
-                                        </div>
+                                        <!-- <div v-if="data.boom_length_m"
+                                            class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                            Reach: <span class="font-medium text-gray-700 dark:text-gray-300">{{
+                                                Number(data.boom_length_m).toFixed(0) }}m</span>
+                                        </div> -->
                                     </template>
                                 </Column>
 
@@ -788,26 +729,32 @@ const getStatusBadge = (status) => {
                                     <template #body="{ data }">
                                         <div class="flex items-center gap-1 whitespace-nowrap">
                                             <UserIcon class="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                            <span class="font-medium text-gray-800 dark:text-gray-200 text-xs truncate max-w-[110px]" :title="data.operator_name || (data.operator ? data.operator.first_name + ' ' + (data.operator.last_name || '') : 'Unassigned')">
-                                                {{ data.operator_name || (data.operator ? data.operator.first_name + ' ' + (data.operator.last_name || '') : 'Unassigned') }}
+                                            <span
+                                                class="font-medium text-gray-800 dark:text-gray-200 text-xs truncate max-w-[110px]"
+                                                :title="data.operator_name || (data.operator ? data.operator.first_name + ' ' + (data.operator.last_name || '') : 'Unassigned')">
+                                                {{ data.operator_name || (data.operator ? data.operator.first_name + ' '
+                                                    + (data.operator.last_name || '') : 'Unassigned') }}
                                             </span>
                                         </div>
-                                        <div v-if="data.operator?.phone" class="text-[9px] text-gray-400 pl-4.5">
-                                            {{ data.operator.phone }}
+                                        <div v-if="data.driver_contact_number || data.operator?.phone"
+                                            class="text-[9px] text-gray-500 pl-4.5 mt-0.5">
+                                            <div class="flex items-center gap-1 whitespace-nowrap">
+                                                <PhoneIcon class="w-3.5 h-3.5 text-gray-400 shrink-0" />
+
+                                                {{ data.driver_contact_number || data.operator?.phone }}
+                                            </div>
                                         </div>
                                     </template>
                                 </Column>
 
                                 <!-- Status Badge -->
-                                <Column field="status" header="Status" :sortable="true" align="center" headerClass="text-center">
+                                <Column field="status" header="Status" :sortable="true" align="center"
+                                    headerClass="text-center">
                                     <template #body="{ data }">
                                         <div class="flex items-center justify-center">
-                                            <Tag 
-                                                :value="getStatusBadge(data.status).label" 
-                                                :severity="getStatusBadge(data.status).severity" 
-                                                rounded 
-                                                class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5"
-                                            />
+                                            <Tag :value="getStatusBadge(data.status).label"
+                                                :severity="getStatusBadge(data.status).severity" rounded
+                                                class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5" />
                                         </div>
                                     </template>
                                 </Column>
@@ -816,7 +763,7 @@ const getStatusBadge = (status) => {
                                 <Column header="Actions" align="right" headerClass="text-right" style="width: 80px">
                                     <template #body="{ data }">
                                         <div class="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                                            
+
                                             <!-- Quick Primary Progression Action Button (Temporarily commented)
                                             <button 
                                                 v-if="data.status === 'scheduled'" 
@@ -858,22 +805,17 @@ const getStatusBadge = (status) => {
                                             -->
 
                                             <!-- Edit Schedule -->
-                                            <button 
-                                                @click="openEditForm(data)"
+                                            <button @click="openEditForm(data)"
                                                 class="p-1 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                                                title="Edit Schedule"
-                                            >
+                                                title="Edit Schedule">
                                                 <PencilSquareIcon class="w-3.5 h-3.5" />
                                             </button>
 
                                             <!-- Popover Trigger Button -->
-                                            <button 
-                                                type="button"
-                                                @click="(e) => openActionMenu(e, data)"
+                                            <button type="button" @click.stop="openActionMenu($event, data)"
                                                 class="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                                                 :class="{ 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400': activeActionMenu?.id === data.id }"
-                                                title="More Options"
-                                            >
+                                                title="More Options">
                                                 <EllipsisVerticalIcon class="w-4 h-4" />
                                             </button>
 
@@ -884,7 +826,8 @@ const getStatusBadge = (status) => {
                                 <template #empty>
                                     <div class="py-10 flex flex-col items-center justify-center text-gray-400">
                                         <WrenchScrewdriverIcon class="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
-                                        <span class="font-medium text-xs">No pour deployments matching the selected filters. Use the form above to create one.</span>
+                                        <span class="font-medium text-xs">No pour deployments matching the selected
+                                            filters. Use the form above to create one.</span>
                                     </div>
                                 </template>
                             </BaseDataTable>
@@ -896,75 +839,58 @@ const getStatusBadge = (status) => {
             </div>
         </div>
 
-        <!-- Teleported Action Popover (Never clipped by container overflow) -->
-        <Teleport to="body">
-            <div 
-                v-if="activeActionMenu" 
-                class="fixed inset-0 z-[9998]" 
-                @click="closeActionMenu"
-            />
-            <div 
-                v-if="activeActionMenu" 
-                class="fixed z-[9999] w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-xl py-1 text-xs divide-y divide-gray-100 dark:divide-gray-700 transition-all"
-                :style="{ top: `${activeActionMenu.top}px`, right: `${activeActionMenu.right}px` }"
-                @click.stop
-            >
+        <!-- Action Popover -->
+        <Popover ref="actionMenu"
+            class="z-50 !shadow-2xl !border !border-slate-200/80 dark:!border-slate-700/80 !rounded-xl overflow-hidden"
+            style="padding: 0; min-width: 14rem;" :pt="{ root: { id: 'pump-deployment-action-menu' } }">
+            <div v-if="activeActionMenu"
+                class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left text-xs">
+                
                 <!-- Status Actions -->
                 <div class="py-1">
-                    <div class="px-3 py-1 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    <div
+                        class="px-3 py-1 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                         Status Actions
                     </div>
 
-                    <button
-                        v-if="activeActionMenu.item.status === 'scheduled'"
-                        @click="transitionStatus(activeActionMenu.item, 'setup'); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 transition-colors"
-                    >
+                    <button v-if="activeActionMenu.status === 'scheduled'"
+                        @click="transitionStatus(activeActionMenu, 'setup'); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 transition-colors">
                         <WrenchScrewdriverIcon class="w-3.5 h-3.5 text-amber-600 shrink-0" />
                         <span>Move to Setup / Rigging</span>
                     </button>
 
-                    <button
-                        v-if="activeActionMenu.item.status === 'setup'"
-                        @click="transitionStatus(activeActionMenu.item, 'ready'); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center gap-2 transition-colors"
-                    >
+                    <button v-if="activeActionMenu.status === 'setup'"
+                        @click="transitionStatus(activeActionMenu, 'ready'); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center gap-2 transition-colors">
                         <CheckCircleIcon class="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                         <span>Mark Ready & Primed</span>
                     </button>
 
-                    <button
-                        v-if="['ready', 'scheduled', 'en_route'].includes(activeActionMenu.item.status)"
-                        @click="transitionStatus(activeActionMenu.item, 'in_progress'); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center gap-2 transition-colors"
-                    >
+                    <button v-if="['ready', 'scheduled', 'en_route'].includes(activeActionMenu.status)"
+                        @click="transitionStatus(activeActionMenu, 'in_progress'); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center gap-2 transition-colors">
                         <PlayIcon class="w-3.5 h-3.5 text-blue-600 shrink-0" />
                         <span>Start Pour (In Progress)</span>
                     </button>
 
-                    <button
-                        v-if="['in_progress', 'pumping'].includes(activeActionMenu.item.status)"
-                        @click="transitionStatus(activeActionMenu.item, 'completed'); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 transition-colors"
-                    >
+                    <button v-if="['in_progress', 'pumping'].includes(activeActionMenu.status)"
+                        @click="transitionStatus(activeActionMenu, 'completed'); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 transition-colors">
                         <StopIcon class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         <span>Complete & Finish Pour</span>
                     </button>
 
-                    <button
-                        v-if="!['completed', 'cancelled', 'delayed'].includes(activeActionMenu.item.status)"
-                        @click="markDelayed(activeActionMenu.item); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/40 flex items-center gap-2 transition-colors"
-                    >
+                    <button v-if="!['completed', 'cancelled', 'delayed'].includes(activeActionMenu.status)"
+                        @click="markDelayed(activeActionMenu); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/40 flex items-center gap-2 transition-colors">
                         <ClockIcon class="w-3.5 h-3.5 text-orange-500 shrink-0" />
                         <span>Mark as Delayed...</span>
                     </button>
 
-                    <button
-                        v-if="!['completed', 'cancelled'].includes(activeActionMenu.item.status)"
-                        @click="markCancelled(activeActionMenu.item); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors"
-                    >
+                    <button v-if="!['completed', 'cancelled'].includes(activeActionMenu.status)"
+                        @click="markCancelled(activeActionMenu); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors">
                         <XCircleIcon class="w-3.5 h-3.5 text-rose-500 shrink-0" />
                         <span>Cancel Pour...</span>
                     </button>
@@ -972,23 +898,13 @@ const getStatusBadge = (status) => {
 
                 <!-- Management Options -->
                 <div class="py-1">
-                    <!-- <button
-                        @click="openEditForm(activeActionMenu.item); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
-                    >
-                        <PencilSquareIcon class="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                        <span>Edit Deployment</span>
-                    </button> -->
-
-                    <button
-                        @click="deleteDeployment(activeActionMenu.item); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2 transition-colors"
-                    >
+                    <button @click="deleteDeployment(activeActionMenu); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2 transition-colors">
                         <TrashIcon class="w-3.5 h-3.5 text-rose-500 shrink-0" />
                         <span>Delete Deployment</span>
                     </button>
                 </div>
             </div>
-        </Teleport>
+        </Popover>
     </AppLayout>
 </template>
