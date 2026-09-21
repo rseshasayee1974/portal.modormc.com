@@ -375,6 +375,7 @@ Route::middleware([
   Route::prefix('reports')->group(function () {
       Route::get('bulk-documents', [\App\Http\Controllers\BulkDocumentReportController::class, 'index'])->name('reports.bulk-documents');
       Route::get('bulk-documents/preview', [\App\Http\Controllers\BulkDocumentReportController::class, 'documents'])->name('reports.bulk-documents.preview');
+      Route::get('bulk-documents/options', [\App\Http\Controllers\BulkDocumentReportController::class, 'documents'])->name('reports.bulk-documents.options');
       Route::post('bulk-documents/export', [\App\Http\Controllers\BulkDocumentReportController::class, 'documents'])->name('reports.bulk-documents.export');
       Route::post('bulk-documents/export-zip', [\App\Http\Controllers\BulkDocumentReportController::class, 'exportZip'])->name('reports.bulk-documents.export-zip');
       // Unified Reports

@@ -9,6 +9,7 @@ import BaseButton from '@/Components/Base/BaseButton.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { formatCurrency } from '@/Utils/formatters';
 import Dialog from 'primevue/dialog';
+import MultiSelect from 'primevue/multiselect';
 import { 
     DocumentTextIcon, 
     ArrowPathIcon,
@@ -41,12 +42,67 @@ const filters = reactive({
     ledger_id: null as number | null,
     tax_type: '',
     reference: '',
+    invoice_ids: [] as number[],
 });
 
 const result = ref<{ count: number; documents: any[] } | null>(null);
 const busy = ref(false);
 const exportingPdf = ref(false);
 const error = ref('');
+const invoiceOptions = ref<Array<{ id: number; number: string; date: string; label: string }>>([]);
+const optionsLoading = ref(false);
+const optionsError = ref('');
+let optionsGeneration = 0;
+let previewGeneration = 0;
+let optionsTimer: ReturnType<typeof setTimeout>;
+let previewTimer: ReturnType<typeof setTimeout>;
+
+const scopeFilters = computed(() => ({
+    start_date: filters.start_date, end_date: filters.end_date,
+    type: filters.type, subtype: filters.subtype,
+    patron_id: filters.patron_id, ledger_id: filters.ledger_id,
+    tax_type: filters.tax_type, reference: filters.reference,
+}));
+
+async function loadInvoiceOptions() {
+    const generation = ++optionsGeneration;
+    optionsLoading.value = true;
+    optionsError.value = '';
+    try {
+        const response = await axios.get(route('reports.bulk-documents.options'), { params: scopeFilters.value });
+        if (generation !== optionsGeneration) return;
+        invoiceOptions.value = response.data.options.map((option: any) => ({
+            ...option, label: `${option.number} · ${option.date}`,
+        }));
+    } catch (e: any) {
+        if (generation === optionsGeneration) optionsError.value = 'Unable to load invoice numbers. Check the date range and try Generate Report again.';
+    } finally {
+        if (generation === optionsGeneration) optionsLoading.value = false;
+    }
+}
+
+watch(scopeFilters, () => {
+    optionsGeneration++;
+    invoiceOptions.value = [];
+    filters.invoice_ids = [];
+    optionsLoading.value = true;
+    clearTimeout(optionsTimer);
+    optionsTimer = setTimeout(loadInvoiceOptions, 250);
+});
+
+watch(filters, () => {
+    previewGeneration++;
+    result.value = null;
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(runPreview, 300);
+}, { deep: true, flush: 'sync' });
+
+onUnmounted(() => {
+    optionsGeneration++;
+    previewGeneration++;
+    clearTimeout(optionsTimer);
+    clearTimeout(previewTimer);
+});
 
 const documentTypeOptions = [
     { label: 'All Invoices & Bills', value: '' },
@@ -227,17 +283,21 @@ const resetFilters = () => {
     filters.ledger_id = null;
     filters.tax_type = '';
     filters.reference = '';
+    filters.invoice_ids = [];
     runPreview();
 };
 
 async function runPreview() {
+    clearTimeout(previewTimer);
+    if (optionsError.value) loadInvoiceOptions();
+    const generation = ++previewGeneration;
     busy.value = true;
     error.value = '';
     try {
         const response = await axios.get(route('reports.bulk-documents.preview'), {
             params: { ...filters },
         });
-        result.value = response.data;
+        if (generation === previewGeneration) result.value = response.data;
     } catch (e: any) {
         let data = e.response?.data;
         if (data instanceof Blob) {
@@ -247,9 +307,9 @@ async function runPreview() {
                 data = null;
             }
         }
-        error.value = Object.values(data?.errors || {}).flat().join(' ') || data?.message || 'Unable to load preview documents.';
+        if (generation === previewGeneration) error.value = Object.values(data?.errors || {}).flat().join(' ') || data?.message || 'Unable to load preview documents.';
     } finally {
-        busy.value = false;
+        if (generation === previewGeneration) busy.value = false;
     }
 }
 
@@ -292,12 +352,13 @@ const printReport = () => {
 };
 
 onMounted(() => {
+    loadInvoiceOptions();
     runPreview();
 });
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="min-w-0 max-w-full space-y-6">
         <!-- Filter Header Card (Styled similar to General Ledger Report UI) -->
         <div class="bg-white rounded shadow-sm border border-slate-200 overflow-hidden mb-6 no-print">
             <!-- Card Top Bar -->
@@ -314,7 +375,7 @@ onMounted(() => {
 
                 <!-- Header Action Buttons -->
                 <div class="flex flex-wrap items-center gap-2.5">
-                    <BaseButton variant="outlined" severity="secondary" @click="printReport">
+                    <BaseButton variant="outlined" severity="secondary" :disabled="!result?.count || busy" @click="printReport">
                         <PrinterIcon class="h-4 w-4 mr-1.5" />
                         Print
                     </BaseButton>
@@ -348,7 +409,7 @@ onMounted(() => {
                         title="Export all documents as individual PDFs inside a ZIP archive (Supports 10,000+)"
                     >
                         <FolderArrowDownIcon class="h-4 w-4 mr-1.5" />
-                        Export All to ZIP
+                        {{ filters.invoice_ids.length ? 'Export Selected to ZIP' : 'Export All to ZIP' }}
                         <span v-if="result?.count" class="ml-1.5 px-1.5 py-0.5 text-[10px] font-black rounded-full bg-white/20">
                             {{ result.count }}
                         </span>
@@ -445,13 +506,39 @@ onMounted(() => {
                         />
                     </div>
 
-                    <div >
+                    <!-- <div >
                         <BaseInput
                             v-model="filters.reference"
                             label="Invoice / Journal / Voucher Number"
                             placeholder="Search document or voucher number..."
                             :disabled="busy"
                         />
+                    </div> -->
+
+                    <div class="col-span-2">
+                        <label for="bulk-invoice-numbers" class="block text-[10px] font-semibold text-slate-600 mb-2">Invoice / Bill Numbers</label>
+                        <MultiSelect
+                            inputId="bulk-invoice-numbers"
+                            v-model="filters.invoice_ids"
+                            :options="invoiceOptions"
+                            optionLabel="label"
+                            optionValue="id"
+                            filter
+                            
+                            showClear
+                            :maxSelectedLabels="3"
+                            selectedItemsLabel="{0} documents selected"
+                            :selectionLimit="1000"
+                            :virtualScrollerOptions="{ itemSize: 44 }"
+                            :loading="optionsLoading"
+                            :disabled="optionsLoading || !!optionsError"
+                          
+                            class="w-full"
+                        />
+                        <!-- <p v-if="optionsError" class="mt-2 text-sm text-red-600">{{ optionsError }}</p>
+                        <p v-else class="mt-2 text-xs text-slate-500">
+                            {{ filters.invoice_ids.length ? `${filters.invoice_ids.length} selected — preview, PDF and ZIP include only these documents.` : 'Leave empty to export all matching documents. Numbers follow the date range, subtype and other filters.' }}
+                        </p> -->
                     </div>
 
                     <!-- Form Action Footer (Mirroring LedgerReport) -->
@@ -535,7 +622,7 @@ onMounted(() => {
                 class="shrink-0 self-start sm:self-center"
             >
                 <FolderArrowDownIcon class="w-4 h-4 mr-1.5" />
-                Export All to ZIP ({{ result.count }})
+                {{ filters.invoice_ids.length ? 'Export Selected to ZIP' : 'Export All to ZIP' }} ({{ result.count }})
             </BaseButton>
         </div>
 
@@ -614,9 +701,9 @@ onMounted(() => {
                 </div>
 
                 <!-- Table Grid -->
-                <div class="p-4 sm:p-5 overflow-x-auto">
-                    <div class="border border-slate-200 rounded overflow-hidden">
-                        <table class="w-full text-left border-collapse min-w-[850px]">
+                <div class="min-w-0 p-4 sm:p-5">
+                    <div class="statement-scroll border border-slate-200 rounded" role="region" aria-label="Statement result grid, scroll to view all documents and amounts" tabindex="0">
+                        <table class="statement-table w-full text-left border-collapse min-w-[850px]">
                             <thead>
                                 <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
                                     <th class="py-3 px-3 text-center" width="4%">#</th>
@@ -805,3 +892,74 @@ onMounted(() => {
         </Dialog>
     </div>
 </template>
+
+<style scoped>
+.statement-scroll {
+    max-width: 100%;
+    max-height: 60vh;
+    overflow: auto;
+    scrollbar-gutter: stable;
+}
+
+.statement-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f2f4f7;
+}
+
+.statement-table th:nth-last-child(-n + 2),
+.statement-table td:nth-last-child(-n + 2) {
+    white-space: nowrap;
+}
+
+.statement-table tr > :last-child {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    box-shadow: -1px 0 0 #e2e8f0;
+}
+
+.statement-table tbody tr > :last-child {
+    background: #fff;
+}
+
+.statement-table tbody tr:nth-child(even) > :last-child,
+.statement-table tbody tr:hover > :last-child {
+    background: #f8fafc;
+}
+
+.statement-table thead tr > :last-child {
+    z-index: 3;
+}
+
+.statement-table tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: #1d2d3e;
+}
+
+.statement-table tfoot tr > :last-child {
+    z-index: 3;
+}
+
+@media print {
+    .statement-scroll {
+        max-height: none;
+        overflow: visible;
+        scrollbar-gutter: auto;
+    }
+
+    .statement-table {
+        min-width: 0;
+    }
+
+    .statement-table thead th,
+    .statement-table tr > :last-child,
+    .statement-table tfoot td {
+        position: static;
+        box-shadow: none;
+    }
+}
+</style>

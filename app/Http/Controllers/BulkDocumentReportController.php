@@ -36,8 +36,21 @@ class BulkDocumentReportController extends Controller
             'patron_id' => 'nullable|integer', 'ledger_id' => 'nullable|integer',
             'tax_type' => ['nullable', Rule::in(['gst', 'igst', 'no_tax'])],
             'reference' => 'nullable|string|max:100',
+            'invoice_ids' => 'nullable|array|max:1000',
+            'invoice_ids.*' => 'required|integer|min:1|distinct',
         ]);
+        $optionsOnly = $request->routeIs('reports.bulk-documents.options');
+        if ($optionsOnly) unset($filters['invoice_ids']);
         $matches = $query->build($plant, $filters);
+        if ($optionsOnly) {
+            return response()->json(['options' => $matches
+                ->get(['mm_invoices.id', 'invoice_number', 'prefix', 'invoice_date'])
+                ->map(fn ($invoice) => [
+                    'id' => $invoice->id,
+                    'number' => $invoice->full_number,
+                    'date' => $invoice->invoice_date?->format('Y-m-d'),
+                ])])->header('Cache-Control', 'private, no-store');
+        }
         $count = (clone $matches)->count();
         if ($export) {
             abort_if($count === 0 || $count > 100, 422, 'Choose a date range and filters matching between 1 and 100 documents.');
@@ -87,6 +100,8 @@ class BulkDocumentReportController extends Controller
             'ledger_id'  => 'nullable|integer',
             'tax_type'   => ['nullable', Rule::in(['gst', 'igst', 'no_tax'])],
             'reference'  => 'nullable|string|max:100',
+            'invoice_ids' => 'nullable|array|max:1000',
+            'invoice_ids.*' => 'required|integer|min:1|distinct',
         ]);
 
         $matches = $query->build($plant, $filters);
@@ -111,7 +126,9 @@ class BulkDocumentReportController extends Controller
             QueueBulkDocumentExportJob::dispatch($plant, $filters, $statusKey);
         } else {
             // Detached CLI background execution for sync / local environments
-            $filtersEncoded = base64_encode(json_encode($filters));
+            // Keep large multiselections out of the Windows command-line length limit.
+            Cache::put($statusKey . ':filters', $filters, now()->addHours(2));
+            $filtersEncoded = 'cached';
             $artisanPath = base_path('artisan');
             $phpBinary = PHP_BINARY;
             if (PHP_SAPI !== 'cli' && PHP_SAPI !== 'cli-server') {
