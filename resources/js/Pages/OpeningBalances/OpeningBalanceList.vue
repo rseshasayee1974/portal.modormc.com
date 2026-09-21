@@ -55,12 +55,12 @@ function toggleRow(id) {
                 class="opening-balance-table"
             >
                 <!-- Expander Column with Custom Chevron Icon -->
-                <Column expander style="width: 3.5rem">
+                <!-- <Column expander style="width: 3.5rem">
                     <template #rowtogglericon="slotProps">
                         <ChevronDownIcon v-if="slotProps.expanded" class="w-4 h-4 text-indigo-600" />
                         <ChevronRightIcon v-else class="w-4 h-4 text-slate-400" />
                     </template>
-                </Column>
+                </Column> -->
 
                 <!-- Cutover Date -->
                 <Column header="Cutover Date" field="cutover_date">
@@ -111,7 +111,7 @@ function toggleRow(id) {
                 </Column>
 
                 <!-- Action / Control -->
-                <Column header="Action" align="right" style="width: 140px">
+                <!-- <Column header="Action" align="right" style="width: 140px">
                     <template #body="slotProps">
                         <BaseButton
                             variant="outlined"
@@ -125,7 +125,7 @@ function toggleRow(id) {
                             </template>
                         </BaseButton>
                     </template>
-                </Column>
+                </Column> -->
 
                 <!-- ── Table List Row Expand to Show Edit Form ── -->
                 <template #expansion="slotProps">

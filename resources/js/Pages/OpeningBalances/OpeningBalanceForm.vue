@@ -1,10 +1,11 @@
 <script setup>
+import { currentOpeningBalanceDate } from '@/Utils/openingBalanceDate';
 import { computed, reactive, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
-import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import FinancialYearDate from './FinancialYearDate.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseCard from '@/Components/Base/BaseCard.vue';
@@ -42,7 +43,7 @@ if (!initialLines.length) {
 
 const form = reactive({
     version: props.batch?.version ?? 0,
-    cutover_date: props.batch?.cutover_date?.slice(0, 10) ?? '',
+    cutover_date: props.batch?.cutover_date?.slice(0, 10) ?? currentOpeningBalanceDate(),
     clearing_account_id: props.batch?.clearing_account_id ?? '',
     notes: props.batch?.notes ?? '',
     lines: initialLines,
@@ -229,7 +230,7 @@ function acceptBatch(batch, notice) {
     }
     Object.assign(form, {
         version: batch.version,
-        cutover_date: batch.cutover_date?.slice(0, 10) ?? '',
+        cutover_date: batch.cutover_date?.slice(0, 10) ?? currentOpeningBalanceDate(),
         clearing_account_id: batch.clearing_account_id ?? '',
         notes: batch.notes ?? '',
         lines: batchLines,
@@ -286,24 +287,11 @@ function applyImport() {
         </div>
 
         <!-- ── Configuration Header Card ── -->
-        <BaseCard title="Opening Parameters" subtitle="Specify the accounting cutover date and optional clearing account">
+        <BaseCard title="Opening Parameters" subtitle="Choose the financial year and optional clearing account">
             <div class="grid grid-cols-1 md:grid-cols-12 gap-5 pt-2">
                 <div class="col-span-12 md:col-span-4">
-                    <BaseDatePicker
-                        v-model="form.cutover_date"
-                        label="Cutover Date"
-                        dateFormat="yy-mm-dd"
-                        required
-                        :disabled="posted || busy"
-                        placeholder="Select cutover date"
-                        hint="Opening journal date: "
-                    >
-                        <template #hint>
-                            <span class="text-xs text-slate-500">
-                                Opening journal date: <strong class="text-indigo-600 dark:text-indigo-400 font-mono">{{ journalDate }}</strong>. Reports on or after this date include these balances.
-                            </span>
-                        </template>
-                    </BaseDatePicker>
+                    <FinancialYearDate v-model="form.cutover_date" :disabled="posted || busy" />
+                    <p class="mt-1 text-xs text-slate-500">Opening journal date: <strong class="font-mono">{{ journalDate }}</strong>.</p>
                 </div>
 
                 <div class="col-span-12 md:col-span-4">

@@ -333,7 +333,7 @@ const submitForm = async () => {
                 toast: true,
                 position: 'top-end',
                 icon: 'success',
-                title: 'Deployment updated successfully',
+                title: 'Schedule updated successfully',
                 timer: 2000,
                 showConfirmButton: false
             });
@@ -343,10 +343,11 @@ const submitForm = async () => {
                 toast: true,
                 position: 'top-end',
                 icon: 'success',
-                title: 'Deployment scheduled successfully',
+                title: 'Pump schedule created successfully',
                 timer: 2000,
                 showConfirmButton: false
             });
+            initForm();
         }
         emit('saved');
     } catch (err) {
@@ -376,23 +377,14 @@ const submitForm = async () => {
                     <WrenchScrewdriverIcon class="w-4 h-4 text-white" />
                 </div>
                 <div>
-                    <h2 class="text-xs font-bold text-gray-900 dark:text-gray-100">
-                        {{ isEditing ? `Edit Deployment #${initialData?.id}` : 'New Pump Deployment' }}
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">
+                        New Pump Schedule
                     </h2>
                 </div>
             </div>
-
-            <!-- <button
-                type="button"
-                @click="emit('cancel')"
-                class="px-2.5 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
-            >
-                <ArrowLeftIcon class="w-3.5 h-3.5" />
-                <span>{{ isEditing ? 'Cancel Edit' : 'Clear Form' }}</span>
-            </button> -->
         </div>
 
-        <form @submit.prevent="submitForm" class="p-4 space-y-3.5">
+        <form @submit.prevent="submitForm" class="p-5 space-y-5">
             
             <!-- Real-Time Time Validation Warnings / Advisories -->
             <div v-if="form.setup_start_time && form.setup_end_time && new Date(form.setup_start_time) > new Date(form.setup_end_time)" 
@@ -664,14 +656,16 @@ const submitForm = async () => {
                 </div>
 
                 <div class="flex items-center justify-end gap-2 shrink-0 ml-auto">
-                    <!-- <BaseButton
-                        :label="isEditing ? 'Cancel Edit' : 'Clear Form'"
+                    <BaseButton
+                        label="Clear Form"
                         severity="secondary"
                         variant="outlined"
-                        @click="emit('cancel')"
-                    /> -->
+                        type="button"
+                        @click="initForm"
+                        class="!text-gray-700 dark:!text-gray-200"
+                    />
                     <BaseButton
-                        :label="isEditing ? 'Save Changes' : 'Create Deployment'"
+                        label="Create Schedule"
                         severity="primary"
                         variant="filled"
                         type="submit"

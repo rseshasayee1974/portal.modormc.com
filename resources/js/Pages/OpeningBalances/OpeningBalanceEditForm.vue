@@ -1,4 +1,5 @@
 <script setup>
+import { currentOpeningBalanceDate } from '@/Utils/openingBalanceDate';
 import { reactive, ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -30,7 +31,7 @@ if (!initialLines.length && props.batch?.status !== 'POSTED') {
 
 const form = reactive({
     version: props.batch?.version ?? 0,
-    cutover_date: props.batch?.cutover_date?.slice(0, 10) ?? '',
+    cutover_date: props.batch?.cutover_date?.slice(0, 10) ?? currentOpeningBalanceDate(),
     clearing_account_id: props.batch?.clearing_account_id ?? '',
     notes: props.batch?.notes ?? '',
     lines: initialLines,
@@ -62,7 +63,7 @@ const journalDate = computed(() => {
 watch(() => props.batch, (newBatch) => {
     if (newBatch) {
         form.version = newBatch.version ?? 0;
-        form.cutover_date = newBatch.cutover_date?.slice(0, 10) ?? '';
+        form.cutover_date = newBatch.cutover_date?.slice(0, 10) ?? currentOpeningBalanceDate();
         form.clearing_account_id = newBatch.clearing_account_id ?? '';
         form.notes = newBatch.notes ?? '';
         form.lines = JSON.parse(JSON.stringify(newBatch.lines ?? []));
@@ -142,7 +143,7 @@ function reverse() {
 function acceptBatch(batch, notice) {
     Object.assign(form, {
         version: batch.version,
-        cutover_date: batch.cutover_date?.slice(0, 10) ?? '',
+        cutover_date: batch.cutover_date?.slice(0, 10) ?? currentOpeningBalanceDate(),
         clearing_account_id: batch.clearing_account_id ?? '',
         notes: batch.notes ?? '',
         lines: JSON.parse(JSON.stringify(batch.lines ?? [])),

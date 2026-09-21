@@ -15,6 +15,7 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import axios from 'axios';
+import EwayBillRoutePreview from '@/Components/EwayBillRoutePreview.vue';
 import Swal from 'sweetalert2';
 import { usePermissions } from '@/Composables/usePermissions';
 
@@ -699,7 +700,7 @@ const showEwayBillDialog = ref(false);
 const isGeneratingEwb = ref(false);
 const ewbForm = ref({
     veh_no: '',
-    distance: 20,
+    distance: 0,
     transporter_id: '',
     transporter_name: '',
     trans_doc_no: '',
@@ -722,7 +723,6 @@ const handleGenerateEwayBill = () => {
     const defaultVehNo = (props.batch?.truck_registration || '').trim()
         .toUpperCase()
         .replace(/[\s-]+/g, '');
-    const defaultDistance = form.status?.transport_km || 20;
 
     const defaultTransName = props.batch?.dispatches?.[0]?.transport?.legal_name 
         || props.batch?.dispatches?.[0]?.transport?.name 
@@ -741,7 +741,7 @@ const handleGenerateEwayBill = () => {
 
     ewbForm.value = {
         veh_no: defaultVehNo,
-        distance: defaultDistance,
+        distance: 0,
         transporter_id: defaultTransId,
         transporter_name: defaultTransName,
         trans_doc_no: defaultDocNo,
@@ -1030,6 +1030,7 @@ const handleDeleteInvoice = () => {
                     Generate a standard E-Way Bill directly without requiring an E-Invoice (IRN).
                 </p>
 
+                <EwayBillRoutePreview v-if="showEwayBillDialog" :invoice-id="form.status?.invoice_id || form.status?.invoice?.id" :batch-id="props.batch?.id" />
                 <!-- Row 1: Vehicle & Distance -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <BaseInput 
@@ -1040,13 +1041,7 @@ const handleDeleteInvoice = () => {
                         :error="ewbForm.errors?.veh_no"
                         required 
                     />
-                    <BaseInputNumber 
-                        v-model="ewbForm.distance" 
-                        label="Distance (in KM) *" 
-                        placeholder="e.g. 25" 
-                        :min="1"
-                        required 
-                    />
+                    <p class="text-xs text-slate-500 self-center">Distance is calculated automatically from the origin and destination PIN codes.</p>
                 </div>
 
                 <!-- Transporter Details Header -->

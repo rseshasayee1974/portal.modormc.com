@@ -43,7 +43,8 @@ class ModelAuditObserver
             InventoryAuditLog::create([
                 'plant_id'         => $plantId,
                 'transaction_type' => 'UPDATE',
-                'reference_type'   => get_class($model),
+                'action_type'      => 'UPDATE',
+                'reference_type'   => class_basename($model),
                 'reference_id'     => $model->getKey(),
                 'log_from'         => !empty($oldValues) ? json_encode($oldValues, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
                 'log_to'           => !empty($newValues) ? json_encode($newValues, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
@@ -72,7 +73,8 @@ class ModelAuditObserver
             InventoryAuditLog::create([
                 'plant_id'         => $plantId,
                 'transaction_type' => 'DELETE',
-                'reference_type'   => get_class($model),
+                'action_type'      => 'DELETE',
+                'reference_type'   => class_basename($model),
                 'reference_id'     => $model->getKey(),
                 'log_from'         => json_encode($model->getOriginal(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 'log_to'           => null,

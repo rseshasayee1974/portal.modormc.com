@@ -29,11 +29,11 @@ const props = defineProps<{
         current_page: number;
         last_page: number;
     };
-    transactionTypes: string[];
+    actionTypes: string[];
     referenceTypes: string[];
     users: { id: number; label: string }[];
     filters: {
-        transaction_type?: string;
+        action_type?: string;
         reference_type?: string;
         reference_id?: string | number;
         user_id?: string | number;
@@ -135,7 +135,7 @@ const filteredDiffFields = computed(() => {
 
 // ── Local Filter State ────────────────────────────────────────────────────────
 const filterForm = ref({
-    transaction_type: props.filters?.transaction_type || null,
+    action_type: props.filters?.action_type || null,
     reference_type: props.filters?.reference_type || null,
     reference_id: props.filters?.reference_id || null,
     user_id: props.filters?.user_id || null,
@@ -147,7 +147,7 @@ const filterForm = ref({
 let filterTimer: ReturnType<typeof setTimeout> | null = null;
 const applyFilters = () => {
     router.get(route('inventory-audit-logs.index'), {
-        transaction_type: filterForm.value.transaction_type || undefined,
+        action_type: filterForm.value.action_type || undefined,
         reference_type: filterForm.value.reference_type || undefined,
         reference_id: filterForm.value.reference_id || undefined,
         user_id: filterForm.value.user_id || undefined,
@@ -166,7 +166,7 @@ watch(filterForm, () => {
 
 const clearFilters = () => {
     filterForm.value = {
-        transaction_type: null,
+        action_type: null,
         reference_type: null,
         reference_id: null,
         user_id: null,
@@ -181,7 +181,7 @@ const toggleShowAll = (rowData: any) => {
 
 const handlePageChange = (event: any) => {
     router.get(route('inventory-audit-logs.index'), {
-        transaction_type: filterForm.value.transaction_type || undefined,
+        action_type: filterForm.value.action_type || undefined,
         reference_type: filterForm.value.reference_type || undefined,
         reference_id: filterForm.value.reference_id || undefined,
         user_id: filterForm.value.user_id || undefined,
@@ -422,7 +422,7 @@ function getJsonDiff(fromVal: any, toVal: any): JsonDiffItem[] {
 
 // ── Dropdown options ─────────────────────────────────────────────────────────
 const transactionOptions = computed(() =>
-    props.transactionTypes.map(t => ({ label: t, value: t }))
+    props.actionTypes.map(t => ({ label: t, value: t }))
 );
 
 const referenceOptions = computed(() =>
@@ -488,8 +488,8 @@ const hasActiveFilters = computed(() => {
                         <AdjustmentsHorizontalIcon class="w-5 h-5 text-amber-500" />
                     </div>
                     <div>
-                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Transaction Types</p>
-                        <p class="text-2xl font-black text-slate-800 dark:text-slate-100">{{ transactionTypes.length }}</p>
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Action Types</p>
+                        <p class="text-2xl font-black text-slate-800 dark:text-slate-100">{{ actionTypes.length }}</p>
                     </div>
                 </div>
             </div>
@@ -509,11 +509,11 @@ const hasActiveFilters = computed(() => {
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
                     <BaseSelect
-                        v-model="filterForm.transaction_type"
+                        v-model="filterForm.action_type"
                         :options="transactionOptions"
                         option-label="label"
                         option-value="value"
-                        label="Transaction Type"
+                        label="Action Type"
                         placeholder="All Types"
                         :show-clear="true"
                     />
@@ -522,8 +522,8 @@ const hasActiveFilters = computed(() => {
                         :options="referenceOptions"
                         option-label="label"
                         option-value="value"
-                        label="Reference Type"
-                        placeholder="All References"
+                        label="Module"
+                        placeholder="All Modules"
                         :show-clear="true"
                     />
                     <BaseInput
@@ -589,20 +589,20 @@ const hasActiveFilters = computed(() => {
                     </template>
                 </Column>
 
-                <!-- Transaction Type -->
-                <!-- <Column field="transaction_type" header="Transaction" style="min-width:90px">
+                <!-- Action Type -->
+                <Column field="action_type" header="Action" style="min-width:90px">
                     <template #body="{ data }">
                         <span
                             class="inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider"
-                            :class="badgeClass(data.transaction_type)"
+                            :class="badgeClass(data.action_type)"
                         >
-                            {{ data.transaction_type }}
+                            {{ data.action_type }}
                         </span>
                     </template>
-                </Column> -->
+                </Column>
 
                 <!-- Reference / Affected Entity & Table -->
-                <Column header="Target Model / Table" style="min-width:145px">
+                <Column header="Module / Table" style="min-width:145px">
                     <template #body="{ data }">
                         <div v-if="data.reference_type" class="flex flex-col leading-tight gap-0.5">
                             <div class="flex items-center gap-1.5">
@@ -909,12 +909,12 @@ const hasActiveFilters = computed(() => {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <!-- Transaction details -->
                     <div class="bg-slate-50 dark:bg-slate-950/20 p-4 rounded-xl border border-slate-150 dark:border-slate-800">
-                        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Transaction type</p>
+                        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Action type</p>
                         <span 
                             class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-black uppercase tracking-wider"
-                            :class="badgeClass(selectedLog.transaction_type)"
+                            :class="badgeClass(selectedLog.action_type)"
                         >
-                            {{ selectedLog.transaction_type }}
+                            {{ selectedLog.action_type }}
                         </span>
                     </div>
 
@@ -1209,4 +1209,3 @@ const hasActiveFilters = computed(() => {
         </Dialog>
     </AppLayout>
 </template>
-

@@ -268,11 +268,11 @@
                     @if($hasValue($data['ship_to']['address'] ?? null))
                         <div>{{ $data['ship_to']['address'] }}</div>
                     @endif
-                    @php $shipCityPin = $formatCityPin($data['ship_to']['city'] ?? '', $data['ship_to']['pin'] ?? ''); @endphp
-                    @if($shipCityPin !== '') <div>{{ $shipCityPin }}</div> @endif
-                    @if(($pdfSettings['gstin'] ?? true) && $hasValue($data['ship_to']['gstin'] ?? null))
+                    {{-- @php $shipCityPin = $formatCityPin($data['ship_to']['city'] ?? '', $data['ship_to']['pin'] ?? ''); @endphp
+                    @if($shipCityPin !== '') <div>{{ $shipCityPin }}</div> @endif --}}
+                    {{-- @if(($pdfSettings['gstin'] ?? true) && $hasValue($data['ship_to']['gstin'] ?? null))
                         <div style="margin-top: 2px;">GSTIN : <strong>{{ $data['ship_to']['gstin'] }}</strong></div>
-                    @endif
+                    @endif --}}
                 @endif
             </td>
             <td class="block-td">

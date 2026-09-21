@@ -9,6 +9,12 @@ import { useToast } from 'primevue/usetoast';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import SiteCreateForm from './components/SiteCreateForm.vue';
 import SiteIndexList from './components/SiteIndexList.vue';
+import { 
+    MapPinIcon, 
+    BuildingOffice2Icon, 
+    CheckCircleIcon, 
+    UserGroupIcon 
+} from '@heroicons/vue/24/outline';
 
 const props = defineProps<{
     sites: any[];
@@ -30,6 +36,11 @@ const blankForm = () => ({
     patron_id: [] as number[],
     name: '',
     site_address_1: '',
+    site_address_2: '',
+    city: '',
+    district: '',
+    state: '',
+    country: '',
     zipcode: '',
     code: '',
     type: props.isPrivileged ? (props.siteTypes?.[0] || '') : 'unloading',
@@ -59,6 +70,11 @@ const populateSiteForm = (form: any, site: any) => {
     form.patron_id = Array.isArray(site.patron_id) ? [...site.patron_id] : (site.patron_id ? [site.patron_id] : []);
     form.name = site.name;
     form.site_address_1 = site.site_address_1 || '';
+    form.site_address_2 = site.site_address_2 || '';
+    form.city = site.city || '';
+    form.district = site.district || '';
+    form.state = site.state || '';
+    form.country = site.country || '';
     form.zipcode = site.zipcode || '';
     form.code = site.code || '';
     form.type = site.type;
@@ -126,7 +142,6 @@ const submitEdit = () => {
     editForm.put(route('sites.update', editingId.value), {
         preserveScroll: true,
         onSuccess: () => {
-            const sid = editingId.value;
             resetEditForm();
             toast.add({ 
                 severity: 'success', 
@@ -187,18 +202,20 @@ const filteredSites = computed(() => {
     const q = searchQuery.value.toLowerCase();
     return props.sites.filter((s: any) => 
         (s.name?.toLowerCase().includes(q)) || 
-        (s.code?.toLowerCase().includes(q))
+        (s.code?.toLowerCase().includes(q)) ||
+        (s.type?.toLowerCase().includes(q)) ||
+        (s.site_address_1?.toLowerCase().includes(q)) ||
+        (s.city?.toLowerCase().includes(q)) ||
+        (s.state?.toLowerCase().includes(q)) ||
+        (s.patron?.legal_name?.toLowerCase().includes(q))
     );
 });
 
 // Auto-generate code based on name for new records
 watch(() => createForm.name, (newName) => {
-    // Only auto-generate if name exists and code is currently empty
     if (newName && !createForm.code) {
         const prefix = newName.trim().charAt(0).toUpperCase();
         if (prefix) {
-            // Find the highest existing number in codes to ensure true increment, 
-            // or fallback to sites length + 1 if format doesn't match
             let nextNum = props.sites.length + 1;
             
             const existingNums = props.sites
@@ -218,7 +235,16 @@ watch(() => createForm.name, (newName) => {
     }
 });
 
-// No server-side handlers needed for client-side search.
+// Executive KPI metrics computed from master site list
+const metrics = computed(() => {
+    const list = props.sites || [];
+    const total = list.length;
+    const active = list.filter((s: any) => s.status === 'Active' || !s.status).length;
+    const unloading = list.filter((s: any) => s.type === 'unloading').length;
+    const customerLinked = list.filter((s: any) => (s.patron_id && s.patron_id.length > 0) || s.patron).length;
+
+    return { total, active, unloading, customerLinked };
+});
 </script>
 
 <template>
@@ -230,9 +256,71 @@ watch(() => createForm.name, (newName) => {
         <Toast />
         <Head title="Logistic Sites | Site Management" />
 
-        <main class="max-w-full mx-auto p-2 space-y-6 animate-in fade-in duration-700">
+        <main class="w-full space-y-6">
+            
+            <!-- EXECUTIVE KPI STATS CARDS -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                
+                <!-- Total Sites -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Total Sites</span>
+                        <div class="mt-0.5 flex items-baseline gap-1.5">
+                            <span class="text-xl font-black text-slate-900 dark:text-slate-100">{{ metrics.total }}</span>
+                            <span class="text-[10px] text-slate-400 font-medium">Nodes</span>
+                        </div>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                        <MapPinIcon class="w-5 h-5" />
+                    </div>
+                </div>
+
+                <!-- Active Nodes -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">Active Nodes</span>
+                        <div class="mt-0.5 flex items-baseline gap-1.5">
+                            <span class="text-xl font-black text-emerald-600 dark:text-emerald-400">{{ metrics.active }}</span>
+                            <span class="text-[10px] text-emerald-600/70 font-medium">Online</span>
+                        </div>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <CheckCircleIcon class="w-5 h-5" />
+                    </div>
+                </div>
+
+                <!-- Delivery Sites (Unloading) -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block">Delivery Bays</span>
+                        <div class="mt-0.5 flex items-baseline gap-1.5">
+                            <span class="text-xl font-black text-indigo-600 dark:text-indigo-400">{{ metrics.unloading }}</span>
+                            <span class="text-[10px] text-indigo-600/70 font-medium">Unloading</span>
+                        </div>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <BuildingOffice2Icon class="w-5 h-5" />
+                    </div>
+                </div>
+
+                <!-- Customer Linked -->
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 block">Dedicated Sites</span>
+                        <div class="mt-0.5 flex items-baseline gap-1.5">
+                            <span class="text-xl font-black text-purple-600 dark:text-purple-400">{{ metrics.customerLinked }}</span>
+                            <span class="text-[10px] text-purple-600/70 font-medium">Customer-tied</span>
+                        </div>
+                    </div>
+                    <div class="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                        <UserGroupIcon class="w-5 h-5" />
+                    </div>
+                </div>
+
+            </div>
+
             <!-- TOP: CREATE FORM SECTION -->
-            <section class="max-w-7xl mx-auto w-full">
+            <section class="w-full">
                 <SiteCreateForm 
                     :form="createForm" 
                     :plants="plants"
@@ -244,7 +332,8 @@ watch(() => createForm.name, (newName) => {
                 />
             </section>
 
-            <section>
+            <!-- DIRECTORY LIST SECTION -->
+            <section class="w-full">
                 <SiteIndexList 
                     :sites="filteredSites"
                     :search-query="searchQuery"
@@ -264,12 +353,12 @@ watch(() => createForm.name, (newName) => {
                     @cancel-edit="resetEditForm"
                 />
             </section>
+
         </main>
     </AppLayout>
 </template>
 
 <style>
-/* Global PrimeVue Overrides for Premium Luk */
 .p-toast {
     @apply !opacity-100;
 }

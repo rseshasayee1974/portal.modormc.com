@@ -25,6 +25,12 @@ class InventoryAuditLogController extends Controller
             ->latest();
 
         // Apply filters
+        if ($request->filled('action_type')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('action_type', $request->action_type)
+                  ->orWhere(fn ($legacy) => $legacy->whereNull('action_type')->where('transaction_type', $request->action_type));
+            });
+        }
         if ($request->filled('transaction_type')) {
             $query->where('transaction_type', $request->transaction_type);
         }
@@ -59,6 +65,7 @@ class InventoryAuditLogController extends Controller
                     'name' => $log->plant->name,
                 ] : null,
                 'transaction_type' => $log->transaction_type,
+                'action_type' => $log->action_type ?? $log->transaction_type,
                 'reference_type' => $log->reference_type,
                 'reference_id' => $log->reference_id,
                 'table_name' => $this->getTableNameForReference($log->reference_type),
@@ -97,10 +104,12 @@ class InventoryAuditLogController extends Controller
         return Inertia::render('InventoryAuditLogs/Index', [
             'logs' => $logs,
             'transactionTypes' => $transactionTypes,
+            'actionTypes' => ['UPDATE', 'DELETE'],
             'referenceTypes' => $referenceTypes,
             'users' => $users,
             'filters' => $request->only([
                 'transaction_type',
+                'action_type',
                 'reference_type',
                 'reference_id',
                 'user_id',
@@ -117,7 +126,8 @@ class InventoryAuditLogController extends Controller
     {
         $this->authorizeModule('create');
         $validated = $request->validate([
-            'transaction_type' => 'required|string|max:255',
+            'transaction_type' => 'nullable|string|in:UPDATE,DELETE',
+            'action_type' => 'required|string|in:UPDATE,DELETE',
             'reference_type' => 'nullable|string|max:255',
             'reference_id' => 'nullable|integer',
             'log_from' => 'required',
@@ -126,6 +136,7 @@ class InventoryAuditLogController extends Controller
         ]);
 
         $log = InventoryAuditLog::create(array_merge($validated, [
+            'transaction_type' => $validated['action_type'],
             'user_id' => auth()->id(),
             'ip_address' => $request->ip(),
         ]));
@@ -163,6 +174,7 @@ class InventoryAuditLogController extends Controller
                     'name' => $inventoryAuditLog->plant->name,
                 ] : null,
                 'transaction_type' => $inventoryAuditLog->transaction_type,
+                'action_type' => $inventoryAuditLog->action_type ?? $inventoryAuditLog->transaction_type,
                 'reference_type' => $inventoryAuditLog->reference_type,
                 'reference_id' => $inventoryAuditLog->reference_id,
                 'table_name' => $this->getTableNameForReference($inventoryAuditLog->reference_type),

@@ -57,6 +57,52 @@ class EwayBillController extends Controller
     public function __construct()
     {
     }
+
+    public function routePreview(Request $request)
+    {
+        $this->authorizeModule('menu');
+        $input = $request->validate([
+            'invoice_id' => 'nullable|integer|required_without:batch_id',
+            'batch_id' => 'nullable|integer|required_without:invoice_id',
+        ]);
+        $plantId = app(\App\Services\PlantContextService::class)->plantId();
+        abort_unless($plantId, 422, 'Select an active plant first.');
+        $batchId = $input['batch_id'] ?? null;
+        $invoiceId = $input['invoice_id'] ?? null;
+        if ($batchId) {
+            $linkedId = DB::table('mm_dispatches as d')
+                ->join('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
+                ->where('d.plant_id', $plantId)->where('d.batch_id', $batchId)
+                ->whereNull('d.deleted_at')->whereNull('ds.deleted_at')->value('ds.invoice_id');
+            abort_unless($linkedId && (!$invoiceId || (int) $linkedId === (int) $invoiceId), 422, 'Generate the linked batch invoice first.');
+            $invoiceId = $linkedId;
+        }
+        $invoice = Invoice::where('plant_id', $plantId)->findOrFail($invoiceId);
+        $origin = $invoice->plant?->addresses()->first();
+        $partner = $invoice->partner;
+        $recipient = $partner?->addresses()->first() ?: $partner?->contacts()->first()?->addresses()->first();
+        $site = app(\App\Services\EwayBillDestination::class)->forInvoice($invoice, $batchId);
+        $from = array_filter([$origin?->line_1, $origin?->line_2, $origin?->city, $origin?->zipcode]);
+        $to = $site ? [$site['Addr1'], $site['Addr2'], $site['Loc'], $site['Pin']] : array_filter([$recipient?->line_1, $recipient?->line_2, $recipient?->city, $recipient?->zipcode]);
+        $fromPin = (string) $origin?->zipcode;
+        $toPin = (string) ($site['Pin'] ?? $recipient?->zipcode);
+        foreach (['plant_zipcode' => $fromPin, 'destination_zipcode' => $toPin] as $field => $pin) {
+            if (!preg_match('/^[1-9][0-9]{5}$/', $pin)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([$field => 'Set a valid six-digit PIN code for the plant and delivery address.']);
+            }
+        }
+        return response()->json([
+            'from_address' => implode(', ', $from),
+            'to_address' => implode(', ', array_filter($to)),
+            'from_zipcode' => $fromPin,
+            'to_zipcode' => $toPin,
+            'destination_source' => $site ? 'Unloading site' : 'Customer address',
+            'maps_url' => 'https://www.google.com/maps/dir/?' . http_build_query([
+                'api' => 1, 'origin' => implode(', ', $from) . ', India',
+                'destination' => implode(', ', array_filter($to)) . ', India', 'travelmode' => 'driving',
+            ], '', '&', PHP_QUERY_RFC3986),
+        ]);
+    }
     protected function setEWBCredential($plant = null)
     {
         $plant = $plant ?? \App\Models\Plant::plantdetails();
@@ -64,7 +110,7 @@ class EwayBillController extends Controller
         if ($isProd) {
             $this->gst_portal_client_id = 'PEWAYPc38f83975b650189fb86e3e5659d30fe';
             $this->gst_portal_client_secret = 'PEWAYP52608f1eabd22d36e310b3c341177f49';
-            $this->gst_portal_gstin = session('gstin');
+            $this->gst_portal_gstin = trim((string) $plant?->gstin);
             $this->gst_portal_email = 'sayee@onemodo.com';
             $this->gst_portal_username = $plant?->ewaybill_client_id;
             $this->gst_portal_password = $plant?->ewaybill_secret;
@@ -122,9 +168,6 @@ class EwayBillController extends Controller
         $data = $request->all();
         if (empty($data['veh_no'])) {
             $data['veh_no'] = $dispatch->truck_registration ?? '';
-        }
-        if (empty($data['distance'])) {
-            $data['distance'] = (int)($dispatch->transport_km ?? 20);
         }
         if (empty($data['generation_type'])) {
             $data['generation_type'] = 'batch';
@@ -214,10 +257,6 @@ class EwayBillController extends Controller
             return redirect()->back()->withErrors(['error' => $msg]);
         }
 
-        $distance = (int)($params['distance'] ?? 20);
-        if ($distance <= 0) {
-            $distance = 20; // Default minimum sensible distance in KM
-        }
 
         $transMode = (string)($params['trans_mode'] ?? '1'); // 1 = Road
         $transId = trim((string)($params['transporter_id'] ?? ($params['trans_id'] ?? '')));
@@ -238,6 +277,10 @@ class EwayBillController extends Controller
 
         $partner = $invoice->partner;
         $partnerAddress = $partner?->addresses()?->first() ?: $partner?->contacts()?->first()?->addresses()?->first();
+        $destination = app(\App\Services\EwayBillDestination::class)->forInvoice($invoice, $batchId);
+        if ($isProd && $sellerGstin === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['gstin' => 'Set the invoice plant GSTIN before generating the e-way bill.']);
+        }
         
         $buyerGstin = trim((string)($partner?->gstin ?: '')) ?: 'URP';
         $buyerStateCode = (strlen($buyerGstin) >= 2 && ctype_digit(substr($buyerGstin, 0, 2)))
@@ -366,11 +409,11 @@ class EwayBillController extends Controller
             'fromStateCode'    => $sellerStateCode,
             'toGstin'          => $buyerGstin,
             'toTrdName'        => (string)($partner?->legal_name),
-            'toAddr1'          => (string)($partnerAddress?->line_1),
-            'toAddr2'          => (string)($partnerAddress?->line_2),
-            'toPlace'          => (string)($partnerAddress?->city),
-            'toPincode'        => (int)($partnerAddress?->zipcode),
-            'actToStateCode'   => $buyerStateCode,
+            'toAddr1'          => $destination['Addr1'] ?? (string)($partnerAddress?->line_1),
+            'toAddr2'          => $destination['Addr2'] ?? (string)($partnerAddress?->line_2),
+            'toPlace'          => $destination['Loc'] ?? (string)($partnerAddress?->city),
+            'toPincode'        => $destination['Pin'] ?? (int)($partnerAddress?->zipcode),
+            'actToStateCode'   => (int) ($destination['Stcd'] ?? $buyerStateCode),
             'toStateCode'      => $buyerStateCode,
             'totalValue'       => round($assVal, 2),
             'cgstValue'        => round($cgstVal, 2),
@@ -379,8 +422,9 @@ class EwayBillController extends Controller
             'cessValue'        => 0,
             'totInvValue'      => round($totInvVal, 2),
             'transMode'        => $transMode,
-            'transactionType'  => '4',
-            'transDistance'    => (string)($distance > 0 ? $distance : 20),
+            'transactionType'  => $destination ? '2' : '1',
+            // Zero asks NIC to resolve the distance between the supplied PIN codes.
+            'transDistance'    => '0',
             'transporterId'    => $transId ?: $sellerGstin,
             'transporterName'  => $transName,
             'transDocNo'       => $transDocNo,
@@ -445,6 +489,7 @@ class EwayBillController extends Controller
                 'origin_id'       => $invoice->id,
                 'plant_id'        => $plant?->id ?? 1,
                 'ewaybill_no'     => (string)$ewbNo,
+                'distance_km'     => \App\Services\EwayBillDistance::fromGateway($data),
                 'ewaybill_date'   => $ewbDt->toDateTimeString(),
                 'valid_upto'      => $ewbValidTill?->toDateTimeString(),
                 'ewaybill_status' => 'ACT',
@@ -457,6 +502,10 @@ class EwayBillController extends Controller
         );
 
         $successMsg = "E-Way Bill generated successfully! EWB No: {$ewbNo}";
+        $gatewayAlert = $data['alert'] ?? $data['Alert'] ?? null;
+        if (is_string($gatewayAlert) && trim($gatewayAlert) !== '') {
+            $successMsg .= ' Gateway notice: ' . trim($gatewayAlert);
+        }
 
         if ($request->wantsJson() && !$request->header('X-Inertia')) {
             return response()->json([
@@ -710,8 +759,7 @@ class EwayBillController extends Controller
         $ewbDateObj = $this->parseEwbDateTime($rawDate);
         $ewbDate = $ewbDateObj ? $ewbDateObj->format('d/m/Y h:i A') : (string)$rawDate;
 
-        $distance = 33;
-        $validFrom = $ewbDate . ' [' . $distance . 'Kms]';
+        $validFrom = \App\Services\EwayBillDistance::validFrom($ewbDate, $ewb->distance_km);
 
         $rawValidUpto = $ewb->valid_upto ?: now()->addDay();
         $validUntilObj = $this->parseEwbDateTime($rawValidUpto);
@@ -866,8 +914,11 @@ class EwayBillController extends Controller
         $ewbDateObj = $this->parseEwbDateTime($rawDate);
         $ewbDate = $ewbDateObj ? $ewbDateObj->format('d/m/Y h:i A') : (string)$rawDate;
 
-        $distance = $apiData['transDistance'] ?? ($apiData['actualDist'] ?? 33);
-        $validFrom = $ewbDate . ' [' . $distance . 'Kms]';
+        $distance = \App\Services\EwayBillDistance::fromGateway($apiData);
+        if ($ewb && $distance !== null && $ewb->distance_km !== $distance) {
+            $ewb->update(['distance_km' => $distance]);
+        }
+        $validFrom = \App\Services\EwayBillDistance::validFrom($ewbDate, $distance ?? $ewb?->distance_km);
 
         $rawValidUpto = $apiData['validUpto'] ?? ($ewb?->valid_upto ?? now()->addDay());
         $validUntilObj = $this->parseEwbDateTime($rawValidUpto);
@@ -1337,7 +1388,7 @@ class EwayBillController extends Controller
     {
         $plant = $plant ?? Plant::plantdetails();
         $isProd = $this->isProduction($plant);
-        $resolvedGstin = session('gstin') ?: ($plant?->gstin ?: ($plant?->entity?->gstin ?: ''));
+        $resolvedGstin = trim((string) $plant?->gstin);
         
         return [
             'baseUrl'      => $this->getBaseUrl($plant),
@@ -1346,7 +1397,7 @@ class EwayBillController extends Controller
             'email'        => $this->getEmail($plant),
             'username'     => $plant?->ewaybill_client_id ?: $this->sandboxUsername,
             'password'     => $plant?->ewaybill_secret ?: $this->sandboxPassword,
-            'gstin'        => $isProd ? $resolvedGstin : ($resolvedGstin ?: $this->sandboxGstin),
+            'gstin'        => $isProd ? $resolvedGstin : $this->sandboxGstin,
             'ip'           => request()?->ip() ?: $this->defaultIp,
         ];
     }

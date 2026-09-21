@@ -13,40 +13,6 @@ class SalesOrder extends Model
 {
         use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::updated(function (SalesOrder $salesorder) {
-            try {
-                foreach ($salesorder->getDirty() as $key => $newValue) {
-                    if (in_array($key, ['updated_at', 'created_at', 'deleted_at', 'produced_qty'])) {
-                        continue;
-                    }
-                    $oldValue = $salesorder->getOriginal($key);
-
-                    // Safe fallback for the decimal columns in case a string/date is changed
-                    $logFrom = is_numeric($oldValue) ? $oldValue : 0;
-                    $logTo = is_numeric($newValue) ? $newValue : 0;
-
-                    \App\Models\InventoryAuditLog::create([
-                        'plant_id' => $salesorder->plant_id,
-                        'transaction_type' => 'work_order', // internal log type remains 'work_order' or change? Keep for compatibility
-                        'reference_type' => 'Update ' . ucfirst(str_replace('_', ' ', $key)),
-                        'reference_id' => $salesorder->id,
-                        'log_from' => $logFrom,
-                        'log_to' => $logTo,
-                        'user_id' => \Illuminate\Support\Facades\Auth::id(),
-                        'remarks' => "Updated {$key}: '{$oldValue}' => '{$newValue}'",
-                        'ip_address' => request()->ip(),
-                    ]);
-                }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Failed to log sales order update: ' . $e->getMessage());
-            }
-        });
-    }
-
     protected $table = 'mm_sales_orders';
 
     protected $fillable = [

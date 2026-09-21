@@ -54,94 +54,9 @@ class Quantity extends Model
                 }
             });
 
-        /**
-         * Capture Newly Seeded Stock Records
-         */
-        static::created(function ($model) {
-            \Illuminate\Support\Facades\Cache::forget("inventory.dashboard.data.{$model->plant_id}");
-            try {
-                $model->writeAuditLog(
-                    'stockin', 
-                    'Create', 
-                    0, 
-                    $model->quantity, 
-                    "Initial stock baseline configuration recorded."
-                );
-            } catch (\Throwable $e) {
-                Log::error('Failed to log stock baseline creation: ' . $e->getMessage());
-            }
-        });
-
-        /**
-         * Capture Fluctuating Shifts across Quantities safely
-         */
-        static::updated(function ($model) {
-            \Illuminate\Support\Facades\Cache::forget("inventory.dashboard.data.{$model->plant_id}");
-            // Optimized: Using isDirty ensures we bypass tracking loops if unrelated flags get shifted
-            if ($model->isDirty('quantity')) {
-                try {
-                    $oldQty = (float) ($model->getOriginal('quantity') ?? 0);
-                    $newQty = (float) $model->quantity;
-
-                    $type = $newQty > $oldQty ? 'stockin' : 'stockout';
-                    
-                    // Optimized performance pattern to circumvent N+1 logic inside hooks
-                    $productName = $model->relationLoaded('product') && $model->product 
-                        ? $model->product->title 
-                        : "Product #{$model->product_id}";
-                    
-                    $model->writeAuditLog(
-                        $type, 
-                        'Update', 
-                        $oldQty, 
-                        $newQty, 
-                        "Stock level for '{$productName}' updated from {$oldQty} to {$newQty}"
-                    );
-                } catch (\Throwable $e) {
-                    Log::error('Failed to trace automated stock operational variations: ' . $e->getMessage());
-                }
-            }
-        });
-
-        /**
-         * Capture Model System Truncations / Evictions
-         */
-        static::deleted(function ($model) {
-            \Illuminate\Support\Facades\Cache::forget("inventory.dashboard.data.{$model->plant_id}");
-            try {
-                $productName = $model->relationLoaded('product') && $model->product 
-                    ? $model->product->title 
-                    : "Product #{$model->product_id}";
-
-                $model->writeAuditLog(
-                    'stockout', 
-                    'Delete', 
-                    (float)$model->quantity, 
-                    0, 
-                    "Stock tracking node permanently pruned for '{$productName}'"
-                );
-            } catch (\Throwable $e) {
-                Log::error('Failed to audit log raw material record soft deletion: ' . $e->getMessage());
-            }
-        });
-    }
-
-    /**
-     * Isolated Helper to maintain consistency across transaction audit entries
-     */
-    protected function writeAuditLog(string $transactionType, string $refType, float $from, float $to, string $remarks): void
-    {
-        InventoryAuditLog::create([
-            'plant_id'         => $this->plant_id,
-            'transaction_type' => $transactionType,
-            'reference_type'   => $refType,
-            'reference_id'     => $this->product_id,
-            'log_from'         => $from,
-            'log_to'           => $to,
-            'user_id'          => Auth::id(),
-            'remarks'          => $remarks,
-            'ip_address'       => request()->ip(),
-        ]);
+        // The shared observer writes one module/action audit entry per change.
+        static::saved(fn ($model) => \Illuminate\Support\Facades\Cache::forget("inventory.dashboard.data.{$model->plant_id}"));
+        static::deleted(fn ($model) => \Illuminate\Support\Facades\Cache::forget("inventory.dashboard.data.{$model->plant_id}"));
     }
 
     public function plant()

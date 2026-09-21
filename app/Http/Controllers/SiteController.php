@@ -18,6 +18,30 @@ class SiteController extends Controller
     use AuthorizesModule;
 
     protected string $module = 'sites';
+
+    public function addressOptions(Request $request)
+    {
+        $this->authorizeModule('menu');
+        $input = $request->validate([
+            'country' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:150',
+            'district' => 'nullable|string|max:150',
+            'city' => 'nullable|string|max:150',
+        ]);
+        $countries = \App\Models\Country::where('is_active', 1)->orderBy('country_name')->get(['id', 'country_name']);
+        $result = ['country'=>$countries->pluck('country_name')->unique()->values(), 'state'=>[], 'district'=>[], 'city'=>[], 'zipcode'=>[]];
+        $country = $countries->firstWhere('country_name', $input['country'] ?? null);
+        if (!$country) return response()->json($result);
+        $query = \App\Models\StateCode::where('country_id', $country->id);
+        foreach (['state'=>'state_name', 'district'=>'district', 'city'=>'area', 'zipcode'=>'zipcode'] as $field=>$column) {
+            $result[$field] = (clone $query)->whereNotNull($column)->where($column, '!=', '')
+                ->distinct()->orderBy($column)->pluck($column)->map(fn ($value) => (string) $value)->values();
+            if (empty($input[$field])) break;
+            $query->where($column, $input[$field]);
+        }
+        return response()->json($result);
+    }
+
     public function index(Request $request)
     {
         $this->authorizeModule('menu');
@@ -31,6 +55,9 @@ class SiteController extends Controller
             $query->where(function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->search . '%')
                   ->orWhere('code', 'like', '%' . $request->search . '%');
+                foreach (['site_address_1', 'site_address_2', 'city', 'district', 'state', 'country', 'zipcode'] as $column) {
+                    $q->orWhere($column, 'like', '%' . $request->search . '%');
+                }
             });
         }
 

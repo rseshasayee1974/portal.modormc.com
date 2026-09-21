@@ -819,7 +819,7 @@
                     <th style="width: 10%;">Code</th>
                     <th style="width: 14%;">Grade</th>
                     <th style="width: 12%;">Description</th>
-                    <th style="width: 11%;">QTY.in CU.M</th>
+                    <th style="width: 11%;">QTY.in CBM</th>
                     <th style="width: 11%;">Unit Price</th>
                     <th style="width: 13%;">Taxable Amount</th>
                     <th style="width: 18%;">Tax</th>

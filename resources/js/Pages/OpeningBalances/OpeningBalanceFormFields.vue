@@ -3,7 +3,7 @@ import { computed, watch, ref } from 'vue';
 import axios from 'axios';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
-import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import FinancialYearDate from './FinancialYearDate.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseCard from '@/Components/Base/BaseCard.vue';
@@ -154,23 +154,11 @@ defineExpose({
 <template>
     <div class="space-y-6">
         <!-- ── Configuration Header Card ── -->
-        <BaseCard title="Opening Parameters" subtitle="Specify the accounting cutover date and optional clearing account">
+        <BaseCard title="Opening Parameters" subtitle="Choose the financial year and optional clearing account">
             <div class="grid grid-cols-1 md:grid-cols-12 gap-5 pt-2">
                 <div class="col-span-12 md:col-span-4">
-                    <BaseDatePicker
-                        v-model="form.cutover_date"
-                        label="Cutover Date"
-                        dateFormat="yy-mm-dd"
-                        required
-                        :disabled="posted || busy"
-                        placeholder="Select cutover date"
-                    >
-                        <template #hint>
-                            <span class="text-xs text-slate-500">
-                                Opening journal date: <strong class="text-indigo-600 dark:text-indigo-400 font-mono">{{ journalDate }}</strong>.
-                            </span>
-                        </template>
-                    </BaseDatePicker>
+                    <FinancialYearDate v-model="form.cutover_date" :disabled="posted || busy" />
+                    <p class="mt-1 text-xs text-slate-500">Opening journal date: <strong class="font-mono">{{ journalDate }}</strong>.</p>
                 </div>
 
                 <div class="col-span-12 md:col-span-4">

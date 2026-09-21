@@ -134,6 +134,7 @@ class PrintDataFormatter
         }
 
         $data = self::base();
+        dd($data);
         $data['settings']      = self::getCustomSettings($plantId, $category);
         $data['doc_title']     = $data['settings']['pdf']['labels']['invoice_title'] ?? (strtoupper($category) . ' DOCUMENT');
         $data['doc_no']        = 'REF-' . now()->format('Y') . '-001';
@@ -404,7 +405,7 @@ class PrintDataFormatter
 
         return [
             'name'           => $plant?->entity?->legal_name ?? $plant?->entity?->entity_name ?? $plant?->name ?? 'Company',
-            'address'        => $plAddr?->line_1 ?? '',
+            'address'        => $plAddr?->line_1 ? $plAddr?->line_1 . ' ' . $plAddr?->line_2 : '',
             'city'           => $plAddr?->city ?? '',
             'state'          => $stateName,
             'state_code'     => $stateCode,
@@ -444,7 +445,7 @@ class PrintDataFormatter
         }
 
         $name    = $partner->legal_name ?: ($partner->name ?: 'N/A');
-        $address = $partnerAddr?->line_1 ?: ($partner->address_line1 ?? '');
+        $address = $partnerAddr?->line_1 ? $partnerAddr?->line_1 . ' ' . $partnerAddr?->line_2 : ($partner->address_line1 ?? '');
         $city    = $partnerAddr?->city ?: ($partner->city ?? '');
 
         $stateVal = '';

@@ -15,6 +15,7 @@ class EwaybillDetail extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'distance_km',
         'plant_id',
         'generation_type',
         'origin_id',
@@ -34,6 +35,7 @@ class EwaybillDetail extends Model
     ];
 
     protected $casts = [
+        'distance_km' => 'integer',
         'ewaybill_cancel_at' => 'datetime',
         'ewaybill_reject_at' => 'datetime',
         'created_at' => 'datetime',

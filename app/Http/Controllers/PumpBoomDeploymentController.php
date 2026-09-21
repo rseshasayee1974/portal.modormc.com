@@ -354,7 +354,7 @@ class PumpBoomDeploymentController extends Controller
 
         return response()->json([
             'success'    => true,
-            'message'    => "Pump deployment #{$deployment->id} scheduled successfully.",
+            'message'    => "Pump schedule #{$deployment->id} scheduled successfully.",
             'deployment' => $deployment->fresh($this->getDeploymentRelations()),
         ]);
     }
@@ -381,7 +381,7 @@ class PumpBoomDeploymentController extends Controller
 
         return response()->json([
             'success'    => true,
-            'message'    => "Pump deployment #{$deployment->id} updated successfully.",
+            'message'    => "Pump schedule #{$deployment->id} updated successfully.",
             'deployment' => $deployment->fresh($this->getDeploymentRelations()),
         ]);
     }
@@ -572,7 +572,7 @@ class PumpBoomDeploymentController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => "Pump deployment schedule deleted successfully.",
+            'message' => "Pump schedule deleted successfully.",
         ]);
     }
 }

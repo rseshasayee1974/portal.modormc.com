@@ -22,7 +22,7 @@ const props = defineProps<{
         id: number;
         plant_id?: number | null;
         plant?: { id: number; name: string } | null;
-        transaction_type: string;
+        action_type: string;
         reference_type?: string | null;
         reference_id?: number | string | null;
         table_name?: string | null;
@@ -318,9 +318,9 @@ const parsedRemarks = computed<ParsedRemark>(() => {
                 <div class="flex items-center gap-2">
                     <span 
                         class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wider"
-                        :class="badgeClass(log.transaction_type)"
+                        :class="badgeClass(log.action_type)"
                     >
-                        {{ log.transaction_type }}
+                        {{ log.action_type }}
                     </span>
                 </div>
             </div>

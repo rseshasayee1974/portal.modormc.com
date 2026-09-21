@@ -12,7 +12,7 @@ class OpeningBalanceService
     public function validate(array $input, int $plantId): array
     {
         $data = Validator::make($input, [
-            'cutover_date' => 'required|date_format:Y-m-d|after:1900-01-01',
+            'cutover_date' => ['required', 'date_format:Y-m-d', 'after:1900-01-01', 'regex:/^\d{4}-04-01$/'],
             'clearing_account_id' => 'nullable|integer',
             'notes' => 'nullable|string|max:2000',
             'lines' => 'required|array|min:1|max:2000',
@@ -21,7 +21,7 @@ class OpeningBalanceService
             'lines.*.side' => 'required|in:Dr,Cr',
             'lines.*.amount' => ['required', 'regex:/^\d{1,12}(\.\d{1,2})?$/'],
             'lines.*.reference' => 'nullable|string|max:200',
-        ])->validate();
+        ], ['cutover_date.regex' => 'Opening balance date must be April 1 of the selected financial year (YYYY-04-01).'])->validate();
 
         $ledgers = Ledger::withoutGlobalScope('plant_id')->where('plant_id', $plantId)->get()->keyBy('id');
         $patrons = Patron::withoutGlobalScope('plant_id')->where('plant_id', $plantId)->get()->keyBy('id');

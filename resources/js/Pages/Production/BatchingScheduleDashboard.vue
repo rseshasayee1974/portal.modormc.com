@@ -297,7 +297,7 @@ const getRowClass = (data) => {
                             class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
                         >
                             <WrenchScrewdriverIcon class="w-3.5 h-3.5 text-indigo-600" />
-                            <span>Pump Deployments</span>
+                            <span>Pump Schedules</span>
                         </Link>
 
                         <button 

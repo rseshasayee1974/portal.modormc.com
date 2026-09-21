@@ -1,4 +1,5 @@
 <script setup>
+import { currentOpeningBalanceDate } from '@/Utils/openingBalanceDate';
 import { reactive, ref, computed } from 'vue';
 import axios from 'axios';
 import BaseCard from '@/Components/Base/BaseCard.vue';
@@ -15,7 +16,7 @@ const emit = defineEmits(['created', 'busy']);
 
 const form = reactive({
     version: 0,
-    cutover_date: '',
+    cutover_date: currentOpeningBalanceDate(),
     clearing_account_id: '',
     notes: '',
     lines: [

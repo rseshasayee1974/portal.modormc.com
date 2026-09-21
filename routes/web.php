@@ -71,7 +71,8 @@ Route::middleware([
     });
 
     // Pump & Boom Deployment Scheduling
-    Route::prefix('production/pump-deployments')->name('production.pump-deployments.')->group(function () {
+    Route::redirect('production/pump-deployments', '/production/pump-schedules');
+    Route::prefix('production/pump-schedules')->name('production.pump-deployments.')->group(function () {
         Route::get('/', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'index'])->name('index');
         Route::get('/data', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'getData'])->name('data');
         Route::get('/dropdowns', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'dropdowns'])->name('dropdowns');
@@ -156,6 +157,7 @@ Route::middleware([
         Route::resource('permissions', \App\Http\Controllers\PermissionController::class);
         Route::resource('roles', \App\Http\Controllers\RoleController::class);
         Route::resource('menus', \App\Http\Controllers\MenuController::class);
+        Route::get('sites/address-options', [\App\Http\Controllers\SiteController::class, 'addressOptions'])->name('sites.address-options');
         Route::resource('sites', \App\Http\Controllers\SiteController::class);
         Route::resource('taxes', \App\Http\Controllers\TaxController::class);
         
@@ -448,6 +450,7 @@ Route::middleware([
         Route::post('invoices/{invoice}/generate-standalone-ewaybill', [\App\Http\Controllers\EwayBillController::class, 'generate'])->name('invoices.generate-standalone-ewaybill');
         Route::post('invoices/{invoice}/cancel-standalone-ewaybill', [\App\Http\Controllers\EwayBillController::class, 'cancel'])->name('invoices.cancel-standalone-ewaybill');
         Route::get('ewaybills', [\App\Http\Controllers\EwayBillController::class, 'list'])->name('ewaybills.index');
+        Route::get('ewaybills/route-preview', [\App\Http\Controllers\EwayBillController::class, 'routePreview'])->name('ewaybills.route-preview');
         Route::post('ewaybills/refresh', [\App\Http\Controllers\EwayBillController::class, 'refreshEWB'])->name('ewaybills.refresh');
         Route::get('ewaybills/{id}/print', [\App\Http\Controllers\EwayBillController::class, 'print'])->name('ewaybills.print');
         Route::get('invoices/{invoice}/print-ewaybill', [\App\Http\Controllers\EwayBillController::class, 'printForInvoice'])->name('invoices.print-ewaybill');

@@ -88,7 +88,7 @@ class EwayBillService
     {
         $plant = $plant ?? \App\Models\Plant::plantdetails();
         $isProd = $this->isProduction($plant);
-        $resolvedGstin = session('gstin') ?: ($plant?->gstin ?: ($plant?->entity?->gstin ?: ''));
+        $resolvedGstin = trim((string) $plant?->gstin);
         return [
             'baseUrl'      => $this->getBaseUrl($plant),
             'clientId'     => $isProd ? $this->prodClientId : $this->sandboxClientId,
@@ -96,7 +96,7 @@ class EwayBillService
             'email'        => $this->getEmail($plant),
             'username'     => $plant?->ewaybill_client_id ?: $this->sandboxUsername,
             'password'     => $plant?->ewaybill_secret ?: $this->sandboxPassword,
-            'gstin'        => $isProd ? $resolvedGstin : ($resolvedGstin ?: $this->sandboxGstin),
+            'gstin'        => $isProd ? $resolvedGstin : $this->sandboxGstin,
             'ip'           => request()?->ip() ?: $this->defaultIp,
         ];
     }

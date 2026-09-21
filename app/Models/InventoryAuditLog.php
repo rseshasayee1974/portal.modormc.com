@@ -15,7 +15,8 @@ class InventoryAuditLog extends Model
     protected static function booted()
     {
         static::creating(function ($log) {
-            if (strcasecmp($log->transaction_type ?? '', 'CREATE') === 0) {
+            $log->action_type = strtoupper($log->action_type ?? $log->transaction_type ?? '');
+            if ($log->action_type === 'CREATE') {
                 return false;
             }
         });
@@ -24,6 +25,7 @@ class InventoryAuditLog extends Model
     protected $fillable = [
         'plant_id',
         'transaction_type',
+        'action_type',
         'reference_type',
         'reference_id',
         'log_from',
@@ -61,6 +63,11 @@ class InventoryAuditLog extends Model
      */
     public function reference()
     {
-        return $this->morphTo(null, 'reference_type', 'reference_id');
+        $type = $this->reference_type;
+        $class = $type && class_exists($type) ? $type : '\\App\\Models\\'.$type;
+        if (!is_subclass_of($class, Model::class)) {
+            return $this->belongsTo(Product::class, 'reference_id')->whereRaw('1 = 0');
+        }
+        return $this->belongsTo($class, 'reference_id');
     }
 }

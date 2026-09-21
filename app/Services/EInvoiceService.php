@@ -120,7 +120,7 @@ class EInvoiceService
 
         $payload = [
             'Irn'         => $irn,
-            'Distance'    => (int)($transportDetails['distance'] ?? 0),
+            'Distance'    => 0, // NIC PIN-to-PIN distance lookup.
             'TransMode'   => (string)($transportDetails['trans_mode'] ?? '1'),
             'TransId'     => $transportDetails['transporter_id'] ?? ($transportDetails['trans_id'] ?? null),
             'TransName'   => $transportDetails['transporter_name'] ?? ($transportDetails['trans_name'] ?? null),
@@ -185,6 +185,7 @@ class EInvoiceService
             [
                 'plant_id'        => $plant?->id ?? 1,
                 'ewaybill_no'     => (string)$ewbNo,
+                'distance_km'     => EwayBillDistance::fromGateway($data ?? []),
                 'ewaybill_date'   => $ewbDt->toDateTimeString(),
                 'valid_upto'      => $ewbValidTill?->toDateTimeString(),
                 'ewaybill_status' => 'ACT',
@@ -616,7 +617,8 @@ class EInvoiceService
             'SellerDtls' => $this->buildSellerDetails($plant, $entity, $sellerGstin, $sellerStateCode),
             'BuyerDtls'  => $this->buildBuyerDetails($partner, $buyerGstin, $buyerStateCode),
             'DispDtls'   => $this->buildDispatchDetails($plant, $sellerStateCode),
-            'ShipDtls'   => $this->buildShippingDetails($partner, $buyerGstin, $buyerStateCode),
+            'ShipDtls'   => array_replace($this->buildShippingDetails($partner, $buyerGstin, $buyerStateCode),
+                app(EwayBillDestination::class)->forInvoice($invoice) ?? []),
             'ItemList'   => $itemList,
             'ValDtls'    => [
                 'AssVal'      => round($assVal, 2),

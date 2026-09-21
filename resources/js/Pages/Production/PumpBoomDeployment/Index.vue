@@ -3,6 +3,7 @@ import { entityToday, entityLocaleTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import PumpDeploymentForm from './components/PumpDeploymentForm.vue';
+import PumpDeploymentEditForm from './components/PumpDeploymentEditForm.vue';
 import { Link } from '@inertiajs/vue3';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
@@ -42,15 +43,14 @@ const props = defineProps({
     initialFilters: Object,
 });
 
-// Keep the form and schedule list visible together.
-const activeView = ref('create');
-const selectedDeployment = ref(null);
+// Schedule table and form state
 const formVersion = ref(0);
 const deploymentForm = ref(null);
 const scheduleList = ref(null);
 const dropdownsLoaded = ref(false);
+const expandedRows = ref({});
 
-// 7 Operational Filters: Schedule date, Site, Pour location, Pump type, Pump number, Operator, Status
+// 7 Filter Schedules: Schedule date, Site, Pour location, Pump type, Pump number, Operator, Status
 const filters = ref({
     schedule_date: props.initialDate || entityToday(),
     site_id: 'all',
@@ -221,37 +221,52 @@ const filteredDeployments = computed(() => {
 const scrollToForm = () => deploymentForm.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 const scrollToSchedules = () => scheduleList.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-// Reset the mounted form after saving, clearing, or starting another deployment.
+// Row expansion and editing handlers
+const toggleRowExpansion = (data) => {
+    const id = data?.id;
+    if (!id) return;
+    if (expandedRows.value[id]) {
+        expandedRows.value = {};
+    } else {
+        expandedRows.value = { [id]: true };
+    }
+};
+
+const collapseRow = (id) => {
+    if (id) {
+        const copy = { ...expandedRows.value };
+        delete copy[id];
+        expandedRows.value = copy;
+    } else {
+        expandedRows.value = {};
+    }
+};
+
+const handleEditSaved = () => {
+    expandedRows.value = {};
+    fetchData();
+};
+
 const openCreateForm = () => {
-    selectedDeployment.value = null;
-    activeView.value = 'create';
-    formVersion.value++;
     scrollToForm();
 };
 
 const openEditForm = (item) => {
-    selectedDeployment.value = item;
-    activeView.value = 'edit';
-    formVersion.value++;
-    scrollToForm();
+    toggleRowExpansion(item);
 };
 
 const handleFormSaved = () => {
-    activeView.value = 'create';
-    selectedDeployment.value = null;
-    formVersion.value++;
     fetchData();
-};
-
-const handleFormCancel = () => {
-    openCreateForm();
 };
 
 const getRowClass = (data) => {
     if (!data) return '';
-    if (data.status === 'delayed') return 'bg-orange-50/30 dark:bg-orange-950/20';
-    if (data.status === 'cancelled') return 'opacity-60 bg-gray-50/40 dark:bg-gray-800/40';
-    return '';
+    const isExpanded = !!expandedRows.value[data.id];
+    let classes = 'cursor-pointer transition-colors';
+    if (isExpanded) return `${classes} bg-indigo-50/50 dark:bg-indigo-950/30 font-medium`;
+    if (data.status === 'delayed') return `${classes} bg-orange-50/30 dark:bg-orange-950/20`;
+    if (data.status === 'cancelled') return `${classes} opacity-60 bg-gray-50/40 dark:bg-gray-800/40`;
+    return classes;
 };
 
 const getPourReferenceLabel = (refVal) => {
@@ -335,7 +350,7 @@ const markDelayed = async (item) => {
 
 const markCancelled = async (item) => {
     const { value: reason, isConfirmed } = await Swal.fire({
-        title: 'Cancel Pour Deployment?',
+        title: 'Cancel Pump Schedule?',
         text: `Are you sure you want to cancel pour "${item.pour_reference}"? This requires planner confirmation.`,
         input: 'text',
         inputLabel: 'Reason for cancellation (optional)',
@@ -354,12 +369,12 @@ const markCancelled = async (item) => {
         notes: reason,
     });
     fetchData();
-    Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Pour deployment cancelled', timer: 2000, showConfirmButton: false });
+    Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Pump schedule cancelled', timer: 2000, showConfirmButton: false });
 };
 
 const deleteDeployment = async (item) => {
     const result = await Swal.fire({
-        title: 'Delete Deployment Schedule?',
+        title: 'Delete Schedule Schedule?',
         text: `Delete pump allocation for pour "${item.pour_reference}"?`,
         icon: 'warning',
         showCancelButton: true,
@@ -374,7 +389,7 @@ const deleteDeployment = async (item) => {
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully', timer: 2000, showConfirmButton: false });
         fetchData();
     } catch (err) {
-        Swal.fire('Error', 'Failed to delete deployment.', 'error');
+        Swal.fire('Error', 'Failed to delete schedule.', 'error');
     }
 };
 
@@ -427,97 +442,39 @@ const getStatusBadge = (status) => {
 </script>
 
 <template>
-    <AppLayout title="Pump & Boom Deployments">
-        <div class="py-2 px-2 sm:px-4 w-full">
+    <AppLayout title="Pump Schedules">
+        <div >
             <ModuleSubTopNav />
 
-            <div class="w-full mt-3 space-y-3">
+            <div class="w-full  space-y-5">
                 
-                <!-- Main Header Card in Indigo Theme -->
-                <!-- <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                            <WrenchScrewdriverIcon class="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 dark:text-indigo-400">
-                                    Placement & Production Logistics
-                                </span>
-                                <span class="text-[9px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded font-mono font-semibold border border-indigo-100 dark:border-indigo-900">
-                                    Plant Active
-                                </span>
-                            </div>
-                            <h1 class="text-sm sm:text-base font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
-                                Concrete Pour Schedule & Pump Deployments
-                            </h1>
-                        </div>
-                    </div>
+               
 
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <Link 
-                            :href="route('production.batching-schedules.index')" 
-                            class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
-                        >
-                            <CalendarIcon class="w-3.5 h-3.5 text-indigo-600" />
-                            <span>Batching Schedules</span>
-                        </Link>
-
-                        <button 
-                            @click="fetchData" 
-                            :disabled="loading"
-                            class="p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center transition-colors shadow-xs"
-                            title="Refresh Live Data"
-                        >
-                            <ArrowPathIcon class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
-                        </button>
-
-                        <button 
-                            @click="openCreateForm"
-                            class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                        >
-                            <PlusIcon class="w-3.5 h-3.5 stroke-[2.5]" />
-                            <span>New Deployment</span>
-                        </button>
-
-                        <button 
-                            @click="scrollToSchedules"
-                            class="px-3.5 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                        >
-                            <ListBulletIcon class="w-3.5 h-3.5" />
-                            <span>View All Schedules</span>
-                        </button>
-                    </div>
-                </div> -->
-
-                <!-- Always-visible create / edit form above the schedules. -->
+                <!-- Always-visible create form above the schedules. -->
                 <div ref="deploymentForm" class="scroll-mt-24">
                     <PumpDeploymentForm
                         v-if="dropdownsLoaded"
                         :key="formVersion"
-                        :isEditing="activeView === 'edit'"
-                        :initialData="selectedDeployment"
                         :dropdowns="dropdowns"
                         :defaultScheduleDate="filters.schedule_date"
                         @saved="handleFormSaved"
-                        @cancel="handleFormCancel"
                     />
                     <div v-else role="status" class="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-gray-500">
-                        Loading deployment form…
+                        Loading schedule form…
                     </div>
                 </div>
 
                 <!-- Schedule list remains visible while creating or editing. -->
                 <div ref="scheduleList" class="space-y-3 scroll-mt-24">
-                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">Deployment Schedule List</h2>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">Schedule Overview</h2>
 
                     <!-- 1. Operational KPI Cards -->
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                         <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider block">Total Deployments</span>
+                            <span class="text-[9px] font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider block">Total Schedules</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
                                 <span class="text-lg font-black text-gray-900 dark:text-gray-100">{{ metrics.total_deployments }}</span>
-                                <span class="text-[10px] font-semibold text-gray-400">Rigs</span>
+                                <span class="text-[10px] font-semibold text-gray-400">Schedules</span>
                             </div>
                         </div>
 
@@ -584,7 +541,7 @@ const getStatusBadge = (status) => {
                             </div>
 
                             <!-- Filter Grid -->
-                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
                                 
                                 <!-- 1. Date -->
                                 <div>
@@ -699,6 +656,7 @@ const getStatusBadge = (status) => {
                                 :value="filteredDeployments"
                                 :loading="loading"
                                 dataKey="id"
+                                v-model:expandedRows="expandedRows"
                                 :paginator="true"
                                 :rows="20"
                                 :rowsPerPageOptions="[10, 20, 50, 100]"
@@ -706,6 +664,7 @@ const getStatusBadge = (status) => {
                                 :rowClass="getRowClass"
                                 class="text-xs"
                             >
+                                <Column expander style="width: 2.5rem" />
                                 <!-- Pour Reference & Mix -->
                                 <Column field="pour_reference" header="Pour Reference" :sortable="true">
                                     <template #body="{ data }">
@@ -859,9 +818,11 @@ const getStatusBadge = (status) => {
 
                                             <!-- Edit Schedule -->
                                             <button 
-                                                @click="openEditForm(data)"
+                                                type="button"
+                                                @click.stop="toggleRowExpansion(data)"
                                                 class="p-1 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                                                title="Edit Schedule"
+                                                :class="{ 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/40': expandedRows[data.id] }"
+                                                :title="expandedRows[data.id] ? 'Collapse Edit Form' : 'Edit Schedule'"
                                             >
                                                 <PencilSquareIcon class="w-3.5 h-3.5" />
                                             </button>
@@ -881,10 +842,21 @@ const getStatusBadge = (status) => {
                                     </template>
                                 </Column>
 
+                                <template #expansion="{ data }">
+                                    <div class="p-3 sm:p-4 bg-slate-100/70 dark:bg-gray-900/60 border-y border-indigo-100 dark:border-gray-700">
+                                        <PumpDeploymentEditForm
+                                            :deployment="data"
+                                            :dropdowns="dropdowns"
+                                            @saved="handleEditSaved"
+                                            @cancel="collapseRow(data.id)"
+                                        />
+                                    </div>
+                                </template>
+
                                 <template #empty>
                                     <div class="py-10 flex flex-col items-center justify-center text-gray-400">
                                         <WrenchScrewdriverIcon class="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
-                                        <span class="font-medium text-xs">No pour deployments matching the selected filters. Use the form above to create one.</span>
+                                        <span class="font-medium text-xs">No pump schedules matching the selected filters. Use the form above to create one.</span>
                                     </div>
                                 </template>
                             </BaseDataTable>
@@ -972,20 +944,20 @@ const getStatusBadge = (status) => {
 
                 <!-- Management Options -->
                 <div class="py-1">
-                    <!-- <button
-                        @click="openEditForm(activeActionMenu.item); closeActionMenu()"
+                    <button
+                        @click="toggleRowExpansion(activeActionMenu.item); closeActionMenu()"
                         class="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
                     >
                         <PencilSquareIcon class="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                        <span>Edit Deployment</span>
-                    </button> -->
+                        <span>Edit Schedule</span>
+                    </button>
 
                     <button
                         @click="deleteDeployment(activeActionMenu.item); closeActionMenu()"
                         class="w-full text-left px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2 transition-colors"
                     >
                         <TrashIcon class="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                        <span>Delete Deployment</span>
+                        <span>Delete Schedule</span>
                     </button>
                 </div>
             </div>
