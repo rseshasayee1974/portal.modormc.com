@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ConcreteBatchingSchedule;
 use App\Models\Dispatch;
 use App\Models\Machine;
 use App\Models\MixDesign;
@@ -42,9 +41,6 @@ class PumpBoomDeploymentController extends Controller
         return (int) (session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1);
     }
 
-    /**
-     * Default eager-loaded relations for deployment queries.
-     */
     protected function getDeploymentRelations(): array
     {
         return [
@@ -52,6 +48,8 @@ class PumpBoomDeploymentController extends Controller
             'mixDesign:id,design_name,design_code',
             'pumpMachine:id,registration,vehicle_model,capacity',
             'operator:id,first_name,last_name,employee_code,mobile',
+            'salesOrder:id,order_no,prefix',
+            'batch:id,batch_no',
         ];
     }
 
@@ -74,19 +72,22 @@ class PumpBoomDeploymentController extends Controller
     {
         return [
             'schedule_date'      => 'required|date',
-            'pour_reference'     => 'required',
+            'sales_order_id'     => 'required|exists:mm_sales_orders,id',
+            'batch_id'           => 'nullable|exists:mm_batches,id',
             'site_id'            => 'nullable|exists:mm_sites,id',
             'site_name'          => 'nullable|string|max:200',
+            'site_contact_number'=> 'nullable|string|max:100',
             'pour_location'      => 'nullable|string|max:255',
             'mix_design_id'      => 'nullable|exists:mm_mix_designs,id',
             'grade'              => 'nullable|string|max:100',
             'planned_qty_m3'     => 'required|numeric|min:0.1',
-            'pump_type'          => ['required', Rule::in(ConcreteBatchingSchedule::PUMP_TYPES)],
+            'pump_type'          => ['nullable', Rule::in(array_column(self::PUMP_TYPE_OPTIONS, 'value'))],
             'pump_vehicle_id'    => 'required_without:pump_no|nullable|exists:mm_machines,id',
             'pump_no'            => 'required_without:pump_vehicle_id|nullable|string|max:100',
-            'boom_length_m'      => 'required_if:pump_type,boom_pump|nullable|numeric|min:1',
             'operator_id'        => 'nullable|exists:mm_personnels,id',
             'operator_name'      => 'nullable|string|max:150',
+            'driver_contact_number' => 'nullable|string|max:100',
+            'billing_name'       => 'nullable|string|max:200',
             'pump_arrival_time'  => 'nullable|date',
             'setup_start_time'   => 'nullable|date',
             'setup_end_time'     => 'nullable|date',
@@ -106,11 +107,10 @@ class PumpBoomDeploymentController extends Controller
     {
         return [
             'schedule_date.required'           => 'Every pour must have a schedule date.',
-            'pour_reference.required'          => 'Every pour must have a pour reference.',
+            'sales_order_id.required'          => 'Every pour must have a sales order.',
             'pump_type.required'               => 'Every scheduled pour must have a pump type.',
             'pump_vehicle_id.required_without' => 'Every scheduled pour must have an assigned pump.',
             'pump_no.required_without'         => 'Every scheduled pour must have an assigned pump.',
-            'boom_length_m.required_if'        => 'A boom pump must have a boom length specified.',
         ];
     }
 
@@ -247,8 +247,10 @@ class PumpBoomDeploymentController extends Controller
 
         if (!empty($pourReference)) {
             $query->where(function ($q) use ($pourReference) {
-                $q->where('pour_reference', 'like', "%{$pourReference}%")
-                  ->orWhere('pour_location', 'like', "%{$pourReference}%");
+                $q->whereHas('salesOrder', function ($sq) use ($pourReference) {
+                    $sq->where('order_no', 'like', "%{$pourReference}%")
+                       ->orWhere('prefix', 'like', "%{$pourReference}%");
+                })->orWhere('pour_location', 'like', "%{$pourReference}%");
             });
         }
 
@@ -284,7 +286,7 @@ class PumpBoomDeploymentController extends Controller
         $sites = Site::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'name', 'site_address_1']);
         $mixDesigns = MixDesign::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'design_name', 'design_code']);
         $machines = MachinesDropdown('Pump');
-        $operators = Personnel::where('plant_id', $plantId)->whereNull('deleted_at')->whereRelation('designation', 'name', 'like', '%Operator%')->get(['id', 'first_name', 'last_name', 'employee_code', 'mobile']);
+        $operators = DriversDropdown();
 
         $salesOrders = SalesOrder::where('plant_id', $plantId)
             ->whereNull('deleted_at')
@@ -292,15 +294,16 @@ class PumpBoomDeploymentController extends Controller
             ->with([
                 'site:id,name,site_address_1',
                 'mixDesign:id,design_name,design_code',
-                'customer:id,legal_name'
+                'customer:id,legal_name,mobile'
             ])
-            ->orderBy('id', 'desc')
+            ->withSum(['dispatches as dispatched_qty' => function ($query) {
+                $query->whereNotIn('dispatch_status', ['Cancelled']);
+            }], 'delivered_qty')
+            ->orderBy('id', 'desc') 
             ->get()
             ->map(function ($so) {
-                $dispatched = (float) Dispatch::where('sales_order_id', $so->id)
-                    ->whereNotIn('dispatch_status', ['Cancelled'])
-                    ->sum('delivered_qty');
                 $totalQty = (float) $so->total_qty;
+                $dispatched = (float) $so->dispatched_qty;
 
                 return [
                     'id'             => $so->id,
@@ -318,6 +321,34 @@ class PumpBoomDeploymentController extends Controller
                     'mix_code'       => $so->mixDesign?->design_code,
                     'customer_id'    => $so->customer_id,
                     'customer_name'  => $so->customer?->legal_name,
+                    'customer_mobile'=> $so->customer?->mobile,
+                ];
+            });
+
+        $activeSalesOrderIds = $salesOrders->pluck('id');
+
+        $batches = \App\Models\Batch::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
+            ->whereIn('sales_order_id', $activeSalesOrderIds)
+            ->whereNotIn('status', [\App\Models\Batch::STATUS_COMPLETED, \App\Models\Batch::STATUS_CANCELLED])
+            ->with([
+                'salesOrder:id,order_no,prefix,site_id,mix_design_id',
+                'salesOrder.mixDesign:id,design_name,design_code',
+                'salesOrder.site:id,name'
+            ])
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function ($b) {
+                return [
+                    'id'             => $b->id,
+                    'batch_no'       => $b->batch_no,
+                    'label'          => "B-{$b->batch_no}",
+                    'sales_order_id' => $b->sales_order_id,
+                    'site_id'        => $b->salesOrder?->site_id,
+                    'site_name'      => $b->salesOrder?->site?->name,
+                    'mix_design_id'  => $b->salesOrder?->mix_design_id,
+                    'mix_name'       => $b->salesOrder?->mixDesign?->design_name,
+                    'planned_qty_m3' => (float) $b->batch_size,
                 ];
             });
 
@@ -328,6 +359,7 @@ class PumpBoomDeploymentController extends Controller
             'operators'   => $operators,
             'pumpTypes'   => self::PUMP_TYPE_OPTIONS,
             'salesOrders' => $salesOrders,
+            'batches'     => $batches,
         ]);
     }
 
@@ -458,7 +490,7 @@ class PumpBoomDeploymentController extends Controller
                 $timeSpan = $exStart->format('d-m-Y H:i') . ' to ' . $exEnd->format('H:i');
                 throw ValidationException::withMessages([
                     'pump_vehicle_id' => [
-                        "Pump {$pumpName} is already allocated to pour '{$existing->pour_reference}' at site '{$existing->site_name}' ({$timeSpan}). A pump cannot be allocated to two overlapping pours."
+                        "Pump {$pumpName} is already allocated to Sales Order ID '{$existing->sales_order_id}' at site '{$existing->site_name}' ({$timeSpan}). A pump cannot be allocated to two overlapping pours."
                     ]
                 ]);
             }
@@ -505,7 +537,7 @@ class PumpBoomDeploymentController extends Controller
                 $timeSpan = $exStart->format('d-m-Y H:i') . ' to ' . $exEnd->format('H:i');
                 throw ValidationException::withMessages([
                     'operator_id' => [
-                        "Operator {$opLabel} is already assigned to pour '{$existing->pour_reference}' at site '{$existing->site_name}' ({$timeSpan}). An operator cannot be assigned to overlapping pump operations."
+                        "Operator {$opLabel} is already assigned to Sales Order ID '{$existing->sales_order_id}' at site '{$existing->site_name}' ({$timeSpan}). An operator cannot be assigned to overlapping pump operations."
                     ]
                 ]);
             }

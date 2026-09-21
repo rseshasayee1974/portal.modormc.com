@@ -55,9 +55,22 @@ class PumpBoomDeploymentSchedule extends Model
             if ($model->pump_vehicle_id && empty($model->pump_no)) {
                 $model->pump_no = Machine::find($model->pump_vehicle_id)?->registration;
             }
-            if ($model->operator_id && empty($model->operator_name)) {
+            if ($model->operator_id) {
                 $p = Personnel::find($model->operator_id);
-                $model->operator_name = $p ? ($p->first_name . ' ' . ($p->last_name ?? '')) : null;
+                if (empty($model->operator_name)) {
+                    $model->operator_name = $p ? ($p->first_name . ' ' . ($p->last_name ?? '')) : null;
+                }
+                if (empty($model->driver_contact_number)) {
+                    $model->driver_contact_number = $p?->mobile;
+                }
+            }
+            if ($model->sales_order_id) {
+                $so = SalesOrder::with('customer')->find($model->sales_order_id);
+                if ($so) {
+                    if (empty($model->billing_name)) {
+                        $model->billing_name = $so->customer?->legal_name;
+                    }
+                }
             }
         });
     }
@@ -90,12 +103,14 @@ class PumpBoomDeploymentSchedule extends Model
         return $this->belongsTo(Personnel::class, 'operator_id');
     }
 
-    /**
-     * Linked Transit Mixer trip schedules under the same pour reference.
-     */
-    public function batchSchedules(): HasMany
+    public function salesOrder(): BelongsTo
     {
-        return $this->hasMany(ConcreteBatchingSchedule::class, 'pour_reference', 'pour_reference');
+        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class, 'batch_id');
     }
 
     /**

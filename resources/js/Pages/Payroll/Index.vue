@@ -18,6 +18,7 @@ import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import DatePicker from 'primevue/datepicker';
 import Tag from 'primevue/tag';
 import ToggleSwitch from 'primevue/toggleswitch';
+import MultiSelect from 'primevue/multiselect';
 import Tabs from 'primevue/tabs';
 import TabList from 'primevue/tablist';
 import Tab from 'primevue/tab';
@@ -99,6 +100,7 @@ const downloadEsic = () => {
 // Forms
 const genForm = useForm({
     payroll_period_id: null as number | null,
+    personnel_ids: [] as number[],
 });
 
 const periodForm = useForm({
@@ -119,6 +121,13 @@ const compForm = useForm({
 
 const periodOptions = computed(() => 
     props.payrollPeriods.map(p => ({ label: `${p.name} (${p.status.toUpperCase()})`, value: p.id }))
+);
+
+const personnelOptions = computed(() =>
+    (props.personnel || []).map(p => ({
+        label: `${p.first_name} ${p.last_name || ''} (${p.employee_code || 'EMP-' + p.id})`.trim(),
+        value: p.id
+    }))
 );
 
 const typeOptions = [
@@ -325,12 +334,28 @@ const getStatusSeverity = (status: string) => {
                                                 </div>
                                             </template>
 
-                                            <form @submit.prevent="submitGenerate" class="space-y-6">
+                                             <form @submit.prevent="submitGenerate" class="space-y-6">
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div class="flex flex-col gap-2">
                                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select Processing Period <span class="text-red-500">*</span></label>
                                                         <BaseSelect v-model="genForm.payroll_period_id" :options="periodOptions" optionLabel="label" optionValue="value" placeholder="Select Period" class="w-full" />
                                                         <small v-if="genForm.errors.payroll_period_id" class="p-error text-[10px]">{{ genForm.errors.payroll_period_id }}</small>
+                                                    </div>
+
+                                                    <div class="flex flex-col gap-2">
+                                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select Personnel (Optional)</label>
+                                                        <MultiSelect 
+                                                            v-model="genForm.personnel_ids" 
+                                                            :options="personnelOptions" 
+                                                            optionLabel="label" 
+                                                            optionValue="value" 
+                                                            placeholder="All Active Personnel (or pick specific)" 
+                                                            filter 
+                                                            display="chip"
+                                                            class="w-full text-xs" 
+                                                        />
+                                                        <small class="text-[10px] text-gray-400">Leave empty to generate for all active employees, or select specific personnel.</small>
+                                                        <small v-if="genForm.errors.personnel_ids" class="p-error text-[10px]">{{ genForm.errors.personnel_ids }}</small>
                                                     </div>
                                                 </div>
 

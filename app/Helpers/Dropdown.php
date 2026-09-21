@@ -305,6 +305,7 @@ $q->where(DB::raw('LOWER(name)'), strtolower('Driver'));            })
                     'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
                     'first_name' => $personnel->first_name,
                     'last_name' => $personnel->last_name,
+                    'mobile' => $personnel->mobile,
                     'transporter_id' => $transporter ? $transporter->id : null,
                 ];
             });
@@ -340,6 +341,7 @@ if (!function_exists('OperatorsDropdown')) {
                     'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
                     'first_name' => $personnel->first_name,
                     'last_name' => $personnel->last_name,
+                    'mobile' => $personnel->mobile,
                 ];
             });
     }
