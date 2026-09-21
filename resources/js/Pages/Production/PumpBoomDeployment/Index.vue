@@ -350,13 +350,8 @@ const markDelayed = async (item) => {
 
 const markCancelled = async (item) => {
     const { value: reason, isConfirmed } = await Swal.fire({
-<<<<<<< HEAD
-        title: 'Cancel Pump Schedule?',
-        text: `Are you sure you want to cancel pour "${item.pour_reference}"? This requires planner confirmation.`,
-=======
         title: 'Cancel Pour Deployment?',
         text: `Are you sure you want to cancel pour "${getPourReferenceLabel(item.sales_order_id)}"? This requires planner confirmation.`,
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
         input: 'text',
         inputLabel: 'Reason for cancellation (optional)',
         inputValue: item.notes || '',
@@ -379,13 +374,8 @@ const markCancelled = async (item) => {
 
 const deleteDeployment = async (item) => {
     const result = await Swal.fire({
-<<<<<<< HEAD
-        title: 'Delete Schedule Schedule?',
-        text: `Delete pump allocation for pour "${item.pour_reference}"?`,
-=======
         title: 'Delete Deployment Schedule?',
         text: `Delete pump allocation for pour "${getPourReferenceLabel(item.sales_order_id)}"?`,
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -453,26 +443,9 @@ const getStatusBadge = (status) => {
 
 <template>
     <AppLayout title="Pump Schedules">
-        <div >
+        <div>
             <ModuleSubTopNav />
 
-<<<<<<< HEAD
-            <div class="w-full  space-y-5">
-                
-               
-
-                <!-- Always-visible create form above the schedules. -->
-                <div ref="deploymentForm" class="scroll-mt-24">
-                    <PumpDeploymentForm
-                        v-if="dropdownsLoaded"
-                        :key="formVersion"
-                        :dropdowns="dropdowns"
-                        :defaultScheduleDate="filters.schedule_date"
-                        @saved="handleFormSaved"
-                    />
-                    <div v-else role="status" class="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-gray-500">
-                        Loading schedule form…
-=======
             <div class="w-full mt-3 space-y-3">
 
                 <!-- Always-visible create / edit form above the schedules. -->
@@ -487,7 +460,6 @@ const getStatusBadge = (status) => {
                     <div v-else role="status"
                         class="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-gray-500">
                         Loading deployment form…
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
                     </div>
                 </div>
 
@@ -496,14 +468,6 @@ const getStatusBadge = (status) => {
                     <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">Schedule Overview</h2>
 
                     <!-- 1. Operational KPI Cards -->
-<<<<<<< HEAD
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider block">Total Schedules</span>
-                            <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-gray-900 dark:text-gray-100">{{ metrics.total_deployments }}</span>
-                                <span class="text-[10px] font-semibold text-gray-400">Schedules</span>
-=======
                     <!-- <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                         <div
                             class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
@@ -514,7 +478,6 @@ const getStatusBadge = (status) => {
                                 <span class="text-lg font-black text-gray-900 dark:text-gray-100">{{
                                     metrics.total_deployments }}</span>
                                 <span class="text-[10px] font-semibold text-gray-400">Rigs</span>
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
                             </div>
                         </div>
 
@@ -608,16 +571,9 @@ const getStatusBadge = (status) => {
                                 </button>
                             </div>
 
-<<<<<<< HEAD
-                            <!-- Filter Grid -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-                                
-                                <!-- 1. Date -->
-=======
                             <!-- Filter Grid (Commented out per request) -->
                             <!--
                             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
                                 <div>
                                     <BaseInput v-model="filters.schedule_date" type="date" label="Date" @update:modelValue="fetchData" />
                                 </div>
@@ -673,25 +629,9 @@ const getStatusBadge = (status) => {
 
                         <!-- Data Table using BaseDataTable -->
                         <div class="w-full">
-<<<<<<< HEAD
-                            <BaseDataTable
-                                :value="filteredDeployments"
-                                :loading="loading"
-                                dataKey="id"
-                                v-model:expandedRows="expandedRows"
-                                :paginator="true"
-                                :rows="20"
-                                :rowsPerPageOptions="[10, 20, 50, 100]"
-                                :showSerial="true"
-                                :rowClass="getRowClass"
-                                class="text-xs"
-                            >
-                                <Column expander style="width: 2.5rem" />
-=======
                             <BaseDataTable :value="filteredDeployments" :loading="loading" dataKey="id"
                                 :paginator="true" :rows="20" :rowsPerPageOptions="[10, 20, 50, 100]" :showSerial="true"
                                 :rowClass="getRowClass" class="text-xs">
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
                                 <!-- Pour Reference & Mix -->
                                 <Column field="sales_order_id" header="Sales Order" :sortable="true">
                                     <template #body="{ data }">
@@ -742,13 +682,13 @@ const getStatusBadge = (status) => {
                                             <CalendarIcon class="w-3 h-3 text-gray-400 shrink-0" />
                                             <span>{{ data.schedule_date }}</span>
                                         </div>
-                                        <div
+                                        <!-- <div
                                             class="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5 flex items-center gap-1 whitespace-nowrap">
                                             <span class="text-gray-400">Target:</span>
                                             <span class="font-medium text-gray-800 dark:text-gray-200">{{
                                                 formatTime(data.pour_start_time) }} - {{
                                                     formatTime(data.planned_end_time) }}</span>
-                                        </div>
+                                        </div> -->
                                         <div v-if="data.actual_start_time || data.actual_end_time"
                                             class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1 whitespace-nowrap">
                                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
@@ -815,8 +755,7 @@ const getStatusBadge = (status) => {
                                             class="text-[9px] text-gray-500 pl-4.5 mt-0.5">
                                             <div class="flex items-center gap-1 whitespace-nowrap">
                                                 <PhoneIcon class="w-3.5 h-3.5 text-gray-400 shrink-0" />
-
-                                                {{ data.driver_contact_number || data.operator?.phone }}
+                                                <span>{{ data.driver_contact_number || data.operator?.phone }}</span>
                                             </div>
                                         </div>
                                     </template>
@@ -880,19 +819,9 @@ const getStatusBadge = (status) => {
                                             -->
 
                                             <!-- Edit Schedule -->
-<<<<<<< HEAD
-                                            <button 
-                                                type="button"
-                                                @click.stop="toggleRowExpansion(data)"
-                                                class="p-1 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                                                :class="{ 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/40': expandedRows[data.id] }"
-                                                :title="expandedRows[data.id] ? 'Collapse Edit Form' : 'Edit Schedule'"
-                                            >
-=======
                                             <button @click="openEditForm(data)"
                                                 class="p-1 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                                                 title="Edit Schedule">
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
                                                 <PencilSquareIcon class="w-3.5 h-3.5" />
                                             </button>
 
@@ -909,25 +838,18 @@ const getStatusBadge = (status) => {
                                 </Column>
 
                                 <template #expansion="{ data }">
-                                    <div class="p-3 sm:p-4 bg-slate-100/70 dark:bg-gray-900/60 border-y border-indigo-100 dark:border-gray-700">
-                                        <PumpDeploymentEditForm
-                                            :deployment="data"
-                                            :dropdowns="dropdowns"
-                                            @saved="handleEditSaved"
-                                            @cancel="collapseRow(data.id)"
-                                        />
+                                    <div
+                                        class="p-3 sm:p-4 bg-slate-100/70 dark:bg-gray-900/60 border-y border-indigo-100 dark:border-gray-700">
+                                        <PumpDeploymentEditForm :deployment="data" :dropdowns="dropdowns"
+                                            @saved="handleEditSaved" @cancel="collapseRow(data.id)" />
                                     </div>
                                 </template>
 
                                 <template #empty>
                                     <div class="py-10 flex flex-col items-center justify-center text-gray-400">
                                         <WrenchScrewdriverIcon class="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
-<<<<<<< HEAD
-                                        <span class="font-medium text-xs">No pump schedules matching the selected filters. Use the form above to create one.</span>
-=======
                                         <span class="font-medium text-xs">No pour deployments matching the selected
                                             filters. Use the form above to create one.</span>
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
                                     </div>
                                 </template>
                             </BaseDataTable>
@@ -945,7 +867,7 @@ const getStatusBadge = (status) => {
             style="padding: 0; min-width: 14rem;" :pt="{ root: { id: 'pump-deployment-action-menu' } }">
             <div v-if="activeActionMenu"
                 class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left text-xs">
-                
+
                 <!-- Status Actions -->
                 <div class="py-1">
                     <div
@@ -998,23 +920,8 @@ const getStatusBadge = (status) => {
 
                 <!-- Management Options -->
                 <div class="py-1">
-<<<<<<< HEAD
-                    <button
-                        @click="toggleRowExpansion(activeActionMenu.item); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
-                    >
-                        <PencilSquareIcon class="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                        <span>Edit Schedule</span>
-                    </button>
-
-                    <button
-                        @click="deleteDeployment(activeActionMenu.item); closeActionMenu()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2 transition-colors"
-                    >
-=======
                     <button @click="deleteDeployment(activeActionMenu); closeActionMenu()"
                         class="w-full text-left px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2 transition-colors">
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
                         <TrashIcon class="w-3.5 h-3.5 text-rose-500 shrink-0" />
                         <span>Delete Schedule</span>
                     </button>

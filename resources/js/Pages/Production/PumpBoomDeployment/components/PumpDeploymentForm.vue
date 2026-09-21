@@ -383,41 +383,17 @@ const submitForm = async () => {
     <div
         class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
         <!-- Compact Header -->
-<<<<<<< HEAD
-        <div class="px-5 py-3 bg-gray-50/70 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-                <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                    <WrenchScrewdriverIcon class="w-4 h-4 text-white" />
-                </div>
-                <div>
-                    <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">
-                        New Pump Schedule
-                    </h2>
-=======
         <div
             class="px-4 py-2.5 bg-gray-50/70 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <div class="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center">
                     <WrenchScrewdriverIcon v-if="isEditing" class="w-3.5 h-3.5 text-white" />
                     <PlusIcon v-else class="w-3.5 h-3.5 stroke-[2.5]" />
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
                 </div>
                 <h2 class="text-xs font-bold text-gray-900 dark:text-gray-100">
                     {{ isEditing ? `Edit Deployment #${initialData?.id}` : 'New Pump & Boom Deployment' }}
                 </h2>
             </div>
-<<<<<<< HEAD
-        </div>
-
-        <form @submit.prevent="submitForm" class="p-5 space-y-5">
-            
-            <!-- Real-Time Time Validation Warnings / Advisories -->
-            <div v-if="form.setup_start_time && form.setup_end_time && new Date(form.setup_start_time) > new Date(form.setup_end_time)" 
-                 class="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-1.5">
-                <ExclamationTriangleIcon class="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                <span>Setup Start Time cannot be later than Setup End Time.</span>
-            </div>
-=======
 
             <button v-if="isEditing" type="button" @click="emit('cancel')"
                 class="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md text-[11px] font-medium flex items-center gap-1 transition-colors">
@@ -433,7 +409,6 @@ const submitForm = async () => {
         </div>
 
         <form @submit.prevent="submitForm" class="p-3 space-y-3">
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
 
             <div v-if="form.actual_start_time && form.actual_end_time && new Date(form.actual_start_time) > new Date(form.actual_end_time)"
                 class="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-1.5">
@@ -552,25 +527,6 @@ const submitForm = async () => {
                     </div>
                 </div>
 
-<<<<<<< HEAD
-                <div class="flex items-center justify-end gap-2 shrink-0 ml-auto">
-                    <BaseButton
-                        label="Clear Form"
-                        severity="secondary"
-                        variant="outlined"
-                        type="button"
-                        @click="initForm"
-                        class="!text-gray-700 dark:!text-gray-200"
-                    />
-                    <BaseButton
-                        label="Create Schedule"
-                        severity="primary"
-                        variant="filled"
-                        type="submit"
-                        :loading="saving"
-                        class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !border-transparent font-semibold"
-                    />
-=======
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
                         <BaseDatePicker v-model="form.actual_start_time" :showTime="true" hourFormat="12"
@@ -596,7 +552,6 @@ const submitForm = async () => {
                     <BaseButton :label="isEditing ? 'Save Changes' : 'Create Deployment'" severity="primary"
                         variant="filled" type="submit" :loading="saving"
                         class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !border-transparent font-semibold text-xs shadow-xs" />
->>>>>>> 16d06efa4b3aae4d25ebfcdb39a1a4ea2dbbd0db
                 </div>
             </div>
         </form>
