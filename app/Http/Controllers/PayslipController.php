@@ -230,18 +230,12 @@ class PayslipController extends Controller
                 $absent_days = 0.0;
                 $paid_leave_days = 0.0;
 
-                if ($attendances->isEmpty() && empty($leaveMap)) {
-                    // Fallback: If no attendance records and no leaves are logged, assume fully present
-                    $present_days = (float)$working_days;
-                    $absent_days = 0.0;
-                    $paid_leave_days = 0.0;
-                } else {
-                    $currentDate = $startDate->copy();
-                    while ($currentDate->lte($endDate)) {
-                        $dateStr = $currentDate->toDateString();
-                        
-                        if (isset($attendances[$dateStr])) {
-                            $att = $attendances[$dateStr];
+                $currentDate = $startDate->copy();
+                while ($currentDate->lte($endDate)) {
+                    $dateStr = $currentDate->toDateString();
+                    
+                    if (isset($attendances[$dateStr])) {
+                        $att = $attendances[$dateStr];
                             $status = $att->status;
                             
                             if ($status === 'present' || $status === 'on_duty' || $status === 'weekoff' || $status === 'holiday') {
@@ -284,17 +278,12 @@ class PayslipController extends Controller
                                     $absent_days += 1.0;
                                 }
                             } else {
-                                // Sunday is default weekly off (paid rest day)
-                                if ($currentDate->isSunday()) {
-                                    $present_days += 1.0;
-                                } else {
-                                    $absent_days += 1.0;
-                                }
+                                // If there is no attendance record and no leave, default to absent
+                                $absent_days += 1.0;
                             }
                         }
                         $currentDate->addDay();
                     }
-                }
 
                 $totalEarnings = 0.0;
                 $totalDeductions = 0.0;

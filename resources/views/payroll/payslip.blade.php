@@ -5,19 +5,22 @@
     <title>Payslip - {{ $payslip->payslip_no }}</title>
     @include('pdfs.partials._common_styles')
     <style>
+       @page { 
+        size: a4 portrait;
+        margin: 10mm; 
+    }
         .payslip-root {
-            border: 1px solid #cbd5e1;
-            width: 100%;
-            min-height: 270mm;
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
             background: #fff;
+            position: relative;
+        }
+        @media screen {
+            .payslip-root { padding: 20px; }
         }
 
         /* HEADER */
         .payslip-header {
             display: table;
+            table-layout: fixed;
             width: 100%;
             border-bottom: 2px solid #1e293b;
             padding-bottom: 12px;
@@ -58,7 +61,8 @@
 
         /* EMPLOYEE & ATTENDANCE INFO BLOCK */
         .info-section {
-            width: 100%;
+            width: 99.8%;
+            table-layout: fixed;
             border-collapse: collapse;
             margin-bottom: 16px;
             border: 1px solid #cbd5e1;
@@ -84,7 +88,8 @@
         /* EARNINGS & DEDUCTIONS DUAL COLUMN MATRIX */
         .matrix-container {
             display: table;
-            width: 100%;
+            table-layout: fixed;
+            width: 99.8%;
             border: 1px solid #cbd5e1;
             margin-bottom: 16px;
         }
@@ -129,22 +134,24 @@
         .summary-banner {
             background: #f5f3ff;
             border: 1.5px solid #ddd6fe;
-            padding: 12px;
             border-radius: 6px;
             margin-bottom: 20px;
             display: table;
+            table-layout: fixed;
             width: 100%;
         }
         .banner-left {
             display: table-cell;
             vertical-align: middle;
             width: 70%;
+            padding: 12px;
         }
         .banner-right {
             display: table-cell;
             vertical-align: middle;
             text-align: right;
             width: 30%;
+            padding: 12px;
         }
         .net-pay-title {
             font-size: 9px;
@@ -169,6 +176,7 @@
         /* SIGNATURE SECTION */
         .sig-container {
             display: table;
+            table-layout: fixed;
             width: 100%;
             margin-top: 50px;
             margin-bottom: 30px;
@@ -192,7 +200,7 @@
 </head>
 <body>
 @include('pdfs.partials._print_actions')
-<div class="payslip-root">
+<div class="payslip-root inv-root">
 
     {{-- HEADER --}}
     <div class="payslip-header">

@@ -377,6 +377,15 @@ class PumpBoomDeploymentController extends Controller
         $this->validateAndNormalizeTimes($validated);
 
         $validated['plant_id'] = $plantId;
+        
+        if (!empty($validated['batch_id'])) {
+            $batch = \App\Models\Batch::find($validated['batch_id']);
+            $validated['pour_reference'] = 'B-' . ($batch->batch_no ?? $validated['batch_id']) . '-' . mt_rand(10, 99);
+        } else {
+            $pumpRef = $validated['pump_no'] ?? ($validated['pump_vehicle_id'] ? \App\Models\Machine::find($validated['pump_vehicle_id'])?->registration : 'PMP');
+            $validated['pour_reference'] = str_replace(' ', '', strtoupper($pumpRef)) . '-' . now()->format('Ymd') . '-' . mt_rand(10, 99);
+        }
+        
         $this->resolveDeploymentStatus($validated, 'scheduled');
 
         $this->validatePumpOverlap($plantId, $validated);
