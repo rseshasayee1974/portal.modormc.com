@@ -899,21 +899,54 @@ if (!function_exists('ConcretePumpOptions')) {
      */
     function ConcretePumpOptions(): array
     {
-        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
-           return Machine::whereHas('machineType',function ($q) {
-                    $q->where('name', 'LIKE', '%Pump%');
-                    //   ->orWhere('name', 'LIKE', '%Boom%');
-                })
-                ->where('plant_id', _activePlantId())
-                ->whereNull('deleted_at')
-                ->orderBy('registration')
-                ->get(['id', 'registration'])
-                ->map(fn($t) => [
-                    'label' => $t->registration,
-                    'value' => (int) $t->id,
-                ])
-                ->toArray();
-        });
+       return Machine::whereHas('machineType',function ($q) {
+                $q->where('name', 'LIKE', '%Pump%');
+                //   ->orWhere('name', 'LIKE', '%Boom%');
+            })
+            ->where('plant_id', _activePlantId())
+            ->whereNull('deleted_at')
+            ->orderBy('registration')
+            ->get(['id', 'registration', 'vehicle_model'])
+            ->map(fn($t) => [
+                'id' => (int) $t->id,
+                'registration' => $t->registration,
+                'vehicle_model' => $t->vehicle_model,
+                'label' => $t->registration,
+                'value' => (int) $t->id,
+            ])
+            ->toArray();
+    }
+}
+if (!function_exists('TransitMixerTruckDropdown')) {
+    /**
+     * Returns standard pump options: Manual, Boom, and Pump.
+     * Used across quotation, CPO, sales order, and batch forms.
+     *
+     * @return array
+     */
+    function TransitMixerTruckDropdown(): array
+    {
+       return Machine::whereHas('machineType', function ($q) {
+                // Wrap in a nested closure to ensure the OR conditions 
+                // don't bleed into other queries if this gets expanded later.
+                $q->where(function ($sub) {
+                    $sub->where('name', 'LIKE', '%Transit%')
+                        ->orWhere('name', 'LIKE', '%Mixer%');
+                });
+            })
+            ->where('plant_id', _activePlantId())
+            ->whereNull('deleted_at')
+            ->orderBy('registration')
+            ->get(['id', 'registration', 'vehicle_model', 'capacity'])
+            ->map(fn($t) => [
+                'id' => (int) $t->id,
+                'registration' => $t->registration,
+                'vehicle_model' => $t->vehicle_model,
+                'capacity' => $t->capacity,
+                'label' => $t->registration,
+                'value' => (int) $t->id,
+            ])
+            ->toArray();
     }
 }
 

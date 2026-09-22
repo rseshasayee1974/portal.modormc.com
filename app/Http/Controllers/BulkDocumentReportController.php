@@ -145,12 +145,16 @@ class BulkDocumentReportController extends Controller
             if (PHP_SAPI !== 'cli' && PHP_SAPI !== 'cli-server') {
                 $phpBinary = PHP_BINDIR . DIRECTORY_SEPARATOR . (PHP_OS_FAMILY === 'Windows' ? 'php.exe' : 'php');
             }
-            $logPath = storage_path('logs/bulk-document-export.log');
+            $logPath = str_replace('/', '\\', storage_path('logs/bulk-document-export.log'));
 
             if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                $cmd = "start \"\" /B cmd /c \"\"{$phpBinary}\" \"{$artisanPath}\" reports:export-bulk-documents {$statusKey} {$plant} {$filtersEncoded} >> \"{$logPath}\" 2>&1\"";
-                \Illuminate\Support\Facades\Log::info("WIN CMD: " . $cmd);
-                pclose(popen($cmd, "r"));
+                $cmd = "cmd /c \"\"{$phpBinary}\" \"{$artisanPath}\" reports:export-bulk-documents {$statusKey} {$plant} {$filtersEncoded} >> \"{$logPath}\" 2>&1\"";
+                try {
+                    $wsh = new \COM("WScript.Shell");
+                    $wsh->Run($cmd, 0, false);
+                } catch (\Exception $e) {
+                    pclose(popen("start \"\" /B " . $cmd, "r"));
+                }
             } else {
                 exec(escapeshellarg($phpBinary) . ' ' . escapeshellarg($artisanPath)
                     . " reports:export-bulk-documents {$statusKey} {$plant} {$filtersEncoded} >> "

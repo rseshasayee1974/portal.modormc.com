@@ -559,9 +559,8 @@ const getStatusBadge = (status) => {
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-1.5">
                                     <FunnelIcon class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                                    <span
-                                        class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                                        Operational Filters
+                                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 tracking-wider">
+                                        List of Pump Deployments
                                     </span>
                                 </div>
                                 <button @click="resetFilters"
