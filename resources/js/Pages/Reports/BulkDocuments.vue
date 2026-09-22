@@ -9,8 +9,8 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import { formatCurrency } from '@/Utils/formatters';
-import { 
-    DocumentTextIcon, 
+import {
+    DocumentTextIcon,
     ArrowPathIcon,
     PrinterIcon,
     ArrowDownTrayIcon,
@@ -173,10 +173,8 @@ onMounted(() => {
 
                 <!-- Back Navigation -->
                 <div class="no-print">
-                    <Link
-                        :href="route('reports.index', { module: 'accounting' })"
-                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors group"
-                    >
+                    <Link :href="route('reports.index', { module: 'accounting' })"
+                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors group">
                         <ArrowLeftIcon class="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
                         <span>← Back to Accounting &amp; Finance reports</span>
                     </Link>
@@ -185,14 +183,17 @@ onMounted(() => {
                 <!-- Filter Header (Similar to General Ledger Report UI) -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8 no-print">
                     <!-- Card Top Bar -->
-                    <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-50/50">
+                    <div
+                        class="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-50/50">
                         <div class="flex items-center gap-4">
                             <div class="p-3 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-100 shrink-0">
                                 <DocumentTextIcon class="h-6 w-6" />
                             </div>
                             <div>
-                                <h1 class="text-xl font-black text-slate-800 tracking-tight">Bulk Invoice / Bill Export</h1>
-                                <p class="text-sm text-slate-500 font-medium italic">One combined PDF, one document per A4 page</p>
+                                <h1 class="text-xl font-black text-slate-800 tracking-tight">Bulk Invoice / Bill Export
+                                </h1>
+                                <p class="text-sm text-slate-500 font-medium italic">One combined PDF, one document per
+                                    A4 page</p>
                             </div>
                         </div>
 
@@ -203,14 +204,8 @@ onMounted(() => {
                                 Print
                             </BaseButton>
 
-                            <BaseButton
-                                v-if="isAdmin || can('report.export')"
-                                variant="filled"
-                                severity="success"
-                                :disabled="!canExport || exportingPdf"
-                                :loading="exportingPdf"
-                                @click="runExport"
-                            >
+                            <BaseButton v-if="isAdmin || can('report.export')" variant="filled" severity="success"
+                                :disabled="!canExport || exportingPdf" :loading="exportingPdf" @click="runExport">
                                 <ArrowDownTrayIcon class="h-4 w-4 mr-2" />
                                 Download Combined PDF
                                 <span v-if="result?.count && result.count <= 100" class="ml-1 text-xs opacity-90">
@@ -224,126 +219,69 @@ onMounted(() => {
                     <div class="p-6 bg-white">
                         <form @submit.prevent="runPreview" class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                             <div>
-                                <BaseDatePicker
-                                    v-model="filters.start_date"
-                                    label="From Date"
-                                    placeholder="Start date"
-                                    :required="true"
-                                    :disabled="busy"
-                                    fluid
-                                />
+                                <BaseDatePicker v-model="filters.start_date" label="From Date" placeholder="Start date"
+                                    :required="true" :disabled="busy" fluid />
                             </div>
 
                             <div>
-                                <BaseDatePicker
-                                    v-model="filters.end_date"
-                                    label="To Date"
-                                    placeholder="End date"
-                                    :required="true"
-                                    :disabled="busy"
-                                    fluid
-                                />
+                                <BaseDatePicker v-model="filters.end_date" label="To Date" placeholder="End date"
+                                    :required="true" :disabled="busy" fluid />
                             </div>
 
                             <div>
-                                <BaseSelect
-                                    v-model="filters.type"
-                                    label="Document Type"
-                                    :options="documentTypeOptions"
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    placeholder="All Invoices &amp; Bills"
-                                    :disabled="busy"
-                                />
+                                <BaseSelect v-model="filters.type" label="Document Type" :options="documentTypeOptions"
+                                    optionLabel="label" optionValue="value" placeholder="All Invoices &amp; Bills"
+                                    :disabled="busy" />
                             </div>
 
                             <div>
-                                <BaseSelect
-                                    v-model="filters.subtype"
-                                    label="Subtype"
-                                    :options="subtypes"
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    placeholder="All Subtypes"
-                                    :disabled="busy"
-                                />
-                            </div>
-
-                            <div >
-                                <BaseSelect
-                                    v-model="filters.patron_id"
-                                    label="Patron / Subledger"
-                                    :options="patrons || []"
-                                    optionLabel="legal_name"
-                                    optionValue="id"
-                                    placeholder="All customers &amp; vendors"
-                                    filter
-                                    showClear
-                                    :disabled="busy"
-                                />
+                                <BaseSelect v-model="filters.subtype" label="Subtype" :options="subtypes"
+                                    optionLabel="label" optionValue="value" placeholder="All Subtypes"
+                                    :disabled="busy" />
                             </div>
 
                             <div>
-                                <BaseSelect
-                                    v-model="filters.ledger_id"
-                                    label="Ledger Account"
-                                    :options="ledgers || []"
-                                    optionLabel="title"
-                                    optionValue="id"
-                                    placeholder="All ledgers"
-                                    filter
-                                    showClear
-                                    :disabled="busy"
-                                />
+                                <BaseSelect v-model="filters.patron_id" label="Patron / Subledger"
+                                    :options="patrons || []" optionLabel="legal_name" optionValue="id"
+                                    placeholder="All customers &amp; vendors" filter showClear :disabled="busy" />
                             </div>
 
                             <div>
-                                <BaseSelect
-                                    v-model="filters.tax_type"
-                                    label="Tax Treatment"
-                                    :options="taxOptions"
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    placeholder="All tax treatments"
-                                    :disabled="busy"
-                                />
+                                <BaseSelect v-model="filters.ledger_id" label="Ledger Account" :options="ledgers || []"
+                                    optionLabel="title" optionValue="id" placeholder="All ledgers" filter showClear
+                                    :disabled="busy" />
                             </div>
 
-                            <div >
-                                <BaseInput
-                                    v-model="filters.reference"
-                                    label="Invoice / Journal / Voucher Number"
-                                    placeholder="Search document or voucher number..."
-                                    :disabled="busy"
-                                />
+                            <div>
+                                <BaseSelect v-model="filters.tax_type" label="Tax Treatment" :options="taxOptions"
+                                    optionLabel="label" optionValue="value" placeholder="All tax treatments"
+                                    :disabled="busy" />
+                            </div>
+
+                            <div>
+                                <BaseInput v-model="filters.reference" label="Invoice / Journal / Voucher Number"
+                                    placeholder="Search document or voucher number..." :disabled="busy" />
                             </div>
 
                             <!-- Form Action Footer (Mirroring LedgerReport) -->
-                            <div class="col-span-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2 border-t pt-6">
+                            <div
+                                class="col-span-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-2 border-t pt-6">
                                 <div class="text-xs text-slate-500 space-y-0.5">
-                                    <p>Dates use the document date. Ledger matches the document account or its journal lines.</p>
+                                    <p>Dates use the document date. Ledger matches the document account or its journal
+                                        lines.</p>
                                     <p class="font-medium text-slate-600">
-                                        Max 100 documents per combined PDF export booklet. Cancelled/deleted records excluded.
+                                        Max 100 documents per combined PDF export booklet. Cancelled/deleted records
+                                        excluded.
                                     </p>
                                 </div>
 
                                 <div class="flex items-center gap-3 self-end sm:self-auto">
-                                    <BaseButton
-                                        type="button"
-                                        variant="outlined"
-                                        severity="secondary"
-                                        :disabled="busy"
-                                        @click="resetFilters"
-                                    >
+                                    <BaseButton type="button" variant="outlined" severity="secondary" :disabled="busy"
+                                        @click="resetFilters">
                                         Reset
                                     </BaseButton>
 
-                                    <BaseButton
-                                        type="submit"
-                                        variant="filled"
-                                        severity="primary"
-                                        :loading="busy"
-                                    >
+                                    <BaseButton type="submit" variant="filled" severity="primary" :loading="busy">
                                         <ArrowPathIcon class="h-4 w-4 mr-2" />
                                         Generate Report
                                     </BaseButton>
@@ -354,26 +292,23 @@ onMounted(() => {
                 </div>
 
                 <!-- Limit Exceeded Alert Banner -->
-                <div
-                    v-if="result?.count && result.count > 100"
-                    class="rounded-2xl bg-amber-50 border border-amber-200 p-4 sm:p-5 flex items-start gap-3.5 shadow-sm no-print"
-                >
+                <div v-if="result?.count && result.count > 100"
+                    class="rounded-2xl bg-amber-50 border border-amber-200 p-4 sm:p-5 flex items-start gap-3.5 shadow-sm no-print">
                     <ExclamationTriangleIcon class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div class="text-xs text-amber-900 leading-relaxed">
                         <div class="font-bold text-sm text-amber-950">
                             Showing the first 100 of {{ result.count }} documents
                         </div>
                         <p class="mt-0.5">
-                            Combined PDF export compiles up to 100 documents per batch to ensure optimal print quality. Please narrow the date range or choose a specific customer/vendor to export.
+                            Combined PDF export compiles up to 100 documents per batch to ensure optimal print quality.
+                            Please narrow the date range or choose a specific customer/vendor to export.
                         </p>
                     </div>
                 </div>
 
                 <!-- Error Alert -->
-                <div
-                    v-if="error"
-                    class="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-700 flex items-start justify-between shadow-sm no-print"
-                >
+                <div v-if="error"
+                    class="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-700 flex items-start justify-between shadow-sm no-print">
                     <div>{{ error }}</div>
                     <button type="button" @click="error = ''" class="font-bold text-rose-600 hover:text-rose-800">
                         Dismiss
@@ -381,15 +316,15 @@ onMounted(() => {
                 </div>
 
                 <!-- Report Content (Styled identical to General Ledger Report) -->
-                <div
-                    v-if="result?.documents?.length"
-                    class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden print:shadow-none print:border-none"
-                >
+                <div v-if="result?.documents?.length"
+                    class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden print:shadow-none print:border-none">
                     <!-- Report Header (Visible in Print) -->
                     <div class="hidden print:block p-8 text-center border-b-2 border-slate-900 mb-8">
                         <h1 class="text-3xl font-black uppercase tracking-widest">Bulk Invoice / Bill Statement</h1>
                         <p class="text-lg font-bold mt-2">
-                            {{ filters.type ? (filters.type === 'invoice' ? 'Sales Invoices' : 'Vendor Bills') : 'All Invoices & Bills' }}
+                            {{ filters.type ?
+                                (filters.type === 'invoice' ? 'Sales Invoices' : 'Vendor Bills') :
+                                'All Invoices & Bills' }}
                         </p>
                         <p class="text-sm mt-1 text-slate-600 italic">
                             Period: {{ filters.start_date }} to {{ filters.end_date }}
@@ -399,7 +334,8 @@ onMounted(() => {
                     <div class="p-6 sm:p-8 overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
-                                <tr class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100">
+                                <tr
+                                    class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100">
                                     <th class="pb-4 font-black">Date</th>
                                     <th class="pb-4 font-black">Document No</th>
                                     <th class="pb-4 font-black">Type</th>
@@ -410,18 +346,15 @@ onMounted(() => {
                                 </tr>
                             </thead>
                             <tbody class="text-sm font-medium">
-                                <tr
-                                    v-for="doc in result.documents"
-                                    :key="doc.id"
-                                    class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
-                                >
+                                <tr v-for="doc in result.documents" :key="doc.id"
+                                    class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                                     <td class="py-4 text-slate-600 whitespace-nowrap">{{ doc.date }}</td>
-                                    <td class="py-4 font-mono font-black text-indigo-600 tracking-tight">{{ doc.number }}</td>
+                                    <td class="py-4 font-mono font-black text-indigo-600 tracking-tight">{{ doc.number
+                                        }}</td>
                                     <td class="py-4">
                                         <span
                                             class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider whitespace-nowrap"
-                                            :class="doc.type === 'Invoice' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'"
-                                        >
+                                            :class="doc.type === 'Invoice' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'">
                                             {{ doc.type }}
                                         </span>
                                     </td>
@@ -437,7 +370,8 @@ onMounted(() => {
 
                                 <!-- Summary Footer (Indigo Bar matching LedgerReport) -->
                                 <tr class="bg-indigo-900 text-white shadow-xl shadow-indigo-100">
-                                    <td colspan="5" class="py-6 px-4 text-right font-black uppercase tracking-widest text-[11px]">
+                                    <td colspan="5"
+                                        class="py-6 px-4 text-right font-black uppercase tracking-widest text-[11px]">
                                         Total Summary ({{ result.count }} Documents)
                                     </td>
                                     <td class="py-6 px-4 text-right font-black text-lg font-mono">
@@ -453,7 +387,8 @@ onMounted(() => {
                 </div>
 
                 <!-- Empty State (Styled identical to General Ledger Report) -->
-                <div v-else-if="!busy" class="bg-white rounded-2xl p-20 text-center border border-dashed border-slate-300">
+                <div v-else-if="!busy"
+                    class="bg-white rounded-2xl p-20 text-center border border-dashed border-slate-300">
                     <div class="mx-auto w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                         <DocumentTextIcon class="h-8 w-8 text-slate-300" />
                     </div>
@@ -473,6 +408,7 @@ onMounted(() => {
     .no-print {
         display: none !important;
     }
+
     body {
         background: white !important;
     }

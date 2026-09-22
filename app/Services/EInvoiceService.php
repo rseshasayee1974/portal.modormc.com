@@ -118,9 +118,12 @@ class EInvoiceService
             ? substr($buyerGstin, 0, 2)
             : '';
 
+        $manualDistance = EwayBillDistance::fromRequest($transportDetails);
+
         $payload = [
             'Irn'         => $irn,
-            'Distance'    => 0, // NIC PIN-to-PIN distance lookup.
+            // Zero asks NIC to calculate PIN-to-PIN distance; a positive value overrides it.
+            'Distance'    => $manualDistance ?? 0,
             'TransMode'   => (string)($transportDetails['trans_mode'] ?? '1'),
             'TransId'     => $transportDetails['transporter_id'] ?? ($transportDetails['trans_id'] ?? null),
             'TransName'   => $transportDetails['transporter_name'] ?? ($transportDetails['trans_name'] ?? null),
@@ -167,7 +170,7 @@ class EInvoiceService
         if (!$ewbNo && !$this->isProduction()) {
             $ewbNo = '33' . date('ymd') . str_pad((string)rand(100000, 999999), 6, '0', STR_PAD_LEFT);
             $ewbDt = Carbon::now();
-            $distance = (int)($transportDetails['distance'] ?? 100);
+            $distance = $manualDistance ?? 100;
             $daysValid = max(1, ceil($distance / 200));
             $ewbValidTill = Carbon::now()->addDays($daysValid);
         }
@@ -185,7 +188,7 @@ class EInvoiceService
             [
                 'plant_id'        => $plant?->id ?? 1,
                 'ewaybill_no'     => (string)$ewbNo,
-                'distance_km'     => EwayBillDistance::fromGateway($data ?? []),
+                'distance_km'     => EwayBillDistance::fromGateway($data ?? []) ?? $manualDistance,
                 'ewaybill_date'   => $ewbDt->toDateTimeString(),
                 'valid_upto'      => $ewbValidTill?->toDateTimeString(),
                 'ewaybill_status' => 'ACT',

@@ -380,6 +380,10 @@ const submitForm = async () => {
 
     saving.value = true;
     try {
+        if (!form.value.status) {
+            form.value.status = 'scheduled';
+        }
+
         const payload = {
             ...form.value,
             pour_reference: form.value.pour_reference,

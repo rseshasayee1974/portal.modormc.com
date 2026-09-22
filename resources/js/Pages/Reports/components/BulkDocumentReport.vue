@@ -10,8 +10,8 @@ import { usePermissions } from '@/Composables/usePermissions';
 import { formatCurrency } from '@/Utils/formatters';
 import Dialog from 'primevue/dialog';
 import MultiSelect from 'primevue/multiselect';
-import { 
-    DocumentTextIcon, 
+import {
+    DocumentTextIcon,
     ArrowPathIcon,
     PrinterIcon,
     ArrowDownTrayIcon,
@@ -347,8 +347,34 @@ async function runExport() {
     }
 }
 
-const printReport = () => {
-    window.print();
+const printingPdf = ref(false);
+
+const printReport = async () => {
+    if (!canExport.value || printingPdf.value) return;
+    printingPdf.value = true;
+    error.value = '';
+    try {
+        const response = await axios.post(
+            route('reports.bulk-documents.export'),
+            { ...filters },
+            { responseType: 'blob' }
+        );
+        const blobUrl = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+        window.open(blobUrl, '_blank');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } catch (e: any) {
+        let data = e.response?.data;
+        if (data instanceof Blob) {
+            try {
+                data = JSON.parse(await data.text());
+            } catch {
+                data = null;
+            }
+        }
+        error.value = Object.values(data?.errors || {}).flat().join(' ') || data?.message || 'Unable to generate combined PDF for print preview.';
+    } finally {
+        printingPdf.value = false;
+    }
 };
 
 onMounted(() => {
@@ -362,7 +388,8 @@ onMounted(() => {
         <!-- Filter Header Card (Styled similar to General Ledger Report UI) -->
         <div class="bg-white rounded shadow-sm border border-slate-200 overflow-hidden mb-6 no-print">
             <!-- Card Top Bar -->
-            <div class="p-2 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-50/50">
+            <div
+                class="p-2 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-50/50">
                 <div class="flex items-center gap-4">
                     <div class="p-2 bg-indigo-600 rounded text-white shadow-lg shadow-indigo-100 shrink-0">
                         <DocumentTextIcon class="h-6 w-6" />
@@ -375,42 +402,34 @@ onMounted(() => {
 
                 <!-- Header Action Buttons -->
                 <div class="flex flex-wrap items-center gap-2.5">
-                    <BaseButton variant="outlined" severity="secondary" :disabled="!result?.count || busy" @click="printReport">
+                    <BaseButton variant="outlined" severity="secondary"
+                        :disabled="!result?.count || printingPdf || busy" :loading="printingPdf" @click="printReport">
                         <PrinterIcon class="h-4 w-4 mr-1.5" />
-                        Print
+                        Print Preview
                     </BaseButton>
 
-                    <BaseButton
-                        v-if="isAdmin || can('report.export')"
-                        variant="outlined"
-                        severity="secondary"
-                        :disabled="!canExport || exportingPdf"
-                        :loading="exportingPdf"
-                        @click="runExport"
-                        title="Download single combined PDF booklet (up to 100 documents)"
-                    >
+                    <BaseButton v-if="isAdmin || can('report.export')" variant="outlined" severity="secondary"
+                        :disabled="!canExport || exportingPdf" :loading="exportingPdf" @click="runExport"
+                        title="Download single combined PDF booklet (up to 100 documents)">
                         <ArrowDownTrayIcon class="h-4 w-4 mr-1.5 text-rose-600" />
                         Combined PDF
-                        <span v-if="result?.count && result.count <= 100" class="ml-1 text-[11px] font-bold text-slate-500">
-                            ({{ result.count }} pgs)
+                        <span v-if="result?.count && result.count <= 100"
+                            class="ml-1 text-[11px] font-bold text-slate-500">
+                            ({{ result.count }} )
                         </span>
-                        <span v-else-if="result?.count && result.count > 100" class="ml-1 text-[10px] text-amber-600 font-bold">
+                        <span v-else-if="result?.count && result.count > 100"
+                            class="ml-1 text-[10px] text-amber-600 font-bold">
                             (Max 100)
                         </span>
                     </BaseButton>
 
-                    <BaseButton
-                        v-if="isAdmin || can('report.export')"
-                        variant="filled"
-                        severity="success"
-                        :disabled="!canExportZip || exportingZip"
-                        :loading="exportingZip"
-                        @click="runZipExport"
-                        title="Export all documents as individual PDFs inside a ZIP archive (Supports 10,000+)"
-                    >
+                    <BaseButton v-if="isAdmin || can('report.export')" variant="filled" severity="success"
+                        :disabled="!canExportZip || exportingZip" :loading="exportingZip" @click="runZipExport"
+                        title="Export all documents as individual PDFs inside a ZIP archive (Supports 10,000+)">
                         <FolderArrowDownIcon class="h-4 w-4 mr-1.5" />
                         {{ filters.invoice_ids.length ? 'Export Selected to ZIP' : 'Export All to ZIP' }}
-                        <span v-if="result?.count" class="ml-1.5 px-1.5 py-0.5 text-[10px] font-black rounded-full bg-white/20">
+                        <span v-if="result?.count"
+                            class="ml-1.5 px-1.5 py-0.5 text-[10px] font-black rounded-full bg-white/20">
                             {{ result.count }}
                         </span>
                     </BaseButton>
@@ -421,89 +440,41 @@ onMounted(() => {
             <div class="p-6 bg-white">
                 <form @submit.prevent="runPreview" class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                     <div>
-                        <BaseDatePicker
-                            v-model="filters.start_date"
-                            label="From Date"
-                            placeholder="Start date"
-                            :required="true"
-                            :disabled="busy"
-                            fluid
-                        />
+                        <BaseDatePicker v-model="filters.start_date" label="From Date" placeholder="Start date"
+                            :required="true" :disabled="busy" fluid />
                     </div>
 
                     <div>
-                        <BaseDatePicker
-                            v-model="filters.end_date"
-                            label="To Date"
-                            placeholder="End date"
-                            :required="true"
-                            :disabled="busy"
-                            fluid
-                        />
+                        <BaseDatePicker v-model="filters.end_date" label="To Date" placeholder="End date"
+                            :required="true" :disabled="busy" fluid />
                     </div>
 
                     <div>
-                        <BaseSelect
-                            v-model="filters.type"
-                            label="Document Type"
-                            :options="documentTypeOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="All Invoices &amp; Bills"
-                            :disabled="busy"
-                        />
+                        <BaseSelect v-model="filters.type" label="Document Type" :options="documentTypeOptions"
+                            optionLabel="label" optionValue="value" placeholder="All Invoices &amp; Bills"
+                            :disabled="busy" />
                     </div>
 
                     <div>
-                        <BaseSelect
-                            v-model="filters.subtype"
-                            label="Subtype"
-                            :options="subtypes"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="All Subtypes"
-                            :disabled="busy"
-                        />
-                    </div>
-
-                    <div >
-                        <BaseSelect
-                            v-model="filters.patron_id"
-                            label="Patron / Subledger"
-                            :options="patrons || []"
-                            optionLabel="legal_name"
-                            optionValue="id"
-                            placeholder="All customers &amp; vendors"
-                            filter
-                            showClear
-                            :disabled="busy"
-                        />
+                        <BaseSelect v-model="filters.subtype" label="Subtype" :options="subtypes" optionLabel="label"
+                            optionValue="value" placeholder="All Subtypes" :disabled="busy" />
                     </div>
 
                     <div>
-                        <BaseSelect
-                            v-model="filters.ledger_id"
-                            label="Ledger Account"
-                            :options="ledgers || []"
-                            optionLabel="title"
-                            optionValue="id"
-                            placeholder="All ledgers"
-                            filter
-                            showClear
-                            :disabled="busy"
-                        />
+                        <BaseSelect v-model="filters.patron_id" label="Patron / Subledger" :options="patrons || []"
+                            optionLabel="legal_name" optionValue="id" placeholder="All customers &amp; vendors" filter
+                            showClear :disabled="busy" />
                     </div>
 
                     <div>
-                        <BaseSelect
-                            v-model="filters.tax_type"
-                            label="Tax Treatment"
-                            :options="taxOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="All tax treatments"
-                            :disabled="busy"
-                        />
+                        <BaseSelect v-model="filters.ledger_id" label="Ledger Account" :options="ledgers || []"
+                            optionLabel="title" optionValue="id" placeholder="All ledgers" filter showClear
+                            :disabled="busy" />
+                    </div>
+
+                    <div>
+                        <BaseSelect v-model="filters.tax_type" label="Tax Treatment" :options="taxOptions"
+                            optionLabel="label" optionValue="value" placeholder="All tax treatments" :disabled="busy" />
                     </div>
 
                     <!-- <div >
@@ -516,25 +487,13 @@ onMounted(() => {
                     </div> -->
 
                     <div class="col-span-2">
-                        <label for="bulk-invoice-numbers" class="block text-[10px] font-semibold text-slate-600 mb-2">Invoice / Bill Numbers</label>
-                        <MultiSelect
-                            inputId="bulk-invoice-numbers"
-                            v-model="filters.invoice_ids"
-                            :options="invoiceOptions"
-                            optionLabel="label"
-                            optionValue="id"
-                            filter
-                            
-                            showClear
-                            :maxSelectedLabels="3"
-                            selectedItemsLabel="{0} documents selected"
-                            :selectionLimit="1000"
-                            :virtualScrollerOptions="{ itemSize: 44 }"
-                            :loading="optionsLoading"
-                            :disabled="optionsLoading || !!optionsError"
-                          
-                            class="w-full"
-                        />
+                        <label for="bulk-invoice-numbers"
+                            class="block text-[10px] font-semibold text-slate-600 mb-2">Invoice / Bill Numbers</label>
+                        <MultiSelect inputId="bulk-invoice-numbers" v-model="filters.invoice_ids"
+                            :options="invoiceOptions" optionLabel="label" optionValue="id" filter showClear
+                            :maxSelectedLabels="3" selectedItemsLabel="{0} documents selected" :selectionLimit="1000"
+                            :virtualScrollerOptions="{ itemSize: 44 }" :loading="optionsLoading"
+                            :disabled="optionsLoading || !!optionsError" class="w-full" />
                         <!-- <p v-if="optionsError" class="mt-2 text-sm text-red-600">{{ optionsError }}</p>
                         <p v-else class="mt-2 text-xs text-slate-500">
                             {{ filters.invoice_ids.length ? `${filters.invoice_ids.length} selected — preview, PDF and ZIP include only these documents.` : 'Leave empty to export all matching documents. Numbers follow the date range, subtype and other filters.' }}
@@ -542,7 +501,8 @@ onMounted(() => {
                     </div>
 
                     <!-- Form Action Footer (Mirroring LedgerReport) -->
-                    <div class="col-span-full flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 mt-2 border-t pt-6">
+                    <div
+                        class="col-span-full flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 mt-2 border-t pt-6">
                         <!-- <div class="text-xs text-slate-500 space-y-0.5">
                             <p>Dates use the document date. Ledger matches the document account or its journal lines.</p>
                             <p class="font-medium text-slate-600">
@@ -551,22 +511,12 @@ onMounted(() => {
                         </div> -->
 
                         <div class="flex items-end gap-3 self-end sm:self-auto">
-                            <BaseButton
-                                type="button"
-                                variant="outlined"
-                                severity="secondary"
-                                :disabled="busy"
-                                @click="resetFilters"
-                            >
+                            <BaseButton type="button" variant="outlined" severity="secondary" :disabled="busy"
+                                @click="resetFilters">
                                 Reset
                             </BaseButton>
 
-                            <BaseButton
-                                type="submit"
-                                variant="filled"
-                                severity="primary"
-                                :loading="busy"
-                            >
+                            <BaseButton type="submit" variant="filled" severity="primary" :loading="busy">
                                 <ArrowPathIcon class="h-4 w-4 mr-2" />
                                 Generate Report
                             </BaseButton>
@@ -577,18 +527,18 @@ onMounted(() => {
         </div>
 
         <!-- Background ZIP Processing Banner (When modal is minimized/closed) -->
-        <div
-            v-if="zipStatus && zipStatus.status === 'processing' && !showZipModal"
-            class="rounded-xl bg-indigo-50 border border-indigo-200 p-4 flex items-center justify-between shadow-xs no-print"
-        >
+        <div v-if="zipStatus && zipStatus.status === 'processing' && !showZipModal"
+            class="rounded-xl bg-indigo-50 border border-indigo-200 p-4 flex items-center justify-between shadow-xs no-print">
             <div class="flex items-center gap-3">
-                <span class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin shrink-0"></span>
+                <span
+                    class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin shrink-0"></span>
                 <div>
                     <span class="text-xs font-bold text-indigo-900 block">
                         Background ZIP Export in Progress: {{ zipStatus.progress || 0 }}%
                     </span>
                     <span class="text-[11px] text-indigo-700">
-                        {{ zipStatus.message || `Processed ${zipStatus.processed || 0} of ${zipStatus.total || 0} documents` }}
+                        {{ zipStatus.message || `Processed ${zipStatus.processed || 0} of ${zipStatus.total || 0}
+                        documents` }}
                     </span>
                 </div>
             </div>
@@ -598,10 +548,8 @@ onMounted(() => {
         </div>
 
         <!-- Limit Exceeded Alert Banner -->
-        <div
-            v-if="result?.count && result.count > 100"
-            class="rounded-xl bg-amber-50 border border-amber-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs no-print"
-        >
+        <div v-if="result?.count && result.count > 100"
+            class="rounded-xl bg-amber-50 border border-amber-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs no-print">
             <div class="flex items-start gap-3">
                 <ExclamationTriangleIcon class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div class="text-xs text-amber-950 leading-relaxed">
@@ -609,28 +557,22 @@ onMounted(() => {
                         Large Volume: {{ result.count }} Documents Found
                     </div>
                     <p class="mt-0.5 text-amber-900">
-                        The preview grid displays the first 100 records. Single combined PDF booklets are limited to 100 pages, but you can export all <strong>{{ result.count }} documents</strong> in the background via <strong>ZIP Export</strong>.
+                        The preview grid displays the first 100 records. Single combined PDF booklets are limited to 100
+                        pages, but you can export all <strong>{{ result.count }} documents</strong> in the background
+                        via <strong>ZIP Export</strong>.
                     </p>
                 </div>
             </div>
-            <BaseButton
-                variant="filled"
-                severity="success"
-                size="small"
-                :loading="exportingZip"
-                @click="runZipExport"
-                class="shrink-0 self-start sm:self-center"
-            >
+            <BaseButton variant="filled" severity="success" size="small" :loading="exportingZip" @click="runZipExport"
+                class="shrink-0 self-start sm:self-center">
                 <FolderArrowDownIcon class="w-4 h-4 mr-1.5" />
                 {{ filters.invoice_ids.length ? 'Export Selected to ZIP' : 'Export All to ZIP' }} ({{ result.count }})
             </BaseButton>
         </div>
 
         <!-- Error Alert -->
-        <div
-            v-if="error"
-            class="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-700 flex items-start justify-between shadow-sm no-print"
-        >
+        <div v-if="error"
+            class="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-700 flex items-start justify-between shadow-sm no-print">
             <div>{{ error }}</div>
             <button type="button" @click="error = ''" class="font-bold text-rose-600 hover:text-rose-800">
                 Dismiss
@@ -641,9 +583,11 @@ onMounted(() => {
         <div v-if="result?.documents?.length" class="space-y-6">
             <!-- KPI Summary Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 no-print">
-                <div class="border border-slate-200 rounded p-4 bg-slate-50/50 flex justify-between items-center shadow-2xs">
+                <div
+                    class="border border-slate-200 rounded p-4 bg-slate-50/50 flex justify-between items-center shadow-2xs">
                     <div>
-                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Documents</span>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total
+                            Documents</span>
                         <span class="text-xl font-black text-[#1d2d3e] mt-1 block">{{ result.count }} Documents</span>
                         <span class="text-[10px] font-semibold text-slate-500 mt-0.5 block">
                             {{ invoiceCount }} Invoices &bull; {{ billCount }} Bills
@@ -654,10 +598,13 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <div class="border border-slate-200 rounded p-4 bg-slate-50/50 flex justify-between items-center shadow-2xs">
+                <div
+                    class="border border-slate-200 rounded p-4 bg-slate-50/50 flex justify-between items-center shadow-2xs">
                     <div>
-                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Tax Breakdown</span>
-                        <span class="text-xl font-black text-[#1d2d3e] mt-1 block">{{ formatCurrency(totalTaxAmount) }}</span>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Tax
+                            Breakdown</span>
+                        <span class="text-xl font-black text-[#1d2d3e] mt-1 block">{{ formatCurrency(totalTaxAmount)
+                        }}</span>
                         <span class="text-[10px] font-semibold text-slate-500 mt-0.5 block">CGST + SGST + IGST</span>
                     </div>
                     <div class="p-2.5 bg-slate-100 rounded text-slate-600 border border-slate-200">
@@ -665,11 +612,15 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <div class="border border-[#c5e0b4] rounded p-4 bg-[#e2f0d9] flex justify-between items-center shadow-2xs">
+                <div
+                    class="border border-[#c5e0b4] rounded p-4 bg-[#e2f0d9] flex justify-between items-center shadow-2xs">
                     <div>
-                        <span class="text-[9px] font-bold text-[#385723] uppercase tracking-wider block">Grand Invoiced Value</span>
-                        <span class="text-xl font-black text-[#385723] mt-1 block">{{ formatCurrency(totalGrossAmount) }}</span>
-                        <span class="text-[10px] font-semibold text-[#385723]/80 mt-0.5 block">Cumulative Gross Total</span>
+                        <span class="text-[9px] font-bold text-[#385723] uppercase tracking-wider block">Grand Invoiced
+                            Value</span>
+                        <span class="text-xl font-black text-[#385723] mt-1 block">{{ formatCurrency(totalGrossAmount)
+                        }}</span>
+                        <span class="text-[10px] font-semibold text-[#385723]/80 mt-0.5 block">Cumulative Gross
+                            Total</span>
                     </div>
                     <div class="p-2.5 bg-white/80 rounded text-[#385723] border border-[#c5e0b4]">
                         <CheckCircleIcon class="w-5 h-5" />
@@ -678,17 +629,22 @@ onMounted(() => {
             </div>
 
             <!-- Statement Table Card (Styled matching Standard Double-Entry Ledger) -->
-            <div class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden print:border-none print:shadow-none">
+            <div
+                class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden print:border-none print:shadow-none">
                 <!-- Card Header -->
-                <div class="px-5 py-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
+                <div
+                    class="px-5 py-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
                     <div class="flex items-center gap-3">
-                        <span class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Statement Result Grid</span>
-                        <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-blue-50 text-[#0064d2] border border-blue-100">
+                        <span class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Statement Result
+                            Grid</span>
+                        <span
+                            class="text-[10px] px-2 py-0.5 rounded font-bold bg-blue-50 text-[#0064d2] border border-blue-100">
                             Showing {{ result.documents.length }} of {{ result.count }} Documents
                         </span>
                     </div>
                     <div class="text-[11px] text-slate-500 font-medium">
-                        Period: <span class="font-bold text-slate-700">{{ filters.start_date }}</span> to <span class="font-bold text-slate-700">{{ filters.end_date }}</span>
+                        Period: <span class="font-bold text-slate-700">{{ filters.start_date }}</span> to <span
+                            class="font-bold text-slate-700">{{ filters.end_date }}</span>
                     </div>
                 </div>
 
@@ -702,10 +658,12 @@ onMounted(() => {
 
                 <!-- Table Grid -->
                 <div class="min-w-0 p-4 sm:p-5">
-                    <div class="statement-scroll border border-slate-200 rounded" role="region" aria-label="Statement result grid, scroll to view all documents and amounts" tabindex="0">
+                    <div class="statement-scroll border border-slate-200 rounded" role="region"
+                        aria-label="Statement result grid, scroll to view all documents and amounts" tabindex="0">
                         <table class="statement-table w-full text-left border-collapse min-w-[850px]">
                             <thead>
-                                <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                                <tr
+                                    class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
                                     <th class="py-3 px-3 text-center" width="4%">#</th>
                                     <th class="py-3 px-3 text-center" width="10%">Date</th>
                                     <th class="py-3 px-4" width="16%">Document No</th>
@@ -717,11 +675,8 @@ onMounted(() => {
                                 </tr>
                             </thead>
                             <tbody class="text-[11px] font-semibold text-slate-700">
-                                <tr
-                                    v-for="(doc, idx) in result.documents"
-                                    :key="doc.id"
-                                    class="border-b border-slate-100 hover:bg-slate-50/80 transition-colors even:bg-slate-50/30"
-                                >
+                                <tr v-for="(doc, idx) in result.documents" :key="doc.id"
+                                    class="border-b border-slate-100 hover:bg-slate-50/80 transition-colors even:bg-slate-50/30">
                                     <td class="py-3 px-3 text-center text-slate-400 font-mono text-[10px]">
                                         {{ idx + 1 }}
                                     </td>
@@ -729,20 +684,21 @@ onMounted(() => {
                                         {{ doc.date }}
                                     </td>
                                     <td class="py-3 px-4">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+                                        <span
+                                            class="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-xs bg-indigo-50 text-indigo-700 border border-indigo-200/80">
                                             {{ doc.number }}
                                         </span>
                                     </td>
                                     <td class="py-3 px-3 text-center">
                                         <span
                                             class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap"
-                                            :class="doc.type === 'Invoice' ? 'bg-[#e2f0d9] text-[#385723] border border-[#c5e0b4]' : 'bg-[#e0e7ff] text-[#3730a3] border border-[#c7d2fe]'"
-                                        >
+                                            :class="doc.type === 'Invoice' ? 'bg-[#e2f0d9] text-[#385723] border border-[#c5e0b4]' : 'bg-[#e0e7ff] text-[#3730a3] border border-[#c7d2fe]'">
                                             {{ doc.type }}
                                         </span>
                                     </td>
                                     <td class="py-3 px-3">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                        <span
+                                            class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                                             {{ doc.subtype || 'Standard' }}
                                         </span>
                                     </td>
@@ -761,7 +717,8 @@ onMounted(() => {
                             </tbody>
                             <tfoot>
                                 <tr class="bg-[#1d2d3e] text-white">
-                                    <td colspan="6" class="py-3.5 px-6 text-right font-bold uppercase text-[10px] tracking-wider text-slate-300">
+                                    <td colspan="6"
+                                        class="py-3.5 px-6 text-right font-bold uppercase text-[10px] tracking-wider text-slate-300">
                                         Net Total Summary ({{ result.count }} Documents)
                                     </td>
                                     <td class="py-3.5 px-4 text-right font-black text-xs font-mono text-slate-200">
@@ -790,26 +747,18 @@ onMounted(() => {
         </div>
 
         <!-- Asynchronous ZIP Export Progress Dialog -->
-        <Dialog
-            v-model:visible="showZipModal"
-            modal
-            :closable="true"
-            header="Bulk Document ZIP Export"
-            :style="{ width: '480px' }"
-            class="premium-dialog"
-        >
+        <Dialog v-model:visible="showZipModal" modal :closable="true" header="Bulk Document ZIP Export"
+            :style="{ width: '480px' }" class="premium-dialog">
             <div class="p-4 space-y-4">
                 <!-- Status Header -->
                 <div class="flex items-center gap-3">
-                    <div
-                        class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                        :class="{
-                            'bg-indigo-50 text-indigo-600': zipStatus?.status === 'queued' || zipStatus?.status === 'processing',
-                            'bg-emerald-50 text-emerald-600': zipStatus?.status === 'completed',
-                            'bg-rose-50 text-rose-600': zipStatus?.status === 'failed',
-                        }"
-                    >
-                        <span v-if="zipStatus?.status === 'processing' || zipStatus?.status === 'queued'" class="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" :class="{
+                        'bg-indigo-50 text-indigo-600': zipStatus?.status === 'queued' || zipStatus?.status === 'processing',
+                        'bg-emerald-50 text-emerald-600': zipStatus?.status === 'completed',
+                        'bg-rose-50 text-rose-600': zipStatus?.status === 'failed',
+                    }">
+                        <span v-if="zipStatus?.status === 'processing' || zipStatus?.status === 'queued'"
+                            class="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
                         <CheckCircleIcon v-else-if="zipStatus?.status === 'completed'" class="w-6 h-6" />
                         <ExclamationTriangleIcon v-else class="w-6 h-6" />
                     </div>
@@ -817,12 +766,15 @@ onMounted(() => {
                     <div class="flex-1 min-w-0">
                         <h4 class="text-sm font-bold text-slate-800">
                             <span v-if="zipStatus?.status === 'queued'">Preparing Export Job...</span>
-                            <span v-else-if="zipStatus?.status === 'processing'">Exporting Documents in Background</span>
+                            <span v-else-if="zipStatus?.status === 'processing'">Exporting Documents in
+                                Background</span>
                             <span v-else-if="zipStatus?.status === 'completed'">Export Archive Ready!</span>
                             <span v-else-if="zipStatus?.status === 'failed'">Export Failed</span>
                         </h4>
                         <p class="text-xs text-slate-500 truncate mt-0.5">
-                            {{ zipStatus?.message || (zipStatus?.error ? zipStatus.error : 'Packaging invoices into ZIP file...') }}
+                            {{
+                                zipStatus?.message || (zipStatus?.error ?
+                                    zipStatus.error : 'Packaging invoices into ZIP file...') }}
                         </p>
                     </div>
                 </div>
@@ -834,10 +786,8 @@ onMounted(() => {
                         <span class="font-mono">{{ zipStatus?.progress || 0 }}%</span>
                     </div>
                     <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                        <div
-                            class="bg-indigo-600 h-full rounded-full transition-all duration-300"
-                            :style="{ width: `${zipStatus?.progress || 0}%` }"
-                        ></div>
+                        <div class="bg-indigo-600 h-full rounded-full transition-all duration-300"
+                            :style="{ width: `${zipStatus?.progress || 0}%` }"></div>
                     </div>
                     <div class="flex justify-between text-[11px] text-slate-400">
                         <span>Processed {{ zipStatus?.processed || 0 }} of {{ zipStatus?.total || 0 }} documents</span>
@@ -846,7 +796,8 @@ onMounted(() => {
                 </div>
 
                 <!-- Completed State -->
-                <div v-if="zipStatus?.status === 'completed'" class="p-3 bg-emerald-50 rounded-lg border border-emerald-100 space-y-2">
+                <div v-if="zipStatus?.status === 'completed'"
+                    class="p-3 bg-emerald-50 rounded-lg border border-emerald-100 space-y-2">
                     <div class="flex justify-between items-center text-xs">
                         <span class="font-semibold text-emerald-800">Archive File:</span>
                         <span class="font-mono font-bold text-emerald-900">{{ zipStatus.filename }}</span>
@@ -862,28 +813,19 @@ onMounted(() => {
                 </div>
 
                 <!-- Failed State -->
-                <div v-if="zipStatus?.status === 'failed'" class="p-3 bg-rose-50 rounded-lg border border-rose-100 text-xs text-rose-700">
+                <div v-if="zipStatus?.status === 'failed'"
+                    class="p-3 bg-rose-50 rounded-lg border border-rose-100 text-xs text-rose-700">
                     {{ zipStatus.error || 'An unexpected error occurred during export.' }}
                 </div>
 
                 <!-- Dialog Actions -->
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                    <BaseButton
-                        variant="outlined"
-                        severity="secondary"
-                        size="small"
-                        @click="showZipModal = false"
-                    >
+                    <BaseButton variant="outlined" severity="secondary" size="small" @click="showZipModal = false">
                         {{ zipStatus?.status === 'processing' ? 'Run in Background' : 'Close' }}
                     </BaseButton>
 
-                    <BaseButton
-                        v-if="zipStatus?.status === 'completed'"
-                        variant="filled"
-                        severity="success"
-                        size="small"
-                        @click="downloadZipFile"
-                    >
+                    <BaseButton v-if="zipStatus?.status === 'completed'" variant="filled" severity="success"
+                        size="small" @click="downloadZipFile">
                         <ArrowDownTrayIcon class="w-4 h-4 mr-1.5" />
                         Download ZIP ({{ zipStatus.file_size || 'Archive' }})
                     </BaseButton>
@@ -913,23 +855,23 @@ onMounted(() => {
     white-space: nowrap;
 }
 
-.statement-table tr > :last-child {
+.statement-table tr> :last-child {
     position: sticky;
     right: 0;
     z-index: 1;
     box-shadow: -1px 0 0 #e2e8f0;
 }
 
-.statement-table tbody tr > :last-child {
+.statement-table tbody tr> :last-child {
     background: #fff;
 }
 
-.statement-table tbody tr:nth-child(even) > :last-child,
-.statement-table tbody tr:hover > :last-child {
+.statement-table tbody tr:nth-child(even)> :last-child,
+.statement-table tbody tr:hover> :last-child {
     background: #f8fafc;
 }
 
-.statement-table thead tr > :last-child {
+.statement-table thead tr> :last-child {
     z-index: 3;
 }
 
@@ -940,7 +882,7 @@ onMounted(() => {
     background: #1d2d3e;
 }
 
-.statement-table tfoot tr > :last-child {
+.statement-table tfoot tr> :last-child {
     z-index: 3;
 }
 
@@ -956,7 +898,7 @@ onMounted(() => {
     }
 
     .statement-table thead th,
-    .statement-table tr > :last-child,
+    .statement-table tr> :last-child,
     .statement-table tfoot td {
         position: static;
         box-shadow: none;

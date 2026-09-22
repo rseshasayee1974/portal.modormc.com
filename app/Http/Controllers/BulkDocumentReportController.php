@@ -26,6 +26,11 @@ class BulkDocumentReportController extends Controller
 
     public function documents(Request $request, BulkDocumentQuery $query, BulkInvoicePdfService $pdf)
     {
+        $request->merge([
+        'type'     => $request->type ? strtolower($request->type) : $request->type,
+        'subtype'  => $request->subtype ? strtolower($request->subtype) : $request->subtype,
+        'tax_type' => $request->tax_type ? strtolower($request->tax_type) : $request->tax_type,
+    ]);
         $export = $request->isMethod('post');
         $this->authorizeModule($export ? 'export' : 'view');
         $plant = app(PlantContextService::class)->requirePlantId();
@@ -89,6 +94,12 @@ class BulkDocumentReportController extends Controller
      */
     public function exportZip(Request $request, BulkDocumentQuery $query)
     {
+        $request->merge([
+            'type'     => $request->type ? strtolower($request->type) : $request->type,
+            'subtype'  => $request->subtype ? strtolower($request->subtype) : $request->subtype,
+            'tax_type' => $request->tax_type ? strtolower($request->tax_type) : $request->tax_type,
+        ]);
+        
         $this->authorizeModule('export');
         $plant = app(PlantContextService::class)->requirePlantId();
         $filters = $request->validate([
@@ -137,7 +148,9 @@ class BulkDocumentReportController extends Controller
             $logPath = storage_path('logs/bulk-document-export.log');
 
             if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                pclose(popen("start \"\" /B \"{$phpBinary}\" \"{$artisanPath}\" reports:export-bulk-documents {$statusKey} {$plant} {$filtersEncoded} >> \"{$logPath}\" 2>&1", "r"));
+                $cmd = "start \"\" /B cmd /c \"\"{$phpBinary}\" \"{$artisanPath}\" reports:export-bulk-documents {$statusKey} {$plant} {$filtersEncoded} >> \"{$logPath}\" 2>&1\"";
+                \Illuminate\Support\Facades\Log::info("WIN CMD: " . $cmd);
+                pclose(popen($cmd, "r"));
             } else {
                 exec(escapeshellarg($phpBinary) . ' ' . escapeshellarg($artisanPath)
                     . " reports:export-bulk-documents {$statusKey} {$plant} {$filtersEncoded} >> "

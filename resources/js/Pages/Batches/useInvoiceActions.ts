@@ -346,7 +346,9 @@ export function useInvoiceActions(
                             <input id="swal-ewb-veh-no" type="text" value="${defaultVehNo}" placeholder="e.g. TN09AB1234" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase font-semibold focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
                         </div>
                         <div>
-                            <p class="text-xs text-slate-500">Distance is calculated automatically from the origin and destination PIN codes.</p>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">Distance (km)</label>
+                            <input id="swal-ewb-distance" type="number" min="1" step="1" placeholder="Automatic from PIN codes" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                            <p class="mt-1 text-[10px] text-slate-500">Optional. Leave blank to use the distance calculated from PIN ${escapeHtml(delivery.from_zipcode)} to ${escapeHtml(delivery.to_zipcode)}.</p>
                         </div>
                     </div>
 
@@ -387,6 +389,7 @@ export function useInvoiceActions(
             cancelButtonColor: '#64748b',
             preConfirm: () => {
                 const vehNo = (document.getElementById('swal-ewb-veh-no') as HTMLInputElement)?.value?.trim();
+                const distance = (document.getElementById('swal-ewb-distance') as HTMLInputElement)?.value?.trim();
                 const transId = (document.getElementById('swal-ewb-trans-id') as HTMLInputElement)?.value?.trim();
                 const transName = (document.getElementById('swal-ewb-trans-name') as HTMLInputElement)?.value?.trim();
                 const transDocNo = (document.getElementById('swal-ewb-doc-no') as HTMLInputElement)?.value?.trim();
@@ -396,9 +399,13 @@ export function useInvoiceActions(
                     Swal.showValidationMessage('Please enter a vehicle number');
                     return false;
                 }
+                if (distance && (!/^\d+$/.test(distance) || Number(distance) < 1)) {
+                    Swal.showValidationMessage('Distance must be a whole number of kilometres');
+                    return false;
+                }
                 return { 
                     vehNo, 
-                    distance: 0,
+                    distance: distance ? Number(distance) : null,
                     transId,
                     transName,
                     transDocNo,
@@ -422,6 +429,7 @@ export function useInvoiceActions(
                     const res = await axios.post(postUrl, {
                         veh_no: result.value.vehNo,
                         distance: result.value.distance,
+                        distance_km: result.value.distance,
                         transporter_id: result.value.transId,
                         trans_id: result.value.transId,
                         transporter_name: result.value.transName,

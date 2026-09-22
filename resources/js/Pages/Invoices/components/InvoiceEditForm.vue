@@ -207,7 +207,7 @@ const activeTab = ref<'invoice' | 'compliance'>('invoice');
 const complianceForm = useForm({
     generate_eway: false,
     vehicle_no: props.invoice.eway_bill_no || '',
-    distance_km: 0,
+    distance_km: '',
     trans_mode: '1',
     vehicle_type: 'Regular',
     transporter_id: '',
@@ -569,7 +569,10 @@ const setupDemoCompliance = () => {
                     <!-- E-Way Bill Inputs -->
                     <div v-if="complianceForm.generate_eway" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
                         <BaseSelect v-model="complianceForm.vehicle_no" label="Vehicle Number *" :options="machines" optionLabel="label" optionValue="value" placeholder="Select Vehicle" :error="complianceForm.errors.vehicle_no" filter required />
-                        <p class="text-xs text-slate-500 self-center">Distance is calculated automatically from the origin and destination PIN codes.</p>
+                        <div class="space-y-1 self-center">
+                            <BaseInput v-model="complianceForm.distance_km" type="number" min="1" step="1" label="Distance (km)" placeholder="Automatic from PIN codes" :error="complianceForm.errors.distance_km" />
+                            <p class="text-[10px] text-slate-500">Optional. Leave blank to calculate from the origin and destination PIN codes.</p>
+                        </div>
                         <BaseSelect v-model="complianceForm.trans_mode" label="Transport Mode *" :options="[{label: 'Road', value: '1'}, {label: 'Rail', value: '2'}, {label: 'Air', value: '3'}, {label: 'Ship', value: '4'}]" optionLabel="label" optionValue="value" :error="complianceForm.errors.trans_mode" required />
                         <BaseSelect v-model="complianceForm.vehicle_type" label="Vehicle Type *" :options="[{label: 'Regular', value: 'Regular'}, {label: 'ODC (Over Dimensional Cargo)', value: 'ODC'}]" optionLabel="label" optionValue="value" :error="complianceForm.errors.vehicle_type" required />
                         <BaseInput v-model="complianceForm.transporter_id" label="Transporter GSTIN/ID" placeholder="15-character GSTIN or ID" :error="complianceForm.errors.transporter_id" />
@@ -689,7 +692,10 @@ const setupDemoCompliance = () => {
                             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Generate Standalone E-Way Bill for this IRN</p>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <BaseSelect v-model="complianceForm.vehicle_no" label="Vehicle Number *" :options="machines" optionLabel="label" optionValue="value" placeholder="Select Vehicle" :error="complianceForm.errors.vehicle_no" filter required />
-                                <p class="text-xs text-slate-500 self-center">Distance is calculated automatically from the origin and destination PIN codes.</p>
+                                <div class="space-y-1 self-center">
+                                    <BaseInput v-model="complianceForm.distance_km" type="number" min="1" step="1" label="Distance (km)" placeholder="Automatic from PIN codes" :error="complianceForm.errors.distance_km" />
+                                    <p class="text-[10px] text-slate-500">Optional. Leave blank to calculate from the origin and destination PIN codes.</p>
+                                </div>
                                 <BaseSelect v-model="complianceForm.trans_mode" label="Transport Mode *" :options="[{label: 'Road', value: '1'}, {label: 'Rail', value: '2'}, {label: 'Air', value: '3'}, {label: 'Ship', value: '4'}]" optionLabel="label" optionValue="value" :error="complianceForm.errors.trans_mode" required />
                                 <BaseSelect v-model="complianceForm.vehicle_type" label="Vehicle Type *" :options="[{label: 'Regular', value: 'Regular'}, {label: 'ODC (Over Dimensional Cargo)', value: 'ODC'}]" optionLabel="label" optionValue="value" :error="complianceForm.errors.vehicle_type" required />
                                 <BaseInput v-model="complianceForm.transporter_id" label="Transporter GSTIN/ID" placeholder="15-character GSTIN or ID" :error="complianceForm.errors.transporter_id" />

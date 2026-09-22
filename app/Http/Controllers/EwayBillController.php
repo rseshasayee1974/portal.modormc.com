@@ -423,8 +423,9 @@ class EwayBillController extends Controller
             'totInvValue'      => round($totInvVal, 2),
             'transMode'        => $transMode,
             'transactionType'  => $destination ? '2' : '1',
-            // Zero asks NIC to resolve the distance between the supplied PIN codes.
-            'transDistance'    => '0',
+            // A blank value asks NIC to resolve the distance between the supplied PIN codes.
+            // A positive value is the optional manual route distance entered by the user.
+            'transDistance'    => (string) (\App\Services\EwayBillDistance::fromRequest($params) ?? 0),
             'transporterId'    => $transId ?: $sellerGstin,
             'transporterName'  => $transName,
             'transDocNo'       => $transDocNo,
@@ -489,7 +490,8 @@ class EwayBillController extends Controller
                 'origin_id'       => $invoice->id,
                 'plant_id'        => $plant?->id ?? 1,
                 'ewaybill_no'     => (string)$ewbNo,
-                'distance_km'     => \App\Services\EwayBillDistance::fromGateway($data),
+                'distance_km'     => \App\Services\EwayBillDistance::fromGateway($data)
+                    ?? \App\Services\EwayBillDistance::fromRequest($params),
                 'ewaybill_date'   => $ewbDt->toDateTimeString(),
                 'valid_upto'      => $ewbValidTill?->toDateTimeString(),
                 'ewaybill_status' => 'ACT',
