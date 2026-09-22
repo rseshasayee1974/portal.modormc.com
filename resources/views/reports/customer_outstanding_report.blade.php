@@ -515,12 +515,13 @@
             <tr>
                 <th width="3%" class="text-center">#</th>
                 <th width="7%">Code</th>
-                <th width="19%">Customer</th>
+                <th width="15%">Customer</th>
                 <th width="9%">GSTIN</th>
                 <th width="10%" class="text-right">Total Invoiced</th>
                 <th width="10%" class="text-right">Total Receipts</th>
-                <th width="9%" class="text-right">Total Payments</th>
-                <th width="11%" class="text-right">Balance Due (₹)</th>
+                <th width="8%" class="text-right">Total Payments</th>
+                <th width="7%" class="text-right">Discount</th>
+                <th width="9%" class="text-right">Balance Due (₹)</th>
                 <th width="6%" class="text-right">0-30d (₹)</th>
                 <th width="6%" class="text-right">30-60d (₹)</th>
                 <th width="5%" class="text-right">60-90d (₹)</th>
@@ -537,6 +538,7 @@
                     <td class="text-right amount-cell nowrap">{{ number_format($row['total_invoiced'] ?? 0, 2) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #166534;">{{ number_format($row['total_receipt'] ?? ($row['total_paid'] ?? 0), 2) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #0284c7;">{{ number_format($row['total_payment'] ?? 0, 2) }}</td>
+                    <td class="text-right amount-cell nowrap">{{ number_format($row['total_discount'] ?? 0, 2) }}</td>
                     <td class="text-right amount-cell nowrap" style="font-weight: bold; color: {{ ($row['total_outstanding'] ?? 0) > 0 ? '#b91c1c' : '#334155' }};">
                         {{ number_format($row['total_outstanding'] ?? 0, 2) }}
                     </td>
@@ -555,7 +557,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="12" class="text-center" style="padding: 15px; color: #94a3b8;">No customer outstanding balances found.</td>
+                    <td colspan="13" class="text-center" style="padding: 15px; color: #94a3b8;">No customer outstanding balances found.</td>
                 </tr>
             @endforelse
 
@@ -564,6 +566,7 @@
                 <td class="text-right amount-cell nowrap">{{ number_format($total_invoiced_amount ?? 0, 2) }}</td>
                 <td class="text-right amount-cell nowrap">{{ number_format($total_receipt_amount ?? ($total_paid_amount ?? 0), 2) }}</td>
                 <td class="text-right amount-cell nowrap">{{ number_format($total_payment_amount ?? 0, 2) }}</td>
+                <td class="text-right amount-cell nowrap">{{ number_format($total_discount_amount ?? 0, 2) }}</td>
                 <td class="text-right amount-cell nowrap" style="color: #b91c1c;">&#8377; {{ number_format($total_outstanding_amount ?? 0, 2) }}</td>
                 <td class="text-right amount-cell nowrap" style="color: #1e40af;">{{ number_format($aging_0_30 ?? 0, 2) }}</td>
                 <td class="text-right amount-cell nowrap" style="color: #b45309;">{{ number_format($aging_31_60 ?? 0, 2) }}</td>

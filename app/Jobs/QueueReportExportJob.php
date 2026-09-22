@@ -29,6 +29,40 @@ class QueueReportExportJob implements ShouldQueue
      * @var int
      */
     public $timeout = 600; // 10 minutes
+    public $tries = 1;
+    public $failOnTimeout = true;
+
+    public static function dispatchExport(string $type, array $filters, string $statusCacheKey, string $format = 'excel'): void
+    {
+        $job = new static($type, $filters, $statusCacheKey, $format);
+
+        try {
+            if (config('reports.async_exports')) {
+                $connection = config('reports.queue_connection', 'database');
+                if (config("queue.connections.{$connection}.driver") !== 'database') {
+                    throw new \RuntimeException('Background reports require a database queue connection.');
+                }
+                if ((int) config("queue.connections.{$connection}.retry_after") <= $job->timeout) {
+                    throw new \RuntimeException('Report queue retry_after must exceed the 600 second job timeout.');
+                }
+                $job->onConnection($connection)->onQueue(config('reports.queue', 'reports'));
+                \Illuminate\Support\Facades\Bus::dispatch($job);
+            } else {
+                \Illuminate\Support\Facades\Bus::dispatchSync($job);
+            }
+        } catch (\Throwable $e) {
+            $job->failed($e);
+            throw $e;
+        }
+    }
+
+    public function failed(?\Throwable $exception): void
+    {
+        Cache::put($this->statusCacheKey, [
+            'status' => 'failed',
+            'error' => 'Report export failed. Please try again or contact support.',
+        ], now()->addHour());
+    }
 
     /**
      * Create a new job instance.
@@ -52,23 +86,23 @@ class QueueReportExportJob implements ShouldQueue
 
     public function handle(ReportRepository $repository): void
     {
+        $previousSession = session()->all();
         try {
             Cache::put($this->statusCacheKey, ['status' => 'processing', 'progress' => 20], now()->addHour());
 
             $extension = $this->format === 'pdf' ? 'pdf' : 'xlsx';
-            $fileName = 'Report_' . ucfirst($this->type) . '_' . date('Ymd_His') . '.' . $extension;
+            $fileName = 'Report_' . ucfirst($this->type) . '_' . \Illuminate\Support\Str::uuid() . '.' . $extension;
             
             $tempDir = storage_path('app/public/reports');
-            if (!file_exists($tempDir)) {
-                mkdir($tempDir, 0775, true);
-            }
+            \Illuminate\Support\Facades\File::ensureDirectoryExists($tempDir, 0775);
             
             $filePath = $tempDir . '/' . $fileName;
 
             Cache::put($this->statusCacheKey, ['status' => 'processing', 'progress' => 50], now()->addHour());
 
             // Set active plant context for scoping in repositories/services
-            $plantId = $this->filters['plant_id'] ?? session('active_plant_id');
+            session()->flush();
+            $plantId = $this->filters['plant_id'] ?? null;
             if ($plantId) {
                 session(['active_plant_id' => $plantId]);
             }
@@ -90,7 +124,7 @@ class QueueReportExportJob implements ShouldQueue
                 $factory = app(\App\Services\Reports\ReportServiceFactory::class);
                 $service = $factory->make($this->type);
 
-                $params = [
+                $params = array_merge($this->filters, [
                     'start'            => $this->filters['start_date'] ?? $this->filters['start'] ?? null,
                     'end'              => $this->filters['end_date'] ?? $this->filters['end'] ?? null,
                     'id'               => $this->filters['id'] ?? null,
@@ -103,7 +137,7 @@ class QueueReportExportJob implements ShouldQueue
                     'sales_executive_id' => $this->filters['sales_executive_id'] ?? null,
                     'grade_id'           => $this->filters['grade_id'] ?? null,
                     'voucher_type_filter' => $this->filters['voucher_type_filter'] ?? null,
-                ];
+                ]);
 
                 $data = $service->generate($params);
 
@@ -143,6 +177,9 @@ class QueueReportExportJob implements ShouldQueue
             ], now()->addHour());
             
             throw $e;
+        } finally {
+            session()->flush();
+            session()->replace($previousSession);
         }
     }
 
@@ -178,6 +215,8 @@ class QueueReportExportJob implements ShouldQueue
             'GSTR3B'               => 'reports.gstr3b_report',
             'TDS_CERTIFICATE'      => 'reports.tds_certificate_report',
             'ESI_PF_CHALLAN'       => 'reports.esi_pf_challan_report',
+            'DELETED'              => 'reports.deleted_report',
+            'DELETED_REPORT'       => 'reports.deleted_report',
         ];
 
         $view = $viewMap[strtoupper($type)] ?? 'reports.ledger_report';

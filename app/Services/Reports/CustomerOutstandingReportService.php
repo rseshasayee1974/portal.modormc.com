@@ -85,10 +85,24 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             ->when($end, fn($q) => $q->where('date', '<=', substr($end, 0, 10)))->get();
         $discountsByCustomer = $discounts->groupBy('partner_id');
 
+        // Only active opening journals contribute; replaced records/lines are soft deleted.
+        $openings = DB::table('mm_journal_entry_lines as l')
+            ->join('mm_journal_entries as e','e.id','=','l.journal_entry_id')
+            ->whereNotNull('l.partner_id')->whereNull('l.deleted_at')->whereNull('e.deleted_at')
+            ->where(fn($q)=>$q->where('l.is_deleted',0)->orWhereNull('l.is_deleted'))
+            ->where(fn($q)=>$q->where('e.is_deleted',0)->orWhereNull('e.is_deleted'))
+            ->whereIn('e.ref_module',['opening_balance','opening_balance_reversal'])
+            ->when($plantId,fn($q)=>$q->where('l.plant_id',$plantId)->where('e.plant_id',$plantId))
+            ->when($patronId,fn($q)=>$q->where('l.partner_id',$patronId))
+            ->when($end,fn($q)=>$q->where('e.voucher_date','<=',substr($end,0,10)))
+            ->groupBy('l.partner_id')
+            ->selectRaw('l.partner_id, SUM(l.debit_amount-l.credit_amount) as balance, MIN(e.voucher_date) as opening_date')
+            ->get()->keyBy('partner_id');
+
         // 3. Collect distinct patron IDs across all outstanding-balance sources.
         $patronIdsFromInvoices = $invoices->pluck('partner_id')->filter()->unique()->all();
         $patronIdsFromPayments = $allPaymentsAndReceipts->pluck('patron_id')->filter()->unique()->all();
-        $allPatronIds = array_values(array_unique(array_merge($patronIdsFromInvoices, $patronIdsFromPayments, $discounts->pluck('partner_id')->filter()->all())));
+        $allPatronIds = array_values(array_unique(array_merge($patronIdsFromInvoices, $patronIdsFromPayments, $discounts->pluck('partner_id')->filter()->all(), $openings->keys()->all())));
 
         if ($patronId && !in_array($patronId, $allPatronIds)) {
             $allPatronIds[] = $patronId;
@@ -138,12 +152,14 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $totalReceipt  = round((float)$custReceipts->sum(fn($p) => (float)($p->amount ?? 0)), 2);
             $totalPayment  = round((float)$custPayments->sum(fn($p) => (float)($p->amount ?? 0)), 2);
             $totalDiscount = round($discountsByCustomer->get($cId, collect())->sum(fn($d) => abs((float)$d->amount)), 2);
+            $opening = $openings->get($cId);
+            $openingBalance = round((float)($opening?->balance ?? 0),2);
 
             // Receipts and discounts both settle outstanding invoices; refunds increase it.
-            $netCollections = max(0.00, round($totalReceipt + $totalDiscount - $totalPayment, 2));
+            $netCollections = max(0.00, round($totalReceipt + $totalDiscount - $totalPayment + max(0,-$openingBalance), 2));
 
             // Discount-module amounts always subtract, regardless of journal direction.
-            $netOutstanding = round($totalInvoiced + $totalPayment - $totalReceipt - $totalDiscount, 2);
+            $netOutstanding = round($openingBalance + $totalInvoiced + $totalPayment - $totalReceipt - $totalDiscount, 2);
 
             $aging0to30    = 0.00;
             $aging31to60   = 0.00;
@@ -158,6 +174,16 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
             // Process Invoices with FIFO allocation of Net Collections
             $remainingCollectionsToAllocate = $netCollections;
+            if ($openingBalance > 0) {
+                $openingPaid = min($openingBalance,$remainingCollectionsToAllocate);
+                $remainingCollectionsToAllocate = round($remainingCollectionsToAllocate-$openingPaid,2);
+                $openingDue = round($openingBalance-$openingPaid,2);
+                $openingDays = max(0,(int)Carbon::parse($opening->opening_date)->diffInDays($today,false));
+                if ($openingDays > 90) $aging90plus += $openingDue;
+                elseif ($openingDays > 60) $aging61to90 += $openingDue;
+                elseif ($openingDays > 30) $aging31to60 += $openingDue;
+                else $aging0to30 += $openingDue;
+            }
 
             foreach ($custInvoices as $inv) {
                 $invTotal = round((float)($inv->total_amount ?? 0), 2);
@@ -304,6 +330,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'phone'               => $phone,
                 'email'               => $primaryContact?->email ?? '-',
                 'total_invoiced'      => $totalInvoiced,
+                'opening_balance'    => $openingBalance,
                 'total_receipt'       => $totalReceipt,
                 'total_payment'       => $totalPayment,
                 'total_discount'      => $totalDiscount,

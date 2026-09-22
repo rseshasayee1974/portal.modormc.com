@@ -11,6 +11,10 @@
         .summary-table tr:nth-child(even) td { background: #f1f5f9; }
         .summary-table .summary-amount { text-align: right; white-space: nowrap; font-weight: bold; }
         .summary-table tr { page-break-inside: avoid; }
+        .section-header, .data-table, .page-break { page-break-before: auto; page-break-after: auto; }
+        .data-table, .data-table tbody { page-break-inside: auto; }
+        .section-header { page-break-after: avoid; }
+        .data-table thead { display: table-header-group; }
     </style>
 </head>
 <body>
@@ -171,10 +175,7 @@
     </table>
 
     <!-- Section 3: Cash Flow Day Book & Tax Breakdown -->
-    <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-            <!-- Left: Receipts -->
-            <td style="width: 48%; vertical-align: top;">
+    <!-- Receipts flow into the remaining page space. -->
                 <div class="section-header">
                     <h3 class="section-title">3A. Collections & Receipts (₹ {{ number_format($cash_flow['total_receipts'] ?? 0, 2) }})</h3>
                 </div>
@@ -202,12 +203,7 @@
                         @endforelse
                     </tbody>
                 </table>
-            </td>
-
-            <td style="width: 4%;"></td>
-
-            <!-- Right: Payments -->
-            <td style="width: 48%; vertical-align: top;">
+    <!-- Payments follow receipts without a forced page break. -->
                 <div class="section-header">
                     <h3 class="section-title">3B. Outflows & Payments (₹ {{ number_format($cash_flow['total_payments'] ?? 0, 2) }})</h3>
                 </div>
@@ -235,9 +231,6 @@
                         @endforelse
                     </tbody>
                 </table>
-            </td>
-        </tr>
-    </table>
 
 </body>
 </html>

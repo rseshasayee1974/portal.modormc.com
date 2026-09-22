@@ -48,6 +48,7 @@ class PermissionSeeder extends Seeder
             'VOUCHER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'VOUCHER_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'JOURNAL_ENTRY' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'OPENING_BALANCE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'AUDIT_LOG'],
             'FISCAL_YEAR' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'EXPENSE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'EXPENSE_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],

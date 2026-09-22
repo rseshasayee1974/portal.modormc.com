@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\BatchNumberAccess;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -99,21 +100,14 @@ class UpdateBatchRequest extends FormRequest
                 }
             }
 
-            // Verify that only admin can change batch_no
+            // Manual numbers require admin access or batch create permission.
             $user = $this->user() ?? auth()->user();
-            $isAdmin = $user && method_exists($user, 'hasRole') && (
-                $user->hasRole('Saas Owner') || 
-                $user->hasRole('Platform Admin') || 
-                $user->hasRole('Super Admin') || 
-                $user->hasRole('Admin') || 
-                $user->hasRole('Super Administrator') ||
-                $user->hasRole('Administrator')
-            );
+            $canEditBatchNo = BatchNumberAccess::allows($user);
 
-            if (!$isAdmin && $this->filled('batch_no')) {
+            if (!$canEditBatchNo && $this->filled('batch_no')) {
                 $currentBatch = \App\Models\Batch::withoutGlobalScope('plant_id')->find($batchId);
                 if ($currentBatch && (int)$this->input('batch_no') !== (int)$currentBatch->batch_no) {
-                    $validator->errors()->add('batch_no', 'Only administrators are permitted to modify the batch number.');
+                    $validator->errors()->add('batch_no', 'Only administrators or users with Batches create permission may modify the batch number.');
                 }
             }
         });

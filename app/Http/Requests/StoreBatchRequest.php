@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\BatchNumberAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 use Illuminate\Validation\Rule;
@@ -19,17 +20,10 @@ class StoreBatchRequest extends FormRequest
         $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
 
         $user = $this->user() ?? auth()->user();
-        $isAdmin = $user && method_exists($user, 'hasRole') && (
-            $user->hasRole('Saas Owner') || 
-            $user->hasRole('Platform Admin') || 
-            $user->hasRole('Super Admin') || 
-            $user->hasRole('Admin') || 
-            $user->hasRole('Super Administrator') ||
-            $user->hasRole('Administrator')
-        );
+        $canEditBatchNo = BatchNumberAccess::allows($user);
 
         $batchNoRules = ['nullable', 'integer', 'min:1'];
-        if ($isAdmin) {
+        if ($canEditBatchNo) {
             $batchNoRules[] = Rule::unique('mm_batches', 'batch_no')
                 ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at'));
         }

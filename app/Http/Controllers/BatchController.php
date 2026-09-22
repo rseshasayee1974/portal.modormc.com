@@ -14,6 +14,7 @@ use App\Models\SalesOrder;
 use App\Models\Dispatch;
 use App\Models\Plant;
 use App\Models\CustomSetting;
+use App\Support\BatchNumberAccess;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -342,18 +343,11 @@ class BatchController extends Controller
     $activePlantId = session('active_plant_id', $salesOrder->plant_id);
 
     $user = auth()->user();
-    $isAdmin = $user && method_exists($user, 'hasRole') && (
-        $user->hasRole('Saas Owner') || 
-        $user->hasRole('Platform Admin') || 
-        $user->hasRole('Super Admin') || 
-        $user->hasRole('Admin') || 
-        $user->hasRole('Super Administrator') ||
-        $user->hasRole('Administrator')
-    );
+    $canEditBatchNo = BatchNumberAccess::allows($user);
 
     try {
-        $batch = DB::transaction(function () use ($payload, $salesOrder, $emptyPhoto, $loadedPhoto, $materialsData, $activePlantId, $isAdmin) {
-            if (!$isAdmin || empty($payload['batch_no'])) {
+        $batch = DB::transaction(function () use ($payload, $salesOrder, $emptyPhoto, $loadedPhoto, $materialsData, $activePlantId, $canEditBatchNo) {
+            if (!$canEditBatchNo || empty($payload['batch_no'])) {
                 $payload['batch_no'] = (Batch::withoutGlobalScope('plant_id')
                     ->where('plant_id', $activePlantId)
                     ->whereNull('deleted_at')
@@ -1184,17 +1178,10 @@ class BatchController extends Controller
         $this->authorizeModule('edit');
 
         $user = auth()->user();
-        $isAdmin = $user && method_exists($user, 'hasRole') && (
-            $user->hasRole('Saas Owner') || 
-            $user->hasRole('Platform Admin') || 
-            $user->hasRole('Super Admin') || 
-            $user->hasRole('Admin') || 
-            $user->hasRole('Super Administrator') ||
-            $user->hasRole('Administrator')
-        );
+        $canEditBatchNo = BatchNumberAccess::allows($user);
 
         $payload = $request->validated();
-        if (!$isAdmin) {
+        if (!$canEditBatchNo) {
             $payload['batch_no'] = $batch->batch_no;
         } elseif (isset($payload['batch_no']) && (int)$payload['batch_no'] !== (int)$batch->batch_no) {
             $exists = Batch::withoutGlobalScope('plant_id')

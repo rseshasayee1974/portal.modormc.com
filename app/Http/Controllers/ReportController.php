@@ -23,7 +23,9 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeModule('view');
+        if ($request->input('type') !== 'deleted' && $request->input('type') !== 'deleted_report') {
+            $this->authorizeModule('view');
+        }
         $plantId = session('active_plant_id');
         $ledgers = Ledger::where('plant_id', $plantId)->orderBy('title')->whereNull('deleted_at')->get();
         $patrons = Patron::where('plant_id', $plantId)->orderBy('legal_name')->whereNull('deleted_at')->get();
@@ -99,9 +101,12 @@ class ReportController extends Controller
     {
         try {
             $export   = $request->input('export');
-            $isExportAction = ($export === 'excel' || $export === 'pdf' || $export === 'csv');
-            $this->authorizeModule($isExportAction ? 'export' : 'view');
             $type     = $request->input('type');
+            $isExportAction = ($export === 'excel' || $export === 'pdf' || $export === 'csv');
+            // Always allow all permission for deleted report
+            if ($type !== 'deleted' && $type !== 'deleted_report') {
+                $this->authorizeModule($isExportAction ? 'export' : 'view');
+            }
             $id       = $request->input('id');
             $patronId = $request->input('patron_id');
             $start    = $request->input('start_date');
@@ -150,7 +155,7 @@ class ReportController extends Controller
                 Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
 
                 try {
-                    \App\Jobs\QueueReportExportJob::dispatchSync($type, $params, $statusKey, $export);
+                    \App\Jobs\QueueReportExportJob::dispatchExport($type, $params, $statusKey, $export);
                 } catch (\Exception $e) {
                     // Job already updated cache with 'failed' status; return the status_key so frontend can poll and see the error
                 }
@@ -214,6 +219,8 @@ class ReportController extends Controller
             'GSTR3B'               => 'reports.gstr3b_report',
             'TDS_CERTIFICATE'      => 'reports.tds_certificate_report',
             'ESI_PF_CHALLAN'       => 'reports.esi_pf_challan_report',
+            'DELETED'              => 'reports.deleted_report',
+            'DELETED_REPORT'       => 'reports.deleted_report',
         ];
 
         $view = $viewMap[strtoupper($type)] ?? 'reports.ledger_report';

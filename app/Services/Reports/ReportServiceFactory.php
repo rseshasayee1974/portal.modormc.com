@@ -44,6 +44,7 @@ class ReportServiceFactory
             'sales_register'       => SalesRegisterService::class,
             'purchase_register'    => PurchaseRegisterService::class,
             'machine_summary', 'vehicle_pl' => MachineReportService::class,
+            'deleted', 'deleted_report' => DeletedReportService::class,
             default                => throw new InvalidArgumentException("Unsupported report type: {$type}"),
         };
 

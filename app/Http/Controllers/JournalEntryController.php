@@ -29,8 +29,9 @@ class JournalEntryController extends Controller
         $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
 
-        // Active non-soft-deleted entries
+        // System administrators can review all sources; other roles see manual entries only.
         $entries = JournalEntry::with(['lines.ledger', 'lines.partner', 'creator', 'plant'])
+            ->when(!Auth::user()->isSystemAdmin(), fn ($q) => $q->where('ref_module', 'entries'))
             ->when($plantId, fn($q) => $q->where('plant_id', $plantId))
             ->whereNull('deleted_at')
             ->where('is_deleted', 0)

@@ -138,7 +138,9 @@ class LedgerController extends Controller
             });
         }
 
-        return response()->json($query->get());
+        return response()->json(app(\App\Services\DropdownCache::class)->remember(
+            'LedgerDropdownEndpoint', [$type, $plantId], fn () => $query->get()
+        ));
     }
 
     /**

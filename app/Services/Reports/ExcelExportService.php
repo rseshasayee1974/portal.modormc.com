@@ -781,6 +781,27 @@ class ExcelExportService
                     (float)($data['total_amount'] ?? 0),
                     '', '', '', '', ''
                 ];
+            } elseif ($type === 'deleted' || $type === 'deleted_report') {
+                $title = "DELETED REPORT";
+                $headersList = ['#', 'Entity Type', 'Reference / Doc #', 'Customer / Party Name', 'Original Date', 'Deleted At', 'Deleted By', 'Amount / Qty', 'Details / Notes'];
+                foreach (($data['transactions'] ?? $data['items'] ?? []) as $i => $row) {
+                    $rows[] = [
+                        $i + 1,
+                        $row['entity_type'] ?? '',
+                        $row['reference_no'] ?? '',
+                        $row['customer_name'] ?? '',
+                        $row['original_date'] ?? '',
+                        $row['deleted_at'] ?? '',
+                        $row['deleted_by'] ?? '',
+                        (float)($row['amount'] ?? 0),
+                        $row['notes'] ?? '',
+                    ];
+                }
+                $totalRow = [
+                    '', 'Total Deleted Records (' . ($data['total_deleted'] ?? count($rows)) . ')', '', '', '', '', '',
+                    (float)($data['total_amount'] ?? 0),
+                    ''
+                ];
             } elseif ($type === 'customer_consolidated') {
                 $headersList = ['#', 'Customer / Party Name', 'Trips', /* 'Batch Size (m³)', */ 'Delivered Qty (m³)', /* 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', 'Taxable Amt', 'Tax Amt', */ 'Total Amt'];
                 foreach (($data['transactions'] ?? $data['items'] ?? []) as $i => $row) {

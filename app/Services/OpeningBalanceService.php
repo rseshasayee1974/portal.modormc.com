@@ -83,8 +83,10 @@ class OpeningBalanceService
             abort_if($batch && $batch->status === 'POSTED', 409, 'Reverse the posted setup before changing it.');
             abort_if(($batch?->version ?? 0) !== $version, 409, 'This setup changed in another session. Reload before saving.');
             $data = $this->validate($input, $plantId);
+            $before = $batch?->toArray();
             $batch ??= new OpeningBalanceBatch(['plant_id' => $plantId, 'created_by' => $userId]);
             $batch->fill($data + ['updated_by' => $userId, 'version' => $version + 1])->save();
+            $this->audit($batch, $userId, $before ? 'UPDATE' : 'CREATE', $before);
             return $batch->fresh();
         });
     }
@@ -99,6 +101,8 @@ class OpeningBalanceService
                 return $batch;
             }
             abort_if($batch->status !== 'DRAFT' || $batch->version !== $version, 409, 'This setup changed. Reload before posting.');
+            $before = $batch->toArray();
+            $repost = JournalEntry::where('plant_id', $plantId)->where('ref_id', $batch->id)->where('ref_module', 'opening_balance')->exists();
             $data = $this->validate($batch->toArray(), $plantId);
             // Existing history would be added to these openings by the report services.
             $hasHistory = DB::table('mm_journal_entry_lines as l')
@@ -161,6 +165,7 @@ class OpeningBalanceService
                 $entry->lines()->create($line + ['plant_id' => $plantId, 'created_by' => $userId]);
             }
             $batch->update(['status' => 'POSTED', 'journal_entry_id' => $entry->id, 'posted_at' => now(), 'updated_by' => $userId, 'version' => $version + 1]);
+            $this->audit($batch, $userId, $repost ? 'REPOST' : 'POST', $before, $entry);
             return $batch->fresh();
         });
     }
@@ -170,6 +175,7 @@ class OpeningBalanceService
         return DB::transaction(function () use ($plantId, $userId, $version, $reason) {
             $batch = OpeningBalanceBatch::where('plant_id', $plantId)->lockForUpdate()->firstOrFail();
             abort_if($batch->status !== 'POSTED' || $batch->version !== $version, 409, 'This setup changed. Reload before reversing.');
+            $before = $batch->toArray();
             $original = JournalEntry::with('lines')->where('plant_id', $plantId)->findOrFail($batch->journal_entry_id);
             $entry = JournalEntry::create([
                 'plant_id' => $plantId, 'entity_id' => $original->entity_id,
@@ -189,8 +195,20 @@ class OpeningBalanceService
                 ]);
             }
             $batch->update(['status' => 'DRAFT', 'journal_entry_id' => null, 'posted_at' => null, 'updated_by' => $userId, 'version' => $version + 1]);
+            $this->audit($batch, $userId, 'REVERSE', $before, $entry, $reason);
             return $batch->fresh();
         });
+    }
+
+    private function audit(OpeningBalanceBatch $batch, int $userId, string $action, ?array $before, ?JournalEntry $entry = null, ?string $reason = null): void
+    {
+        // Insert within the same transaction as the balance/journal changes.
+        \App\Models\OpeningBalanceAuditLog::create([
+            'plant_id' => $batch->plant_id, 'batch_id' => $batch->id, 'version' => $batch->version,
+            'action' => $action, 'user_id' => $userId, 'actor_name' => auth()->user()?->name,
+            'reason' => $reason, 'before_values' => $before, 'after_values' => $batch->fresh()->toArray(),
+            'journal' => $entry ? $entry->load('lines')->toArray() : null, 'created_at' => now(),
+        ]);
     }
 
     private function error(string $key, string $message): never

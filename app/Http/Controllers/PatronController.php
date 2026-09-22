@@ -287,7 +287,10 @@ class PatronController extends Controller
         }
         
         return response()->json(
-            $query->select('id as value', 'legal_name as label')->get()
+            app(\App\Services\DropdownCache::class)->remember(
+                'PatronDropdownEndpoint', [$type, session('active_plant_id')],
+                fn () => $query->select('id as value', 'legal_name as label')->get()
+            )
         );
     }
 

@@ -254,7 +254,7 @@ class MachineReportService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatchSync($reportType, $filters, $statusKey, 'excel');
+        QueueReportExportJob::dispatchExport($reportType, $filters, $statusKey, 'excel');
 
         return [
             'status'     => true,
@@ -274,7 +274,7 @@ class MachineReportService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatchSync($reportType, $filters, $statusKey, 'pdf');
+        QueueReportExportJob::dispatchExport($reportType, $filters, $statusKey, 'pdf');
 
         return [
             'status'     => true,

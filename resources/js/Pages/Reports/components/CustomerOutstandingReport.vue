@@ -125,6 +125,7 @@ const filteredTotals = computed(() => {
         invoiced: list.reduce((acc, c) => acc + (c.total_invoiced || 0), 0),
         receipt: list.reduce((acc, c) => acc + (c.total_receipt || c.total_paid || 0), 0),
         payment: list.reduce((acc, c) => acc + (c.total_payment || 0), 0),
+        discount: list.reduce((acc, c) => acc + Number(c.total_discount || 0), 0),
         outstanding: list.reduce((acc, c) => acc + (c.total_outstanding || 0), 0),
         aging0to30: list.reduce((acc, c) => acc + (c.aging_0_30 || 0), 0),
         aging31to60: list.reduce((acc, c) => acc + (c.aging_31_60 || 0), 0),
@@ -342,6 +343,7 @@ const filteredTotals = computed(() => {
                                 <th class="py-3 px-3 text-right text-slate-700" width="9%">Total Invoiced</th>
                                 <th class="py-3 px-3 text-right text-emerald-700" width="9%">Total Receipts</th>
                                 <th class="py-3 px-3 text-right text-indigo-700" width="8%">Total Payments</th>
+                                <th class="py-3 px-3 text-right text-emerald-700">Discount</th>
                                 <th class="py-3 px-3 text-right text-rose-700" width="11%">Outstanding Balance</th>
                                 <th class="py-3 px-3 text-right text-blue-700" width="5.5%">0-30d</th>
                                 <th class="py-3 px-3 text-right text-amber-700" width="5.5%">31-60d</th>
@@ -375,6 +377,7 @@ const filteredTotals = computed(() => {
                                 <td class="py-3 px-3 text-right font-medium text-indigo-700">
                                     {{ formatCurrency(c.total_payment || 0) }}
                                 </td>
+                                <td class="py-3 px-3 text-right text-emerald-700">{{ formatCurrency(c.total_discount || 0) }}</td>
                                 <td class="py-3 px-3 text-right font-bold"
                                     :class="c.total_outstanding > 0 ? 'text-rose-700 bg-rose-50/20' : 'text-slate-700'">
                                     {{ formatCurrency(c.total_outstanding) }}
@@ -402,7 +405,7 @@ const filteredTotals = computed(() => {
                             </tr>
 
                             <tr v-if="!paginatedCustomers.length">
-                                <td colspan="12" class="py-12 text-center text-slate-400">
+                                <td colspan="13" class="py-12 text-center text-slate-400">
                                     <CheckCircleIcon class="w-8 h-8 mx-auto text-emerald-400 mb-2" />
                                     No customer outstanding records found matching your filters.
                                 </td>
@@ -425,6 +428,7 @@ const filteredTotals = computed(() => {
                                 <td class="py-3 px-3 text-right text-indigo-700">
                                     {{ formatCurrency(filteredTotals.payment) }}
                                 </td>
+                                <td class="py-3 px-3 text-right text-emerald-700">{{ formatCurrency(filteredTotals.discount) }}</td>
                                 <td class="py-3 px-3 text-right text-rose-800">
                                     {{ formatCurrency(filteredTotals.outstanding) }}
                                 </td>

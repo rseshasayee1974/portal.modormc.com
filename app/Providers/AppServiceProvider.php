@@ -36,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $event) {
+            app(\App\Services\DropdownCache::class)->onQuery($event);
+        });
+
         Vite::prefetch(concurrency: 3);
         Schema::defaultStringLength(191);
 

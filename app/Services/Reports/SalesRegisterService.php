@@ -22,7 +22,7 @@ class SalesRegisterService
      * Generate Sales Register report data or export file.
      *
      * Time Complexity:
-     * - Best Case:  O(1) from Redis Cache (totals).
+     * - Best Case:  O(1) from cached totals.
      * - Average:    O(log n) index seek + O(p) paginated rows.
      * - Export:     O(n) chunked streaming.
      */
@@ -227,7 +227,7 @@ class SalesRegisterService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatchSync('sales_register', $filters, $statusKey, 'excel');
+        QueueReportExportJob::dispatchExport('sales_register', $filters, $statusKey, 'excel');
 
         return [
             'status'     => true,
@@ -248,7 +248,7 @@ class SalesRegisterService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatchSync('sales_register', $filters, $statusKey, 'pdf');
+        QueueReportExportJob::dispatchExport('sales_register', $filters, $statusKey, 'pdf');
 
         return [
             'status'     => true,

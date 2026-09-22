@@ -75,11 +75,13 @@ if (!function_exists('EntitiesDropdown')) {
      */
     function EntitiesDropdown(array $allowedEntityIds)
     {
-        return Entity::whereIn('id', $allowedEntityIds)
-            ->select('id', 'legal_name')
-            ->whereNull('deleted_at')
-            ->orderBy('legal_name')
-            ->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($allowedEntityIds) {
+            return Entity::whereIn('id', $allowedEntityIds)
+                ->select('id', 'legal_name')
+                ->whereNull('deleted_at')
+                ->orderBy('legal_name')
+                ->get();
+        });
     }
 }
 
@@ -92,11 +94,13 @@ if (!function_exists('PlantsDropdown')) {
      */
     function PlantsDropdown(array $allowedEntityIds)
     {
-        return Plant::whereIn('entity_id', $allowedEntityIds)
-            ->select('id', 'name', 'entity_id')
-            ->whereNull('deleted_at')
-            ->orderBy('name')
-            ->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($allowedEntityIds) {
+            return Plant::whereIn('entity_id', $allowedEntityIds)
+                ->select('id', 'name', 'entity_id')
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->get();
+        });
     }
 }
 
@@ -119,21 +123,23 @@ if (!function_exists('PatronsDropdown')) {
      */
     function PatronsDropdown($patronTypes = null, $excludeId = null, $plantId = null)
     {
-        if ($plantId == null) {
-            $plantId = _activePlantId();
-        }
-        $query = Patron::where('plant_id', $plantId)
-            ->select('id', 'legal_name', 'plant_id', 'debit_ledger_id', 'credit_ledger_id', 'patron_type');
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($patronTypes, $excludeId, $plantId) {
+            if ($plantId == null) {
+                $plantId = _activePlantId();
+            }
+            $query = Patron::where('plant_id', $plantId)
+                ->select('id', 'legal_name', 'plant_id', 'debit_ledger_id', 'credit_ledger_id', 'patron_type');
 
-        if ($patronTypes !== null) {
-            $query->ofType($patronTypes);
-        }
+            if ($patronTypes !== null) {
+                $query->ofType($patronTypes);
+            }
 
-        if ($excludeId !== null) {
-            $query->excludeId($excludeId);
-        }
+            if ($excludeId !== null) {
+                $query->excludeId($excludeId);
+            }
 
-        return $query->whereNull('deleted_at')->orderBy('legal_name')->get();
+            return $query->whereNull('deleted_at')->orderBy('legal_name')->get();
+        });
     }
 }
 
@@ -164,25 +170,27 @@ if (!function_exists('MachinesDropdown')) {
      */
     function MachinesDropdown($vehicleType = null, $excludeId = null, $entityId = null)
     {
-        $query = Machine::where('plant_id', _activePlantId())
-            ->where('is_active', true)
-            ->select('id', 'registration', 'plant_id');
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($vehicleType, $excludeId, $entityId) {
+            $query = Machine::where('plant_id', _activePlantId())
+                ->where('is_active', true)
+                ->select('id', 'registration', 'plant_id');
 
-        if ($vehicleType !== null) {
-            if (is_array($vehicleType)) {
-                if (!empty($vehicleType)) {
-                    $query->whereIn('vehicle_type', $vehicleType);
+            if ($vehicleType !== null) {
+                if (is_array($vehicleType)) {
+                    if (!empty($vehicleType)) {
+                        $query->whereIn('vehicle_type', $vehicleType);
+                    }
+                } else {
+                    $query->where('vehicle_type', $vehicleType);
                 }
-            } else {
-                $query->where('vehicle_type', $vehicleType);
             }
-        }
 
-        if ($excludeId !== null) {
-            $query->excludeId($excludeId);
-        }
+            if ($excludeId !== null) {
+                $query->excludeId($excludeId);
+            }
 
-        return $query->whereNull('deleted_at')->orderBy('registration')->get();
+            return $query->whereNull('deleted_at')->orderBy('registration')->get();
+        });
     }
 }
 
@@ -213,25 +221,27 @@ if (!function_exists('SitesDropdown')) {
      */
     function SitesDropdown($type = null, $excludeId = null)
     {
-        $plantId = _activePlantId();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($type, $excludeId) {
+            $plantId = _activePlantId();
 
-        if (is_numeric($type)) {
-            $plantId = (int)$type;
-            $type = null;
-        }
+            if (is_numeric($type)) {
+                $plantId = (int)$type;
+                $type = null;
+            }
 
-        $query = Site::where('plant_id', $plantId)
-            ->select('id', 'name', 'code', 'plant_id', 'patron_id', 'type');
+            $query = Site::where('plant_id', $plantId)
+                ->select('id', 'name', 'code', 'plant_id', 'patron_id', 'type');
 
-        if ($type != null) {
-            $query->where('type', $type);
-        }
+            if ($type != null) {
+                $query->where('type', $type);
+            }
 
-        if ($excludeId !== null) {
-            $query->excludeId($excludeId);
-        }
+            if ($excludeId !== null) {
+                $query->excludeId($excludeId);
+            }
 
-        return $query->whereNull('deleted_at')->where('is_active', true)->orderBy('name')->get();
+            return $query->whereNull('deleted_at')->where('is_active', true)->orderBy('name')->get();
+        });
     }
 }
 
@@ -254,61 +264,65 @@ if (!function_exists('PersonnelDropdown')) {
      */
     function PersonnelDropdown($excludeId = null, $designationName = null)
     {
-        $query = Personnel::where('plant_id', _activePlantId());
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($excludeId, $designationName) {
+            $query = Personnel::where('plant_id', _activePlantId());
 
-        if ($excludeId) {
-            $query->excludeId($excludeId);
-        }
+            if ($excludeId) {
+                $query->excludeId($excludeId);
+            }
 
-        if ($designationName) {
-            $query->whereHas('designation', function ($q) use ($designationName) {
-                $q->where('name', 'like', '%' . $designationName . '%');
-            });
-        }
+            if ($designationName) {
+                $query->whereHas('designation', function ($q) use ($designationName) {
+                    $q->where('name', 'like', '%' . $designationName . '%');
+                });
+            }
 
-        return $query->whereNull('deleted_at')
-            ->orderBy('first_name')
-            ->get()
-            ->map(fn($p) => [
-                'id' => $p->id,
-                'label' => trim($p->first_name . ' ' . $p->last_name),
-                'first_name' => $p->first_name,
-                'last_name' => $p->last_name,
-                'value' => $p->id
-            ]);
+            return $query->whereNull('deleted_at')
+                ->orderBy('first_name')
+                ->get()
+                ->map(fn($p) => [
+                    'id' => $p->id,
+                    'label' => trim($p->first_name . ' ' . $p->last_name),
+                    'first_name' => $p->first_name,
+                    'last_name' => $p->last_name,
+                    'value' => $p->id
+                ]);
+        });
     }
 }
 if (!function_exists('DriversDropdown')) {
 
     function DriversDropdown($excludeId = null)
     {
-        $query = Personnel::with(['designation', 'patrons' => function ($q) {
-            $q->where('patron_type', 'Transporter');
-        }])
-            ->where('plant_id', _activePlantId());
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($excludeId) {
+            $query = Personnel::with(['designation', 'patrons' => function ($q) {
+                $q->where('patron_type', 'Transporter');
+            }])
+                ->where('plant_id', _activePlantId());
 
-        if ($excludeId) {
-            $query->where('id', '!=', $excludeId);
-        }
+            if ($excludeId) {
+                $query->where('id', '!=', $excludeId);
+            }
 
-        return $query
-            ->whereHas('designation', function ($q) {
+            return $query
+                ->whereHas('designation', function ($q) {
 
-$q->where(DB::raw('LOWER(name)'), strtolower('Driver'));            })
-            ->where('status', 'active')
-            ->get()
-            ->map(function ($personnel) {
-                $transporter = $personnel->patrons->first();
-                return [
-                    'id' => $personnel->id,
-                    'value' => $personnel->id,
-                    'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
-                    'first_name' => $personnel->first_name,
-                    'last_name' => $personnel->last_name,
-                    'mobile' => $personnel->mobile,
-                    'transporter_id' => $transporter ? $transporter->id : null,
-                ];
-            });
+    $q->where(DB::raw('LOWER(name)'), strtolower('Driver'));            })
+                ->where('status', 'active')
+                ->get()
+                ->map(function ($personnel) {
+                    $transporter = $personnel->patrons->first();
+                    return [
+                        'id' => $personnel->id,
+                        'value' => $personnel->id,
+                        'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
+                        'first_name' => $personnel->first_name,
+                        'last_name' => $personnel->last_name,
+                        'mobile' => $personnel->mobile,
+                        'transporter_id' => $transporter ? $transporter->id : null,
+                    ];
+                });
+        });
     }
 }
 
@@ -318,32 +332,34 @@ if (!function_exists('OperatorsDropdown')) {
      */
     function OperatorsDropdown($excludeId = null, $plantId = null)
     {
-        $plantId = $plantId ?: _activePlantId();
-        $query = Personnel::with('designation')
-            ->where('plant_id', $plantId);
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($excludeId, $plantId) {
+            $plantId = $plantId ?: _activePlantId();
+            $query = Personnel::with('designation')
+                ->where('plant_id', $plantId);
 
-        if ($excludeId) {
-            $query->where('id', '!=', $excludeId);
-        }
+            if ($excludeId) {
+                $query->where('id', '!=', $excludeId);
+            }
 
-        return $query
-            ->whereHas('designation', function ($q) {
-                $q->where(DB::raw('LOWER(name)'), 'like', '%operator%');
-            })
-            ->where('status', 'active')
-            ->whereNull('deleted_at')
-            ->orderBy('first_name')
-            ->get()
-            ->map(function ($personnel) {
-                return [
-                    'id' => $personnel->id,
-                    'value' => $personnel->id,
-                    'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
-                    'first_name' => $personnel->first_name,
-                    'last_name' => $personnel->last_name,
-                    'mobile' => $personnel->mobile,
-                ];
-            });
+            return $query
+                ->whereHas('designation', function ($q) {
+                    $q->where(DB::raw('LOWER(name)'), 'like', '%operator%');
+                })
+                ->where('status', 'active')
+                ->whereNull('deleted_at')
+                ->orderBy('first_name')
+                ->get()
+                ->map(function ($personnel) {
+                    return [
+                        'id' => $personnel->id,
+                        'value' => $personnel->id,
+                        'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
+                        'first_name' => $personnel->first_name,
+                        'last_name' => $personnel->last_name,
+                        'mobile' => $personnel->mobile,
+                    ];
+                });
+        });
     }
 }
 if (!function_exists('SalesExecutivesDropdown')) {
@@ -352,21 +368,23 @@ if (!function_exists('SalesExecutivesDropdown')) {
      */
     function SalesExecutivesDropdown($excludeId = null)
     {
-        $results = Personnel::with('designation')
-            ->where('plant_id', _activePlantId())
-            ->when($excludeId, fn($q) => $q->excludeId($excludeId))
-            ->whereHas('designation', function ($q) {
-                $q->where('code', 'SE')
-                  ->orWhere('name', 'Sales Executive');
-            })
-            ->orderBy('first_name')
-            ->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($excludeId) {
+            $results = Personnel::with('designation')
+                ->where('plant_id', _activePlantId())
+                ->when($excludeId, fn($q) => $q->excludeId($excludeId))
+                ->whereHas('designation', function ($q) {
+                    $q->where('code', 'SE')
+                      ->orWhere('name', 'Sales Executive');
+                })
+                ->orderBy('first_name')
+                ->get();
 
-        return $results->map(fn($personnel) => [
-            'id' => $personnel->id,
-            'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
-            'value' => $personnel->id,
-        ]);
+            return $results->map(fn($personnel) => [
+                'id' => $personnel->id,
+                'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
+                'value' => $personnel->id,
+            ]);
+        });
     }
 }
 
@@ -391,25 +409,27 @@ if (!function_exists('ProductsDropdown')) {
      */
     function ProductsDropdown(?string $productType = null, $categoryId = null, $excludeId = null, $entityId = null)
     {
-        $query = Product::where('plant_id', _activePlantId())
-            ->with('unit:id,unit_code,unit_type');
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($productType, $categoryId, $excludeId, $entityId) {
+            $query = Product::where('plant_id', _activePlantId())
+                ->with('unit:id,unit_code,unit_type');
 
-        if ($productType !== null) {
-            $query->where('product_type', $productType);
-        }
+            if ($productType !== null) {
+                $query->where('product_type', $productType);
+            }
 
-        if ($categoryId !== null) {
-            $query->ofCategory($categoryId);
-        }
+            if ($categoryId !== null) {
+                $query->ofCategory($categoryId);
+            }
 
-        if ($excludeId !== null) {
-            $query->excludeId($excludeId);
-        }
+            if ($excludeId !== null) {
+                $query->excludeId($excludeId);
+            }
 
-        return $query->whereNull('deleted_at')
-            ->orderBy('title')->where('status', true)
-            ->get(['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price'])
-            ->makeHidden(['can_delete', 'can_update', 'is_in_use']);
+            return $query->whereNull('deleted_at')
+                ->orderBy('title')->where('status', true)
+                ->get(['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price'])
+                ->makeHidden(['can_delete', 'can_update', 'is_in_use']);
+        });
     }
 }
 
@@ -419,13 +439,15 @@ if (!function_exists('MixDesignsDropdown')) {
      */
     function MixDesignsDropdown()
     {
-        return MixDesign::query()
-            ->where('plant_id', _activePlantId())
-            ->whereNull('deleted_at')
-            ->select('id', 'design_name as title', 'design_code as code', 'rate_per_qty as rate', 'unit_id')
-            ->with(['items.product', 'items.uom'])
-            ->orderBy('design_name')
-            ->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return MixDesign::query()
+                ->where('plant_id', _activePlantId())
+                ->whereNull('deleted_at')
+                ->select('id', 'design_name as title', 'design_code as code', 'rate_per_qty as rate', 'unit_id')
+                ->with(['items.product', 'items.uom'])
+                ->orderBy('design_name')
+                ->get();
+        });
     }
 }
 
@@ -450,11 +472,13 @@ if (!function_exists('ExpenseTypesDropdown')) {
      */
     function ExpenseTypesDropdown()
     {
-        return ExpenseType::where('plant_id', _activePlantId())
-            ->where('status', true)
-            ->whereNull('deleted_at')
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return ExpenseType::where('plant_id', _activePlantId())
+                ->where('status', true)
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        });
     }
 }
 
@@ -464,11 +488,13 @@ if (!function_exists('GradeDropdown')) {
      */
     function GradeDropdown()
     {
-        return \App\Models\ConcreteGrade::where('plant_id', _activePlantId())
-            ->select('id', 'grade_name as title')
-            ->whereNull('deleted_at')
-            ->orderBy('grade_name')
-            ->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return \App\Models\ConcreteGrade::where('plant_id', _activePlantId())
+                ->select('id', 'grade_name as title')
+                ->whereNull('deleted_at')
+                ->orderBy('grade_name')
+                ->get();
+        });
     }
 }
 
@@ -481,11 +507,13 @@ if (!function_exists('ProductCategoriesDropdown')) {
      */
     function ProductCategoriesDropdown()
     {
-        return ProductCategory::where('plant_id', _activePlantId())
-            ->whereNull('deleted_at')
-            ->where('status', 1)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return ProductCategory::where('plant_id', _activePlantId())
+                ->whereNull('deleted_at')
+                ->where('status', 1)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        });
     }
 }
 
@@ -526,39 +554,41 @@ if (!function_exists('TaxesDropdown')) {
         $excludeId = null,
         $includeId = null
     ) {
-        $query = Tax::where('plant_id', _activePlantId())
-            ->where('status', 1)
-            ->select('id', 'tax_name', 'tax_rate', 'tax_group', 'tax_type', 'status');
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($taxType, $taxGroup, $parentOnly, $excludeId, $includeId) {
+            $query = Tax::where('plant_id', _activePlantId())
+                ->where('status', 1)
+                ->select('id', 'tax_name', 'tax_rate', 'tax_group', 'tax_type', 'status');
 
-        if ($taxType !== null) {
-            $query->where('tax_type', $taxType);
-        }
-
-        if ($taxGroup !== null) {
-            if (is_array($taxGroup)) {
-                $query->whereIn('tax_group', $taxGroup);
-            } else {
-                $query->where('tax_group', $taxGroup);
+            if ($taxType !== null) {
+                $query->where('tax_type', $taxType);
             }
-        }
 
-        if ($parentOnly) {
-            $query->whereNull('parent_id');
-        }
+            if ($taxGroup !== null) {
+                if (is_array($taxGroup)) {
+                    $query->whereIn('tax_group', $taxGroup);
+                } else {
+                    $query->where('tax_group', $taxGroup);
+                }
+            }
 
-        if ($excludeId !== null) {
-            $query->where('id', '!=', $excludeId);
-        }
+            if ($parentOnly) {
+                $query->whereNull('parent_id');
+            }
 
-        if ($includeId !== null) {
-            $query->orWhere('id', $includeId);
-        }
+            if ($excludeId !== null) {
+                $query->where('id', '!=', $excludeId);
+            }
 
-        return $query->whereNull('deleted_at')->orderBy('tax_name')->get();
+            if ($includeId !== null) {
+                $query->orWhere('id', $includeId);
+            }
+
+            return $query->whereNull('deleted_at')->orderBy('tax_name')->get();
+        });
     }
 }
 
- 
+
 
 if (!function_exists('SaleTaxesDropdown')) {
     /**
@@ -566,12 +596,14 @@ if (!function_exists('SaleTaxesDropdown')) {
      */
     function SaleTaxesDropdown()
     {
-        return Tax::where('plant_id', _activePlantId())
-            ->where('tax_type', 'sales')
-            ->where('status', 1)
-            ->whereNull('deleted_at')
-            ->orderBy('tax_name')
-            ->get(['id', 'tax_name', 'tax_rate', 'tax_group', 'tax_type']);
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return Tax::where('plant_id', _activePlantId())
+                ->where('tax_type', 'sales')
+                ->where('status', 1)
+                ->whereNull('deleted_at')
+                ->orderBy('tax_name')
+                ->get(['id', 'tax_name', 'tax_rate', 'tax_group', 'tax_type']);
+        });
     }
 }
 
@@ -590,24 +622,26 @@ if (!function_exists('Productunit')) {
      */
     function Productunit(?string $unitType = null, ?int $excludeId = null)
     {
-        $query = ProductUnit::forDropdown($unitType)
-            ->select('id', 'unit_name', 'unit_code');
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($unitType, $excludeId) {
+            $query = ProductUnit::forDropdown($unitType)
+                ->select('id', 'unit_name', 'unit_code');
 
-        if ($excludeId !== null) {
-            $query->excludeId($excludeId);
-        }
+            if ($excludeId !== null) {
+                $query->excludeId($excludeId);
+            }
 
-        return $query->whereNull('deleted_at')
-    ->orderByRaw("
-        CASE
-            WHEN unit_code = 'KGS' THEN 0
-            WHEN unit_code = 'MTR' THEN 1
-            WHEN unit_code = 'CBM' THEN 2
-            ELSE 3
-        END
-    ")
-    ->orderBy('unit_name')
-    ->get();
+            return $query->whereNull('deleted_at')
+        ->orderByRaw("
+            CASE
+                WHEN unit_code = 'KGS' THEN 0
+                WHEN unit_code = 'MTR' THEN 1
+                WHEN unit_code = 'CBM' THEN 2
+                ELSE 3
+            END
+        ")
+        ->orderBy('unit_name')
+        ->get();
+        });
     }
 }
 
@@ -618,7 +652,9 @@ if (!function_exists('Productunit')) {
 if (!function_exists('CurrenciesDropdown')) {
     function CurrenciesDropdown()
     {
-        return Currency::orderBy('currency_name')->get(['id', 'currency_name', 'currency_code']);
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return Currency::orderBy('currency_name')->get(['id', 'currency_name', 'currency_code']);
+        });
     }
 }
 
@@ -634,7 +670,9 @@ if (!function_exists('ActivePlantsDropdown')) {
      */
     function ActivePlantsDropdown()
     {
-        return Plant::where('is_active', true)->select('id', 'name')->whereNull('deleted_at')->orderBy('name')->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return Plant::where('is_active', true)->select('id', 'name')->whereNull('deleted_at')->orderBy('name')->get();
+        });
     }
 }
 
@@ -648,18 +686,20 @@ if (!function_exists('LedgersDropdown')) {
      */
     function LedgersDropdown($type = null)
     {
-        $query = Ledger::query()->where('plant_id', _activePlantId());
-        
-        if ($type) {
-            $query->whereHas('accountType.account', function($q) use ($type) {
-                $q->where('title', $type);
-            });
-        }
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($type) {
+            $query = Ledger::query()->where('plant_id', _activePlantId());
 
-        return $query->select('id', 'code as name', 'title', 'description')
-            ->whereNull('deleted_at')
-            ->orderBy('title')
-            ->get();
+            if ($type) {
+                $query->whereHas('accountType.account', function($q) use ($type) {
+                    $q->where('title', $type);
+                });
+            }
+
+            return $query->select('id', 'code as name', 'title', 'description')
+                ->whereNull('deleted_at')
+                ->orderBy('title')
+                ->get();
+        });
     }
 }
 
@@ -673,16 +713,18 @@ if (!function_exists('SalesLedgersDropdown')) {
      */
     function SalesLedgersDropdown($type = null)
     {
-        $query = Ledger::query()->where('plant_id', _activePlantId());
-        
-        if ($type) {
-             $query->where('title', '=', $type);
-        }
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($type) {
+            $query = Ledger::query()->where('plant_id', _activePlantId());
 
-        return $query->select('id', 'code as name', 'title') 
-            ->whereNull('deleted_at')
-            ->orderBy('title')
-            ->get();
+            if ($type) {
+                 $query->where('title', '=', $type);
+            }
+
+            return $query->select('id', 'code as name', 'title')
+                ->whereNull('deleted_at')
+                ->orderBy('title')
+                ->get();
+        });
     }
 }
 
@@ -694,11 +736,13 @@ if (!function_exists('VoucherTypesDropdown')) {
      */
     function VoucherTypesDropdown()
     {
-        return VoucherType::query()
-            ->select('id', 'journal_name', 'short_code', 'prefix', 'voucher_group')
-            ->whereNull('deleted_at')
-            ->orderBy('journal_name')
-            ->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return VoucherType::query()
+                ->select('id', 'journal_name', 'short_code', 'prefix', 'voucher_group')
+                ->whereNull('deleted_at')
+                ->orderBy('journal_name')
+                ->get();
+        });
     }
 }
 
@@ -722,43 +766,51 @@ if (!function_exists('DetailedPatronsDropdown')) {
 if (!function_exists('ContactTypesDropdown')) {
     function ContactTypesDropdown()
     {
-        return ContactType::select('id', 'type as label')->whereNull('deleted_at')->orderBy('type')->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return ContactType::select('id', 'type as label')->whereNull('deleted_at')->orderBy('type')->get();
+        });
     }
 }
 
 if (!function_exists('AddressTypesDropdown')) {
     function AddressTypesDropdown()
     {
-        return AddressType::select('id', 'type as label')->orderBy('type')->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return AddressType::select('id', 'type as label')->orderBy('type')->get();
+        });
     }
 }
 
 if (!function_exists('BankAccountTypesDropdown')) {
     function BankAccountTypesDropdown()
     {
-        return BankAccountType::select('id', 'type as label')->orderBy('type')->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return BankAccountType::select('id', 'type as label')->orderBy('type')->get();
+        });
     }
 }
 
 if (!function_exists('StateCodesDropdown')) {
     function StateCodesDropdown()
     {
-        return StateCode::whereNotNull('state_name')
-            ->where('state_name', '!=', '')
-            ->whereNull('deleted_at')
-            ->groupBy('state_name', 'state_code')
-            ->selectRaw('MIN(id) as id, state_name, state_code')
-            ->orderBy('state_name')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'state_name' => $item->state_name,
-                    'state_code' => $item->state_code,
-                    'label' => $item->state_name,
-                    'value' => $item->id,
-                ];
-            });
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return StateCode::whereNotNull('state_name')
+                ->where('state_name', '!=', '')
+                ->whereNull('deleted_at')
+                ->groupBy('state_name', 'state_code')
+                ->selectRaw('MIN(id) as id, state_name, state_code')
+                ->orderBy('state_name')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'state_name' => $item->state_name,
+                        'state_code' => $item->state_code,
+                        'label' => $item->state_name,
+                        'value' => $item->id,
+                    ];
+                });
+        });
     }
 }
 
@@ -807,14 +859,16 @@ if (!function_exists('PaymentMethodsDropdown')) {
     /**
      * Active payment methods.
      */
-    function 
+    function
     PaymentMethodsDropdown()
     {
-        return PaymentMethod::where('is_active', true)
-            ->whereNull('deleted_at')
-            ->orderByRaw("CASE WHEN name = 'Cash' THEN 0 ELSE 1 END")
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return PaymentMethod::where('is_active', true)
+                ->whereNull('deleted_at')
+                ->orderByRaw("CASE WHEN name = 'Cash' THEN 0 ELSE 1 END")
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        });
     }
 }
 
@@ -845,19 +899,21 @@ if (!function_exists('ConcretePumpOptions')) {
      */
     function ConcretePumpOptions(): array
     {
-       return Machine::whereHas('machineType',function ($q) {
-                $q->where('name', 'LIKE', '%Pump%');
-                //   ->orWhere('name', 'LIKE', '%Boom%');
-            })
-            ->where('plant_id', _activePlantId())
-            ->whereNull('deleted_at')
-            ->orderBy('registration')
-            ->get(['id', 'registration'])
-            ->map(fn($t) => [
-                'label' => $t->registration,
-                'value' => (int) $t->id,
-            ])
-            ->toArray();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+           return Machine::whereHas('machineType',function ($q) {
+                    $q->where('name', 'LIKE', '%Pump%');
+                    //   ->orWhere('name', 'LIKE', '%Boom%');
+                })
+                ->where('plant_id', _activePlantId())
+                ->whereNull('deleted_at')
+                ->orderBy('registration')
+                ->get(['id', 'registration'])
+                ->map(fn($t) => [
+                    'label' => $t->registration,
+                    'value' => (int) $t->id,
+                ])
+                ->toArray();
+        });
     }
 }
 
@@ -868,11 +924,13 @@ if (!function_exists('ConcretePumpOptions')) {
 if (!function_exists('PaymentMethodsDropdown')) {
     function PaymentMethodsDropdown()
     {
-        return App\Models\PaymentMethod::where('is_active', true)
-            ->whereNull('deleted_at')
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+            return App\Models\PaymentMethod::where('is_active', true)
+                ->whereNull('deleted_at')
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+        });
     }
 }
 
@@ -905,11 +963,13 @@ if (!function_exists('PumpRatesDropdown')) {
      */
     function PumpRatesDropdown($plantId = null)
     {
-        $plantId = $plantId ?: _activePlantId();
-        return \App\Models\PumpRate::where('plant_id', $plantId)
-            ->where('status', true)
-            ->with(['customer:id,legal_name', 'pump:id,registration', 'site:id,name', 'uom:id,unit_code,unit_name'])
-            ->get();
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($plantId) {
+            $plantId = $plantId ?: _activePlantId();
+            return \App\Models\PumpRate::where('plant_id', $plantId)
+                ->where('status', true)
+                ->with(['customer:id,legal_name', 'pump:id,registration', 'site:id,name', 'uom:id,unit_code,unit_name'])
+                ->get();
+        });
     }
 }
 

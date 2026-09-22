@@ -214,8 +214,8 @@ const isUploadFetchEnabled = computed(() => {
     return !!customSettings?.batching?.sheet_upload;
 });
 
-const { isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
-const canEditBatchNo = computed(() => Boolean(isAdmin.value || isSuperAdmin.value || isSassOwner.value) && !isLocked.value);
+const { can, isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
+const canEditBatchNo = computed(() => Boolean(isAdmin.value || isSuperAdmin.value || isSassOwner.value || can('BATCH.CREATE') || can('BATCHES.CREATE')) && !isLocked.value);
 
 const duplicateBatchWarning = computed(() => {
     if (!canEditBatchNo.value || !form.batch_no) return null;

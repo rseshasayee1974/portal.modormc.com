@@ -22,7 +22,7 @@ class PurchaseRegisterService
      * Generate Purchase Register report data or export file.
      *
      * Time Complexity:
-     * - Best Case: O(1) from Redis Cache (totals).
+     * - Best Case: O(1) from cached totals.
      * - Average Case: O(log n) database index seek + O(p) paginated rows.
      * - Export Retrieval: O(n) streaming.
      *
@@ -67,7 +67,7 @@ class PurchaseRegisterService
         $taxColumns = $this->collectTaxColumns($formattedItems->all());
 
         // Cache only totals (they don't change with page)
-        // Wrapped in try/catch to gracefully handle Redis unavailability
+        // Fall back to the database if the cache store is unavailable.
         try {
             $totals = Cache::remember($cacheKey . '_totals', now()->addMinutes(10), function () use ($filters) {
                 $raw = $this->repository->getPurchaseTotals($filters);
@@ -82,7 +82,7 @@ class PurchaseRegisterService
                 ];
             });
         } catch (\Exception $e) {
-            // Redis unavailable — compute totals directly from DB
+            // Cache unavailable — compute totals directly from DB.
             $raw    = $this->repository->getPurchaseTotals($filters);
             $totals = [
                 'qty'         => round((float) ($raw['total_qty'] ?? 0), 2),
@@ -282,7 +282,7 @@ class PurchaseRegisterService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatchSync('purchase_register', $filters, $statusKey, 'excel');
+        QueueReportExportJob::dispatchExport('purchase_register', $filters, $statusKey, 'excel');
 
         return [
             'status'     => true,
@@ -307,7 +307,7 @@ class PurchaseRegisterService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatchSync('purchase_register', $filters, $statusKey, 'pdf');
+        QueueReportExportJob::dispatchExport('purchase_register', $filters, $statusKey, 'pdf');
 
         return [
             'status'     => true,

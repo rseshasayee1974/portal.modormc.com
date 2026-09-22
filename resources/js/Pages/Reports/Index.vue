@@ -42,6 +42,7 @@ import VoucherReport from './components/VoucherReport.vue';
 import CustomerOutstandingReport from './components/CustomerOutstandingReport.vue';
 import OverallReport from './components/OverallReport.vue';
 import BulkDocumentReport from './components/BulkDocumentReport.vue';
+import DeletedReport from './components/DeletedReport.vue';
 
 import { 
     ChartBarIcon,
@@ -93,7 +94,7 @@ const modules = [
         id: 'accounting',
         name: 'Accounting & Finance',
         reports: [
-            { id: 'overall', name: 'Overall Daily Report', description: 'Complete day book: production, dispatch, pump, invoices, billing, e-invoice, e-way bill, collections & taxes' },
+            { id: 'deleted_report', name: 'Deleted Report', description: 'Audit trail of deleted invoices, bills, payments, receipts, batches, dispatches, expenses, e-way bills, journal entries, and discounts' },
             { id: 'bulk_documents', name: 'Bulk Invoice / Bill Export', description: 'Filter invoices and bills and download one combined PDF, one document per page' },
             { id: 'ledger', name: 'General Ledger', description: 'Account balances, running ledgers and transaction history' },
             { id: 'customer_outstanding', name: 'Customer Outstanding Report', description: 'Customer receivables, billed vs received, outstanding balance and aging analysis' },
@@ -249,6 +250,8 @@ const getReportComponent = (type) => {
         case 'gstr3b': return Gstr3bReport;
         case 'tds_certificate': return TdsCertificateReport;
         case 'esi_pf_challan': return EsiPfChallanReport;
+        case 'deleted':
+        case 'deleted_report': return DeletedReport;
         case 'payment':
         case 'receipt': return VoucherReport;
         default: return StandardLedgerReport;
@@ -340,6 +343,7 @@ const checkExportStatus = (key) => {
     }
 
     let isFinished = false;
+    let pollDelay = 2000;
 
     const poll = async () => {
         if (isFinished) return;
@@ -376,11 +380,12 @@ const checkExportStatus = (key) => {
         }
 
         if (!isFinished) {
-            pollingInterval.value = setTimeout(poll, 800);
+            pollingInterval.value = setTimeout(poll, pollDelay + Math.random() * 500);
+            pollDelay = Math.min(pollDelay * 1.3, 10000);
         }
     };
 
-    pollingInterval.value = setTimeout(poll, 300);
+    pollingInterval.value = setTimeout(poll, 2000);
 };
 
 const activeModule = computed(() => {
@@ -392,7 +397,7 @@ const activeReport = computed(() => {
 });
 
 const isCustomerReport = computed(() => {
-    return ['overall', 'sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'customer_outstanding', 'sales', 'cancelled_dispatch'].includes(reportType.value);
+    return ['overall', 'sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'customer_outstanding', 'sales', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType.value);
 });
 
 const isSupplierReport = computed(() => {
@@ -973,7 +978,7 @@ const shareEmail = () => {
             <!-- SAP Fiori Shell Header -->
             <div class="bg-[#1d2d3e] text-white px-6 py-3.5 shadow flex items-center justify-between border-b border-[#2d3e50]">
                 <div class="flex items-center gap-4">
-                    <span class="text-xs uppercase font-semibold text-slate-300 tracking-wider">SAP Fiori Launchpad</span>
+                    <span class="text-xs uppercase font-semibold text-slate-300 tracking-wider">RMC Launchpad</span>
                     <span class="text-xs text-slate-400">|</span>
                     <h1 class="text-sm font-bold tracking-tight text-white uppercase">Operational Report Floorplan</h1>
                 </div>
@@ -1142,7 +1147,7 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Patron / Customer Dropdown -->
-                                <div v-if="['overall', 'ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['overall', 'ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                         {{ patronLabel }}
                                     </span>

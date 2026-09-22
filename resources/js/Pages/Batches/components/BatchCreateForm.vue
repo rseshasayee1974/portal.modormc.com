@@ -14,8 +14,8 @@ import Dialog from 'primevue/dialog';
 import { usePermissions } from '@/Composables/usePermissions';
 
 const page = usePage();
-const { isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
-const canEditBatchNo = computed(() => Boolean(isAdmin.value || isSuperAdmin.value || isSassOwner.value));
+const { can, isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
+const canEditBatchNo = computed(() => Boolean(isAdmin.value || isSuperAdmin.value || isSassOwner.value || can('BATCH.CREATE') || can('BATCHES.CREATE')));
 
 
 const props = withDefaults(defineProps<{
@@ -583,7 +583,7 @@ const submit = () => {
 
                 <div class="flex flex-col items-end gap-1.5 self-start sm:self-center">
                     <div class="flex items-center gap-3">
-                        <!-- Admin Option: Manual Batch No -->
+                        <!-- Manual batch number for admins or users with batch create permission -->
                         <div v-if="canEditBatchNo" class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 border border-slate-200 shadow-xs">
                             <label class="flex items-center gap-1.5 cursor-pointer select-none">
                                 <input 
@@ -878,7 +878,6 @@ const submit = () => {
         </Dialog>
     </div>
 </template>
-
 
 
 

@@ -68,10 +68,8 @@ class LedgerResolver
      */
     public function bustAll(int $plantId): void
     {
-        // Laravel cache tags would be cleaner here if your cache driver supports it.
-        // If using Redis: Cache::tags(["plant_ledgers_{$plantId}"])->flush();
-        // For file/database driver, store keys and iterate:
+        // Individual settings can be invalidated with bust(); other keys expire after five minutes.
         Log::info("LedgerResolver: Full cache bust requested for plant {$plantId}. "
-            . "Consider using Redis cache tags for granular busting.");
+            . "Cached mappings expire within five minutes.");
     }
 }
