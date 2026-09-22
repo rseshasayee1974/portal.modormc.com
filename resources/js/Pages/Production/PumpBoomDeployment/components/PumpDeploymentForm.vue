@@ -142,6 +142,19 @@ const normalizePumpType = (raw) => {
     return s;
 };
 
+const toIstDatetimeString = (utcString) => {
+    if (!utcString) return '';
+    const d = new Date(utcString);
+    if (isNaN(d.getTime())) return '';
+    const istTime = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const y = istTime.getFullYear();
+    const m = String(istTime.getMonth() + 1).padStart(2, '0');
+    const day = String(istTime.getDate()).padStart(2, '0');
+    const hh = String(istTime.getHours()).padStart(2, '0');
+    const mm = String(istTime.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${day}T${hh}:${mm}`;
+};
+
 const initForm = () => {
     if (props.isEditing && props.initialData) {
         const item = props.initialData;
@@ -165,13 +178,13 @@ const initForm = () => {
             operator_id: item.operator_id ? Number(item.operator_id) : null,
             operator_name: item.operator_name || '',
             driver_contact_number: item.driver_contact_number || '',
-            pump_arrival_time: item.pump_arrival_time ? item.pump_arrival_time.substring(0, 16) : '',
-            setup_start_time: item.setup_start_time ? item.setup_start_time.substring(0, 16) : '',
-            setup_end_time: item.setup_end_time ? item.setup_end_time.substring(0, 16) : '',
-            pour_start_time: item.pour_start_time ? item.pour_start_time.substring(0, 16) : '',
-            planned_end_time: item.planned_end_time ? item.planned_end_time.substring(0, 16) : '',
-            actual_start_time: item.actual_start_time ? item.actual_start_time.substring(0, 16) : '',
-            actual_end_time: item.actual_end_time ? item.actual_end_time.substring(0, 16) : '',
+            pump_arrival_time: toIstDatetimeString(item.pump_arrival_time),
+            setup_start_time: toIstDatetimeString(item.setup_start_time),
+            setup_end_time: toIstDatetimeString(item.setup_end_time),
+            pour_start_time: toIstDatetimeString(item.pour_start_time),
+            planned_end_time: toIstDatetimeString(item.planned_end_time),
+            actual_start_time: toIstDatetimeString(item.actual_start_time),
+            actual_end_time: toIstDatetimeString(item.actual_end_time),
             notes: item.notes || '',
             status: item.status || 'scheduled',
         };
@@ -265,6 +278,22 @@ const onOperatorSelect = () => {
 
 const onActualStartInput = () => {
     if (form.value.actual_start_time) {
+        if (!form.value.actual_end_time) {
+            const startDate = new Date(form.value.actual_start_time);
+            if (!isNaN(startDate.getTime())) {
+                // Convert to Indian Standard Time (Chennai)
+                const istTime = new Date(startDate.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+                istTime.setHours(istTime.getHours() + 1);
+
+                const y = istTime.getFullYear();
+                const m = String(istTime.getMonth() + 1).padStart(2, '0');
+                const d = String(istTime.getDate()).padStart(2, '0');
+                const hh = String(istTime.getHours()).padStart(2, '0');
+                const mm = String(istTime.getMinutes()).padStart(2, '0');
+                form.value.actual_end_time = `${y}-${m}-${d}T${hh}:${mm}`;
+            }
+        }
+
         if (form.value.actual_end_time) {
             form.value.status = 'completed';
         } else if (!['delayed', 'cancelled'].includes(form.value.status)) {
@@ -315,6 +344,24 @@ const submitForm = async () => {
                 confirmButtonColor: '#ef4444'
             });
             return;
+        }
+    }
+
+    // Default actual_end_time to 1 hour after actual_start_time if empty
+    if (form.value.actual_start_time && !form.value.actual_end_time) {
+        const startDate = new Date(form.value.actual_start_time);
+        startDate.setHours(startDate.getHours() + 1);
+
+        const y = startDate.getFullYear();
+        const m = String(startDate.getMonth() + 1).padStart(2, '0');
+        const d = String(startDate.getDate()).padStart(2, '0');
+        const hh = String(startDate.getHours()).padStart(2, '0');
+        const mm = String(startDate.getMinutes()).padStart(2, '0');
+        form.value.actual_end_time = `${y}-${m}-${d}T${hh}:${mm}`;
+
+        // Also update status since we now have an end time
+        if (!['cancelled'].includes(form.value.status)) {
+            form.value.status = 'completed';
         }
     }
 

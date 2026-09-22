@@ -175,7 +175,7 @@ class PumpBoomDeploymentController extends Controller
         $this->authorizeModule('view');
 
         $plantId = $this->getActivePlantId();
-        $scheduleDate = $request->input('schedule_date', now()->toDateString());
+        $scheduleDate = $request->input('schedule_date', 'all');
 
         return Inertia::render('Production/PumpBoomDeployment/Index', [
             'plants'         => Plant::all(['id', 'name']),
@@ -254,9 +254,9 @@ class PumpBoomDeploymentController extends Controller
             });
         }
 
-        $deployments = $query->orderBy('schedule_date', 'asc')
-            ->orderBy('pour_start_time', 'asc')
-            ->orderBy('id', 'asc')
+        $deployments = $query->orderBy('schedule_date', 'desc')
+            ->orderBy('pour_start_time', 'desc')
+            ->orderBy('id', 'desc')
             ->get();
 
         $metrics = [
@@ -378,13 +378,32 @@ class PumpBoomDeploymentController extends Controller
 
         $validated['plant_id'] = $plantId;
         
-        if (!empty($validated['batch_id'])) {
-            $batch = \App\Models\Batch::find($validated['batch_id']);
-            $validated['pour_reference'] = 'B-' . ($batch->batch_no ?? $validated['batch_id']) . '-' . mt_rand(10, 99);
+        $month = now()->month;
+        $year = now()->format('y');
+        if ($month >= 4) {
+            $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
         } else {
-            $pumpRef = $validated['pump_no'] ?? ($validated['pump_vehicle_id'] ? \App\Models\Machine::find($validated['pump_vehicle_id'])?->registration : 'PMP');
-            $validated['pour_reference'] = str_replace(' ', '', strtoupper($pumpRef)) . '-' . now()->format('Ymd') . '-' . mt_rand(10, 99);
+            $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
         }
+        $prefix = 'PR-' . $financialYear . '-';
+
+        $activeRefs = PumpBoomDeploymentSchedule::where('pour_reference', 'like', $prefix . '%')
+            ->pluck('pour_reference')
+            ->toArray();
+
+        $usedSequences = [];
+        foreach ($activeRefs as $ref) {
+            if (preg_match('/-(\d+)$/', $ref, $matches)) {
+                $usedSequences[] = (int) $matches[1];
+            }
+        }
+
+        $sequence = 1;
+        while (in_array($sequence, $usedSequences)) {
+            $sequence++;
+        }
+
+        $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
         
         $this->resolveDeploymentStatus($validated, 'scheduled');
 

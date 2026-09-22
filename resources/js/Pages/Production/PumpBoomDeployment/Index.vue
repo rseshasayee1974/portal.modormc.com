@@ -54,7 +54,7 @@ const expandedRows = ref({});
 
 // 7 Filter Schedules: Schedule date, Site, Pour location, Pump type, Pump number, Operator, Status
 const filters = ref({
-    schedule_date: props.initialDate || entityToday(),
+    schedule_date: props.initialDate || 'all',
     site_id: 'all',
     pour_location: '',
     pump_type: props.initialFilters?.pump_type || 'all',
@@ -169,7 +169,7 @@ const onLocationSearchInput = () => {
 
 const resetFilters = () => {
     filters.value = {
-        schedule_date: entityToday(),
+        schedule_date: 'all',
         site_id: 'all',
         pour_location: '',
         pump_type: 'all',
@@ -454,8 +454,8 @@ const getStatusBadge = (status) => {
                         <PumpDeploymentForm :key="(activeView === 'edit' ? 'edit-' : 'create-') + formVersion"
                             :isEditing="activeView === 'edit'"
                             :initialData="activeView === 'edit' ? selectedDeployment : null" :dropdowns="dropdowns"
-                            :defaultScheduleDate="filters.schedule_date" @saved="handleFormSaved"
-                            @cancel="handleFormCancel" />
+                            :defaultScheduleDate="filters.schedule_date === 'all' ? entityToday() : filters.schedule_date"
+                            @saved="handleFormSaved" @cancel="handleFormCancel" />
                     </template>
                     <div v-else role="status"
                         class="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-gray-500">
@@ -630,21 +630,33 @@ const getStatusBadge = (status) => {
                         <!-- Data Table using BaseDataTable -->
                         <div class="w-full">
                             <BaseDataTable :value="filteredDeployments" :loading="loading" dataKey="id"
-                                :paginator="true" :rows="20" :rowsPerPageOptions="[10, 20, 50, 100]" :showSerial="true"
-                                :rowClass="getRowClass" class="text-xs">
+                                v-model:expandedRows="expandedRows" :paginator="true" :rows="20"
+                                :rowsPerPageOptions="[10, 20, 50, 100]" :showSerial="true" :rowClass="getRowClass"
+                                class="text-xs">
+                                <!-- Pour Reference -->
+                                <Column field="pour_reference" header="Pour Reference" :sortable="true">
+                                    <template #body="{ data }">
+                                        <div
+                                            class="font-bold text-indigo-600 dark:text-indigo-400 text-xs break-all max-w-[85px]">
+                                            {{ data.pour_reference }}
+                                        </div>
+                                    </template>
+                                </Column>
+
                                 <!-- Pour Reference & Mix -->
                                 <Column field="sales_order_id" header="Sales Order" :sortable="true">
                                     <template #body="{ data }">
-                                        <div class="font-semibold text-gray-900 dark:text-gray-100 text-xs">
+                                        <div class="font-semibold text-gray-900 dark:text-gray-100 text-xs truncate max-w-[110px]"
+                                            :title="getPourReferenceLabel(data.sales_order_id)">
                                             {{ getPourReferenceLabel(data.sales_order_id) }}
                                         </div>
                                         <div class="mt-0.5 flex flex-col gap-0.5">
                                             <span
-                                                class="inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900 w-max">
+                                                class="inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900 w-max truncate max-w-[110px]">
                                                 {{ data.grade || data.mix_design?.name || 'Standard Mix' }}
                                             </span>
                                             <span v-if="data.billing_name"
-                                                class="text-[9px] text-gray-500 font-medium truncate max-w-[140px]"
+                                                class="text-[9px] text-gray-500 font-medium truncate max-w-[110px]"
                                                 :title="data.billing_name">
                                                 {{ data.billing_name }}
                                             </span>
@@ -658,17 +670,17 @@ const getStatusBadge = (status) => {
                                         <div
                                             class="font-semibold text-gray-800 dark:text-gray-200 text-xs flex items-center gap-1">
                                             <MapPinIcon class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                            <span class="truncate max-w-[140px]"
+                                            <span class="truncate max-w-[120px]"
                                                 :title="data.site_name || data.site?.name">{{ data.site_name ||
                                                     data.site?.name || 'Unspecified Site' }}</span>
                                         </div>
                                         <div v-if="data.pour_location"
-                                            class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 pl-4.5 truncate max-w-[140px]"
+                                            class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 pl-4.5 truncate max-w-[120px]"
                                             :title="data.pour_location">
                                             {{ data.pour_location }}
                                         </div>
                                         <div v-if="data.site_contact_number"
-                                            class="text-[9px] text-gray-400 pl-4.5 mt-0.5 truncate max-w-[140px]">
+                                            class="text-[9px] text-gray-400 pl-4.5 mt-0.5 truncate max-w-[120px]">
                                             📞 {{ data.site_contact_number }}
                                         </div>
                                     </template>
@@ -839,7 +851,7 @@ const getStatusBadge = (status) => {
 
                                 <template #expansion="{ data }">
                                     <div
-                                        class="p-3 sm:p-4 bg-slate-100/70 dark:bg-gray-900/60 border-y border-indigo-100 dark:border-gray-700">
+                                        class="bg-slate-100/70 dark:bg-gray-900/60 border-y border-indigo-100 dark:border-gray-700">
                                         <PumpDeploymentEditForm :deployment="data" :dropdowns="dropdowns"
                                             @saved="handleEditSaved" @cancel="collapseRow(data.id)" />
                                     </div>
