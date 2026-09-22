@@ -649,15 +649,9 @@
         <table class="header-table">
             <tr>
                 <td style="width: 20%;">
-                    @if (!empty($plant?->logo_path))
-                        @php
-                            $cleanLogo = ltrim(
-                                str_replace(['public/', 'storage/', '/storage/'], '', $plant->logo_path),
-                                '/',
-                            );
-                        @endphp
-                        <img src="{{ asset('storage/' . $cleanLogo) }}" class="company-logo" alt="Logo"
-                            onerror="this.style.display='none'" />
+                    @php $embeddedLogo = \App\Services\PdfLogo::dataUri($plant?->logo_path); @endphp
+                    @if ($embeddedLogo)
+                        <img src="{{ $embeddedLogo }}" class="company-logo" alt="Logo" />
                     @endif
                 </td>
                 <td style="width: 55%;">
