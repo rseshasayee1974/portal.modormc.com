@@ -303,9 +303,12 @@ class InvoiceShareController extends Controller
         $pdfData = $this->compileReportData($link);
 
         $landscapeTypes = ['sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl', 'silo_stock_valuation', 'gstr1', 'gstr3b'];
-        $orientation = in_array(strtolower($pdfData['type']), $landscapeTypes) ? 'landscape' : 'portrait';
+        $isOutstandingSummary = strtolower($pdfData['type']) === 'customer_outstanding'
+            && empty($pdfData['pdfData']['is_single_patron']);
+        $orientation = in_array(strtolower($pdfData['type']), $landscapeTypes) || $isOutstandingSummary ? 'landscape' : 'portrait';
 
-        $paper = count($pdfData['pdfData']['report']['columns'] ?? []) > 14 ? 'a3' : 'a4';
+        $isRegister = in_array(strtolower($pdfData['type']), ['sales_register', 'purchase_register']);
+        $paper = !$isRegister && count($pdfData['pdfData']['report']['columns'] ?? []) > 14 ? 'a3' : 'a4';
         $pdf = Pdf::loadView($pdfData['view'], $pdfData['pdfData'])->setPaper($paper, $orientation);
 
         return $pdf->download("Report_" . $pdfData['type'] . "_" . $pdfData['start'] . ".pdf");

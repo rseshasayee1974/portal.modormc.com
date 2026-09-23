@@ -198,7 +198,7 @@ abstract class RegisterReportService implements ReportServiceInterface
             Pdf::loadView('reports.register_pdf', [
                 'title' => $this->targetName($filters), 'report' => $report,
                 'filters' => $filters, 'generated_at' => now()->format('d-m-Y H:i:s'),
-            ])->setPaper(count($report['columns']) > 14 ? 'a3' : 'a4', 'landscape')->save($filePath);
+            ])->setPaper('a4', 'landscape')->save($filePath);
         } else {
             throw new \InvalidArgumentException('Unsupported register export format.');
         }

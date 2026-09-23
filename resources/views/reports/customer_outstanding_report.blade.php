@@ -6,7 +6,7 @@
 
         @page {
             margin: 12mm 10mm 15mm 10mm;
-            size: A4 portrait !important;
+            size: A4 {{ !empty($is_single_patron) ? 'portrait' : 'landscape' }} !important;
         }
 
         body, table, th, td, div, span, p, h1, h2, h3, strong, b {
@@ -222,6 +222,39 @@
             font-size: 7.5pt;
             color: #64748b;
             text-align: left;
+        }
+
+        .outstanding-summary {
+            width: 50%;
+            margin-left: 50%;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+
+        .outstanding-summary-list {
+            margin: 0;
+            padding-left: 16px;
+            list-style-type: disc;
+        }
+
+        .outstanding-summary-list li {
+            padding: 3px 0;
+        }
+
+        .outstanding-summary-label {
+            display: inline-block;
+            width: 60%;
+        }
+
+        .outstanding-summary-value {
+            display: inline-block;
+            width: 38%;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .outstanding-summary-alert {
+            color: #b91c1c;
         }
     </style>
 </head>
@@ -464,47 +497,34 @@
         </div>
     </div>
 
-    <!-- KPI Summary Row -->
-    <table class="kpi-table">
-        <tr>
-            <td style="width: 20%;">
-                <div class="kpi-card" style="background: #fef2f2; border-color: #fca5a5;">
-                    <div class="kpi-label" style="color: #991b1b;">Total Outstanding</div>
-                    <div class="kpi-val kpi-alert">₹ {{ number_format($total_outstanding_amount ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 16%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">0-30 Days</div>
-                    <div class="kpi-val">₹ {{ number_format($aging_0_30 ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 16%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">31-60 Days</div>
-                    <div class="kpi-val">₹ {{ number_format($aging_31_60 ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 16%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">61-90 Days</div>
-                    <div class="kpi-val">₹ {{ number_format($aging_61_90 ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 16%;">
-                <div class="kpi-card" style="background: #fff1f2; border-color: #fecdd3;">
-                    <div class="kpi-label" style="color: #be123c;">90+ Days</div>
-                    <div class="kpi-val" style="color: #be123c;">₹ {{ number_format($aging_90_plus ?? 0, 2) }}</div>
-                </div>
-            </td>
-            <td style="width: 16%;">
-                <div class="kpi-card">
-                    <div class="kpi-label">Open Invoices</div>
-                    <div class="kpi-val">{{ $total_open_invoices ?? 0 }}</div>
-                </div>
-            </td>
-        </tr>
-    </table>
+    <div class="outstanding-summary">
+        <ul class="outstanding-summary-list">
+            <li class="outstanding-summary-alert">
+                <span class="outstanding-summary-label">Total Outstanding</span>
+                <strong class="outstanding-summary-value">₹ {{ number_format($total_outstanding_amount ?? 0, 2) }}</strong>
+            </li>
+            <li>
+                <span class="outstanding-summary-label">0-30 Days</span>
+                <strong class="outstanding-summary-value">₹ {{ number_format($aging_0_30 ?? 0, 2) }}</strong>
+            </li>
+            <li>
+                <span class="outstanding-summary-label">31-60 Days</span>
+                <strong class="outstanding-summary-value">₹ {{ number_format($aging_31_60 ?? 0, 2) }}</strong>
+            </li>
+            <li>
+                <span class="outstanding-summary-label">61-90 Days</span>
+                <strong class="outstanding-summary-value">₹ {{ number_format($aging_61_90 ?? 0, 2) }}</strong>
+            </li>
+            <li class="outstanding-summary-alert">
+                <span class="outstanding-summary-label">90+ Days</span>
+                <strong class="outstanding-summary-value">₹ {{ number_format($aging_90_plus ?? 0, 2) }}</strong>
+            </li>
+            <li>
+                <span class="outstanding-summary-label">Open Invoices</span>
+                <strong class="outstanding-summary-value">{{ $total_open_invoices ?? 0 }}</strong>
+            </li>
+        </ul>
+    </div>
 
     <div class="section-header">
         <h3 class="section-title">Customer-wise Outstanding Summary ({{ count($transactions ?? []) }} Customers)</h3>
@@ -579,4 +599,3 @@
 
 </body>
 </html>
-

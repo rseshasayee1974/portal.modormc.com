@@ -12,7 +12,7 @@ Choose a date range, customer/supplier, GST type, active/all/cancelled documents
 
 Tax columns come from the complete filtered period, and footer totals cover all pages. Amounts use stored item values; document-level shipping, discounts, adjustments and rounding are excluded. This is stated on the screen and in exports. Purchase dates use billed date, then order date, then creation date. Sales tax splits use stored invoice-item tax lines. Purchases use the item's explicit tax group, otherwise the existing GSTIN-state comparison convention. An odd paisa is retained in the second component so the split equals the stored tax amount.
 
-Excel and PDF exports include every matching record and preserve the selected view and filters. Both show the same rate-wise GST columns. PDF puts long audit fields below each detailed row. When more than six tax-rate columns are present, PDF prints the complete rate breakdown in continuation tables with matching row numbers and document references. Scheduled exports, shared PDFs and legacy export entry points use the same column definitions.
+Excel and PDF exports include every matching record and preserve the selected view and filters. Both show the same rate-wise GST columns. All register PDFs use A4 landscape, including scheduled exports, shared downloads and legacy export entry points. PDF puts long audit fields below each detailed row. When more than six tax-rate columns are present, PDF prints the complete rate breakdown in continuation tables with matching row numbers and document references. Scheduled exports, shared PDFs and legacy export entry points use the same column definitions.
 
 ## Deployment
 

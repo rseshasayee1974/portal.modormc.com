@@ -4,17 +4,18 @@
     <meta charset="utf-8">
     <title>{{ $title }}</title>
     <style>
-        @page { margin: 24px 20px; }
-        body { font-family: DejaVu Sans, sans-serif; font-size: 8px; color: #1d2d3e; }
+        @page { size: A4 landscape; margin: 7mm 6mm; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 8px; color: #1d2d3e; margin: 0; }
         h1 { font-size: 17px; margin: 0 0 6px; }
         .period { margin-bottom: 6px; }
         .note { color: #526171; margin-bottom: 12px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         thead { display: table-header-group; }
         th { background: #dce6f1; text-align: left; font-size: 7px; }
-        th, td { border: 1px solid #b7c5d3; padding: 5px 3px; overflow-wrap: break-word; word-wrap: break-word; }
+        th, td { border: 1px solid #b7c5d3; padding: 4px 2px; overflow-wrap: break-word; word-wrap: break-word; }
         tr { page-break-inside: avoid; }
         .number { text-align: right; }
+        td.number { white-space: nowrap; }
         .total { font-weight: bold; background: #e2e8f0; }
         .metadata { font-size: 7px; color: #526171; background: #f8fafc; }
         .empty { text-align: center; padding: 20px; }
@@ -33,15 +34,27 @@
             $columns = array_values(array_filter($columns, fn ($column) => !str_starts_with($column['key'], 'taxes.')));
         }
         $value = fn ($row, $key) => \App\Services\Reports\RegisterReportColumns::value($row, $key);
+        // Percentage widths keep fixed-layout tables inside A4 while reserving
+        // room for amounts and names instead of giving every column equal space.
+        $columnWeight = fn ($column) => match ($column['key']) {
+            'customer_name', 'supplier_name' => 12,
+            'product_name', 'gst_number' => 10,
+            'invoice_no', 'bill_no', 'po_number' => 9,
+            'invoice_date', 'bill_date', 'rate', 'purchase_rate' => 7,
+            'unit' => 3,
+            'qty', 'tcs', 'hsn_code', 'tax_name', 'payment_mode', 'document_status', 'payment_status', 'document_type' => 6,
+            default => $column['format'] === 'number' ? 10 : 7,
+        };
+        $columnWeightTotal = 2 + array_sum(array_map($columnWeight, $columns));
     @endphp
     <h1>{{ $title }} - {{ ucfirst($report['register_view']) }}</h1>
     <div class="period">Period: {{ $filters['from_date'] }} to {{ $filters['to_date'] }} &nbsp; | &nbsp; Generated: {{ $generated_at }} &nbsp; | &nbsp; Amounts in INR</div>
     <div class="note">{{ $report['note'] }}</div>
     <table>
         <thead><tr>
-            <th style="width: 22px;">#</th>
+            <th style="width: {{ 200 / $columnWeightTotal }}%;">#</th>
             @foreach($columns as $column)
-                <th class="{{ $column['format'] === 'number' ? 'number' : '' }}" @if(in_array($column['key'], ['customer_name', 'supplier_name', 'product_name', 'invoice_no', 'bill_no'])) style="width: 85px;" @endif>{{ $column['label'] }}</th>
+                <th class="{{ $column['format'] === 'number' ? 'number' : '' }}" style="width: {{ 100 * $columnWeight($column) / $columnWeightTotal }}%;">{{ $column['label'] }}</th>
             @endforeach
         </tr></thead>
         <tbody>
@@ -78,6 +91,7 @@
                 'invoice_date', 'bill_date', 'invoice_no', 'bill_no', 'customer_name', 'supplier_name', 'product_name',
             ])));
             $splitColumns = array_merge($identityColumns, $section);
+            $splitWeightTotal = 2 + array_sum(array_map($columnWeight, $splitColumns));
         @endphp
         <div class="rate-section">
             <h1>{{ $title }} - GST splits by rate ({{ $sectionIndex + 1 }}/{{ count($rateSections) }})</h1>
@@ -85,9 +99,9 @@
             <div class="note">Row numbers match the {{ $report['register_view'] }} register. Each column shows the tax amount at the named rate.</div>
             <table>
                 <thead><tr>
-                    <th style="width: 22px;">#</th>
+                    <th style="width: {{ 200 / $splitWeightTotal }}%;">#</th>
                     @foreach($splitColumns as $column)
-                        <th class="{{ $column['format'] === 'number' ? 'number' : '' }}">{{ $column['label'] }}</th>
+                        <th class="{{ $column['format'] === 'number' ? 'number' : '' }}" style="width: {{ 100 * $columnWeight($column) / $splitWeightTotal }}%;">{{ $column['label'] }}</th>
                     @endforeach
                 </tr></thead>
                 <tbody>
