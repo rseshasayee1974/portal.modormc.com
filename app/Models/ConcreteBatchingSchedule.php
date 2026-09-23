@@ -216,6 +216,7 @@ class ConcreteBatchingSchedule extends Model
     public static function recalculatePourBalances(string $pourReference, ?int $plantId = null): void
     {
         $query = static::withoutGlobalScopes()
+            ->whereNull('deleted_at')
             ->where('pour_reference', $pourReference)
             ->orderBy('schedule_date', 'asc')
             ->orderBy('batching_time', 'asc')

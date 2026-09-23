@@ -24,7 +24,6 @@ import {
     PaperAirplaneIcon,
     PencilSquareIcon,
     TrashIcon,
-    ListBulletIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -34,8 +33,8 @@ const props = defineProps({
     initialFilters: Object,
 });
 
-// View management: 'list' | 'create' | 'edit'
-const activeView = ref('list');
+// The create/edit form remains above the schedule table at all times.
+const activeView = ref('create');
 const selectedSchedule = ref(null);
 
 const scheduleDate = ref(props.initialDate || entityToday());
@@ -58,6 +57,7 @@ const dropdowns = ref({
     sites: [],
     mixDesigns: [],
     vehicles: [],
+    pumps: [],
     drivers: [],
     salesOrders: [],
     pumpTypes: []
@@ -161,13 +161,13 @@ const openEditForm = (item) => {
 };
 
 const handleFormSaved = () => {
-    activeView.value = 'list';
+    activeView.value = 'create';
     selectedSchedule.value = null;
     fetchData();
 };
 
 const handleFormCancel = () => {
-    activeView.value = 'list';
+    activeView.value = 'create';
     selectedSchedule.value = null;
 };
 
@@ -234,6 +234,25 @@ const formatTime = (ts) => {
     }
 };
 
+const formatDateTime = (ts) => {
+    if (!ts) return '-';
+    try {
+        const normalized = ts.replace('t', 'T');
+        const d = new Date(normalized);
+        if (isNaN(d.getTime())) return ts;
+        return entityLocaleTime(normalized, [], {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+    } catch (e) {
+        return ts;
+    }
+};
+
 const getStatusBadge = (status) => {
     switch (status) {
         case 'scheduled':
@@ -268,266 +287,240 @@ const getRowClass = (data) => {
             <ModuleSubTopNav />
 
             <div class="w-full mt-3 space-y-3">
-                
+
                 <!-- Main Header Card in Indigo Theme -->
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <!-- <div
+                    class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                        <div
+                            class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                             <TruckIcon class="w-5 h-5 text-white" />
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
-                                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 dark:text-indigo-400">
+                                <span
+                                    class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 dark:text-indigo-400">
                                     Logistics & Batching Operations
                                 </span>
-                                <span class="text-[9px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded font-mono font-semibold border border-indigo-100 dark:border-indigo-900">
+                                <span
+                                    class="text-[9px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded font-mono font-semibold border border-indigo-100 dark:border-indigo-900">
                                     Plant Active
                                 </span>
                             </div>
-                            <h1 class="text-sm sm:text-base font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+                            <h1
+                                class="text-sm sm:text-base font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
                                 Concrete Batching Schedules & Dispatches
                             </h1>
                         </div>
                     </div>
 
-                    <!-- Header Actions -->
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <Link 
-                            :href="route('production.pump-deployments.index')" 
-                            class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
-                        >
-                            <WrenchScrewdriverIcon class="w-3.5 h-3.5 text-indigo-600" />
-                            <span>Pump Schedules</span>
-                        </Link>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <Link :href="route('production.pump-deployments.index')"
+                        class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs">
+                        <WrenchScrewdriverIcon class="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Pump Schedules</span>
+                    </Link>
 
-                        <button 
-                            @click="fetchData" 
-                            :disabled="loading"
-                            class="p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center transition-colors shadow-xs"
-                            title="Refresh Live Data"
-                        >
-                            <ArrowPathIcon class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
-                        </button>
+                    <button @click="fetchData" :disabled="loading"
+                        class="p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center transition-colors shadow-xs"
+                        title="Refresh Live Data">
+                        <ArrowPathIcon class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
+                    </button>
 
-                        <button 
-                            v-if="activeView === 'list'"
-                            @click="openCreateForm"
-                            class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                        >
-                            <PlusIcon class="w-3.5 h-3.5 stroke-[2.5]" />
-                            <span>Schedule Trip</span>
-                        </button>
+                    <button @click="openCreateForm"
+                        class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors">
+                        <PlusIcon class="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>New Schedule</span>
+                    </button>
+                </div>
+            </div> -->
 
-                        <button 
-                            v-else
-                            @click="activeView = 'list'"
-                            class="px-3.5 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                        >
-                            <ListBulletIcon class="w-3.5 h-3.5" />
-                            <span>View All Schedules</span>
-                        </button>
-                    </div>
+                <!-- Create/edit form stays above the schedule table. -->
+                <div>
+                    <BatchingScheduleForm :isEditing="activeView === 'edit'" :initialData="selectedSchedule"
+                        :dropdowns="dropdowns" :defaultScheduleDate="scheduleDate" @saved="handleFormSaved"
+                        @cancel="handleFormCancel" />
                 </div>
 
-                <!-- VIEW 1: DEDICATED FORM COMPONENT (NO MODAL) -->
-                <div v-if="activeView !== 'list'">
-                    <BatchingScheduleForm
-                        :isEditing="activeView === 'edit'"
-                        :initialData="selectedSchedule"
-                        :dropdowns="dropdowns"
-                        :defaultScheduleDate="scheduleDate"
-                        @saved="handleFormSaved"
-                        @cancel="handleFormCancel"
-                    />
-                </div>
+                <!-- Schedule dashboard and editable data table -->
+                <div class="space-y-3">
 
-                <!-- VIEW 2: LIST DASHBOARD -->
-                <div v-else class="space-y-3">
-                    
                     <!-- 1. KPI Metric Summary Bar -->
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider block">Total Scheduled</span>
+                    <!-- <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider block">Total
+                                Scheduled</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-gray-900 dark:text-gray-100">{{ metrics.total_scheduled_m3 }}</span>
+                                <span class="text-lg font-black text-gray-900 dark:text-gray-100">{{
+                                    metrics.total_scheduled_m3 }}</span>
                                 <span class="text-[10px] font-semibold text-gray-400">m³</span>
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider block">Delivered Volume</span>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider block">Delivered
+                                Volume</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">{{ metrics.total_delivered_m3 }}</span>
+                                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">{{
+                                    metrics.total_delivered_m3 }}</span>
                                 <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">m³</span>
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-sky-600 dark:text-sky-400 tracking-wider block">In Transit</span>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-sky-600 dark:text-sky-400 tracking-wider block">In
+                                Transit</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-sky-600 dark:text-sky-400">{{ metrics.active_in_transit_tms }}</span>
+                                <span class="text-lg font-black text-sky-600 dark:text-sky-400">{{
+                                    metrics.active_in_transit_tms }}</span>
                                 <span class="text-[10px] font-semibold text-sky-600 dark:text-sky-400">Trucks</span>
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
-                            <span class="text-[9px] font-bold uppercase text-teal-600 dark:text-teal-400 tracking-wider block">Actively Pouring</span>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span
+                                class="text-[9px] font-bold uppercase text-teal-600 dark:text-teal-400 tracking-wider block">Actively
+                                Pouring</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black text-teal-600 dark:text-teal-400">{{ metrics.active_pouring_tms }}</span>
+                                <span class="text-lg font-black text-teal-600 dark:text-teal-400">{{
+                                    metrics.active_pouring_tms }}</span>
                                 <span class="text-[10px] font-semibold text-teal-600 dark:text-teal-400">Trucks</span>
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs col-span-2 sm:col-span-1">
-                            <span class="text-[9px] font-bold uppercase text-amber-600 dark:text-amber-400 tracking-wider block">Hydration Alert</span>
+                        <div
+                            class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs col-span-2 sm:col-span-1">
+                            <span
+                                class="text-[9px] font-bold uppercase text-amber-600 dark:text-amber-400 tracking-wider block">Hydration
+                                Alert</span>
                             <div class="mt-0.5 flex items-baseline justify-between">
-                                <span class="text-lg font-black" :class="metrics.hydration_warning_count > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-gray-100'">
+                                <span class="text-lg font-black"
+                                    :class="metrics.hydration_warning_count > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-gray-100'">
                                     {{ metrics.hydration_warning_count }}
                                 </span>
-                                <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400">>90 Mins</span>
+                                <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400">>90
+                                    Mins</span>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
 
                     <!-- 2. Granular Batching Trips Schedule Table -->
-                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs overflow-hidden text-xs">
-                        
+                    <div
+                        class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs overflow-hidden text-xs">
+
                         <!-- Operational Filter Bar -->
-                        <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 space-y-2.5">
+                        <div
+                            class="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 space-y-2.5">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-1.5">
                                     <FunnelIcon class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                                        Operational Filters
+                                    <span
+                                        class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+                                        List of Batching Schedules
                                     </span>
                                 </div>
-                                <button 
-                                    @click="resetFilters" 
-                                    class="text-[10px] font-bold text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors flex items-center gap-1"
-                                >
+                                <button @click="resetFilters"
+                                    class="text-[10px] font-bold text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors flex items-center gap-1">
                                     <ArrowPathIcon class="w-3 h-3" />
                                     <span>Reset Filters</span>
                                 </button>
                             </div>
 
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <div class="grid grid-cols-3 gap-2">
                                 <!-- Date Filter -->
-                                <div>
-                                    <BaseInput 
-                                        type="date" 
-                                        v-model="scheduleDate" 
-                                        label="Date"
-                                        @update:modelValue="fetchData"
-                                    />
-                                </div>
-                                    
+                                <!-- <div>
+                                    <BaseInput type="date" v-model="scheduleDate" label="Date"
+                                        @update:modelValue="fetchData" />
+                                </div> -->
+
                                 <!-- Site Filter -->
                                 <div>
-                                    <BaseSelect 
-                                        v-model="siteFilter" 
-                                        :options="siteFilterOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        label="Site"
-                                        @change="fetchData"
-                                    />
+                                    <BaseSelect v-model="siteFilter" :options="siteFilterOptions" optionLabel="label"
+                                        optionValue="value" label="Site" @change="fetchData" />
                                 </div>
 
                                 <!-- Status Filter -->
                                 <div>
-                                    <BaseSelect 
-                                        v-model="statusFilter" 
-                                        :options="statusFilterOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        label="Status"
-                                        @change="fetchData"
-                                    />
+                                    <BaseSelect v-model="statusFilter" :options="statusFilterOptions"
+                                        optionLabel="label" optionValue="value" label="Status" @change="fetchData" />
                                 </div>
 
                                 <!-- Text search -->
                                 <div>
-                                    <BaseInput 
-                                        type="text" 
-                                        v-model="pourSearch" 
-                                        label="Search"
-                                        placeholder="Pour Ref, Mix..." 
-                                        @update:modelValue="onPourSearchInput"
-                                    />
+                                    <BaseInput type="text" v-model="pourSearch" label="Search"
+                                        placeholder="Pour Ref, Mix..." @update:modelValue="onPourSearchInput" />
                                 </div>
                             </div>
 
                             <!-- Quick Status Filter Pills in Indigo Theme -->
-                            <div class="flex items-center gap-1.5 pt-0.5 overflow-x-auto whitespace-nowrap">
-                                <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mr-1">Status:</span>
-                                <button 
-                                    v-for="st in [
-                                        { id: 'all', label: 'All' },
-                                        { id: 'scheduled', label: 'Scheduled' },
-                                        { id: 'batching', label: 'Batching' },
-                                        { id: 'in_transit', label: 'In Transit' },
-                                        { id: 'on_site', label: 'On Site' },
-                                        { id: 'pouring', label: 'Pouring' },
-                                        { id: 'completed', label: 'Completed' },
-                                        { id: 'cancelled', label: 'Cancelled' }
-                                    ]"
-                                    :key="st.id"
-                                    @click="statusFilter = st.id; fetchData()"
+                            <!-- <div class="flex items-center gap-1.5 pt-0.5 overflow-x-auto whitespace-nowrap">
+                                <span
+                                    class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mr-1">Status:</span>
+                                <button v-for="st in [
+                                    { id: 'all', label: 'All' },
+                                    { id: 'scheduled', label: 'Scheduled' },
+                                    { id: 'batching', label: 'Batching' },
+                                    { id: 'in_transit', label: 'In Transit' },
+                                    { id: 'on_site', label: 'On Site' },
+                                    { id: 'pouring', label: 'Pouring' },
+                                    { id: 'completed', label: 'Completed' },
+                                    { id: 'cancelled', label: 'Cancelled' }
+                                ]" :key="st.id" @click="statusFilter = st.id; fetchData()"
                                     class="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all border"
-                                    :class="statusFilter === st.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600'"
-                                >
+                                    :class="statusFilter === st.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600'">
                                     {{ st.label }}
                                 </button>
-                            </div>
+                            </div> -->
                         </div>
 
                         <!-- Data Table using BaseDataTable -->
                         <div class="w-full">
-                            <BaseDataTable
-                                :value="filteredSchedules"
-                                :loading="loading"
-                                dataKey="id"
-                                :paginator="true"
-                                :rows="20"
-                                :rowsPerPageOptions="[10, 20, 50, 100]"
-                                :showSerial="true"
-                                :rowClass="getRowClass"
-                                class="text-xs"
-                            >
-                                <Column field="pour_reference" header="Trip / Pour Ref" :sortable="true">
+                            <BaseDataTable :value="filteredSchedules" :loading="loading" dataKey="id" :paginator="true"
+                                :rows="20" :rowsPerPageOptions="[10, 20, 50, 100]" :showSerial="true"
+                                :rowClass="getRowClass" class="text-xs">
+                                <Column field="pour_reference" header="Pour Ref" :sortable="true">
                                     <template #body="{ data }">
-                                        <div class="font-semibold text-gray-900 dark:text-gray-100 text-xs">
+                                        <div class="font-bold uppercase text-indigo-600 text-xs">
                                             {{ data.pour_reference }}
                                         </div>
-                                        <div v-if="data.dispatch?.dispatch_no || data.dispatch_no" class="mt-0.5">
-                                            <span class="inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900 font-mono">
-                                                Dispatch: #{{ data.dispatch?.dispatch_no || data.dispatch_no }}
-                                            </span>
-                                        </div>
+
                                     </template>
                                 </Column>
 
                                 <Column field="site.name" header="Destination Site" :sortable="true">
                                     <template #body="{ data }">
-                                        <div class="font-semibold text-gray-800 dark:text-gray-200 text-xs flex items-center gap-1">
+                                        <div
+                                            class="font-semibold text-gray-800 dark:text-gray-200 text-xs flex items-center gap-1">
                                             <MapPinIcon class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                            <span class="truncate max-w-[150px]">{{ data.site?.name || 'Unassigned Site' }}</span>
+                                            <span class="truncate max-w-[150px]">{{ data.site?.name || 'Unassigned Site'
+                                                }}</span>
                                         </div>
                                     </template>
                                 </Column>
 
                                 <Column field="mix_design.name" header="Recipe & Grade" :sortable="true">
                                     <template #body="{ data }">
-                                        <span class="inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900">
+                                        <span
+                                            class="inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900">
                                             {{ data.mix_design?.name || 'Standard Mix' }}
                                         </span>
                                     </template>
                                 </Column>
 
-                                <Column field="qty_m3" header="Volume" :sortable="true" align="right" headerClass="text-right">
+                                <Column field="qty_m3" header="Volume" :sortable="true" align="right"
+                                    headerClass="text-right">
                                     <template #body="{ data }">
                                         <span class="font-bold text-gray-900 dark:text-gray-100 text-xs">
-                                            {{ Number(data.qty_m3 || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 3 }) }}
+                                            {{ Number(data.qty_m3 || 0).toLocaleString(undefined, {
+                                                minimumFractionDigits: 0, maximumFractionDigits: 3
+                                            }) }}
                                         </span>
                                         <span class="text-[9px] font-normal text-gray-500"> m³</span>
                                     </template>
@@ -537,7 +530,8 @@ const getRowClass = (data) => {
                                     <template #body="{ data }">
                                         <div class="flex items-center gap-1">
                                             <TruckIcon class="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                            <span class="font-semibold text-gray-800 dark:text-gray-200 text-xs whitespace-nowrap">
+                                            <span
+                                                class="font-semibold text-gray-800 dark:text-gray-200 text-xs whitespace-nowrap">
                                                 {{ data.vehicle?.registration || 'Fleet TBD' }}
                                             </span>
                                         </div>
@@ -549,25 +543,25 @@ const getRowClass = (data) => {
 
                                 <Column field="batching_time" header="Batch & ETA" :sortable="true">
                                     <template #body="{ data }">
-                                        <div class="flex items-center gap-1 text-[11px] text-gray-700 dark:text-gray-300 font-medium">
+                                        <div
+                                            class="flex items-center gap-1 text-[11px] text-gray-700 dark:text-gray-300 font-medium">
                                             <ClockIcon class="w-3 h-3 text-gray-400 shrink-0" />
-                                            <span>Batch: {{ formatTime(data.batching_time) }}</span>
+                                            <span>Batch: {{ formatDateTime(data.batching_time) }}</span>
                                         </div>
-                                        <div v-if="data.eta_site" class="text-[10px] text-gray-500 dark:text-gray-400 pl-4">
-                                            ETA: {{ formatTime(data.eta_site) }}
+                                        <div v-if="data.eta_site"
+                                            class="text-[10px] text-gray-500 dark:text-gray-400 pl-4">
+                                            ETA: {{ formatDateTime(data.eta_site) }}
                                         </div>
                                     </template>
                                 </Column>
 
-                                <Column field="status" header="Status" :sortable="true" align="center" headerClass="text-center">
+                                <Column field="status" header="Status" :sortable="true" align="center"
+                                    headerClass="text-center">
                                     <template #body="{ data }">
                                         <div class="flex items-center justify-center">
-                                            <Tag 
-                                                :value="getStatusBadge(data.status).label" 
-                                                :severity="getStatusBadge(data.status).severity" 
-                                                rounded 
-                                                class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5"
-                                            />
+                                            <Tag :value="getStatusBadge(data.status).label"
+                                                :severity="getStatusBadge(data.status).severity" rounded
+                                                class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5" />
                                         </div>
                                     </template>
                                 </Column>
@@ -576,30 +570,25 @@ const getRowClass = (data) => {
                                     <template #body="{ data }">
                                         <div class="flex items-center justify-end gap-1.5 whitespace-nowrap">
                                             <!-- Dispatch Ticket Generator -->
-                                            <button 
+                                            <button
                                                 v-if="!data.dispatch_id && ['in_transit', 'on_site', 'pouring', 'completed'].includes(data.status)"
                                                 @click="createDispatch(data)"
                                                 class="p-1 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded transition-colors"
-                                                title="Generate Dispatch Ticket"
-                                            >
+                                                title="Generate Dispatch Ticket">
                                                 <PaperAirplaneIcon class="w-3.5 h-3.5" />
                                             </button>
 
                                             <!-- Edit -->
-                                            <button 
-                                                @click="openEditForm(data)"
+                                            <button @click="openEditForm(data)"
                                                 class="p-1 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                                                title="Edit Schedule"
-                                            >
+                                                title="Edit Schedule">
                                                 <PencilSquareIcon class="w-3.5 h-3.5" />
                                             </button>
 
                                             <!-- Delete -->
-                                            <button 
-                                                @click="deleteSchedule(data)"
+                                            <button @click="deleteSchedule(data)"
                                                 class="p-1 text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded transition-colors"
-                                                title="Delete Schedule"
-                                            >
+                                                title="Delete Schedule">
                                                 <TrashIcon class="w-3.5 h-3.5" />
                                             </button>
                                         </div>
@@ -609,7 +598,8 @@ const getRowClass = (data) => {
                                 <template #empty>
                                     <div class="py-10 flex flex-col items-center justify-center text-gray-400">
                                         <TruckIcon class="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
-                                        <span class="font-medium text-xs">No batching schedules matching the selected filters. Click "Schedule Trip" to add one.</span>
+                                        <span class="font-medium text-xs">No batching schedules matching the selected
+                                            filters. Click "Schedule Trip" to add one.</span>
                                     </div>
                                 </template>
                             </BaseDataTable>

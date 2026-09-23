@@ -12,10 +12,12 @@ class IndividualOpeningBalanceService
         return DB::transaction(function () use ($input, $plantId, $userId) {
             $plant = Plant::whereKey($plantId)->lockForUpdate()->firstOrFail();
             abort_if($this->legacy($plantId)->exists(), 409, 'Convert the previous bulk setup before saving individual balances.');
+            $input['balance_type'] = strtolower((string) ($input['balance_type'] ?? ''));
             Validator::make($input, [
                 'record_id'=>'nullable|integer', 'version'=>'required|integer|min:0',
                 'balance_type'=>'required|in:patron,ledger',
-                'account_id'=>'exclude_if:balance_type,patron|required|integer', 'patron_id'=>'nullable|required_if:balance_type,patron|prohibited_if:balance_type,ledger|integer',
+                'account_id'=>'exclude_if:balance_type,patron|required|integer', 
+                'patron_id'=>'nullable|required_if:balance_type,patron|prohibited_if:balance_type,ledger|integer',
                 'side'=>'required|in:Dr,Cr',
                 'clearing_account_id'=>'required|integer', 'reason'=>'required|string|min:5|max:1000',
             ])->validate();

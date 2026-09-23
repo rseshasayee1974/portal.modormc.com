@@ -10,12 +10,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import {
     WrenchScrewdriverIcon,
-    MapPinIcon,
-    ClockIcon,
-    ArrowLeftIcon,
     ExclamationTriangleIcon,
-    InformationCircleIcon,
-    PlusIcon,
     ArrowPathIcon
 } from '@heroicons/vue/24/outline';
 
@@ -45,8 +40,6 @@ const props = defineProps({
         default: () => entityToday(),
     },
 });
-
-console.log('sdfsdfsd', props.dropdowns);
 
 const emit = defineEmits(['saved', 'cancel']);
 
@@ -431,178 +424,66 @@ const submitForm = async () => {
 </script>
 
 <template>
-    <div
-        class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
-        <!-- Compact Header -->
-        <div
-            class="px-4 py-2.5 bg-gray-50/70 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center">
-                    <WrenchScrewdriverIcon v-if="isEditing" class="w-3.5 h-3.5 text-white" />
-                    <PlusIcon v-else class="w-3.5 h-3.5 stroke-[2.5]" />
+    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
+                    <WrenchScrewdriverIcon class="h-5 w-5" />
                 </div>
-                <h2 class="text-xs font-bold text-gray-900 dark:text-gray-100">
-                    {{ isEditing ? `Edit Deployment #${initialData?.id}` : 'New Pump & Boom Deployment' }}
+                <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {{ isEditing ? `Edit Pump Deployment #${initialData?.id}` : 'New Pump Deployment' }}
                 </h2>
             </div>
-
-            <button v-if="isEditing" type="button" @click="emit('cancel')"
-                class="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md text-[11px] font-medium flex items-center gap-1 transition-colors">
-                <ArrowLeftIcon class="w-3 h-3" />
-                <span>Cancel Edit</span>
+            <button v-if="isEditing" type="button" @click="emit('cancel')" class="text-xs font-semibold text-slate-500 transition-colors hover:text-rose-600 dark:text-slate-400">
+                Cancel edit
             </button>
-            <button v-else type="button" @click="initForm"
-                class="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md text-[11px] font-medium flex items-center gap-1 transition-colors"
-                title="Reset fields">
-                <ArrowPathIcon class="w-3 h-3 text-gray-500" />
-                <span>Clear</span>
+            <button v-else type="button" @click="initForm" class="flex items-center gap-1 text-xs font-semibold text-slate-500 transition-colors hover:text-indigo-600 dark:text-slate-400">
+                <ArrowPathIcon class="h-3.5 w-3.5" /> Reset
             </button>
         </div>
 
-        <form @submit.prevent="submitForm" class="p-3 space-y-3">
+        <form @submit.prevent="submitForm" class="space-y-6 p-5">
 
             <div v-if="form.actual_start_time && form.actual_end_time && new Date(form.actual_start_time) > new Date(form.actual_end_time)"
-                class="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-1.5">
-                <ExclamationTriangleIcon class="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                class="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
+                <ExclamationTriangleIcon class="h-4 w-4 shrink-0" />
                 <span>Actual Start Time cannot be later than Actual End Time.</span>
             </div>
 
-            <!-- SECTION 1: Job & Location Details -->
-            <div
-                class="p-3.5 bg-slate-50/80 dark:bg-gray-900/60 border border-slate-200 dark:border-gray-700 rounded-xl space-y-2.5">
-                <div class="flex items-center justify-between">
-                    <div
-                        class="flex items-center gap-2 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">
-                        <span
-                            class="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">1</span>
-                        <span>Job & Location Details</span>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                    <div>
-                        <BaseDatePicker v-model="form.schedule_date" label="Schedule Date" required />
-                    </div>
-
-                    <div>
-                        <BaseSelect v-model="form.sales_order_id" :options="salesOrderOptions" optionLabel="label"
-                            optionValue="value" label="Sales Order" placeholder="Select Sales Order" :filter="true"
-                            required @change="onSalesOrderSelect" />
-                    </div>
-
-                    <div>
-                        <BaseSelect v-model="form.batch_id" :options="batchOptions" optionLabel="label"
-                            optionValue="value" label="Batch (Optional)" placeholder="Select Batch" :filter="true"
-                            @change="onBatchSelect" />
-                    </div>
-
-                    <div>
-                        <BaseSelect v-model="form.site_id" :options="siteOptions" optionLabel="label"
-                            optionValue="value" label="Destination Site" placeholder="Select Site" required
-                            @change="onSiteSelect" />
-                    </div>
-
-                    <div>
-                        <BaseInput v-model="form.pour_location" type="text" label="Pour Location"
-                            placeholder="e.g. Slab, Raft" />
-                    </div>
-
-                    <div>
-                        <BaseInput v-model="form.site_contact_number" type="text" label="Site Contact No"
-                            placeholder="Contact No" />
-                    </div>
-
-                    <div>
-                        <BaseInput v-model="form.billing_name" type="text" label="Billing Name"
-                            placeholder="Billing Name" />
-                    </div>
-                </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <BaseDatePicker v-model="form.schedule_date" label="Schedule Date" required />
+                <BaseSelect v-model="form.sales_order_id" :options="salesOrderOptions" optionLabel="label" optionValue="value" label="Sales Order" placeholder="Select Sales Order" :filter="true" required @change="onSalesOrderSelect" />
+                <BaseSelect v-model="form.batch_id" :options="batchOptions" optionLabel="label" optionValue="value" label="Batch" placeholder="Optional" :filter="true" @change="onBatchSelect" />
+                <BaseSelect v-model="form.site_id" :options="siteOptions" optionLabel="label" optionValue="value" label="Destination Site" placeholder="Select Site" required @change="onSiteSelect" />
+                <BaseInput v-model="form.pour_location" label="Pour Location" placeholder="e.g. Slab, Raft" />
+                <BaseInput v-model="form.site_contact_number" label="Site Contact" placeholder="Contact number" />
+                <BaseInput v-model="form.billing_name" label="Billing Name" placeholder="Billing name" />
             </div>
 
-            <!-- SECTION 2: Equipment & Operations -->
-            <div
-                class="p-3.5 bg-slate-50/80 dark:bg-gray-900/60 border border-slate-200 dark:border-gray-700 rounded-xl space-y-2.5">
-                <div class="flex items-center justify-between">
-                    <div
-                        class="flex items-center gap-2 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">
-                        <span
-                            class="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">2</span>
-                        <span>Equipment & Operations</span>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                    <div>
-                        <BaseSelect v-model="form.mix_design_id" :options="mixOptions" optionLabel="label"
-                            optionValue="value" label="Mix Grade" placeholder="Select Grade" @change="onMixSelect" />
-                    </div>
-
-                    <div>
-                        <BaseInputNumber v-model="form.planned_qty_m3" :min="0.5" :step="0.5" :minFractionDigits="1"
-                            :maxFractionDigits="2" label="Volume (m³)" placeholder="0" required />
-                    </div>
-
-                    <div>
-                        <BaseSelect v-model="form.pump_vehicle_id" :options="machineOptions" optionLabel="label"
-                            optionValue="value" label="Assigned Pump" placeholder="Select Pump" required
-                            @change="onPumpSelect" />
-                    </div>
-
-                    <div>
-                        <BaseSelect v-model="form.operator_id" :options="operatorOptions" optionLabel="label"
-                            optionValue="value" label="Operator" placeholder="Assign Operator"
-                            @change="onOperatorSelect" />
-                    </div>
-
-                    <div>
-                        <BaseInput v-model="form.driver_contact_number" type="text" label="Driver Contact No"
-                            placeholder="Mobile No" />
-                    </div>
-
-                    <div>
-                        <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label"
-                            optionValue="value" label="Status" />
-                    </div>
-                </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <BaseSelect v-model="form.mix_design_id" :options="mixOptions" optionLabel="label" optionValue="value" label="Mix Grade" placeholder="Select Grade" @change="onMixSelect" />
+                <BaseInputNumber v-model="form.planned_qty_m3" :min="0.5" :step="0.5" :minFractionDigits="1" :maxFractionDigits="2" label="Volume (m³)" required />
+                <BaseSelect v-model="form.pump_vehicle_id" :options="machineOptions" optionLabel="label" optionValue="value" label="Assigned Pump" placeholder="Select Pump" required @change="onPumpSelect" />
+                <BaseSelect v-model="form.operator_id" :options="operatorOptions" optionLabel="label" optionValue="value" label="Operator" placeholder="Assign Operator" @change="onOperatorSelect" />
+                <BaseInput v-model="form.driver_contact_number" label="Operator Contact" placeholder="Mobile number" />
+                <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value" label="Status" />
             </div>
 
-            <!-- SECTION 3: Timelines -->
-            <div
-                class="p-3.5 bg-slate-50/80 dark:bg-gray-900/60 border border-slate-200 dark:border-gray-700 rounded-xl space-y-2.5">
-                <div class="flex items-center justify-between">
-                    <div
-                        class="flex items-center gap-2 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">
-                        <span
-                            class="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">3</span>
-                        <span>Timelines</span>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div>
-                        <BaseDatePicker v-model="form.actual_start_time" :showTime="true" hourFormat="12"
-                            label="Act. Pour Start" placeholder="Select Time" @update:modelValue="onActualStartInput" />
-                    </div>
-                    <div>
-                        <BaseDatePicker v-model="form.actual_end_time" :showTime="true" hourFormat="12"
-                            label="Act. Pour Finish" placeholder="Select Time" @update:modelValue="onActualEndInput" />
-                    </div>
-                </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <BaseDatePicker v-model="form.pump_arrival_time" :showTime="true" hourFormat="12" label="Site Arrival" />
+                <BaseDatePicker v-model="form.setup_start_time" :showTime="true" hourFormat="12" label="Setup Start" />
+                <BaseDatePicker v-model="form.setup_end_time" :showTime="true" hourFormat="12" label="Setup Ready" />
+                <BaseDatePicker v-model="form.pour_start_time" :showTime="true" hourFormat="12" label="Pour Start" />
+                <BaseDatePicker v-model="form.planned_end_time" :showTime="true" hourFormat="12" label="Planned Finish" />
+                <BaseDatePicker v-model="form.actual_start_time" :showTime="true" hourFormat="12" label="Actual Start" @update:modelValue="onActualStartInput" />
+                <BaseDatePicker v-model="form.actual_end_time" :showTime="true" hourFormat="12" label="Actual Finish" @update:modelValue="onActualEndInput" />
             </div>
 
-            <!-- Notes & Bottom Actions -->
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                <div class="w-full sm:grow">
-                    <BaseInput label="Remarks / Notes" v-model="form.notes" type="text"
-                        placeholder="Add rigging, site access, or pour notes..." />
-                </div>
-
-                <div class="flex items-center justify-end gap-2 shrink-0 sm:self-end">
-                    <BaseButton v-if="isEditing" label="Cancel Edit" severity="secondary" variant="outlined"
-                        @click="emit('cancel')" />
-                    <BaseButton :label="isEditing ? 'Save Changes' : 'Create Deployment'" severity="primary"
-                        variant="filled" type="submit" :loading="saving"
-                        class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !border-transparent font-semibold text-xs shadow-xs" />
+            <div class="flex flex-col gap-4 border-t border-slate-100 pt-5 dark:border-slate-800 sm:flex-row sm:items-end">
+                <BaseInput v-model="form.notes" label="Notes" placeholder="Rigging, site access, or pour notes" class="min-w-0 flex-1" />
+                <div class="flex shrink-0 justify-end gap-2">
+                    <BaseButton v-if="isEditing" label="Cancel" severity="secondary" variant="outlined" @click="emit('cancel')" />
+                    <BaseButton :label="isEditing ? 'Save Changes' : 'Create Deployment'" severity="primary" variant="filled" type="submit" :loading="saving" class="!border-transparent !bg-indigo-600 !text-white hover:!bg-indigo-700" />
                 </div>
             </div>
         </form>

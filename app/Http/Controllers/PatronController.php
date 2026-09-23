@@ -258,7 +258,7 @@ class PatronController extends Controller
             'patrons.*.operational_status' => 'required|string',
             'patrons.*.pan_no' => 'nullable|string',
             'patrons.*.gstin' => 'nullable|string',
-            'patrons.*.aadhar_number' => 'nullable|string',
+            'patrons.*.aadhar_number' => 'nullable|numeric',
             'patrons.*.status' => 'required|boolean',
             'patrons.*.displayed' => 'required|boolean',
         ]);

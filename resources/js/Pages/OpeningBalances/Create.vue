@@ -71,14 +71,18 @@ async function save() {
 </script>
 
 <template>
-    <section aria-label="Create opening balance" class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 dark:border-slate-700">
+    <section aria-label="Create opening balance"
+        class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div
+            class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 dark:border-slate-700">
             <div>
                 <h2 class="text-sm font-bold">Set Opening Balance</h2>
-                <p class="mt-1 text-xs text-slate-500">Add a customer, vendor, or ledger balance. Existing balances open in the table below.</p>
+                <p class="mt-1 text-xs text-slate-500">Add a customer, vendor, or ledger balance. Existing balances open
+                    in the table below.</p>
             </div>
             <div class="flex gap-1 rounded-xl bg-slate-100 p-1 text-xs dark:bg-slate-900">
-                <button v-for="option in [{ value: 'patron', label: 'Customers & Vendors' }, { value: 'ledger', label: 'General Ledgers' }]"
+                <button
+                    v-for="option in [{ value: 'patron', label: 'Customers & Vendors' }, { value: 'ledger', label: 'General Ledgers' }]"
                     :key="option.value" type="button" :disabled="busy" @click="changeKind(option.value)"
                     class="rounded-lg px-3 py-2 font-semibold disabled:opacity-50"
                     :class="kind === option.value ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-800' : 'text-slate-500'">
@@ -88,14 +92,16 @@ async function save() {
         </div>
         <form class="space-y-5 p-6" @submit.prevent="save">
             <p v-if="error" role="alert" class="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{{ error }}</p>
-            <OpeningBalanceFormFields :form="form" :kind="kind" :ledgers="ledgers" :patrons="patrons" :busy="busy" @select-target="selectTarget" />
-            <div class="flex justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
+            <OpeningBalanceFormFields :form="form" :kind="kind" :ledgers="ledgers" :patrons="patrons" :busy="busy"
+                @select-target="selectTarget" />
+            <div class="flex justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
                 <!-- <button type="button" :disabled="busy" class="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold disabled:opacity-50" @click="reset"> -->
-                    <a v-if="can('OPENING_BALANCE.AUDIT_LOG')" :href="route('opening-balances.audit-export')" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold hover:bg-slate-50">
+                <!-- <a v-if="can('OPENING_BALANCE.AUDIT_LOG')" :href="route('opening-balances.audit-export')" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold hover:bg-slate-50">
                     <ArrowDownTrayIcon class="h-4 w-4" /> Export Audit Report
-                </a>
+                </a> -->
                 <!-- </button> -->
-                <button type="submit" :disabled="busy || Number(form.amount) <= 0 || !form.amount || (!form.patron_id && !form.account_id) || !form.clearing_account_id || form.reason.trim().length < 5"
+                <button type="submit"
+                    :disabled="busy || Number(form.amount) <= 0 || !form.amount || (!form.patron_id && !form.account_id) || !form.clearing_account_id || form.reason.trim().length < 5"
                     class="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
                     {{ busy ? 'Saving...' : 'Save & Post Opening Balance' }}
                 </button>

@@ -80,7 +80,7 @@ class ConcreteBatchingScheduleController extends Controller
     {
         return [
             'schedule_date'    => 'required|date',
-            'pour_reference'   => 'required|string|max:100',
+            'pour_reference'   => 'nullable|string|max:100',
             'site_id'          => 'required|exists:mm_sites,id',
             'mix_design_id'    => 'required|exists:mm_mix_designs,id',
             'qty_m3'           => 'required|numeric|min:0.1',
@@ -186,7 +186,8 @@ class ConcreteBatchingScheduleController extends Controller
         $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
         $prefix = "DP-{$fyString}-";
 
-        $maxNumber = Dispatch::where('plant_id', $plantId)
+        $maxNumber = Dispatch::withTrashed()
+            ->where('plant_id', $plantId)
             ->where('prefix', $prefix)
             ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
 
@@ -227,17 +228,16 @@ class ConcreteBatchingScheduleController extends Controller
         $this->authorizeModule('view');
 
         $plantId = $this->getActivePlantId();
-        $scheduleDate  = $request->input('schedule_date', now()->toDateString());
+        $scheduleDate  = $request->input('schedule_date', 'all');
         $status        = $request->input('status', 'all');
         $pourReference = $request->input('pour_reference');
         $siteId        = $request->input('site_id');
 
         $query = ConcreteBatchingSchedule::where('plant_id', $plantId)
+
             ->with($this->getScheduleRelations());
 
-        if ($scheduleDate) {
-            $query->whereDate('schedule_date', $scheduleDate);
-        }
+
 
         if ($status && $status !== 'all') {
             $query->where('status', $status);
@@ -251,9 +251,8 @@ class ConcreteBatchingScheduleController extends Controller
             $query->where('site_id', $siteId);
         }
 
-        $schedules = $query->orderBy('schedule_date', 'asc')
-            ->orderBy('batching_time', 'asc')
-            ->orderBy('id', 'asc')
+        $schedules = $query->orderBy('schedule_date', 'desc')
+            ->orderBy('id', 'desc')
             ->get();
 
         $metrics = [
@@ -282,18 +281,21 @@ class ConcreteBatchingScheduleController extends Controller
 
         $sites = Site::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'name', 'site_address_1']);
         $mixDesigns = MixDesign::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'design_name', 'design_code']);
-        $vehicles = Machine::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'registration', 'vehicle_model', 'vehicle_type', 'capacity']);
-        $drivers = Personnel::where('plant_id', $plantId)->whereNull('deleted_at')->whereRelation('designation', 'name', 'like', '%Driver%')->get(['id', 'first_name', 'last_name', 'employee_code', 'mobile']);
-
+        $vehicles = TransitMixerTruckDropdown();
+        $pumps = ConcretePumpOptions(); 
+        $drivers = DriversDropdown();
         $salesOrders = SalesOrder::where('plant_id', $plantId)
             ->whereNull('deleted_at')
+            ->whereIn('status', [SalesOrder::STATUS_IN_PROGRESS, SalesOrder::STATUS_CONFIRMED])
             ->with(['site:id,name', 'mixDesign:id,design_name,design_code', 'customer:id,legal_name'])
+            ->withSum(['dispatches as dispatched_qty' => function ($query) {
+                $query->whereNotIn('dispatch_status', ['Cancelled']);
+            }], 'delivered_qty')
+            ->orderBy('id', 'desc')
             ->get()
             ->map(function ($so) {
-                $dispatched = (float) Dispatch::where('sales_order_id', $so->id)
-                    ->whereNotIn('dispatch_status', ['Cancelled'])
-                    ->sum('delivered_qty');
                 $totalQty = (float) $so->total_qty;
+                $dispatched = (float) $so->dispatched_qty;
 
                 return [
                     'id'             => $so->id,
@@ -314,7 +316,7 @@ class ConcreteBatchingScheduleController extends Controller
             ->whereNull('deleted_at')
             ->whereNotIn('dispatch_status', ['Cancelled'])
             ->with([
-                'batch:id,batch_no,batch_size,status',
+                'batch:id,batch_no,batch_size,status,end_time',
                 'unloadSite:id,name',
                 'mixDesign:id,design_name,design_code',
                 'salesOrder:id,order_no,prefix,total_qty',
@@ -331,8 +333,8 @@ class ConcreteBatchingScheduleController extends Controller
                 $siteName = $d->unloadSite?->name ?? 'Site';
                 $qty = (float) $d->delivered_qty;
                 $status = $d->dispatch_status ?? 'Draft';
-                $batchNo = $d->batch?->batch_no ?? $d->batch_id;
-                $batchTag = $batchNo ? " [Batch #{$batchNo}]" : '';
+                $batchNo = 'B-' . $d->batch?->batch_no;
+                $batchTag = $batchNo ? " [Batch-{$batchNo}]" : '';
                 $truckTag = $d->truck?->registration ? " • TM: {$d->truck->registration}" : '';
 
                 return [
@@ -340,7 +342,7 @@ class ConcreteBatchingScheduleController extends Controller
                     'full_number'     => $fullNo,
                     'batch_id'        => $d->batch_id,
                     'batch_no'        => $batchNo,
-                    'label'           => "{$fullNo}{$batchTag} — {$siteName} ({$qty} m³ | {$status}){$truckTag}",
+                    'label'           => "{$batchTag} — {$siteName} ({$qty} m³ | {$status}){$truckTag}",
                     'sales_order_id'  => $d->sales_order_id,
                     'site_id'         => $d->unload_site_id,
                     'site_name'       => $d->unloadSite?->name,
@@ -356,8 +358,9 @@ class ConcreteBatchingScheduleController extends Controller
                     'pump_type'       => $d->concrete_pump ? 'boom_pump' : 'direct_pour',
                     'qty_m3'          => $qty > 0 ? $qty : 6.0,
                     'order_volume_m3' => $d->salesOrder?->total_qty ? (float) $d->salesOrder->total_qty : ($qty > 0 ? $qty : 30.0),
-                    'pour_reference'  => $d->dispatch_reference ?: ($d->salesOrder ? ($d->salesOrder->prefix ?? '') . $d->salesOrder->order_no : "DP-{$d->dispatch_no}"),
+                    'pour_reference'  => $d->dispatch_reference ?: '',
                     'dispatch_time'   => !empty($d->dispatch_time) ? Carbon::parse($d->dispatch_time)->format('Y-m-d\TH:i') : null,
+                    'batch_time'      => !empty($d->batch?->end_time) ? Carbon::parse($d->batch->end_time)->format('Y-m-d\TH:i') : null,
                     'delivery_time'   => !empty($d->delivery_time) ? Carbon::parse($d->delivery_time)->format('Y-m-d\TH:i') : null,
                     'dispatch_status' => $d->dispatch_status,
                     'customer_id'     => $d->customer_id,
@@ -369,6 +372,7 @@ class ConcreteBatchingScheduleController extends Controller
             'sites'       => $sites,
             'mixDesigns'  => $mixDesigns,
             'vehicles'    => $vehicles,
+            'pumps'=> $pumps,
             'drivers'     => $drivers,
             'salesOrders' => $salesOrders,
             'dispatches'  => $dispatches,
@@ -387,6 +391,38 @@ class ConcreteBatchingScheduleController extends Controller
         $this->normalizePumpTypeInput($request);
 
         $validated = $request->validate($this->getValidationRules());
+
+        if (empty($validated['pour_reference'])) {
+            $month = now()->month;
+            $year = now()->format('y');
+            if ($month >= 4) {
+                $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
+            } else {
+                $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
+            }
+            $prefix = 'BS-' . $financialYear . '-';
+
+            $activeRefs = ConcreteBatchingSchedule::where('pour_reference', 'like', $prefix . '%')
+                ->pluck('pour_reference')
+                ->toArray();
+
+            $usedSequences = [];
+            foreach ($activeRefs as $ref) {
+                if (preg_match('/-(\d+)$/', $ref, $matches)) {
+                    $usedSequences[] = (int) $matches[1];
+                }
+            }
+
+            $sequence = 1;
+            while (in_array($sequence, $usedSequences)) {
+                $sequence++;
+            }
+
+            $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+        }
+
+
+
         $this->validateAndNormalizeTimes($validated);
 
         $ignoreDispatchId = !empty($validated['dispatch_id']) ? (int) $validated['dispatch_id'] : null;
@@ -401,7 +437,7 @@ class ConcreteBatchingScheduleController extends Controller
             $salesOrder = !empty($validated['sales_order_id']) ? SalesOrder::find($validated['sales_order_id']) : null;
 
             // 1. Create Real Batch
-            $nextBatchNo = (Batch::where('plant_id', $plantId)->max('batch_no') ?? 0) + 1;
+            $nextBatchNo = (Batch::withTrashed()->where('plant_id', $plantId)->max('batch_no') ?? 0) + 1;
             $batch = Batch::create([
                 'plant_id'       => $plantId,
                 'sales_order_id' => $validated['sales_order_id'] ?? null,
@@ -509,6 +545,35 @@ class ConcreteBatchingScheduleController extends Controller
         $this->validateTransitMixerOverlap($plantId, $validated, $schedule->id, $schedule->dispatch_id);
         $this->validateDriverOverlap($plantId, $validated, $schedule->id, $schedule->dispatch_id);
         $this->validatePumpConflict($plantId, $validated, $schedule->id);
+
+        if (empty($validated['pour_reference'])) {
+            $month = now()->month;
+            $year = now()->format('y');
+            if ($month >= 4) {
+                $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
+            } else {
+                $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
+            }
+            $prefix = 'BS-' . $financialYear . '-';
+
+            $activeRefs = ConcreteBatchingSchedule::where('pour_reference', 'like', $prefix . '%')
+                ->pluck('pour_reference')
+                ->toArray();
+
+            $usedSequences = [];
+            foreach ($activeRefs as $ref) {
+                if (preg_match('/-(\d+)$/', $ref, $matches)) {
+                    $usedSequences[] = (int) $matches[1];
+                }
+            }
+
+            $sequence = 1;
+            while (in_array($sequence, $usedSequences)) {
+                $sequence++;
+            }
+
+            $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+        }
 
         $newStatus = $validated['status'] ?? $schedule->status ?? 'scheduled';
         $validated['status'] = $newStatus;

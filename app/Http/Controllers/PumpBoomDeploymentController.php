@@ -72,6 +72,7 @@ class PumpBoomDeploymentController extends Controller
     {
         return [
             'schedule_date'      => 'required|date',
+            'pour_reference'     => 'nullable|string|max:100',
             'sales_order_id'     => 'required|exists:mm_sales_orders,id',
             'batch_id'           => 'nullable|exists:mm_batches,id',
             'site_id'            => 'nullable|exists:mm_sites,id',
@@ -208,6 +209,7 @@ class PumpBoomDeploymentController extends Controller
         $pourReference = $request->input('pour_reference');
 
         $query = PumpBoomDeploymentSchedule::where('plant_id', $plantId)
+
             ->with($this->getDeploymentRelations());
 
         if (!empty($scheduleDate) && $scheduleDate !== 'all') {
@@ -247,10 +249,11 @@ class PumpBoomDeploymentController extends Controller
 
         if (!empty($pourReference)) {
             $query->where(function ($q) use ($pourReference) {
-                $q->whereHas('salesOrder', function ($sq) use ($pourReference) {
-                    $sq->where('order_no', 'like', "%{$pourReference}%")
-                       ->orWhere('prefix', 'like', "%{$pourReference}%");
-                })->orWhere('pour_location', 'like', "%{$pourReference}%");
+                $q->where('pour_reference', 'like', "%{$pourReference}%")
+                  ->orWhereHas('salesOrder', function ($sq) use ($pourReference) {
+                      $sq->where('order_no', 'like', "%{$pourReference}%")
+                         ->orWhere('prefix', 'like', "%{$pourReference}%");
+                  })->orWhere('pour_location', 'like', "%{$pourReference}%");
             });
         }
 
@@ -290,7 +293,7 @@ class PumpBoomDeploymentController extends Controller
 
         $salesOrders = SalesOrder::where('plant_id', $plantId)
             ->whereNull('deleted_at')
-            ->where('status', SalesOrder::STATUS_IN_PROGRESS)
+            ->whereIn('status', [SalesOrder::STATUS_IN_PROGRESS, SalesOrder::STATUS_CONFIRMED])
             ->with([
                 'site:id,name,site_address_1',
                 'mixDesign:id,design_name,design_code',
@@ -378,32 +381,35 @@ class PumpBoomDeploymentController extends Controller
 
         $validated['plant_id'] = $plantId;
         
-        $month = now()->month;
-        $year = now()->format('y');
-        if ($month >= 4) {
-            $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
-        } else {
-            $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
-        }
-        $prefix = 'PR-' . $financialYear . '-';
-
-        $activeRefs = PumpBoomDeploymentSchedule::where('pour_reference', 'like', $prefix . '%')
-            ->pluck('pour_reference')
-            ->toArray();
-
-        $usedSequences = [];
-        foreach ($activeRefs as $ref) {
-            if (preg_match('/-(\d+)$/', $ref, $matches)) {
-                $usedSequences[] = (int) $matches[1];
+        if (empty($validated['pour_reference'])) {
+            $month = now()->month;
+            $year = now()->format('y');
+            if ($month >= 4) {
+                $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
+            } else {
+                $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
             }
+            $prefix = 'PS-' . $financialYear . '-';
+
+            $activeRefs = PumpBoomDeploymentSchedule::where('pour_reference', 'like', $prefix . '%')
+                ->pluck('pour_reference')
+                ->toArray();
+
+            $usedSequences = [];
+            foreach ($activeRefs as $ref) {
+                if (preg_match('/-(\d+)$/', $ref, $matches)) {
+                    $usedSequences[] = (int) $matches[1];
+                }
+            }
+
+            $sequence = 1;
+            while (in_array($sequence, $usedSequences)) {
+                $sequence++;
+            }
+
+            $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
         }
 
-        $sequence = 1;
-        while (in_array($sequence, $usedSequences)) {
-            $sequence++;
-        }
-
-        $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
         
         $this->resolveDeploymentStatus($validated, 'scheduled');
 
@@ -433,6 +439,35 @@ class PumpBoomDeploymentController extends Controller
         $this->validateAndNormalizeTimes($validated);
 
         $this->resolveDeploymentStatus($validated, $deployment->status ?: 'scheduled');
+
+        if (empty($validated['pour_reference'])) {
+            $month = now()->month;
+            $year = now()->format('y');
+            if ($month >= 4) {
+                $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
+            } else {
+                $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
+            }
+            $prefix = 'PS-' . $financialYear . '-';
+
+            $activeRefs = PumpBoomDeploymentSchedule::where('pour_reference', 'like', $prefix . '%')
+                ->pluck('pour_reference')
+                ->toArray();
+
+            $usedSequences = [];
+            foreach ($activeRefs as $ref) {
+                if (preg_match('/-(\d+)$/', $ref, $matches)) {
+                    $usedSequences[] = (int) $matches[1];
+                }
+            }
+
+            $sequence = 1;
+            while (in_array($sequence, $usedSequences)) {
+                $sequence++;
+            }
+
+            $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+        }
 
         $this->validatePumpOverlap($plantId, $validated, $deployment->id);
         $this->validateOperatorOverlap($plantId, $validated, $deployment->id);
