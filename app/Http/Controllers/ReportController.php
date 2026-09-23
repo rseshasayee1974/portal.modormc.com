@@ -12,6 +12,7 @@ use App\Services\Reports\PurchaseRegisterService;
 use App\Services\Reports\ReportServiceFactory;
 use Illuminate\Support\Facades\Cache;
 use App\Services\Reports\ExcelExportService;
+use App\Services\Reports\ReportPermissions;
 use Illuminate\Validation\Rule;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
@@ -21,11 +22,21 @@ class ReportController extends Controller
 
     protected string $module = 'report';
 
+    protected function authorizeReport(string $type, string $action = 'view', array $params = []): void
+    {
+        app(ReportPermissions::class)->authorize($type, $action, $params);
+    }
+
     public function index(Request $request)
     {
-        if ($request->input('type') !== 'deleted' && $request->input('type') !== 'deleted_report') {
-            $this->authorizeModule('view');
+        $reportPermissions = app(ReportPermissions::class)->matrix();
+        if (!$request->filled('type')) {
+            $first = array_key_first(array_filter($reportPermissions, fn ($actions) => $actions['view']));
+            abort_unless($first, 403, 'No reports have been assigned to your role.');
+            $request->merge(['type' => $first === 'detailed_sales_register' ? 'sales_register' : $first,
+                'register_view' => $first === 'detailed_sales_register' ? 'detail' : 'summary']);
         }
+        $this->authorizeReport($request->input('type'), 'view', $request->all() + ['register_view' => 'summary']);
         $plantId = session('active_plant_id');
         $ledgers = Ledger::where('plant_id', $plantId)->orderBy('title')->whereNull('deleted_at')->get();
         $patrons = Patron::where('plant_id', $plantId)->orderBy('legal_name')->whereNull('deleted_at')->get();
@@ -88,9 +99,11 @@ class ReportController extends Controller
             'payrollPeriods'   => $payrollPeriods,
             'concreteGrades'   => $concreteGrades,
             'mixDesigns'       => $mixDesigns,
+            'reportPermissions' => $reportPermissions,
             'filters' => [
                 'type'       => $request->input('type'),
                 'module'     => $request->input('module'),
+                'register_view' => $request->input('register_view', 'summary'),
                 'start_date' => $request->input('start_date', now()->subDays(30)->startOfDay()->format('Y-m-d H:i:s')),
                 'end_date'   => $request->input('end_date', now()->endOfDay()->format('Y-m-d H:i:s')),
             ]
@@ -99,14 +112,12 @@ class ReportController extends Controller
 
     public function generate(Request $request, ReportServiceFactory $factory, ExcelExportService $excelService)
     {
+        $type = strtolower((string) $request->input('type'));
+        $this->authorizeReport($type, $request->filled('export') ? 'export' : 'view', $request->all());
         try {
             $export   = $request->input('export');
             $type     = $request->input('type');
             $isExportAction = ($export === 'excel' || $export === 'pdf' || $export === 'csv');
-            // Always allow all permission for deleted report
-            if ($type !== 'deleted' && $type !== 'deleted_report') {
-                $this->authorizeModule($isExportAction ? 'export' : 'view');
-            }
             $id       = $request->input('id');
             $patronId = $request->input('patron_id');
             $start    = $request->input('start_date');
@@ -148,6 +159,8 @@ class ReportController extends Controller
                 'grade_id'            => $request->input('grade_id'),
                 'mix_design_id'       => $request->input('mix_design_id'),
                 'voucher_type_filter' => $request->input('voucher_type_filter'),
+                'register_view'       => $request->input('register_view', 'detail'),
+                'document_status'     => $request->input('document_status', 'active'),
             ];
 
             if ($export === 'excel' || $export === 'pdf') {
@@ -370,8 +383,11 @@ class ReportController extends Controller
      */
     public function salesRegister(Request $request, SalesRegisterService $service)
     {
-        $this->authorizeModule('view');
+        $this->authorizeReport('sales_register', $request->filled('export') ? 'export' : 'view', $request->all());
         $filters = $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'register_view' => 'nullable|in:summary,detail',
+            'document_status' => 'nullable|in:active,all,cancelled',
             'from_date'      => 'required|date',
             'to_date'        => 'required|date|after_or_equal:from_date',
             'branch_id'      => 'nullable|integer',
@@ -388,6 +404,14 @@ class ReportController extends Controller
             'queue'          => 'nullable|boolean'
         ]);
 
+        // Registers always belong to the user's currently selected plant.
+        $plantId = app(\App\Services\PlantContextService::class)->requirePlantId();
+        foreach (['plant_id', 'branch_id'] as $key) {
+            abort_if(!empty($filters[$key]) && (int) $filters[$key] !== $plantId, 403, 'Select this plant before running its register.');
+        }
+        $filters['plant_id'] = $plantId;
+        unset($filters['branch_id']);
+
         $response = $service->generate($filters);
 
         if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse || $response instanceof \Illuminate\Http\Response) {
@@ -402,8 +426,11 @@ class ReportController extends Controller
      */
     public function purchaseRegister(Request $request, PurchaseRegisterService $service)
     {
-        $this->authorizeModule('view');
+        $this->authorizeReport('purchase_register', $request->filled('export') ? 'export' : 'view', $request->all());
         $filters = $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'register_view' => 'nullable|in:summary,detail',
+            'document_status' => 'nullable|in:active,all,cancelled',
             'from_date'   => 'required|date',
             'to_date'     => 'required|date|after_or_equal:from_date',
             'branch_id'   => 'nullable|integer',
@@ -416,6 +443,14 @@ class ReportController extends Controller
             'refresh'     => 'nullable|boolean',
             'queue'       => 'nullable|boolean'
         ]);
+
+        // Registers always belong to the user's currently selected plant.
+        $plantId = app(\App\Services\PlantContextService::class)->requirePlantId();
+        foreach (['plant_id', 'branch_id'] as $key) {
+            abort_if(!empty($filters[$key]) && (int) $filters[$key] !== $plantId, 403, 'Select this plant before running its register.');
+        }
+        $filters['plant_id'] = $plantId;
+        unset($filters['branch_id']);
 
         $response = $service->generate($filters);
 
@@ -431,7 +466,11 @@ class ReportController extends Controller
      */
     public function getExportStatus(string $key)
     {
-        $this->authorizeModule('view');
+        $access = Cache::get($key.':access');
+        abort_unless($access, 404, 'Export job not found or expired.');
+        abort_unless((int) $access['user_id'] === (int) auth()->id()
+            && (int) $access['plant_id'] === (int) session('active_plant_id'), 403);
+        $this->authorizeReport($access['type'], 'export', $access['params']);
         $status = Cache::get($key);
 
         if (!$status) {
@@ -444,12 +483,24 @@ class ReportController extends Controller
         return response()->json($status)->header('Cache-Control', 'private, no-store');
     }
 
+    public function downloadExport(string $key)
+    {
+        // Reuse the same owner, active-plant and current report-permission checks.
+        $status = $this->getExportStatus($key)->getData(true);
+        abort_unless(($status['status'] ?? '') === 'completed', 404);
+        $filename = $status['filename'] ?? '';
+        abort_unless($filename !== '' && basename($filename) === $filename, 404);
+        $path = storage_path('app/private/reports/'.$filename);
+        abort_unless(is_file($path), 404);
+        return response()->download($path, $filename, ['Cache-Control' => 'private, no-store']);
+    }
+
     /**
      * Generate Machine Summary Report.
      */
     public function machineSummary(Request $request, \App\Services\Reports\MachineReportService $service)
     {
-        $this->authorizeModule('view');
+        $this->authorizeReport('machine_summary', $request->filled('export') ? 'export' : 'view');
         $filters = $request->validate([
             'from_date' => 'required|date',
             'to_date'   => 'required|date|after_or_equal:from_date',
@@ -476,7 +527,7 @@ class ReportController extends Controller
      */
     public function vehiclePL(Request $request, \App\Services\Reports\MachineReportService $service)
     {
-        $this->authorizeModule('view');
+        $this->authorizeReport('vehicle_pl', $request->filled('export') ? 'export' : 'view');
         $filters = $request->validate([
             'from_date' => 'required|date',
             'to_date'   => 'required|date|after_or_equal:from_date',
@@ -503,9 +554,11 @@ class ReportController extends Controller
      */
     public function listSchedules(Request $request)
     {
-        $this->authorizeModule('view');
+        $permissions = app(ReportPermissions::class)->matrix();
+        abort_unless(array_filter($permissions, fn ($actions) => $actions['schedule']), 403);
         $plantId = session('active_plant_id');
-        $schedules = \App\Models\ReportSchedule::where('plant_id', $plantId)->get();
+        $schedules = \App\Models\ReportSchedule::where('plant_id', $plantId)->get()
+            ->filter(fn ($schedule) => $permissions[ReportPermissions::reportId($schedule->report_type, $schedule->report_params ?? [])]['schedule'] ?? false)->values();
         return response()->json($schedules);
     }
 
@@ -514,7 +567,7 @@ class ReportController extends Controller
      */
     public function storeSchedule(Request $request)
     {
-        $this->authorizeModule('create');
+        $this->authorizeReport((string) $request->input('report_type'), 'schedule', (array) $request->input('report_params', []));
         $plantId = session('active_plant_id');
         $data = $request->validate([
             'report_type'      => 'required|string',
@@ -526,6 +579,7 @@ class ReportController extends Controller
         ]);
 
         $data['plant_id'] = $plantId;
+        $data['created_by'] = auth()->id();
         $data['is_active'] = true;
 
         $schedule = \App\Models\ReportSchedule::create($data);
@@ -541,7 +595,7 @@ class ReportController extends Controller
      */
     public function deleteSchedule(\App\Models\ReportSchedule $schedule)
     {
-        $this->authorizeModule('delete');
+        $this->authorizeReport($schedule->report_type, 'schedule', $schedule->report_params ?? []);
         if ($schedule->plant_id != session('active_plant_id')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }

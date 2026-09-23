@@ -21,6 +21,7 @@ class BulkDocumentReportController extends Controller
 
     public function index()
     {
+        app(\App\Services\Reports\ReportPermissions::class)->authorize('bulk_documents');
         return redirect()->route('reports.index', ['module' => 'accounting', 'type' => 'bulk_documents']);
     }
 
@@ -32,7 +33,7 @@ class BulkDocumentReportController extends Controller
         'tax_type' => $request->tax_type ? strtolower($request->tax_type) : $request->tax_type,
     ]);
         $export = $request->isMethod('post');
-        $this->authorizeModule($export ? 'export' : 'view');
+        app(\App\Services\Reports\ReportPermissions::class)->authorize('bulk_documents', $export ? 'export' : 'view');
         $plant = app(PlantContextService::class)->requirePlantId();
         $filters = $request->validate([
             'start_date' => 'required|date_format:Y-m-d', 'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
@@ -100,7 +101,7 @@ class BulkDocumentReportController extends Controller
             'tax_type' => $request->tax_type ? strtolower($request->tax_type) : $request->tax_type,
         ]);
         
-        $this->authorizeModule('export');
+        app(\App\Services\Reports\ReportPermissions::class)->authorize('bulk_documents', 'export');
         $plant = app(PlantContextService::class)->requirePlantId();
         $filters = $request->validate([
             'start_date' => 'required|date_format:Y-m-d',
@@ -121,6 +122,7 @@ class BulkDocumentReportController extends Controller
         abort_if($count === 0, 422, 'No documents matched the selected filters for ZIP export.');
 
         $statusKey = 'bulk_doc_export_' . Str::uuid();
+        app(\App\Services\Reports\ReportPermissions::class)->rememberExport($statusKey, 'bulk_documents', []);
 
         // Fail visibly if the export service cannot be constructed.
         app(\App\Services\BulkDocumentZipExportService::class);

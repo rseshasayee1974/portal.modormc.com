@@ -12,6 +12,7 @@ import { useOfflineBatchSync } from '@/Composables/useOfflineBatchSync';
 import { useBatchActions } from './useBatchActions';
 import { useBatchTokenPreview } from './useBatchTokenPreview';
 import { useInvoiceActions } from './useInvoiceActions';
+import { canGenerateEInvoice } from '@/Composables/useEInvoiceGeneration';
 import BatchCreateForm from './components/BatchCreateForm.vue';
 import BatchEditForm from './components/BatchEditForm.vue';
 import DispatchSection from './components/DispatchSection.vue';
@@ -550,6 +551,7 @@ const {
 const {
     generateInvoiceDirect,
     generateEInvoiceDirect,
+    generatingEInvoice,
     generateEwayBillDirect,
     printInvoiceDirect,
     printOriginalInvoiceDirect,
@@ -560,6 +562,11 @@ const {
     sendWhatsAppDirect,
     sendBatchEmailDirect,
 } = useInvoiceActions(props);
+
+const generateBatchEInvoice = (batch: any) => {
+    if (isBatchCancelled(batch)) return;
+    return generateEInvoiceDirect(getBatchInvoice(batch), () => refreshBatchRow(batch.id));
+};
 
 // ── Cancel Dispatch & Batch Action ──────────────────────────────────────────
 const showCancelDispatchModal = ref(false);
@@ -1150,9 +1157,10 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                                         Download Invoice PDF
                                                     </button>
                                                     <button
-                                                        v-if="!slotProps.data.dispatches[0].status.invoice.einvoice_irn && slotProps.data.dispatches[0].status.invoice.einvoice_status !== 'generated' && !isBatchCancelled(slotProps.data) && can('DISPATCH.GENERATE_EINVOICE')"
+                                                        v-if="canGenerateEInvoice(getBatchInvoice(slotProps.data)) && !isBatchCancelled(slotProps.data) && can('DISPATCH.GENERATE_EINVOICE')"
+                                                        :disabled="generatingEInvoice"
                                                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors"
-                                                        @click="generateEInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;">
+                                                        @click="generateBatchEInvoice(slotProps.data); activeMenuId = null;">
                                                         <i class="pi pi-bolt mr-2 text-purple-500 font-bold"></i>
                                                         Generate E-Invoice
                                                     </button>
@@ -1458,9 +1466,10 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                             </button>
                             <!-- Generate E-Invoice (if not yet generated) -->
                             <button
-                                v-if="getBatchInvoice(activeBatch) && !activeBatch.has_einvoice && !activeBatch.einvoice_irn && !getBatchInvoice(activeBatch)?.einvoice_irn && can('DISPATCH.GENERATE_EINVOICE')"
+                                v-if="canGenerateEInvoice(getBatchInvoice(activeBatch)) && !isBatchCancelled(activeBatch) && can('DISPATCH.GENERATE_EINVOICE')"
+                                :disabled="generatingEInvoice"
                                 class="flex w-full items-center px-4 py-2 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors cursor-pointer"
-                                @click="generateEInvoiceDirect(getBatchInvoice(activeBatch)); closeAllMenus();">
+                                @click="generateBatchEInvoice(activeBatch); closeAllMenus();">
                                 <i class="pi pi-bolt mr-2 text-purple-500 font-bold"></i>
                                 Generate E-Invoice
                             </button>

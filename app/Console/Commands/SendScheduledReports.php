@@ -104,11 +104,14 @@ class SendScheduledReports extends Command
                 Session::put('active_entity_id', $plant->entity_id);
             }
 
-            // Authenticate a fallback user for auditing fields if none logged in
-            $user = User::where('default_plant_id', $schedule->plant_id)->first() ?? User::first();
-            if ($user) {
-                Auth::login($user);
+            // Recheck the schedule owner's current permissions before sending any report.
+            $user = User::find($schedule->created_by);
+            if (!$user || !$plant || !app(\App\Services\Reports\ReportPermissions::class)
+                ->allows($schedule->report_type, 'schedule', $schedule->report_params ?? [], $user, $plant->entity_id, $plant->id)) {
+                $this->warn("Skipping schedule {$schedule->id}: owner lacks report scheduling permission.");
+                continue;
             }
+            Auth::setUser($user);
 
             // 4. Generate Report Data
             try {
@@ -119,7 +122,9 @@ class SendScheduledReports extends Command
                 $params['end'] = $endDate;
                 $params['plant_id'] = $schedule->plant_id;
 
-                $data = $service->generate($params);
+                $data = $service instanceof \App\Services\Reports\RegisterReportService
+                    ? $service->buildReport($params, true)
+                    : $service->generate($params);
                 
                 // 5. Render Excel Spreadsheet
                 $spreadsheet = $excelService->generateExcelReport($schedule->report_type, $startDate, $endDate, $data);

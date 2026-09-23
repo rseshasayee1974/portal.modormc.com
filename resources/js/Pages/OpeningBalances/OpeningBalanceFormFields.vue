@@ -161,9 +161,10 @@ const clearing = computed(() => (props.ledgers || [])
     <!-- 4. Amount (BaseInput) -->
     <div>
         <BaseInput
-            v-model="form.amount"
+            :modelValue="form.amount"
+            @update:modelValue="val => form.amount = String(val ?? '').replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1')"
             label="Amount (₹)"
-            type="text"
+            type="number"
             placeholder="0.00"
             :required="true"
             :disabled="busy"

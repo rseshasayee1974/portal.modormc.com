@@ -17,9 +17,11 @@ import {
     LockClosedIcon,
     CalendarIcon,
     QrCodeIcon,
+    UserIcon,
     PaperAirplaneIcon
 } from '@heroicons/vue/24/outline';
 import { usePermissions } from '@/Composables/usePermissions';
+import { canGenerateEInvoice } from '@/Composables/useEInvoiceGeneration';
 import { watch, computed } from 'vue';
 import Swal from 'sweetalert2';
 
@@ -40,6 +42,7 @@ const props = withDefaults(defineProps<{
     errors: any;
     isReadOnly?: boolean;
     showInvoiceSection?: boolean;
+    generatingEInvoice?: boolean;
 }>(), {
     uoms: () => [],
     taxes: () => [],
@@ -55,6 +58,7 @@ const props = withDefaults(defineProps<{
     errors: () => ({}),
     isReadOnly: false,
     showInvoiceSection: false,
+    generatingEInvoice: false,
 });
 
 const emit = defineEmits(['update:modelValue', 'generateInvoice', 'generateEInvoice', 'generateEwayBill', 'deleteInvoice']);
@@ -380,6 +384,16 @@ console.log('jkghkjgk', props.modelValue);
                         <!-- Right: Action Buttons -->
                         <div class="flex items-center gap-2 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 flex-wrap">
                             <!-- Generate E-Invoice Button (Visible when Invoice is generated & linked, but E-Invoice is not yet generated) -->
+                            <button
+                                v-if="canGenerateEInvoice(modelValue.status.invoice) && can('DISPATCH.GENERATE_EINVOICE') && modelValue.dispatch_status !== 'Cancelled' && Number(modelValue.status?.batch?.status) !== 5"
+                                type="button"
+                                :disabled="generatingEInvoice"
+                                @click="$emit('generateEInvoice')"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-wait"
+                            >
+                                <QrCodeIcon class="h-4 w-4" />
+                                <span>{{ generatingEInvoice ? 'Generating E-Invoice...' : 'Generate E-Invoice' }}</span>
+                            </button>
                             <!-- Standalone E-Way Bill Button (When Invoice is generated) -->
                             <template v-if="modelValue.status.invoice?.id">
                                 <button 

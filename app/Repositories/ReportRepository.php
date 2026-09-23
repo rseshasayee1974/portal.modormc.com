@@ -26,7 +26,8 @@ class ReportRepository
             ->select([
                 'mm_invoice_items.id',
                 'mm_invoice_items.invoice_id',
-                'mm_invoice_items.item_id as mix_design_id',
+                'mm_invoice_items.item_id',
+                'mm_invoice_items.hsn_code',
                 'mm_invoice_items.uom_id',
                 'mm_invoice_items.item_name',
                 'mm_invoice_items.quantity',
@@ -56,8 +57,10 @@ class ReportRepository
                         'ref_id',
                     ]);
                 },
+                'invoice.creator:id,username,email',
+                'invoice.einvoiceRelation',
                 'invoice.partner' => function ($q) {
-                    $q->withoutGlobalScopes()->whereNull('deleted_at')->select(['id', 'legal_name', 'gstin']);
+                    $q->withoutGlobalScopes()->whereNull('deleted_at')->select(['id', 'legal_name', 'gstin', 'patron_type']);
                 },
                 'uom' => function ($q) {
                     $q->select(['id', 'unit_name', 'unit_code']);
@@ -67,16 +70,24 @@ class ReportRepository
                 },
             ]);
 
+        $documentStatus = $filters['document_status'] ?? 'active';
+        if ($documentStatus !== 'all') {
+            $query->whereHas('invoice', function ($q) use ($documentStatus) {
+                $expression = "LOWER(COALESCE(status, ''))";
+                $q->whereRaw($expression.($documentStatus === 'cancelled' ? ' IN' : ' NOT IN')." ('cancel', 'cancelled', 'canceled')");
+            });
+        }
+
         // Filter: Date Range (Mandatory)
         $fromDate = isset($filters['from_date']) ? Carbon::parse($filters['from_date'])->startOfDay() : now()->startOfMonth();
         $toDate   = isset($filters['to_date'])   ? Carbon::parse($filters['to_date'])->endOfDay()     : now()->endOfDay();
 
         $query->whereHas('invoice', function ($q) use ($fromDate, $toDate) {
-            $q->whereBetween('invoice_date', [$fromDate, $toDate]);
+            $q->whereBetween('invoice_date', [$fromDate->toDateString(), $toDate->toDateTimeString()]);
         });
 
         // Filter: Plant Scoping (session active_plant_id OR explicit filter)
-        $plantId = $filters['branch_id'] ?? $filters['plant_id'] ?? Session::get('active_plant_id');
+        $plantId = $filters['plant_id'] ?? $filters['branch_id'] ?? Session::get('active_plant_id');
         if ($plantId) {
             $query->whereHas('invoice', function ($q) use ($plantId) {
                 $q->where('plant_id', $plantId);
@@ -85,8 +96,12 @@ class ReportRepository
 
         // Filter: Customer (partner_id)
         if (!empty($filters['customer_id'])) {
-            $query->whereHas('invoice', function ($q) use ($filters) {
-                $q->where('partner_id', $filters['customer_id']);
+            $query->where(function ($q) use ($filters) {
+                $q->where('mm_invoices.partner_id', $filters['customer_id'])
+                    ->orWhere(function ($fallback) use ($filters) {
+                        $fallback->whereRaw('COALESCE(mm_invoices.partner_id, 0) = 0')
+                            ->where('register_customer.id', $filters['customer_id']);
+                    });
             });
         }
 
@@ -128,10 +143,10 @@ class ReportRepository
             $query->whereHas('invoice', function ($q) use ($status) {
                 if ($status === 'paid') {
                     $q->where(function ($sub) {
-                        $sub->where('status', 'paid')->orWhere('balance_amount', '<=', 0);
+                        $sub->whereRaw('LOWER(status) = ?', ['paid'])->orWhere('balance_amount', '<=', 0);
                     });
                 } elseif ($status === 'unpaid') {
-                    $q->where('paid_amount', 0)->where('status', '!=', 'paid');
+                    $q->where('paid_amount', 0)->where('balance_amount', '>', 0)->whereRaw('LOWER(status) != ?', ['paid']);
                 } elseif ($status === 'partial') {
                     $q->where('paid_amount', '>', 0)->where('balance_amount', '>', 0);
                 }
@@ -140,8 +155,39 @@ class ReportRepository
 
         // JOIN for ordering — must come after all whereHas filters
         $query->join('mm_invoices', 'mm_invoice_items.invoice_id', '=', 'mm_invoices.id')
+            // Only Dispatch references point to dispatch IDs. Keep every lookup in the invoice's plant.
+            ->leftJoin('mm_dispatches as register_dispatch', function ($join) {
+                $join->on('register_dispatch.id', '=', 'mm_invoices.ref_id')
+                    ->on('register_dispatch.plant_id', '=', 'mm_invoices.plant_id')
+                    ->where('mm_invoices.invoice_label', 'Dispatch')->whereNull('register_dispatch.deleted_at');
+            })
+            ->leftJoin('mm_sales_orders as register_order', function ($join) {
+                $join->on('register_order.id', '=', 'register_dispatch.sales_order_id')
+                    ->on('register_order.plant_id', '=', 'mm_invoices.plant_id')->whereNull('register_order.deleted_at');
+            })
+            ->leftJoin('mm_patrons as register_customer', function ($join) {
+                $join->on('register_customer.id', '=', DB::raw('COALESCE(NULLIF(register_dispatch.customer_id, 0), register_order.customer_id)'))
+                    ->on('register_customer.plant_id', '=', 'mm_invoices.plant_id')->whereNull('register_customer.deleted_at');
+            })
+            ->leftJoin('mm_sites as register_site', function ($join) {
+                $join->on('register_site.id', '=', 'register_dispatch.unload_site_id')
+                    ->on('register_site.plant_id', '=', 'mm_invoices.plant_id')->whereNull('register_site.deleted_at');
+            })
+            ->leftJoin('mm_machines as register_truck', function ($join) {
+                $join->on('register_truck.id', '=', 'register_dispatch.truck_id')
+                    ->on('register_truck.plant_id', '=', 'mm_invoices.plant_id')->whereNull('register_truck.deleted_at');
+            })
+            ->addSelect([
+                'register_dispatch.payment_mode as register_payment_mode',
+                'register_site.name as register_unloading',
+                'register_truck.registration as register_truck_number',
+                'register_customer.legal_name as register_customer_name',
+                'register_customer.gstin as register_customer_gstin',
+                'register_customer.patron_type as register_party_type',
+            ])
             ->whereNull('mm_invoices.deleted_at')
             ->orderBy('mm_invoices.invoice_date', 'asc')
+            ->orderBy('mm_invoices.id', 'asc')
             ->orderBy('mm_invoice_items.id', 'asc');
 
         return $query;
@@ -166,6 +212,9 @@ class ReportRepository
                 'mm_purchase_order_items.id',
                 'mm_purchase_order_items.order_id',
                 'mm_purchase_order_items.product_id',
+                'mm_purchase_order_items.tax_id',
+                'mm_purchase_order_items.hsn_code',
+                'mm_purchase_order_items.description',
                 'mm_purchase_order_items.product_uom',
                 'mm_purchase_order_items.product_quantity',
                 'mm_purchase_order_items.unit_price',
@@ -181,10 +230,14 @@ class ReportRepository
                         'bill_number',
                         'date_order',
                         'billed_date',
+                        'created_at',
+                        'created_by',
+                        'state',
                         'vendor_id',
                         'plant_id',
                     ]);
                 },
+                'order.creator:id,username,email',
                 'order.vendor' => function ($q) {
                     $q->withoutGlobalScopes()->whereNull('deleted_at')->select(['id', 'legal_name', 'gstin']);
                 },
@@ -202,20 +255,24 @@ class ReportRepository
                 },
             ]);
 
+        $documentStatus = $filters['document_status'] ?? 'active';
+        if ($documentStatus !== 'all') {
+            $query->whereHas('order', function ($q) use ($documentStatus) {
+                $expression = "LOWER(COALESCE(state, ''))";
+                $q->whereRaw($expression.($documentStatus === 'cancelled' ? ' IN' : ' NOT IN')." ('cancel', 'cancelled', 'canceled')");
+            });
+        }
+
         // Filter: Date Range (Mandatory)
         $fromDate = isset($filters['from_date']) ? Carbon::parse($filters['from_date'])->startOfDay() : now()->startOfMonth();
         $toDate   = isset($filters['to_date'])   ? Carbon::parse($filters['to_date'])->endOfDay()     : now()->endOfDay();
 
         $query->whereHas('order', function ($q) use ($fromDate, $toDate) {
-            $q->whereNull('deleted_at')->where(function ($sq) use ($fromDate, $toDate) {
-                $sq->whereBetween('date_order', [$fromDate, $toDate])
-                   ->orWhereBetween('billed_date', [$fromDate, $toDate])
-                   ->orWhereBetween('created_at', [$fromDate, $toDate]);
-            });
+            $q->whereNull('deleted_at')->whereBetween(DB::raw('COALESCE(billed_date, date_order, created_at)'), [$fromDate->toDateString(), $toDate->toDateTimeString()]);
         });
 
         // Filter: Plant Scoping (session active_plant_id OR explicit filter)
-        $plantId = $filters['branch_id'] ?? $filters['plant_id'] ?? Session::get('active_plant_id');
+        $plantId = $filters['plant_id'] ?? $filters['branch_id'] ?? Session::get('active_plant_id');
         if ($plantId) {
             $query->whereHas('order', function ($q) use ($plantId) {
                 $q->whereNull('deleted_at')->where('plant_id', $plantId);
@@ -234,49 +291,26 @@ class ReportRepository
             $query->where('mm_purchase_order_items.product_id', $filters['product_id']);
         }
 
-        // Filter: GST Type — compare first 2 digits of plant GSTIN vs vendor GSTIN (Indian state code)
-        // Intra-state (CGST+SGST): same state code | Inter-state (IGST): different state code
+        $query->join('mm_purchase_orders', 'mm_purchase_order_items.order_id', '=', 'mm_purchase_orders.id')
+            ->whereNull('mm_purchase_orders.deleted_at');
+
+        // Apply the same explicit-group / state rules used to display the tax split.
         if (!empty($filters['gst_type'])) {
-            $gstType     = $filters['gst_type'];
-            $lookupPlant = $plantId ?? Session::get('active_plant_id');
-
-            $plantGstin = DB::table('mm_plants')
-                ->where('id', $lookupPlant)
-                ->value('gstin');
-
-            if ($plantGstin && strlen($plantGstin) >= 2) {
-                $plantStateCode = substr($plantGstin, 0, 2);
-
-                // First join orders table so vendor_id is available
-                $query->join('mm_purchase_orders as po_gst', 'mm_purchase_order_items.order_id', '=', 'po_gst.id')
-                    ->whereNull('po_gst.deleted_at')
-                    ->join('mm_patrons as gst_vendor', 'po_gst.vendor_id', '=', 'gst_vendor.id')
-                    ->whereNull('gst_vendor.deleted_at')
-                    ->where(function ($q) use ($gstType, $plantStateCode) {
-                        if ($gstType === 'intra') {
-                            $q->whereRaw("LEFT(gst_vendor.gstin, 2) = ?", [$plantStateCode]);
-                        } else {
-                            $q->whereRaw("LEFT(gst_vendor.gstin, 2) != ?", [$plantStateCode])
-                              ->whereNotNull('gst_vendor.gstin')
-                              ->where('gst_vendor.gstin', '!=', '');
-                        }
-                    });
-
-                // Ordering already done via po_gst alias — skip the duplicate join below
-                $query->orderBy('po_gst.date_order', 'asc')
-                    ->orderBy('mm_purchase_order_items.id', 'asc');
-
-                return $query;
-            }
+            $query->leftJoin('mm_taxes as register_tax', function ($join) {
+                $join->on('mm_purchase_order_items.tax_id', '=', 'register_tax.id')->whereNull('register_tax.deleted_at');
+            })->leftJoin('mm_patrons as register_vendor', function ($join) {
+                $join->on('mm_purchase_orders.vendor_id', '=', 'register_vendor.id')->whereNull('register_vendor.deleted_at');
+            })->leftJoin('mm_plants as register_plant', 'mm_purchase_orders.plant_id', '=', 'register_plant.id');
+            $group = "UPPER(TRIM(COALESCE(register_tax.tax_group, '')))";
+            $inter = "($group LIKE '%IGST%' OR ($group IN ('', 'GST') AND LENGTH(TRIM(COALESCE(register_plant.gstin, ''))) >= 2 AND LENGTH(TRIM(COALESCE(register_vendor.gstin, ''))) >= 2 AND SUBSTR(TRIM(register_plant.gstin), 1, 2) != SUBSTR(TRIM(register_vendor.gstin), 1, 2)))";
+            $intra = "($group LIKE '%CGST%' OR $group LIKE '%SGST%' OR $group LIKE '%UTGST%' OR $group LIKE '%UGST%' OR ($group IN ('', 'GST') AND NOT $inter))";
+            $query->where('mm_purchase_order_items.price_tax', '!=', 0)
+                ->whereRaw($filters['gst_type'] === 'inter' ? $inter : $intra);
         }
 
-        // JOIN for ordering (only when no GST type filter — avoids duplicate join)
-        $query->join('mm_purchase_orders', 'mm_purchase_order_items.order_id', '=', 'mm_purchase_orders.id')
-            ->whereNull('mm_purchase_orders.deleted_at')
-            ->orderBy('mm_purchase_orders.date_order', 'asc')
+        return $query->orderByRaw('COALESCE(mm_purchase_orders.billed_date, mm_purchase_orders.date_order, mm_purchase_orders.created_at) ASC')
+            ->orderBy('mm_purchase_orders.id', 'asc')
             ->orderBy('mm_purchase_order_items.id', 'asc');
-
-        return $query;
     }
 
     /**
@@ -320,7 +354,7 @@ class ReportRepository
      */
     public function getPurchaseTotals(array $filters): array
     {
-        $plantId = $filters['branch_id'] ?? $filters['plant_id'] ?? Session::get('active_plant_id');
+        $plantId = $filters['plant_id'] ?? $filters['branch_id'] ?? Session::get('active_plant_id');
         $plantGstin = DB::table('mm_plants')->where('id', $plantId)->value('gstin');
         $plantState = $plantGstin && strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
 

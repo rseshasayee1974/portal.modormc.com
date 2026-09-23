@@ -478,13 +478,13 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
             <ModuleSubTopNav />
         </template>
 
-        <div class="py-6 px-4 sm:px-6 lg:px-8 bg-slate-50/60 dark:bg-slate-950 min-h-screen">
-            <div class="max-w-7xl mx-auto space-y-6">
+        <div class="py-6 px-4 sm:px-6 lg:px-8 bg-white min-h-screen">
+            <div class="max-w-7xl mx-auto space-y-6 ">
 
                 <!-- ═════════════════════════════════════════════════════════════ -->
                 <!-- TOP: JOURNAL VOUCHER CREATION FORM                            -->
                 <!-- ═════════════════════════════════════════════════════════════ -->
-                <div class="bg-white dark:bg-slate-900 shadow-xs rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 space-y-6">
+                <!-- <div class="bg-white dark:bg-slate-900 shadow-xs rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 space-y-6"> -->
                     <!-- Form Header with Icon (White Background) -->
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100 dark:border-slate-800">
                         <div class="flex items-center gap-3">
@@ -498,7 +498,7 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                     Double-entry general ledger voucher posting with real-time balancing
                                 </p>
-                                <a :href="route('opening-balances.index')" class="inline-block mt-2 text-sm font-semibold text-indigo-600">Set opening balances →</a>
+                                <!-- <a :href="route('opening-balances.index')" class="inline-block mt-2 text-sm font-semibold text-indigo-600">Set opening balances →</a> -->
                             </div>
                         </div>
 
@@ -750,7 +750,7 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                             </button>
                         </div>
                     </div>
-                </div>
+                <!-- </div> -->
 
                 <!-- ═════════════════════════════════════════════════════════════ -->
                 <!-- FINANCIAL STATS & KPIS BANNER                                 -->

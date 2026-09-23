@@ -6,7 +6,6 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
-import { usePermissions } from '@/Composables/usePermissions';
 import { formatCurrency } from '@/Utils/formatters';
 import Dialog from 'primevue/dialog';
 import MultiSelect from 'primevue/multiselect';
@@ -29,9 +28,9 @@ const props = defineProps<{
     ledgers?: Array<{ id: number; title: string }>;
     defaultStartDate?: string;
     defaultEndDate?: string;
+    allowExport?: boolean;
 }>();
 
-const { can, isAdmin } = usePermissions();
 
 const filters = reactive({
     start_date: props.defaultStartDate?.substring(0, 10) || entityToday().substring(0, 7) + '-01',
@@ -155,11 +154,11 @@ const billCount = computed(() => {
 });
 
 const canExport = computed(() => {
-    return (isAdmin.value || can('report.export')) && (result.value?.count ?? 0) > 0 && (result.value?.count ?? 0) <= 100;
+    return props.allowExport === true && (result.value?.count ?? 0) > 0 && (result.value?.count ?? 0) <= 100;
 });
 
 const canExportZip = computed(() => {
-    return (isAdmin.value || can('report.export')) && (result.value?.count ?? 0) > 0;
+    return props.allowExport === true && (result.value?.count ?? 0) > 0;
 });
 
 const exportingZip = ref(false);
@@ -408,7 +407,7 @@ onMounted(() => {
                         Print Preview
                     </BaseButton>
 
-                    <BaseButton v-if="isAdmin || can('report.export')" variant="outlined" severity="secondary"
+                    <BaseButton v-if="allowExport" variant="outlined" severity="secondary"
                         :disabled="!canExport || exportingPdf" :loading="exportingPdf" @click="runExport"
                         title="Download single combined PDF booklet (up to 100 documents)">
                         <ArrowDownTrayIcon class="h-4 w-4 mr-1.5 text-rose-600" />
@@ -423,7 +422,7 @@ onMounted(() => {
                         </span>
                     </BaseButton>
 
-                    <BaseButton v-if="isAdmin || can('report.export')" variant="filled" severity="success"
+                    <BaseButton v-if="allowExport" variant="filled" severity="success"
                         :disabled="!canExportZip || exportingZip" :loading="exportingZip" @click="runZipExport"
                         title="Export all documents as individual PDFs inside a ZIP archive (Supports 10,000+)">
                         <FolderArrowDownIcon class="h-4 w-4 mr-1.5" />
@@ -563,7 +562,7 @@ onMounted(() => {
                     </p>
                 </div>
             </div>
-            <BaseButton variant="filled" severity="success" size="small" :loading="exportingZip" @click="runZipExport"
+            <BaseButton v-if="allowExport" variant="filled" severity="success" size="small" :loading="exportingZip" @click="runZipExport"
                 class="shrink-0 self-start sm:self-center">
                 <FolderArrowDownIcon class="w-4 h-4 mr-1.5" />
                 {{ filters.invoice_ids.length ? 'Export Selected to ZIP' : 'Export All to ZIP' }} ({{ result.count }})

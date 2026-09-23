@@ -34,6 +34,9 @@ class InvoiceShareController extends Controller
         $docId = $request->input('document_id');
         $expiryOption = (string) $request->input('expiry');
         $reportParams = $request->input('report_params');
+        if ($docType === 'report') {
+            app(\App\Services\Reports\ReportPermissions::class)->authorize((string) ($reportParams['type'] ?? ''), 'share', $reportParams ?? []);
+        }
 
         // Determine expiration timestamp
         $expiresAt = null;
@@ -54,13 +57,11 @@ class InvoiceShareController extends Controller
             $batch = \App\Models\Batch::withoutGlobalScopes()->findOrFail($docId);
             $plantId = $batch->plant_id;
         } else {
-            // For reports, check request param first, then session/service, then user default, then fallback
-            $plantId = $reportParams['plant_id'] 
-                ?? $request->input('plant_id') 
-                ?? session('active_plant_id') 
-                ?? app(\App\Services\PlantContextService::class)->plantId()
-                ?? auth()->user()?->default_plant_id
-                ?? Plant::withoutGlobalScopes()->value('id');
+            $plantId = app(\App\Services\PlantContextService::class)->requirePlantId();
+            foreach ([$reportParams['plant_id'] ?? null, $request->input('plant_id')] as $requestedPlant) {
+                abort_if($requestedPlant && (int) $requestedPlant !== $plantId, 403);
+            }
+            $reportParams['plant_id'] = $plantId;
         }
 
         if (!$plantId) {
@@ -304,7 +305,8 @@ class InvoiceShareController extends Controller
         $landscapeTypes = ['sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl', 'silo_stock_valuation', 'gstr1', 'gstr3b'];
         $orientation = in_array(strtolower($pdfData['type']), $landscapeTypes) ? 'landscape' : 'portrait';
 
-        $pdf = Pdf::loadView($pdfData['view'], $pdfData['pdfData'])->setPaper('a4', $orientation);
+        $paper = count($pdfData['pdfData']['report']['columns'] ?? []) > 14 ? 'a3' : 'a4';
+        $pdf = Pdf::loadView($pdfData['view'], $pdfData['pdfData'])->setPaper($paper, $orientation);
 
         return $pdf->download("Report_" . $pdfData['type'] . "_" . $pdfData['start'] . ".pdf");
     }
@@ -320,6 +322,14 @@ class InvoiceShareController extends Controller
 
         if ($link->expires_at && Carbon::parse($link->expires_at)->isPast()) {
             return false;
+        }
+
+        if ($link->document_type === 'report') {
+            $owner = \App\Models\User::find($link->created_by);
+            $plant = Plant::withoutGlobalScopes()->find($link->plant_id);
+            $params = $link->document_params ?? [];
+            if (!$owner || !$plant || !app(\App\Services\Reports\ReportPermissions::class)
+                ->allows($params['type'] ?? '', 'share', $params, $owner, $plant->entity_id, $plant->id)) return false;
         }
 
         return true;
@@ -355,16 +365,19 @@ class InvoiceShareController extends Controller
                 'payment_status' => $params['payment_status'] ?? null,
                 'plant_id'       => $link->plant_id,
                 'per_page'       => 10000,
+                'register_view'  => $params['register_view'] ?? 'summary',
+                'document_status' => $params['document_status'] ?? 'active',
+                'product_id' => $params['product_id'] ?? null,
             ];
 
             if ($type === 'sales_register') {
                 $service = app(\App\Services\Reports\SalesRegisterService::class);
-                $result = $service->generate($filters);
-                $view = 'reports.sales_register_pdf';
+                $result = $service->buildReport($filters, true);
+                $view = 'reports.register_pdf';
             } elseif ($type === 'purchase_register') {
                 $service = app(\App\Services\Reports\PurchaseRegisterService::class);
-                $result = $service->generate($filters);
-                $view = 'reports.purchase_register_pdf';
+                $result = $service->buildReport($filters, true);
+                $view = 'reports.register_pdf';
             } elseif ($type === 'machine_summary') {
                 $service = app(\App\Services\Reports\MachineReportService::class);
                 $result = $service->generateMachineSummary($filters);
@@ -384,6 +397,11 @@ class InvoiceShareController extends Controller
                 'generated_at' => now()->format('d-m-Y H:i:s'),
                 'type'         => strtoupper($type),
             ];
+
+            if (in_array($type, ['sales_register', 'purchase_register'])) {
+                $pdfData['title'] = $service->targetName($filters);
+                $pdfData['report'] = $result;
+            }
 
             return [
                 'pdfData' => $pdfData,

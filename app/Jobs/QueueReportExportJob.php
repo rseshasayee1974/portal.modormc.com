@@ -34,6 +34,9 @@ class QueueReportExportJob implements ShouldQueue
 
     public static function dispatchExport(string $type, array $filters, string $statusCacheKey, string $format = 'excel'): void
     {
+        if (auth()->check()) {
+            app(\App\Services\Reports\ReportPermissions::class)->rememberExport($statusCacheKey, $type, $filters);
+        }
         $job = new static($type, $filters, $statusCacheKey, $format);
 
         try {
@@ -93,7 +96,7 @@ class QueueReportExportJob implements ShouldQueue
             $extension = $this->format === 'pdf' ? 'pdf' : 'xlsx';
             $fileName = 'Report_' . ucfirst($this->type) . '_' . \Illuminate\Support\Str::uuid() . '.' . $extension;
             
-            $tempDir = storage_path('app/public/reports');
+            $tempDir = storage_path('app/private/reports');
             \Illuminate\Support\Facades\File::ensureDirectoryExists($tempDir, 0775);
             
             $filePath = $tempDir . '/' . $fileName;
@@ -156,7 +159,7 @@ class QueueReportExportJob implements ShouldQueue
             Cache::put($this->statusCacheKey, [
                 'status' => 'completed',
                 'progress' => 100,
-                'url' => asset('storage/reports/' . $fileName),
+                'url' => route('reports.export-download', ['key' => $this->statusCacheKey]),
                 'filename' => $fileName,
                 'generated_at' => now()->toDateTimeString()
             ], now()->addHour());

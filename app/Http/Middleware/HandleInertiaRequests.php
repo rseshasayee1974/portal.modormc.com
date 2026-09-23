@@ -182,6 +182,13 @@ class HandleInertiaRequests extends Middleware
 
         if ($user) {
             $isSuper = $user->isSystemAdmin();
+            $reportPermissions = app(\App\Services\Reports\ReportPermissions::class)->matrix();
+            $reportMenuAllowed = function ($item) use ($reportPermissions) {
+                $permission = strtoupper($item->permission_name ?? '');
+                if (!str_starts_with($permission, 'REPORT_')) return null;
+                $id = strtolower(substr(explode('.', $permission)[0], 7));
+                return $reportPermissions[$id]['view'] ?? false;
+            };
 
             $isMasterMenu = function ($menu) {
                 // If it is the Master menu or a child of it
@@ -223,7 +230,9 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu, $isSassOwnerOnly) {
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu, $isSassOwnerOnly, $reportMenuAllowed) {
+                    $reportAllowed = $reportMenuAllowed($item);
+                    if ($reportAllowed !== null) return $reportAllowed;
                     if ($isMasterMenu($item)) {
                         return $isSassOwnerOnly;
                     }
@@ -238,7 +247,10 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu, $isSassOwnerOnly, $sideNav) {
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu, $isSassOwnerOnly, $sideNav, $reportPermissions) {
+                    if ($item->alias === 'report') {
+                        return (bool) array_filter($reportPermissions, fn ($actions) => $actions['view']);
+                    }
                     if ($isMasterMenu($item)) {
                         return $isSassOwnerOnly;
                     }

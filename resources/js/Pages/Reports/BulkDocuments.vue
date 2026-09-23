@@ -85,7 +85,7 @@ const totalTaxAmount = computed(() => {
 });
 
 const canExport = computed(() => {
-    return (isAdmin.value || can('report.export')) && (result.value?.count ?? 0) > 0 && (result.value?.count ?? 0) <= 100;
+    return can('REPORT_BULK_DOCUMENTS.EXPORT') && can('REPORT_BULK_DOCUMENTS.VIEW') && (result.value?.count ?? 0) > 0 && (result.value?.count ?? 0) <= 100;
 });
 
 const resetFilters = () => {
@@ -204,7 +204,7 @@ onMounted(() => {
                                 Print
                             </BaseButton>
 
-                            <BaseButton v-if="isAdmin || can('report.export')" variant="filled" severity="success"
+                            <BaseButton v-if="can('REPORT_BULK_DOCUMENTS.EXPORT') && can('REPORT_BULK_DOCUMENTS.VIEW')" variant="filled" severity="success"
                                 :disabled="!canExport || exportingPdf" :loading="exportingPdf" @click="runExport">
                                 <ArrowDownTrayIcon class="h-4 w-4 mr-2" />
                                 Download Combined PDF

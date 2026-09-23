@@ -259,10 +259,10 @@ const metrics = computed(() => {
         <main class="w-full space-y-6">
             
             <!-- EXECUTIVE KPI STATS CARDS -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <!-- <div class="grid grid-cols-2 sm:grid-cols-4 gap-3"> -->
                 
                 <!-- Total Sites -->
-                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                <!-- <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
                     <div>
                         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Total Sites</span>
                         <div class="mt-0.5 flex items-baseline gap-1.5">
@@ -273,10 +273,10 @@ const metrics = computed(() => {
                     <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                         <MapPinIcon class="w-5 h-5" />
                     </div>
-                </div>
+                </div> -->
 
                 <!-- Active Nodes -->
-                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                <!-- <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
                     <div>
                         <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">Active Nodes</span>
                         <div class="mt-0.5 flex items-baseline gap-1.5">
@@ -287,10 +287,10 @@ const metrics = computed(() => {
                     <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                         <CheckCircleIcon class="w-5 h-5" />
                     </div>
-                </div>
+                </div> -->
 
                 <!-- Delivery Sites (Unloading) -->
-                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                <!-- <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
                     <div>
                         <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block">Delivery Bays</span>
                         <div class="mt-0.5 flex items-baseline gap-1.5">
@@ -301,10 +301,10 @@ const metrics = computed(() => {
                     <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                         <BuildingOffice2Icon class="w-5 h-5" />
                     </div>
-                </div>
+                </div> -->
 
                 <!-- Customer Linked -->
-                <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                <!-- <div class="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
                     <div>
                         <span class="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 block">Dedicated Sites</span>
                         <div class="mt-0.5 flex items-baseline gap-1.5">
@@ -315,9 +315,9 @@ const metrics = computed(() => {
                     <div class="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                         <UserGroupIcon class="w-5 h-5" />
                     </div>
-                </div>
+                </div> -->
 
-            </div>
+            <!-- </div> -->
 
             <!-- TOP: CREATE FORM SECTION -->
             <section class="w-full">

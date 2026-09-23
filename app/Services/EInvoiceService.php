@@ -846,8 +846,10 @@ class EInvoiceService
         }
 
         $existingIrn = $invoice->einvoice_irn ?: $invoice->einv_irn;
-        $existingStatus = $invoice->einvoice_status ?: $invoice->einv_status;
-        if (!empty($existingIrn) && $existingStatus === 'ACT') {
+        $existingStatus = strtolower((string) ($invoice->einvoice_status ?: $invoice->einv_status));
+        if (in_array($existingStatus, ['can', 'cancelled'], true)) {
+            $errors['invoice'][] = 'Cannot generate E-Invoice for an invoice whose IRN was cancelled.';
+        } elseif (!empty($existingIrn) || in_array($existingStatus, ['act', 'generated'], true)) {
             $errors['invoice'][] = 'E-Invoice (IRN) has already been generated for this invoice: ' . $existingIrn;
         }
 

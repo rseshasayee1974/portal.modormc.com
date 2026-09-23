@@ -74,6 +74,7 @@ const props = defineProps({
     concreteGrades: Array,
     mixDesigns: Array,
     filters: Object,
+    reportPermissions: { type: Object, default: () => ({}) },
 });
 
 const getModuleIcon = (id) => {
@@ -89,11 +90,13 @@ const getModuleIcon = (id) => {
 };
 
 // SAP Fiori Module Config
-const modules = [
+const reportCatalog = [
     {
         id: 'accounting',
         name: 'Accounting & Finance',
         reports: [
+            { id: 'sales_register', name: 'Sales Register', description: 'Invoice summary and item details with GST rates, totals and exports' },
+            { id: 'purchase_register', name: 'Purchase Register', description: 'Supplier bill summary and item details with GST rates, totals and exports' },
             { id: 'deleted_report', name: 'Deleted Report', description: 'Audit trail of deleted invoices, bills, payments, receipts, batches, dispatches, expenses, e-way bills, journal entries, and discounts' },
             { id: 'bulk_documents', name: 'Bulk Invoice / Bill Export', description: 'Filter invoices and bills and download one combined PDF, one document per page' },
             { id: 'ledger', name: 'General Ledger', description: 'Account balances, running ledgers and transaction history' },
@@ -111,7 +114,7 @@ const modules = [
             { id: 'inventory_inward', name: 'Purchase Inward Receipts', description: 'Inward histories, truck weights and purchase records' },
             { id: 'purchase', name: 'Purchase & Bills Summary', description: 'PO breakdown, product cost logs and vendor bills' },
             { id: 'purchase_register', name: 'Purchase Register Report', description: 'Itemized purchase bills with supplier GST, rate, and values' },
-            // { id: 'silo_stock_valuation', name: 'Silo Stock Valuation', description: 'FIFO / Weighted Average cost valuation for consumed aggregate stock' },
+            { id: 'silo_stock_valuation', name: 'Silo Stock Valuation', description: 'FIFO / Weighted Average cost valuation for consumed aggregate stock' },
         ]
     },
     {
@@ -152,7 +155,7 @@ const modules = [
             { id: 'driver', name: 'Driver Trip Report', description: 'Driver trip logs, vehicle dispatches, and delivered quantities' },
         ]
     },
- {/*  {
+    {
         id: 'compliance',
         name: 'Taxation & Compliance',
         reports: [
@@ -161,25 +164,36 @@ const modules = [
             { id: 'tds_certificate', name: 'TDS Certificate Generation', description: 'TDS details and deduction summary for a given patron' },
             { id: 'esi_pf_challan', name: 'ESI/PF Challan Generation', description: 'Monthly Employee State Insurance and Provident Fund statutory challan calculations' }
         ]
-    } 
-         */} 
+    }
 ];
+
+const hasReportPermission = (type, action = 'view', view = 'summary') => {
+    const id = type === 'sales_register' && view === 'detail' ? 'detailed_sales_register' : (type === 'deleted' ? 'deleted_report' : type);
+    return props.reportPermissions[id]?.[action] === true;
+};
+const modules = computed(() => reportCatalog.map(module => ({
+    ...module,
+    reports: module.reports.filter(report => hasReportPermission(report.id)
+        || (report.id === 'sales_register' && hasReportPermission(report.id, 'view', 'detail'))),
+})).filter(module => module.reports.length));
 
 // Determine initial report type and module from props or URL
 const getInitialSelection = () => {
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-    const initialType = props.filters?.type || (urlParams ? urlParams.get('type') : null) || 'ledger';
+    const requestedType = props.filters?.type || (urlParams ? urlParams.get('type') : null);
+    const initialType = requestedType === 'deleted' ? 'deleted_report' : (requestedType || modules.value[0]?.reports[0]?.id);
     const initialModule = props.filters?.module || (urlParams ? urlParams.get('module') : null);
 
     let resolvedModule = initialModule;
-    if (!resolvedModule && initialType) {
-        const foundMod = modules.find(m => m.reports.some(r => r.id === initialType));
+    if (!modules.value.some(m => m.id === resolvedModule && m.reports.some(r => r.id === initialType))) {
+        const foundMod = modules.value.find(m => m.reports.some(r => r.id === initialType));
         if (foundMod) resolvedModule = foundMod.id;
     }
 
     return {
         module: resolvedModule || 'accounting',
-        type: initialType
+        type: initialType,
+        registerView: props.filters?.register_view || urlParams?.get('register_view')
     };
 };
 
@@ -201,6 +215,16 @@ const isFiltersCollapsed = ref(false);
 const loading = ref(false);
 const reportData = ref(null);
 
+const registerView = ref(initialSelection.registerView === 'detail' || (reportType.value === 'sales_register' && !hasReportPermission('sales_register')) ? 'detail' : 'summary');
+const canExportReport = computed(() => hasReportPermission(reportType.value, 'export', registerView.value));
+const canShareReport = computed(() => hasReportPermission(reportType.value, 'share', registerView.value));
+const canScheduleReport = computed(() => hasReportPermission(reportType.value, 'schedule', registerView.value));
+const registerStatus = ref('active');
+const registerViewOptions = computed(() => [
+    { label: 'Summary (invoice / bill)', value: 'summary' },
+    { label: reportType.value === 'sales_register' ? 'Detailed (product, GST and dispatch)' : 'Detailed (item wise)', value: 'detail' },
+].filter(option => reportType.value !== 'sales_register' || hasReportPermission('sales_register', 'view', option.value)));
+const registerStatusOptions = [{ label: 'Active documents', value: 'active' }, { label: 'All documents', value: 'all' }, { label: 'Cancelled only', value: 'cancelled' }];
 const gstType = ref(null);
 const paymentStatus = ref(null);
 const currentPage = ref(1);
@@ -267,7 +291,7 @@ const returnReportContext = ref(null);
 const isNavigatingToStatement = ref(false);
 
 const handleViewStatement = (id) => {
-    if (!id) return;
+    if (!id || !hasReportPermission('customer_outstanding')) return;
     returnReportContext.value = {
         moduleId: selectedModuleId.value,
         reportType: reportType.value,
@@ -389,11 +413,11 @@ const checkExportStatus = (key) => {
 };
 
 const activeModule = computed(() => {
-    return modules.find(m => m.id === selectedModuleId.value);
+    return modules.value.find(m => m.id === selectedModuleId.value) || modules.value[0];
 });
 
 const activeReport = computed(() => {
-    return activeModule.value.reports.find(r => r.id === reportType.value);
+    return activeModule.value?.reports.find(r => r.id === reportType.value) || { name: 'Report' };
 });
 
 const isCustomerReport = computed(() => {
@@ -544,7 +568,7 @@ watch(selectedMonth, (newVal) => {
 // Watch module change to select first report automatically
 watch(selectedModuleId, (newModuleId) => {
     if (isNavigatingToStatement.value) return;
-    const mod = modules.find(m => m.id === newModuleId);
+    const mod = modules.value.find(m => m.id === newModuleId);
     if (mod && mod.reports.length > 0) {
         reportType.value = mod.reports[0].id;
         reportData.value = null;
@@ -569,6 +593,9 @@ watch(selectedModuleId, (newModuleId) => {
 
 watch(reportType, () => {
     if (isNavigatingToStatement.value) return;
+    if (reportType.value === 'sales_register' && !hasReportPermission('sales_register', 'view', registerView.value)) {
+        registerView.value = hasReportPermission('sales_register') ? 'summary' : 'detail';
+    }
     reportData.value = null;
     selectedId.value = null;
     patronId.value = null;
@@ -590,7 +617,8 @@ watch(reportType, () => {
     generateReport();
 });
 
-watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId, driverId, salesExecutiveId, selectedEmployeeId, ledgerVoucherFilter], () => {
+watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, driverId, salesExecutiveId, selectedEmployeeId, ledgerVoucherFilter], () => {
+    currentPage.value = 1;
     generateReport();
 });
 
@@ -598,10 +626,13 @@ onMounted(() => {
     generateReport();
 });
 
+let reportRequest = 0;
 const generateReport = async () => {
+    if (!hasReportPermission(reportType.value, 'view', registerView.value)) return;
     if (reportType.value === 'bulk_documents') {
         return;
     }
+    const requestId = ++reportRequest;
     loading.value = true;
     try {
         let url = route('reports.generate');
@@ -629,6 +660,8 @@ const generateReport = async () => {
                 to_date: endDate.value,
                 customer_id: patronId.value,
                 gst_type: gstType.value,
+                register_view: registerView.value,
+                document_status: registerStatus.value,
                 payment_status: paymentStatus.value,
                 page: currentPage.value
             };
@@ -639,6 +672,8 @@ const generateReport = async () => {
                 to_date: endDate.value,
                 supplier_id: patronId.value,
                 gst_type: gstType.value,
+                register_view: registerView.value,
+                document_status: registerStatus.value,
                 page: currentPage.value
             };
         } else if (reportType.value === 'machine_summary') {
@@ -660,8 +695,10 @@ const generateReport = async () => {
         }
 
         const response = await axios.get(url, { params });
-        reportData.value = response.data;
+        if (requestId === reportRequest) reportData.value = response.data;
     } catch (error) {
+        if (requestId !== reportRequest) return;
+        reportData.value = null;
         console.error('Report Generation Error:', error.response?.data || error);
         const errorDetail = error.response?.data?.error || error.response?.data?.message || error.message;
         Swal.fire({
@@ -671,7 +708,7 @@ const generateReport = async () => {
             confirmButtonColor: '#3B82F6',
         });
     } finally {
-        loading.value = false;
+        if (requestId === reportRequest) loading.value = false;
     }
 };
 
@@ -709,7 +746,7 @@ const startQueuedExport = async (url, type = 'export') => {
 };
 
 const exportPdf = () => {
-    if (isExporting.value) return;
+    if (isExporting.value || !canExportReport.value) return;
     let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
@@ -733,6 +770,8 @@ const exportPdf = () => {
             to_date: endDate.value,
             customer_id: patronId.value,
             gst_type: gstType.value,
+                register_view: registerView.value,
+                document_status: registerStatus.value,
             payment_status: paymentStatus.value,
             export: 'pdf'
         });
@@ -742,6 +781,8 @@ const exportPdf = () => {
             to_date: endDate.value,
             supplier_id: patronId.value,
             gst_type: gstType.value,
+                register_view: registerView.value,
+                document_status: registerStatus.value,
             export: 'pdf'
         });
     } else if (reportType.value === 'machine_summary') {
@@ -764,7 +805,7 @@ const exportPdf = () => {
 };
 
 const exportExcel = () => {
-    if (isExporting.value) return;
+    if (isExporting.value || !canExportReport.value) return;
     let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
@@ -788,6 +829,8 @@ const exportExcel = () => {
             to_date: endDate.value,
             customer_id: patronId.value,
             gst_type: gstType.value,
+                register_view: registerView.value,
+                document_status: registerStatus.value,
             payment_status: paymentStatus.value,
             export: 'excel'
         });
@@ -797,6 +840,8 @@ const exportExcel = () => {
             to_date: endDate.value,
             supplier_id: patronId.value,
             gst_type: gstType.value,
+                register_view: registerView.value,
+                document_status: registerStatus.value,
             export: 'excel'
         });
     } else if (reportType.value === 'machine_summary') {
@@ -821,6 +866,7 @@ const schedules = ref([]);
 const isScheduleModalOpen = ref(false);
 
 const fetchSchedules = async () => {
+    if (!Object.values(props.reportPermissions).some(actions => actions.schedule)) return;
     try {
         const response = await axios.get(route('reports.schedules.index'));
         schedules.value = response.data;
@@ -869,6 +915,8 @@ const currentReportParams = computed(() => {
         patron_id: patronId.value,
         voucher_type_filter: ledgerVoucherFilter.value,
         gst_type: gstType.value,
+                register_view: registerView.value,
+                document_status: registerStatus.value,
         payment_status: paymentStatus.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
@@ -876,6 +924,7 @@ const currentReportParams = computed(() => {
 });
 
 const openScheduleModal = () => {
+    if (!canScheduleReport.value) return;
     isScheduleModalOpen.value = true;
 };
 
@@ -889,12 +938,14 @@ const shareLink = ref('');
 const isGeneratingLink = ref(false);
 
 const openShareReport = () => {
+    if (!canShareReport.value) return;
     shareExpiry.value = '7';
     shareLink.value = '';
     showShareModal.value = true;
 };
 
 const generateShareLink = async () => {
+    if (!canShareReport.value) return;
     isGeneratingLink.value = true;
     try {
         const response = await axios.post(route('reports.share'), {
@@ -909,6 +960,8 @@ const generateShareLink = async () => {
                 voucher_type_filter: ledgerVoucherFilter.value,
                 valuation_method: valuationMethod.value,
                 gst_type: gstType.value,
+                register_view: registerView.value,
+                document_status: registerStatus.value,
                 payment_status: paymentStatus.value,
                 truck_id: truckId.value,
                 employee_id: selectedEmployeeId.value,
@@ -1066,6 +1119,7 @@ const shareEmail = () => {
                         v-if="reportType === 'bulk_documents'"
                         :patrons="patrons"
                         :ledgers="ledgers"
+                        :allow-export="canExportReport"
                         :default-start-date="startDate"
                         :default-end-date="endDate"
                     />
@@ -1161,6 +1215,15 @@ const shareEmail = () => {
                                         filter
                                         showClear
                                     />
+                                </div>
+
+                                <div v-if="['sales_register', 'purchase_register'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Register View</span>
+                                    <BaseSelect v-model="registerView" :options="registerViewOptions" optionLabel="label" optionValue="value" />
+                                </div>
+                                <div v-if="['sales_register', 'purchase_register'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Document Status</span>
+                                    <BaseSelect v-model="registerStatus" :options="registerStatusOptions" optionLabel="label" optionValue="value" />
                                 </div>
 
                                 <!-- GST Type (Sales & Purchase Register) -->
@@ -1313,7 +1376,7 @@ const shareEmail = () => {
                                         Schedule Report
                                     </button> -->
                                     <button 
-                                        @click="exportExcel"
+                                        v-if="canExportReport" @click="exportExcel"
                                         :disabled="isExporting"
                                         :class="[
                                             'px-4 py-2 border text-xs font-bold rounded transition-all flex items-center gap-1.5',
@@ -1337,7 +1400,7 @@ const shareEmail = () => {
                                         {{ isExporting && currentExportType === 'excel' ? 'Exporting Excel...' : 'Export Excel' }}
                                     </button>
                                     <button 
-                                        @click="exportPdf"
+                                        v-if="canExportReport" @click="exportPdf"
                                         :disabled="isExporting"
                                         :class="[
                                             'px-4 py-2 border text-xs font-bold rounded transition-all flex items-center gap-1.5',

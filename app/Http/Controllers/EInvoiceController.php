@@ -34,15 +34,17 @@ class EInvoiceController extends Controller
      */
     public function einvoiceGenerate(Request $request, Invoice $invoice)
     {
-        $this->authorizeModule('edit');
+        $this->authorizeModule('generate_einvoice', 'dispatch');
+        $plantId = app(\App\Services\PlantContextService::class)->requirePlantId();
 
         // Resolve invoice model from route binding or request body
         if (!$invoice->exists) {
             $invoiceId = $request->input('invoice_id') ?? $request->input('id') ?? $request->input('form.id');
             if ($invoiceId) {
-                $invoice = Invoice::findOrFail($invoiceId);
+                $invoice = Invoice::where('plant_id', $plantId)->findOrFail($invoiceId);
             }
         }
+        abort_unless($invoice->exists && !$invoice->trashed() && (int) $invoice->plant_id === $plantId, 404);
 
         try {
             $transportDetails = $request->all();

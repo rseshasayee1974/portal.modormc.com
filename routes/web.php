@@ -388,6 +388,7 @@ Route::middleware([
          Route::get('machine-summary', [\App\Http\Controllers\ReportController::class, 'machineSummary'])->name('reports.machine-summary');
          Route::get('vehicle-pl', [\App\Http\Controllers\ReportController::class, 'vehiclePL'])->name('reports.vehicle-pl');
          Route::get('export-status/{key}', [\App\Http\Controllers\ReportController::class, 'getExportStatus'])->name('reports.export-status');
+         Route::get('export-download/{key}', [\App\Http\Controllers\ReportController::class, 'downloadExport'])->name('reports.export-download');
          Route::get('schedules', [\App\Http\Controllers\ReportController::class, 'listSchedules'])->name('reports.schedules.index');
          Route::post('schedules', [\App\Http\Controllers\ReportController::class, 'storeSchedule'])->name('reports.schedules.store');
          Route::delete('schedules/{schedule}', [\App\Http\Controllers\ReportController::class, 'deleteSchedule'])->name('reports.schedules.destroy');

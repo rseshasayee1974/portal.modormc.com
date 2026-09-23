@@ -44,7 +44,7 @@ class BulkDocumentZipExportService
             ], now()->addHours(2));
 
             // Ensure storage directories exist
-            $reportsDir = storage_path('app/public/reports');
+            $reportsDir = storage_path('app/private/reports');
             if (!file_exists($reportsDir)) {
                 mkdir($reportsDir, 0775, true);
             }
@@ -145,7 +145,7 @@ class BulkDocumentZipExportService
                 'progress' => 100,
                 'processed' => $processed,
                 'total' => $total,
-                'url' => asset('storage/reports/' . $zipFilename),
+                'url' => route('reports.export-download', ['key' => $statusKey]),
                 'filename' => $zipFilename,
                 'file_size' => $humanSize,
                 'generated_at' => now()->toDateTimeString(),

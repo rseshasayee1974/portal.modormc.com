@@ -86,7 +86,7 @@ const formatFullAddress = (site: any) => {
             :expandedRows="expandedRows"
             @update:expandedRows="$emit('update:expandedRows', $event)"
         >
-            <Column expander style="width: 2.5rem" />
+            <!-- <Column expander style="width: 2.5rem" /> -->
 
             <!-- Site Type -->
             <Column field="type" header="Type" sortable style="width: 130px">
@@ -199,7 +199,7 @@ const formatFullAddress = (site: any) => {
                 <template #body="{ data }">
                     <div class="flex items-center justify-end gap-1">
                         <!-- Edit Button (Toggles Inline Expansion) -->
-                        <button
+                        <!-- <button
                             type="button"
                             @click.stop="toggleRow(data.id)"
                             class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
@@ -207,7 +207,7 @@ const formatFullAddress = (site: any) => {
                             :title="expandedRows && expandedRows[data.id] ? 'Collapse Panel' : 'Edit Site'"
                         >
                             <PencilSquareIcon class="w-4 h-4" />
-                        </button>
+                        </button> -->
 
                         <!-- Delete Button -->
                         <Button 

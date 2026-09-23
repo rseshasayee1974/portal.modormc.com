@@ -154,6 +154,20 @@ class MenuSeeder extends Seeder
             'icon' => 'DocumentChartBarIcon', 'published' => 1, 'parent_id' => 9,
             'level' => 1, 'ordering' => 9, 'permission_name' => 'OPENING_BALANCE.VIEW',
         ]);
+        foreach (['sales' => 'Sales Register', 'purchase' => 'Purchase Register'] as $kind => $title) {
+            Menu::updateOrCreate(['alias' => $kind.'-register-report'], [
+                'menutype' => 2, 'title' => $title, 'link' => 'reports/report?type='.$kind.'_register',
+                'icon' => 'DocumentChartBarIcon', 'published' => 1, 'parent_id' => 10,
+                'level' => 1, 'ordering' => $kind === 'sales' ? 1 : 2, 'permission_name' => 'REPORT.VIEW',
+            ]);
+        }
+        Menu::updateOrCreate(['alias' => 'detailed-sales-register-report'], [
+            'menutype' => 2, 'title' => 'Detailed Sales Register',
+            'link' => 'reports/report?type=sales_register&register_view=detail',
+            'icon' => 'DocumentChartBarIcon', 'published' => 1, 'parent_id' => 10,
+            'level' => 1, 'ordering' => 3, 'permission_name' => 'REPORT.VIEW',
+        ]);
+        \App\Services\Reports\InstallReportPermissions::syncMenus();
         $this->call(DiscountModuleSeeder::class);
     }
 }

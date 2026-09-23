@@ -2,6 +2,7 @@ import { entityToday } from '@/Utils/entityDateTime';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { useEInvoiceGeneration } from '@/Composables/useEInvoiceGeneration';
 
 /**
  * Composable – useInvoiceActions
@@ -146,52 +147,11 @@ export function useInvoiceActions(
         );
     };
 
-    const generateEInvoiceDirect = (invoice: any, callback?: () => void) => {
-        if (!invoice || !invoice.id) return;
-        Swal.fire({
-            title: 'Generate E-Invoice',
-            text: `Are you sure you want to generate E-Invoice IRN for invoice #${invoice.full_number || invoice.invoice_number || ''}?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Generate E-Invoice',
-            confirmButtonColor: '#7c3aed',
-            cancelButtonColor: '#64748b',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                router.post(
-                    route('invoices.generate-einvoice', invoice.id),
-                    {
-                        generate_eway: false,
-                    },
-                    {
-                        preserveScroll: true,
-                        preserveState: true,
-                        onSuccess: () => {
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'success',
-                                title: 'E-Invoice IRN generated successfully.',
-                                showConfirmButton: false,
-                                timer: 2000,
-                            });
-                            if (callback) callback();
-                            if (onInvoiceChange && invoice.dispatch?.batch_id) onInvoiceChange(invoice.dispatch.batch_id);
-                        },
-                        onError: (errors: any) => {
-                            const msg = errors?.error || Object.values(errors || {}).flat().join('\n') || 'Failed to generate E-Invoice';
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'E-Invoice Failed',
-                                text: msg,
-                                confirmButtonColor: '#d33',
-                            });
-                        }
-                    }
-                );
-            }
-        });
-    };
+    const { generateEInvoice, generatingEInvoice } = useEInvoiceGeneration();
+    const generateEInvoiceDirect = (invoice: any, callback?: () => void) => generateEInvoice(invoice, () => {
+        callback?.();
+        if (onInvoiceChange && invoice.dispatch?.batch_id) onInvoiceChange(invoice.dispatch.batch_id);
+    });
 
     const printEInvoiceDirect = (invoice: any) => {
         if (!invoice || !invoice.encrypted_id) return;
@@ -487,6 +447,7 @@ export function useInvoiceActions(
     return {
         generateInvoiceDirect,
         generateEInvoiceDirect,
+        generatingEInvoice,
         generateEwayBillDirect,
         printInvoiceDirect,
         printOriginalInvoiceDirect,

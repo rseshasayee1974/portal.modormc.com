@@ -19,15 +19,16 @@ trait AuthorizesModule
     /**
      * Abort with 403 if the current user lacks the given permission.
      */
-    protected function authorizeModule(string $action): void
+    protected function authorizeModule(string $action, ?string $module = null): void
     {
+        $module ??= $this->module;
         $user = auth()->user();
         if (!$user) {
             abort(401);
         }
 
         // Restrict master and its submenus strictly to SaaS Owner and Platform Admin (blocking Super Admin)
-        $prefix = strtoupper(\Illuminate\Support\Str::singular($this->module));
+        $prefix = strtoupper(\Illuminate\Support\Str::singular($module));
         $isMasterModule = false;
         try {
             $isMasterModule = \App\Models\Menu::where(function ($q) {
@@ -87,8 +88,8 @@ trait AuthorizesModule
         $mappedAction = $actionMap[$action] ?? strtoupper($action);
         
         // Check both singular and plural forms (e.g. BATCH.VIEW and BATCHES.VIEW)
-        $singular = strtoupper(\Illuminate\Support\Str::singular($this->module));
-        $plural   = strtoupper(\Illuminate\Support\Str::plural($this->module));
+        $singular = strtoupper(\Illuminate\Support\Str::singular($module));
+        $plural   = strtoupper(\Illuminate\Support\Str::plural($module));
         
         $permissionSingular = "{$singular}.{$mappedAction}";
         $permissionPlural   = "{$plural}.{$mappedAction}";
@@ -109,7 +110,7 @@ trait AuthorizesModule
             || \Illuminate\Support\Facades\Gate::allows($permissionPlural);
 
         if (!$hasPermission) {
-            abort(403, "Access Denied: You do not have the required permission ({$permissionPlural}) for the {$this->module} module.");
+            abort(403, "Access Denied: You do not have the required permission ({$permissionPlural}) for the {$module} module.");
         }
     }
 }

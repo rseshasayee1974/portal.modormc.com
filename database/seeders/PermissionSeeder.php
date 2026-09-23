@@ -133,6 +133,9 @@ class PermissionSeeder extends Seeder
             'TEMPLATE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE']
         ];
 
+        foreach (\App\Services\Reports\ReportPermissions::REPORTS as $id => $label) {
+            $moduleActions['REPORT_'.strtoupper($id)] = \App\Services\Reports\ReportPermissions::ACTIONS;
+        }
         $allPermissionNames = [];
 
         foreach ($moduleActions as $module => $actions) {

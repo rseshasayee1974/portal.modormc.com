@@ -2,112 +2,28 @@
 
 namespace App\Services\Reports;
 
-use App\Repositories\ReportRepository;
-use App\Jobs\QueueReportExportJob;
-use App\Exports\SalesRegisterExport;
-use Illuminate\Support\Facades\Cache;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 
-class SalesRegisterService
+class SalesRegisterService extends RegisterReportService
 {
-    protected ReportRepository $repository;
+    protected function reportType(): string { return 'sales_register'; }
+    protected function query(array $filters): Builder { return $this->repository->getSalesRegisterQuery($filters); }
+    protected function mapRow($item): array { return $this->mapSalesRow($item); }
 
-    public function __construct(ReportRepository $repository)
-    {
-        $this->repository = $repository;
-    }
-
-    /**
-     * Generate Sales Register report data or export file.
-     *
-     * Time Complexity:
-     * - Best Case:  O(1) from cached totals.
-     * - Average:    O(log n) index seek + O(p) paginated rows.
-     * - Export:     O(n) chunked streaming.
-     */
-    public function generate(array $filters)
-    {
-        $export  = $filters['export'] ?? null;
-        $refresh = !empty($filters['refresh']);
-
-        if ($export === 'excel') return $this->handleExcelExport($filters);
-        if ($export === 'pdf')   return $this->handlePdfExport($filters);
-
-        $cacheFilters = array_diff_key($filters, array_flip(['export', 'page', 'per_page', 'refresh', 'queue']));
-        $cacheKey     = 'sales_register_' . md5(json_encode($cacheFilters));
-        $perPage      = (int) ($filters['per_page'] ?? 100);
-        $page         = (int) ($filters['page'] ?? 1);
-
-        if ($refresh) {
-            Cache::forget($cacheKey . '_totals');
-        }
-
-        $query = $this->repository->getSalesRegisterQuery($filters);
-        $items = $query->paginate($perPage, ['*'], 'page', $page);
-
-        $formattedItems = collect($items->items())->map(function ($item) {
-            return $this->mapSalesRow($item);
-        });
-
-        // Collect all unique tax columns from this page for dynamic header rendering
-        $taxColumns = $this->collectTaxColumns($formattedItems->all());
-
-        // Cache only totals (expensive aggregate — stable within 10 minutes)
-        try {
-            $totals = Cache::remember($cacheKey . '_totals', now()->addMinutes(10), function () use ($filters) {
-                return $this->computeTotals($filters);
-            });
-        } catch (\Exception $e) {
-            $totals = $this->computeTotals($filters);
-        }
-
-        return [
-            'status'      => true,
-            'message'     => 'Sales register generated successfully',
-            'data'        => $formattedItems->values(),
-            'tax_columns' => $taxColumns,
-            'pagination'  => [
-                'total'        => $items->total(),
-                'per_page'     => $items->perPage(),
-                'current_page' => $items->currentPage(),
-                'last_page'    => $items->lastPage(),
-            ],
-            'totals' => $totals,
-        ];
-    }
-
-    /**
-     * Map a single InvoiceItem to the report row array.
-     * Returns rate-wise tax breakdown in 'taxes' key.
-     */
     public function mapSalesRow($item): array
     {
         $invoice = $item->invoice;
         $partner = $invoice?->partner;
 
-        if (!$partner && $invoice && $invoice->invoice_label === 'Dispatch' && $invoice->ref_id) {
-            $dispatch = \Illuminate\Support\Facades\DB::table('mm_dispatches')->where('id', $invoice->ref_id)->first();
-            if ($dispatch) {
-                $customerId = $dispatch->customer_id;
-                if (!$customerId && !empty($dispatch->sales_order_id)) {
-                    $so = \Illuminate\Support\Facades\DB::table('mm_sales_orders')->where('id', $dispatch->sales_order_id)->first();
-                    $customerId = $so?->customer_id;
-                }
-                if ($customerId) {
-                    $partner = \App\Models\Patron::withoutGlobalScopes()->find($customerId);
-                }
-            }
-        }
-
         $invoiceNo = $invoice
-            ? (($invoice->prefix ?? '') . ($invoice->invoice_number ?? ''))
+            ? $invoice->full_number
             : '';
 
         // Build rate-wise tax breakdown: ['CGST_9.00' => 450.00, 'SGST_9.00' => 450.00, ...]
         $taxes = [];
         $cgst  = 0.0;
         $sgst  = 0.0;
+        $utgst = 0.0;
         $igst  = 0.0;
 
         foreach ($item->itemTaxes as $tax) {
@@ -120,15 +36,17 @@ class SalesRegisterService
                 $cgst += $amount;
             } elseif (str_contains($rawName, 'UTGST') || str_contains($rawName, 'UGST')) {
                 $baseType = 'UTGST';
-                $sgst += $amount;
+                $utgst += $amount;
             } elseif (str_contains($rawName, 'SGST')) {
                 $baseType = 'SGST';
                 $sgst += $amount;
             } elseif (str_contains($rawName, 'IGST')) {
                 $baseType = 'IGST';
                 $igst += $amount;
+            } elseif (str_contains($rawName, 'TCS')) {
+                $baseType = 'TCS';
             } else {
-                $baseType = $rawName ?: 'TAX';
+                $baseType = str_replace('_', ' ', $rawName) ?: 'TAX';
             }
 
             $colKey = $baseType . '_' . number_format($rate, 2, '.', '');
@@ -137,25 +55,48 @@ class SalesRegisterService
 
         $paymentStatus = 'Unpaid';
         if ($invoice) {
-            if ($invoice->status === 'paid' || $invoice->balance_amount <= 0) {
+            if (strtolower($invoice->status ?? '') === 'paid' || ($invoice->balance_amount !== null && (float) $invoice->balance_amount <= 0)) {
                 $paymentStatus = 'Paid';
             } elseif ($invoice->paid_amount > 0 && $invoice->balance_amount > 0) {
                 $paymentStatus = 'Partial';
             }
         }
 
+        $unit = $item->uom?->unit_code ?: ($item->uom?->unit_name ?? '');
+        $quantity = rtrim(rtrim(number_format((float) $item->quantity, 2, '.', ''), '0'), '.');
+        $partyTypes = $partner?->patron_type ?? json_decode($item->register_party_type ?? '[]', true);
+
         return [
             'id'             => $item->id,
+            'document_id'    => $item->invoice_id,
+            'bill_no'        => $invoice?->invoice_number ?? '',
+            'document_type'  => $invoice?->invoice_label ?? 'Sales',
+            'document_status'=> $invoice?->status ?? '',
+            'hsn_code'       => $item->hsn_code ?? '',
+            'unit'           => $unit,
+            'payment_mode'   => ucfirst(strtolower(trim($item->register_payment_mode ?? ''))),
+            'tax_name'       => $this->taxName($taxes),
+            'unloading'      => $item->register_unloading ?? '',
+            'truck'          => $item->register_truck_number ?? '',
+            'description'    => implode(',', [$invoiceNo, $item->item_name ?? '', $quantity.$unit]),
+            'party_type'     => is_array($partyTypes) ? implode(', ', $partyTypes) : (string) $partyTypes,
+            'tax_amount'     => (float) $item->line_tax_amount,
+            'created_by'     => $invoice?->creator?->email ?? $invoice?->creator?->username ?? '',
+            'irn'            => $invoice?->einvoiceRelation?->einv_irn ?? '',
+            'einvoice_status'=> $invoice?->einvoiceRelation?->einv_status ?? '',
+            'ack_date'       => $invoice?->einvoiceRelation?->einv_ack_date?->format('d-m-Y H:i') ?? '',
+            'cancel_at'      => $invoice?->einvoiceRelation?->einv_cancel_at?->format('d-m-Y H:i') ?? '',
             'invoice_no'     => $invoiceNo,
-            'invoice_date'   => $invoice ? $invoice->invoice_date->toDateString() : '',
-            'customer_name'  => $partner ? $partner->legal_name : 'N/A',
-            'gst_number'     => $partner ? ($partner->gstin ?? '') : '',
+            'invoice_date'   => $invoice?->invoice_date?->toDateString() ?? '',
+            'customer_name'  => $partner?->legal_name ?? $item->register_customer_name ?? 'N/A',
+            'gst_number'     => $partner?->gstin ?? $item->register_customer_gstin ?? '',
             'product_name'   => $item->item_name ?? 'N/A',
             'qty'            => (float) $item->quantity,
             'rate'           => (float) $item->price_unit,
             'taxable_amount' => (float) $item->subtotal,
             'cgst'           => round($cgst, 2),
             'sgst'           => round($sgst, 2),
+            'utgst'          => round($utgst, 2),
             'igst'           => round($igst, 2),
             'taxes'          => $taxes,          // rate-wise: {CGST_9.00: 450, SGST_9.00: 450}
             'net_amount'     => (float) $item->line_total,
@@ -163,129 +104,22 @@ class SalesRegisterService
         ];
     }
 
-    /**
-     * Collect unique tax columns from formatted rows, sorted: CGST → SGST/UTGST → IGST → OTHER.
-     * Returns: [['key' => 'CGST_9.00', 'label' => 'CGST 9%'], ...]
-     */
-    public function collectTaxColumns(array $rows): array
+    private function taxName(array $taxes): string
     {
-        $seen = [];
-        foreach ($rows as $row) {
-            foreach ($row['taxes'] ?? [] as $colKey => $amount) {
-                if ((float)$amount > 0.001) {
-                    $seen[$colKey] = true;
-                }
-            }
+        // Describe the recorded tax rates, so later tax-master edits cannot change history.
+        $rates = [];
+        foreach (array_keys($taxes) as $key) {
+            [$type, $rate] = explode('_', $key, 2);
+            $rates[$type] = ($rates[$type] ?? 0) + (float) $rate;
         }
-
-        $keys = array_keys($seen);
-
-        usort($keys, function ($a, $b) {
-            $order = ['CGST' => 0, 'SGST' => 1, 'UTGST' => 2, 'IGST' => 3];
-            $typeA = explode('_', $a)[0];
-            $typeB = explode('_', $b)[0];
-            $oA = $order[$typeA] ?? 9;
-            $oB = $order[$typeB] ?? 9;
-            if ($oA !== $oB) return $oA - $oB;
-            return strcmp($a, $b); // sort by rate within type
-        });
-
-        return array_map(function ($key) {
-            [$type, $rate] = array_pad(explode('_', $key, 2), 2, '0.00');
-            $rateFloat  = (float) $rate;
-            $rateLabel  = ($rateFloat == floor($rateFloat))
-                ? (int) $rateFloat . '%'
-                : $rateFloat . '%';
-            return ['key' => $key, 'label' => $type . ' ' . $rateLabel];
-        }, $keys);
-    }
-
-    /**
-     * Compute aggregate totals from the DB.
-     */
-    protected function computeTotals(array $filters): array
-    {
-        $raw = $this->repository->getSalesTotals($filters);
-        return [
-            'qty'         => round((float) ($raw['total_qty'] ?? 0), 2),
-            'taxable'     => round((float) ($raw['total_taxable'] ?? 0), 2),
-            'gst'         => round((float) ($raw['total_gst'] ?? 0), 2),
-            'grand_total' => round((float) ($raw['grand_total'] ?? 0), 2),
-            'cgst'        => round((float) ($raw['total_cgst'] ?? 0), 2),
-            'sgst'        => round((float) ($raw['total_sgst'] ?? 0), 2),
-            'igst'        => round((float) ($raw['total_igst'] ?? 0), 2),
-        ];
-    }
-
-    /**
-     * Handle Excel exports immediately or queue for large datasets.
-     */
-    protected function handleExcelExport(array $filters): mixed
-    {
-        $statusKey = 'report_export_' . Str::uuid();
-        Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
-
-        $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
-
-        QueueReportExportJob::dispatchExport('sales_register', $filters, $statusKey, 'excel');
-
-        return [
-            'status'     => true,
-            'queued'     => true,
-            'status_key' => $statusKey,
-            'export'     => Cache::get($statusKey),
-            'message'    => 'Report generation has been queued.',
-        ];
-    }
-
-    /**
-     * Handle PDF export for smaller datasets.
-     */
-    protected function handlePdfExport(array $filters): mixed
-    {
-        $statusKey = 'report_export_' . Str::uuid();
-        Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
-
-        $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
-
-        QueueReportExportJob::dispatchExport('sales_register', $filters, $statusKey, 'pdf');
-
-        return [
-            'status'     => true,
-            'queued'     => true,
-            'status_key' => $statusKey,
-            'export'     => Cache::get($statusKey),
-            'message'    => 'Report generation has been queued.',
-        ];
-    }
-
-    /**
-     * Generate report and save to physical file path (for queued job).
-     */
-    public function generateAndSaveReport(string $format, array $filters, string $filePath): void
-    {
-        $query = $this->repository->getSalesRegisterQuery($filters);
-        
-        if ($format === 'excel') {
-            $start = $filters['start_date'] ?? $filters['start'] ?? '';
-            $end = $filters['end_date'] ?? $filters['end'] ?? '';
-            $period = ($start && $end) ? "Period: $start to $end" : ($start ?: $end ?: 'All Dates');
-            $exporter = new SalesRegisterExport($query);
-            $exporter->export($filePath, $period);
-        } elseif ($format === 'pdf') {
-            $rows       = $query->get()->map(fn ($item) => $this->mapSalesRow($item))->values()->all();
-            $taxColumns = $this->collectTaxColumns($rows);
-            $totals     = $this->computeTotals($filters);
-
-            $pdf = Pdf::loadView('reports.sales_register_pdf', [
-                'items'        => $rows,
-                'tax_columns'  => $taxColumns,
-                'totals'       => $totals,
-                'filters'      => $filters,
-                'generated_at' => now()->format('d-m-Y H:i:s'),
-            ])->setPaper('a4', 'landscape');
-
-            $pdf->save($filePath);
+        if (isset($rates['CGST']) && (isset($rates['SGST']) || isset($rates['UTGST']))) {
+            $gst = $rates['CGST'] + ($rates['SGST'] ?? 0) + ($rates['UTGST'] ?? 0);
+            unset($rates['CGST'], $rates['SGST'], $rates['UTGST']);
+            $rates = ['GST' => $gst] + $rates;
         }
+        $labels = [];
+        foreach ($rates as $type => $rate) $labels[] = $type.' '.(float) $rate.'%';
+        return implode(' + ', $labels);
     }
+
 }

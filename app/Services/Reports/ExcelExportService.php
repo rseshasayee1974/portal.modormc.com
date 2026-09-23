@@ -355,6 +355,12 @@ class ExcelExportService
      */
     public function generateExcelReport(string $type, ?string $start, ?string $end, array $data): Spreadsheet
     {
+        if (in_array($type, ['sales_register', 'purchase_register'], true)) {
+            return app(\App\Exports\RegisterReportExport::class)->workbook(
+                $type === 'sales_register' ? 'Sales Register' : 'Purchase Register',
+                ['from_date' => $start ?? '', 'to_date' => $end ?? ''], $data
+            );
+        }
         $title = strtoupper(str_replace('_', ' ', $type)) . " REPORT";
         $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->format('d-m-Y')) : '';
         $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->format('d-m-Y')) : '';

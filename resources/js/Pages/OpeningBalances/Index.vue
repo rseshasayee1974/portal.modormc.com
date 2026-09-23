@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -22,6 +22,20 @@ const { can } = usePermissions();
 const list = ref(null);
 const busy = ref(false);
 const notice = ref('');
+let noticeTimer = null;
+
+watch(notice, (val) => {
+    if (noticeTimer) clearTimeout(noticeTimer);
+    if (val) {
+        noticeTimer = setTimeout(() => {
+            notice.value = '';
+        }, 5000);
+    }
+});
+
+onBeforeUnmount(() => {
+    if (noticeTimer) clearTimeout(noticeTimer);
+});
 const convertingLedger = ref(props.legacy?.clearing_account_id || null);
 const clearing = computed(() => props.ledgers
     .filter(ledger => !ledger.is_pnl && !props.patrons.some(patron =>
@@ -82,8 +96,25 @@ async function convert() {
     <AppLayout title="Opening Balances">
         <template #header><ModuleSubTopNav /></template>
         <Head title="Opening Balances | Initial Setup" />
-        <main class="max-w-7xl mx-auto   space-y-6 text-slate-800 dark:text-slate-100">
-            <p v-if="notice" role="status" class="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{{ notice }}</p>
+        <main class="max-w-7xl mx-auto space-y-6 text-slate-800 dark:text-slate-100">
+            <div
+                v-if="notice"
+                role="status"
+                class="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 shadow-2xs transition dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
+            >
+                <span>{{ notice }}</span>
+                <button
+                    type="button"
+                    @click="notice = ''"
+                    class="rounded-lg p-1 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-900 transition dark:text-emerald-400 dark:hover:bg-emerald-900"
+                    title="Dismiss"
+                >
+                    <span class="sr-only">Dismiss</span>
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
             <section
                 v-if="legacy"
                 class="rounded-2xl border border-amber-300 dark:border-amber-700 bg-amber-50/80 dark:bg-amber-950/40 p-6 shadow-sm space-y-4"

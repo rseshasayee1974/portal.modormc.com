@@ -25,6 +25,12 @@ package.json
 /storage/pail
 /vendor
 /tests
+!/tests/
+/tests/*
+!/tests/Standalone/
+/tests/Standalone/*
+!/tests/Standalone/register-reports.php
+!/tests/Standalone/report-permissions.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
