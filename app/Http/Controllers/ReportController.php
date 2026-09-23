@@ -117,7 +117,6 @@ class ReportController extends Controller
         try {
             $export   = $request->input('export');
             $type     = $request->input('type');
-            $isExportAction = ($export === 'excel' || $export === 'pdf' || $export === 'csv');
             $id       = $request->input('id');
             $patronId = $request->input('patron_id');
             $start    = $request->input('start_date');

@@ -19,9 +19,14 @@ class BulkDocumentReportController extends Controller
     use AuthorizesModule;
     protected string $module = 'report';
 
+    protected function authorizeReport(string $action = 'view'): void
+    {
+        app(\App\Services\Reports\ReportPermissions::class)->authorize('bulk_documents', $action);
+    }
+
     public function index()
     {
-        app(\App\Services\Reports\ReportPermissions::class)->authorize('bulk_documents');
+        $this->authorizeReport();
         return redirect()->route('reports.index', ['module' => 'accounting', 'type' => 'bulk_documents']);
     }
 
@@ -33,7 +38,7 @@ class BulkDocumentReportController extends Controller
         'tax_type' => $request->tax_type ? strtolower($request->tax_type) : $request->tax_type,
     ]);
         $export = $request->isMethod('post');
-        app(\App\Services\Reports\ReportPermissions::class)->authorize('bulk_documents', $export ? 'export' : 'view');
+        $this->authorizeReport($export ? 'export' : 'view');
         $plant = app(PlantContextService::class)->requirePlantId();
         $filters = $request->validate([
             'start_date' => 'required|date_format:Y-m-d', 'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
@@ -101,7 +106,7 @@ class BulkDocumentReportController extends Controller
             'tax_type' => $request->tax_type ? strtolower($request->tax_type) : $request->tax_type,
         ]);
         
-        app(\App\Services\Reports\ReportPermissions::class)->authorize('bulk_documents', 'export');
+        $this->authorizeReport('export');
         $plant = app(PlantContextService::class)->requirePlantId();
         $filters = $request->validate([
             'start_date' => 'required|date_format:Y-m-d',

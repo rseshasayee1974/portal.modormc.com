@@ -122,100 +122,64 @@ const clearing = computed(() => (props.ledgers || [])
 
         <!-- 4. Amount (BaseInput) -->
         <div>
-            <BaseInput v-model="form.amount" label="Amount (₹)" type="text" placeholder="0.00" :required="true"
-                :disabled="busy" :hint="Number(form.amount) > 0 ? `Formatted: ₹ ${money(form.amount)}` : undefined" />
+            <BaseInput
+                :modelValue="form.amount"
+                @update:modelValue="val => form.amount = String(val ?? '').replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1')"
+                label="Amount (₹)"
+                type="number"
+                placeholder="0.00"
+                :required="true"
+                :disabled="busy"
+                :hint="Number(form.amount) > 0 ? `Formatted: ₹ ${money(form.amount)}` : undefined"
+            />
         </div>
 
         <!-- 5. Balancing / Clearing Ledger (BaseSelect) -->
         <div>
-            <BaseSelect v-model="form.clearing_account_id" :options="clearing" optionLabel="label" optionValue="value"
-                label="Balancing / Clearing Ledger" :disabled="busy" placeholder="Select balancing account"
-                :required="true" :filter="true" :showClear="true" />
+            <BaseSelect
+                v-model="form.clearing_account_id"
+                :options="clearing"
+                optionLabel="label"
+                optionValue="value"
+                label="Balancing / Clearing Ledger"
+                :disabled="busy"
+                placeholder="Select balancing account"
+                :required="true"
+                :filter="true"
+                :showClear="true"
+            />
         </div>
 
         <!-- 6. Reference Number (BaseInput) -->
         <div>
-            <BaseInput v-model="form.reference" label="Reference / Document #"
-                placeholder="e.g. Legacy Inv # / Voucher #" :disabled="busy" />
+            <BaseInput
+                v-model="form.reference"
+                label="Reference / Document #"
+                placeholder="e.g. Legacy Inv # / Voucher #"
+                :disabled="busy"
+            />
         </div>
 
         <!-- 7. Notes & Narration (BaseInput) -->
         <div>
-            <BaseInput v-model="form.notes" label="Notes & Narration" placeholder="Optional remarks or ledger notes"
-                :disabled="busy" />
+            <BaseInput
+                v-model="form.notes"
+                label="Notes & Narration"
+                placeholder="Optional remarks or ledger notes"
+                :disabled="busy"
+            />
         </div>
 
         <!-- 8. Audit Reason (BaseInput) -->
         <div class="lg:col-span-1">
-            <BaseInput v-model="form.reason" label="Audit Reason"
-                placeholder="Explain why this balance is being set or updated..." :required="true" :disabled="busy"
-                :hint="form.record_id ? 'Required when updating an existing opening balance' : 'Recorded in the compliance audit trail'" />
+            <BaseInput
+                v-model="form.reason"
+                label="Audit Reason"
+                placeholder="Explain why this balance is being set or updated..."
+                :required="true"
+                :disabled="busy"
+                :hint="form.record_id ? 'Required when updating an existing opening balance' : 'Recorded in the compliance audit trail'"
+            />
         </div>
     </div>
-<<<<<<< HEAD
-
-    <!-- 4. Amount (BaseInput) -->
-    <div>
-        <BaseInput
-            :modelValue="form.amount"
-            @update:modelValue="val => form.amount = String(val ?? '').replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1')"
-            label="Amount (₹)"
-            type="number"
-            placeholder="0.00"
-            :required="true"
-            :disabled="busy"
-            :hint="Number(form.amount) > 0 ? `Formatted: ₹ ${money(form.amount)}` : undefined"
-        />
-    </div>
-
-    <!-- 5. Balancing / Clearing Ledger (BaseSelect) -->
-    <div>
-        <BaseSelect
-            v-model="form.clearing_account_id"
-            :options="clearing"
-            optionLabel="label"
-            optionValue="value"
-            label="Balancing / Clearing Ledger"
-            :disabled="busy"
-            placeholder="Select balancing account"
-            :required="true"
-            :filter="true"
-            :showClear="true"
-        />
-    </div>
-
-    <!-- 6. Reference Number (BaseInput) -->
-    <div>
-        <BaseInput
-            v-model="form.reference"
-            label="Reference / Document #"
-            placeholder="e.g. Legacy Inv # / Voucher #"
-            :disabled="busy"
-        />
-    </div>
-
-    <!-- 7. Notes & Narration (BaseInput) -->
-    <div>
-        <BaseInput
-            v-model="form.notes"
-            label="Notes & Narration"
-            placeholder="Optional remarks or ledger notes"
-            :disabled="busy"
-        />
-    </div>
-
-    <!-- 8. Audit Reason (BaseInput) -->
-    <div class="lg:col-span-1">
-        <BaseInput
-            v-model="form.reason"
-            label="Audit Reason"
-            placeholder="Explain why this balance is being set or updated..."
-            :required="true"
-            :disabled="busy"
-            :hint="form.record_id ? 'Required when updating an existing opening balance' : 'Recorded in the compliance audit trail'"
-        />
-    </div>
-</div>
-=======
->>>>>>> 9aba3c803b507a091e7d8d656358a33580466272
 </template>

@@ -170,7 +170,7 @@ class SendScheduledReports extends Command
                 ]);
             } finally {
                 // Clear logged in session after schedule processing
-                Auth::logout();
+                Auth::forgetUser();
             }
         }
 

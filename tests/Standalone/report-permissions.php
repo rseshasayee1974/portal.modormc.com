@@ -60,6 +60,13 @@ checkAccess(DB::table('mm_role_has_permissions')->where('role_id', 2)->count() =
 checkAccess(DB::table('mm_model_has_permissions')->where('model_id', 77)->count() === $reportCount + 1, 'Direct permissions lost.');
 checkAccess(DB::table('mm_menus')->where('id', 2)->value('permission_name') === 'REPORT_DETAILED_SALES_REGISTER.VIEW', 'Detail menu permission wrong.');
 checkAccess(DB::table('mm_menus')->where('id', 4)->value('permission_name') === 'INVOICE.VIEW', 'Unrelated menu modified.');
+$roleController = new class extends App\Http\Controllers\RoleController {
+    protected function authorizeModule(string $action, ?string $module = null): void {}
+};
+$rolePage = $roleController->index(Request::create('/settings/roles'));
+$roleProps = (new ReflectionProperty(Inertia\Response::class, 'props'))->getValue($rolePage);
+$reportGroups = array_filter(array_keys($roleProps['groupedPermissions']), fn ($label) => str_starts_with($label, 'Report: '));
+checkAccess(count($reportGroups) === $reportCount && !isset($roleProps['groupedPermissions']['REPORT']), 'Role matrix missing report rows or exposes blanket permission.');
 $ledgerPermission = DB::table('mm_permissions')->where('name', 'REPORT_LEDGER.VIEW')->value('id');
 DB::table('mm_role_has_permissions')->where('role_id', 1)->where('permission_id', $ledgerPermission)->delete();
 InstallReportPermissions::run();
@@ -99,6 +106,9 @@ $global = $makeUser();
 $global->roles[0]->setRelation('permissions', Permission::where('name', 'REPORT_LEDGER.VIEW')->get());
 checkAccess(!$access->allows('ledger', 'view', [], $global), 'Global role overrode selected entity role.');
 checkAccess($access->allows('ledger', 'view', [], $makeUser(['REPORT_LEDGER.VIEW'])), 'Direct permission did not supplement entity role.');
+session(['active_plant_id' => 2]);
+checkAccess(!$access->allows('ledger', 'view', [], $makeUser(['REPORT_LEDGER.VIEW'])), 'Unassigned plant inherited a direct report grant.');
+session(['active_plant_id' => 1]);
 session()->forget('active_entity_id');
 
 // Exercise actual HTTP entry points: failures must remain 403, including the generic catch block.
@@ -156,6 +166,7 @@ checkAccess(array_column($controller->listSchedules(Request::create('/'))->getDa
 // Existing public report links stop working if their creator's permission is removed.
 DB::table('mm_users')->insert(['id' => 200, 'username' => 'Share owner']);
 DB::table('mm_plants')->insert(['id' => 1, 'entity_id' => 1]);
+DB::table('mm_entity_users')->insert(['id' => 2, 'entity_id' => 1, 'plant_id' => 1, 'user_id' => 200]);
 $shareIds = DB::table('mm_permissions')->whereIn('name', ['REPORT_LEDGER.VIEW', 'REPORT_LEDGER.SHARE'])->pluck('id');
 foreach ($shareIds as $id) DB::table('mm_model_has_permissions')->insert(['model_type' => User::class, 'model_id' => 200, 'permission_id' => $id]);
 $link = (new App\Models\PublicDocumentLink)->forceFill(['is_active' => true, 'document_type' => 'report',

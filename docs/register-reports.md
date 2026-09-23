@@ -24,7 +24,7 @@ php artisan migrate --path=database/migrations/2026_09_23_130000_add_detailed_sa
 npm.cmd run build
 ```
 
-The menu entries retain `REPORT.VIEW` permissions. The endpoints require an active plant and reject requests for another plant. No accounting data or report tables are migrated.
+The menu entries use individual report View permissions; see [report-permissions.md](report-permissions.md) for assignment and the permission migration. The endpoints require an active plant and reject requests for another plant. No accounting data or report tables are migrated.
 
 ## Verification
 

@@ -73,6 +73,7 @@ class ReportPermissions
             $assignment = EntityUser::where('user_id', $user->id)->where('entity_id', $entityId)
                 ->where(fn ($q) => $q->whereNull('plant_id')->orWhere('plant_id', $plantId))
                 ->orderByRaw('CASE WHEN plant_id IS NULL THEN 1 ELSE 0 END')->first();
+            if (!$assignment) return [];
             if ($assignment?->role_id) $role = Role::with('permissions')->find($assignment->role_id);
         }
         if ($role && (in_array(strtoupper($role->code ?? ''), ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'])
