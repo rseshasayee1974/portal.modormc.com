@@ -33,6 +33,7 @@ foreach ([
     'mm_entity_users' => 'id INTEGER PRIMARY KEY, entity_id INTEGER, plant_id INTEGER, user_id INTEGER, role_id INTEGER, deleted_at TEXT',
     'mm_menus' => 'id INTEGER PRIMARY KEY, link TEXT, permission_name TEXT',
     'mm_users' => 'id INTEGER PRIMARY KEY, username TEXT, deleted_at TEXT',
+    'mm_plants' => 'id INTEGER PRIMARY KEY, entity_id INTEGER, deleted_at TEXT',
     'mm_report_schedules' => 'id INTEGER PRIMARY KEY, plant_id INTEGER, report_type TEXT, report_params TEXT, deleted_at TEXT',
 ] as $table => $columns) DB::statement("CREATE TABLE $table ($columns)");
 foreach (['REPORT.VIEW', 'REPORT.EXPORT', 'INVOICE.VIEW'] as $name) DB::table('mm_permissions')->insert(['name' => $name, 'guard_name' => 'web']);
@@ -112,6 +113,8 @@ denied(fn () => $controller->purchaseRegister(Request::create('/', 'GET', $dates
 denied(fn () => $controller->machineSummary(Request::create('/', 'GET', $dates), app(App\Services\Reports\MachineReportService::class)));
 denied(fn () => $controller->vehiclePL(Request::create('/', 'GET', $dates), app(App\Services\Reports\MachineReportService::class)));
 denied(fn () => app(BulkDocumentReportController::class)->index());
+denied(fn () => app(BulkDocumentReportController::class)->documents(Request::create('/', 'POST'), app(App\Services\Reports\BulkDocumentQuery::class), app(App\Services\BulkInvoicePdfService::class)));
+denied(fn () => app(BulkDocumentReportController::class)->exportZip(Request::create('/', 'POST'), app(App\Services\Reports\BulkDocumentQuery::class)));
 denied(fn () => $controller->storeSchedule(Request::create('/', 'POST', ['report_type' => 'sales_register', 'report_params' => ['register_view' => 'summary']])));
 denied(fn () => app(InvoiceShareController::class)->generateLink(Request::create('/', 'POST', ['document_type' => 'report', 'expiry' => '7', 'report_params' => ['type' => 'sales_register', 'register_view' => 'summary']])));
 
@@ -140,6 +143,27 @@ Bus::fake();
 config(['reports.async_exports' => false]);
 App\Jobs\QueueReportExportJob::dispatchExport('ledger', ['plant_id' => 1], 'test-job-access');
 checkAccess(Cache::get('test-job-access:access')['user_id'] === 100, 'Job lost owner metadata.');
+
+// Schedule lists expose only reports that the user can schedule.
+DB::table('mm_report_schedules')->insert([
+    ['id' => 1, 'plant_id' => 1, 'report_type' => 'ledger', 'report_params' => '{}'],
+    ['id' => 2, 'plant_id' => 1, 'report_type' => 'purchase_register', 'report_params' => '{}'],
+    ['id' => 3, 'plant_id' => 2, 'report_type' => 'ledger', 'report_params' => '{}'],
+]);
+auth()->setUser($makeUser(['REPORT_LEDGER.VIEW', 'REPORT_LEDGER.SCHEDULE']));
+checkAccess(array_column($controller->listSchedules(Request::create('/'))->getData(true), 'id') === [1], 'Schedule list leaked a denied report or plant.');
+
+// Existing public report links stop working if their creator's permission is removed.
+DB::table('mm_users')->insert(['id' => 200, 'username' => 'Share owner']);
+DB::table('mm_plants')->insert(['id' => 1, 'entity_id' => 1]);
+$shareIds = DB::table('mm_permissions')->whereIn('name', ['REPORT_LEDGER.VIEW', 'REPORT_LEDGER.SHARE'])->pluck('id');
+foreach ($shareIds as $id) DB::table('mm_model_has_permissions')->insert(['model_type' => User::class, 'model_id' => 200, 'permission_id' => $id]);
+$link = (new App\Models\PublicDocumentLink)->forceFill(['is_active' => true, 'document_type' => 'report',
+    'plant_id' => 1, 'created_by' => 200, 'document_params' => ['type' => 'ledger']]);
+$validateLink = new ReflectionMethod(InvoiceShareController::class, 'validateLink');
+checkAccess($validateLink->invoke(app(InvoiceShareController::class), $link), 'Permitted public report link rejected.');
+DB::table('mm_model_has_permissions')->where('model_id', 200)->delete();
+checkAccess(!$validateLink->invoke(app(InvoiceShareController::class), $link), 'Revoked public report link still permitted.');
 
 $migration->down();
 checkAccess(DB::table('mm_permissions')->count() === 3, 'Rollback removed unrelated permissions.');

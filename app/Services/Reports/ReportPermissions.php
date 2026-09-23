@@ -79,8 +79,7 @@ class ReportPermissions
             || in_array($role->name, ['Saas Owner', 'Platform Admin', 'Super Admin', 'Super Administrator', 'Administrator']))) {
             return ['*'];
         }
-        $permissions = $role ? $role->permissions->merge($user->getDirectPermissions())
-            : ($entityId ? $user->getDirectPermissions() : $user->getAllPermissions());
+        $permissions = $role ? $role->permissions->merge($user->getDirectPermissions()) : $user->getAllPermissions();
         return $permissions->pluck('name')->map(fn ($name) => strtoupper($name))->unique()->values()->all();
     }
 
