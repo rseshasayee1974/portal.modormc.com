@@ -113,7 +113,7 @@ const reportCatalog = [
             { id: 'inventory_stock', name: 'Stock Status List', description: 'Product stock levels, opening balances and current status' },
             { id: 'inventory_inward', name: 'Purchase Inward Receipts', description: 'Inward histories, truck weights and purchase records' },
             { id: 'purchase', name: 'Purchase & Bills Summary', description: 'PO breakdown, product cost logs and vendor bills' },
-            { id: 'purchase_register', name: 'Purchase Register Report', description: 'Itemized purchase bills with supplier GST, rate, and values' },
+            // { id: 'purchase_register', name: 'Purchase Register Report', description: 'Itemized purchase bills with supplier GST, rate, and values' },
             // { id: 'silo_stock_valuation', name: 'Silo Stock Valuation', description: 'FIFO / Weighted Average cost valuation for consumed aggregate stock' },
         ]
     },
@@ -131,7 +131,7 @@ const reportCatalog = [
             { id: 'sales_executive', name: 'Sales Executive Report', description: 'Sales executive wise consolidated dispatches, volumes, trip counts, and revenue performance' },
             { id: 'driver', name: 'Driver Report', description: 'Driver wise vehicle trips, delivered volume, batch sizes, and truck weights' },
             { id: 'cancelled_dispatch', name: 'Cancelled Dispatch Report', description: 'Log of cancelled dispatches, batches, reversed orders, and 50+ word notes' },
-            { id: 'sales_register', name: 'Sales Register Report', description: 'Itemized sales invoices with GST breakdown, rate, and taxable values' },
+            // { id: 'sales_register', name: 'Sales Register Report', description: 'Itemized sales invoices with GST breakdown, rate, and taxable values' },
             { id: 'production_batch', name: 'Batch Production Sheet', description: 'Batch mix designs, target vs actual aggregate loads' },
         ]
     },
