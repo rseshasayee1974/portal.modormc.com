@@ -69,6 +69,7 @@ class MenuSeeder extends Seeder
             ['id' => 34, 'menutype' => 2, 'title' => 'Menu Management',      'alias' => 'menus',                'link' => 'settings/menus',              'icon' => 'Bars3Icon',                'published' => 1, 'parent_id' => 2,  'level' => 1, 'ordering' => 14, 'permission_name' => 'MENU.VIEW'],
             ['id' => 35, 'menutype' => 2, 'title' => 'Terms & Conditions',   'alias' => 'termsconditions',      'link' => 'settings/termsconditions',   'icon' => 'DocumentTextIcon',         'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 7, 'permission_name' => 'TERMS_CONDITION.VIEW'],
             ['id' => 86, 'menutype' => 2, 'title' => 'Payment Method',      'alias' => 'paymentmethods',       'link' => 'master/paymentmethods',      'icon' => 'CreditCardIcon',           'published' => 1, 'parent_id' => 2,  'level' => 1, 'ordering' => 16, 'permission_name' => 'PAYMENT_METHOD.VIEW'],
+            ['id' => 87, 'menutype' => 2, 'title' => 'Leave Type',      'alias' => 'leavetypes',       'link' => 'master/leavetypes',      'icon' => 'CreditCardIcon',           'published' => 1, 'parent_id' => 2,  'level' => 1, 'ordering' => 16, 'permission_name' => 'LEAVE_TYPE.VIEW'],
 
             // Sidebar: Tenant (parent_id = 7)
             ['id' => 36, 'menutype' => 2, 'title' => 'Entities', 'alias' => 'Entities', 'link' => 'tenant/entities', 'icon' => 'BuildingOfficeIcon',     'published' => 1, 'parent_id' => 7, 'level' => 1, 'ordering' => 1, 'permission_name' => 'ENTITY.VIEW'],

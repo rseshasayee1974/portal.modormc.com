@@ -584,7 +584,8 @@ class ExcelExportService
                     '', ''
                 ];
             } elseif ($type === 'payroll_personnel') {
-                $headersList = ['Emp Code', 'Employee Name', 'Department', 'Designation', 'Joining Date', 'Period / Month', 'Payslip No', 'Working Days', 'Present Days', 'Gross Earnings', 'Deductions', 'Net Salary', 'Payslip Status', 'Phone'];
+                $title = "PERSONNEL DIRECTORY & PAYSLIP REGISTER";
+                $headersList = ['Emp Code', 'Employee Name', 'Department', 'Designation', 'Joining Date', 'Period / Month', 'Payslip No', 'Working Days', 'Present Days', 'Paid Leave Days', 'Absent Days', 'Gross Earnings', 'Deductions', 'Net Salary', 'Payslip Status', 'Phone'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
                         $row['employee_code'] ?? '',
@@ -594,8 +595,10 @@ class ExcelExportService
                         $row['joining_date'] ?? '',
                         $row['period_name'] ?? '',
                         $row['payslip_no'] ?? '',
-                        $row['working_days'] ?? 0,
-                        $row['present_days'] ?? 0,
+                        (float)($row['working_days'] ?? 0),
+                        (float)($row['present_days'] ?? 0),
+                        (float)($row['paid_leave_days'] ?? 0),
+                        (float)($row['absent_days'] ?? 0),
                         (float)($row['total_earnings'] ?? 0),
                         (float)($row['total_deductions'] ?? 0),
                         (float)($row['net_salary'] ?? 0),
@@ -603,6 +606,17 @@ class ExcelExportService
                         $row['phone'] ?? ''
                     ];
                 }
+                $totalRow = [
+                    '', 'Total', '', '', '', '', '',
+                    (float)($data['summary']['total_working_days'] ?? 0),
+                    (float)($data['summary']['total_present_days'] ?? 0),
+                    (float)($data['summary']['total_paid_leave_days'] ?? 0),
+                    (float)($data['summary']['total_absent_days'] ?? 0),
+                    (float)($data['summary']['total_earnings'] ?? 0),
+                    (float)($data['summary']['total_deductions'] ?? 0),
+                    (float)($data['summary']['total_net_salary'] ?? 0),
+                    '', ''
+                ];
             } elseif ($type === 'gstr1') {
                 $headersList = ['SECTION', 'Customer GSTIN', 'Customer Name', 'Invoice/Note No', 'Date', 'Type (Inv/Note)', 'Total Value', 'Taxable Value', 'CGST', 'SGST', 'IGST', 'POS'];
                 foreach (($data['b2b'] ?? []) as $row) {

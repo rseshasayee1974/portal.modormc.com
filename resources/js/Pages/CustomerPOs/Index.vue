@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { entityLocaleDate } from '@/Utils/entityDateTime';
-import { ref, watch, nextTick , computed} from 'vue';
+import { ref, watch, nextTick, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -228,8 +228,8 @@ const resolveDefaultConcretePump = (item: any, customerPO: any) => {
     }
 
     const strRaw = String(raw).trim().toLowerCase();
-    const foundByValueOrLabel = options.find((opt: any) => 
-        String(opt.value).trim().toLowerCase() === strRaw || 
+    const foundByValueOrLabel = options.find((opt: any) =>
+        String(opt.value).trim().toLowerCase() === strRaw ||
         String(opt.label).trim().toLowerCase() === strRaw
     );
     if (foundByValueOrLabel) return foundByValueOrLabel.value;
@@ -359,62 +359,38 @@ watch(() => props.customerPOs, () => {
 
         <div class="px-4 py-5 md:px-6 space-y-4">
             <!-- Create Form -->
-            <CustomerPOCreateForm
-                :patrons="patrons"
-                :sites="sites"
-                :quotations="quotations"
-                :mix-designs="mixDesigns"
-                :salesExecutives="salesExecutives"
-                :taxes="taxes"
-                :pumpTypeOptions="pumpTypeOptions"
-                :pumpRates="pumpRates"
-            />
+            <CustomerPOCreateForm :patrons="patrons" :sites="sites" :quotations="quotations" :mix-designs="mixDesigns"
+                :salesExecutives="salesExecutives" :taxes="taxes" :pumpTypeOptions="pumpTypeOptions"
+                :pumpRates="pumpRates" />
 
             <!-- List Of Sales Orders -->
             <div class="bg-white dark:bg-gray-800 shadow-xl sm:rounded-xl">
-                <BaseDataTable
-                    v-model:expandedRows="expandedRows"
-                    :value="customerPOs"
-                    v-model:filters="filters"
-                    dataKey="id"
-                    paginator
-                    stripedRows
-                    removableSort
-                    rowHover
-                    filterDisplay="menu"
-                    showSerial
-                    heading="Customer POs Directory"
-                    headingIcon="ShoppingBagIcon"
-                    showExport
-                    showSearch
+                <BaseDataTable v-model:expandedRows="expandedRows" :value="customerPOs" v-model:filters="filters"
+                    dataKey="id" paginator stripedRows removableSort rowHover filterDisplay="menu" showSerial
+                    heading="Customer POs Directory" headingIcon="ShoppingBagIcon" showExport showSearch
                     exportFilename="customer-pos-directory"
-                    :globalFilterFields="['reference', 'patron.legal_name', 'site.name', 'quotation.reference']"
-                >
+                    :globalFilterFields="['reference', 'patron.legal_name', 'site.name', 'quotation.reference']">
                     <template #toolbar>
                         <div class="flex items-center gap-2">
-                            <BaseSelect
-                                v-model="filters.status.value"
-                                :options="stateOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="Filter Status"
-                                class="w-44 !h-9 !rounded-lg !border-slate-300 text-xs"
-                                pt:label:class="!px-3!py-1"
-                            />
+                            <BaseSelect v-model="filters.status.value" :options="stateOptions" optionLabel="label"
+                                optionValue="value" placeholder="Filter Status"
+                                class="w-44 !h-9 !rounded-lg !border-slate-300 text-xs" pt:label:class="!px-3!py-1" />
                         </div>
                     </template>
 
-                    <Column expander style="width: 3rem" />
+                    <!-- <Column expander style="width: 3rem" /> -->
 
                     <Column field="order_date" header="Date" sortable>
                         <template #body="slotProps">
-                            <span class="text-slate-600 dark:text-slate-300 text-sm font-medium">{{ formatDate(slotProps.data.order_date) }}</span>
+                            <span class="text-slate-600 dark:text-slate-300 text-sm font-medium">{{
+                                formatDate(slotProps.data.order_date) }}</span>
                         </template>
                     </Column>
 
                     <Column field="reference" header="Ref #" sortable>
                         <template #body="slotProps">
-                            <span class="text-slate-800 dark:text-slate-100 text-sm font-bold font-mono uppercase">{{ slotProps.data.reference || '--' }}</span>
+                            <span class="text-slate-800 dark:text-slate-100 text-sm font-bold font-mono uppercase">{{
+                                slotProps.data.reference || '--' }}</span>
                         </template>
                     </Column>
 
@@ -424,7 +400,8 @@ watch(() => props.customerPOs, () => {
                                 <div class="font-bold text-md text-slate-800 dark:text-slate-100">
                                     {{ slotProps.data.patron?.legal_name || '--' }}
                                 </div>
-                                <span v-if="slotProps.data.quotation?.reference" class="text-indigo-600 dark:text-indigo-400 font-semibold font-mono text-xs">
+                                <span v-if="slotProps.data.quotation?.reference"
+                                    class="text-indigo-600 dark:text-indigo-400 font-semibold font-mono text-xs">
                                     {{ slotProps.data.quotation.reference }}
                                 </span>
                             </div>
@@ -445,8 +422,14 @@ watch(() => props.customerPOs, () => {
                     <Column header="Mix Designs / Grades">
                         <template #body="slotProps">
                             <div class="flex flex-wrap gap-1 max-w-[250px]">
-                                <span v-for="item in slotProps.data.items" :key="item.id" class="text-[10.5px] font-bold bg-indigo-50/70 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-100/70 dark:border-indigo-900/30 whitespace-nowrap">
+                                <span v-for="item in slotProps.data.items.slice(0, 2)" :key="item.id"
+                                    class="text-[10.5px] font-bold bg-indigo-50/70 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-100/70 dark:border-indigo-900/30 whitespace-nowrap">
                                     {{ item.mix_design?.design_name || item.mix_design?.title || '-' }}
+                                </span>
+                                <span v-if="slotProps.data.items.length > 2"
+                                    class="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full border border-indigo-200/60 dark:border-indigo-700 cursor-help"
+                                    :title="slotProps.data.items.slice(2).map((item: any) => item.mix_design?.design_name || item.mix_design?.title || '-').join(', ')">
+                                    +{{ slotProps.data.items.length - 2 }} more
                                 </span>
                             </div>
                         </template>
@@ -466,7 +449,8 @@ watch(() => props.customerPOs, () => {
 
                     <Column field="amount_total" header="Total Amt" sortable>
                         <template #body="slotProps">
-                            <span class="font-bold text-indigo-700 dark:text-indigo-400 text-sm font-mono">{{ formatCurrency(slotProps.data.amount_total) }}</span>
+                            <span class="font-bold text-indigo-700 dark:text-indigo-400 text-sm font-mono">{{
+                                formatCurrency(slotProps.data.amount_total) }}</span>
                         </template>
                     </Column>
                     <!-- <Column header="WO Status">
@@ -500,18 +484,17 @@ watch(() => props.customerPOs, () => {
 
                     <Column field="status" header="Status" sortable>
                         <template #body="slotProps">
-                            <Tag :value="getStatusLabel(slotProps.data.status)" :severity="getStatusSeverity(slotProps.data.status)" rounded />
+                            <Tag :value="getStatusLabel(slotProps.data.status)"
+                                :severity="getStatusSeverity(slotProps.data.status)" rounded />
                         </template>
                     </Column>
 
-                    <Column header="Actions" headerStyle="width: 5rem; text-align: center" bodyStyle="overflow: visible; text-align: center">
+                    <Column header="Actions" headerStyle="width: 5rem; text-align: center"
+                        bodyStyle="overflow: visible; text-align: center">
                         <template #body="slotProps">
-                            <button
-                                type="button"
+                            <button type="button"
                                 class="inline-flex justify-center items-center w-8 h-8 rounded-full text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-700 focus:outline-none transition-all duration-200 cursor-pointer"
-                                @click.stop="toggleActionMenu($event, slotProps.data)"
-                                v-tooltip.top="'Actions'"
-                            >
+                                @click.stop="toggleActionMenu($event, slotProps.data)" v-tooltip.top="'Actions'">
                                 <i class="pi pi-ellipsis-v text-sm font-bold pointer-events-none"></i>
                             </button>
                         </template>
@@ -519,48 +502,36 @@ watch(() => props.customerPOs, () => {
 
                     <template #expansion="{ data }">
                         <div class="p-3">
-                            <CustomerPOEditForm
-                                :quotations="quotations"
-                                :customerPO="data"
-                                :patrons="patrons"
-                                :sites="sites"
-                                :mixDesigns="mixDesigns"
-                                :salesExecutives="salesExecutives"
-                                :taxes="taxes"
-                                :pumpTypeOptions="pumpTypeOptions"
-                                :pumpRates="pumpRates"
-                                @saved="expandedRows = {}"
-                                @cancel="expandedRows = {}"
-                            />
+                            <CustomerPOEditForm :quotations="quotations" :customerPO="data" :patrons="patrons"
+                                :sites="sites" :mixDesigns="mixDesigns" :salesExecutives="salesExecutives"
+                                :taxes="taxes" :pumpTypeOptions="pumpTypeOptions" :pumpRates="pumpRates"
+                                @saved="expandedRows = {}" @cancel="expandedRows = {}" />
                         </div>
                     </template>
                 </BaseDataTable>
             </div>
         </div>
-        <Popover
-            ref="actionMenu"
+        <Popover ref="actionMenu"
             class="z-50 !shadow-xl !border !border-slate-200 dark:!border-slate-700 !rounded-xl overflow-hidden"
-            style="padding: 0; min-width: 14rem;"
-        >
-            <div v-if="activeCustomerPO" class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left">
+            style="padding: 0; min-width: 14rem;">
+            <div v-if="activeCustomerPO"
+                class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left">
                 <!-- Group 1: Edit & Sales Order Actions -->
                 <div class="py-1">
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
-                        @click="handleEditCustomerPO(activeCustomerPO)"
-                    >
+                        @click="handleEditCustomerPO(activeCustomerPO)">
                         <i class="pi pi-pencil mr-2 text-amber-500 font-bold"></i>
                         {{ expandedRows[activeCustomerPO.id] ? 'Collapse Edit Form' : 'Edit Customer PO' }}
                     </button>
-                    <button
-                        v-if="!isCustomerPOCompleted(activeCustomerPO)"
+                    <button v-if="!isCustomerPOCompleted(activeCustomerPO)"
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
-                        @click="convertToSalesOrder(activeCustomerPO); closeAllMenus();"
-                    >
+                        @click="convertToSalesOrder(activeCustomerPO); closeAllMenus();">
                         <i class="pi pi-cog mr-2 text-indigo-500 font-bold"></i>
                         Create Sales Order
                     </button>
-                    <div v-else class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    <div v-else
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                         <i class="pi pi-check-circle mr-2 text-emerald-500 font-bold"></i>
                         Fully Allocated
                     </div>
@@ -570,15 +541,13 @@ watch(() => props.customerPOs, () => {
                 <div class="py-1">
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
-                        @click="printCustomerPO(activeCustomerPO, 'view'); closeAllMenus();"
-                    >
+                        @click="printCustomerPO(activeCustomerPO, 'view'); closeAllMenus();">
                         <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
                         Print PO
                     </button>
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
-                        @click="printCustomerPO(activeCustomerPO, 'download'); closeAllMenus();"
-                    >
+                        @click="printCustomerPO(activeCustomerPO, 'download'); closeAllMenus();">
                         <i class="pi pi-file-pdf mr-2 text-indigo-500 font-bold"></i>
                         Download PDF
                     </button>
@@ -586,19 +555,15 @@ watch(() => props.customerPOs, () => {
 
                 <!-- Group 3: Delete Customer PO -->
                 <div class="py-1">
-                    <button
-                        v-if="canDeleteCustomerPO(activeCustomerPO)"
+                    <button v-if="canDeleteCustomerPO(activeCustomerPO)"
                         class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
-                        @click="deleteCustomerPO(activeCustomerPO); closeAllMenus();"
-                    >
+                        @click="deleteCustomerPO(activeCustomerPO); closeAllMenus();">
                         <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
                         Delete Customer PO
                     </button>
-                    <div
-                        v-else
+                    <div v-else
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-400 dark:text-slate-500 cursor-not-allowed bg-slate-50/50 dark:bg-slate-700/20"
-                        v-tooltip.right="'Cannot delete: Converted to Sales Order'"
-                    >
+                        v-tooltip.right="'Cannot delete: Converted to Sales Order'">
                         <i class="pi pi-lock mr-2 text-slate-400 font-bold"></i>
                         Delete (Converted)
                     </div>
@@ -606,45 +571,48 @@ watch(() => props.customerPOs, () => {
             </div>
         </Popover>
         <!-- Convert Customer PO to Sales Order Dialog -->
-        <Dialog 
-            v-model:visible="showConvertModal" 
-            modal 
-            header="Generate Sales Orders" 
-            :style="{ width: '90vw', maxWidth: '800px' }"
-            class="premium-dialog"
-        >
+        <Dialog v-model:visible="showConvertModal" modal header="Generate Sales Orders"
+            :style="{ width: '90vw', maxWidth: '800px' }" class="premium-dialog">
             <div class="space-y-6 py-2">
-                <div class="bg-indigo-50/50 dark:bg-slate-900/40 p-4 rounded-xl border border-indigo-100/50 dark:border-slate-800 flex flex-col sm:flex-row justify-between gap-4 text-xs">
+                <div
+                    class="bg-indigo-50/50 dark:bg-slate-900/40 p-4 rounded-xl border border-indigo-100/50 dark:border-slate-800 flex flex-col sm:flex-row justify-between gap-4 text-xs">
                     <div>
                         <span class="text-slate-400 block font-medium">Customer PO Reference</span>
-                        <span class="font-bold text-slate-800 dark:text-slate-200">CPO #{{ convertPO?.id }} - {{ convertPO?.reference || 'N/A' }}</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">CPO #{{ convertPO?.id }} - {{
+                            convertPO?.reference || 'N/A' }}</span>
                     </div>
                     <div>
                         <span class="text-slate-400 block font-medium">Patron / Customer</span>
-                        <span class="font-bold text-slate-800 dark:text-slate-200">{{ convertPO?.patron?.legal_name || 'N/A' }}</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">{{ convertPO?.patron?.legal_name ||
+                            'N/A'
+                            }}</span>
                     </div>
                     <div>
                         <span class="text-slate-400 block font-medium">Site</span>
-                        <span class="font-bold text-slate-800 dark:text-slate-200">{{ convertPO?.site?.name || 'N/A' }}</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">{{ convertPO?.site?.name || 'N/A'
+                            }}</span>
                     </div>
                 </div>
 
                 <div class="space-y-4">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                    <h3
+                        class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-2">
                         <span class="h-2 w-2 rounded-full bg-indigo-600"></span>
                         Ordered Mix Designs
                     </h3>
-                    
+
                     <div class="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                         <table class="w-full text-left text-xs border-collapse">
                             <thead>
-                                <tr class="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+                                <tr
+                                    class="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
                                     <th class="p-3 font-semibold text-slate-500">Mix Design</th>
                                     <th class="p-3 font-semibold text-slate-500 text-center">PO Qty</th>
                                     <th class="p-3 font-semibold text-slate-500 text-center">Converted</th>
                                     <th class="p-3 font-semibold text-slate-500 text-center">Remaining</th>
                                     <th class="p-3 font-semibold text-slate-500" style="width: 140px;">SO Qty (m³)</th>
-                                    <th class="p-3 font-semibold text-slate-500" style="width: 200px;">Concrete Pump / Type</th>
+                                    <th class="p-3 font-semibold text-slate-500" style="width: 200px;">Concrete Pump /
+                                        Type</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -652,32 +620,23 @@ watch(() => props.customerPOs, () => {
                                     <td class="p-3 font-medium text-slate-700 dark:text-slate-300">
                                         {{ item.design_name }}
                                     </td>
-                                    <td class="p-3 text-center text-slate-600 dark:text-slate-400">{{ item.po_qty }} m³</td>
-                                    <td class="p-3 text-center text-slate-600 dark:text-slate-400">{{ item.completed_qty }} m³</td>
-                                    <td class="p-3 text-center font-bold text-slate-800 dark:text-slate-200">{{ item.remaining_qty }} m³</td>
+                                    <td class="p-3 text-center text-slate-600 dark:text-slate-400">{{ item.po_qty }} m³
+                                    </td>
+                                    <td class="p-3 text-center text-slate-600 dark:text-slate-400">{{ item.completed_qty
+                                        }} m³
+                                    </td>
+                                    <td class="p-3 text-center font-bold text-slate-800 dark:text-slate-200">{{
+                                        item.remaining_qty }} m³</td>
                                     <td class="p-3">
-                                        <BaseInputNumber 
-                                            v-model="item.quantity" 
-                                            :disabled="item.remaining_qty <= 0"
-                                            :min="0"
-                                            :minFractionDigits="1"
-                                            :maxFractionDigits="3"
-                                            placeholder="Qty"
-                                            :error="conversionErrors[`quantity_${item.item_id}`]"
-                                        />
+                                        <BaseInputNumber v-model="item.quantity" :disabled="item.remaining_qty <= 0"
+                                            :min="0" :minFractionDigits="1" :maxFractionDigits="3" placeholder="Qty"
+                                            :error="conversionErrors[`quantity_${item.item_id}`]" />
                                     </td>
                                     <td class="p-3">
-                                        <BaseSelect
-                                            v-model="item.concrete_pump"
-                                            :options="props.pumpTypeOptions || []"
-                                            optionLabel="label"
-                                            optionValue="value"
-                                            placeholder="Select Pump"
-                                            showClear
-                                            :disabled="item.remaining_qty <= 0"
-                                            class="w-full"
-                                            :error="conversionErrors[`concrete_pump_${item.item_id}`]"
-                                        />
+                                        <BaseSelect v-model="item.concrete_pump" :options="props.pumpTypeOptions || []"
+                                            optionLabel="label" optionValue="value" placeholder="Select Pump" showClear
+                                            :disabled="item.remaining_qty <= 0" class="w-full"
+                                            :error="conversionErrors[`concrete_pump_${item.item_id}`]" />
                                     </td>
                                 </tr>
                             </tbody>
@@ -688,22 +647,12 @@ watch(() => props.customerPOs, () => {
 
             <template #footer>
                 <div class="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                    <BaseButton 
-                        label="Cancel" 
-                        severity="secondary" 
-                        outlined 
-                        @click="showConvertModal = false" 
-                    />
-                    <BaseButton 
-                        label="Generate Sales Orders" 
-                        severity="primary" 
-                        @click="submitConversion"
-                    />
+                    <BaseButton label="Cancel" severity="secondary" outlined @click="showConvertModal = false" />
+                    <BaseButton label="Generate Sales Orders" severity="primary" @click="submitConversion" />
                 </div>
             </template>
         </Dialog>
     </AppLayout>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

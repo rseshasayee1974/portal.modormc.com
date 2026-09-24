@@ -204,6 +204,7 @@ class HandleInertiaRequests extends Middleware
                         'bank_account_type',
                         'contact_type',
                         'country',
+                        'leave_type',
                         'currency',
                         'entity_type',
                         'invoice_status',

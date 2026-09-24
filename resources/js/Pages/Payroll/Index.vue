@@ -120,7 +120,7 @@ const compForm = useForm({
 });
 
 const periodOptions = computed(() => 
-    props.payrollPeriods.map(p => ({ label: `${p.name} (${p.status.toUpperCase()})`, value: p.id }))
+    props.payrollPeriods.map(p => ({ label: `${p.name}`, value: p.id }))
 );
 
 const personnelOptions = computed(() =>

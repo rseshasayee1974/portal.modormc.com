@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Models;
+
+use App\Traits\PlantScoping;
 use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Model;

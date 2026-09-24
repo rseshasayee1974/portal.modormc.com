@@ -118,12 +118,17 @@ class PayslipApiController extends Controller
         }
 
         $pfConfig = StatutoryConfig::where('plant_id', $activePlantId)
-            ->where('statute_name', 'like', '%Provident Fund%')
+            ->where(function($q) {
+                $q->where('code', 'EPF')
+                  ->orWhere('statute_name', 'like', '%Provident Fund%');
+            })
             ->first();
         
         $pfEmployeeRate = isset($pfConfig->rules['employee_rate']) ? (float)$pfConfig->rules['employee_rate'] : 12.0;
         $pfEmployerRate = isset($pfConfig->rules['employer_rate']) ? (float)$pfConfig->rules['employer_rate'] : 12.0;
-        $pfCeiling      = isset($pfConfig->rules['wage_ceiling'])  ? (float)$pfConfig->rules['wage_ceiling']  : 15000.0;
+        $pfCeiling      = (isset($pfConfig->rules['wage_ceiling']) && is_numeric($pfConfig->rules['wage_ceiling']) && (float)$pfConfig->rules['wage_ceiling'] > 0)
+            ? (float)$pfConfig->rules['wage_ceiling']
+            : null;
 
         $lines = [];
         foreach ($payslips as $payslip) {
@@ -244,9 +249,14 @@ class PayslipApiController extends Controller
         }
 
         $esiConfig = StatutoryConfig::where('plant_id', $activePlantId)
-            ->where('statute_name', 'like', '%Employee State Insurance%')
+            ->where(function($q) {
+                $q->where('code', 'ESIC')
+                  ->orWhere('statute_name', 'like', '%Employee State Insurance%');
+            })
             ->first();
-        $esiCeiling = isset($esiConfig->rules['wage_ceiling']) ? (float)$esiConfig->rules['wage_ceiling'] : 21000.0;
+        $esiCeiling = (isset($esiConfig->rules['wage_ceiling']) && is_numeric($esiConfig->rules['wage_ceiling']) && (float)$esiConfig->rules['wage_ceiling'] > 0)
+            ? (float)$esiConfig->rules['wage_ceiling']
+            : null;
 
         $lines = [];
         foreach ($payslips as $payslip) {

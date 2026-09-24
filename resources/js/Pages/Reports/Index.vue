@@ -382,7 +382,11 @@ const checkExportStatus = (key) => {
                     clearTimeout(pollingInterval.value);
                     pollingInterval.value = null;
                 }
-                triggerDownload(data.url, data.filename);
+                if (currentExportType.value === 'pdf') {
+                    window.open(data.url, '_blank');
+                } else {
+                    triggerDownload(data.url, data.filename);
+                }
                 exportProgress.value = null;
                 isExporting.value = false;
                 currentExportType.value = null;
@@ -524,13 +528,31 @@ const monthOptions = computed(() => {
         { label: '-- All Months / Custom Range --', value: null }
     ];
 
+    const cleanDateStr = (dStr) => {
+        if (!dStr) return null;
+        if (typeof dStr !== 'string') dStr = String(dStr);
+        if (dStr.includes('T')) {
+            const d = new Date(dStr);
+            if (!isNaN(d.getTime())) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            return dStr.split('T')[0];
+        }
+        return dStr.split(' ')[0];
+    };
+
     if (props.payrollPeriods && props.payrollPeriods.length > 0) {
         props.payrollPeriods.forEach(p => {
+            const from = cleanDateStr(p.from_date);
+            const to = cleanDateStr(p.to_date);
             options.push({
                 label: `${p.name} (Payroll Period)`,
                 value: `period_${p.id}`,
-                startDate: p.from_date ? `${p.from_date} 00:00:00` : null,
-                endDate: p.to_date ? `${p.to_date} 23:59:59` : null
+                startDate: from ? `${from} 00:00:00` : null,
+                endDate: to ? `${to} 23:59:59` : null
             });
         });
     }
@@ -1076,7 +1098,7 @@ const shareEmail = () => {
                             ]">
                             <h4 class="text-xs font-bold leading-snug">{{ rep.name }}</h4>
                             <p class="text-[10px] text-slate-400 mt-1 leading-relaxed line-clamp-2">{{ rep.description
-                                }}</p>
+                            }}</p>
                         </div>
                     </div>
                 </div>

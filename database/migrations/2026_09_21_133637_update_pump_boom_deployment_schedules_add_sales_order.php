@@ -9,16 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mm_pump_boom_deployment_schedule', function (Blueprint $table) {
-            // Check if indexes exist before dropping to avoid errors during partial states
-            $sm = Schema::getConnection()->getDoctrineSchemaManager();
-            $indexesFound = $sm->listTableIndexes('mm_pump_boom_deployment_schedule');
-            
-            if (array_key_exists('mm_pump_boom_deployment_schedule_pour_reference_index', $indexesFound)) {
+            try {
                 $table->dropIndex('mm_pump_boom_deployment_schedule_pour_reference_index');
-            }
-            if (array_key_exists('mm_pump_boom_deployment_schedule_plant_id_pour_reference_index', $indexesFound)) {
+            } catch (\Throwable $e) {}
+            try {
                 $table->dropIndex('mm_pump_boom_deployment_schedule_plant_id_pour_reference_index');
-            }
+            } catch (\Throwable $e) {}
 
             if (Schema::hasColumn('mm_pump_boom_deployment_schedule', 'pour_reference')) {
                 $table->dropColumn('pour_reference');

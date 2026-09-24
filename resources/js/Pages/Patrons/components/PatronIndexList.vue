@@ -110,13 +110,20 @@ const onRowClick = (event: any) => {
                     </div>
                     <div class="flex flex-wrap gap-1.5">
                         <Tag
-                            v-for="t in (Array.isArray(slotProps.data.patron_type) ? slotProps.data.patron_type : [slotProps.data.patron_type])"
+                            v-for="t in (Array.isArray(slotProps.data.patron_type) ? slotProps.data.patron_type : [slotProps.data.patron_type]).slice(0, 2)"
                             :key="t"
                             :value="t"
                             severity="info"
                             pt:root:style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em"
                             rounded
                         />
+                        <span 
+                            v-if="(Array.isArray(slotProps.data.patron_type) ? slotProps.data.patron_type : [slotProps.data.patron_type]).length > 2"
+                            class="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full border border-indigo-200/60 dark:border-indigo-700 cursor-help"
+                            :title="(Array.isArray(slotProps.data.patron_type) ? slotProps.data.patron_type : [slotProps.data.patron_type]).slice(2).join(', ')"
+                        >
+                            +{{ (Array.isArray(slotProps.data.patron_type) ? slotProps.data.patron_type : [slotProps.data.patron_type]).length - 2 }} more
+                        </span>
                     </div>
                 </div>
             </template>

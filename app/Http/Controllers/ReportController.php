@@ -87,7 +87,13 @@ class ReportController extends Controller
             $q->where('plant_id', $plantId)->orWhereNull('plant_id');
         })->whereNull('deleted_at')
           ->orderByDesc('from_date')
-          ->get(['id', 'name', 'from_date', 'to_date']);
+          ->get(['id', 'name', 'from_date', 'to_date'])
+          ->map(fn($p) => [
+              'id'        => $p->id,
+              'name'      => $p->name,
+              'from_date' => $p->from_date ? $p->from_date->format('Y-m-d') : null,
+              'to_date'   => $p->to_date ? $p->to_date->format('Y-m-d') : null,
+          ]);
 
         return Inertia::render('Reports/Index', [
             'ledgers'          => $ledgers,
@@ -287,9 +293,14 @@ class ReportController extends Controller
             ];
         } elseif (str_contains(strtolower($type), 'payroll_personnel')) {
             $extraParams = [
-                'headers'    => ['Name', 'Role / Employee Type', 'Joining Date', 'Status', 'Email', 'Phone'],
-                'fields'     => ['name', 'employee_type', 'joining_date', 'status', 'email', 'phone'],
-                'alignments' => ['left', 'left', 'center', 'center', 'left', 'center']
+                'headers'    => ['Emp Code', 'Employee Name', 'Department / Role', 'Month / Period', 'Attendance', 'Gross Pay', 'Deductions', 'Net Salary', 'Status'],
+                'fields'     => ['employee_code', 'name', 'dept_designation', 'period_name', 'attendance_summary', 'total_earnings_formatted', 'total_deductions_formatted', 'net_salary_formatted', 'payslip_status'],
+                'alignments' => ['center', 'left', 'left', 'center', 'center', 'right', 'right', 'right', 'center'],
+                'totals'     => [
+                    'total_earnings_formatted'   => '₹ ' . number_format($data['summary']['total_earnings'] ?? 0, 2),
+                    'total_deductions_formatted' => '₹ ' . number_format($data['summary']['total_deductions'] ?? 0, 2),
+                    'net_salary_formatted'       => '₹ ' . number_format($data['summary']['total_net_salary'] ?? 0, 2),
+                ]
             ];
         } elseif (str_contains(strtolower($type), 'silo_stock_valuation')) {
             $extraParams = [
@@ -309,8 +320,7 @@ class ReportController extends Controller
         $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->format('d-m-Y')) : '';
 
         $orientation = 'portrait';
-        if (in_array(strtoupper($type), ['SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER'])
-            || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
+        if (in_array(strtoupper($type), ['PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
             $orientation = 'landscape';
         }
 
@@ -337,7 +347,7 @@ class ReportController extends Controller
             ]);
 
         $cleanStart = str_replace([':', ' '], ['-', '_'], $startLabel);
-        return $pdf->download("Report_{$type}_{$cleanStart}.pdf");
+        return $pdf->stream("Report_{$type}_{$cleanStart}.pdf");
     }
 
     /**
@@ -492,6 +502,13 @@ class ReportController extends Controller
         abort_unless($filename !== '' && basename($filename) === $filename, 404);
         $path = storage_path('app/private/reports/'.$filename);
         abort_unless(is_file($path), 404);
+        if (str_ends_with(strtolower($filename), '.pdf') || request('disposition') === 'inline') {
+            return response()->file($path, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                'Cache-Control'       => 'private, no-store',
+            ]);
+        }
         return response()->download($path, $filename, ['Cache-Control' => 'private, no-store']);
     }
 
