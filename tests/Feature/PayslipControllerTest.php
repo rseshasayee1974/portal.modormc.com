@@ -605,4 +605,106 @@ class PayslipControllerTest extends TestCase
         
         $this->assertEquals(1, Payslip::where('payroll_period_id', $payrollPeriod->id)->count());
     }
+
+    public function test_percentage_and_fixed_deduction_calculations_and_zero_paycheck_prevention()
+    {
+        $payrollPeriod = PayrollPeriod::create([
+            'plant_id' => $this->plant->id,
+            'name' => 'May 2026',
+            'from_date' => '2026-05-01',
+            'to_date' => '2026-05-31',
+            'status' => 'draft'
+        ]);
+
+        $personnel = Personnel::factory()->create([
+            'entity_id' => $this->entity->id,
+            'plant_id' => $this->plant->id,
+            'status' => 'active'
+        ]);
+
+        $basicComp = SalaryComponent::create([
+            'plant_id' => $this->plant->id,
+            'name' => 'Basic Salary',
+            'type' => 'earning',
+            'calculation_type' => 'fixed',
+            'default_value' => 30000,
+        ]);
+
+        $pfComp = SalaryComponent::create([
+            'plant_id' => $this->plant->id,
+            'name' => 'Provident Fund',
+            'type' => 'deduction',
+            'calculation_type' => 'percentage',
+            'default_value' => 12,
+        ]);
+
+        $loanComp = SalaryComponent::create([
+            'plant_id' => $this->plant->id,
+            'name' => 'Loan Repayment',
+            'type' => 'deduction',
+            'calculation_type' => 'fixed',
+            'default_value' => 5000,
+        ]);
+
+        EmployeeSalaryStructure::create([
+            'personnel_id' => $personnel->id,
+            'salary_component_id' => $basicComp->id,
+            'amount' => 30000,
+            'effective_from' => '2025-01-01',
+        ]);
+
+        EmployeeSalaryStructure::create([
+            'personnel_id' => $personnel->id,
+            'salary_component_id' => $pfComp->id,
+            'amount' => 12, // 12%
+            'effective_from' => '2025-01-01',
+        ]);
+
+        EmployeeSalaryStructure::create([
+            'personnel_id' => $personnel->id,
+            'salary_component_id' => $loanComp->id,
+            'amount' => 5000,
+            'effective_from' => '2025-01-01',
+        ]);
+
+        // Personnel worked 1 day out of 31 days
+        \App\Models\Attendance::create([
+            'plant_id' => $this->plant->id,
+            'personnel_id' => $personnel->id,
+            'attendance_date' => '2026-05-01',
+            'status' => 'present',
+        ]);
+
+        for ($d = 2; $d <= 31; $d++) {
+            \App\Models\Attendance::create([
+                'plant_id' => $this->plant->id,
+                'personnel_id' => $personnel->id,
+                'attendance_date' => sprintf('2026-05-%02d', $d),
+                'status' => 'absent',
+            ]);
+        }
+
+        $response = $this->post(route('payslips.generate'), [
+            'payroll_period_id' => $payrollPeriod->id
+        ]);
+        $response->assertRedirect();
+
+        $payslip = Payslip::with('items')->where('payroll_period_id', $payrollPeriod->id)->first();
+        $this->assertNotNull($payslip);
+
+        // Basic salary earned = (30000 * 1) / 31 = 967.74
+        $this->assertEquals(967.74, $payslip->total_earnings);
+
+        // PF deduction = 12% of earned basic (967.74 * 0.12) = 116.13
+        $pfItem = $payslip->items->firstWhere('component_name', 'Provident Fund');
+        $this->assertEquals(116.13, $pfItem->amount);
+
+        // Loan repayment fixed deduction (5000) is capped so total deductions don't exceed earnings
+        // Remaining net earnings before loan = 967.74 - 116.13 = 851.61
+        $loanItem = $payslip->items->firstWhere('component_name', 'Loan Repayment');
+        $this->assertEquals(851.61, $loanItem->amount);
+
+        // Net salary should be 0.00, NOT negative!
+        $this->assertEquals(0.00, $payslip->net_salary);
+    }
 }

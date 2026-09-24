@@ -17,8 +17,6 @@ return new class extends Migration {
             $table->string('status', 20)->default('DRAFT');
             $table->unsignedInteger('version')->default(1);
             $table->unsignedBigInteger('journal_entry_id')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
-            $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamp('posted_at')->nullable();
             $table->auditColumns();
         });

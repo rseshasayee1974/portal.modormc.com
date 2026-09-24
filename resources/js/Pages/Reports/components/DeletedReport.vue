@@ -172,7 +172,7 @@ const getTypeBadgeClass = (type) => {
                     <div class="relative">
                         <input v-model="searchQuery" type="text" placeholder="Search ref #, customer, user..."
                             class="text-xs rounded-lg border border-slate-300 pl-8 pr-3 py-1.5 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none w-64" />
-                        <i class="pi pi-search absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                        <!-- <i class="pi pi-search absolute left-2.5 top-2.5 text-slate-400 text-xs"></i> -->
                     </div>
                     <span
                         class="text-xs font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">

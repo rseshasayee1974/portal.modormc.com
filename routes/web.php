@@ -129,6 +129,8 @@ Route::middleware([
         Route::resource('subscriptionstatuses', \App\Http\Controllers\SubscriptionStatusController::class)->except(['create', 'edit', 'show']);
         Route::resource('paymentmethods', \App\Http\Controllers\PaymentMethodController::class)->except(['create', 'edit', 'show']);
         Route::resource('productunits', \App\Http\Controllers\ProductUnitController::class);
+        Route::resource('leave-types', \App\Http\Controllers\LeaveTypeController::class);
+
     });
 
     // 3. Tenant / Organization
@@ -218,10 +220,12 @@ Route::middleware([
         Route::delete('shifts/assign/{employeeShift}', [\App\Http\Controllers\ShiftController::class, 'removeShiftAssignment'])->name('shifts.unassign');
         
         Route::resource('attendances', \App\Http\Controllers\AttendanceController::class);
-        Route::resource('leave-types', \App\Http\Controllers\LeaveTypeController::class);
         
         Route::resource('leave-applications', \App\Http\Controllers\LeaveApplicationController::class);
         Route::post('leave-applications/{leaveApplication}/approve', [\App\Http\Controllers\LeaveApplicationController::class, 'approve'])->name('leave-applications.approve');
+        Route::post('leave-balances', [\App\Http\Controllers\LeaveApplicationController::class, 'storeBalance'])->name('leave-balances.store');
+        Route::put('leave-balances/{leaveBalance}', [\App\Http\Controllers\LeaveApplicationController::class, 'updateBalance'])->name('leave-balances.update');
+        Route::delete('leave-balances/{leaveBalance}', [\App\Http\Controllers\LeaveApplicationController::class, 'destroyBalance'])->name('leave-balances.destroy');
         
         Route::resource('salary-components', \App\Http\Controllers\SalaryComponentController::class);
         Route::resource('payroll-periods', \App\Http\Controllers\PayrollPeriodController::class);

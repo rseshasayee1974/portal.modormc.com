@@ -10,6 +10,7 @@ use App\Models\SalaryComponent;
 use App\Models\StatutoryConfig;
 use App\Models\Attendance;
 use App\Models\LeaveApplication;
+use App\Services\PayrollGenerationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Http\Controllers\Concerns\AuthorizesModule;
@@ -138,7 +139,7 @@ class PayslipController extends Controller
         return redirect()->back()->with('success', 'Payslip deleted successfully.');
     }
 
-    public function generate(Request $request)
+    public function generate(Request $request, PayrollGenerationService $payrollService)
     {
         $this->authorizeModule('create');
 
@@ -148,202 +149,17 @@ class PayslipController extends Controller
             'personnel_ids.*'   => 'exists:mm_personnels,id',
         ]);
 
-        $period = PayrollPeriod::findOrFail($request->payroll_period_id);
-        $activePlantId = session('active_plant_id');
+        try {
+            $payrollService->generateForPeriod(
+                (int)$request->payroll_period_id,
+                (int)session('active_plant_id'),
+                $request->input('personnel_ids', [])
+            );
 
-        $query = Personnel::with(['salaryStructures.salaryComponent'])
-            ->where('plant_id', $activePlantId)
-            ->where('status', 'active');
-
-        if ($request->filled('personnel_ids')) {
-            $query->whereIn('id', $request->input('personnel_ids'));
+            return redirect()->back()->with('success', 'Payslips generated successfully in draft status.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage());
         }
-
-        $personnelList = $query->get();
-
-        if ($personnelList->isEmpty()) {
-            return redirect()->back()->with('error', 'No active personnel found to generate payslips for the selection.');
-        }
-
-        $startDate = $period->from_date;
-        $endDate = $period->to_date;
-        $working_days = $startDate->diffInDays($endDate) + 1;
-
-        DB::transaction(function () use ($personnelList, $period, $activePlantId, $startDate, $endDate, $working_days) {
-            foreach ($personnelList as $personnel) {
-                // Check if payslip already exists
-                $existing = Payslip::where('payroll_period_id', $period->id)
-                    ->where('personnel_id', $personnel->id)
-                    ->first();
-
-                if ($existing) {
-                    continue;
-                }
-
-                // Query attendance records for the employee within the period
-                $attendances = Attendance::where('personnel_id', $personnel->id)
-                    ->whereBetween('attendance_date', [$startDate->toDateString(), $endDate->toDateString()])
-                    ->get()
-                    ->keyBy(fn($att) => $att->attendance_date->toDateString());
-
-                // Query approved leave applications for the employee that overlap with the period
-                $leaves = LeaveApplication::with('leaveType')
-                    ->where('personnel_id', $personnel->id)
-                    ->where('status', 'approved')
-                    ->where(function($q) use ($startDate, $endDate) {
-                        $q->whereBetween('from_date', [$startDate->toDateString(), $endDate->toDateString()])
-                          ->orWhereBetween('to_date', [$startDate->toDateString(), $endDate->toDateString()])
-                          ->orWhere(function($sq) use ($startDate, $endDate) {
-                              $sq->where('from_date', '<=', $startDate->toDateString())
-                                 ->where('to_date', '>=', $endDate->toDateString());
-                          });
-                    })
-                    ->get();
-
-                // Map approved leave dates
-                $leaveMap = [];
-                foreach ($leaves as $leave) {
-                    $from = $leave->from_date->copy();
-                    $to = $leave->to_date;
-                    while ($from->lte($to)) {
-                        if ($from->between($startDate, $endDate)) {
-                            $dateStr = $from->toDateString();
-                            $daysCount = 1.0;
-                            if ($leave->from_date->equalTo($leave->to_date) && $leave->days < 1) {
-                                $daysCount = (float)$leave->days;
-                            }
-                            
-                            if (isset($leaveMap[$dateStr])) {
-                                $leaveMap[$dateStr]['days'] = min(1.0, $leaveMap[$dateStr]['days'] + $daysCount);
-                            } else {
-                                $leaveMap[$dateStr] = [
-                                    'is_paid' => $leave->leaveType?->is_paid ?? false,
-                                    'days' => $daysCount
-                                ];
-                            }
-                        }
-                        $from->addDay();
-                    }
-                }
-
-                $present_days = 0.0;
-                $absent_days = 0.0;
-                $paid_leave_days = 0.0;
-
-                $currentDate = $startDate->copy();
-                while ($currentDate->lte($endDate)) {
-                    $dateStr = $currentDate->toDateString();
-                    
-                    if (isset($attendances[$dateStr])) {
-                        $att = $attendances[$dateStr];
-                            $status = $att->status;
-                            
-                            if ($status === 'present' || $status === 'on_duty' || $status === 'weekoff' || $status === 'holiday') {
-                                $present_days += 1.0;
-                            } elseif ($status === 'absent') {
-                                $absent_days += 1.0;
-                            } elseif ($status === 'half_day') {
-                                $present_days += 0.5;
-                                if (isset($leaveMap[$dateStr])) {
-                                    if ($leaveMap[$dateStr]['is_paid']) {
-                                        $paid_leave_days += 0.5;
-                                    } else {
-                                        $absent_days += 0.5;
-                                    }
-                                } else {
-                                    $absent_days += 0.5;
-                                }
-                            } elseif ($status === 'leave') {
-                                if (isset($leaveMap[$dateStr])) {
-                                    $leaveDays = $leaveMap[$dateStr]['days'];
-                                    if ($leaveMap[$dateStr]['is_paid']) {
-                                        $paid_leave_days += $leaveDays;
-                                        $absent_days += (1.0 - $leaveDays);
-                                    } else {
-                                        $absent_days += 1.0;
-                                    }
-                                } else {
-                                    $paid_leave_days += 1.0;
-                                }
-                            } else {
-                                $absent_days += 1.0;
-                            }
-                        } else {
-                            if (isset($leaveMap[$dateStr])) {
-                                $leaveDays = $leaveMap[$dateStr]['days'];
-                                if ($leaveMap[$dateStr]['is_paid']) {
-                                    $paid_leave_days += $leaveDays;
-                                    $absent_days += (1.0 - $leaveDays);
-                                } else {
-                                    $absent_days += 1.0;
-                                }
-                            } else {
-                                // If there is no attendance record and no leave, default to absent
-                                $absent_days += 1.0;
-                            }
-                        }
-                        $currentDate->addDay();
-                    }
-
-                $totalEarnings = 0.0;
-                $totalDeductions = 0.0;
-                $items = [];
-
-                foreach ($personnel->salaryStructures as $structure) {
-                    $component = $structure->salaryComponent;
-                    if (!$component) continue;
-
-                    $baseAmount = (float)$structure->amount;
-                    $calculatedAmount = $baseAmount;
-                    
-                    if ($component->type === 'earning' && $working_days > 0) {
-                        $paidDays = $present_days + $paid_leave_days;
-                        $calculatedAmount = ($baseAmount * $paidDays) / $working_days;
-                        $calculatedAmount = round($calculatedAmount, 2);
-                    }
-                    
-                    if ($component->type === 'earning') {
-                        $totalEarnings += $calculatedAmount;
-                    } else {
-                        $totalDeductions += $baseAmount;
-                        $calculatedAmount = $baseAmount;
-                    }
-
-                    $items[] = [
-                        'salary_component_id' => $component->id,
-                        'component_name' => $component->name,
-                        'type' => $component->type,
-                        'amount' => $calculatedAmount,
-                        'calculation_source' => $component->calculation_type,
-                    ];
-                }
-
-                $netSalary = max(0.0, $totalEarnings - $totalDeductions);
-                $payslipNo = 'PAY-' . $period->id . '-' . $personnel->id . '-' . mt_rand(1000, 9999);
-
-                $payslip = Payslip::create([
-                    'plant_id' => $activePlantId,
-                    'payroll_period_id' => $period->id,
-                    'personnel_id' => $personnel->id,
-                    'payslip_no' => $payslipNo,
-                    'working_days' => $working_days,
-                    'present_days' => $present_days,
-                    'absent_days' => $absent_days,
-                    'paid_leave_days' => $paid_leave_days,
-                    'gross_salary' => $totalEarnings,
-                    'total_earnings' => $totalEarnings,
-                    'total_deductions' => $totalDeductions,
-                    'net_salary' => $netSalary,
-                    'status' => 'draft',
-                ]);
-
-                foreach ($items as $item) {
-                    $payslip->items()->create($item);
-                }
-            }
-        });
-
-        return redirect()->back()->with('success', 'Payslips generated successfully in draft status.');
     }
 
     public function show(Payslip $payslip)
@@ -394,12 +210,17 @@ class PayslipController extends Controller
         }
 
         $pfConfig = StatutoryConfig::where('plant_id', $activePlantId)
-            ->where('statute_name', 'like', '%Provident Fund%')
+            ->where(function($q) {
+                $q->where('code', 'EPF')
+                  ->orWhere('statute_name', 'like', '%Provident Fund%');
+            })
             ->first();
         
         $pfEmployeeRate = isset($pfConfig->rules['employee_rate']) ? (float)$pfConfig->rules['employee_rate'] : 12.0;
         $pfEmployerRate = isset($pfConfig->rules['employer_rate']) ? (float)$pfConfig->rules['employer_rate'] : 12.0;
-        $pfCeiling      = isset($pfConfig->rules['wage_ceiling'])  ? (float)$pfConfig->rules['wage_ceiling']  : 15000.0;
+        $pfCeiling      = (isset($pfConfig->rules['wage_ceiling']) && is_numeric($pfConfig->rules['wage_ceiling']) && (float)$pfConfig->rules['wage_ceiling'] > 0)
+            ? (float)$pfConfig->rules['wage_ceiling']
+            : null;
 
         $lines = [];
         foreach ($payslips as $payslip) {
@@ -420,7 +241,8 @@ class PayslipController extends Controller
             $pfEmployeeShare = $pfItem ? (float)$pfItem->amount : 0.0;
 
             // Filter for employees contributing or eligible
-            if ($pfEmployeeShare > 0 || ($basicWages > 0 && $basicWages <= $pfCeiling)) {
+            $isPfEligible = ($pfCeiling !== null && $pfCeiling > 0) ? ($basicWages <= $pfCeiling) : true;
+            if ($pfEmployeeShare > 0 || ($basicWages > 0 && $isPfEligible)) {
                 $uan = preg_replace('/[^0-9]/', '', $personnel->uan ?? '');
                 
                 $name = trim(($personnel->first_name ?? '') . ' ' . ($personnel->last_name ?? ''));
@@ -432,13 +254,13 @@ class PayslipController extends Controller
                 $ncpDays = (int)$payslip->absent_days;
 
                 // Determine if they contribute on full basic or ceiling capped basic
-                $pfLimit = $pfCeiling;
-                if ($pfEmployeeShare > ($pfEmployeeRate * $pfCeiling / 100)) {
+                $pfLimit = ($pfCeiling !== null && $pfCeiling > 0) ? $pfCeiling : $basicWages;
+                if ($pfCeiling !== null && $pfCeiling > 0 && $pfEmployeeShare > ($pfEmployeeRate * $pfCeiling / 100)) {
                     $pfLimit = $basicWages;
                 }
-                $epfWages = min($basicWages, $pfLimit);
-                $epsWages = min($basicWages, $pfCeiling);
-                $edliWages = min($basicWages, $pfCeiling);
+                $epfWages = ($pfCeiling !== null && $pfCeiling > 0) ? min($basicWages, $pfLimit) : $basicWages;
+                $epsWages = ($pfCeiling !== null && $pfCeiling > 0) ? min($basicWages, $pfCeiling) : $basicWages;
+                $edliWages = ($pfCeiling !== null && $pfCeiling > 0) ? min($basicWages, $pfCeiling) : $basicWages;
 
                 $employerPfTotal = round($pfEmployerRate * $epfWages / 100, 2);
                 $employerEpsShare = round(8.33 * $epsWages / 100, 2);
@@ -506,9 +328,14 @@ class PayslipController extends Controller
         }
 
         $esiConfig = StatutoryConfig::where('plant_id', $activePlantId)
-            ->where('statute_name', 'like', '%Employee State Insurance%')
+            ->where(function($q) {
+                $q->where('code', 'ESIC')
+                  ->orWhere('statute_name', 'like', '%Employee State Insurance%');
+            })
             ->first();
-        $esiCeiling = isset($esiConfig->rules['wage_ceiling']) ? (float)$esiConfig->rules['wage_ceiling'] : 21000.0;
+        $esiCeiling = (isset($esiConfig->rules['wage_ceiling']) && is_numeric($esiConfig->rules['wage_ceiling']) && (float)$esiConfig->rules['wage_ceiling'] > 0)
+            ? (float)$esiConfig->rules['wage_ceiling']
+            : null;
 
         $lines = [];
         foreach ($payslips as $payslip) {
@@ -524,7 +351,8 @@ class PayslipController extends Controller
             $esiEmployeeShare = $esiItem ? (float)$esiItem->amount : 0.0;
 
             // Filter for employees contributing or eligible
-            if ($esiEmployeeShare > 0 || ($grossWages > 0 && $grossWages <= $esiCeiling)) {
+            $isEsiEligible = ($esiCeiling !== null && $esiCeiling > 0) ? ($grossWages <= $esiCeiling) : true;
+            if ($esiEmployeeShare > 0 || ($grossWages > 0 && $isEsiEligible)) {
                 $esiNumber = preg_replace('/[^0-9]/', '', $personnel->esi_number ?? '');
 
                 $name = trim(($personnel->first_name ?? '') . ' ' . ($personnel->last_name ?? ''));

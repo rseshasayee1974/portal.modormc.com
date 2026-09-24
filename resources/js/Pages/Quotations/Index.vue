@@ -333,8 +333,15 @@ const updateConversion = (quotation: any) => {
                         <Column header="Mix Designs / Grades">
                             <template #body="slotProps">
                                 <div class="flex flex-wrap gap-1 max-w-[250px]">
-                                    <span v-for="item in slotProps.data.items" :key="item.id" class="text-[10.5px] font-bold bg-indigo-50/70 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-100/70 whitespace-nowrap">
+                                    <span v-for="item in slotProps.data.items.slice(0, 2)" :key="item.id" class="text-[10.5px] font-bold bg-indigo-50/70 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-100/70 whitespace-nowrap">
                                         {{ item.mix_design?.design_name || item.mix_design?.title || '-' }}
+                                    </span>
+                                    <span 
+                                        v-if="slotProps.data.items.length > 2"
+                                        class="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full border border-indigo-200/60 dark:border-indigo-700 cursor-help"
+                                        :title="slotProps.data.items.slice(2).map((item: any) => item.mix_design?.design_name || item.mix_design?.title || '-').join(', ')"
+                                    >
+                                        +{{ slotProps.data.items.length - 2 }} more
                                     </span>
                                 </div>
                             </template>

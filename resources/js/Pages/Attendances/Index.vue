@@ -77,19 +77,19 @@ const form = useForm({
     source: 'manual',
 });
 
-const personnelOptions = computed(() => 
-    props.personnel.map(p => ({ label: `${p.first_name} ${p.last_name || ''} (${p.employee_code})`, value: p.id }))
+const personnelOptions = computed(() =>
+    props.personnel.map(p => ({ label: `${p.first_name} ${p.last_name || ''}`, value: p.id }))
 );
 
-const shiftOptions = computed(() => 
+const shiftOptions = computed(() =>
     props.shifts.map(s => ({ label: `${s.shift_name} (${s.start_time} - ${s.end_time})`, value: s.id }))
 );
 
-const statusOptions = computed(() => 
+const statusOptions = computed(() =>
     props.statuses.map(s => ({ label: s.toUpperCase().replace('_', ' '), value: s }))
 );
 
-const sourceOptions = computed(() => 
+const sourceOptions = computed(() =>
     props.sources.map(s => ({ label: s.toUpperCase(), value: s }))
 );
 
@@ -118,7 +118,7 @@ const resetForm = () => {
 const submitForm = () => {
     form.clearErrors();
     let hasError = false;
-    
+
     if (Number(form.worked_hours) > 24) {
         form.setError('worked_hours', 'The worked hours field must not be greater than 24.');
         hasError = true;
@@ -131,7 +131,7 @@ const submitForm = () => {
         form.setError('late_hours', 'The late hours field must not be greater than 24.');
         hasError = true;
     }
-    
+
     if (hasError) return;
 
     if (editingId.value) {
@@ -149,13 +149,13 @@ watch([() => form.check_in, () => form.check_out, () => form.shift_id], ([checkI
     if (checkIn && checkOut) {
         const inTime = checkIn instanceof Date ? checkIn.getTime() : new Date(checkIn).getTime();
         const outTime = checkOut instanceof Date ? checkOut.getTime() : new Date(checkOut).getTime();
-        
+
         if (outTime > inTime) {
             let worked = (outTime - inTime) / (1000 * 60 * 60);
             form.worked_hours = Number(Math.min(24, Math.max(0, worked)).toFixed(1));
         }
     }
-    
+
     if (shiftId && checkIn) {
         const shift = props.shifts.find(s => s.id === shiftId);
         if (shift) {
@@ -163,14 +163,14 @@ watch([() => form.check_in, () => form.check_out, () => form.shift_id], ([checkI
             const inDate = checkIn instanceof Date ? checkIn : new Date(checkIn);
             const shiftStartTime = new Date(inDate);
             shiftStartTime.setHours(sh, sm, ss || 0, 0);
-            
+
             if (inDate > shiftStartTime) {
                 let late = (inDate.getTime() - shiftStartTime.getTime()) / (1000 * 60 * 60);
                 form.late_hours = Number(Math.min(24, Math.max(0, late)).toFixed(1));
             }
         }
     }
-    
+
     if (shiftId && form.worked_hours > 0) {
         const shift = props.shifts.find(s => s.id === shiftId);
         if (shift) {
@@ -201,9 +201,10 @@ const deleteAttendance = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-              router.delete(route('attendances.destroy', id), {
+            router.delete(route('attendances.destroy', id), {
                 preserveScroll: true,
-                preserveState: true});
+                preserveState: true
+            });
         }
     });
 };
@@ -264,7 +265,7 @@ const formatOtDuration = (hours: number | string | null | undefined) => {
         <div class="py-6">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="space-y-6">
-                    
+
                     <!-- Form Container (3-column layout) -->
                     <BaseCard class="text-sm">
                         <template #header>
@@ -279,115 +280,141 @@ const formatOtDuration = (hours: number | string | null | undefined) => {
                         <form @submit.prevent="submitForm" class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select Employee <span class="text-red-500">*</span></label>
-                                    <BaseSelect v-model="form.personnel_id" :options="personnelOptions" optionLabel="label" optionValue="value" placeholder="Select Employee" filter class="w-full" :disabled="!!editingId" />
-                                    <small v-if="form.errors.personnel_id" class="p-error text-[10px]">{{ form.errors.personnel_id }}</small>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select
+                                        Employee
+                                        <span class="text-red-500">*</span></label>
+                                    <BaseSelect v-model="form.personnel_id" :options="personnelOptions"
+                                        optionLabel="label" optionValue="value" placeholder="Select Employee" filter
+                                        class="w-full" :disabled="!!editingId" />
+                                    <small v-if="form.errors.personnel_id" class="p-error text-[10px]">{{
+                                        form.errors.personnel_id }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Attendance Date <span class="text-red-500">*</span></label>
-                                    <BaseDatePicker v-model="form.attendance_date" hour-format="12" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" :disabled="!!editingId" />
-                                    <small v-if="form.errors.attendance_date" class="p-error text-[10px]">{{ form.errors.attendance_date }}</small>
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Attendance
+                                        Date
+                                        <span class="text-red-500">*</span></label>
+                                    <BaseDatePicker v-model="form.attendance_date" hour-format="12"
+                                        dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date"
+                                        class="w-full" :disabled="!!editingId" />
+                                    <small v-if="form.errors.attendance_date" class="p-error text-[10px]">{{
+                                        form.errors.attendance_date }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Assigned Shift</label>
-                                    <BaseSelect v-model="form.shift_id" :options="shiftOptions" optionLabel="label" optionValue="value" placeholder="Select Shift" class="w-full" />
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Assigned
+                                        Shift</label>
+                                    <BaseSelect v-model="form.shift_id" :options="shiftOptions" optionLabel="label"
+                                        optionValue="value" placeholder="Select Shift" class="w-full" />
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-4">
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Check In Time</label>
-                                        <BaseDatePicker v-model="form.check_in" showTime hourFormat="12" :showIcon=false iconDisplay="input" placeholder="Check In" class="w-full" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Check
+                                            In
+                                            Time</label>
+                                        <BaseDatePicker v-model="form.check_in" showTime hourFormat="12" :showIcon=false
+                                            iconDisplay="input" placeholder="Check In" class="w-full" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Check Out Time</label>
-                                        <BaseDatePicker v-model="form.check_out" showTime hourFormat="12" :showIcon=false iconDisplay="input" placeholder="Check Out" class="w-full" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Check
+                                            Out
+                                            Time</label>
+                                        <BaseDatePicker v-model="form.check_out" showTime hourFormat="12"
+                                            :showIcon=false iconDisplay="input" placeholder="Check Out"
+                                            class="w-full" />
                                     </div>
                                 </div>
 
                                 <div class="grid grid-cols-3 gap-4">
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Worked Hrs</label>
-                                        <BaseInput type="number" step="0.1" min="0" max="24" v-model="form.worked_hours" :error="form.errors.worked_hours" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Worked
+                                            Hrs</label>
+                                        <BaseInput type="number" step="0.1" min="0" max="24" v-model="form.worked_hours"
+                                            :error="form.errors.worked_hours" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Overtime Hrs</label>
-                                        <BaseInput type="number" step="0.1" min="0" max="24" v-model="form.overtime_hours" :error="form.errors.overtime_hours" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Overtime
+                                            Hrs</label>
+                                        <BaseInput type="number" step="0.1" min="0" max="24"
+                                            v-model="form.overtime_hours" :error="form.errors.overtime_hours" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Late Hrs</label>
-                                        <BaseInput type="number" step="0.1" min="0" max="24" v-model="form.late_hours" :error="form.errors.late_hours" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Late
+                                            Hrs</label>
+                                        <BaseInput type="number" step="0.1" min="0" max="24" v-model="form.late_hours"
+                                            :error="form.errors.late_hours" />
                                     </div>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-4">
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Attendance Status <span class="text-red-500">*</span></label>
-                                        <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value" placeholder="Status" class="w-full" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Attendance
+                                            Status <span class="text-red-500">*</span></label>
+                                        <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label"
+                                            optionValue="value" placeholder="Status" class="w-full" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Logging Source</label>
-                                        <BaseSelect v-model="form.source" :options="sourceOptions" optionLabel="label" optionValue="value" placeholder="Source" class="w-full" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Logging
+                                            Source</label>
+                                        <BaseSelect v-model="form.source" :options="sourceOptions" optionLabel="label"
+                                            optionValue="value" placeholder="Source" class="w-full" />
                                     </div>
                                 </div>
 
                                 <div class="md:col-span-3 flex flex-col md:flex-row gap-6 mt-2">
                                     <!-- Late Arrival Card -->
-                                    <div 
-                                        @click="form.is_late = !form.is_late" 
+                                    <div @click="form.is_late = !form.is_late"
                                         class="flex-1 flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all duration-300 select-none bg-slate-50/50 dark:bg-slate-800/20"
-                                        :class="form.is_late 
-                                            ? 'border-indigo-500/50 shadow-sm shadow-indigo-500/5 dark:shadow-indigo-500/10 bg-indigo-50/20 dark:bg-indigo-950/10' 
-                                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'"
-                                    >
+                                        :class="form.is_late
+                                            ? 'border-indigo-500/50 shadow-sm shadow-indigo-500/5 dark:shadow-indigo-500/10 bg-indigo-50/20 dark:bg-indigo-950/10'
+                                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'">
                                         <div class="flex flex-col gap-1">
-                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">Late Arrival</span>
-                                            <span class="text-[10px] text-gray-400">Flag employee as arriving late for shift</span>
+                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">Late
+                                                Arrival</span>
+                                            <span class="text-[10px] text-gray-400">Flag employee as arriving late for
+                                                shift</span>
                                         </div>
                                         <ToggleSwitch v-model="form.is_late" @click.stop />
                                     </div>
 
                                     <!-- Early Departure Card -->
-                                    <div 
-                                        @click="form.is_early_departure = !form.is_early_departure" 
+                                    <div @click="form.is_early_departure = !form.is_early_departure"
                                         class="flex-1 flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all duration-300 select-none bg-slate-50/50 dark:bg-slate-800/20"
-                                        :class="form.is_early_departure 
-                                            ? 'border-indigo-500/50 shadow-sm shadow-indigo-500/5 dark:shadow-indigo-500/10 bg-indigo-50/20 dark:bg-indigo-950/10' 
-                                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'"
-                                    >
+                                        :class="form.is_early_departure
+                                            ? 'border-indigo-500/50 shadow-sm shadow-indigo-500/5 dark:shadow-indigo-500/10 bg-indigo-50/20 dark:bg-indigo-950/10'
+                                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'">
                                         <div class="flex flex-col gap-1">
-                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">Early Departure</span>
-                                            <span class="text-[10px] text-gray-400">Flag employee as leaving shift before scheduled end</span>
+                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">Early
+                                                Departure</span>
+                                            <span class="text-[10px] text-gray-400">Flag employee as leaving shift
+                                                before
+                                                scheduled end</span>
                                         </div>
                                         <ToggleSwitch v-model="form.is_early_departure" @click.stop />
                                     </div>
                                 </div>
                             </div>
 
-                            <BaseFormActions 
-                                :loading="form.processing"
+                            <BaseFormActions :loading="form.processing"
                                 :label="editingId ? 'Update Log' : 'Log Attendance'"
-                                :cancel-label="editingId ? 'Cancel' : 'Reset'"
-                                :mode="editingId ? 'edit' : 'add'"
-                                class="pt-6 border-t border-gray-100 dark:border-gray-700"
-                                @cancel="resetForm"
-                            />
+                                :cancel-label="editingId ? 'Cancel' : 'Reset'" :mode="editingId ? 'edit' : 'add'"
+                                class="pt-6 border-t border-gray-100 dark:border-gray-700" @cancel="resetForm" />
                         </form>
                     </BaseCard>
 
                     <!-- Attendances List -->
                     <div class="bg-white dark:bg-slate-900 rounded-xl">
-                        <BaseDataTable 
-                            :value="attendances" 
-                            dataKey="id"
-                            stripedRows 
-                            heading="Attendance Register"
-                            headingIcon="CalendarIcon"
-                            showSearch showSerial
-                            paginator
-                            :rows="30" 
-                            :totalRecords="attendances.length"
-                            class="p-datatable-sm"
-                        >
+                        <BaseDataTable :value="attendances" dataKey="id" stripedRows heading="Attendance Register"
+                            headingIcon="CalendarIcon" showSearch showSerial paginator :rows="30"
+                            :totalRecords="attendances.length" class="p-datatable-sm">
                             <Column header="Date">
                                 <template #body="slotProps">
                                     <span class="font-semibold">{{ formatDate(slotProps.data.attendance_date) }}</span>
@@ -396,7 +423,8 @@ const formatOtDuration = (hours: number | string | null | undefined) => {
                             <Column header="Employee Name">
                                 <template #body="slotProps">
                                     <span class="font-bold text-indigo-600 dark:text-indigo-400">
-                                        {{ slotProps.data.personnel?.first_name }} {{ slotProps.data.personnel?.last_name || '' }}
+                                        {{ slotProps.data.personnel?.first_name }} {{
+                                        slotProps.data.personnel?.last_name || '' }}
                                     </span>
                                 </template>
                             </Column>
@@ -408,22 +436,26 @@ const formatOtDuration = (hours: number | string | null | undefined) => {
                             <Column header="Clock In/Out">
                                 <template #body="slotProps">
                                     <div class="flex flex-col text-[11px]">
-                                        <span>IN: {{ slotProps.data.check_in ? entityLocaleTime(slotProps.data.check_in, ) : '-' }}</span>
-                                        <span>OUT: {{ slotProps.data.check_out ? entityLocaleTime(slotProps.data.check_out, ) : '-' }}</span>
+                                        <span>IN: {{ slotProps.data.check_in ? entityLocaleTime(slotProps.data.check_in,
+                                            ) : '-' }}</span>
+                                        <span>OUT: {{ slotProps.data.check_out ?
+                                            entityLocaleTime(slotProps.data.check_out, ) : '-' }}</span>
                                     </div>
                                 </template>
                             </Column>
                             <Column header="Hours Details">
                                 <template #body="slotProps">
                                     <div class="flex flex-col text-[11px]">
-                                        <span>Worked: {{ formatDuration(slotProps.data.worked_hours, slotProps.data.status) }}</span>
+                                        <span>Worked: {{ formatDuration(slotProps.data.worked_hours,
+                                            slotProps.data.status) }}</span>
                                         <span>OT: {{ formatOtDuration(slotProps.data.overtime_hours) }}</span>
                                     </div>
                                 </template>
                             </Column>
                             <Column header="Status">
                                 <template #body="slotProps">
-                                    <Tag :severity="getStatusSeverity(slotProps.data.status)" :value="slotProps.data.status.toUpperCase()" rounded />
+                                    <Tag :severity="getStatusSeverity(slotProps.data.status)"
+                                        :value="slotProps.data.status.toUpperCase()" rounded />
                                 </template>
                             </Column>
                             <Column header="Source">
@@ -434,20 +466,10 @@ const formatOtDuration = (hours: number | string | null | undefined) => {
                             <Column header="Actions" alignFrozen="right" frozen>
                                 <template #body="slotProps">
                                     <div class="flex justify-end gap-2">
-                                        <BaseButton 
-                                            icon="pi pi-pencil" 
-                                            severity="info" 
-                                            text 
-                                            rounded 
-                                            @click="editAttendance(slotProps.data)"
-                                        />
-                                        <BaseButton 
-                                            icon="pi pi-trash" 
-                                            severity="danger" 
-                                            text 
-                                            rounded 
-                                            @click="deleteAttendance(slotProps.data.id)"
-                                        />
+                                        <BaseButton icon="pi pi-pencil" severity="info" text rounded
+                                            @click="editAttendance(slotProps.data)" />
+                                        <BaseButton icon="pi pi-trash" severity="danger" text rounded
+                                            @click="deleteAttendance(slotProps.data.id)" />
                                     </div>
                                 </template>
                             </Column>

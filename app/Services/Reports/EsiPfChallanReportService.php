@@ -29,11 +29,15 @@ class EsiPfChallanReportService implements ReportServiceInterface
         // 2. Extract rules or use statutory standard defaults
         $pfEmployeeRate = isset($pfConfig->rules['employee_rate']) ? (float)$pfConfig->rules['employee_rate'] : 12.0;
         $pfEmployerRate = isset($pfConfig->rules['employer_rate']) ? (float)$pfConfig->rules['employer_rate'] : 12.0;
-        $pfCeiling      = isset($pfConfig->rules['wage_ceiling'])  ? (float)$pfConfig->rules['wage_ceiling']  : 15000.0;
+        $pfCeiling      = (isset($pfConfig->rules['wage_ceiling']) && is_numeric($pfConfig->rules['wage_ceiling']) && (float)$pfConfig->rules['wage_ceiling'] > 0)
+            ? (float)$pfConfig->rules['wage_ceiling']
+            : null;
 
         $esiEmployeeRate = isset($esiConfig->rules['employee_rate']) ? (float)$esiConfig->rules['employee_rate'] : 0.75;
         $esiEmployerRate = isset($esiConfig->rules['employer_rate']) ? (float)$esiConfig->rules['employer_rate'] : 3.25;
-        $esiCeiling      = isset($esiConfig->rules['wage_ceiling'])  ? (float)$esiConfig->rules['wage_ceiling']  : 21000.0;
+        $esiCeiling      = (isset($esiConfig->rules['wage_ceiling']) && is_numeric($esiConfig->rules['wage_ceiling']) && (float)$esiConfig->rules['wage_ceiling'] > 0)
+            ? (float)$esiConfig->rules['wage_ceiling']
+            : null;
 
         // 3. Fetch payslips in the selected date range
         $payslips = Payslip::where('plant_id', $plantId)

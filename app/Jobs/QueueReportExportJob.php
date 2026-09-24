@@ -277,9 +277,14 @@ class QueueReportExportJob implements ShouldQueue
             ];
         } elseif (str_contains(strtolower($type), 'payroll_personnel')) {
             $extraParams = [
-                'headers'    => ['Emp Code', 'Employee Name', 'Department', 'Period', 'Payslip No', 'Gross (₹)', 'Deductions (₹)', 'Net Pay (₹)', 'Status'],
-                'fields'     => ['employee_code', 'name', 'department', 'period_name', 'payslip_no', 'total_earnings', 'total_deductions', 'net_salary', 'payslip_status'],
-                'alignments' => ['center', 'left', 'left', 'center', 'center', 'right', 'right', 'right', 'center']
+                'headers'    => ['Emp Code', 'Employee Name', 'Department / Role', 'Month / Period', 'Attendance', 'Gross Pay', 'Deductions', 'Net Salary', 'Status'],
+                'fields'     => ['employee_code', 'name', 'dept_designation', 'period_name', 'attendance_summary', 'total_earnings_formatted', 'total_deductions_formatted', 'net_salary_formatted', 'payslip_status'],
+                'alignments' => ['center', 'left', 'left', 'center', 'center', 'right', 'right', 'right', 'center'],
+                'totals'     => [
+                    'total_earnings_formatted'   => '₹ ' . number_format($data['summary']['total_earnings'] ?? 0, 2),
+                    'total_deductions_formatted' => '₹ ' . number_format($data['summary']['total_deductions'] ?? 0, 2),
+                    'net_salary_formatted'       => '₹ ' . number_format($data['summary']['total_net_salary'] ?? 0, 2),
+                ]
             ];
         } elseif (str_contains(strtolower($type), 'silo_stock_valuation')) {
             $extraParams = [
@@ -296,8 +301,7 @@ class QueueReportExportJob implements ShouldQueue
         }
 
         $orientation = 'portrait';
-        if (in_array(strtoupper($type), ['SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER'])
-            || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
+        if (in_array(strtoupper($type), ['PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
             $orientation = 'landscape';
         }
 

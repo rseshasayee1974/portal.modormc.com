@@ -17,6 +17,7 @@ class StatutoryConfig extends Model
     protected $fillable = [
         'plant_id',
         'statute_name',
+        'code',
         'rules',
         'effective_from',
     ];

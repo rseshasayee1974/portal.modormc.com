@@ -172,6 +172,7 @@ class HrmsMasterSeeder extends Seeder
         $configs = [
             [
                 'statute_name'   => 'Provident Fund (PF)',
+                'code'           => 'EPF',
                 'effective_from' => now()->startOfYear()->toDateString(),
                 'rules'          => [
                     'employee_rate' => 12,
@@ -182,6 +183,7 @@ class HrmsMasterSeeder extends Seeder
             ],
             [
                 'statute_name'   => 'Employee State Insurance (ESI)',
+                'code'           => 'ESIC',
                 'effective_from' => now()->startOfYear()->toDateString(),
                 'rules'          => [
                     'employee_rate' => 0.75,
@@ -196,6 +198,7 @@ class HrmsMasterSeeder extends Seeder
             StatutoryConfig::updateOrCreate(
                 ['plant_id' => $plant->id, 'statute_name' => $cfg['statute_name']],
                 [
+                    'code'           => $cfg['code'],
                     'effective_from' => $cfg['effective_from'],
                     'rules'          => $cfg['rules'],
                     'created_by'     => Auth::id() ?? 1,
