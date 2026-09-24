@@ -44,9 +44,9 @@ import OverallReport from './components/OverallReport.vue';
 import BulkDocumentReport from './components/BulkDocumentReport.vue';
 import DeletedReport from './components/DeletedReport.vue';
 
-import { 
+import {
     ChartBarIcon,
-    DocumentTextIcon, 
+    DocumentTextIcon,
     UserGroupIcon,
     ArrowPathIcon,
     ArrowDownTrayIcon,
@@ -114,7 +114,7 @@ const reportCatalog = [
             { id: 'inventory_inward', name: 'Purchase Inward Receipts', description: 'Inward histories, truck weights and purchase records' },
             { id: 'purchase', name: 'Purchase & Bills Summary', description: 'PO breakdown, product cost logs and vendor bills' },
             { id: 'purchase_register', name: 'Purchase Register Report', description: 'Itemized purchase bills with supplier GST, rate, and values' },
-            { id: 'silo_stock_valuation', name: 'Silo Stock Valuation', description: 'FIFO / Weighted Average cost valuation for consumed aggregate stock' },
+            // { id: 'silo_stock_valuation', name: 'Silo Stock Valuation', description: 'FIFO / Weighted Average cost valuation for consumed aggregate stock' },
         ]
     },
     {
@@ -155,16 +155,16 @@ const reportCatalog = [
             { id: 'driver', name: 'Driver Trip Report', description: 'Driver trip logs, vehicle dispatches, and delivered quantities' },
         ]
     },
-    {
-        id: 'compliance',
-        name: 'Taxation & Compliance',
-        reports: [
-            { id: 'gstr1', name: 'GSTR-1 Report', description: 'B2B, B2C, CDNR, and EXP invoice breakups for GST returns' },
-            { id: 'gstr3b', name: 'GSTR-3B Return Summary', description: 'Table 3.1 outward supplies and Table 4 eligible ITC summary' },
-            { id: 'tds_certificate', name: 'TDS Certificate Generation', description: 'TDS details and deduction summary for a given patron' },
-            { id: 'esi_pf_challan', name: 'ESI/PF Challan Generation', description: 'Monthly Employee State Insurance and Provident Fund statutory challan calculations' }
-        ]
-    }
+    // {
+    //     id: 'compliance',
+    //     name: 'Taxation & Compliance',
+    //     reports: [
+    //         { id: 'gstr1', name: 'GSTR-1 Report', description: 'B2B, B2C, CDNR, and EXP invoice breakups for GST returns' },
+    //         { id: 'gstr3b', name: 'GSTR-3B Return Summary', description: 'Table 3.1 outward supplies and Table 4 eligible ITC summary' },
+    //         { id: 'tds_certificate', name: 'TDS Certificate Generation', description: 'TDS details and deduction summary for a given patron' },
+    //         { id: 'esi_pf_challan', name: 'ESI/PF Challan Generation', description: 'Monthly Employee State Insurance and Provident Fund statutory challan calculations' }
+    //     ]
+    // }
 ];
 
 const hasReportPermission = (type, action = 'view', view = 'summary') => {
@@ -199,8 +199,8 @@ const getInitialSelection = () => {
 
 const initialSelection = getInitialSelection();
 const selectedModuleId = ref(initialSelection.module);
-const reportType = ref(initialSelection.type); 
-const selectedId = ref(null); 
+const reportType = ref(initialSelection.type);
+const selectedId = ref(null);
 const patronId = ref(null);
 const truckId = ref(null);
 const driverId = ref(null);
@@ -689,7 +689,7 @@ const generateReport = async () => {
             params = {
                 from_date: startDate.value,
                 to_date: endDate.value,
-            machine_id: truckId.value,
+                machine_id: truckId.value,
                 page: currentPage.value
             };
         }
@@ -770,8 +770,8 @@ const exportPdf = () => {
             to_date: endDate.value,
             customer_id: patronId.value,
             gst_type: gstType.value,
-                register_view: registerView.value,
-                document_status: registerStatus.value,
+            register_view: registerView.value,
+            document_status: registerStatus.value,
             payment_status: paymentStatus.value,
             export: 'pdf'
         });
@@ -781,8 +781,8 @@ const exportPdf = () => {
             to_date: endDate.value,
             supplier_id: patronId.value,
             gst_type: gstType.value,
-                register_view: registerView.value,
-                document_status: registerStatus.value,
+            register_view: registerView.value,
+            document_status: registerStatus.value,
             export: 'pdf'
         });
     } else if (reportType.value === 'machine_summary') {
@@ -829,8 +829,8 @@ const exportExcel = () => {
             to_date: endDate.value,
             customer_id: patronId.value,
             gst_type: gstType.value,
-                register_view: registerView.value,
-                document_status: registerStatus.value,
+            register_view: registerView.value,
+            document_status: registerStatus.value,
             payment_status: paymentStatus.value,
             export: 'excel'
         });
@@ -840,8 +840,8 @@ const exportExcel = () => {
             to_date: endDate.value,
             supplier_id: patronId.value,
             gst_type: gstType.value,
-                register_view: registerView.value,
-                document_status: registerStatus.value,
+            register_view: registerView.value,
+            document_status: registerStatus.value,
             export: 'excel'
         });
     } else if (reportType.value === 'machine_summary') {
@@ -915,8 +915,8 @@ const currentReportParams = computed(() => {
         patron_id: patronId.value,
         voucher_type_filter: ledgerVoucherFilter.value,
         gst_type: gstType.value,
-                register_view: registerView.value,
-                document_status: registerStatus.value,
+        register_view: registerView.value,
+        document_status: registerStatus.value,
         payment_status: paymentStatus.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
@@ -968,7 +968,7 @@ const generateShareLink = async () => {
                 month: selectedMonth.value,
             }
         });
-        
+
         if (response.data && response.data.url) {
             shareLink.value = response.data.url;
         } else {
@@ -1027,9 +1027,10 @@ const shareEmail = () => {
     <AppLayout title="Operational Reports">
         <!-- SAP Fiori Quartz Light Shell Frame -->
         <div class="bg-[#f2f4f7] min-h-screen text-[#1d2d3e] font-sans antialiased">
-            
+
             <!-- SAP Fiori Shell Header -->
-            <div class="bg-[#1d2d3e] text-white px-6 py-3.5 shadow flex items-center justify-between border-b border-[#2d3e50]">
+            <div
+                class="bg-[#1d2d3e] text-white px-6 py-3.5 shadow flex items-center justify-between border-b border-[#2d3e50]">
                 <div class="flex items-center gap-4">
                     <span class="text-xs uppercase font-semibold text-slate-300 tracking-wider">RMC Launchpad</span>
                     <span class="text-xs text-slate-400">|</span>
@@ -1041,18 +1042,15 @@ const shareEmail = () => {
             </div>
 
             <!-- SAP Fiori Tab Navigation Bar (Module selection - horizontally scrollable on mobile) -->
-            <div class="bg-white border-b border-slate-200 px-4 lg:px-6 flex overflow-x-auto whitespace-nowrap scrollbar-none gap-1">
-                <button 
-                    v-for="mod in modules" 
-                    :key="mod.id"
-                    @click="selectedModuleId = mod.id"
+            <div
+                class="bg-white border-b border-slate-200 px-4 lg:px-6 flex overflow-x-auto whitespace-nowrap scrollbar-none gap-1">
+                <button v-for="mod in modules" :key="mod.id" @click="selectedModuleId = mod.id"
                     class="px-5 py-3.5 text-xs font-bold transition-all border-b-2 -mb-px flex items-center gap-2 shrink-0"
                     :class="[
-                        selectedModuleId === mod.id 
-                        ? 'border-[#0064d2] text-[#0064d2]' 
-                        : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200'
-                    ]"
-                >
+                        selectedModuleId === mod.id
+                            ? 'border-[#0064d2] text-[#0064d2]'
+                            : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200'
+                    ]">
                     <!-- Crystal-clear dynamic Heroicons component -->
                     <component :is="getModuleIcon(mod.id)" class="w-3.5 h-3.5 stroke-[2.5]" />
                     {{ mod.name }}
@@ -1061,41 +1059,37 @@ const shareEmail = () => {
 
             <!-- SAP Split-Screen Master-Detail Layout -->
             <div class="flex flex-col lg:flex-row min-h-[calc(100vh-100px)]">
-                
+
                 <!-- Master Pane (Left Column: Report selector - Hidden on Mobile/Tablet) -->
                 <div class="hidden lg:block w-72 bg-white border-r border-slate-200 shrink-0">
                     <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
-                        <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Reports Catalog</span>
+                        <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Reports
+                            Catalog</span>
                     </div>
-                    
+
                     <div class="divide-y divide-slate-100">
-                        <div 
-                            v-for="rep in activeModule.reports" 
-                            :key="rep.id"
-                            @click="reportType = rep.id"
-                            class="px-5 py-4 cursor-pointer hover:bg-slate-50 transition-all border-l-4"
-                            :class="[
-                                reportType === rep.id 
-                                ? 'border-[#0064d2] bg-[#f2f7fc] text-[#0064d2]' 
-                                : 'border-transparent text-slate-700'
-                            ]"
-                        >
+                        <div v-for="rep in activeModule.reports" :key="rep.id" @click="reportType = rep.id"
+                            class="px-5 py-4 cursor-pointer hover:bg-slate-50 transition-all border-l-4" :class="[
+                                reportType === rep.id
+                                    ? 'border-[#0064d2] bg-[#f2f7fc] text-[#0064d2]'
+                                    : 'border-transparent text-slate-700'
+                            ]">
                             <h4 class="text-xs font-bold leading-snug">{{ rep.name }}</h4>
-                            <p class="text-[10px] text-slate-400 mt-1 leading-relaxed line-clamp-2">{{ rep.description }}</p>
+                            <p class="text-[10px] text-slate-400 mt-1 leading-relaxed line-clamp-2">{{ rep.description
+                                }}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Detail Pane (Right Column: Filters & Table - Responsive padding) -->
                 <div class="flex-1 p-4 sm:p-6 overflow-y-auto">
-                    
+
                     <!-- Mobile Report Selector (only visible below lg breakpoint) -->
                     <div class="block lg:hidden mb-5 bg-white p-4 rounded border border-slate-200 shadow-sm">
-                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Select Report Category</span>
-                        <select 
-                            v-model="reportType"
-                            class="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-[#0064d2]"
-                        >
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Select
+                            Report Category</span>
+                        <select v-model="reportType"
+                            class="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-[#0064d2]">
                             <option v-for="rep in activeModule.reports" :key="rep.id" :value="rep.id">
                                 {{ rep.name }}
                             </option>
@@ -1103,270 +1097,226 @@ const shareEmail = () => {
                     </div>
 
                     <!-- Background Progress Alert -->
-                    <div v-if="exportProgress" class="mb-6 bg-[#f2f7fc] border border-[#0064d2] p-4 rounded flex items-center gap-4">
-                        <span class="w-5 h-5 border-2 border-[#0064d2] border-t-transparent rounded-full animate-spin shrink-0"></span>
+                    <div v-if="exportProgress"
+                        class="mb-6 bg-[#f2f7fc] border border-[#0064d2] p-4 rounded flex items-center gap-4">
+                        <span
+                            class="w-5 h-5 border-2 border-[#0064d2] border-t-transparent rounded-full animate-spin shrink-0"></span>
                         <div class="flex-1">
                             <h4 class="text-xs font-bold text-[#0064d2] uppercase">Export Generation in Progress</h4>
-                            <p class="text-[10px] text-slate-500 mt-0.5">Please wait while the server builds your document. This won't block other tasks.</p>
-                            <div v-if="exportProgress.progress" class="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                                <div class="bg-[#0064d2] h-full transition-all duration-300" :style="{ width: exportProgress.progress + '%' }"></div>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Please wait while the server builds your
+                                document. This won't block other tasks.</p>
+                            <div v-if="exportProgress.progress"
+                                class="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div class="bg-[#0064d2] h-full transition-all duration-300"
+                                    :style="{ width: exportProgress.progress + '%' }"></div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Bulk Documents Report (General Ledger Report UI style) -->
-                    <BulkDocumentReport 
-                        v-if="reportType === 'bulk_documents'"
-                        :patrons="patrons"
-                        :ledgers="ledgers"
-                        :allow-export="canExportReport"
-                        :default-start-date="startDate"
-                        :default-end-date="endDate"
-                    />
+                    <BulkDocumentReport v-if="reportType === 'bulk_documents'" :patrons="patrons" :ledgers="ledgers"
+                        :allow-export="canExportReport" :default-start-date="startDate" :default-end-date="endDate" />
 
                     <template v-else>
-                    <!-- SAP Fiori Smart Filter Bar (Collapsible) -->
-                    <div class="bg-white rounded border border-slate-200 shadow-sm mb-6 transition-all duration-200">
-                        <div class="px-5 py-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
-                            <div class="flex items-center gap-3">
-                                <div>
-                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ activeModule.name }}</span>
-                                    <h3 class="text-sm font-bold text-[#1d2d3e] mt-0.5">{{ activeReport.name }}</h3>
-                                </div>
-                                <div v-if="isFiltersCollapsed" class="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200 text-xs text-slate-500">
-                                    <span class="font-semibold bg-blue-50 text-[#0064d2] px-2 py-0.5 rounded text-[11px] border border-blue-100">
-                                        {{ startDate?.substring(0, 10) }} to {{ endDate?.substring(0, 10) }}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span v-if="['payroll_personnel'].includes(reportType)" class="text-[10px] px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[#0064d2] font-semibold">
-                                    Payroll Period Scoped
-                                </span>
-                                <!-- Quick Run when Collapsed -->
-                                <button 
-                                    v-if="isFiltersCollapsed"
-                                    @click="generateReport"
-                                    :disabled="loading"
-                                    class="px-3 py-1.5 bg-[#0064d2] hover:bg-[#0057b8] text-white text-xs font-bold rounded transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                                    title="Re-run query with current filters"
-                                >
-                                    <span v-if="loading" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                    <ArrowPathIcon v-else class="w-3.5 h-3.5" />
-                                    <span>Run</span>
-                                </button>
-                                <!-- Toggle Button -->
-                                <button 
-                                    type="button" 
-                                    @click="isFiltersCollapsed = !isFiltersCollapsed"
-                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
-                                    :title="isFiltersCollapsed ? 'Show all filters' : 'Collapse filters to maximize report table view'"
-                                >
-                                    <AdjustmentsHorizontalIcon class="w-3.5 h-3.5 text-slate-500" />
-                                    <span>{{ isFiltersCollapsed ? 'Show Filters' : 'Collapse Filters' }}</span>
-                                    <ChevronDownIcon v-if="isFiltersCollapsed" class="w-3.5 h-3.5 text-slate-400" />
-                                    <ChevronUpIcon v-else class="w-3.5 h-3.5 text-slate-400" />
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div v-show="!isFiltersCollapsed" class="p-5">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
-                                <!-- Target Dropdown (Ledger / Bank & Cash Account) -->
-                                <div v-if="['ledger', 'payment', 'receipt'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">
-                                        {{ ['payment', 'receipt'].includes(reportType) ? 'Bank / Cash Account' : 'Account Ledger' }}
-                                    </span>
-                                    <BaseSelect 
-                                        v-model="selectedId"
-                                        :options="ledgerOptions"
-                                        optionLabel="title"
-                                        optionValue="id"
-                                        :placeholder="ledgerPlaceholder"
-                                        filter
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Voucher Type Filter (General Ledger) -->
-                                <div v-if="reportType === 'ledger'" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Voucher Type</span>
-                                    <BaseSelect 
-                                        v-model="ledgerVoucherFilter"
-                                        :options="ledgerVoucherFilterOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        placeholder="All Vouchers"
-                                    />
-                                </div>
-
-                                <!-- Patron / Customer Dropdown -->
-                                <div v-if="['overall', 'ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">
-                                        {{ patronLabel }}
-                                    </span>
-                                    <BaseSelect 
-                                        v-model="patronId"
-                                        :options="patronOptions"
-                                        optionLabel="legal_name"
-                                        optionValue="id"
-                                        :filterFields="['legal_name', 'email', 'phone', 'contact_person']"
-                                        :placeholder="patronPlaceholder"
-                                        filter
-                                        showClear
-                                    />
-                                </div>
-
-                                <div v-if="['sales_register', 'purchase_register'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Register View</span>
-                                    <BaseSelect v-model="registerView" :options="registerViewOptions" optionLabel="label" optionValue="value" />
-                                </div>
-                                <div v-if="['sales_register', 'purchase_register'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Document Status</span>
-                                    <BaseSelect v-model="registerStatus" :options="registerStatusOptions" optionLabel="label" optionValue="value" />
-                                </div>
-
-                                <!-- GST Type (Sales & Purchase Register) -->
-                                <div v-if="['sales_register', 'purchase_register'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">GST Type</span>
-                                    <BaseSelect 
-                                        v-model="gstType"
-                                        :options="gstTypeOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        placeholder="All GST Types"
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Payment Status (Sales Register only) -->
-                                <div v-if="reportType === 'sales_register'" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Payment Status</span>
-                                    <BaseSelect 
-                                        v-model="paymentStatus"
-                                        :options="paymentStatusOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        placeholder="All Statuses"
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Valuation Method (Silo Stock Valuation only) -->
-                                <div v-if="reportType === 'silo_stock_valuation'" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Valuation Method</span>
-                                    <BaseSelect 
-                                        v-model="valuationMethod"
-                                        :options="valuationMethodOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        placeholder="Valuation Method"
-                                    />
-                                </div>
-
-                                <!-- Truck Dropdown -->
-                                <div v-if="['machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">{{ ['machine_summary', 'vehicle_pl'].includes(reportType) ? 'Select Machine' : 'Select Truck / Vehicle' }}</span>
-                                    <BaseSelect 
-                                        v-model="truckId"
-                                        :options="truckOptions"
-                                        optionLabel="registration"
-                                        optionValue="id"
-                                        :placeholder="['machine_summary', 'vehicle_pl'].includes(reportType) ? 'All Machines' : 'All Trucks'"
-                                        filter
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Driver Dropdown -->
-                                <div v-if="['driver', 'machine_tracker'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Driver / Operator</span>
-                                    <BaseSelect 
-                                        v-model="driverId"
-                                        :options="driverOptions"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        placeholder="All Drivers / Operators"
-                                        filter
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Sales Executive Dropdown -->
-                                <div v-if="reportType === 'sales_executive'" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Sales Executive</span>
-                                    <BaseSelect 
-                                        v-model="salesExecutiveId"
-                                        :options="salesExecutiveOptions"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        placeholder="All Sales Executives"
-                                        filter
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Mix Design Dropdown -->
-                                <div v-if="['sales', 'product_consolidated', 'production_batch', 'customer_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'sales_executive', 'driver', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Mix Design</span>
-                                    <BaseSelect 
-                                        v-model="mixDesignId"
-                                        :options="mixDesignOptions"
-                                        optionLabel="design_name"
-                                        optionValue="id"
-                                        :filterFields="['design_name', 'design_code']"
-                                        placeholder="All Mix Designs"
-                                        filter
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Employee Dropdown (Payroll & Personnel Directory) -->
-                                <div v-if="reportType === 'payroll_personnel'" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Employee</span>
-                                    <BaseSelect 
-                                        v-model="selectedEmployeeId"
-                                        :options="employeeOptions"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        placeholder="-- All Employees --"
-                                        filter
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Month Select (Payroll Month / Cycle) -->
-                                <div v-if="reportType === 'payroll_personnel'" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Month / Cycle</span>
-                                    <BaseSelect 
-                                        v-model="selectedMonth"
-                                        :options="monthOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        placeholder="-- All Months / Custom Range --"
-                                        filter
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Date & Time Range -->
-                                <div class="lg:col-span-2 grid grid-cols-2 gap-4">
+                        <!-- SAP Fiori Smart Filter Bar (Collapsible) -->
+                        <div
+                            class="bg-white rounded border border-slate-200 shadow-sm mb-6 transition-all duration-200">
+                            <div
+                                class="px-5 py-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
+                                <div class="flex items-center gap-3">
                                     <div>
-                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">From Date & Time</span>
-                                        <BaseDatePicker v-model="startDate" :showTime="true" hourFormat="12" fluid placeholder="Select start date & time" />
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{
+                                            activeModule.name }}</span>
+                                        <h3 class="text-sm font-bold text-[#1d2d3e] mt-0.5">{{ activeReport.name }}</h3>
                                     </div>
-                                    <div>
-                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">To Date & Time</span>
-                                        <BaseDatePicker v-model="endDate" :showTime="true" hourFormat="12" fluid placeholder="Select end date & time" />
+                                    <div v-if="isFiltersCollapsed"
+                                        class="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200 text-xs text-slate-500">
+                                        <span
+                                            class="font-semibold bg-blue-50 text-[#0064d2] px-2 py-0.5 rounded text-[11px] border border-blue-100">
+                                            {{ startDate?.substring(0, 10) }} to {{ endDate?.substring(0, 10) }}
+                                        </span>
                                     </div>
                                 </div>
+                                <div class="flex items-center gap-2">
+                                    <span v-if="['payroll_personnel'].includes(reportType)"
+                                        class="text-[10px] px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[#0064d2] font-semibold">
+                                        Payroll Period Scoped
+                                    </span>
+                                    <!-- Quick Run when Collapsed -->
+                                    <button v-if="isFiltersCollapsed" @click="generateReport" :disabled="loading"
+                                        class="px-3 py-1.5 bg-[#0064d2] hover:bg-[#0057b8] text-white text-xs font-bold rounded transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                        title="Re-run query with current filters">
+                                        <span v-if="loading"
+                                            class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                        <ArrowPathIcon v-else class="w-3.5 h-3.5" />
+                                        <span>Run</span>
+                                    </button>
+                                    <!-- Toggle Button -->
+                                    <button type="button" @click="isFiltersCollapsed = !isFiltersCollapsed"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                                        :title="isFiltersCollapsed ? 'Show all filters' : 'Collapse filters to maximize report table view'">
+                                        <AdjustmentsHorizontalIcon class="w-3.5 h-3.5 text-slate-500" />
+                                        <span>{{ isFiltersCollapsed ? 'Show Filters' : 'Collapse Filters' }}</span>
+                                        <ChevronDownIcon v-if="isFiltersCollapsed" class="w-3.5 h-3.5 text-slate-400" />
+                                        <ChevronUpIcon v-else class="w-3.5 h-3.5 text-slate-400" />
+                                    </button>
+                                </div>
                             </div>
 
-                            <!-- SAP Fiori Action Bar -->
-                            <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end items-center">
-                                <!-- <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Smart Filter floorplan</span> -->
-                                <div class="flex gap-2">
-                                    <!-- <button 
+                            <div v-show="!isFiltersCollapsed" class="p-5">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
+                                    <!-- Target Dropdown (Ledger / Bank & Cash Account) -->
+                                    <div v-if="['ledger', 'payment', 'receipt'].includes(reportType)"
+                                        class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">
+                                            {{ ['payment', 'receipt'].includes(reportType) ? 'Bank / Cash Account' :
+                                                'Account Ledger' }}
+                                        </span>
+                                        <BaseSelect v-model="selectedId" :options="ledgerOptions" optionLabel="title"
+                                            optionValue="id" :placeholder="ledgerPlaceholder" filter showClear />
+                                    </div>
+
+                                    <!-- Voucher Type Filter (General Ledger) -->
+                                    <div v-if="reportType === 'ledger'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Voucher
+                                            Type</span>
+                                        <BaseSelect v-model="ledgerVoucherFilter" :options="ledgerVoucherFilterOptions"
+                                            optionLabel="label" optionValue="value" placeholder="All Vouchers" />
+                                    </div>
+
+                                    <!-- Patron / Customer Dropdown -->
+                                    <div v-if="['overall', 'ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
+                                        class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">
+                                            {{ patronLabel }}
+                                        </span>
+                                        <BaseSelect v-model="patronId" :options="patronOptions" optionLabel="legal_name"
+                                            optionValue="id"
+                                            :filterFields="['legal_name', 'email', 'phone', 'contact_person']"
+                                            :placeholder="patronPlaceholder" filter showClear />
+                                    </div>
+
+                                    <div v-if="['sales_register', 'purchase_register'].includes(reportType)"
+                                        class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Register
+                                            View</span>
+                                        <BaseSelect v-model="registerView" :options="registerViewOptions"
+                                            optionLabel="label" optionValue="value" />
+                                    </div>
+                                    <div v-if="['sales_register', 'purchase_register'].includes(reportType)"
+                                        class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Document
+                                            Status</span>
+                                        <BaseSelect v-model="registerStatus" :options="registerStatusOptions"
+                                            optionLabel="label" optionValue="value" />
+                                    </div>
+
+                                    <!-- GST Type (Sales & Purchase Register) -->
+                                    <div v-if="['sales_register', 'purchase_register'].includes(reportType)"
+                                        class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">GST Type</span>
+                                        <BaseSelect v-model="gstType" :options="gstTypeOptions" optionLabel="label"
+                                            optionValue="value" placeholder="All GST Types" showClear />
+                                    </div>
+
+                                    <!-- Payment Status (Sales Register only) -->
+                                    <div v-if="reportType === 'sales_register'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Payment
+                                            Status</span>
+                                        <BaseSelect v-model="paymentStatus" :options="paymentStatusOptions"
+                                            optionLabel="label" optionValue="value" placeholder="All Statuses"
+                                            showClear />
+                                    </div>
+
+                                    <!-- Valuation Method (Silo Stock Valuation only) -->
+                                    <div v-if="reportType === 'silo_stock_valuation'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Valuation
+                                            Method</span>
+                                        <BaseSelect v-model="valuationMethod" :options="valuationMethodOptions"
+                                            optionLabel="label" optionValue="value" placeholder="Valuation Method" />
+                                    </div>
+
+                                    <!-- Truck Dropdown -->
+                                    <div v-if="['machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver'].includes(reportType)"
+                                        class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">{{
+                                            ['machine_summary', 'vehicle_pl'].includes(reportType) ? 'Select Machine' :
+                                                'Select Truck / Vehicle' }}</span>
+                                        <BaseSelect v-model="truckId" :options="truckOptions" optionLabel="registration"
+                                            optionValue="id"
+                                            :placeholder="['machine_summary', 'vehicle_pl'].includes(reportType) ? 'All Machines' : 'All Trucks'"
+                                            filter showClear />
+                                    </div>
+
+                                    <!-- Driver Dropdown -->
+                                    <div v-if="['driver', 'machine_tracker'].includes(reportType)"
+                                        class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Driver /
+                                            Operator</span>
+                                        <BaseSelect v-model="driverId" :options="driverOptions" optionLabel="name"
+                                            optionValue="id" placeholder="All Drivers / Operators" filter showClear />
+                                    </div>
+
+                                    <!-- Sales Executive Dropdown -->
+                                    <div v-if="reportType === 'sales_executive'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Sales
+                                            Executive</span>
+                                        <BaseSelect v-model="salesExecutiveId" :options="salesExecutiveOptions"
+                                            optionLabel="name" optionValue="id" placeholder="All Sales Executives"
+                                            filter showClear />
+                                    </div>
+
+                                    <!-- Mix Design Dropdown -->
+                                    <div v-if="['sales', 'product_consolidated', 'production_batch', 'customer_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'sales_executive', 'driver', 'cancelled_dispatch'].includes(reportType)"
+                                        class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Mix
+                                            Design</span>
+                                        <BaseSelect v-model="mixDesignId" :options="mixDesignOptions"
+                                            optionLabel="design_name" optionValue="id"
+                                            :filterFields="['design_name', 'design_code']" placeholder="All Mix Designs"
+                                            filter showClear />
+                                    </div>
+
+                                    <!-- Employee Dropdown (Payroll & Personnel Directory) -->
+                                    <div v-if="reportType === 'payroll_personnel'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Select
+                                            Employee</span>
+                                        <BaseSelect v-model="selectedEmployeeId" :options="employeeOptions"
+                                            optionLabel="name" optionValue="id" placeholder="-- All Employees --" filter
+                                            showClear />
+                                    </div>
+
+                                    <!-- Month Select (Payroll Month / Cycle) -->
+                                    <div v-if="reportType === 'payroll_personnel'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Month /
+                                            Cycle</span>
+                                        <BaseSelect v-model="selectedMonth" :options="monthOptions" optionLabel="label"
+                                            optionValue="value" placeholder="-- All Months / Custom Range --" filter
+                                            showClear />
+                                    </div>
+
+                                    <!-- Date & Time Range -->
+                                    <div class="lg:col-span-2 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <span class="text-[11px] font-bold text-slate-500 block mb-1">From Date &
+                                                Time</span>
+                                            <BaseDatePicker v-model="startDate" :showTime="true" hourFormat="12" fluid
+                                                placeholder="Select start date & time" />
+                                        </div>
+                                        <div>
+                                            <span class="text-[11px] font-bold text-slate-500 block mb-1">To Date &
+                                                Time</span>
+                                            <BaseDatePicker v-model="endDate" :showTime="true" hourFormat="12" fluid
+                                                placeholder="Select end date & time" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- SAP Fiori Action Bar -->
+                                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end items-center">
+                                    <!-- <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Smart Filter floorplan</span> -->
+                                    <div class="flex gap-2">
+                                        <!-- <button 
                                         @click="openScheduleModal"
                                         class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
                                     >
@@ -1375,49 +1325,66 @@ const shareEmail = () => {
                                         </svg>
                                         Schedule Report
                                     </button> -->
-                                    <button 
-                                        v-if="canExportReport" @click="exportExcel"
-                                        :disabled="isExporting"
-                                        :class="[
-                                            'px-4 py-2 border text-xs font-bold rounded transition-all flex items-center gap-1.5',
-                                            isExporting 
-                                                ? 'opacity-60 cursor-not-allowed bg-emerald-50 text-emerald-700 border-emerald-200' 
-                                                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 cursor-pointer'
-                                        ]"
-                                    >
-                                        <span v-if="isExporting && currentExportType === 'excel'" class="w-3.5 h-3.5 border-2 border-emerald-700 border-t-transparent rounded-full animate-spin"></span>
-                                        <svg v-else class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M11.85 21H18.75C19.99 21 21 19.99 21 18.75V5.25C21 4.01 19.99 3 18.75 3H11.85V21Z" fill="#107C41" />
-                                            <rect x="13.5" y="5.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff" fill-opacity="0.3" />
-                                            <rect x="17" y="5.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff" fill-opacity="0.3" />
-                                            <rect x="13.5" y="9.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff" fill-opacity="0.3" />
-                                            <rect x="17" y="9.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff" fill-opacity="0.3" />
-                                            <rect x="13.5" y="13.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff" fill-opacity="0.3" />
-                                            <rect x="17" y="13.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff" fill-opacity="0.3" />
-                                            <path d="M12.15 21H5.25C4.01 21 3 19.99 3 18.75V5.25C3 4.01 4.01 3 5.25 3H12.15V21Z" fill="#0E6836" />
-                                            <path d="M5.5 7.5L9.5 16.5M9.5 7.5L5.5 16.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        {{ isExporting && currentExportType === 'excel' ? 'Exporting Excel...' : 'Export Excel' }}
-                                    </button>
-                                    <button 
-                                        v-if="canExportReport" @click="exportPdf"
-                                        :disabled="isExporting"
-                                        :class="[
-                                            'px-4 py-2 border text-xs font-bold rounded transition-all flex items-center gap-1.5',
-                                            isExporting 
-                                                ? 'opacity-60 cursor-not-allowed bg-rose-50 text-rose-700 border-rose-200' 
-                                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 cursor-pointer'
-                                        ]"
-                                    >
-                                        <span v-if="isExporting && currentExportType === 'pdf'" class="w-3.5 h-3.5 border-2 border-rose-700 border-t-transparent rounded-full animate-spin"></span>
-                                        <svg v-else class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3Z" fill="#E21A1A" />
-                                            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 6.5C12.5 6.5 13 8.5 12 10.5C11 8.5 11.5 6.5 12 6.5ZM9.5 14C8 14.5 6 15 7.5 16C9 17 10.5 15 9.5 14ZM14.5 14C16 15 17.5 16 16.5 16.8C15.5 17.6 13.5 15.5 14.5 14Z" fill="white" />
-                                            <path d="M12.2 11.2C12.8 11.8 14 12.8 13.8 13.5C13.6 14.2 11 15 10.2 13.8C9.4 12.6 11.6 10.6 12.2 11.2Z" fill="white" fill-opacity="0.8" />
-                                        </svg>
-                                        {{ isExporting && currentExportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF' }}
-                                    </button>
-                                    <!-- <button 
+                                        <button v-if="canExportReport" @click="exportExcel" :disabled="isExporting"
+                                            :class="[
+                                                'px-4 py-2 border text-xs font-bold rounded transition-all flex items-center gap-1.5',
+                                                isExporting
+                                                    ? 'opacity-60 cursor-not-allowed bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 cursor-pointer'
+                                            ]">
+                                            <span v-if="isExporting && currentExportType === 'excel'"
+                                                class="w-3.5 h-3.5 border-2 border-emerald-700 border-t-transparent rounded-full animate-spin"></span>
+                                            <svg v-else class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none"
+                                                xmlns="http://www.w3.org/2000/svg">
+                                                <path
+                                                    d="M11.85 21H18.75C19.99 21 21 19.99 21 18.75V5.25C21 4.01 19.99 3 18.75 3H11.85V21Z"
+                                                    fill="#107C41" />
+                                                <rect x="13.5" y="5.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff"
+                                                    fill-opacity="0.3" />
+                                                <rect x="17" y="5.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff"
+                                                    fill-opacity="0.3" />
+                                                <rect x="13.5" y="9.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff"
+                                                    fill-opacity="0.3" />
+                                                <rect x="17" y="9.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff"
+                                                    fill-opacity="0.3" />
+                                                <rect x="13.5" y="13.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff"
+                                                    fill-opacity="0.3" />
+                                                <rect x="17" y="13.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff"
+                                                    fill-opacity="0.3" />
+                                                <path
+                                                    d="M12.15 21H5.25C4.01 21 3 19.99 3 18.75V5.25C3 4.01 4.01 3 5.25 3H12.15V21Z"
+                                                    fill="#0E6836" />
+                                                <path d="M5.5 7.5L9.5 16.5M9.5 7.5L5.5 16.5" stroke="white"
+                                                    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            {{ isExporting && currentExportType === 'excel' ? 'Exporting Excel...' :
+                                                'Export Excel' }}
+                                        </button>
+                                        <button v-if="canExportReport" @click="exportPdf" :disabled="isExporting"
+                                            :class="[
+                                                'px-4 py-2 border text-xs font-bold rounded transition-all flex items-center gap-1.5',
+                                                isExporting
+                                                    ? 'opacity-60 cursor-not-allowed bg-rose-50 text-rose-700 border-rose-200'
+                                                    : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 cursor-pointer'
+                                            ]">
+                                            <span v-if="isExporting && currentExportType === 'pdf'"
+                                                class="w-3.5 h-3.5 border-2 border-rose-700 border-t-transparent rounded-full animate-spin"></span>
+                                            <svg v-else class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none"
+                                                xmlns="http://www.w3.org/2000/svg">
+                                                <path
+                                                    d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3Z"
+                                                    fill="#E21A1A" />
+                                                <path fill-rule="evenodd" clip-rule="evenodd"
+                                                    d="M12 6.5C12.5 6.5 13 8.5 12 10.5C11 8.5 11.5 6.5 12 6.5ZM9.5 14C8 14.5 6 15 7.5 16C9 17 10.5 15 9.5 14ZM14.5 14C16 15 17.5 16 16.5 16.8C15.5 17.6 13.5 15.5 14.5 14Z"
+                                                    fill="white" />
+                                                <path
+                                                    d="M12.2 11.2C12.8 11.8 14 12.8 13.8 13.5C13.6 14.2 11 15 10.2 13.8C9.4 12.6 11.6 10.6 12.2 11.2Z"
+                                                    fill="white" fill-opacity="0.8" />
+                                            </svg>
+                                            {{ isExporting && currentExportType === 'pdf'
+                                                ? 'Exporting PDF...' : 'Export PDF' }}
+                                        </button>
+                                        <!-- <button 
                                         @click="openShareReport"
                                         class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
                                     >
@@ -1426,22 +1393,20 @@ const shareEmail = () => {
                                         </svg>
                                         Share Report
                                     </button> -->
-                                    <button 
-                                        @click="generateReport"
-                                        :disabled="loading"
-                                        class="px-5 py-2 bg-[#0064d2] hover:bg-[#0057b8] text-white text-xs font-bold rounded transition-all flex items-center gap-1.5 shadow-sm"
-                                    >
-                                        <span v-if="loading" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                        <ArrowPathIcon v-else class="w-3.5 h-3.5" />
-                                        Execute Query
-                                    </button>
+                                        <button @click="generateReport" :disabled="loading"
+                                            class="px-5 py-2 bg-[#0064d2] hover:bg-[#0057b8] text-white text-xs font-bold rounded transition-all flex items-center gap-1.5 shadow-sm">
+                                            <span v-if="loading"
+                                                class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            <ArrowPathIcon v-else class="w-3.5 h-3.5" />
+                                            Execute Query
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Active Schedules Panel -->
-                    <!-- <div class="bg-white rounded border border-slate-200 shadow-sm mb-6 no-print">
+                        <!-- Active Schedules Panel -->
+                        <!-- <div class="bg-white rounded border border-slate-200 shadow-sm mb-6 no-print">
                         <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                             <div>
                                 <h3 class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Automated Schedules for this Plant</h3>
@@ -1494,13 +1459,16 @@ const shareEmail = () => {
                             </div>
                         </div>
                     </div> -->
- 
-                    <!-- SAP Fiori Responsive Table Grid -->
-                    <div v-if="reportData" class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-200">
-                        
-                        <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                            <span class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Statement Result Grid</span>
-                            <!-- <div class="flex items-center gap-2">
+
+                        <!-- SAP Fiori Responsive Table Grid -->
+                        <div v-if="reportData"
+                            class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-200">
+
+                            <div
+                                class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                <span class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Statement Result
+                                    Grid</span>
+                                <!-- <div class="flex items-center gap-2">
                                 <span class="lg:hidden text-[9px] bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Swipe ➡️</span>
                                 <button 
                                     @click="exportPdf"
@@ -1514,31 +1482,30 @@ const shareEmail = () => {
                                     Save PDF
                                 </button>
                             </div> -->
+                            </div>
+
+                            <div class="p-5">
+                                <component :is="getReportComponent(reportType)" :report-data="reportData"
+                                    :current-page="currentPage" :start-date="startDate"
+                                    :valuation-method="valuationMethod" @page-change="handlePageChange"
+                                    @select-patron="handleSelectPatron" @view-statement="handleViewStatement"
+                                    @clear-patron="handleClearPatron" />
+                            </div>
                         </div>
 
-                        <div class="p-5">
-                            <component
-                                :is="getReportComponent(reportType)"
-                                :report-data="reportData"
-                                :current-page="currentPage"
-                                :start-date="startDate"
-                                :valuation-method="valuationMethod"
-                                @page-change="handlePageChange"
-                                @select-patron="handleSelectPatron"
-                                @view-statement="handleViewStatement"
-                                @clear-patron="handleClearPatron"
-                            />
+                        <!-- Empty State -->
+                        <div v-else
+                            class="bg-white rounded border border-slate-200 py-20 text-center flex flex-col items-center shadow-sm">
+                            <div
+                                class="w-14 h-14 bg-slate-50 border border-slate-200 rounded flex items-center justify-center mb-5 text-slate-400">
+                                <ChartBarIcon class="h-7 w-7" />
+                            </div>
+                            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-widest">Execute Query
+                                Statement</h3>
+                            <p class="text-slate-400 max-w-xs mx-auto mt-2 text-[11px] leading-relaxed">Choose a report
+                                from the master list catalog pane, set smart filter query scopes, and click Execute to
+                                load database rows.</p>
                         </div>
-                    </div>
-
-                    <!-- Empty State -->
-                    <div v-else class="bg-white rounded border border-slate-200 py-20 text-center flex flex-col items-center shadow-sm">
-                        <div class="w-14 h-14 bg-slate-50 border border-slate-200 rounded flex items-center justify-center mb-5 text-slate-400">
-                            <ChartBarIcon class="h-7 w-7" />
-                        </div>
-                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-widest">Execute Query Statement</h3>
-                        <p class="text-slate-400 max-w-xs mx-auto mt-2 text-[11px] leading-relaxed">Choose a report from the master list catalog pane, set smart filter query scopes, and click Execute to load database rows.</p>
-                    </div>
                     </template>
                 </div>
 
@@ -1546,16 +1513,12 @@ const shareEmail = () => {
         </div>
 
         <!-- Report Scheduling Modal -->
-        <ReportScheduleModal 
-            :is-open="isScheduleModalOpen"
-            :report-type="reportType"
-            :report-params="currentReportParams"
-            @close="isScheduleModalOpen = false"
-            @saved="fetchSchedules"
-        />
+        <ReportScheduleModal :is-open="isScheduleModalOpen" :report-type="reportType"
+            :report-params="currentReportParams" @close="isScheduleModalOpen = false" @saved="fetchSchedules" />
 
         <!-- Premium Share Report Dialog -->
-        <Dialog v-model:visible="showShareModal" modal header="Share Report" :style="{ width: '450px' }" class="premium-dialog">
+        <Dialog v-model:visible="showShareModal" modal header="Share Report" :style="{ width: '450px' }"
+            class="premium-dialog">
             <div class="p-2">
                 <p class="text-xs text-slate-500 mb-4">
                     Generate a secure, read-only link to share this report with your customer.
@@ -1563,25 +1526,20 @@ const shareEmail = () => {
 
                 <!-- Expiry Options -->
                 <div class="mb-5">
-                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Link Expiry</label>
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Link
+                        Expiry</label>
                     <div class="grid grid-cols-4 gap-2">
-                        <button 
-                            v-for="opt in [
-                                { label: '1 Day', value: '1' },
-                                { label: '7 Days', value: '7' },
-                                { label: '30 Days', value: '30' },
-                                { label: 'Never', value: '0' }
-                            ]" 
-                            :key="opt.value"
-                            type="button"
-                            @click="shareExpiry = opt.value"
-                            class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all"
-                            :class="[
+                        <button v-for="opt in [
+                            { label: '1 Day', value: '1' },
+                            { label: '7 Days', value: '7' },
+                            { label: '30 Days', value: '30' },
+                            { label: 'Never', value: '0' }
+                        ]" :key="opt.value" type="button" @click="shareExpiry = opt.value"
+                            class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all" :class="[
                                 shareExpiry === opt.value
-                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                            ]"
-                        >
+                                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            ]">
                             {{ opt.label }}
                         </button>
                     </div>
@@ -1589,20 +1547,14 @@ const shareEmail = () => {
 
                 <!-- Action Button or Generated Link Display -->
                 <div v-if="!shareLink" class="mt-6 flex justify-end gap-2 pt-2 border-t border-slate-100">
-                    <button 
-                        type="button" 
-                        @click="showShareModal = false" 
-                        class="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all"
-                    >
+                    <button type="button" @click="showShareModal = false"
+                        class="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all">
                         Cancel
                     </button>
-                    <button 
-                        type="button" 
-                        @click="generateShareLink" 
-                        :disabled="isGeneratingLink"
-                        class="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
-                    >
-                        <span v-if="isGeneratingLink" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <button type="button" @click="generateShareLink" :disabled="isGeneratingLink"
+                        class="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+                        <span v-if="isGeneratingLink"
+                            class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                         <i v-else class="pi pi-link text-xs"></i>
                         Generate Link
                     </button>
@@ -1611,18 +1563,14 @@ const shareEmail = () => {
                 <div v-else class="mt-6 space-y-4 animate-in fade-in duration-200">
                     <!-- Link Textbox -->
                     <div>
-                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Secure Share Link</label>
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Secure
+                            Share
+                            Link</label>
                         <div class="flex gap-2">
-                            <input 
-                                type="text" 
-                                readonly 
-                                :value="shareLink" 
-                                class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-300 font-mono focus:outline-none"
-                            />
-                            <button 
-                                @click="copyShareLink"
-                                class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
-                            >
+                            <input type="text" readonly :value="shareLink"
+                                class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-300 font-mono focus:outline-none" />
+                            <button @click="copyShareLink"
+                                class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all">
                                 <i class="pi pi-copy"></i>
                                 Copy
                             </button>
@@ -1631,17 +1579,13 @@ const shareEmail = () => {
 
                     <!-- Social Share Action Buttons -->
                     <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
-                        <button 
-                            @click="shareWhatsApp"
-                            class="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                        >
+                        <button @click="shareWhatsApp"
+                            class="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm">
                             <i class="pi pi-whatsapp text-sm"></i>
                             WhatsApp
                         </button>
-                        <button 
-                            @click="shareEmail"
-                            class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                        >
+                        <button @click="shareEmail"
+                            class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm">
                             <i class="pi pi-envelope text-sm"></i>
                             Email
                         </button>
@@ -1657,11 +1601,13 @@ const shareEmail = () => {
     .no-print {
         display: none !important;
     }
+
     body {
         background: white !important;
         margin: 0;
         padding: 0;
     }
+
     .max-w-7xl {
         max-width: 100% !important;
     }
