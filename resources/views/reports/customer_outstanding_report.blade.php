@@ -299,17 +299,15 @@
             <td style="width: 52%; text-align: right;">
                 <div class="address-block">
                     <strong>Address:</strong><br>
-                    <strong>{{ $plant->name ?? 'DEMO LOGIN' }}</strong><br>
+                    <strong>{{ $plant->name ?? '' }}</strong><br>
                     @if(!empty($plant->addresses) && $plant->addresses->isNotEmpty())
                         @php $plAddr = $plant->addresses->first(); @endphp
                         {{ $plAddr->line_1 ?? '' }}@if(!empty($plAddr->line_2)), {{ $plAddr->line_2 }}@endif<br>
                         {{ $plAddr->city ?? '' }} - {{ $plAddr->zipcode ?? '' }}@if(!empty($plAddr->state)), {{ $plAddr->state->name ?? $plAddr->state->state_name }}@endif<br>
-                    @else
-                        3/150, Akkiyampatti (Po),<br>
-                        Sendamangalam (Tk), Namakkal (Dt), Tamil Nadu - 637409<br>
+                
                     @endif
                     GSTIN/UIN #: {{ $plant->gstin ?? '' }}<br>
-                    MSME - UDYAM-
+                    {{-- MSME - UDYAM- --}}
                 </div>
             </td>
         </tr>
@@ -455,7 +453,7 @@
         <tr>
             <td style="width: 55%; vertical-align: top;">
                 <div class="address-box">
-                    <span class="address-title">Entity / Plant:</span>
+                    <span class="address-title"> Plant:</span>
                     <span class="address-name" style="color: #0369a1;">{{ $plant->name ?? 'Ready Mix Concrete Operations' }}</span>
                     @if(!empty($plant->addresses) && $plant->addresses->isNotEmpty())
                         @php $addr = $plant->addresses->first(); @endphp
@@ -534,25 +532,25 @@
         <thead>
             <tr>
                 <th width="3%" class="text-center">#</th>
-                <th width="7%">Code</th>
-                <th width="15%">Customer</th>
+                {{-- <th width="7%">Code</th> --}}
+                <th width="3%">Customer</th>
                 <th width="9%">GSTIN</th>
-                <th width="10%" class="text-right">Total Invoiced</th>
-                <th width="10%" class="text-right">Total Receipts</th>
-                <th width="8%" class="text-right">Total Payments</th>
-                <th width="7%" class="text-right">Discount</th>
-                <th width="9%" class="text-right">Balance Due (₹)</th>
-                <th width="6%" class="text-right">0-30d (₹)</th>
-                <th width="6%" class="text-right">30-60d (₹)</th>
-                <th width="5%" class="text-right">60-90d (₹)</th>
-                <th width="5%" class="text-right">90+d (₹)</th>
+                <th width="8%" class="text-right">Invoiced</th>
+                <th width="8%" class="text-right">Receipts</th>
+                <th width="8%" class="text-right">Payments</th>
+                <th width="5%" class="text-right">Discount</th>
+                <th width="8%" class="text-right">Balance Due (₹)</th>
+                <th width="7%" class="text-right">0-30d (₹)</th>
+                <th width="7%" class="text-right">30-60d (₹)</th>
+                <th width="7%" class="text-right">60-90d (₹)</th>
+                <th width="7%" class="text-right">90+d (₹)</th>
             </tr>
         </thead>
         <tbody>
             @forelse($transactions ?? [] as $idx => $row)
                 <tr>
                     <td class="text-center">{{ $idx + 1 }}</td>
-                    <td style="font-weight: bold; color: #475569;">{{ $row['customer_code'] ?? '-' }}</td>
+                    {{-- <td style="font-weight: bold; color: #475569;">{{ $row['customer_code'] ?? '-' }}</td> --}}
                     <td style="font-weight: bold; color: #0f172a;">{{ $row['customer_name'] ?? '-' }}</td>
                     <td style="color: #64748b;">{{ $row['gstin'] ?? '-' }}</td>
                     <td class="text-right amount-cell nowrap">{{ number_format($row['total_invoiced'] ?? 0, 2) }}</td>
