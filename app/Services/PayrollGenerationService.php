@@ -67,7 +67,10 @@ class PayrollGenerationService
         $allAttendances = Attendance::withoutGlobalScope('plant_id')
             // ->withTrashed()
             ->whereIn('personnel_id', $targetPersonnelIds)
-            ->whereBetween('attendance_date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->whereBetween('attendance_date', [
+                $startDate->format('Y-m-d 00:00:00'),
+                $endDate->format('Y-m-d 23:59:59')
+            ])
             ->get()
             ->groupBy('personnel_id');
 
@@ -175,68 +178,60 @@ class PayrollGenerationService
                 $absent_days = 0.0;
                 $paid_leave_days = 0.0;
 
-                // If no attendance records exist at all for this employee in the period, fallback to full working days present
-                if ($employeeAttendances->isEmpty() && empty($leaveMap)) {
-                    $present_days = (float)$working_days;
-                    $absent_days = 0.0;
-                    $paid_leave_days = 0.0;
-                } else {
-                    $currentDate = $startDate->copy();
-                    while ($currentDate->lte($endDate)) {
-                        $dateStr = $currentDate->toDateString();
+                $present_days = 0.0;
+                $absent_days = 0.0;
+                $paid_leave_days = 0.0;
+
+                $currentDate = $startDate->copy();
+                while ($currentDate->lte($endDate)) {
+                    $dateStr = $currentDate->toDateString();
+                    
+                    // 1. Approved Leave Application takes top priority
+                    if (isset($leaveMap[$dateStr])) {
+                        $leaveDays = (float)$leaveMap[$dateStr]['days'];
+                        $isPaid = (bool)$leaveMap[$dateStr]['is_paid'];
                         
-                        // 1. Approved Leave Application takes top priority
-                        if (isset($leaveMap[$dateStr])) {
-                            $leaveDays = (float)$leaveMap[$dateStr]['days'];
-                            $isPaid = (bool)$leaveMap[$dateStr]['is_paid'];
-                            
-                            if ($isPaid) {
-                                $paid_leave_days += $leaveDays;
-                                $uncovered = 1.0 - $leaveDays;
-                                if ($uncovered > 0) {
-                                    if (isset($employeeAttendances[$dateStr]) && in_array($employeeAttendances[$dateStr]->status, ['present', 'on_duty'])) {
-                                        $present_days += $uncovered;
-                                    } else {
-                                        $absent_days += $uncovered;
-                                    }
+                        if ($isPaid) {
+                            $paid_leave_days += $leaveDays;
+                            $uncovered = 1.0 - $leaveDays;
+                            if ($uncovered > 0) {
+                                if (isset($employeeAttendances[$dateStr]) && $employeeAttendances[$dateStr]->status === 'absent') {
+                                    $absent_days += $uncovered;
+                                } else {
+                                    $present_days += $uncovered;
                                 }
-                            } else {
-                                $absent_days += $leaveDays;
-                                $uncovered = 1.0 - $leaveDays;
-                                if ($uncovered > 0) {
-                                    if (isset($employeeAttendances[$dateStr]) && in_array($employeeAttendances[$dateStr]->status, ['present', 'on_duty'])) {
-                                        $present_days += $uncovered;
-                                    } else {
-                                        $absent_days += $uncovered;
-                                    }
-                                }
-                            }
-                        } elseif (isset($employeeAttendances[$dateStr])) {
-                            // 2. Attendance status evaluation
-                            $att = $employeeAttendances[$dateStr];
-                            $status = $att->status;
-                            
-                            if (in_array($status, ['present', 'on_duty', 'weekoff', 'holiday'])) {
-                                $present_days += 1.0;
-                            } elseif ($status === 'half_day') {
-                                $present_days += 0.5;
-                                $absent_days += 0.5;
-                            } elseif ($status === 'leave') {
-                                $paid_leave_days += 1.0;
-                            } else {
-                                $absent_days += 1.0;
                             }
                         } else {
-                            // 3. Date with no attendance record and no approved leave
-                            if ($employeeAttendances->isEmpty()) {
-                                // If company doesn't upload daily attendance, un-entered days default to present
-                                $present_days += 1.0;
-                            } else {
-                                $absent_days += 1.0;
+                            $absent_days += $leaveDays;
+                            $uncovered = 1.0 - $leaveDays;
+                            if ($uncovered > 0) {
+                                if (isset($employeeAttendances[$dateStr]) && $employeeAttendances[$dateStr]->status === 'absent') {
+                                    $absent_days += $uncovered;
+                                } else {
+                                    $present_days += $uncovered;
+                                }
                             }
                         }
-                        $currentDate->addDay();
+                    } elseif (isset($employeeAttendances[$dateStr])) {
+                        // 2. Attendance status evaluation
+                        $att = $employeeAttendances[$dateStr];
+                        $status = $att->status;
+                        
+                        if (in_array($status, ['present', 'on_duty', 'weekoff', 'holiday'])) {
+                            $present_days += 1.0;
+                        } elseif ($status === 'half_day') {
+                            $present_days += 0.5;
+                            $absent_days += 0.5;
+                        } elseif ($status === 'leave') {
+                            $paid_leave_days += 1.0;
+                        } else {
+                            $absent_days += 1.0;
+                        }
+                    } else {
+                        // 3. Date with no attendance record and no approved leave: un-entered days default to present
+                        $present_days += 1.0;
                     }
+                    $currentDate->addDay();
                 }
 
                 $paidDays = $present_days + $paid_leave_days;

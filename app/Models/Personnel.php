@@ -113,6 +113,8 @@ class Personnel extends Model
         'gender',
         'employment_type',
         'status',
+        'shift_start_time',
+        'shift_end_time',
         'pan',
         'aadhaar',
         'uan',

@@ -48,6 +48,8 @@ interface Personnel {
     employment_type: string;
     gender: string | null;
     status: string;
+    shift_start_time?: string | null;
+    shift_end_time?: string | null;
     date_of_birth: string | null;
     joining_date: string;
     exit_date: string | null;
@@ -111,6 +113,8 @@ const getInitialForm = () => ({
     employment_type: 'permanent',
     gender: 'male' as string | null,
     status: 'active',
+    shift_start_time: '',
+    shift_end_time: '',
     date_of_birth: null as any,
     joining_date: null as any,
     exit_date: null as any,
@@ -135,6 +139,23 @@ const formatDateStr = (val: any): string | null => {
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
+};
+
+const formatTimeStr = (val: any): string | null => {
+    if (!val) return null;
+    if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (/^\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+            return trimmed.length === 5 ? `${trimmed}:00` : trimmed;
+        }
+    }
+    if (val instanceof Date && !isNaN(val.getTime())) {
+        const hh = String(val.getHours()).padStart(2, '0');
+        const mm = String(val.getMinutes()).padStart(2, '0');
+        const ss = String(val.getSeconds()).padStart(2, '0');
+        return `${hh}:${mm}:${ss}`;
+    }
+    return null;
 };
 
 const createForm = useForm(getInitialForm());
@@ -188,6 +209,8 @@ const submitCreate = () => {
         date_of_birth: formatDateStr(createForm.date_of_birth),
         joining_date:  formatDateStr(createForm.joining_date),
         exit_date:     formatDateStr(createForm.exit_date),
+        shift_start_time: formatTimeStr(createForm.shift_start_time),
+        shift_end_time:   formatTimeStr(createForm.shift_end_time),
         salary_structures: (createForm.salary_structures || []).map((s: any) => ({
             ...s,
             effective_from: formatDateStr(s.effective_from),
@@ -212,7 +235,7 @@ const submitCreate = () => {
             } else if (errorKeys.length > 0) {
                 const firstKey = errorKeys[0];
                 const tabMapping: Record<string, string> = {
-                    department_id: 'employment', designation_id: 'employment', reporting_manager_id: 'employment', employment_type: 'employment', joining_date: 'employment', exit_date: 'employment',
+                    department_id: 'employment', designation_id: 'employment', reporting_manager_id: 'employment', employment_type: 'employment', joining_date: 'employment', exit_date: 'employment', shift_start_time: 'employment', shift_end_time: 'employment',
                     pan: 'statutory', aadhaar: 'statutory', uan: 'statutory', esi_number: 'statutory',
                     bank_account_no: 'finance', bank_ifsc: 'finance', bank_name: 'finance',
                     email: 'contacts', mobile: 'contacts',

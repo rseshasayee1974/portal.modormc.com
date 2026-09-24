@@ -72,6 +72,8 @@ class PersonnelController extends Controller
             'gender' => 'nullable',
             'employment_type' => 'required',
             'status' => 'required',
+            'shift_start_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
+            'shift_end_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
             'pan' => 'nullable|string|unique:mm_personnels,pan',
             'aadhaar' => 'nullable|string|unique:mm_personnels,aadhaar',
             'uan' => 'nullable|string',
@@ -103,7 +105,14 @@ class PersonnelController extends Controller
         DB::transaction(function () use ($validated, $activePlantId) {
             $personnelData = collect($validated)->except(['contacts', 'patron_ids', 'salary_structures'])->toArray();
             
-            // Format dates
+            // Convert empty strings to null for unique or nullable columns
+            foreach (['email', 'pan', 'aadhaar', 'mobile', 'uan', 'esi_number', 'bank_account_no', 'bank_ifsc', 'bank_name', 'last_name', 'gender', 'shift_start_time', 'shift_end_time'] as $field) {
+                if (array_key_exists($field, $personnelData) && ($personnelData[$field] === '' || $personnelData[$field] === null)) {
+                    $personnelData[$field] = null;
+                }
+            }
+
+            // Format dates & times
             if (!empty($personnelData['date_of_birth'])) {
                 $personnelData['date_of_birth'] = date('Y-m-d', strtotime($personnelData['date_of_birth']));
             }
@@ -112,6 +121,12 @@ class PersonnelController extends Controller
             }
             if (!empty($personnelData['exit_date'])) {
                 $personnelData['exit_date'] = date('Y-m-d', strtotime($personnelData['exit_date']));
+            }
+            if (!empty($personnelData['shift_start_time'])) {
+                $personnelData['shift_start_time'] = date('H:i:s', strtotime($personnelData['shift_start_time']));
+            }
+            if (!empty($personnelData['shift_end_time'])) {
+                $personnelData['shift_end_time'] = date('H:i:s', strtotime($personnelData['shift_end_time']));
             }
 
             $personnelData['plant_id'] = $activePlantId;
@@ -179,6 +194,8 @@ class PersonnelController extends Controller
             'gender' => 'nullable',
             'employment_type' => 'required',
             'status' => 'required',
+            'shift_start_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
+            'shift_end_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
             'pan' => ['nullable', 'string', Rule::unique('mm_personnels')->ignore($personnel->id)],
             'aadhaar' => ['nullable', 'string', Rule::unique('mm_personnels')->ignore($personnel->id)],
             'uan' => 'nullable|string',
@@ -213,13 +230,13 @@ class PersonnelController extends Controller
             $personnelData = collect($validated)->except(['contacts', 'patron_ids', 'salary_structures', 'employee_code'])->toArray();
 
             // Convert empty strings to null for unique or nullable columns to prevent duplicate key or type errors in the DB
-            foreach (['email', 'pan', 'aadhaar', 'mobile', 'uan', 'esi_number', 'bank_account_no', 'bank_ifsc', 'bank_name', 'last_name', 'gender'] as $field) {
+            foreach (['email', 'pan', 'aadhaar', 'mobile', 'uan', 'esi_number', 'bank_account_no', 'bank_ifsc', 'bank_name', 'last_name', 'gender', 'shift_start_time', 'shift_end_time'] as $field) {
                 if (array_key_exists($field, $personnelData) && ($personnelData[$field] === '' || $personnelData[$field] === null)) {
                     $personnelData[$field] = null;
                 }
             }
 
-            // Format dates
+            // Format dates & times
             if (!empty($personnelData['date_of_birth'])) {
                 $personnelData['date_of_birth'] = date('Y-m-d', strtotime($personnelData['date_of_birth']));
             } else {
@@ -234,6 +251,16 @@ class PersonnelController extends Controller
                 $personnelData['exit_date'] = date('Y-m-d', strtotime($personnelData['exit_date']));
             } else {
                 $personnelData['exit_date'] = null;
+            }
+            if (!empty($personnelData['shift_start_time'])) {
+                $personnelData['shift_start_time'] = date('H:i:s', strtotime($personnelData['shift_start_time']));
+            } else {
+                $personnelData['shift_start_time'] = null;
+            }
+            if (!empty($personnelData['shift_end_time'])) {
+                $personnelData['shift_end_time'] = date('H:i:s', strtotime($personnelData['shift_end_time']));
+            } else {
+                $personnelData['shift_end_time'] = null;
             }
 
             $personnelData['updated_by'] = auth()->id();
