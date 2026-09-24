@@ -42,10 +42,6 @@ class RegisterReportColumns
         }
         $add('tax_amount', 'Total Tax', 'number', 'gst');
         $add('net_amount', 'Net Amount', 'number', 'grand_total');
-        $add('document_status', 'Status');
-        if ($sales) {
-            $add('payment_status', 'Payment');
-        }
         if ($view === 'detail') {
             if ($sales) {
                 $add('irn', 'IRN');
@@ -68,7 +64,6 @@ class RegisterReportColumns
         $add('gst_number', 'GSTIN');
         $add('invoice_no', 'Invoice No');
         $add('bill_no', 'Bill No');
-        $add('payment_mode', 'Payment Type');
         $add('product_name', 'Product');
         $add('hsn_code', 'HSN/SAC');
         $add('qty', 'Quantity', 'number', 'qty');
@@ -91,8 +86,6 @@ class RegisterReportColumns
         $add('party_type', 'Party Type');
         $add('created_by', 'Created By');
         $add('tax_amount', 'Total Tax', 'number', 'gst');
-        $add('document_status', 'Document Status');
-        $add('payment_status', 'Payment Status');
         return $columns;
     }
 }
