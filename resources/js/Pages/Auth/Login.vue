@@ -157,6 +157,13 @@ const isValid = computed(() => {
     }
 });
 
+const isLocalEnv = computed(() => {
+    if (typeof window === 'undefined') return false;
+    const hostname = window.location.hostname;
+    const host = window.location.host;
+    return hostname === 'localhost' || host === '127.0.0.1:8000' || hostname === '127.0.0.1';
+});
+
 const quickFillDemo = () => {
     form.email = 'demo@modomines.com';
     form.password = 'password';
@@ -498,7 +505,7 @@ const handleSubmit = () => {
                                 <Checkbox v-model="form.remember" inputId="remember-centered" binary aria-label="Remember me" class="border-white/10 bg-white/5" />
                                 <span>Keep me signed in</span>
                             </label>
-                            <button v-if="loginMode === 'password'" type="button" class="rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-400" @click="quickFillDemo">
+                            <button v-if="loginMode === 'password' && isLocalEnv" type="button" class="rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-400" @click="quickFillDemo">
                                 Demo login
                             </button>
                         </div>
@@ -794,7 +801,7 @@ const handleSubmit = () => {
                                         <Checkbox v-model="form.remember" inputId="remember" binary aria-label="Remember me" />
                                         <span>Keep me signed in</span>
                                     </label>
-                                    <button v-if="loginMode === 'password'" type="button" class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15" @click="quickFillDemo">
+                                    <button v-if="loginMode === 'password' && isLocalEnv" type="button" class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15" @click="quickFillDemo">
                                         Demo login
                                     </button>
                                 </div>
