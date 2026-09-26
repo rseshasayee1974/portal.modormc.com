@@ -66,7 +66,7 @@ const saveGrossWeight = (inward: any, newWeight?: any, photo?: string | null) =>
     if (newWeight !== undefined && newWeight !== null && newWeight !== '') {
         payload.truck_loaded = Number(newWeight);
     }
-    const snapPhoto = photo || inward._loaded_snap || null;
+    const snapPhoto = photo === undefined ? inward._loaded_snap : photo;
     if (snapPhoto) {
         payload.loaded_weight_photo = snapPhoto;
     }
@@ -143,7 +143,7 @@ const saveEmptyWeight = (inward: any, newWeight?: any, photo?: string | null) =>
     if (newWeight !== undefined && newWeight !== null && newWeight !== '') {
         payload.truck_empty = Number(newWeight);
     }
-    const snapPhoto = photo || inward._empty_snap || null;
+    const snapPhoto = photo === undefined ? inward._empty_snap : photo;
     if (snapPhoto) {
         payload.empty_weight_photo = snapPhoto;
     }

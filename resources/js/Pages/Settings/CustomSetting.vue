@@ -513,7 +513,8 @@ const deleteModule = (id: number) => {
                             <div v-if="form.settings.camera" class="space-y-3 animate-fade-in">
                                 <div class="flex flex-col gap-1">
                                     <label class="text-xs font-bold text-slate-500 uppercase">Default Camera URL <code class="text-[9px] text-slate-300 font-normal normal-case">[camera_url]</code></label>
-                                    <InputText v-model="form.settings.camera_url" placeholder="http://192.168.1.10/snap.jpg?usr=admin&pwd=admin" class="w-full text-sm" />
+                                    <InputText v-model="form.settings.camera_url" placeholder="http://127.0.0.1:8089/api/cameras/{camera-id}/snapshot" class="w-full text-sm" />
+                                    <p class="text-xs text-slate-500">Use the local camera service's GET snapshot URL. Inward Tare uses Camera 1, then this default. Configure camera credentials in the local service; no application login is needed for capture.</p>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div class="flex flex-col gap-1">
