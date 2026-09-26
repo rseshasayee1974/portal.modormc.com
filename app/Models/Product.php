@@ -235,6 +235,8 @@ class Product extends Model
         'deleted_at' => 'datetime',
     ];
 
+    protected $appends = ['conversion_quantity'];
+
     public function plant()
     {
         return $this->belongsTo(Plant::class, 'plant_id');

@@ -875,12 +875,15 @@ const submit = (onSuccessCallback?: () => void) => {
     }
 
     let hasErrors = false;
-    if (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0) {
-        form.setError('empty_weight_truck', 'Empty Weight is required');
+    if (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck === '' || Number(form.empty_weight_truck) <= 0) {
+        form.setError('empty_weight_truck', 'Empty Weight must be greater than 0');
         hasErrors = true;
     }
-    if (form.loaded_weight_truck === null || form.loaded_weight_truck === undefined || form.loaded_weight_truck <= 0) {
+    if (form.loaded_weight_truck === null || form.loaded_weight_truck === undefined || form.loaded_weight_truck === '' || Number(form.loaded_weight_truck) <= 0) {
         form.setError('loaded_weight_truck', 'Full Weight is required');
+        hasErrors = true;
+    } else if (Number(form.loaded_weight_truck) <= Number(form.empty_weight_truck)) {
+        form.setError('loaded_weight_truck', 'Loaded Weight must be greater than Empty Weight');
         hasErrors = true;
     }
     if (!form.empty_time) {

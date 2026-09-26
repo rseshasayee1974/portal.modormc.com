@@ -359,4 +359,47 @@ class PurchaseOrderInwardControllerTest extends TestCase
             'truck_empty' => 4500,
         ]);
     }
+
+    public function test_store_and_update_weight_with_conversion_fields(): void
+    {
+        $convUnit = ProductUnit::factory()->create();
+
+        $response = $this->post(route('inwards.store'), [
+            'order_id' => $this->po->id,
+            'received_date' => '2026-06-05',
+            'inward_no' => 'INW-CONV-01',
+            'truck_id' => $this->truck->id,
+            'truck_loaded' => 1000,
+            'items' => [
+                [
+                    'order_item_id' => $this->item->id,
+                    'received_qty' => 50,
+                    'conversion_quantity' => 50000,
+                    'conversion_uom_id' => $convUnit->id,
+                ]
+            ]
+        ]);
+
+        $response->assertRedirect(route('inwards.index'));
+
+        $this->assertDatabaseHas('mm_purchase_order_history', [
+            'order_id' => $this->po->id,
+            'received_qty' => 50,
+            'conversion_quantity' => 50000,
+            'conversion_uom_id' => $convUnit->id,
+            'inward_no' => 'INW-CONV-01',
+        ]);
+
+        $inward = PurchaseOrderHistory::where('inward_no', 'INW-CONV-01')->first();
+
+        $updateResp = $this->post(route('inwards.update-weight', $inward->id), [
+            'conversion_quantity' => 45000,
+            'conversion_uom_id' => $this->unit->id,
+        ]);
+
+        $updateResp->assertRedirect();
+        $inward->refresh();
+        $this->assertEquals(45000, $inward->conversion_quantity);
+        $this->assertEquals($this->unit->id, $inward->conversion_uom_id);
+    }
 }

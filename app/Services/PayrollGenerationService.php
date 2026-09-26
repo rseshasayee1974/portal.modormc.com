@@ -24,15 +24,15 @@ class PayrollGenerationService
      */
     public function generateForPeriod(int $payrollPeriodId, int $plantId, array $personnelIds = []): int
     {
-        $period = PayrollPeriod::withoutGlobalScope('plant_id')->withTrashed()->findOrFail($payrollPeriodId);
+        $period = PayrollPeriod::withoutGlobalScope('plant_id')->findOrFail($payrollPeriodId);
 
         $query = Personnel::withoutGlobalScope('plant_id')
-            ->withTrashed()
+            
             ->with([
                 'salaryStructures' => function ($q) {
-                    $q->withTrashed()->with([
+                    $q->with([
                         'salaryComponent' => function ($sq) {
-                            $sq->withoutGlobalScope('plant_id')->withTrashed();
+                            $sq->withoutGlobalScope('plant_id');
                         }
                     ]);
                 }
@@ -65,7 +65,6 @@ class PayrollGenerationService
 
         // Bulk fetch ALL attendances for these employees in ONE query (fixes N+1)
         $allAttendances = Attendance::withoutGlobalScope('plant_id')
-            // ->withTrashed()
             ->whereIn('personnel_id', $targetPersonnelIds)
             ->whereBetween('attendance_date', [
                 $startDate->format('Y-m-d 00:00:00'),
@@ -75,10 +74,7 @@ class PayrollGenerationService
             ->groupBy('personnel_id');
 
         // Bulk fetch ALL approved leaves for these employees in ONE query (fixes N+1)
-        $allLeaves = LeaveApplication::withTrashed()
-            ->with(['leaveType' => function ($q) {
-                $q->withTrashed();
-            }])
+        $allLeaves = LeaveApplication::query()
             ->whereIn('personnel_id', $targetPersonnelIds)
             ->where('status', 'approved')
             ->where(function($q) use ($startDate, $endDate) {
@@ -94,14 +90,12 @@ class PayrollGenerationService
 
         // Fetch statutory configurations for the plant
         $pfConfig = StatutoryConfig::withoutGlobalScope('plant_id')
-            // ->withTrashed()
             ->where('plant_id', $plantId)
             ->where(function($q) {
                 $q->where('code', 'EPF')->orWhere('statute_name', 'like', '%Provident Fund%');
             })->first();
 
         $esiConfig = StatutoryConfig::withoutGlobalScope('plant_id')
-            // ->withTrashed()
             ->where('plant_id', $plantId)
             ->where(function($q) {
                 $q->where('code', 'ESIC')->orWhere('statute_name', 'like', '%Employee State Insurance%');
@@ -195,20 +189,20 @@ class PayrollGenerationService
                             $paid_leave_days += $leaveDays;
                             $uncovered = 1.0 - $leaveDays;
                             if ($uncovered > 0) {
-                                if (isset($employeeAttendances[$dateStr]) && $employeeAttendances[$dateStr]->status === 'absent') {
-                                    $absent_days += $uncovered;
-                                } else {
+                                if (isset($employeeAttendances[$dateStr]) && in_array($employeeAttendances[$dateStr]->status, ['present', 'on_duty', 'weekoff', 'holiday'])) {
                                     $present_days += $uncovered;
+                                } else {
+                                    $absent_days += $uncovered;
                                 }
                             }
                         } else {
                             $absent_days += $leaveDays;
                             $uncovered = 1.0 - $leaveDays;
                             if ($uncovered > 0) {
-                                if (isset($employeeAttendances[$dateStr]) && $employeeAttendances[$dateStr]->status === 'absent') {
-                                    $absent_days += $uncovered;
-                                } else {
+                                if (isset($employeeAttendances[$dateStr]) && in_array($employeeAttendances[$dateStr]->status, ['present', 'on_duty', 'weekoff', 'holiday'])) {
                                     $present_days += $uncovered;
+                                } else {
+                                    $absent_days += $uncovered;
                                 }
                             }
                         }
@@ -228,8 +222,8 @@ class PayrollGenerationService
                             $absent_days += 1.0;
                         }
                     } else {
-                        // 3. Date with no attendance record and no approved leave: un-entered days default to present
-                        $present_days += 1.0;
+                        // 3. Date with no attendance record and no approved leave: un-entered days default to absent
+                        $absent_days += 1.0;
                     }
                     $currentDate->addDay();
                 }

@@ -306,6 +306,15 @@ class PayslipControllerTest extends TestCase
             'effective_from' => '2025-01-01',
         ]);
 
+        for ($d = 1; $d <= 31; $d++) {
+            \App\Models\Attendance::create([
+                'plant_id' => $this->plant->id,
+                'personnel_id' => $personnel->id,
+                'attendance_date' => sprintf('2026-01-%02d', $d),
+                'status' => 'present',
+            ]);
+        }
+
         $response = $this->post(route('payslips.generate'), [
             'payroll_period_id' => $payrollPeriod->id
         ]);
@@ -316,7 +325,7 @@ class PayslipControllerTest extends TestCase
             'payroll_period_id' => $payrollPeriod->id,
             'personnel_id' => $personnel->id,
             'working_days' => 31,
-            'gross_salary' => 10000, // No attendance data means full present days via fallback
+            'gross_salary' => 10000,
         ]);
 
         $payslip = Payslip::where('payroll_period_id', $payrollPeriod->id)->first();
@@ -708,7 +717,7 @@ class PayslipControllerTest extends TestCase
         $this->assertEquals(0.00, $payslip->net_salary);
     }
 
-    public function test_generate_payslips_single_day_attendance_defaults_unentered_days_to_present()
+    public function test_generate_payslips_single_day_attendance_defaults_unentered_days_to_absent()
     {
         $payrollPeriod = PayrollPeriod::create([
             'plant_id' => $this->plant->id,
@@ -755,11 +764,11 @@ class PayslipControllerTest extends TestCase
         $payslip = Payslip::where('payroll_period_id', $payrollPeriod->id)->first();
         $this->assertNotNull($payslip);
 
-        // All 30 working days should be present (1 logged + 29 un-entered default present)
-        $this->assertEquals(30.0, $payslip->present_days);
-        $this->assertEquals(0.0, $payslip->absent_days);
+        // 1 day logged present, 29 un-entered days default to absent
+        $this->assertEquals(1.0, $payslip->present_days);
+        $this->assertEquals(29.0, $payslip->absent_days);
         $this->assertEquals(0.0, $payslip->paid_leave_days);
-        $this->assertEquals(25000.0, $payslip->gross_salary);
+        $this->assertEquals(833.33, $payslip->gross_salary);
     }
 
     public function test_generate_payslips_partial_attendance_explicit_absent_and_leaves()
@@ -829,7 +838,7 @@ class PayslipControllerTest extends TestCase
             'status' => 'approved',
         ]);
 
-        // Remaining days (Oct 6 - Oct 31 = 26 days) are un-entered
+        // Remaining days (Oct 6 - Oct 31 = 26 days) are un-entered (default to absent)
         $response = $this->post(route('payslips.generate'), [
             'payroll_period_id' => $payrollPeriod->id
         ]);
@@ -842,18 +851,18 @@ class PayslipControllerTest extends TestCase
         // Oct 2: absent (1.0)
         // Oct 3: half_day (0.5 present, 0.5 absent)
         // Oct 4-5: paid leave (2.0 paid leave)
-        // Oct 6-31 (26 days): un-entered default present (26.0)
-        // Total present: 1.0 + 0.5 + 26.0 = 27.5
-        // Total absent: 1.0 + 0.5 = 1.5
+        // Oct 6-31 (26 days): un-entered default absent (26.0)
+        // Total present: 1.0 + 0.5 = 1.5
+        // Total absent: 1.0 + 0.5 + 26.0 = 27.5
         // Total paid leave: 2.0
         // Total working days: 31
-        $this->assertEquals(27.5, $payslip->present_days);
-        $this->assertEquals(1.5, $payslip->absent_days);
+        $this->assertEquals(1.5, $payslip->present_days);
+        $this->assertEquals(27.5, $payslip->absent_days);
         $this->assertEquals(2.0, $payslip->paid_leave_days);
         $this->assertEquals(31, $payslip->working_days);
         
-        // Paid days = 27.5 + 2.0 = 29.5
-        // Gross salary = 31000 * 29.5 / 31 = 29500.00
-        $this->assertEquals(29500.00, $payslip->gross_salary);
+        // Paid days = 1.5 + 2.0 = 3.5
+        // Gross salary = 31000 * 3.5 / 31 = 3500.00
+        $this->assertEquals(3500.00, $payslip->gross_salary);
     }
 }

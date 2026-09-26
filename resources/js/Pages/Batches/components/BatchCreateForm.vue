@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { entityCalendarDate } from '@/Utils/entityDateTime';
-import { useForm,usePage } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
@@ -50,7 +50,7 @@ const props = withDefaults(defineProps<{
     existingBatches: () => [],
 });
 
-const emit = defineEmits(['offline-batch-added', 'cancel','created']);
+const emit = defineEmits(['offline-batch-added', 'cancel', 'created']);
 
 
 
@@ -172,8 +172,8 @@ const salesOrderDetails = computed(() => {
         { label: 'Customer', value: so.customer_name || 'N/A' },
         { label: 'Site', value: so.site_name || 'N/A' },
         { label: 'Design', value: so.mix_design_name || 'N/A' },
-        { 
-            label: 'Total Qty', 
+        {
+            label: 'Total Qty',
             value: `${prodQty} / ${totalQty} m³`,
             pending: `${pendingQty} m³`
         },
@@ -184,11 +184,11 @@ const isAutofillingSalesOrder = ref(false);
 watch(() => form.sales_order_id, (newVal) => {
     if (newVal && selectedSalesOrder.value) {
         isAutofillingSalesOrder.value = true;
-        
+
         if (form.batch_size > remainingQty.value) {
             form.batch_size = remainingQty.value;
         }
-        
+
         // References for easy access
         const po = selectedSalesOrder.value.customer_p_o;
         const quotation = po?.quotation;
@@ -317,7 +317,7 @@ const openTareModal = () => {
 const saveTareWeight = async () => {
     tareFormErrors.value.truck_id = '';
     tareFormErrors.value.empty_weight = '';
-    
+
     if (!tareForm.value.truck_id) {
         tareFormErrors.value.truck_id = 'Truck is required';
         return;
@@ -387,12 +387,12 @@ const handleWeightCapture = () => {
     captureWeight(async (w) => {
         form.empty_weight_truck = w;
         form.empty_time = entityCalendarDate();
-        
+
         if (customSettings?.batching?.camera == 1 && (customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_1)) {
             const cameraUrl = customSettings.batching.camera_url_1 || customSettings.batching.camera_url;
             try {
                 const snap = await captureCameraSnap(cameraUrl);
-                    form.empty_weight_photo = snap;
+                form.empty_weight_photo = snap;
             } catch (err) {
                 console.error('Camera capture failed:', err);
                 Swal.fire({
@@ -420,9 +420,9 @@ const handleWeightCaptureDialog = () => {
 
 const submit = () => {
     form.clearErrors();
-    
+
     const currentRemaining = remainingQty.value;
-    
+
     // If nothing entered by the user (or 0), default to 1 (or remaining if less than 1) for the form submission
     if (!form.batch_size || Number(form.batch_size) <= 0) {
         const defaultQty = selectedSalesOrder.value ? Math.min(1, currentRemaining) : 1;
@@ -443,7 +443,7 @@ const submit = () => {
             field: 'batch_size',
             message: `Batch Quantity cannot exceed remaining order quantity (${currentRemaining.toFixed(3)} m³)`
         },
-        { condition: (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0.00), field: 'empty_weight_truck', message: 'Empty Weight is required' },
+        { condition: (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck === '' || Number(form.empty_weight_truck) <= 0), field: 'empty_weight_truck', message: 'Empty Weight must be greater than 0' },
         { condition: !form.empty_time, field: 'empty_time', message: 'Empty Time is required' },
         // { condition: form.sales_order_id && form.batch_size > maxAllowed, field: 'batch_size', message: `Batch Quantity cannot exceed remaining order quantity (${maxAllowed.toFixed(3)} m³)` }
     ];
@@ -550,7 +550,7 @@ const submit = () => {
                 showConfirmButton: false,
             });
             resetForm();
-             // Force reload props from server to get latest batches/nextBatchNo
+            // Force reload props from server to get latest batches/nextBatchNo
             emit('created') // trigger parent to refresh
         },
         onError: (errors) => {
@@ -577,95 +577,95 @@ const submit = () => {
                     </div>
                     <div>
                         <h2 class="text-base font-bold uppercase tracking-wider">Plan & Create Batch</h2>
-                        <p class="mt-0.5 text-xs text-slate-600">Set logistics, weights, and live target batch quantities.</p>
+                        <p class="mt-0.5 text-xs text-slate-600">Set logistics, weights, and live target batch
+                            quantities.</p>
                     </div>
                 </div>
 
                 <div class="flex flex-col items-end gap-1.5 self-start sm:self-center">
                     <div class="flex items-center gap-3">
                         <!-- Manual batch number for admins or users with batch create permission -->
-                        <div v-if="canEditBatchNo" class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 border border-slate-200 shadow-xs">
+                        <div v-if="canEditBatchNo"
+                            class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 border border-slate-200 shadow-xs">
                             <label class="flex items-center gap-1.5 cursor-pointer select-none">
-                                <input 
-                                    type="checkbox" 
-                                    v-model="isManualBatchNo" 
-                                    class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer" 
-                                />
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600">Manual Batch #</span>
+                                <input type="checkbox" v-model="isManualBatchNo"
+                                    class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer" />
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600">Manual Batch
+                                    #</span>
                             </label>
-                            
+
                             <div v-if="isManualBatchNo" class="flex items-center gap-1 pl-2 border-l border-slate-200">
                                 <span class="text-xs font-bold text-slate-400">#</span>
-                                <input 
-                                    type="number" 
-                                    v-model.number="form.batch_no" 
-                                    min="1"
-                                    placeholder="Batch #"
+                                <input type="number" v-model.number="form.batch_no" min="1" placeholder="Batch #"
                                     class="w-24 px-2 py-1 text-xs font-bold border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                    :class="duplicateBatchWarning || form.errors.batch_no ? '!border-rose-500 !text-rose-600 bg-rose-50/30' : 'border-indigo-200 text-slate-900'"
-                                />
+                                    :class="duplicateBatchWarning || form.errors.batch_no ? '!border-rose-500 !text-rose-600 bg-rose-50/30' : 'border-indigo-200 text-slate-900'" />
                             </div>
                             <span v-else class="text-sm font-black text-indigo-700 pl-2 border-l border-slate-200">
-                                #{{ nextBatchNoDisplay }} <span class="text-[9px] font-semibold text-slate-400 font-normal uppercase">(Auto)</span>
+                                #{{ nextBatchNoDisplay }} <span
+                                    class="text-[9px] font-semibold text-slate-400 font-normal uppercase">(Auto)</span>
                             </span>
                         </div>
 
                         <!-- Non-Admin Display: Auto Generated Only -->
-                        <div v-else-if="nextBatchNoDisplay" class="flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2 border border-slate-200 shadow-xs">
-                            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Batch Number</span>
+                        <div v-else-if="nextBatchNoDisplay"
+                            class="flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2 border border-slate-200 shadow-xs">
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Batch
+                                Number</span>
                             <span class="text-base font-black text-indigo-700">#{{ nextBatchNoDisplay }}</span>
-                            <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">Auto</span>
+                            <span
+                                class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">Auto</span>
                         </div>
                     </div>
 
                     <!-- Live duplicate restriction warning / error -->
-                    <div v-if="canEditBatchNo && isManualBatchNo && (duplicateBatchWarning || form.errors.batch_no)" class="flex items-center gap-1 text-[11px] font-semibold text-rose-600">
+                    <div v-if="canEditBatchNo && isManualBatchNo && (duplicateBatchWarning || form.errors.batch_no)"
+                        class="flex items-center gap-1 text-[11px] font-semibold text-rose-600">
                         <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" />
                         <span>{{ duplicateBatchWarning || form.errors.batch_no }}</span>
                     </div>
                 </div>
             </div>
-        </div>        
-        
+        </div>
+
         <div class=" ">
             <!-- Section 1: Sales Order Link & Reference Info -->
             <div class=" bg-slate-50/50 p-5">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div class="flex flex-col justify-center">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-2">
+                        <h3
+                            class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-2">
                             <span class="h-2 w-2 rounded-full bg-indigo-600"></span>
                             Sales Order Link
                         </h3>
-                        <BaseSelect 
-                            v-model="form.sales_order_id" 
-                            :options="salesOrders" 
-                            optionLabel="full_number" 
-                            optionValue="id" 
-                            filter 
-                            label="Select Sales Order" 
-                            placeholder="Select Sales Order"
-                            required
-                            :error="form.errors.sales_order_id" 
-                        />
+                        <BaseSelect v-model="form.sales_order_id" :options="salesOrders" optionLabel="full_number"
+                            optionValue="id" filter label="Select Sales Order" placeholder="Select Sales Order" required
+                            :error="form.errors.sales_order_id" />
                     </div>
-                    
-                    <div v-if="salesOrderDetails.length" class="lg:col-span-3 border-t lg:border-t-0 lg:border-l border-slate-200/60 lg:pl-6 pt-4 lg:pt-0">
-                        <h3 class="mb-3 text-[10px] font-bold uppercase tracking-widest text-indigo-600 flex items-center justify-between">
+
+                    <div v-if="salesOrderDetails.length"
+                        class="lg:col-span-3 border-t lg:border-t-0 lg:border-l border-slate-200/60 lg:pl-6 pt-4 lg:pt-0">
+                        <h3
+                            class="mb-3 text-[10px] font-bold uppercase tracking-widest text-indigo-600 flex items-center justify-between">
                             <span>Reference Details</span>
-                            <span class="rounded bg-indigo-100 px-2 py-0.5 text-[9px] font-bold text-indigo-700">Live</span>
+                            <span
+                                class="rounded bg-indigo-100 px-2 py-0.5 text-[9px] font-bold text-indigo-700">Live</span>
                         </h3>
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
-                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
-                                <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">{{ detail.value }}</span>
+                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{{
+                                    detail.label }}</span>
+                                <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">{{ detail.value
+                                    }}</span>
                                 <p v-if="detail.pending" class="text-[10px] font-semibold text-slate-400 mt-1">
                                     <span class="text-indigo-500 font-semibold">Pending:</span> {{ detail.pending }}
                                 </p>
                             </div>
                             <div class="flex flex-col">
-                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Loading Site</span>
+                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Loading
+                                    Site</span>
                                 <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">
-                                    {{ loading_sites.find(s => Number(s.id) === Number(form.site_id))?.name || 'Loading Site Not Configured' }}
+                                    {{loading_sites.find(s => Number(s.id) === Number(form.site_id))?.name
+                                        || 'Loading Site Not Configured'}}
                                 </span>
                             </div>
                         </div>
@@ -683,58 +683,76 @@ const submit = () => {
                         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Batch Parameters</h3>
                     </div>
 
-                    <button @click="openTareModal" type="button" 
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all text-xs font-semibold shadow-xs" 
+                    <button @click="openTareModal" type="button"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all text-xs font-semibold shadow-xs"
                         title="Register Tare Weight">
-                        <ScaleIcon class="w-3.5 h-3.5 text-indigo-600" />   
+                        <ScaleIcon class="w-3.5 h-3.5 text-indigo-600" />
                         <span>Register Tare</span>
                     </button>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 p-4">
                     <div>
-                        <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Assign Truck" placeholder="Select Truck" required :error="form.errors.truck_id" />
+                        <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration"
+                            optionValue="id" filter label="Assign Truck" placeholder="Select Truck" required
+                            :error="form.errors.truck_id" />
                     </div>
                     <div>
-                        <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" placeholder="Select Transporter" showClear />
+                        <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name"
+                            optionValue="id" filter label="Transporter" placeholder="Select Transporter" showClear />
                     </div>
                     <div>
-                        <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id" filter label="Driver" placeholder="Select Driver" showClear />
+                        <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id"
+                            filter label="Driver" placeholder="Select Driver" showClear />
                     </div>
                     <div>
-                        <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" placeholder="Select Sales Executive" showClear />
+                        <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label"
+                            optionValue="id" filter label="Sales Executive" placeholder="Select Sales Executive"
+                            showClear />
                     </div>
                     <!-- <div>
                         <BaseSelect v-model="form.concrete_pump" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.concrete_pump" />
                     </div> -->
                     <div>
-                        <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :max="selectedSalesOrder ? remainingQty : 20" :minFractionDigits="3" :maxFractionDigits="3" required :error="form.errors.batch_size" />
+                        <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1"
+                            :max="selectedSalesOrder ? remainingQty : 20" :minFractionDigits="3" :maxFractionDigits="3"
+                            required :error="form.errors.batch_size" />
                     </div>
                     <div>
                         <div class="flex items-end gap-2">
                             <div class="flex-1">
-                                <BaseInputNumber v-model="form.empty_weight_truck" :minFractionDigits="0" :maxFractionDigits="3" :disabled="customSettings?.batching?.manual_weight === 0" label="Empty Weight (MT)" :required="customSettings?.batching?.manual_weight === 1" :error="form.errors.empty_weight_truck" />
+                                <BaseInputNumber v-model="form.empty_weight_truck" :minFractionDigits="0"
+                                    :maxFractionDigits="3" :disabled="customSettings?.batching?.manual_weight === 0"
+                                    label="Empty Weight (MT)" :required="customSettings?.batching?.manual_weight === 1"
+                                    :error="form.errors.empty_weight_truck" />
                             </div>
-                            
-                            <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight === 0" 
-                                :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
+
+                            <button @click="handleWeightCapture" type="button"
+                                v-if="customSettings?.batching?.manual_weight === 0"
+                                :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']"
                                 :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
                                 <div class="flex flex-col items-center gap-0.5">
                                     <ArrowDownTrayIcon class="w-4 h-4 animate-bounce" />
-                                    <span v-if="customSettings?.batching?.camera == 1" class="text-[7px] font-black uppercase tracking-widest">Snap</span>
+                                    <span v-if="customSettings?.batching?.camera == 1"
+                                        class="text-[7px] font-black uppercase tracking-widest">Snap</span>
                                 </div>
                             </button>
                         </div>
-                        <div v-if="form.empty_weight_photo" class="mt-2 relative group rounded-xl overflow-hidden shadow-inner border border-slate-100">
+                        <div v-if="form.empty_weight_photo"
+                            class="mt-2 relative group rounded-xl overflow-hidden shadow-inner border border-slate-100">
                             <img :src="form.empty_weight_photo" class="w-full h-24 object-cover" />
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <button @click="form.empty_weight_photo = null" type="button" class="text-white text-xs font-bold bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-all">Remove Snap</button>
+                            <div
+                                class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button @click="form.empty_weight_photo = null" type="button"
+                                    class="text-white text-xs font-bold bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-all">Remove
+                                    Snap</button>
                             </div>
                         </div>
                     </div>
                     <div>
-                        <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid :error="form.errors.empty_time" />
+                        <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid
+                            :error="form.errors.empty_time" />
                     </div>
-                    
+
                 </div>
             </div>
 
@@ -743,25 +761,29 @@ const submit = () => {
                 <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <BeakerIcon class="w-5 h-5 text-indigo-600" />
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-900">Target Recipe Yield ({{ selectedSalesOrder.mix_design?.design_name }})</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-900">Target Recipe Yield ({{
+                            selectedSalesOrder.mix_design?.design_name }})</h3>
                     </div>
                     <span class="rounded-lg bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
                         Batch Factor: {{ form.batch_size }} m³
                     </span>
                 </div>
-                
+
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    <div v-for="item in selectedSalesOrder.mix_design.items" :key="item.id" 
+                    <div v-for="item in selectedSalesOrder.mix_design.items" :key="item.id"
                         class="flex items-center justify-between rounded-xl bg-white border border-indigo-100/50 p-3 shadow-sm hover:border-indigo-200 transition-all duration-200">
                         <div class="flex flex-col">
                             <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Material</span>
-                            <span class="text-xs font-bold text-slate-700 mt-0.5">{{ item.product?.title || 'Material' }}</span>
+                            <span class="text-xs font-bold text-slate-700 mt-0.5">{{ item.product?.title || 'Material'
+                                }}</span>
                         </div>
                         <div class="text-right">
-                            <span class="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">Target Qty</span>
+                            <span class="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">Target
+                                Qty</span>
                             <div class="text-xs font-black text-indigo-700 mt-0.5">
                                 {{ (Number(item.cross_quantity || item.quantity || 0) * form.batch_size).toFixed(3) }}
-                                <span class="text-[9px] font-normal text-slate-400 ml-0.5">{{ item.uom?.unit_code || 'KGS' }}</span>
+                                <span class="text-[9px] font-normal text-slate-400 ml-0.5">{{ item.uom?.unit_code ||
+                                    'KGS' }}</span>
                             </div>
                         </div>
                     </div>
@@ -769,15 +791,18 @@ const submit = () => {
             </div>
         </div>
 
-        <div v-if="form.errors.materials" class="mx-6 mb-6 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
+        <div v-if="form.errors.materials"
+            class="mx-6 mb-6 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
             <div class="font-bold flex items-center gap-2 text-rose-700">
                 <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 Stock Validation Failed
             </div>
             <ul class="list-disc list-inside mt-1 space-y-1 font-semibold text-rose-600">
-                <li v-for="err in (Array.isArray(form.errors.materials) ? form.errors.materials : [form.errors.materials])" :key="err">
+                <li v-for="err in (Array.isArray(form.errors.materials) ? form.errors.materials : [form.errors.materials])"
+                    :key="err">
                     {{ err }}
                 </li>
             </ul>
@@ -785,101 +810,83 @@ const submit = () => {
 
         <!-- Sticky Form Actions Footer -->
         <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-end gap-3">
-            <Button 
-                label="Add Batch" 
-                icon="pi pi-check" 
-                class="!bg-indigo-600 hover:!bg-indigo-700 !border-indigo-600 !px-8 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-100" 
-                :loading="form.processing"
-                @click="submit" 
-            />
+            <Button label="Add Batch" icon="pi pi-check"
+                class="!bg-indigo-600 hover:!bg-indigo-700 !border-indigo-600 !px-8 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-100"
+                :loading="form.processing" @click="submit" />
         </div>
 
-        <Dialog v-model:visible="showEmptyWeightModal" modal :style="{ width: '480px' }" class="p-fluid rounded-3xl overflow-hidden shadow-2xl border-0">
+        <Dialog v-model:visible="showEmptyWeightModal" modal :style="{ width: '480px' }"
+            class="p-fluid rounded-3xl overflow-hidden shadow-2xl border-0">
             <template #header>
                 <div class="flex items-center gap-3">
                     <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl ring-4 ring-indigo-50/50">
                         <ScaleIcon class="w-6 h-6 animate-pulse" />
                     </div>
                     <div>
-                        <h3 class="text-base font-black tracking-tight text-slate-800 uppercase">Register Tare Weight</h3>
-                        <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">Save Truck Empty Weight</p>
+                        <h3 class="text-base font-black tracking-tight text-slate-800 uppercase">Register Tare Weight
+                        </h3>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">Save Truck Empty
+                            Weight</p>
                     </div>
                 </div>
             </template>
 
             <div class="flex flex-col gap-5 py-2 text-xs">
-               
+
 
                 <div class="flex flex-col gap-2">
-                    <label class="font-bold text-slate-500 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                    <label
+                        class="font-bold text-slate-500 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
                         <TruckIcon class="w-4 h-4 text-slate-400" />
                         Select Truck
                     </label>
-                    <BaseSelect 
-                        v-model="tareForm.truck_id" 
-                        :options="trucks" 
-                        optionLabel="registration" 
-                        optionValue="id" 
-                        filter 
-                        placeholder="Choose Truck Registration" 
+                    <BaseSelect v-model="tareForm.truck_id" :options="trucks" optionLabel="registration"
+                        optionValue="id" filter placeholder="Choose Truck Registration"
                         class="!rounded-2xl border-slate-200/80 shadow-sm focus:border-indigo-500 focus:shadow-indigo-500/10 text-sm font-bold"
-                        :error="tareFormErrors.truck_id" 
-                    />
-                    <small v-if="tareFormErrors.truck_id" class="text-red-500 font-bold uppercase tracking-wider mt-1">{{ tareFormErrors.truck_id }}</small>
+                        :error="tareFormErrors.truck_id" />
+                    <small v-if="tareFormErrors.truck_id"
+                        class="text-red-500 font-bold uppercase tracking-wider mt-1">{{
+                            tareFormErrors.truck_id }}</small>
                 </div>
 
                 <div class="flex flex-col gap-2">
-                    <label class="font-bold text-slate-500 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                    <label
+                        class="font-bold text-slate-500 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
                         <ScaleIcon class="w-4 h-4 text-slate-400" />
                         Empty Weight (MT)
                     </label>
                     <div class="flex items-end gap-2">
                         <div class="flex-1">
-                            <BaseInputNumber 
-                                v-model="tareForm.empty_weight" 
-                                :minFractionDigits="0"
-                                :maxFractionDigits="3"
-                                :fluid="true"
-                                placeholder="e.g. 5.400" 
+                            <BaseInputNumber v-model="tareForm.empty_weight" :minFractionDigits="0"
+                                :maxFractionDigits="3" :fluid="true" placeholder="e.g. 5.400"
                                 class="!rounded-2xl border-slate-200/80 shadow-sm focus:border-indigo-500 text-sm font-bold"
-                                :error="tareFormErrors.empty_weight" 
-                            />
+                                :error="tareFormErrors.empty_weight" />
                         </div>
-                        <button @click="handleWeightCaptureDialog" type="button" v-if="customSettings?.batching?.manual_weight === 0" 
-                            :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center h-10', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
+                        <button @click="handleWeightCaptureDialog" type="button"
+                            v-if="customSettings?.batching?.manual_weight === 0"
+                            :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center h-10', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']"
                             :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
                             <div class="flex flex-col items-center gap-0.5">
                                 <ArrowDownTrayIcon class="w-4 h-4 animate-bounce" />
-                                <span v-if="customSettings?.batching?.camera == 1" class="text-[7px] font-black uppercase tracking-widest">Snap</span>
+                                <span v-if="customSettings?.batching?.camera == 1"
+                                    class="text-[7px] font-black uppercase tracking-widest">Snap</span>
                             </div>
                         </button>
                     </div>
-                    <small v-if="tareFormErrors.empty_weight" class="text-red-500 font-bold uppercase tracking-wider mt-1">{{ tareFormErrors.empty_weight }}</small>
+                    <small v-if="tareFormErrors.empty_weight"
+                        class="text-red-500 font-bold uppercase tracking-wider mt-1">{{
+                            tareFormErrors.empty_weight }}</small>
                 </div>
             </div>
 
             <template #footer>
                 <div class="flex gap-3 justify-end pt-4 border-t border-slate-100/80 mt-4">
-                    <Button 
-                        label="Cancel" 
-                        text 
-                        severity="secondary" 
-                        @click="showEmptyWeightModal = false" 
-                        class="!text-[11px] !font-black !uppercase !tracking-widest !rounded-2xl !py-3 !px-6 hover:!bg-slate-50 transition-all duration-200" 
-                    />
-                    <Button 
-                        label="Save Weight" 
-                        :loading="tareSubmitting" 
-                        @click="saveTareWeight" 
-                        class="!bg-gradient-to-r !from-indigo-600 !to-violet-600 hover:!from-indigo-700 hover:!to-violet-700 !border-0 !text-white !text-[11px] !font-black !uppercase !tracking-widest !rounded-2xl !py-3 !px-7 shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 transition-all duration-300 transform hover:-translate-y-0.5" 
-                    />
+                    <Button label="Cancel" text severity="secondary" @click="showEmptyWeightModal = false"
+                        class="!text-[11px] !font-black !uppercase !tracking-widest !rounded-2xl !py-3 !px-6 hover:!bg-slate-50 transition-all duration-200" />
+                    <Button label="Save Weight" :loading="tareSubmitting" @click="saveTareWeight"
+                        class="!bg-gradient-to-r !from-indigo-600 !to-violet-600 hover:!from-indigo-700 hover:!to-violet-700 !border-0 !text-white !text-[11px] !font-black !uppercase !tracking-widest !rounded-2xl !py-3 !px-7 shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 transition-all duration-300 transform hover:-translate-y-0.5" />
                 </div>
             </template>
         </Dialog>
     </div>
 </template>
-
-
-
-
-

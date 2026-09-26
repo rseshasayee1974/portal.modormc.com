@@ -82,10 +82,14 @@ class Patron extends Model
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeOfType($query, $types)
-{
-    $types = Arr::wrap($types);
-    return $query->whereJsonContains('patron_type', $types); // Laravel handles OR for array
-}
+    {
+        $types = Arr::wrap($types);
+        return $query->where(function ($q) use ($types) {
+            foreach ($types as $type) {
+                $q->orWhereJsonContains('patron_type', $type);
+            }
+        });
+    }
 
     /**
      * Scope: exclude one or more patrons by id (edit/update scenarios).

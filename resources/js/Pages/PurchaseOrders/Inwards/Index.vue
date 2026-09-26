@@ -16,7 +16,7 @@ import InwardCreateForm from './components/InwardCreateForm.vue';
 import { ArchiveBoxIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline';
 import PurchaseOrderPreviewDialog from '../components/PurchaseOrderPreviewDialog.vue';
 
-const props = defineProps<{ inwards: any[]; purchaseOrders: any[]; vehicles: any[] }>();
+const props = defineProps<{ inwards: any[]; purchaseOrders: any[]; vehicles: any[]; units?: any[] }>();
 // --- List Logic ---
 const entriesPerPage = ref(30);
 const expandedRows = ref<Record<string, boolean>>({});
@@ -85,7 +85,7 @@ const deleteInward = (inward: any) => {
 
         <div class="py-6 px-4 min-h-screen">
             <div class="max-w-7xl mx-auto space-y-6">
-                <InwardCreateForm :purchaseOrders="purchaseOrders" :vehicles="vehicles" embedded />
+                <InwardCreateForm :purchaseOrders="purchaseOrders" :vehicles="vehicles" :units="units" embedded />
 
                 <div class="space-y-4">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">

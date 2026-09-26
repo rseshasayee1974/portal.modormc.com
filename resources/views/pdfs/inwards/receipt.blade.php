@@ -733,6 +733,14 @@
                                 {{ number_format(max(0, (float) ($inward->truck_loaded ?? 0) - (float) ($inward->truck_empty ?? 0)), 2) }} {{ $inward->uom?->unit_code ?? 'KGS' }}
                             </td>
                         </tr>
+                        @if ((float)($inward->conversion_quantity ?? 0) > 0)
+                        <tr>
+                            <td class="detail-label">Conv Quantity:</td>
+                            <td class="detail-val" style="color: #4f46e5; font-weight: 900; font-size: 11px;">
+                                {{ number_format((float)$inward->conversion_quantity, 4) }} {{ $inward->conversionUom?->unit_code ?? $inward->uom?->unit_code }}
+                            </td>
+                        </tr>
+                        @endif
                     </table>
                 </td>
             </tr>

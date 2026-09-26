@@ -28,7 +28,7 @@ class MachineTrackerController extends Controller
         return Inertia::render('MachineTrackers/Index', [
             'trackers' => $trackers,
             'machines' => MachinesDropdown()->toArray(),
-            'operators' => OperatorsDropdown(),
+            'operators' => DriversOperatorsDropdown(),
         ]);
     }
 

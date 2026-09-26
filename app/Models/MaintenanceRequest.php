@@ -34,6 +34,9 @@ class MaintenanceRequest extends Model
         'repair_vendor_id',
         'bill_no',
         'order_no',
+        'amount_untaxed',
+        'amount_tax',
+        'amount_total',
         'discount_amount',
         'shipping_charges',
         'shipping_tax_id',
@@ -41,6 +44,7 @@ class MaintenanceRequest extends Model
         'rounding_value',
         'filename',
         'status',
+        'tax_inclusive',
         'bill_status',
         'dead_line',
         'start_date',
@@ -57,10 +61,14 @@ class MaintenanceRequest extends Model
         'created' => 'datetime',
         'modified' => 'datetime',
         'service_km' => 'decimal:2',
+        'amount_untaxed' => 'decimal:2',
+        'amount_tax' => 'decimal:2',
+        'amount_total' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'shipping_charges' => 'decimal:2',
         'adjustment' => 'decimal:2',
         'rounding_value' => 'decimal:2',
+        'tax_inclusive' => 'integer',
     ];
 
     protected static function boot()
@@ -103,7 +111,7 @@ class MaintenanceRequest extends Model
 
     public function shippingTax()
     {
-        return $this->belongsTo(Tax::class, 'shipping_tax_id');
+        return $this->belongsTo(Tax::class, 'shipping_tax_id')->where('tax_type', 'purchase');
     }
 
     public function lines()

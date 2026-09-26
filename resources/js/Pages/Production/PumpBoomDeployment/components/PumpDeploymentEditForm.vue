@@ -414,7 +414,8 @@ const submitForm = async () => {
                     optionValue="value" label="Assigned Pump" placeholder="Select Pump" required
                     @change="onPumpSelect" />
                 <BaseSelect v-model="form.operator_id" :options="operatorOptions" optionLabel="label"
-                    optionValue="value" label="Operator" placeholder="Assign Operator" @change="onOperatorSelect" />
+                    optionValue="value" label="Assign Operator / Driver" placeholder="Assign Operator / Driver"
+                    @change="onOperatorSelect" />
                 <BaseInput v-model="form.driver_contact_number" label="Operator Contact" placeholder="Mobile number" />
                 <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value"
                     label="Status" />
@@ -425,13 +426,10 @@ const submitForm = async () => {
                     label="Site Arrival" />
                 <BaseDatePicker v-model="form.setup_start_time" :showTime="true" hourFormat="12" label="Setup Start" />
                 <BaseDatePicker v-model="form.setup_end_time" :showTime="true" hourFormat="12" label="Setup Ready" />
-                <BaseDatePicker v-model="form.pour_start_time" :showTime="true" hourFormat="12" label="Pour Start" />
-                <BaseDatePicker v-model="form.planned_end_time" :showTime="true" hourFormat="12"
-                    label="Planned Finish" />
-                <BaseDatePicker v-model="form.actual_start_time" :showTime="true" hourFormat="12" label="Actual Start"
-                    @update:modelValue="onActualStartInput" />
-                <BaseDatePicker v-model="form.actual_end_time" :showTime="true" hourFormat="12" label="Actual Finish"
-                    @update:modelValue="onActualEndInput" />
+                <BaseDatePicker v-model="form.actual_start_time" :showTime="true" hourFormat="12"
+                    label="Actual Pour Start" @update:modelValue="onActualStartInput" />
+                <BaseDatePicker v-model="form.actual_end_time" :showTime="true" hourFormat="12"
+                    label="Actual Pour Finish" @update:modelValue="onActualEndInput" />
             </div>
 
             <!-- Notes & Bottom Actions -->

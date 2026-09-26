@@ -32,6 +32,10 @@ class Payslip extends Model
     ];
 
     protected $casts = [
+        'working_days' => 'decimal:2',
+        'present_days' => 'decimal:2',
+        'absent_days' => 'decimal:2',
+        'paid_leave_days' => 'decimal:2',
         'gross_salary' => 'decimal:2',
         'total_earnings' => 'decimal:2',
         'total_deductions' => 'decimal:2',

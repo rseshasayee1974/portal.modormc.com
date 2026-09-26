@@ -281,9 +281,9 @@ class ConcreteBatchingScheduleController extends Controller
 
         $sites = Site::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'name', 'site_address_1']);
         $mixDesigns = MixDesign::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'design_name', 'design_code']);
-        $vehicles = TransitMixerTruckDropdown();
+        $vehicles = MachinesDropdown(['Transit Mixer', 'Truck']);
         $pumps = ConcretePumpOptions(); 
-        $drivers = DriversDropdown();
+        $drivers = DriversOperatorsDropdown();
         $salesOrders = SalesOrder::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->whereIn('status', [SalesOrder::STATUS_IN_PROGRESS, SalesOrder::STATUS_CONFIRMED])
