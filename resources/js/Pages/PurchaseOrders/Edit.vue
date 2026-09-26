@@ -25,6 +25,8 @@ const props = defineProps<{
 const page = usePage();
 
 const activePlantId = computed(() => page.props.active_plant_id ?? null);
+const isReceived = computed(() => Number(props.purchaseOrder?.receipt_status || 0) > 0
+    || ['approved', 'done', 'cancel'].includes(props.purchaseOrder?.state));
 
 const form = useForm({
     id: props.purchaseOrder?.id || null,
@@ -198,6 +200,7 @@ const submit = () => {
                 <PurchaseOrderEditForm 
                     :form="form"
                     :purchaseOrder="purchaseOrder"
+                    :isReceived="isReceived"
                     :vendors="vendors"
                     :currencies="currencies"
                     :taxes="taxes"

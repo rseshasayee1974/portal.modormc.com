@@ -67,6 +67,7 @@ const form = useForm({
             : false,
 
         custom_params:     props.batchingSettings?.custom_params || [],
+        purchase_bill_conversion: [true, 1, '1', 'true'].includes(props.batchingSettings?.purchase_bill_conversion),
     }
 });
 
@@ -86,6 +87,7 @@ const toggle = (key: string) => { expanded.value[key] = !expanded.value[key]; };
 
 // ─── Summary table ─────────────────────────────────────────────────────────
 const settingRows = computed(() => [
+    { section: 'Purchase', key: 'purchase_bill_conversion', label: 'Bill purchases using conversion quantity', value: form.settings.purchase_bill_conversion, type: 'bool' },
     // Weighbridge
     { 
         section: 'Weighbridge', 
@@ -249,6 +251,14 @@ const deleteModule = (id: number) => {
             </div>
             
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6 mt-4">
+
+                <div class="bg-white rounded-2xl border border-slate-100 p-6 flex items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-700">Bill purchases using conversion quantity</h3>
+                        <p class="text-xs text-slate-500 mt-1">Use inward conversion quantity and converted UOM for new purchase bills. Enter bill rates per converted unit. Save All Settings to apply.</p>
+                    </div>
+                    <InputSwitch v-model="form.settings.purchase_bill_conversion" aria-label="Bill purchases using conversion quantity" />
+                </div>
 
                 <!-- ── Summary Table ──────────────────────────────────── -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

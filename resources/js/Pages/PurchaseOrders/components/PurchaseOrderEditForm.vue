@@ -45,6 +45,7 @@ const props = defineProps<{
     isReceived?: boolean;
 }>();
 const isOpen = ref(true);
+const emit = defineEmits(['billing-updated']);
 const expandedIndex = ref<number | null>(0);
 const showBillDialog = ref(false);
 const showBillingPanel = ref(true);
@@ -52,8 +53,15 @@ const showBillingPanel = ref(true);
 const billForm = ref({
     account_id: null,
     invoice_date: entityToday(),
-    due_date: props.form.due_date || entityToday()
+    due_date: props.form.due_date || entityToday(),
+    items: [] as { order_item_id: number; unit_price: number }[]
 });
+const billErrors = ref<Record<string, string>>({});
+const billableItems = computed(() => (props.purchaseOrder?.items || []).filter((item: any) => Number(item.received_quantity) > Number(item.invoiced_quantity)));
+const billingQuantity = (item: any) => Number(item?.billing_preview?.quantity ?? Math.max(0, Number(item?.received_quantity || 0) - Number(item?.invoiced_quantity || 0)));
+const billingUom = (item: any) => item?.billing_preview?.converted_uom ?? item?.uom?.unit_code;
+const conversionText = (item: any) => (item?.converted_receipts || []).filter((r: any) => Number(r.quantity) > 0).map((r: any) => `${Number(r.quantity).toFixed(4)} ${r.converted_uom || ''}`).join(', ') || '—';
+const hasConversionError = computed(() => billableItems.value.some((item: any) => item.billing_preview?.error));
 
 const toggle = () => {
     isOpen.value = !isOpen.value;
@@ -90,6 +98,8 @@ const approveStatusOptions = [
 ];
 
 const handleGenerateBill = () => {
+    billErrors.value = {};
+    billForm.value.items = billableItems.value.map((item: any) => ({ order_item_id: item.id, unit_price: Number(item.unit_price) }));
     showBillDialog.value = true;
 };
 
@@ -100,8 +110,10 @@ const executeBillGeneration = () => {
     }
 
     router.post(route('purchaseorder.generate-bill', props.form.id), billForm.value, {
+        onError: (errors) => { billErrors.value = errors; },
         onSuccess: () => {
             showBillDialog.value = false;
+            emit('billing-updated');
         },
         preserveScroll: true
     });
@@ -119,6 +131,7 @@ const handleDeleteBill = (billId: number) => {
         if (result.isConfirmed) {
             router.delete(route('purchaseorder.delete-bill', props.form.id), {
                 data: { bill_id: billId },
+                onSuccess: () => emit('billing-updated'),
                 preserveScroll: true
             });
         }
@@ -219,6 +232,7 @@ const handleDeleteBill = (billId: number) => {
                                         <th class="px-2 py-3 text-center" style="width: 150px;">Qty</th>
                                         <th class="px-1 py-2 text-center">Recieved <br/>Qty</th>
                                         <th class="px-2 py-3 text-center" style="width: 100px;">UOM</th>
+                                        <th v-if="isReceived" class="px-2 py-3 text-center">Conversion Qty / UOM</th>
                                         <th class="px-2 py-3 text-center" style="width: 170px;">Rate</th>
                                         <th class="px-2 py-3 text-center" style="width: 130px;">Tax</th>
                                         <th class="px-2 py-3 text-center" style="width: 150px;">Discount</th>
@@ -272,6 +286,7 @@ const handleDeleteBill = (billId: number) => {
                                                     :disabled="isReceived"
                                                 />
                                             </td>
+                                            <td v-if="isReceived" class="px-2 text-center text-indigo-700">{{ conversionText(item) }}</td>
                                             <td class="">
                                                 <BaseInputNumber v-model="item.unit_price" :minFractionDigits="2" class="w-full font-semibold text-slate-700" @update:modelValue="calculateItemTotals(Number(index))" :disabled="isReceived" />
                                             </td>
@@ -397,10 +412,11 @@ const handleDeleteBill = (billId: number) => {
             </div>
             <div class="p-5 space-y-4">
                 <p class="text-sm text-slate-600">Each bill includes only received quantities that have not yet been billed.</p>
+                <p v-if="purchaseOrder?.conversion_billing_enabled" class="text-sm text-indigo-600">Conversion billing is enabled. Bill quantities and rates use the converted UOM.</p>
                 <table class="w-full text-sm text-left">
-                    <thead><tr><th>Product</th><th>Ordered</th><th>Received</th><th>Billed</th><th>Unbilled</th><th>Remaining to receive</th></tr></thead>
+                    <thead><tr><th>Product</th><th>Ordered</th><th>Received</th><th>Conversion Qty / UOM</th><th>Billed</th><th>Unbilled</th><th>Remaining to receive</th></tr></thead>
                     <tbody><tr v-for="item in purchaseOrder?.items || []" :key="item.id">
-                        <td>{{ item.product?.title }} ({{ item.uom?.unit_code }})</td><td>{{ item.product_quantity }}</td><td>{{ item.received_quantity }}</td><td>{{ item.invoiced_quantity }}</td>
+                        <td>{{ item.product?.title }} ({{ item.uom?.unit_code }})</td><td>{{ item.product_quantity }}</td><td>{{ item.received_quantity }}</td><td>{{ conversionText(item) }}</td><td>{{ item.invoiced_quantity }}</td>
                         <td>{{ Math.max(0, Number(item.received_quantity) - Number(item.invoiced_quantity)).toFixed(2) }}</td>
                         <td>{{ Math.max(0, Number(item.product_quantity) - Number(item.received_quantity)).toFixed(2) }}</td>
                     </tr></tbody>
@@ -474,6 +490,29 @@ const handleDeleteBill = (billId: number) => {
         </template>
 
         <div class="space-y-6 py-4">
+            <div class="space-y-3">
+                <p class="text-sm text-slate-600">Set the rate for this bill. Each new bill starts with the PO rate.</p>
+                <p v-if="purchaseOrder?.conversion_billing_enabled" class="text-sm text-indigo-600">Enter the rate per converted unit shown below.</p>
+                <p v-else class="text-sm text-amber-700">Conversion billing is disabled. Enable “Bill purchases using conversion quantity” in Custom Settings to use the converted unit and quantity.</p>
+                <div v-for="(line, index) in billForm.items" :key="line.order_item_id" class="border rounded-lg p-3 space-y-2">
+                    <div class="font-semibold">{{ billableItems[index]?.product?.title }}</div>
+                    <div v-if="!billableItems[index]?.billing_preview?.error" class="rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-700">
+                        <div class="text-xs font-semibold">{{ purchaseOrder?.conversion_billing_enabled ? 'Conversion Qty / UOM' : 'Bill Qty / UOM' }}</div>
+                        <div class="mt-2 grid grid-cols-2 gap-4">
+                            <div><div class="text-xs">Unit</div><div class="mt-1 font-semibold">{{ billingUom(billableItems[index]) }}</div></div>
+                            <div><div class="text-xs">Quantity</div><div class="mt-1 font-semibold">{{ billingQuantity(billableItems[index]).toFixed(4) }}</div></div>
+                        </div>
+                        <div class="mt-1 text-xs">Unbilled quantity included in this bill</div>
+                    </div>
+                    <BaseInputNumber v-model="line.unit_price" :label="billingUom(billableItems[index]) ? `Rate per ${billingUom(billableItems[index])}` : 'Rate for this bill'" :min="0" :minFractionDigits="2" :maxFractionDigits="2" :error="billErrors[`items.${index}.unit_price`]" />
+                    <p v-if="billableItems[index]?.billing_preview?.error" class="text-sm text-red-600">{{ billableItems[index].billing_preview.error }}</p>
+                    <div v-else class="rounded-lg border border-slate-200 p-3 text-sm">
+                        <div class="flex justify-between gap-3"><span>Amount before discount and tax</span><strong>{{ (billingQuantity(billableItems[index]) * Number(line.unit_price || 0)).toFixed(2) }}</strong></div>
+                        <div class="mt-1 text-xs text-slate-500">{{ billingQuantity(billableItems[index]).toFixed(4) }} {{ billingUom(billableItems[index]) }} × {{ Number(line.unit_price || 0).toFixed(2) }} per {{ billingUom(billableItems[index]) }}</div>
+                    </div>
+                </div>
+                <p v-for="(error, key) in billErrors" :key="key" class="text-sm text-red-600">{{ error }}</p>
+            </div>
             <BaseSelect 
                 v-model="billForm.account_id" 
                 label="Posting Ledger (Purchase Account)" 
@@ -501,7 +540,7 @@ const handleDeleteBill = (billId: number) => {
                         <ArchiveBoxIcon class="w-4 h-4 text-amber-600" />
                     </div>
                     <p class="text-[11px] font-medium text-amber-700 leading-relaxed">
-                        This will bill only the unbilled received quantity at the purchase order rate, with proportional discounts and charges. Ensure the posting ledger correctly reflects your chart of accounts.
+                        This will bill only the unbilled received quantity at the rates entered above, with applicable taxes and proportional discounts and charges. These rates apply only to this bill.
                     </p>
                 </div>
             </div>
@@ -510,10 +549,8 @@ const handleDeleteBill = (billId: number) => {
         <template #footer>
             <div class="flex justify-end gap-3 pt-4 border-t border-slate-50">
                 <BaseButton label="Cancel" variant="text" severity="secondary" @click="showBillDialog = false" class="!text-xs font-bold uppercase tracking-widest" />
-                <BaseButton label="Generate Bill" variant="filled" severity="primary" @click="executeBillGeneration" />
+                <BaseButton label="Generate Bill" variant="filled" severity="primary" :disabled="hasConversionError" @click="executeBillGeneration" />
             </div>
         </template>
     </Dialog>
 </template>
-
-

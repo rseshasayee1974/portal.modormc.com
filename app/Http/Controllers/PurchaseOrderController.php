@@ -98,6 +98,7 @@ class PurchaseOrderController extends Controller
             'bill.account:id,title'
         ]);
 
+        $this->prepareBillingPreview($purchaseorder);
         return response()->json($purchaseorder);
     }
 
@@ -107,6 +108,7 @@ class PurchaseOrderController extends Controller
 
         $this->authorizePlantAccess($purchaseorder);
         $purchaseorder->load(['items.product', 'items.uom', 'items.tax', 'items.history', 'bills.items', 'bill.createdBy', 'bill.account']);
+        $this->prepareBillingPreview($purchaseorder);
 
 
         return Inertia::render('PurchaseOrders/Edit', [
@@ -158,6 +160,9 @@ class PurchaseOrderController extends Controller
             'account_id' => ['required', 'integer', \Illuminate\Validation\Rule::exists('mm_ledgers', 'id')->where('plant_id', $purchase_order->plant_id)->whereNull('deleted_at')],
             'invoice_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date'],
+            'items' => ['sometimes', 'array'],
+            'items.*.order_item_id' => ['required', 'integer', 'distinct', \Illuminate\Validation\Rule::exists('mm_purchase_order_items', 'id')->where('order_id', $purchase_order->id)->whereNull('deleted_at')],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],
         ]);
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $purchase_order) {
             $order = PurchaseOrder::whereKey($purchase_order->id)->lockForUpdate()->firstOrFail();
@@ -211,14 +216,24 @@ class PurchaseOrderController extends Controller
         $subtotalSum = 0;
         $taxSum = 0;
         $discountSum = 0;
+        $receiptOrderValue = 0;
+        $billRates = collect($request->input('items', []))->keyBy('order_item_id');
+        $converted = $this->conversionBillingEnabled($purchase_order);
+        $purchase_order->loadMissing(['items.history', 'bills.items']);
+        $quantities = new \App\Services\PurchaseReceiptBilling;
 
         foreach ($purchase_order->items as $item) {
             if ((float)$item->received_quantity <= (float)$item->invoiced_quantity) {
                 continue;
             }
 
-            $qty = (float)$item->received_quantity - (float)$item->invoiced_quantity;
-            $priceUnit = (float) $item->unit_price;
+            $billingQuantity = $quantities->quantity($purchase_order, $item, $converted);
+            $baseQty = $billingQuantity['received_quantity'];
+            $qty = $billingQuantity['quantity'];
+            $priceUnit = (float) ($billRates->get($item->id)['unit_price'] ?? $item->unit_price);
+            // Allocate fixed PO charges by received share, independently of the bill's rate.
+            $receiptOrderValue += (float)$item->product_quantity > 0
+                ? (float)$item->price_subtotal * $baseQty / (float)$item->product_quantity : 0;
 
             // Recalculate discount
             $discountType = $item->discount_type;
@@ -229,14 +244,19 @@ class PurchaseOrderController extends Controller
                 $lineDiscount = ($lineSubtotalBeforeDiscount * $discountVal) / 100;
             } else {
                 $orderedQty = (float) $item->product_quantity;
-                if ($qty == $orderedQty || $orderedQty == 0) {
+                if ($baseQty == $orderedQty || $orderedQty == 0) {
                     $lineDiscount = $discountVal;
                 } else {
-                    $lineDiscount = ($discountVal / $orderedQty) * $qty;
+                    $lineDiscount = ($discountVal / $orderedQty) * $baseQty;
                 }
             }
 
             $lineSubtotal = $lineSubtotalBeforeDiscount - $lineDiscount;
+            if ($lineSubtotal < 0) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'items' => 'The bill rate must cover the purchase order line discount.',
+                ]);
+            }
 
             // Recalculate tax
             $taxRate = 0;
@@ -264,7 +284,7 @@ class PurchaseOrderController extends Controller
                 'item_name'       => $item->product->title ?? $item->description,
                 'hsn_code'        => $item->product->hsn_code ?? null,
                 'quantity'        => $qty,
-                'uom_id'          => $item->product_uom ?? $item->uom_id,
+                'uom_id'          => $billingQuantity['uom_id'],
                 'price_unit'      => $priceUnit,
                 'discount_type'   => $discountType,
                 'discount'        => $discountType === '%' ? $discountVal : $lineDiscount,
@@ -282,7 +302,7 @@ class PurchaseOrderController extends Controller
 
         // Allocate order-level charges by value so each receipt bears only its share.
         $orderedValue = (float)$purchase_order->items->sum(fn ($item) => (float)$item->price_subtotal);
-        $share = $orderedValue > 0 ? min(1, $subtotalSum / $orderedValue) : 0;
+        $share = $orderedValue > 0 ? min(1, $receiptOrderValue / $orderedValue) : 0;
         $globalDiscount = round((float)$purchase_order->discount_amount * $share, 2);
         $subtotal = $subtotalSum - $globalDiscount;
         $discountTotal = $discountSum + $globalDiscount;
@@ -321,6 +341,34 @@ class PurchaseOrderController extends Controller
             'items'            => $itemsData
         ];
 
+    }
+
+    protected function conversionBillingEnabled(PurchaseOrder $order): bool
+    {
+        return filter_var(CustomSetting::getForModule($order->plant_id, 'batching')['purchase_bill_conversion'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    private function prepareBillingPreview(PurchaseOrder $order): void
+    {
+        $converted = $this->conversionBillingEnabled($order);
+        $order->setAttribute('conversion_billing_enabled', $converted);
+        $order->loadMissing(['items.history.conversionUom', 'bills.items']);
+        $quantities = new \App\Services\PurchaseReceiptBilling;
+        foreach ($order->items as $item) {
+            $item->setAttribute('converted_receipts', $item->history->groupBy('conversion_uom_id')->map(fn ($receipts) => [
+                'quantity' => round($receipts->sum('conversion_quantity'), 4),
+                'converted_uom' => $receipts->first()->conversionUom?->unit_code,
+            ])->values());
+            try {
+                $preview = $quantities->quantity($order, $item, $converted);
+                $preview['converted_uom'] = $converted
+                    ? $item->history->firstWhere('conversion_uom_id', $preview['uom_id'])?->conversionUom?->unit_code
+                    : $item->uom?->unit_code;
+                $item->setAttribute('billing_preview', $preview);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $item->setAttribute('billing_preview', ['error' => $e->validator->errors()->first()]);
+            }
+        }
     }
 
     public function deleteBill(Request $request, PurchaseOrder $purchase_order)

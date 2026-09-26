@@ -56,7 +56,7 @@ const form = useForm({
     items: [] as any[]
 });
 
-onMounted(() => {
+const loadDetails = () => {
     // Dynamic loading of detailed Purchase Order relationships
     axios.get(route('purchaseorder.show', props.purchaseOrder.id))
         .then(res => {
@@ -107,7 +107,8 @@ onMounted(() => {
             Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load detailed Purchase Order.' });
             isLoading.value = false;
         });
-});
+};
+onMounted(loadDetails);
 
 function createNewItem() {
     return {
@@ -223,6 +224,7 @@ const submit = () => {
     </div>
     <div v-else>
         <PurchaseOrderEditForm 
+            @billing-updated="loadDetails"
             :form="form"
             :purchaseOrder="detailedPurchaseOrder"
             :vendors="vendors"

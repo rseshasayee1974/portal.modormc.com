@@ -44,7 +44,7 @@ class InvoiceItem extends Model
         'item_id'         => 'integer',
         'tax_id'          => 'integer',
         'uom_id'          => 'integer',
-        'quantity'        => 'decimal:2',
+        'quantity'        => 'decimal:4',
         'price_unit'      => 'decimal:2',
         'discount'        => 'decimal:2',
         'discount_amount' => 'decimal:2',

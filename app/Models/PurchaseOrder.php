@@ -144,6 +144,13 @@ class PurchaseOrder extends Model
         return $this->hasMany(Invoice::class, 'ref_id')->where('invoice_type', 'bill')->where('invoice_label', 'purchase');
     }
 
+    public function billingHistory()
+    {
+        return $this->hasMany(Invoice::class, 'ref_id')->withTrashed()
+            ->where('invoice_type', 'bill')->where('invoice_label', 'purchase')
+            ->with(['items' => fn ($query) => $query->withTrashed()]);
+    }
+
     /**
      * Recalculate totals based on items.
      */

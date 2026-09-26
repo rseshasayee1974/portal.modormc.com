@@ -226,7 +226,10 @@ class Invoice extends Model implements Postable
                     $linked = $m->items->whereNotNull('purchase_order_item_id');
                     foreach ($linked as $line) {
                         $item = $order->items()->find($line->purchase_order_item_id);
-                        if ($item) $item->update(['invoiced_quantity' => max(0, (float)$item->invoiced_quantity - (float)$line->quantity)]);
+                        if ($item) {
+                            $released = (new \App\Services\PurchaseReceiptBilling)->originalQuantity($order, $item, $m, $line);
+                            $item->update(['invoiced_quantity' => max(0, (float)$item->invoiced_quantity - $released)]);
+                        }
                     }
                     // Legacy bills predate line links; release their matching product quantities.
                     if ($linked->isEmpty()) {

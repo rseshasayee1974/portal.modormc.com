@@ -358,7 +358,7 @@
                     <td style="text-align: center; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $displayGrade }}</td>
                     @if($showDesc) <td style="{{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $hasValue($item['description'] ?? null) ? $item['description'] : '' }}</td> @endif
                     @if($showPump) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? 'TM' }}</td> @endif
-                    @if($showQty) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ (float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.') }}</td> @endif
+                    @if($showQty) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['qty_display'] ?? ((float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.')) }}</td> @endif
                     @if($showUnit) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td> @endif
                     @if($showDiscount) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ !empty($item['discount']) && $item['discount'] > 0 ? number_format($item['discount'], 2) : '' }}</td> @endif
                     @if($showPump) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['pump_charge'] ?? 0, 2) }}</td> @endif

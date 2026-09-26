@@ -31,6 +31,8 @@ package.json
 /tests/Standalone/*
 !/tests/Standalone/register-reports.php
 !/tests/Standalone/report-permissions.php
+!/tests/Standalone/purchase-receipt-billing.php
+!/tests/Standalone/purchase-conversion-billing.php
 Homestead.json
 Homestead.yaml
 Thumbs.db

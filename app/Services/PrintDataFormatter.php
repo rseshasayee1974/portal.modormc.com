@@ -1138,6 +1138,8 @@ class PrintDataFormatter
                 'description'      => '',
                 'hsn'              => $item->hsn_code ?? '-',
                 'qty'              => (float) $item->quantity,
+                'qty_display'      => $isPurchaseBill && $item->purchase_order_item_id !== null
+                    ? rtrim(rtrim(number_format((float) $item->quantity, 4), '0'), '.') : null,
                 'unit'             => $item->uom->unit_code ?? ($isPurchaseBill ? '-' : 'm³'),
                 'unit_price'       => (float) $item->price_unit,
                 'discount'         => (float) ($item->discount_amount ?? $item->discount ?? 0),

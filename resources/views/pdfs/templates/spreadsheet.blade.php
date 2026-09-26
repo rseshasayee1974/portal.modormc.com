@@ -323,7 +323,7 @@
                         <th class="text-right" style="width:55px">Qty</th>
                     @endif
                     @if ($pdfSettings['unit'] ?? true)
-                        <th class="text-center" style="width:50px">Unit</th>
+                        <th class="text-center" style="width:50px">UOM</th>
                     @endif
                     <th class="text-right" style="width:75px">{{ $labels['rate'] ?? 'Rate' }}</th>
                     @if ($pdfSettings['discount'] ?? false)
@@ -375,7 +375,7 @@
                             </td>
                         @endif
                         @if ($pdfSettings['qty'] ?? true)
-                            <td class="text-right bold" style="vertical-align: middle; font-size: 11.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ number_format($item['qty'], 2) }}</td>
+                            <td class="text-right bold" style="vertical-align: middle; font-size: 11.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['qty_display'] ?? number_format($item['qty'], 2) }}</td>
                         @endif
                         @if ($pdfSettings['unit'] ?? true)
                             <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['unit'] }}</td>
