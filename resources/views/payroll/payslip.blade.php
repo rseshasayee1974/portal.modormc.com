@@ -233,25 +233,25 @@
             <td class="info-hdr">Employee Code</td>
             <td class="info-val bold text-indigo">{{ $payslip->personnel?->employee_code }}</td>
             <td class="info-hdr">Working Days</td>
-            <td class="info-val bold">{{ $payslip->working_days }}</td>
+            <td class="info-val bold">{{ $payslip->working_days + 0 }}</td>
         </tr>
         <tr>
             <td class="info-hdr">Employee Name</td>
             <td class="info-val bold">{{ $payslip->personnel?->first_name }} {{ $payslip->personnel?->last_name }}</td>
             <td class="info-hdr">Days Present</td>
-            <td class="info-val bold text-green">{{ $payslip->present_days }}</td>
+            <td class="info-val bold text-green">{{ $payslip->present_days + 0 }}</td>
         </tr>
         <tr>
             <td class="info-hdr">Department</td>
             <td class="info-val">{{ $payslip->personnel?->department?->name ?? 'N/A' }}</td>
             <td class="info-hdr">Paid Leaves</td>
-            <td class="info-val bold text-indigo">{{ $payslip->paid_leave_days }}</td>
+            <td class="info-val bold text-indigo">{{ $payslip->paid_leave_days + 0 }}</td>
         </tr>
         <tr>
             <td class="info-hdr">Designation</td>
             <td class="info-val">{{ $payslip->personnel?->designation?->name ?? 'N/A' }}</td>
             <td class="info-hdr">Days Absent</td>
-            <td class="info-val bold text-red">{{ $payslip->absent_days }}</td>
+            <td class="info-val bold text-red">{{ $payslip->absent_days + 0 }}</td>
         </tr>
         <tr>
             <td class="info-hdr">PF UAN</td>

@@ -26,7 +26,7 @@ class AttendanceController extends Controller
                 ->where('plant_id', $activePlantId)
                 ->latest()
                 ->get(),
-            'personnel' => Personnel::where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code']),
+            'personnel' => Personnel::where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code', 'shift_start_time', 'shift_end_time']),
             'shifts' => Shift::get(['id', 'shift_name', 'start_time', 'end_time']),
             'statuses' => ['present', 'absent', 'half_day', 'leave', 'holiday', 'weekoff', 'on_duty'],
             'sources' => ['manual', 'biometric', 'mobile', 'web']

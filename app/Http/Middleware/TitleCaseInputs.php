@@ -123,6 +123,8 @@ class TitleCaseInputs
         'approval_status',
         'dispatch_status',
         'type',
+        'employment_type',
+        'gender',
         'balance_type',
         'value_type',
         'guard_name',

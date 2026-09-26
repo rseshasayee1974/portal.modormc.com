@@ -34,7 +34,6 @@ class PurchaseOrderFactory extends Factory
             'date_order' => $this->faker->date(),
             'date_planned' => $this->faker->optional()->date(),
             'state' => 'draft',
-            'currency_id' => Currency::inRandomOrder()->first()?->id ?? 1,
             'exchange_rate' => 1.0,
             'amount_untaxed' => 0,
             'amount_tax' => 0,

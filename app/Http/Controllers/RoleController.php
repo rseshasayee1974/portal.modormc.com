@@ -35,8 +35,6 @@ class RoleController extends Controller
             $parts = explode('.', $perm->name);
             $module = count($parts) > 1 ? $parts[0] : 'general';
             $action = count($parts) > 1 ? implode('.', array_slice($parts, 1)) : $perm->name;
-            // Broad report grants are retained only for migration history; reports now use their own rows.
-            if ($module === 'REPORT') continue;
             if (str_starts_with($module, 'REPORT_')) {
                 $reportId = strtolower(substr($module, 7));
                 $label = \App\Services\Reports\ReportPermissions::REPORTS[$reportId] ?? null;

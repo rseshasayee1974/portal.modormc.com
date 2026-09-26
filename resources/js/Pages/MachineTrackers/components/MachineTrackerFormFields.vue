@@ -32,7 +32,7 @@ defineProps<{
                         optionValue="value" placeholder="Select Shift" :error="form.errors?.shift" />
                 </div> -->
                 <div>
-                    <BaseSelect v-model="form.operator_id" :options="operatorOptions" label="Assigned Driver"
+                    <BaseSelect v-model="form.operator_id" :options="operatorOptions" label="Assigned Driver / Operator"
                         optionLabel="label" optionValue="value" placeholder="Select Driver"
                         :error="form.errors?.operator_id" />
                 </div>

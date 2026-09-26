@@ -35,6 +35,7 @@ class PurchaseOrderInwardController extends Controller
                 'order', 
                 'product', 
                 'uom', 
+                'conversionUom',
                 'item',
                 'order.vendor',
                 'order.items.product',
@@ -42,6 +43,7 @@ class PurchaseOrderInwardController extends Controller
                 'order.items.tax',
                 'order.items.history',
                 'order.items.history.uom',
+                'order.items.history.conversionUom',
                 'truck',
                 'loadedWeightImage',
                 'emptyWeightImage',
@@ -60,6 +62,7 @@ class PurchaseOrderInwardController extends Controller
             'inwards' => $inwards,
             'purchaseOrders' => $purchaseOrders,
             'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
+            'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
         ]);
     }
 
@@ -70,12 +73,13 @@ class PurchaseOrderInwardController extends Controller
 
         $inward->load([
             'order.vendor', 'order.items.product', 'order.items.uom',
-            'order.items.tax', 'order.items.history.uom',
-            'product', 'uom', 'item', 'truck', 'loadedWeightImage', 'emptyWeightImage',
+            'order.items.tax', 'order.items.history.uom', 'order.items.history.conversionUom',
+            'product', 'uom', 'conversionUom', 'item', 'truck', 'loadedWeightImage', 'emptyWeightImage',
         ]);
 
         return Inertia::render('PurchaseOrders/Inwards/Edit', [
             'inward' => $inward,
+            'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
         ]);
     }
 
@@ -98,7 +102,8 @@ class PurchaseOrderInwardController extends Controller
         return Inertia::render('PurchaseOrders/Inwards/Create', [
             'purchase_order' => $purchase_order,
             'purchaseOrders' => $purchaseOrders,
-            'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration')
+            'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
+            'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
         ]);
     }
 
@@ -116,6 +121,8 @@ class PurchaseOrderInwardController extends Controller
             'items' => 'required|array|min:1',
             'items.*.order_item_id' => 'required|exists:mm_purchase_order_items,id',
             'items.*.received_qty' => 'required|numeric|min:0',
+            'items.*.conversion_quantity' => 'nullable|numeric|min:0',
+            'items.*.conversion_uom_id' => 'nullable|exists:mm_product_units,id',
             'items.*.truck_id' => 'nullable|exists:mm_machines,id',
             'items.*.truck_loaded' => 'nullable|numeric|min:0',
             'items.*.truck_empty' => 'nullable|numeric|min:0',
@@ -158,6 +165,19 @@ class PurchaseOrderInwardController extends Controller
                 $entryDate = \Carbon\Carbon::parse($validated['received_date'])->toDateString();
                 $newReceivedQty = (float) $item->received_quantity + $acceptedQty;
 
+                $itemProduct = $item->product;
+                $convQty = isset($itemData['conversion_quantity']) && $itemData['conversion_quantity'] !== null 
+                    ? (float)$itemData['conversion_quantity'] 
+                    : null;
+                $convUomId = !empty($itemData['conversion_uom_id']) ? (int)$itemData['conversion_uom_id'] : null;
+
+                if (($convQty === null || $convQty == 0) && $itemProduct && (float)$itemProduct->conversion_quantity > 0) {
+                    $convQty = $acceptedQty / (float)$itemProduct->conversion_quantity;
+                }
+                if (!$convUomId && $itemProduct) {
+                    $convUomId = $itemProduct->unit_id;
+                }
+
                 $history = PurchaseOrderHistory::create([
                     'plant_id' => $order->plant_id,
                     'order_id' => $order->id,
@@ -167,6 +187,8 @@ class PurchaseOrderInwardController extends Controller
                     'uom_id' => $item->product_uom,
                     'used_quantity' => $newReceivedQty,
                     'received_qty' => $acceptedQty,
+                    'conversion_quantity' => $convQty ?? 0,
+                    'conversion_uom_id' => $convUomId,
                     'unit_price' => $item->unit_price,
                     'inward_no' => $validated['inward_no'] ?: PurchaseOrderHistory::generateNextInwardNo($order->plant_id, $entryDate),
                     'truck_id' => $itemTruckId,
@@ -290,6 +312,8 @@ class PurchaseOrderInwardController extends Controller
         $validated = $request->validate([
             'truck_empty' => 'nullable|numeric|min:0',
             'truck_loaded' => 'nullable|numeric|min:0',
+            'conversion_quantity' => 'nullable|numeric|min:0',
+            'conversion_uom_id' => 'nullable|exists:mm_product_units,id',
             'empty_weight_photo' => ['nullable', 'string', new Base64Image],
             'loaded_weight_photo' => ['nullable', 'string', new Base64Image],
         ]);
@@ -327,6 +351,16 @@ class PurchaseOrderInwardController extends Controller
                 $inward->truck_empty = $validated['truck_empty'];
             }
             $inward->received_qty = $newReceivedQty;
+
+            if (array_key_exists('conversion_quantity', $validated) && $validated['conversion_quantity'] !== null) {
+                $inward->conversion_quantity = (float)$validated['conversion_quantity'];
+            } elseif ($diff != 0 && $inward->product && (float)$inward->product->conversion_quantity > 0) {
+                $inward->conversion_quantity = $newReceivedQty / (float)$inward->product->conversion_quantity;
+            }
+            if (array_key_exists('conversion_uom_id', $validated) && $validated['conversion_uom_id'] !== null) {
+                $inward->conversion_uom_id = $validated['conversion_uom_id'];
+            }
+
             $inward->updated_by = $userId;
             $inward->save();
 
@@ -358,6 +392,10 @@ class PurchaseOrderInwardController extends Controller
                     $quantityRecord->opening_quantity = 0;
                     $quantityRecord->created_by = $userId;
                     $quantityRecord->status = 1;
+                }
+
+                if ($diff < 0 && ((float)$quantityRecord->quantity + $diff < 0)) {
+                    throw new \InvalidArgumentException('Stock cannot be reduced below zero.');
                 }
 
                 $quantityRecord->quantity = max(0, (float)$quantityRecord->quantity + $diff);
@@ -485,6 +523,7 @@ class PurchaseOrderInwardController extends Controller
             'order.items.uom',
             'product',
             'uom',
+            'conversionUom',
             'truck',
             'loadedWeightImage',
             'emptyWeightImage',

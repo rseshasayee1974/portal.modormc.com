@@ -66,7 +66,7 @@ $roleController = new class extends App\Http\Controllers\RoleController {
 $rolePage = $roleController->index(Request::create('/settings/roles'));
 $roleProps = (new ReflectionProperty(Inertia\Response::class, 'props'))->getValue($rolePage);
 $reportGroups = array_filter(array_keys($roleProps['groupedPermissions']), fn ($label) => str_starts_with($label, 'Report: '));
-checkAccess(count($reportGroups) === $reportCount && !isset($roleProps['groupedPermissions']['REPORT']), 'Role matrix missing report rows or exposes blanket permission.');
+checkAccess(count($reportGroups) === $reportCount && isset($roleProps['groupedPermissions']['REPORT']), 'Role matrix missing report rows or REPORT permissions.');
 $ledgerPermission = DB::table('mm_permissions')->where('name', 'REPORT_LEDGER.VIEW')->value('id');
 DB::table('mm_role_has_permissions')->where('role_id', 1)->where('permission_id', $ledgerPermission)->delete();
 InstallReportPermissions::run();

@@ -43,8 +43,8 @@ class UpdateBatchRequest extends FormRequest
             'transport_id' => ['nullable', 'integer', 'exists:mm_patrons,id'],
             'driver_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'sales_executive_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
-            'empty_weight_truck' => ['nullable', 'numeric', 'min:0'],
-            'loaded_weight_truck' => ['nullable', 'numeric', 'min:0'],
+            'empty_weight_truck' => ['required', 'numeric', 'gt:0'],
+            'loaded_weight_truck' => ['required', 'numeric', 'gt:empty_weight_truck'],
             'empty_weight_photo' => ['nullable', 'string'],
             'loaded_weight_photo' => ['nullable', 'string'],
             'net_weight' => ['nullable', 'numeric'],
@@ -119,6 +119,10 @@ class UpdateBatchRequest extends FormRequest
             'batch_no.unique' => 'Batch number #:input already exists for this plant. Duplicate batch numbers are restricted.',
             'batch_no.min' => 'Batch number must be at least 1.',
             'batch_no.integer' => 'Batch number must be a valid integer.',
+            'empty_weight_truck.required' => 'Empty Weight is required.',
+            'empty_weight_truck.gt' => 'Empty Weight must be greater than 0.',
+            'loaded_weight_truck.required' => 'Full Weight is required.',
+            'loaded_weight_truck.gt' => 'Loaded Weight must be greater than Empty Weight.',
         ];
     }
 

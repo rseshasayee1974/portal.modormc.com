@@ -289,7 +289,7 @@ class PumpBoomDeploymentController extends Controller
         $sites = Site::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'name', 'site_address_1']);
         $mixDesigns = MixDesign::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'design_name', 'design_code']);
         $machines = MachinesDropdown('Pump');
-        $operators = DriversDropdown();
+        $operators = DriversOperatorsDropdown();
 
         $salesOrders = SalesOrder::where('plant_id', $plantId)
             ->whereNull('deleted_at')

@@ -52,7 +52,7 @@ class MaintenanceRequestController extends Controller
                 ->orderBy('username')
                 ->get()
                 ->toArray(),
-            'taxes' => TaxesDropdown('purchase')->toArray(),
+            'taxes' => TaxesDropdown('purchase','gst')->toArray(),
             'products' => ProductsDropdown('purchase')->toArray(),
             'units' => Productunit()->toArray(),
         ];
@@ -76,6 +76,9 @@ class MaintenanceRequestController extends Controller
             'repair_vendor_id' => 'nullable|exists:mm_patrons,id',
             'bill_no' => 'nullable|string|max:150',
             'order_no' => 'nullable|string|max:150',
+            'amount_untaxed' => 'nullable|numeric',
+            'amount_tax' => 'nullable|numeric',
+            'amount_total' => 'nullable|numeric',
             'discount_amount' => 'required|numeric',
             'shipping_charges' => 'required|numeric',
             'shipping_tax_id' => 'nullable|exists:mm_taxes,id',
@@ -83,6 +86,7 @@ class MaintenanceRequestController extends Controller
             'rounding_value' => 'required|numeric',
             'filename' => 'nullable|string|max:250',
             'status' => 'required|integer',
+            'tax_inclusive' => 'nullable|integer',
             'bill_status' => 'required|integer',
             'dead_line' => 'required|date',
             'start_date' => 'required|date',
@@ -93,8 +97,8 @@ class MaintenanceRequestController extends Controller
             'lines.*.name' => 'required|string|max:250',
             'lines.*.product_quantity' => 'required|string|max:255',
             'lines.*.date_planned' => 'required|date',
-            'lines.*.product_uom' => 'required|exists:mm_product_units,id',
-            'lines.*.product_id' => 'required|exists:mm_products,id',
+            // 'lines.*.product_uom' => 'required|exists:mm_product_units,id',
+            // 'lines.*.product_id' => 'required|exists:mm_products,id',
             'lines.*.description' => 'nullable|string',
             'lines.*.price_unit' => 'required|numeric',
             'lines.*.price_subtotal' => 'required|numeric',
@@ -106,7 +110,7 @@ class MaintenanceRequestController extends Controller
             'lines.*.invoiced_quantity' => 'required|string|max:255',
             'lines.*.received_quantity' => 'required|string|max:255',
             'lines.*.received_price' => 'nullable|numeric',
-            'lines.*.partner_id' => 'required|exists:mm_patrons,id',
+            'lines.*.partner_id' => 'nullable|exists:mm_patrons,id',
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -114,6 +118,19 @@ class MaintenanceRequestController extends Controller
 
             $requestData = collect($validated)->except('lines')->toArray();
             $requestData['plant_id'] = $plantId;
+
+            // Auto-calculate untaxed, tax, and total if not set
+            $sumSubtotal = collect($validated['lines'])->sum('price_subtotal');
+            $sumTax = collect($validated['lines'])->sum('price_tax');
+            $requestData['amount_untaxed'] = $requestData['amount_untaxed'] ?? $sumSubtotal;
+            $requestData['amount_tax'] = $requestData['amount_tax'] ?? $sumTax;
+            $requestData['amount_total'] = $requestData['amount_total'] ?? (
+                $requestData['amount_untaxed'] + $requestData['amount_tax'] +
+                ($requestData['shipping_charges'] ?? 0) -
+                ($requestData['discount_amount'] ?? 0) +
+                ($requestData['adjustment'] ?? 0) +
+                ($requestData['rounding_value'] ?? 0)
+            );
 
             $maintenanceRequest = MaintenanceRequest::create($requestData);
 
@@ -145,6 +162,9 @@ class MaintenanceRequestController extends Controller
             'repair_vendor_id' => 'nullable|exists:mm_patrons,id',
             'bill_no' => 'nullable|string|max:150',
             'order_no' => 'nullable|string|max:150',
+            'amount_untaxed' => 'nullable|numeric',
+            'amount_tax' => 'nullable|numeric',
+            'amount_total' => 'nullable|numeric',
             'discount_amount' => 'required|numeric',
             'shipping_charges' => 'required|numeric',
             'shipping_tax_id' => 'nullable|exists:mm_taxes,id',
@@ -152,6 +172,7 @@ class MaintenanceRequestController extends Controller
             'rounding_value' => 'required|numeric',
             'filename' => 'nullable|string|max:250',
             'status' => 'required|integer',
+            'tax_inclusive' => 'nullable|integer',
             'bill_status' => 'required|integer',
             'dead_line' => 'required|date',
             'start_date' => 'required|date',
@@ -162,8 +183,8 @@ class MaintenanceRequestController extends Controller
             'lines.*.name' => 'required|string|max:250',
             'lines.*.product_quantity' => 'required|string|max:255',
             'lines.*.date_planned' => 'required|date',
-            'lines.*.product_uom' => 'required|exists:mm_product_units,id',
-            'lines.*.product_id' => 'required|exists:mm_products,id',
+            // 'lines.*.product_uom' => 'required|exists:mm_product_units,id',
+            // 'lines.*.product_id' => 'required|exists:mm_products,id',
             'lines.*.description' => 'nullable|string',
             'lines.*.price_unit' => 'required|numeric',
             'lines.*.price_subtotal' => 'required|numeric',
@@ -175,13 +196,27 @@ class MaintenanceRequestController extends Controller
             'lines.*.invoiced_quantity' => 'required|string|max:255',
             'lines.*.received_quantity' => 'required|string|max:255',
             'lines.*.received_price' => 'nullable|numeric',
-            'lines.*.partner_id' => 'required|exists:mm_patrons,id',
+            'lines.*.partner_id' => 'nullable|exists:mm_patrons,id',
         ]);
 
         DB::transaction(function () use ($maintenanceRequest, $validated) {
             $plantId = session('active_plant_id');
 
             $requestData = collect($validated)->except('lines')->toArray();
+
+            // Auto-calculate untaxed, tax, and total if not set
+            $sumSubtotal = collect($validated['lines'])->sum('price_subtotal');
+            $sumTax = collect($validated['lines'])->sum('price_tax');
+            $requestData['amount_untaxed'] = $requestData['amount_untaxed'] ?? $sumSubtotal;
+            $requestData['amount_tax'] = $requestData['amount_tax'] ?? $sumTax;
+            $requestData['amount_total'] = $requestData['amount_total'] ?? (
+                $requestData['amount_untaxed'] + $requestData['amount_tax'] +
+                ($requestData['shipping_charges'] ?? 0) -
+                ($requestData['discount_amount'] ?? 0) +
+                ($requestData['adjustment'] ?? 0) +
+                ($requestData['rounding_value'] ?? 0)
+            );
+
             $maintenanceRequest->update($requestData);
 
             // Re-sync lines

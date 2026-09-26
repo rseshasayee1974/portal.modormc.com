@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { 
-    UserIcon, 
-    PhoneIcon, 
-    BriefcaseIcon, 
+import {
+    UserIcon,
+    PhoneIcon,
+    BriefcaseIcon,
     CalendarDaysIcon,
     PlusIcon,
     TrashIcon,
@@ -141,32 +141,47 @@ const handlePrimaryToggle = (index: number, val: any) => {
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Employee Code</label>
-                                    <div class="flex items-center h-10 px-3 rounded-lg border border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-500 dark:text-indigo-400 text-xs font-semibold tracking-widest gap-2">
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Employee
+                                        Code</label>
+                                    <div
+                                        class="flex items-center h-10 px-3 rounded-lg border border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-500 dark:text-indigo-400 text-xs font-semibold tracking-widest gap-2">
                                         <span class="pi pi-bolt text-[10px]"></span>
                                         Auto-generated on save
                                     </div>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">First Name <span class="text-red-500">*</span></label>
-                                    <BaseInput v-model="form.first_name" placeholder="Enter first name" :class="{'p-invalid': form.errors.first_name}" />
-                                    <small v-if="form.errors.first_name" class="p-error text-[10px]">{{ form.errors.first_name }}</small>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">First
+                                        Name
+                                        <span class="text-red-500">*</span></label>
+                                    <BaseInput v-model="form.first_name" placeholder="Enter first name"
+                                        :class="{ 'p-invalid': form.errors.first_name }" />
+                                    <small v-if="form.errors.first_name" class="p-error text-[10px]">{{
+                                        form.errors.first_name
+                                        }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Last Name</label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Last
+                                        Name</label>
                                     <BaseInput v-model="form.last_name" placeholder="Enter last name" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Gender</label>
-                                    <BaseSelect v-model="form.gender" :options="genderOptions" optionLabel="label" optionValue="value" placeholder="Select Gender" class="w-full" />
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Gender</label>
+                                    <BaseSelect v-model="form.gender" :options="genderOptions" optionLabel="label"
+                                        optionValue="value" placeholder="Select Gender" class="w-full" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Date of Birth</label>
-                                    <DatePicker v-model="form.date_of_birth" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" />
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Date of
+                                        Birth</label>
+                                    <DatePicker v-model="form.date_of_birth" dateFormat="yy-mm-dd" showIcon
+                                        iconDisplay="input" placeholder="Select Date" class="w-full" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Current Status</label>
-                                    <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value" placeholder="Current Status" class="w-full" />
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Current
+                                        Status</label>
+                                    <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label"
+                                        optionValue="value" placeholder="Current Status" class="w-full" />
                                 </div>
                             </div>
                         </div>
@@ -177,31 +192,75 @@ const handlePrimaryToggle = (index: number, val: any) => {
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department <span class="text-red-500">*</span></label>
-                                    <BaseSelect v-model="form.department_id" :options="departmentOptions" optionLabel="label" optionValue="value" placeholder="Select Department" filter class="w-full" />
-                                    <small v-if="form.errors.department_id" class="p-error text-[10px]">{{ form.errors.department_id }}</small>
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department
+                                        <span class="text-red-500">*</span></label>
+                                    <BaseSelect v-model="form.department_id" :options="departmentOptions"
+                                        optionLabel="label" optionValue="value" placeholder="Select Department" filter
+                                        class="w-full" />
+                                    <small v-if="form.errors.department_id" class="p-error text-[10px]">{{
+                                        form.errors.department_id }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Designation <span class="text-red-500">*</span></label>
-                                    <BaseSelect v-model="form.designation_id" :options="designationOptions" optionLabel="label" optionValue="value" placeholder="Select Designation" filter class="w-full" />
-                                    <small v-if="form.errors.designation_id" class="p-error text-[10px]">{{ form.errors.designation_id }}</small>
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Designation
+                                        <span class="text-red-500">*</span></label>
+                                    <BaseSelect v-model="form.designation_id" :options="designationOptions"
+                                        optionLabel="label" optionValue="value" placeholder="Select Designation" filter
+                                        class="w-full" />
+                                    <small v-if="form.errors.designation_id" class="p-error text-[10px]">{{
+                                        form.errors.designation_id }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Reporting Manager</label>
-                                    <BaseSelect v-model="form.reporting_manager_id" :options="managerOptions" optionLabel="label" optionValue="value" placeholder="Select Manager" filter class="w-full" />
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Reporting
+                                        Manager</label>
+                                    <BaseSelect v-model="form.reporting_manager_id" :options="managerOptions"
+                                        optionLabel="label" optionValue="value" placeholder="Select Manager" filter
+                                        class="w-full" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Employment Type <span class="text-red-500">*</span></label>
-                                    <BaseSelect v-model="form.employment_type" :options="employmentTypeOptions" optionLabel="label" optionValue="value" placeholder="Select Type" class="w-full" />
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Employment
+                                        Type
+                                        <span class="text-red-500">*</span></label>
+                                    <BaseSelect v-model="form.employment_type" :options="employmentTypeOptions"
+                                        optionLabel="label" optionValue="value" placeholder="Select Type"
+                                        class="w-full" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Joining Date </label>
-                                    <DatePicker v-model="form.joining_date" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" />
-                                    
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Joining
+                                        Date
+                                    </label>
+                                    <DatePicker v-model="form.joining_date" dateFormat="yy-mm-dd" showIcon
+                                        iconDisplay="input" placeholder="Select Date" class="w-full" />
+
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Exit Date</label>
-                                    <DatePicker v-model="form.exit_date" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" />
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Exit
+                                        Date</label>
+                                    <DatePicker v-model="form.exit_date" dateFormat="yy-mm-dd" showIcon
+                                        iconDisplay="input" placeholder="Select Date" class="w-full" />
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Shift
+                                        Start
+                                        Time</label>
+                                    <DatePicker v-model="form.shift_start_time" timeOnly showTime hourFormat="12"
+                                        placeholder="e.g. 09:00:00" class="w-full"
+                                        :class="{ 'p-invalid': form.errors.shift_start_time }" />
+                                    <small v-if="form.errors.shift_start_time" class="p-error text-[10px]">{{
+                                        form.errors.shift_start_time }}</small>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Shift
+                                        End
+                                        Time</label>
+                                    <DatePicker v-model="form.shift_end_time" timeOnly showTime hourFormat="12"
+                                        placeholder="e.g. 17:00:00" class="w-full"
+                                        :class="{ 'p-invalid': form.errors.shift_end_time }" />
+                                    <small v-if="form.errors.shift_end_time" class="p-error text-[10px]">{{
+                                        form.errors.shift_end_time }}</small>
                                 </div>
                             </div>
                         </div>
@@ -212,21 +271,29 @@ const handlePrimaryToggle = (index: number, val: any) => {
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">PAN Number</label>
-                                    <BaseInput v-model="form.pan" placeholder="ABCDE1234F" :class="{'p-invalid': form.errors.pan}" />
-                                    <small v-if="form.errors.pan" class="p-error text-[10px]">{{ form.errors.pan }}</small>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">PAN
+                                        Number</label>
+                                    <BaseInput v-model="form.pan" placeholder="ABCDE1234F"
+                                        :class="{ 'p-invalid': form.errors.pan }" />
+                                    <small v-if="form.errors.pan" class="p-error text-[10px]">{{ form.errors.pan
+                                        }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Aadhaar Number</label>
-                                    <BaseInput v-model="form.aadhaar" placeholder="1234 5678 9012" :class="{'p-invalid': form.errors.aadhaar}" />
-                                    <small v-if="form.errors.aadhaar" class="p-error text-[10px]">{{ form.errors.aadhaar }}</small>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Aadhaar
+                                        Number</label>
+                                    <BaseInput v-model="form.aadhaar" placeholder="1234 5678 9012"
+                                        :class="{ 'p-invalid': form.errors.aadhaar }" />
+                                    <small v-if="form.errors.aadhaar" class="p-error text-[10px]">{{ form.errors.aadhaar
+                                        }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">UAN (PF Number)</label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">UAN (PF
+                                        Number)</label>
                                     <BaseInput v-model="form.uan" placeholder="100XXXXXXXXX" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">ESI Number</label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">ESI
+                                        Number</label>
                                     <BaseInput v-model="form.esi_number" placeholder="ESI No." />
                                 </div>
                             </div>
@@ -238,15 +305,20 @@ const handlePrimaryToggle = (index: number, val: any) => {
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Bank Account Number</label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Bank
+                                        Account
+                                        Number</label>
                                     <BaseInput v-model="form.bank_account_no" placeholder="Enter bank account no" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Bank IFSC Code</label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Bank
+                                        IFSC
+                                        Code</label>
                                     <BaseInput v-model="form.bank_ifsc" placeholder="SBIN0001234" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Bank Name</label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Bank
+                                        Name</label>
                                     <BaseInput v-model="form.bank_name" placeholder="State Bank of India" />
                                 </div>
                             </div>
@@ -256,42 +328,50 @@ const handlePrimaryToggle = (index: number, val: any) => {
                     <!-- SALARY STRUCTURE -->
                     <TabPanel value="salary_structure">
                         <div class="space-y-6">
-                            <div v-for="(struct, index) in form.salary_structures" :key="index" class="bg-gray-50/50 dark:bg-slate-800/30 border border-gray-100 dark:border-gray-700 p-6 rounded-xl relative group">
+                            <div v-for="(struct, index) in form.salary_structures" :key="index"
+                                class="bg-gray-50/50 dark:bg-slate-800/30 border border-gray-100 dark:border-gray-700 p-6 rounded-xl relative group">
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Salary Component <span class="text-red-500">*</span></label>
-                                        <BaseSelect v-model="struct.salary_component_id" :options="salaryComponentOptions" optionLabel="label" optionValue="value" placeholder="Select Component" filter class="w-full" :error="form.errors[`salary_structures.${index}.salary_component_id`]" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Salary
+                                            Component <span class="text-red-500">*</span></label>
+                                        <BaseSelect v-model="struct.salary_component_id"
+                                            :options="salaryComponentOptions" optionLabel="label" optionValue="value"
+                                            placeholder="Select Component" filter class="w-full"
+                                            :error="form.errors[`salary_structures.${index}.salary_component_id`]" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Monthly Amount <span class="text-red-500">*</span></label>
-                                        <BaseInput type="number" step="0.01" v-model="struct.amount" placeholder="0.00" class="w-full" :error="form.errors[`salary_structures.${index}.amount`]" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Monthly
+                                            Amount <span class="text-red-500">*</span></label>
+                                        <BaseInput type="number" step="0.01" v-model="struct.amount" placeholder="0.00"
+                                            class="w-full" :error="form.errors[`salary_structures.${index}.amount`]" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective From <span class="text-red-500">*</span></label>
-                                        <BaseDatePicker v-model="struct.effective_from" iconDisplay="input" placeholder="Select Date" class="w-full" :error="form.errors[`salary_structures.${index}.effective_from`]" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective
+                                            From <span class="text-red-500">*</span></label>
+                                        <BaseDatePicker v-model="struct.effective_from" iconDisplay="input"
+                                            placeholder="Select Date" class="w-full"
+                                            :error="form.errors[`salary_structures.${index}.effective_from`]" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective To</label>
-                                        <BaseDatePicker v-model="struct.effective_to" iconDisplay="input" placeholder="Select Date" class="w-full" :error="form.errors[`salary_structures.${index}.effective_to`]" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective
+                                            To</label>
+                                        <BaseDatePicker v-model="struct.effective_to" iconDisplay="input"
+                                            placeholder="Select Date" class="w-full"
+                                            :error="form.errors[`salary_structures.${index}.effective_to`]" />
                                     </div>
                                 </div>
-                                <BaseActionButton 
-                                    icon="pi pi-trash" 
-                                    severity="danger" 
+                                <BaseActionButton icon="pi pi-trash" severity="danger"
                                     tooltip="Remove Component Allocation"
-                                    class="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity" 
-                                    @click="removeSalaryStructure(index)"
-                                />
+                                    class="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    @click="removeSalaryStructure(index)" />
                             </div>
-                            <BaseButton 
-                                type="button"
-                                severity="info" 
-                                outlined 
-                                class="w-full text-indigo-600 border-dashed" 
-                                label="Allocate Salary Component"
-                                icon="pi pi-plus"
-                                @click="addSalaryStructure"
-                            />
+                            <BaseButton type="button" severity="info" outlined
+                                class="w-full text-indigo-600 border-dashed" label="Allocate Salary Component"
+                                icon="pi pi-plus" @click="addSalaryStructure" />
                         </div>
                     </TabPanel>
 
@@ -300,48 +380,53 @@ const handlePrimaryToggle = (index: number, val: any) => {
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Primary Email</label>
-                                    <BaseInput v-model="form.email" placeholder="employee@company.com" :class="{'p-invalid': form.errors.email}" />
-                                    <small v-if="form.errors.email" class="p-error text-[10px]">{{ form.errors.email }}</small>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Primary
+                                        Email</label>
+                                    <BaseInput v-model="form.email" placeholder="employee@company.com"
+                                        :class="{ 'p-invalid': form.errors.email }" />
+                                    <small v-if="form.errors.email" class="p-error text-[10px]">{{ form.errors.email
+                                        }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Primary Mobile</label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Primary
+                                        Mobile</label>
                                     <BaseInput v-model="form.mobile" placeholder="+91 XXXXX XXXXX" />
                                 </div>
                             </div>
 
-                            <div v-for="(contact, index) in form.contacts" :key="index" class="bg-gray-50/50 dark:bg-slate-800/30 border border-gray-100 dark:border-gray-700 p-6 rounded-xl relative group">
+                            <div v-for="(contact, index) in form.contacts" :key="index"
+                                class="bg-gray-50/50 dark:bg-slate-800/30 border border-gray-100 dark:border-gray-700 p-6 rounded-xl relative group">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Type <span class="text-red-500">*</span></label>
-                                        <BaseSelect v-model="contact.contact_type" :options="contactTypeOptions" optionLabel="label" optionValue="value" placeholder="e.g. Mobile" class="w-full" :error="form.errors[`contacts.${index}.contact_type`]" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact
+                                            Type <span class="text-red-500">*</span></label>
+                                        <BaseSelect v-model="contact.contact_type" :options="contactTypeOptions"
+                                            optionLabel="label" optionValue="value" placeholder="e.g. Mobile"
+                                            class="w-full" :error="form.errors[`contacts.${index}.contact_type`]" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Detail <span class="text-red-500">*</span></label>
-                                        <BaseInput v-model="contact.contact_value" placeholder="Enter value..." class="w-full" :error="form.errors[`contacts.${index}.contact_value`]" />
+                                        <label
+                                            class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact
+                                            Detail <span class="text-red-500">*</span></label>
+                                        <BaseInput v-model="contact.contact_value" placeholder="Enter value..."
+                                            class="w-full" :error="form.errors[`contacts.${index}.contact_value`]" />
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2 mt-4">
-                                    <ToggleSwitch v-model="contact.is_primary" @update:modelValue="(val) => handlePrimaryToggle(index, val)" />
-                                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Primary Contact Point</span>
+                                    <ToggleSwitch v-model="contact.is_primary"
+                                        @update:modelValue="(val) => handlePrimaryToggle(index, val)" />
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Primary
+                                        Contact
+                                        Point</span>
                                 </div>
-                                <BaseActionButton 
-                                    icon="pi pi-trash" 
-                                    severity="danger" 
-                                    tooltip="Remove Contact"
-                                    class="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity" 
-                                    @click="removeContact(index)"
-                                />
+                                <BaseActionButton icon="pi pi-trash" severity="danger" tooltip="Remove Contact"
+                                    class="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    @click="removeContact(index)" />
                             </div>
-                            <BaseButton 
-                                type="button"
-                                severity="info" 
-                                outlined 
-                                class="w-full text-indigo-600 border-dashed" 
-                                label="Integrate New Communication Channel"
-                                icon="pi pi-plus"
-                                @click="addContact"
-                            />
+                            <BaseButton type="button" severity="info" outlined
+                                class="w-full text-indigo-600 border-dashed" label="Integrate New Communication Channel"
+                                icon="pi pi-plus" @click="addContact" />
                         </div>
                     </TabPanel>
 
@@ -349,30 +434,18 @@ const handlePrimaryToggle = (index: number, val: any) => {
                     <TabPanel value="patrons">
                         <div class="space-y-6">
                             <div class="flex flex-col gap-2">
-                                <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Associated Patrons</label>
-                                <MultiSelect 
-                                    v-model="form.patron_ids" 
-                                    :options="patronOptions" 
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    placeholder="Connect to Patrons..."
-                                    filter
-                                    class="w-full"
-                                />
+                                <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Associated
+                                    Patrons</label>
+                                <MultiSelect v-model="form.patron_ids" :options="patronOptions" optionLabel="label"
+                                    optionValue="value" placeholder="Connect to Patrons..." filter class="w-full" />
                             </div>
                         </div>
                     </TabPanel>
                 </TabPanels>
 
-                <BaseFormActions 
-                    :loading="form.processing"
-                    label="Initialize Resource"
-                    cancel-label="Reset"
-                    mode="add"
-                    class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700"
-                    @cancel="resetForm"
-                    @submit="submit"
-                />
+                <BaseFormActions :loading="form.processing" label="Initialize Resource" cancel-label="Reset" mode="add"
+                    class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700" @cancel="resetForm"
+                    @submit="submit" />
             </Tabs>
         </div>
     </BaseCard>

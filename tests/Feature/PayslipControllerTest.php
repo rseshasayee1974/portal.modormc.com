@@ -306,6 +306,15 @@ class PayslipControllerTest extends TestCase
             'effective_from' => '2025-01-01',
         ]);
 
+        for ($d = 1; $d <= 31; $d++) {
+            \App\Models\Attendance::create([
+                'plant_id' => $this->plant->id,
+                'personnel_id' => $personnel->id,
+                'attendance_date' => sprintf('2026-01-%02d', $d),
+                'status' => 'present',
+            ]);
+        }
+
         $response = $this->post(route('payslips.generate'), [
             'payroll_period_id' => $payrollPeriod->id
         ]);
@@ -316,7 +325,7 @@ class PayslipControllerTest extends TestCase
             'payroll_period_id' => $payrollPeriod->id,
             'personnel_id' => $personnel->id,
             'working_days' => 31,
-            'gross_salary' => 10000, // No attendance data means full present days via fallback
+            'gross_salary' => 10000,
         ]);
 
         $payslip = Payslip::where('payroll_period_id', $payrollPeriod->id)->first();
@@ -706,5 +715,154 @@ class PayslipControllerTest extends TestCase
 
         // Net salary should be 0.00, NOT negative!
         $this->assertEquals(0.00, $payslip->net_salary);
+    }
+
+    public function test_generate_payslips_single_day_attendance_defaults_unentered_days_to_absent()
+    {
+        $payrollPeriod = PayrollPeriod::create([
+            'plant_id' => $this->plant->id,
+            'name' => 'September 2026',
+            'from_date' => '2026-09-01',
+            'to_date' => '2026-09-30',
+            'status' => 'draft'
+        ]);
+
+        $personnel = Personnel::factory()->create([
+            'entity_id' => $this->entity->id,
+            'plant_id' => $this->plant->id,
+            'status' => 'active'
+        ]);
+
+        $component = SalaryComponent::create([
+            'plant_id' => $this->plant->id,
+            'name' => 'Basic Salary',
+            'type' => 'earning',
+            'calculation_type' => 'fixed',
+            'default_value' => 25000,
+        ]);
+
+        EmployeeSalaryStructure::create([
+            'personnel_id' => $personnel->id,
+            'salary_component_id' => $component->id,
+            'amount' => 25000,
+            'effective_from' => '2025-01-01',
+        ]);
+
+        // Only 1 day of attendance is added (Present on Sept 1st), 29 days are un-entered
+        \App\Models\Attendance::create([
+            'plant_id' => $this->plant->id,
+            'personnel_id' => $personnel->id,
+            'attendance_date' => '2026-09-01',
+            'status' => 'present',
+        ]);
+
+        $response = $this->post(route('payslips.generate'), [
+            'payroll_period_id' => $payrollPeriod->id
+        ]);
+        $response->assertRedirect();
+
+        $payslip = Payslip::where('payroll_period_id', $payrollPeriod->id)->first();
+        $this->assertNotNull($payslip);
+
+        // 1 day logged present, 29 un-entered days default to absent
+        $this->assertEquals(1.0, $payslip->present_days);
+        $this->assertEquals(29.0, $payslip->absent_days);
+        $this->assertEquals(0.0, $payslip->paid_leave_days);
+        $this->assertEquals(833.33, $payslip->gross_salary);
+    }
+
+    public function test_generate_payslips_partial_attendance_explicit_absent_and_leaves()
+    {
+        $payrollPeriod = PayrollPeriod::create([
+            'plant_id' => $this->plant->id,
+            'name' => 'October 2026',
+            'from_date' => '2026-10-01',
+            'to_date' => '2026-10-31',
+            'status' => 'draft'
+        ]);
+
+        $personnel = Personnel::factory()->create([
+            'entity_id' => $this->entity->id,
+            'plant_id' => $this->plant->id,
+            'status' => 'active'
+        ]);
+
+        $component = SalaryComponent::create([
+            'plant_id' => $this->plant->id,
+            'name' => 'Basic Salary',
+            'type' => 'earning',
+            'calculation_type' => 'fixed',
+            'default_value' => 31000,
+        ]);
+
+        EmployeeSalaryStructure::create([
+            'personnel_id' => $personnel->id,
+            'salary_component_id' => $component->id,
+            'amount' => 31000,
+            'effective_from' => '2025-01-01',
+        ]);
+
+        // Explicit attendance records
+        \App\Models\Attendance::create([
+            'plant_id' => $this->plant->id,
+            'personnel_id' => $personnel->id,
+            'attendance_date' => '2026-10-01',
+            'status' => 'present',
+        ]);
+        \App\Models\Attendance::create([
+            'plant_id' => $this->plant->id,
+            'personnel_id' => $personnel->id,
+            'attendance_date' => '2026-10-02',
+            'status' => 'absent',
+        ]);
+        \App\Models\Attendance::create([
+            'plant_id' => $this->plant->id,
+            'personnel_id' => $personnel->id,
+            'attendance_date' => '2026-10-03',
+            'status' => 'half_day',
+        ]);
+
+        // Approved paid leave for 2 days
+        $leaveType = \App\Models\LeaveType::create([
+            'plant_id' => $this->plant->id,
+            'name' => 'Casual Leave',
+            'is_paid' => true,
+        ]);
+
+        \App\Models\LeaveApplication::create([
+            'personnel_id' => $personnel->id,
+            'leave_type_id' => $leaveType->id,
+            'from_date' => '2026-10-04',
+            'to_date' => '2026-10-05',
+            'days' => 2,
+            'status' => 'approved',
+        ]);
+
+        // Remaining days (Oct 6 - Oct 31 = 26 days) are un-entered (default to absent)
+        $response = $this->post(route('payslips.generate'), [
+            'payroll_period_id' => $payrollPeriod->id
+        ]);
+        $response->assertRedirect();
+
+        $payslip = Payslip::where('payroll_period_id', $payrollPeriod->id)->first();
+        $this->assertNotNull($payslip);
+
+        // Oct 1: present (1.0)
+        // Oct 2: absent (1.0)
+        // Oct 3: half_day (0.5 present, 0.5 absent)
+        // Oct 4-5: paid leave (2.0 paid leave)
+        // Oct 6-31 (26 days): un-entered default absent (26.0)
+        // Total present: 1.0 + 0.5 = 1.5
+        // Total absent: 1.0 + 0.5 + 26.0 = 27.5
+        // Total paid leave: 2.0
+        // Total working days: 31
+        $this->assertEquals(1.5, $payslip->present_days);
+        $this->assertEquals(27.5, $payslip->absent_days);
+        $this->assertEquals(2.0, $payslip->paid_leave_days);
+        $this->assertEquals(31, $payslip->working_days);
+        
+        // Paid days = 1.5 + 2.0 = 3.5
+        // Gross salary = 31000 * 3.5 / 31 = 3500.00
+        $this->assertEquals(3500.00, $payslip->gross_salary);
     }
 }

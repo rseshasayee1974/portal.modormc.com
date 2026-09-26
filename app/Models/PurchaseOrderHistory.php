@@ -15,9 +15,14 @@ class PurchaseOrderHistory extends Model
     protected $fillable = [
         'plant_id', 'order_id', 'order_item_id', 'received_date',
         'product_id', 'uom_id', 'used_quantity', 'received_qty',
+        'conversion_quantity', 'conversion_uom_id',
         'unit_price', 'count_quantity', 'inward_no', 'status',
         'truck_id', 'truck_loaded', 'truck_empty',
         'created_by', 'updated_by', 'deleted_by'
+    ];
+
+    protected $casts = [
+        'conversion_quantity' => 'decimal:4',
     ];
 
     public function truck()
@@ -43,6 +48,11 @@ class PurchaseOrderHistory extends Model
     public function uom()
     {
         return $this->belongsTo(ProductUnit::class, 'uom_id');
+    }
+
+    public function conversionUom()
+    {
+        return $this->belongsTo(ProductUnit::class, 'conversion_uom_id');
     }
 
     public function loadedWeightImage()

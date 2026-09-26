@@ -12,6 +12,10 @@ import {
     TruckIcon,
     ExclamationTriangleIcon,
     XMarkIcon,
+    DocumentCheckIcon,
+    UserIcon,
+    BuildingOfficeIcon,
+    BeakerIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -72,23 +76,23 @@ const form = ref({
 const siteOptions = computed(() => props.dropdowns.sites?.map(s => ({ label: s.name, value: s.id })) || []);
 const mixOptions = computed(() => props.dropdowns.mixDesigns?.map(m => ({ label: `${m.design_name || m.name} (${m.design_code || m.code || '-'})`, value: m.id })) || []);
 const vehicleOptions = computed(() => props.dropdowns.vehicles?.map(v => ({ label: v.registration, value: v.id })) || []);
-const driverOptions = computed(() => props.dropdowns.drivers?.map(d => ({ label: `${d.first_name} ${d.last_name || ''} (${d.mobile || d.employee_code || 'Staff'})`, value: d.id })) || []);
+const driverOptions = computed(() => props.dropdowns.drivers?.map(d => ({ label: `${d.first_name} ${d.last_name || ''}`, value: d.id })) || []);
 const pumpVehicleOptions = computed(() => [
     { label: 'Direct Pour / No Pump', value: null },
     ...(props.dropdowns.pumps?.map(v => ({ label: v.registration, value: v.id })) || [])
 ]);
-const dispatchOptions = computed(() => [
-    { label: '-- Manual Scheduling (No Ticket Linked) --', value: null },
-    ...(props.dropdowns.dispatches || []).map(d => ({
-        label: d.batch_no,
-        value: d.id,
-        raw: d
+const salesOrderOptions = computed(() => [
+    { label: '-- Manual Scheduling (No Sales Order) --', value: null },
+    ...(props.dropdowns.salesOrders || []).map(so => ({
+        label: `${so.order_number || ('SO-' + so.id)}${so.customer_name ? ' - ' + so.customer_name : ''}${so.site_name ? ' (' + so.site_name + ')' : ''}`,
+        value: so.id,
+        raw: so
     }))
 ]);
 
-const selectedDispatch = computed(() => {
-    if (!form.value.dispatch_id) return null;
-    return (props.dropdowns.dispatches || []).find(d => d.id === form.value.dispatch_id);
+const selectedSalesOrder = computed(() => {
+    if (!form.value.sales_order_id) return null;
+    return (props.dropdowns.salesOrders || []).find(so => so.id === form.value.sales_order_id);
 });
 
 const statusOptions = [
@@ -131,58 +135,33 @@ const onStatusChange = () => {
     }
 };
 
-const onDispatchSelected = (dispatchId) => {
-    if (!dispatchId) {
-        form.value.dispatch_id = null;
+const onSalesOrderSelected = (salesOrderId) => {
+    if (!salesOrderId) {
+        form.value.sales_order_id = null;
         return;
     }
-    const disp = (props.dropdowns.dispatches || []).find(d => d.id === dispatchId);
-    if (!disp) return;
+    const so = (props.dropdowns.salesOrders || []).find(s => s.id === salesOrderId);
+    if (!so) return;
 
-    form.value.dispatch_id = disp.id;
-    if (disp.sales_order_id) form.value.sales_order_id = Number(disp.sales_order_id);
-    if (disp.site_id) form.value.site_id = Number(disp.site_id);
-    if (disp.mix_design_id) form.value.mix_design_id = Number(disp.mix_design_id);
-    if (disp.vehicle_id) form.value.vehicle_id = Number(disp.vehicle_id);
-    if (disp.driver_id) form.value.driver_id = Number(disp.driver_id);
-    if (disp.pump_vehicle_id) {
-        form.value.pump_vehicle_id = Number(disp.pump_vehicle_id);
-        form.value.pump_type = 'boom_pump';
-    } else if (disp.pump_type) {
-        form.value.pump_type = normalizePumpType(disp.pump_type);
-    }
-    if (disp.qty_m3) form.value.qty_m3 = parseFloat(disp.qty_m3);
-    if (disp.order_volume_m3) form.value.order_volume_m3 = parseFloat(disp.order_volume_m3);
-    if (disp.pour_reference) form.value.pour_reference = disp.pour_reference;
-    if (disp.dispatch_time) form.value.dispatch_time = disp.dispatch_time.substring(0, 16);
-    if (disp.batch_time) form.value.batching_time = disp.batch_time.substring(0, 16);
-    if (disp.delivery_time) form.value.unloading_end = disp.delivery_time.substring(0, 16);
-
-    const statusMap = {
-        'Draft': 'scheduled',
-        'Loading': 'batching',
-        'In Transit': 'in_transit',
-        'On Site': 'on_site',
-        'Pouring': 'pouring',
-        'Delivered': 'completed',
-        'Cancelled': 'cancelled'
-    };
-    if (disp.dispatch_status && statusMap[disp.dispatch_status]) {
-        form.value.status = statusMap[disp.dispatch_status];
+    form.value.sales_order_id = so.id;
+    if (so.site_id) form.value.site_id = Number(so.site_id);
+    if (so.mix_design_id) form.value.mix_design_id = Number(so.mix_design_id);
+    if (so.total_qty || so.ordered_qty) {
+        form.value.order_volume_m3 = parseFloat(so.total_qty || so.ordered_qty || 30.0);
     }
 
     Swal.fire({
         toast: true,
         position: 'top-end',
         icon: 'info',
-        title: `Autofilled from #${disp.full_number}`,
+        title: `Autofilled from Sales Order #${so.order_number || ('SO-' + so.id)}`,
         timer: 2000,
         showConfirmButton: false
     });
 };
 
-const clearDispatchSelection = () => {
-    form.value.dispatch_id = null;
+const clearSalesOrderSelection = () => {
+    form.value.sales_order_id = null;
 };
 
 const initForm = () => {
@@ -330,23 +309,71 @@ const submitForm = async () => {
             </div>
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,24rem)_auto] md:items-end">
-                <BaseSelect v-model="form.dispatch_id" :options="dispatchOptions" optionLabel="label"
-                    optionValue="value" label="Dispatch / Batch Ticket" placeholder="Manual schedule"
-                    @change="onDispatchSelected(form.dispatch_id)" />
-                <div v-if="form.dispatch_id" class="pb-1">
-                    <button v-if="form.dispatch_id" type="button" @click="clearDispatchSelection"
+                <BaseSelect v-model="form.sales_order_id" :options="salesOrderOptions" optionLabel="label"
+                    optionValue="value" label="Sales Order" placeholder="Manual schedule" filter
+                    @change="onSalesOrderSelected(form.sales_order_id)" />
+                <div v-if="form.sales_order_id" class="pb-1">
+                    <button type="button" @click="clearSalesOrderSelection"
                         class="flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700">
                         <XMarkIcon class="h-3.5 w-3.5" /> Clear selection
                     </button>
                 </div>
             </div>
 
-            <div v-if="selectedDispatch"
-                class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-200">
-                <span class="font-bold">#{{ selectedDispatch.full_number }}</span>
-                <span>{{ selectedDispatch.site_name }}</span>
-                <span>{{ selectedDispatch.mix_name }}</span>
-                <span>{{ selectedDispatch.qty_m3 }} m³</span>
+            <div v-if="selectedSalesOrder"
+                class="relative overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/90 via-slate-50 to-indigo-50/50 p-3.5 shadow-xs transition-all dark:border-indigo-900/50 dark:from-indigo-950/40 dark:via-slate-900/60 dark:to-indigo-950/30">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-xs shadow-indigo-200 dark:bg-indigo-500 dark:shadow-none">
+                            <DocumentCheckIcon class="h-5 w-5" />
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span
+                                    class="text-xs font-black uppercase tracking-wide text-indigo-950 dark:text-indigo-100">
+                                    #{{ selectedSalesOrder.order_number || ('SO-' + selectedSalesOrder.id) }}
+                                </span>
+                                <span v-if="selectedSalesOrder.customer_name"
+                                    class="inline-flex items-center gap-1 rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                                    <UserIcon class="h-3 w-3 shrink-0" />
+                                    {{ selectedSalesOrder.customer_name }}
+                                </span>
+                            </div>
+                            <div
+                                class="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-slate-600 dark:text-slate-300">
+                                <span v-if="selectedSalesOrder.site_name" class="flex items-center gap-1">
+                                    <BuildingOfficeIcon class="h-3.5 w-3.5 text-slate-400" />
+                                    <span class="font-medium">{{ selectedSalesOrder.site_name }}</span>
+                                </span>
+                                <span v-if="selectedSalesOrder.mix_name" class="flex items-center gap-1">
+                                    <BeakerIcon class="h-3.5 w-3.5 text-indigo-500" />
+                                    <span class="font-medium text-slate-700 dark:text-slate-200">{{
+                                        selectedSalesOrder.mix_name }}</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <div v-if="selectedSalesOrder.total_qty"
+                            class="rounded-lg bg-white/90 px-3 py-1.5 border border-slate-200/80 text-right shadow-2xs dark:bg-slate-800/80 dark:border-slate-700">
+                            <span class="block text-[9px] font-black uppercase tracking-wider text-slate-400">Total
+                                Order</span>
+                            <span class="text-xs font-black text-slate-800 dark:text-slate-100">{{
+                                Number(selectedSalesOrder.total_qty).toLocaleString() }} m³</span>
+                        </div>
+
+                        <div v-if="selectedSalesOrder.remaining_qty !== undefined"
+                            class="rounded-lg bg-emerald-50 px-3 py-1.5 border border-emerald-200/80 text-right shadow-2xs dark:bg-emerald-950/40 dark:border-emerald-800">
+                            <span
+                                class="block text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Balance
+                                Qty</span>
+                            <span class="text-xs font-black text-emerald-700 dark:text-emerald-300">{{
+                                Number(selectedSalesOrder.remaining_qty).toLocaleString() }} m³</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -365,7 +392,7 @@ const submitForm = async () => {
                 <BaseSelect v-model="form.vehicle_id" :options="vehicleOptions" optionLabel="label" optionValue="value"
                     label="Transit Mixer" placeholder="Select Mixer" />
                 <BaseSelect v-model="form.driver_id" :options="driverOptions" optionLabel="label" optionValue="value"
-                    label="Driver" placeholder="Select Driver" />
+                    label="Assign Operator / Driver" placeholder="Select Driver" />
                 <BaseSelect v-model="form.pump_vehicle_id" :options="pumpVehicleOptions" optionLabel="label"
                     optionValue="value" label="Pump" placeholder="Direct Pour" />
                 <BaseInputNumber v-model="form.qty_m3" :min="0.5" :step="0.5" :minFractionDigits="1"

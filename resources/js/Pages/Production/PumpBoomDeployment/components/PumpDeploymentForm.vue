@@ -424,20 +424,24 @@ const submitForm = async () => {
 </script>
 
 <template>
-    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <div
+        class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
             <div class="flex items-center gap-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
+                <div
+                    class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
                     <WrenchScrewdriverIcon class="h-5 w-5" />
                 </div>
                 <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">
                     {{ isEditing ? `Edit Pump Deployment #${initialData?.id}` : 'New Pump Deployment' }}
                 </h2>
             </div>
-            <button v-if="isEditing" type="button" @click="emit('cancel')" class="text-xs font-semibold text-slate-500 transition-colors hover:text-rose-600 dark:text-slate-400">
+            <button v-if="isEditing" type="button" @click="emit('cancel')"
+                class="text-xs font-semibold text-slate-500 transition-colors hover:text-rose-600 dark:text-slate-400">
                 Cancel edit
             </button>
-            <button v-else type="button" @click="initForm" class="flex items-center gap-1 text-xs font-semibold text-slate-500 transition-colors hover:text-indigo-600 dark:text-slate-400">
+            <button v-else type="button" @click="initForm"
+                class="flex items-center gap-1 text-xs font-semibold text-slate-500 transition-colors hover:text-indigo-600 dark:text-slate-400">
                 <ArrowPathIcon class="h-3.5 w-3.5" /> Reset
             </button>
         </div>
@@ -452,38 +456,57 @@ const submitForm = async () => {
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <BaseDatePicker v-model="form.schedule_date" label="Schedule Date" required />
-                <BaseSelect v-model="form.sales_order_id" :options="salesOrderOptions" optionLabel="label" optionValue="value" label="Sales Order" placeholder="Select Sales Order" :filter="true" required @change="onSalesOrderSelect" />
-                <BaseSelect v-model="form.batch_id" :options="batchOptions" optionLabel="label" optionValue="value" label="Batch" placeholder="Optional" :filter="true" @change="onBatchSelect" />
-                <BaseSelect v-model="form.site_id" :options="siteOptions" optionLabel="label" optionValue="value" label="Destination Site" placeholder="Select Site" required @change="onSiteSelect" />
+                <BaseSelect v-model="form.sales_order_id" :options="salesOrderOptions" optionLabel="label"
+                    optionValue="value" label="Sales Order" placeholder="Select Sales Order" :filter="true" required
+                    @change="onSalesOrderSelect" />
+                <BaseSelect v-model="form.batch_id" :options="batchOptions" optionLabel="label" optionValue="value"
+                    label="Batch" placeholder="Optional" :filter="true" @change="onBatchSelect" />
+                <BaseSelect v-model="form.site_id" :options="siteOptions" optionLabel="label" optionValue="value"
+                    label="Destination Site" placeholder="Select Site" required @change="onSiteSelect" />
                 <BaseInput v-model="form.pour_location" label="Pour Location" placeholder="e.g. Slab, Raft" />
                 <BaseInput v-model="form.site_contact_number" label="Site Contact" placeholder="Contact number" />
                 <BaseInput v-model="form.billing_name" label="Billing Name" placeholder="Billing name" />
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <BaseSelect v-model="form.mix_design_id" :options="mixOptions" optionLabel="label" optionValue="value" label="Mix Grade" placeholder="Select Grade" @change="onMixSelect" />
-                <BaseInputNumber v-model="form.planned_qty_m3" :min="0.5" :step="0.5" :minFractionDigits="1" :maxFractionDigits="2" label="Volume (m³)" required />
-                <BaseSelect v-model="form.pump_vehicle_id" :options="machineOptions" optionLabel="label" optionValue="value" label="Assigned Pump" placeholder="Select Pump" required @change="onPumpSelect" />
-                <BaseSelect v-model="form.operator_id" :options="operatorOptions" optionLabel="label" optionValue="value" label="Operator" placeholder="Assign Operator" @change="onOperatorSelect" />
+                <BaseSelect v-model="form.mix_design_id" :options="mixOptions" optionLabel="label" optionValue="value"
+                    label="Mix Grade" placeholder="Select Grade" @change="onMixSelect" />
+                <BaseInputNumber v-model="form.planned_qty_m3" :min="0.5" :step="0.5" :minFractionDigits="1"
+                    :maxFractionDigits="2" label="Volume (m³)" required />
+                <BaseSelect v-model="form.pump_vehicle_id" :options="machineOptions" optionLabel="label"
+                    optionValue="value" label="Assigned Pump" placeholder="Select Pump" required
+                    @change="onPumpSelect" />
+                <BaseSelect v-model="form.operator_id" :options="operatorOptions" optionLabel="label"
+                    optionValue="value" label="Assign Operator / Driver" placeholder="Assign Operator/Driver"
+                    @change="onOperatorSelect" />
                 <BaseInput v-model="form.driver_contact_number" label="Operator Contact" placeholder="Mobile number" />
-                <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value" label="Status" />
+                <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value"
+                    label="Status" />
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <BaseDatePicker v-model="form.pump_arrival_time" :showTime="true" hourFormat="12" label="Site Arrival" />
+                <BaseDatePicker v-model="form.pump_arrival_time" :showTime="true" hourFormat="12"
+                    label="Site Arrival" />
                 <BaseDatePicker v-model="form.setup_start_time" :showTime="true" hourFormat="12" label="Setup Start" />
                 <BaseDatePicker v-model="form.setup_end_time" :showTime="true" hourFormat="12" label="Setup Ready" />
-                <BaseDatePicker v-model="form.pour_start_time" :showTime="true" hourFormat="12" label="Pour Start" />
-                <BaseDatePicker v-model="form.planned_end_time" :showTime="true" hourFormat="12" label="Planned Finish" />
-                <BaseDatePicker v-model="form.actual_start_time" :showTime="true" hourFormat="12" label="Actual Start" @update:modelValue="onActualStartInput" />
-                <BaseDatePicker v-model="form.actual_end_time" :showTime="true" hourFormat="12" label="Actual Finish" @update:modelValue="onActualEndInput" />
+                <!-- <BaseDatePicker v-model="form.pour_start_time" :showTime="true" hourFormat="12" label="Pour Start" />
+                <BaseDatePicker v-model="form.planned_end_time" :showTime="true" hourFormat="12" label="Planned Finish" /> -->
+                <BaseDatePicker v-model="form.actual_start_time" :showTime="true" hourFormat="12"
+                    label="Actual Pour Start" @update:modelValue="onActualStartInput" />
+                <BaseDatePicker v-model="form.actual_end_time" :showTime="true" hourFormat="12"
+                    label="Actual Pour Finish" @update:modelValue="onActualEndInput" />
             </div>
 
-            <div class="flex flex-col gap-4 border-t border-slate-100 pt-5 dark:border-slate-800 sm:flex-row sm:items-end">
-                <BaseInput v-model="form.notes" label="Notes" placeholder="Rigging, site access, or pour notes" class="min-w-0 flex-1" />
+            <div
+                class="flex flex-col gap-4 border-t border-slate-100 pt-5 dark:border-slate-800 sm:flex-row sm:items-end">
+                <BaseInput v-model="form.notes" label="Notes" placeholder="Rigging, site access, or pour notes"
+                    class="min-w-0 flex-1" />
                 <div class="flex shrink-0 justify-end gap-2">
-                    <BaseButton v-if="isEditing" label="Cancel" severity="secondary" variant="outlined" @click="emit('cancel')" />
-                    <BaseButton :label="isEditing ? 'Save Changes' : 'Create Deployment'" severity="primary" variant="filled" type="submit" :loading="saving" class="!border-transparent !bg-indigo-600 !text-white hover:!bg-indigo-700" />
+                    <BaseButton v-if="isEditing" label="Cancel" severity="secondary" variant="outlined"
+                        @click="emit('cancel')" />
+                    <BaseButton :label="isEditing ? 'Save Changes' : 'Create Deployment'" severity="primary"
+                        variant="filled" type="submit" :loading="saving"
+                        class="!border-transparent !bg-indigo-600 !text-white hover:!bg-indigo-700" />
                 </div>
             </div>
         </form>
