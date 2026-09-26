@@ -1,6 +1,7 @@
 @php
     $pdfSettings = $data['settings']['pdf'] ?? [];
     $labels = $pdfSettings['labels'] ?? [];
+    $isPurchaseBill = $data['is_purchase_bill'] ?? false;
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -340,7 +341,7 @@
                             if (!empty($data['meta']['so_no'])) {
                                 $infoLines['SO No'] = $data['meta']['so_no'];
                             }
-                            $infoLines['PO#'] = $data['meta']['po_number'] ?? '';
+                            $infoLines[$isPurchaseBill ? 'Purchase PO' : 'PO#'] = $data['meta']['po_number'] ?? '';
                             if (
                                 ($pdfSettings['show_einvoice_details'] ?? true) &&
                                 !empty($data['meta']['eway_bill_no'])
@@ -381,7 +382,16 @@
                     @endif
                 </td>
                 <td class="info-cell no-right" style="width:33%">
-                    @if (
+                    @if ($isPurchaseBill)
+                        <div class="addr-hdr">Purchase Reference</div>
+                        <table class="kv-table">
+                            <tr>
+                                <td class="kv-key">Purchase PO</td>
+                                <td class="kv-sep">:</td>
+                                <td class="kv-val bold">{{ $data['meta']['po_number'] ?? '-' }}</td>
+                            </tr>
+                        </table>
+                    @elseif (
                         ($pdfSettings['show_customer_ref'] ?? true) &&
                             (!empty($data['meta']['acc_no']) ||
                                 !empty($data['meta']['sales_person']) ||

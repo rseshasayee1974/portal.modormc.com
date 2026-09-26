@@ -94,8 +94,8 @@ const form = useForm({
         || props.batch?.sales_order?.concrete_pump
         || props.salesOrders?.find((wo: any) => Number(wo.id) === Number(props.batch?.sales_order_id))?.concrete_pump
         || null,
-    empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? props.batch?.empty_weight_truck ?? props.batch?.sales_order?.latest_dispatch?.empty_weight_truck ?? 0),
-    loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? props.batch?.loaded_weight_truck ?? props.batch?.sales_order?.latest_dispatch?.loaded_weight_truck ?? 0),
+    empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? props.batch?.empty_weight_truck ??  0),
+    loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? props.batch?.loaded_weight_truck ??  0),
 
     loaded_weight_photo: null as string | null,
     net_weight: Number(props.batch?.dispatches?.[0]?.net_weight ?? props.batch?.net_weight ?? 0),

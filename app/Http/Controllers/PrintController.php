@@ -173,11 +173,12 @@ class PrintController extends Controller
             case 'purchase_bills':
                 $model = \App\Models\Invoice::where('id', $realId)
                     ->where('plant_id', $activePlantId)
+                    ->whereRaw('LOWER(invoice_type) = ?', ['bill'])
                     ->first();
+                if (!$model) return null;
                 if ($model) {
                     $data = PrintDataFormatter::fromInvoice($model);
                     $data['doc_title'] = 'PURCHASE BILL';
-                    $data['settings'] = PrintDataFormatter::getCustomSettings($activePlantId, 'purchase_bills');
                 }
                 break;
 

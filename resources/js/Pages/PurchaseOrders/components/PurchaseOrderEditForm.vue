@@ -107,10 +107,10 @@ const executeBillGeneration = () => {
     });
 };
 
-const handleDeleteBill = () => {
+const handleDeleteBill = (billId: number) => {
     Swal.fire({
         title: 'Void Purchase Bill?',
-        text: 'This will delete the accounting bill and reset this Purchase Order. Are you sure?',
+        text: 'This will void this bill and make its quantity available for billing again. Are you sure?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -118,6 +118,7 @@ const handleDeleteBill = () => {
     }).then((result) => {
         if (result.isConfirmed) {
             router.delete(route('purchaseorder.delete-bill', props.form.id), {
+                data: { bill_id: billId },
                 preserveScroll: true
             });
         }
@@ -384,7 +385,7 @@ const handleDeleteBill = () => {
 
                 <!-- Actions -->
                 <BaseButton 
-                    v-if="form.state !== 'cancel' && Number(form.invoice_status) !== 1"
+                    v-if="form.state !== 'cancel' && (purchaseOrder?.items || []).some((item: any) => Number(item.received_quantity) > Number(item.invoiced_quantity))"
                     label="Generate Purchase Bill" 
                     icon="pi pi-file-export" 
                     severity="primary" 
@@ -393,44 +394,24 @@ const handleDeleteBill = () => {
                     @click="handleGenerateBill" 
                 />
                 
-                <div v-else-if="Number(form.invoice_status) === 1" class="flex items-center gap-3">
-                    <div class="flex items-center gap-2 text-indigo-600 font-bold uppercase tracking-widest text-[10px] bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
-                        <i class="pi pi-check-circle"></i>
-                        <span>Bill: {{ props.purchaseOrder?.bill?.prefix }}{{ props.purchaseOrder?.bill?.invoice_number }}</span>
-                    </div>
-                    
-                    <a 
-                        v-if="props.purchaseOrder?.bill?.encrypted_id"
-                        :href="route('print.document', { module: 'purchase_bills', id: props.purchaseOrder.bill.encrypted_id, action: 'view' })" 
-                        target="_blank"
-                        title="Print Bill"
-                        class="inline-block"
-                    >
-                        <BaseButton 
-                            icon="pi pi-print" 
-                            severity="info" 
-                            class="!w-9 !h-9 !p-0 !bg-indigo-50 !text-indigo-600 !border-indigo-100 hover:!bg-indigo-100 transition-colors"
-                        />
-                    </a>
-                    <BaseButton 
-                        icon="pi pi-trash" 
-                        severity="danger" 
-                        variant="text"
-                        title="Void Bill"
-                        class="!w-9 !h-9 !p-0 !text-red-500 hover:!bg-red-50"
-                        @click="handleDeleteBill" 
-                    />
-                    
-                    <div class="w-px h-6 bg-slate-200 mx-1"></div>
-                    
-                    <BaseButton 
-                        :icon="showBillingPanel ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" 
-                        variant="text"
-                        severity="secondary"
-                        :title="showBillingPanel ? 'Hide Details' : 'Show Details'"
-                        class="!w-8 !h-8 !p-0 !text-slate-400 hover:!bg-slate-100 hover:!text-slate-600 rounded-full transition-colors"
-                        @click="showBillingPanel = !showBillingPanel"
-                    />
+            </div>
+            <div class="p-5 space-y-4">
+                <p class="text-sm text-slate-600">Each bill includes only received quantities that have not yet been billed.</p>
+                <table class="w-full text-sm text-left">
+                    <thead><tr><th>Product</th><th>Ordered</th><th>Received</th><th>Billed</th><th>Unbilled</th><th>Remaining to receive</th></tr></thead>
+                    <tbody><tr v-for="item in purchaseOrder?.items || []" :key="item.id">
+                        <td>{{ item.product?.title }} ({{ item.uom?.unit_code }})</td><td>{{ item.product_quantity }}</td><td>{{ item.received_quantity }}</td><td>{{ item.invoiced_quantity }}</td>
+                        <td>{{ Math.max(0, Number(item.received_quantity) - Number(item.invoiced_quantity)).toFixed(2) }}</td>
+                        <td>{{ Math.max(0, Number(item.product_quantity) - Number(item.received_quantity)).toFixed(2) }}</td>
+                    </tr></tbody>
+                </table>
+                <h4 class="font-semibold">Purchase bills</h4>
+                <div v-for="bill in purchaseOrder?.bills || []" :key="bill.id" class="flex items-center gap-4 border-t py-3 text-sm">
+                    <span>{{ bill.prefix }}{{ bill.invoice_number }}</span>
+                    <span>{{ bill.invoice_date?.substring(0, 10) }}</span>
+                    <span>Amount: {{ bill.total_amount }}</span>
+                    <a :href="route('print.document', { module: 'purchase_bills', id: bill.encrypted_id, action: 'view' })" target="_blank" class="text-indigo-600">Print bill</a>
+                    <BaseButton label="Void" severity="danger" variant="text" @click="handleDeleteBill(bill.id)" />
                 </div>
             </div>
 
@@ -520,7 +501,7 @@ const handleDeleteBill = () => {
                         <ArchiveBoxIcon class="w-4 h-4 text-amber-600" />
                     </div>
                     <p class="text-[11px] font-medium text-amber-700 leading-relaxed">
-                        This will generate an approved Purchase Bill in the Invoices module. Ensure the posting ledger correctly reflects your chart of accounts.
+                        This will bill only the unbilled received quantity at the purchase order rate, with proportional discounts and charges. Ensure the posting ledger correctly reflects your chart of accounts.
                     </p>
                 </div>
             </div>

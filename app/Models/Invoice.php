@@ -136,6 +136,10 @@ class Invoice extends Model implements Postable
             $plantId = (int)($m->plant_id ?: session('active_plant_id') ?: 1);
             $m->plant_id = $plantId;
 
+            if (DB::transactionLevel() > 0) {
+                Plant::withoutGlobalScopes()->whereKey($plantId)->lockForUpdate()->first();
+            }
+
             // Generate default details for prefix and next number
             $details = self::generateNumber($plantId, $m->invoice_label ?? $m->invoice_type ?? 'sales', $m->account_id);
 
@@ -155,38 +159,8 @@ class Invoice extends Model implements Postable
                 $m->invoice_number = str_pad((string)$m->invoice_number, 5, '0', STR_PAD_LEFT);
             }
 
-            // Enforce duplicate restriction plant-wide on creation (strictly restrict reuse of deleted records)
-            if (!empty($m->prefix) && !empty($m->invoice_number) && !empty($m->plant_id)) {
-                $fullNumber = ($m->prefix ?? '') . ($m->invoice_number ?? '');
-                $numOnly = $m->invoice_number;
-                $rawInt = ctype_digit((string)$numOnly) ? (int)$numOnly : null;
-                $unpadded = ctype_digit((string)$numOnly) ? (string)(int)$numOnly : $numOnly;
-
-                $alreadyExists = self::withoutGlobalScopes()
-                    ->where('plant_id', $m->plant_id)
-                    ->where('is_active', 1)
-                    ->whereNull('deleted_at')
-                    ->where(function ($q) use ($m, $fullNumber, $numOnly, $unpadded, $rawInt) {
-                        $q->where(function ($sub) use ($m, $numOnly, $unpadded, $rawInt) {
-                            $sub->where('prefix', $m->prefix)
-                                ->where(function ($sq) use ($numOnly, $unpadded, $rawInt) {
-                                    $sq->where('invoice_number', $numOnly)
-                                       ->orWhere('invoice_number', $unpadded);
-                                    if ($rawInt !== null) {
-                                        $sq->orWhere(\Illuminate\Support\Facades\DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
-                                    }
-                                });
-                        })
-                        ->orWhere('invoice_number', $numOnly)
-                        ->orWhere('invoice_number', $unpadded)
-                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber)
-                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), CAST(invoice_number AS UNSIGNED))"), ($m->prefix ?? '') . $unpadded);
-                    })
-                    ->exists();
-
-                if ($alreadyExists) {
-                    throw new \Exception("The invoice number '{$fullNumber}' is already in use and active in the database.");
-                }
+            if ($m->numberAlreadyExists()) {
+                throw new \Exception("The invoice number '{$m->prefix}{$m->invoice_number}' is already in use and active in the database.");
             }
 
             $m->adjustment = $m->adjustment ?? 0;
@@ -211,36 +185,8 @@ class Invoice extends Model implements Postable
 
             // Only check duplicate on saving if invoice_number or prefix was actually modified, and not during deactivation/deletion
             if ($m->exists && ($m->isDirty('invoice_number') || $m->isDirty('prefix')) && (int)$m->is_active === 1 && empty($m->deleted_at)) {
-                $fullNumber = ($m->prefix ?? '') . ($m->invoice_number ?? '');
-                $numOnly = $m->invoice_number;
-                $rawInt = ctype_digit((string)$numOnly) ? (int)$numOnly : null;
-                $unpadded = ctype_digit((string)$numOnly) ? (string)(int)$numOnly : $numOnly;
-
-                $alreadyExists = self::withoutGlobalScopes()
-                    ->where('plant_id', $m->plant_id)
-                    ->where('is_active', 1)
-                    ->whereNull('deleted_at')
-                    ->where('id', '!=', $m->id)
-                    ->where(function ($q) use ($m, $fullNumber, $numOnly, $unpadded, $rawInt) {
-                        $q->where(function ($sub) use ($m, $numOnly, $unpadded, $rawInt) {
-                            $sub->where('prefix', $m->prefix)
-                                ->where(function ($sq) use ($numOnly, $unpadded, $rawInt) {
-                                    $sq->where('invoice_number', $numOnly)
-                                       ->orWhere('invoice_number', $unpadded);
-                                    if ($rawInt !== null) {
-                                        $sq->orWhere(\Illuminate\Support\Facades\DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
-                                    }
-                                });
-                        })
-                        ->orWhere('invoice_number', $numOnly)
-                        ->orWhere('invoice_number', $unpadded)
-                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber)
-                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), CAST(invoice_number AS UNSIGNED))"), ($m->prefix ?? '') . $unpadded);
-                    })
-                    ->exists();
-
-                if ($alreadyExists) {
-                    throw new \Exception("The invoice number '{$fullNumber}' is already in use and active in the database.");
+                if ($m->numberAlreadyExists()) {
+                    throw new \Exception("The invoice number '{$m->prefix}{$m->invoice_number}' is already in use and active in the database.");
                 }
             }
         });
@@ -274,16 +220,34 @@ class Invoice extends Model implements Postable
             $m->items->each->delete();
             $m->orderTaxes()->delete();
 
-            // Reverse Purchase Order Billed Status if this was a bill generated from PO
+            // Release only the quantities belonging to the voided bill.
             if ($m->invoice_type === 'bill' && $m->ref_id) {
-                $poIds = explode(',', $m->ref_id);
-                \App\Models\PurchaseOrder::whereIn('id', $poIds)->update([
-                    'invoice_status' => 0,
-                    'billing_id'     => null,
-                    'billing_status' => 'Pending',
-                    'journal_status' => '0',
-                    'billed_date'    => null,
-                ]);
+                foreach (\App\Models\PurchaseOrder::whereIn('id', explode(',', $m->ref_id))->lockForUpdate()->get() as $order) {
+                    $linked = $m->items->whereNotNull('purchase_order_item_id');
+                    foreach ($linked as $line) {
+                        $item = $order->items()->find($line->purchase_order_item_id);
+                        if ($item) $item->update(['invoiced_quantity' => max(0, (float)$item->invoiced_quantity - (float)$line->quantity)]);
+                    }
+                    // Legacy bills predate line links; release their matching product quantities.
+                    if ($linked->isEmpty()) {
+                        foreach ($m->items as $line) {
+                            $remaining = (float)$line->quantity;
+                            foreach ($order->items()->where('product_id', $line->item_id)->where('product_uom', $line->uom_id)->get() as $item) {
+                                $released = min($remaining, (float)$item->invoiced_quantity);
+                                $item->update(['invoiced_quantity' => (float)$item->invoiced_quantity - $released]);
+                                $remaining -= $released;
+                            }
+                        }
+                    }
+                    $latest = $order->bills()->whereKeyNot($m->id)->latest('id')->first();
+                    $order->update([
+                        'invoice_status' => $latest ? 1 : 0,
+                        'billing_id' => $latest?->id,
+                        'journal_status' => $latest ? 1 : 0,
+                        'billed_date' => $latest?->invoice_date,
+                        'state' => 'approved',
+                    ]);
+                }
             }
             // Reverse Dispatch Status if applicable
             $dispatches = \App\Models\Dispatch::whereHas('status', function ($q) use ($m) {
@@ -309,34 +273,14 @@ class Invoice extends Model implements Postable
         $fy = substr($startYear, -2) .'-'. substr($endYear, -2);
 
         $normalizedLabel = strtolower((string)$label);
-        $query = self::withTrashed()->where('plant_id', $plantId);
-
-        if ($normalizedLabel === 'purchase' || $normalizedLabel === 'bill') {
-             $query->where(function($q) {
-                 $q->whereRaw('LOWER(invoice_type) = ?', ['bill'])
-                   ->orWhereRaw('LOWER(invoice_label) = ?', ['purchase']);
-             });
-             $defaultPrefix = "Bill/{$fy}/";
-        } elseif ($normalizedLabel === 'credit_note') {
-             $query->where(function($q) {
-                 $q->whereRaw('LOWER(invoice_type) = ?', ['credit_note'])
-                   ->orWhereRaw('LOWER(invoice_label) = ?', ['credit note']);
-             });
-             $defaultPrefix = "CN/{$fy}/";
-        } elseif ($normalizedLabel === 'batching' || $normalizedLabel === 'dispatch') {
-             $query->whereRaw('LOWER(invoice_label) = ?', ['dispatch']);
-             $defaultPrefix = "Inv/{$fy}/";
-        } else {
-             $query->where(function($q) {
-                 $q->whereRaw('LOWER(invoice_type) = ?', ['sales'])
-                   ->orWhereRaw('LOWER(invoice_label) = ?', ['tax invoice'])
-                   ->orWhereNull('invoice_label');
-             });
-             $defaultPrefix = "INV/{$fy}/";
-        }
+        $defaultPrefix = match ($normalizedLabel) {
+            'purchase', 'bill' => "Bill/{$fy}/",
+            'credit_note' => "CN/{$fy}/",
+            'batching', 'dispatch' => "Inv/{$fy}/",
+            default => "INV/{$fy}/",
+        };
 
         $prefix = $defaultPrefix;
-        $hasCustomPrefix = false;
         if ($accountId) {
              $ledger = \App\Models\Ledger::withoutGlobalScopes()->find($accountId);
              if ($ledger && !empty(trim((string)$ledger->description))) {
@@ -347,22 +291,17 @@ class Invoice extends Model implements Postable
                      $cleanDesc = rtrim($desc, '/');
                      $prefix = "{$cleanDesc}/{$fy}/";
                  }
-                 $hasCustomPrefix = true;
              }
         }
             
-        // If the ledger specifies its own custom prefix in description, scope sequence to this account.
-        // If it uses the plant default prefix, sequence must track across the plant for this prefix to avoid duplicates.
-        if ($hasCustomPrefix) {
-            $query->where('account_id', $accountId);
+        // A series belongs to a plant and prefix, even when several ledgers use it.
+        // Only non-deleted invoices reserve a number in the series.
+        $highest = 0;
+        foreach (self::numberSeries($plantId, $prefix)->pluck('invoice_number') as $number) {
+            $sequence = self::sequenceValue((string)$number, $prefix);
+            if ($sequence !== null) $highest = max($highest, $sequence);
         }
-
-        $lastInvoice = $query->where('prefix', $prefix)
-            ->orderByRaw('CAST(invoice_number AS UNSIGNED) DESC')
-            ->whereNull('deleted_at')
-            ->first();
-
-        $next = $lastInvoice ? ((int)$lastInvoice->invoice_number + 1) : 1;
+        $next = $highest + 1;
         $nextNumber = str_pad((string)$next, 5, '0', STR_PAD_LEFT);
 
         return [
@@ -370,6 +309,38 @@ class Invoice extends Model implements Postable
             'next_number' => $nextNumber,
             'full_number' => $prefix . $nextNumber
         ];
+    }
+
+    private static function numberSeries(int $plantId, string $prefix)
+    {
+        return self::withoutGlobalScopes()->where('plant_id', $plantId)
+            ->whereNull('deleted_at')
+            ->where(function ($query) use ($prefix) {
+                $query->whereRaw('LOWER(prefix) = ?', [strtolower($prefix)])
+                    ->orWhereRaw('LOWER(SUBSTR(invoice_number, 1, ?)) = ?', [strlen($prefix), strtolower($prefix)]);
+            });
+    }
+
+    private static function sequenceValue(string $number, string $prefix): ?int
+    {
+        if (strncasecmp($number, $prefix, strlen($prefix)) === 0) {
+            $number = substr($number, strlen($prefix));
+        }
+        return ctype_digit($number) ? (int)$number : null;
+    }
+
+    private function numberAlreadyExists(): bool
+    {
+        if (empty($this->prefix) || empty($this->invoice_number) || empty($this->plant_id)) return false;
+        $sequence = self::sequenceValue((string)$this->invoice_number, $this->prefix);
+        $query = self::numberSeries((int)$this->plant_id, $this->prefix)
+            ->where('is_active', 1)->whereNull('deleted_at');
+        if ($this->exists) $query->where('id', '!=', $this->id);
+        foreach ($query->pluck('invoice_number') as $number) {
+            if ($sequence !== null && self::sequenceValue((string)$number, $this->prefix) === $sequence) return true;
+            if (strcasecmp((string)$number, (string)$this->invoice_number) === 0) return true;
+        }
+        return false;
     }
 
     /**
@@ -544,6 +515,9 @@ class Invoice extends Model implements Postable
      */
     public function updateWithItems(array $data): self
     {
+        if ($this->items()->whereNotNull('purchase_order_item_id')->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Void this receipt bill from the purchase order and generate it again to change it.']);
+        }
         return DB::transaction(function () use ($data) {
             $itemsData = $data['items'] ?? [];
             unset($data['items']);

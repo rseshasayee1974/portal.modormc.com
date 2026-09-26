@@ -287,9 +287,9 @@ const mobileMenuOpen = ref(false);
                         </div>
 
                         <!-- Desktop Logo (visible on md and up) -->
-                        <div class="hidden md:flex w-64 shrink-0 items-center mr-2 pl-2">
-                            <Link :href="route('dashboard')" class="flex items-center gap-3 group bg-white px-3 py-1.5 rounded-lg shadow-sm">
-                                <ApplicationMark class="h-11 w-auto transition-transform group-hover:scale-105" />
+                        <div class="hidden md:flex w-64 items-center mr-3">
+                            <Link :href="route('dashboard')" class="">
+                                <ApplicationMark class="transition-transform group-hover:scale-105" />
                             </Link>
                         </div>
 

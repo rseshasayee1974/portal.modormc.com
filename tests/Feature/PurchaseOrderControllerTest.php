@@ -266,6 +266,8 @@ class PurchaseOrderControllerTest extends TestCase
             'plant_id' => $this->plant->id,
             'vendor_id' => $this->vendor->id,
             'exchange_rate' => 1.0,
+            'state' => 'approved',
+            'receipt_status' => 2,
         ]);
         
         PurchaseOrderItem::factory()->create([
@@ -318,6 +320,8 @@ class PurchaseOrderControllerTest extends TestCase
             'plant_id' => $this->plant->id,
             'vendor_id' => $this->vendor->id,
             'exchange_rate' => 1.0,
+            'state' => 'approved',
+            'receipt_status' => 2,
         ]);
         
         PurchaseOrderItem::factory()->create([
@@ -358,6 +362,8 @@ class PurchaseOrderControllerTest extends TestCase
             'plant_id' => $this->plant->id,
             'vendor_id' => $this->vendor->id,
             'exchange_rate' => 1.0,
+            'state' => 'approved',
+            'receipt_status' => 2,
         ]);
         
         $item = PurchaseOrderItem::factory()->create([
@@ -383,7 +389,7 @@ class PurchaseOrderControllerTest extends TestCase
         $this->assertNotNull($billId);
 
         // Delete (void) the bill
-        $response = $this->delete(route('purchaseorder.delete-bill', $po->id));
+        $response = $this->delete(route('purchaseorder.delete-bill', $po->id), ['bill_id' => $billId]);
         $response->assertRedirect();
         $response->assertSessionHas('success');
 
@@ -394,5 +400,37 @@ class PurchaseOrderControllerTest extends TestCase
 
         // Verify Invoice has been soft-deleted
         $this->assertSoftDeleted('mm_invoices', ['id' => $billId]);
+    }
+    public function test_partial_receipts_generate_separate_bills_and_void_only_one_quantity(): void
+    {
+        $po = PurchaseOrder::factory()->create([
+            'plant_id' => $this->plant->id, 'vendor_id' => $this->vendor->id,
+            'state' => 'approved', 'receipt_status' => 1,
+            'discount_amount' => 0, 'shipping_charges' => 0, 'adjustment' => 0,
+        ]);
+        $item = PurchaseOrderItem::factory()->create([
+            'order_id' => $po->id, 'plant_id' => $this->plant->id,
+            'product_id' => $this->product->id, 'product_uom' => $this->unit->id,
+            'product_quantity' => 1000, 'received_quantity' => 10, 'invoiced_quantity' => 0,
+            'unit_price' => 100, 'discount_type' => '%', 'discount_amount' => 0, 'tax_id' => null,
+        ]);
+        $payload = ['account_id' => $this->purchaseLedger->id, 'invoice_date' => '2026-09-26'];
+        $this->post(route('purchaseorder.generate-bill', $po), $payload)->assertSessionHas('success');
+        $first = $po->bills()->firstOrFail();
+        $this->assertEquals(10, $first->items()->first()->quantity);
+        $this->assertEquals(1000, $first->total_amount);
+        $this->assertEquals('approved', $po->fresh()->state);
+        $item->update(['received_quantity' => 30]);
+        $this->post(route('purchaseorder.generate-bill', $po), $payload)->assertSessionHas('success');
+        $second = $po->bills()->latest('id')->firstOrFail();
+        $this->assertEquals(20, $second->items()->first()->quantity);
+        $this->assertEquals(2000, $second->total_amount);
+        $this->assertEquals(30, $item->fresh()->invoiced_quantity);
+        $this->post(route('purchaseorder.generate-bill', $po), $payload)->assertSessionHas('error');
+        $this->assertEquals(2, $po->bills()->count());
+        $this->delete(route('purchaseorder.delete-bill', $po), ['bill_id' => $first->id])->assertSessionHas('success');
+        $this->assertEquals(20, $item->fresh()->invoiced_quantity);
+        $this->assertEquals(1, $po->bills()->count());
+        $this->assertEquals(1, $po->fresh()->invoice_status);
     }
 }

@@ -139,6 +139,11 @@ class PurchaseOrder extends Model
         return $this->hasOne(Invoice::class, 'ref_id')->where('invoice_type', 'bill');
     }
 
+    public function bills()
+    {
+        return $this->hasMany(Invoice::class, 'ref_id')->where('invoice_type', 'bill')->where('invoice_label', 'purchase');
+    }
+
     /**
      * Recalculate totals based on items.
      */

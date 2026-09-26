@@ -1,3 +1,6 @@
+@php
+    $pdfSettings = $data['settings']['pdf'] ?? [];
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 

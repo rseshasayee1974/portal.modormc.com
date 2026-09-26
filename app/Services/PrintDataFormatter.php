@@ -271,7 +271,13 @@ class PrintDataFormatter
         $baseStored = CustomSetting::getForModule($plantId, $module);
         $batchingStored = CustomSetting::getForModule($plantId, 'batching');
 
-        return array_replace_recursive($defaults, ['batching' => $batchingStored], $batchingStored, $baseStored);
+        $settings = array_replace_recursive($defaults, ['batching' => $batchingStored], $batchingStored, $baseStored);
+        if (in_array($module, ['purchase_bills', 'purchase_orders'], true)) {
+            // Batching preferences must not add concrete/pump columns to purchases.
+            $settings['pdf']['show_pump_charges'] = false;
+            $settings['pdf']['pump_rates'] = false;
+        }
+        return $settings;
     }
 
     public static function getDefaultSettings(string $module): array
@@ -299,8 +305,8 @@ class PrintDataFormatter
                 'tax_percent'       => true, 'cgst' => true, 'sgst' => true, 'igst' => true, 'adjustment' => true,
                 'round_off'         => true, 'total_words' => true, 'notes' => true, 'terms' => true, 'signature' => true,
                 'upi_qr'            => true,
-                'pump_rates'        => true,
-                'show_pump_charges' => true,
+                'pump_rates'        => !in_array($module, ['purchase_bills', 'purchase_orders'], true),
+                'show_pump_charges' => !in_array($module, ['purchase_bills', 'purchase_orders'], true),
                 'hire_charge'       => true,
                 'pass_amount'       => true,
                 'labels'            => ['invoice_title' => $invoiceTitle, 'bill_to' => 'Bill To', 'ship_to' => 'Ship To', 'rate' => 'Rate', 'amount' => 'Amount'],
@@ -1002,17 +1008,28 @@ class PrintDataFormatter
 
     public static function fromInvoice($invoice): array
     {
+        $isPurchaseBill = strtolower((string)$invoice->invoice_type) === 'bill';
         $invoice->loadMissing([
             'plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses',
-            'items.tax', 'items.uom', 'items.itemTaxes', 'orderTaxes',
-            'items.mixDesign.concreteGrade', 'items.mixDesign.concrete_grade', 'items.mixDesign.items.product', 'items.mixDesign.items.uom'
+            'items.tax', 'items.uom', 'items.itemTaxes', 'orderTaxes'
         ]);
+
+        if (!$isPurchaseBill) {
+            $invoice->loadMissing(['items.mixDesign.concreteGrade', 'items.mixDesign.concrete_grade', 'items.mixDesign.items.product', 'items.mixDesign.items.uom']);
+        }
 
         $data               = self::base();
         $data['id']         = $invoice->id;
         $data['invoice_id'] = $invoice->id;
         $data['invoice']    = $invoice;
-        $data['settings']   = self::getCustomSettings($invoice->plant_id, 'invoices');
+        $data['settings']   = self::getCustomSettings($invoice->plant_id, $isPurchaseBill ? 'purchase_bills' : 'invoices');
+        $data['is_purchase_bill'] = $isPurchaseBill;
+        if ($isPurchaseBill) {
+            foreach (['show_pump_charges', 'pump_rates', 'show_recipe_details', 'show_carrier_driver', 'show_customer_ref', 'show_einvoice_details'] as $setting) {
+                $data['settings']['pdf'][$setting] = false;
+            }
+            $data['settings']['pdf']['labels']['bill_to'] = 'Supplier';
+        }
 
         $defaultTitle = $invoice->invoice_type === 'bill' ? 'PURCHASE BILL' : 'TAX INVOICE';
         $docTitle     = $data['settings']['pdf']['labels']['invoice_title'] ?? $defaultTitle;
@@ -1029,13 +1046,13 @@ class PrintDataFormatter
         $data['state']     = strtoupper($invoice->status ?? 'DRAFT');
         $data['company']   = self::formatCompany($invoice->plant);
 
-        $dispatch = Dispatch::whereHas('status', fn ($q) => $q->where('invoice_id', $invoice->id))->with([
+        $dispatch = $isPurchaseBill ? null : Dispatch::whereHas('status', fn ($q) => $q->where('invoice_id', $invoice->id))->with([
             'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign.concrete_grade', 'salesOrder.mixDesign', 'salesOrder.customerPO',
             'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site',
             'concretePump', 'truck', 'transport', 'driver', 'mixDesign.concrete_grade', 'mixDesign', 'salesExecutive'
         ])->first();
 
-        if (!$dispatch && !empty($invoice->ref_id)) {
+        if (!$isPurchaseBill && !$dispatch && !empty($invoice->ref_id)) {
             $refIds     = array_filter(array_map('trim', explode(',', $invoice->ref_id)));
             $firstRefId = reset($refIds);
             if (is_numeric($firstRefId)) {
@@ -1083,7 +1100,7 @@ class PrintDataFormatter
         $printItemNameFormat = self::getPrintItemNameFormat($data['settings'], $invoice->plant_id);
 
         $data['items'] = $invoice->items->map(function ($item, $idx) use (
-            $isIntra, $showPumpCharges, $dispatch, $dispatchPumpCharge, $mixDesignObj, $printItemNameFormat, &$pumpChargesTotal
+            $isPurchaseBill, $isIntra, $showPumpCharges, $dispatch, $dispatchPumpCharge, $mixDesignObj, $printItemNameFormat, &$pumpChargesTotal
         ) {
             $taxModel     = $item->tax;
             $lineTaxAmount = (float) $item->line_tax_amount;
@@ -1112,7 +1129,7 @@ class PrintDataFormatter
             $itemSubtotal = (float) ($item->subtotal ?? ($item->quantity * $item->price_unit));
             $itemTotal    = (float) ($itemSubtotal + $lineTaxAmount);
             $taxInWords   = self::numberToWords($lineTaxAmount);
-            $itemName     = self::resolvePrintedItemName($item->mixDesign ?? $mixDesignObj, $printItemNameFormat, $item->item_name);
+            $itemName     = $isPurchaseBill ? $item->item_name : self::resolvePrintedItemName($item->mixDesign ?? $mixDesignObj, $printItemNameFormat, $item->item_name);
 
             return [
                 'no'               => $idx + 1,
@@ -1121,7 +1138,7 @@ class PrintDataFormatter
                 'description'      => '',
                 'hsn'              => $item->hsn_code ?? '-',
                 'qty'              => (float) $item->quantity,
-                'unit'             => $item->uom->unit_code ?? 'm³',
+                'unit'             => $item->uom->unit_code ?? ($isPurchaseBill ? '-' : 'm³'),
                 'unit_price'       => (float) $item->price_unit,
                 'discount'         => (float) ($item->discount_amount ?? $item->discount ?? 0),
                 'operation_type'   => $operationType,
@@ -1133,7 +1150,7 @@ class PrintDataFormatter
                 'tax_group'        => $taxDetails['group'],
                 'tax_amount'       => $lineTaxAmount,
                 'total'            => $itemTotal,
-                'recipe_materials' => self::resolveRecipeMaterials($item->mixDesign ?? $mixDesignObj),
+                'recipe_materials' => $isPurchaseBill ? [] : self::resolveRecipeMaterials($item->mixDesign ?? $mixDesignObj),
             ];
         })->toArray();
 
@@ -1168,7 +1185,9 @@ class PrintDataFormatter
         $calcTotal     = self::calculateGrandTotal($subtotalVal, $pumpVal, $discVal, $hireVal, $passVal, $taxVal, $shippingVal, $adjVal, $roundVal);
         $invTotal      = (float) ($invoice->total_amount ?? 0);
 
-        if ($invTotal > 0 && ($itemsTotalSum <= 0 || $invTotal >= ($itemsTotalSum - 1.0))) {
+        if ($isPurchaseBill) {
+            $grandTotalVal = $invTotal;
+        } elseif ($invTotal > 0 && ($itemsTotalSum <= 0 || $invTotal >= ($itemsTotalSum - 1.0))) {
             $grandTotalVal = $invTotal;
         } elseif ($calcTotal > 0) {
             $grandTotalVal = $calcTotal;

@@ -51,7 +51,7 @@ class PurchaseOrderInwardController extends Controller
             
         $purchaseOrders = PurchaseOrder::where('plant_id', $allowedPlantId)
             ->where('receipt_status', '<', 2)
-            ->where('state', 'approved')
+            ->whereIn('state', ['approved', 'billed'])
             ->with(['vendor', 'items.product', 'items.uom'])
             ->latest()
             ->get();
@@ -90,7 +90,7 @@ class PurchaseOrderInwardController extends Controller
 
         $purchaseOrders = PurchaseOrder::where('plant_id', $allowedPlantId)
             ->where('receipt_status', '<', 2) // Not fully received
-            ->where('state','=','approved')
+            ->whereIn('state', ['approved', 'billed'])
             ->with(['vendor', 'items.product', 'items.uom'])
             ->latest()
             ->get();
@@ -124,6 +124,7 @@ class PurchaseOrderInwardController extends Controller
         ]);
 
         $order = PurchaseOrder::findOrFail($validated['order_id']);
+        abort_unless((int)$order->plant_id === (int)session('active_plant_id'), 404);
 
         // Ensure at least one item has a received quantity > 0 OR we are recording initial truck weight
         $hasTotalReceived = collect($validated['items'])->contains(fn($item) => (float)$item['received_qty'] > 0);
@@ -134,6 +135,7 @@ class PurchaseOrderInwardController extends Controller
         }
 
         DB::transaction(function () use ($validated, $order) {
+            PurchaseOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
             $userId = Auth::id();
             foreach ($validated['items'] as $itemData) {
                 // Item truck data or fallback to master truck data
@@ -143,7 +145,7 @@ class PurchaseOrderInwardController extends Controller
 
                 if ($itemData['received_qty'] <= 0 && empty($itemTruckLoaded)) continue;
 
-                $item = PurchaseOrderItem::findOrFail($itemData['order_item_id']);
+                $item = $order->items()->lockForUpdate()->findOrFail($itemData['order_item_id']);
                 
                 $remaining = max(0, (float) $item->product_quantity - (float) $item->received_quantity);
                 
@@ -221,8 +223,9 @@ class PurchaseOrderInwardController extends Controller
     {
         $this->authorizeModule('delete');
 
+        abort_unless((int)$inward->plant_id === (int)session('active_plant_id'), 404);
         $order = $inward->order;
-        if ($order && strtolower($order->state) === 'billed') {
+        if ((float)$inward->item?->invoiced_quantity > 0) {
             return redirect()->back()->with('error', 'Inward record cannot be deleted because the Purchase Order has already been billed.');
         }
 
@@ -237,6 +240,9 @@ class PurchaseOrderInwardController extends Controller
         }
 
         DB::transaction(function () use ($inward) {
+            PurchaseOrder::whereKey($inward->order_id)->lockForUpdate()->firstOrFail();
+            $inward->refresh();
+            abort_if((float)$inward->item?->invoiced_quantity > 0, 422, 'Void the bills for this item before deleting its receipts.');
             $userId = Auth::id();
             $item = $inward->item;
             
@@ -277,6 +283,10 @@ class PurchaseOrderInwardController extends Controller
     {
         $this->authorizeModule('edit'); 
 
+        abort_unless((int)$inward->plant_id === (int)session('active_plant_id'), 404);
+        if ((float)$inward->item?->invoiced_quantity > 0) {
+            return back()->with('error', 'Void the bills for this item before changing received weight.');
+        }
         $validated = $request->validate([
             'truck_empty' => 'nullable|numeric|min:0',
             'truck_loaded' => 'nullable|numeric|min:0',
@@ -285,6 +295,9 @@ class PurchaseOrderInwardController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $inward) {
+            PurchaseOrder::whereKey($inward->order_id)->lockForUpdate()->firstOrFail();
+            $inward->refresh();
+            abort_if((float)$inward->item?->invoiced_quantity > 0, 422, 'Void the bills for this item before changing received weight.');
             $userId = Auth::id();
             $oldReceivedQty = (float)$inward->received_qty;
 
