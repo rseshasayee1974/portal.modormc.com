@@ -5,7 +5,7 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
@@ -313,22 +313,22 @@
         <table class="ledger-table">
             <thead>
                 <tr>
-                    <th class="text-center" style="width:28px">#</th>
+                    <th class="text-center" style="width:4%">#</th>
                     <th class="text-left">Description</th>
                     @if ($pdfSettings['show_pump_charges'] ?? true)
-                        <th class="text-left" style="width:110px">Concrete Type</th>
-                        <th class="text-right" style="width:80px">Pump Charges</th>
+                        <th class="text-left" style="width:12%">Concrete Type</th>
+                        <th class="text-right" style="width:9%">Pump Charges</th>
                     @endif
-                    <th class="text-center" style="width:50px">HSN</th>
-                    <th class="text-right" style="width:50px">Qty</th>
-                    <th class="text-center" style="width:40px">UOM</th>
-                    <th class="text-right" style="width:75px">Rate</th>
+                    <th class="text-center" style="width:6%">HSN</th>
+                    <th class="text-right" style="width:6%">Qty</th>
+                    <th class="text-center" style="width:5%">UOM</th>
+                    <th class="text-right" style="width:11%">Rate</th>
                     @if ($pdfSettings['discount'] ?? false)
-                        <th class="text-right" style="width:60px">Discount</th>
+                        <th class="text-right" style="width:7%">Discount</th>
                     @endif
-                    <th class="text-center" style="width:65px">Tax</th>
+                    <th class="text-center" style="width:8%">Tax</th>
                     @if ($pdfSettings['amount'] ?? true)
-                        <th class="text-right" style="width:80px">{{ $labels['amount'] ?? 'Net Total' }}</th>
+                        <th class="text-right" style="width:9%">{{ $labels['amount'] ?? 'Net Total' }}</th>
                     @endif
                 </tr>
             </thead>
@@ -378,7 +378,7 @@
                         </td>
                         @if ($pdfSettings['amount'] ?? true)
                             <td class="text-right" style="vertical-align: middle; font-weight: 800; font-size: 12.5px; color: #2563eb; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
-                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}
+                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($item['total'], 2) }}
                             </td>
                         @endif
                     </tr>
@@ -405,9 +405,9 @@
                                                 <tr style="{{ $cIdx > 0 ? 'border-top: 1px solid #e2e8f0;' : '' }}">
                                                     @foreach ($chunk as $sIdx => $seg)
                                                         @php $isLast = ($sIdx === count($chunk) - 1); @endphp
-                                                        <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }} white-space: nowrap; vertical-align: middle;">
+                                                        <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }}  vertical-align: middle;">
                                                             @if (!empty($seg['is_hsn']))
-                                                                <span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $seg['val'] }}
+                                                                {{-- <span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $seg['val'] }} --}}
                                                             @else
                                                                 <span style="color: #64748b; margin-right: 2px;">&bull;</span> {{ $seg['name'] }} ({{ $seg['qty'] }} {{ $seg['uom'] }})
                                                             @endif
@@ -518,7 +518,7 @@
             <div class="tl-row tl-final">
                 <div class="tl-label">TOTAL PAYABLE ({{ $data['meta']['currency_code'] ?? 'INR' }})</div>
                 <div class="tl-val">
-                    {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}
+                    <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['grand_total'], 2) }}
                 </div>
             </div>
         </div>
@@ -555,11 +555,11 @@
                 !empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : $data['meta']['terms_text'] ?? '',
             );
             $termsHtml =
-                !empty($termsText) && $termsText === strip_tags($termsText) ? nl2br(e($termsText)) : $termsText;
+                str_replace('&nbsp;', ' ', !empty($termsText) && $termsText === strip_tags($termsText) ? nl2br(e($termsText)) : $termsText);
         @endphp
         @if (!empty($termsText))
             <div class="terms-text-content"
-                style="padding:8px 12px;font-size:10px;border-top:1px solid #ccc;text-align:justify;white-space:normal !important;word-break:break-word;">
+                style="padding:8px 12px;font-size:10px;border-top:1px solid #ccc;white-space:normal !important;">
                 <strong>Terms &amp; Conditions:</strong> {!! $termsHtml !!}</div>
         @endif
 

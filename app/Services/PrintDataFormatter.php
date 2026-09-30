@@ -63,7 +63,7 @@ class PrintDataFormatter
                 'sub_total' => 0, 'discount' => 0, 'tax_lines' => [], 'shipping' => 0, 'adjustment' => 0, 'round_off' => 0, 'grand_total' => 0,
             ],
             'meta'          => [
-                'po_number' => '', 'project_name' => '', 'currency_code' => 'INR', 'currency_symbol' => '₹',
+                'po_number' => '', 'project_name' => '', 'currency_code' => 'INR', 'currency_symbol' => '&#8377;',
                 'notes' => '', 'terms_text' => '', 'total_words' => '', 'site_incharge' => '', 'contact_no' => '',
             ],
         ];
@@ -1068,7 +1068,7 @@ class PrintDataFormatter
             'po_number'      => $order->po_number ?? $order->ref_no,
             'project_name'   => $order->plant->name,
             'currency_code'  => $order->currency->currency_code ?? 'INR',
-            'currency_symbol' => $order->currency->currency_symbol ?? '₹',
+            'currency_symbol' => $order->currency->currency_symbol ?? '&#8377;',
             'notes'          => $order->notes ?? '',
             'terms_text'     => self::resolveTermsCondition($data['settings'], 'Purchase Order', $order->plant_id, $order->terms_conditions ?? ''),
             'total_words'    => self::numberToWords($order->amount_total, $order->currency->currency_code ?? 'INR'),
@@ -1301,7 +1301,7 @@ class PrintDataFormatter
 
         $data['meta'] = [
             'currency_code'          => 'INR',
-            'currency_symbol'        => '₹',
+            'currency_symbol'        => '&#8377;',
             'notes'                  => $invoice->notes ?? '',
             'terms_text'             => self::resolveTermsCondition($data['settings'], $orderTypeForTerms, $invoice->plant_id, "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction."),
             'total_words'            => self::numberToWords($grandTotalVal, 'INR'),
@@ -1526,7 +1526,7 @@ class PrintDataFormatter
 
         $data['meta'] = [
             'currency_code'          => 'INR',
-            'currency_symbol'        => '₹',
+            'currency_symbol'        => '&#8377;',
             'notes'                  => $model->notes ?? '',
             'terms_text'             => $ratesTableHtml . $termsText,
             'total_words'            => self::numberToWords($finalGrandTotal, 'INR'),
@@ -1752,7 +1752,7 @@ class PrintDataFormatter
 
         $data['meta'] = [
             'currency_code'          => 'INR',
-            'currency_symbol'        => '₹',
+            'currency_symbol'        => '&#8377;',
             'notes'                  => $salesOrder->terms_conditions ?? '',
             'terms_text'             => self::resolveTermsCondition($data['settings'], 'Sales Order', $salesOrder->plant_id, $salesOrder->terms_conditions ?? ''),
             'total_words'            => self::numberToWords($data['totals']['grand_total'], 'INR'),
@@ -1883,7 +1883,7 @@ class PrintDataFormatter
 
         $data['meta'] = [
             'currency_code'   => 'INR',
-            'currency_symbol' => '₹',
+            'currency_symbol' => '&#8377;',
             'notes'           => $weightNotes,
             'terms_text'      => self::resolveTermsCondition($data['settings'], 'Delivery Challan', $plantId, $batch->salesOrder?->terms_conditions ?? "1. Goods received in good condition.\n2. Any variation in quantity to be reported immediately."),
             'total_words'     => '',

@@ -7,7 +7,7 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
@@ -124,9 +124,10 @@
             line-height: 1.5;
         }
 
-        /* ITEMS TABLE */
         .items-table {
             width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
             border-collapse: collapse;
             border-bottom: 1px solid #cbd5e1;
         }
@@ -466,30 +467,30 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th class="text-center" style="width:28px">#</th>
+                    <th class="text-center" style="width:4%">#</th>
                     <th class="text-left">Item &amp; Description</th>
                     @if ($pdfSettings['show_pump_charges'] ?? true)
-                        <th class="text-left" style="width:110px">Concrete Type</th>
-                        <th class="text-right" style="width:80px">Pump Charges</th>
+                        <th class="text-left" style="width:10%">Concrete Type</th>
+                        <th class="text-right" style="width:10%">Pump Charges</th>
                     @endif
                     @if ($pdfSettings['qty'] ?? true)
-                        <th class="text-right" style="width:50px">Qty</th>
+                        <th class="text-right" style="width:6%">Qty</th>
                     @endif
                     @if ($pdfSettings['unit'] ?? true)
-                        <th class="text-center" style="width:45px">UOM</th>
+                        <th class="text-center" style="width:5%">UOM</th>
                     @endif
-                    <th class="text-right" style="width:75px">{{ $labels['rate'] ?? 'Rate' }}</th>
+                    <th class="text-right" style="width:10%">{{ $labels['rate'] ?? 'Rate' }}</th>
                     @if ($pdfSettings['discount'] ?? false)
-                        <th class="text-right" style="width:60px">Discount</th>
+                        <th class="text-right" style="width:7%">Discount</th>
                     @endif
                     @if ($pdfSettings['tax_rate'] ?? true)
-                        <th class="text-right" style="width:50px">Tax %</th>
+                        <th class="text-right" style="width:6%">Tax %</th>
                     @endif
                     @if ($pdfSettings['tax_amount'] ?? true)
-                        <th class="text-right" style="width:65px">Tax Amt</th>
+                        <th class="text-right" style="width:9%">Tax Amt</th>
                     @endif
                     @if ($pdfSettings['amount'] ?? true)
-                        <th class="text-right" style="width:75px">{{ $labels['amount'] ?? 'Amount' }}</th>
+                        <th class="text-right" style="width:13%">{{ $labels['amount'] ?? 'Amount' }}</th>
                     @endif
                 </tr>
             </thead>
@@ -532,7 +533,7 @@
                             </td>
                         @endif
                         @if ($pdfSettings['qty'] ?? true)
-                            <td class="text-right bold" style="vertical-align: middle; font-size: 11.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['qty_display'] ?? ((float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.')) }}</td>
+                            <td class="text-right bold" style="vertical-align: middle; font-size: 9.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['qty_display'] ?? ((float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.')) }}</td>
                         @endif
                         @if ($pdfSettings['unit'] ?? true)
                             <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['unit'] }}</td>
@@ -554,8 +555,8 @@
                             </td>
                         @endif
                         @if ($pdfSettings['amount'] ?? true)
-                            <td class="text-right" style="vertical-align: middle; font-weight: 800; font-size: 12.5px; color: #2563eb; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
-                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}
+                            <td class="text-right" style="vertical-align: middle; font-weight: 800; font-size: 9.5px; color: #2563eb; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($item['total'], 2) }}
                             </td>
                         @endif
                     </tr>
@@ -574,10 +575,7 @@
                                                 $allSegments = [];
                                                 foreach ($item['recipe_materials'] as $rm) {
                                                     $allSegments[] = ['is_hsn' => false, 'name' => $rm['name'], 'qty' => $rm['qty'], 'uom' => $rm['uom']];
-                                                }
-                                                if ($pdfSettings['hsn_code'] ?? true) {
-                                                    $allSegments[] = ['is_hsn' => true, 'val' => $hsnVal];
-                                                }
+                                                }                                
                                                 $chunkSize = count($allSegments) > 3 ? (int)ceil(count($allSegments) / 2) : count($allSegments);
                                                 $chunks = array_chunk($allSegments, max(1, $chunkSize));
                                             @endphp
@@ -585,7 +583,7 @@
                                                 <tr style="{{ $cIdx > 0 ? 'border-top: 1px solid #e2e8f0;' : '' }}">
                                                     @foreach ($chunk as $sIdx => $seg)
                                                         @php $isLast = ($sIdx === count($chunk) - 1); @endphp
-                                                        <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }} white-space: nowrap; vertical-align: middle;">
+                                                        <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }}  vertical-align: middle;">
                                                             @if (!empty($seg['is_hsn']))
                                                                 <span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $seg['val'] }}
                                                             @else
@@ -599,11 +597,7 @@
                                     </div>
                                 @elseif ($hasDesc)
                                     <div class="item-sub">{{ $item['description'] }}</div>
-                                    @if ($pdfSettings['hsn_code'] ?? true)
-                                        <div class="small muted" style="margin-top: 2px;"><span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $hsnVal }}</div>
-                                    @endif
-                                @elseif ($pdfSettings['hsn_code'] ?? true)
-                                    <div class="small muted" style="margin-top: 2px;"><span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $hsnVal }}</div>
+                                   
                                 @endif
                                 @include('pdfs.partials._pump_rates_table', ['item' => $item])
                             </td>
@@ -673,7 +667,7 @@
                         <tr>
                             <td class="bt-label">Sub Total</td>
                             <td class="bt-val">
-                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['sub_total'], 2) }}
+                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['sub_total'], 2) }}
                             </td>
                         </tr>
                     @endif
@@ -684,7 +678,7 @@
                         <tr>
                             <td class="bt-label">Concrete Pump Charges</td>
                             <td class="bt-val">
-                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($pumpChg, 2) }}
+                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($pumpChg, 2) }}
                             </td>
                         </tr>
                     @endif
@@ -692,7 +686,7 @@
                         <tr>
                             <td class="bt-label red">Discount (-)</td>
                             <td class="bt-val red">
-                                -{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['discount'], 2) }}
+                                -<span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['discount'], 2) }}
                             </td>
                         </tr>
                     @endif
@@ -701,7 +695,7 @@
                         <tr>
                             <td class="bt-label">Hire Charge</td>
                             <td class="bt-val">
-                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($hireChg, 2) }}
+                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($hireChg, 2) }}
                             </td>
                         </tr>
                     @endif
@@ -709,7 +703,7 @@
                         <tr>
                             <td class="bt-label">Pass Amount</td>
                             <td class="bt-val">
-                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['pass_amount'], 2) }}
+                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['pass_amount'], 2) }}
                             </td>
                         </tr>
                     @endif
@@ -730,7 +724,7 @@
                             <tr>
                                 <td class="bt-label">{{ $tl['label'] }}</td>
                                 <td class="bt-val">
-                                    {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($tl['amount'], 2) }}
+                                    <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($tl['amount'], 2) }}
                                 </td>
                             </tr>
                         @endif
@@ -739,7 +733,7 @@
                         <tr>
                             <td class="bt-label">Shipping</td>
                             <td class="bt-val">
-                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['shipping'], 2) }}
+                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['shipping'], 2) }}
                             </td>
                         </tr>
                     @endif
@@ -747,7 +741,7 @@
                         <tr>
                             <td class="bt-label">Adjustment</td>
                             <td class="bt-val">
-                                {{ $data['totals']['adjustment'] > 0 ? '+' : '' }}{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['adjustment'], 2) }}
+                                {{ $data['totals']['adjustment'] > 0 ? '+' : '' }}<span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['adjustment'], 2) }}
                             </td>
                         </tr>
                     @endif
@@ -755,14 +749,14 @@
                         <tr>
                             <td class="bt-label">Round Off</td>
                             <td class="bt-val">
-                                {{ $data['totals']['round_off'] > 0 ? '+' : '' }}{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['round_off'], 2) }}
+                                {{ $data['totals']['round_off'] > 0 ? '+' : '' }}<span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['round_off'], 2) }}
                             </td>
                         </tr>
                     @endif
                     <tr class="bt-total-row">
                         <td class="bt-label bold">Total</td>
                         <td class="bt-val bold">
-                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}
+                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['grand_total'], 2) }}
                         </td>
                     </tr>
                 </table>
@@ -780,14 +774,15 @@
             $termsText = trim(
                 !empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : $data['meta']['terms_text'] ?? '',
             );
-            $termsHtml =
-                !empty($termsText) && $termsText === strip_tags($termsText) ? nl2br(e($termsText)) : $termsText;
+            $termsHtml = str_replace('&nbsp;', ' ', 
+                !empty($termsText) && $termsText === strip_tags($termsText) ? nl2br(e($termsText)) : $termsText
+            );
         @endphp
         @if (($pdfSettings['terms'] ?? true) && !empty($termsText))
             <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;font-size:11px">
                 <div class="small muted" style="margin-bottom:2px">Terms &amp; Conditions</div>
                 <div class="terms-text-content"
-                    style="font-size:10px;color:#334155;text-align:justify;white-space:normal !important;word-break:break-word;">
+                    style="font-size:10px;color:#334155;white-space:normal !important;">
                     {!! $termsHtml !!}</div>
             </div>
         @endif

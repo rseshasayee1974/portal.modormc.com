@@ -44,7 +44,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
@@ -74,16 +74,25 @@
             page-break-inside: avoid;
         }
         
-        .header-table { width: 100%; border-collapse: collapse; border-bottom: 2px solid #000; }
+        .header-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; border-bottom: 2px solid #000; }
         .header-table td { vertical-align: top; padding: 6px 8px; }
         .header-title { text-align: right; text-transform: uppercase; font-size: 12pt; font-weight: bold; }
         .header-subtitle { text-align: right; text-transform: uppercase; font-size: 8.5pt; color: #333; margin-top: 1px; }
 
         .irn-bar { border-bottom: 2px solid #000; padding: 4px 8px; font-size: 8pt; width: 100%; box-sizing: border-box; }
-        .irn-bar table { width: 100%; border-collapse: collapse; }
+        .irn-bar table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; }
         .irn-bar td { vertical-align: middle; padding: 0; }
 
-        .block-table { width: 100%; border-collapse: collapse; border-bottom: 2px solid #000; }
+        .block-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; border-bottom: 2px solid #000; }
         .block-th { background: #fff; border-bottom: 1.5px solid #000; border-right: 1.5px solid #000; font-size: 8.5pt; font-weight: bold; padding: 4px 6px; text-align: left; }
         .block-th:last-child { border-right: none; }
         .block-td { border-right: 1.5px solid #000; padding: 4px 6px; vertical-align: top; font-size: 8pt; line-height: 1.25; }
@@ -93,29 +102,44 @@
         .kv-label { font-weight: normal; color: #111; }
         .kv-val { font-weight: bold; color: #000; }
 
-        .carrier-table { width: 100%; border-collapse: collapse; border-bottom: 2px solid #000; }
+        .carrier-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; border-bottom: 2px solid #000; }
         .carrier-th { width: 38%; border-right: 1.5px solid #000; padding: 4px 6px; font-size: 8.5pt; font-weight: bold; }
         .carrier-td { width: 62%; padding: 4px 6px; font-size: 8pt; vertical-align: middle; }
 
-        .items-table { width: 100%; border-collapse: collapse; border-bottom: 2px solid #000; }
+        .items-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; border-bottom: 2px solid #000; }
         .items-table th { border-bottom: 1.5px solid #000; border-right: 1.5px solid #000; padding: 4px 3px; font-size: 8pt; font-weight: bold; text-align: center; background: #fff; }
         .items-table th:last-child { border-right: none; }
         .items-table td { border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 4px 4px; font-size: 8pt; vertical-align: middle; }
         .items-table td:last-child { border-right: none; }
         .items-table tr:last-child td { border-bottom: none; }
 
-        .tax-subtable { width: 100%; border-collapse: collapse; margin: 0; }
+        .tax-subtable { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; margin: 0; }
         .tax-subtable td { border: 1px solid #000; padding: 2px 3px; font-size: 7.5pt; text-align: center; }
         .tax-subtable tr:first-child td { border-top: none; }
         .tax-subtable tr:last-child td { border-bottom: none; }
         .tax-subtable td:first-child { border-left: none; text-align: left; font-weight: bold; }
         .tax-subtable td:last-child { border-right: none; text-align: right; }
 
-        .totals-table { width: 100%; border-collapse: collapse; border-bottom: 2px solid #000; }
+        .totals-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; border-bottom: 2px solid #000; }
         .totals-table td { vertical-align: top; padding: 0; }
         .totals-words { width: 60%; border-right: 1.5px solid #000; padding: 6px 8px; font-size: 8pt; line-height: 1.3; }
 
-        .summary-subtable { width: 100%; border-collapse: collapse; }
+        .summary-subtable { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; }
         .summary-subtable td { border-bottom: 1.5px solid #000; padding: 3px 6px; font-size: 8pt; }
         .summary-subtable td.label-cell { text-align: right; border-right: 1.5px solid #000; }
         .summary-subtable td.val-cell { text-align: right; width: 85px; }
@@ -124,7 +148,10 @@
         .terms-block { border-right: 1.5px solid #000; width: 60%; padding: 5px 6px; vertical-align: top; font-size: 7pt; line-height: 1.25; }
         .bank-block { width: 40%; padding: 5px 6px; vertical-align: top; font-size: 7.5pt; line-height: 1.3; }
 
-        .footer-table { width: 100%; border-collapse: collapse; border-top: 2px solid #000; }
+        .footer-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; border-top: 2px solid #000; }
         .footer-cert { border-right: 1.5px solid #000; width: 40%; padding: 4px 6px; font-size: 7pt; color: #000; vertical-align: top; line-height: 1.2; }
         .footer-sig-cust { border-right: 1.5px solid #000; width: 25%; padding: 4px 6px; vertical-align: bottom; text-align: center; font-size: 8pt; font-weight: bold; }
         .footer-sig-auth { width: 35%; padding: 4px 6px; vertical-align: bottom; text-align: center; font-size: 8pt; }
@@ -414,7 +441,7 @@
                                         <tr style="{{ $cIdx > 0 ? 'border-top: 1px solid #e2e8f0;' : '' }}">
                                             @foreach ($chunk as $sIdx => $seg)
                                                 @php $isLast = ($sIdx === count($chunk) - 1); @endphp
-                                                <td style="padding: 1px 6px 1px 3px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }} white-space: nowrap; vertical-align: middle;">
+                                                <td style="padding: 1px 6px 1px 3px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }}  vertical-align: middle;">
                                                     <span style="color: #64748b; margin-right: 2px;">&bull;</span> {{ $seg['name'] }} ({{ $seg['qty'] }} {{ $seg['uom'] }})
                                                 </td>
                                             @endforeach
@@ -553,16 +580,19 @@
     @endif
 
     {{-- TERMS & CONDITIONS + BANK INFORMATION --}}
-    <table style="width: 100%; border-collapse: collapse;">
+    <table style="width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse;">
         <tr>
             <td class="terms-block">
                 @if(($pdfSettings['terms'] ?? true) !== false)
                     @php
                         $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
-                        $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
+                        $termsHtml = str_replace('&nbsp;', ' ', (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText);
                     @endphp
                     <div style="font-weight: bold; margin-bottom: 2px; text-transform: uppercase;">TERMS &amp; CONDITIONS :</div>
-                    <div class="terms-text-content" style="font-size: 6.8pt; line-height: 1.25; white-space: normal !important; word-break: break-word;">
+                    <div class="terms-text-content" style="font-size: 6.8pt; line-height: 1.25; white-space: normal !important; ">
                         @if(!empty($termsHtml))
                             {!! $termsHtml !!}
                         @else
