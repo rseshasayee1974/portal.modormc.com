@@ -38,14 +38,14 @@ class ERPDashboardController extends Controller
                 ->get(['id', 'legal_name']);
         }) : collect();
 
-        $cacheKey = $this->getCacheKey('full', $plantId, $request);
-        if ($request->boolean('refresh')) {
-            Cache::forget($cacheKey);
+        $initialData = $this->emptyPayload();
+        if ($plantId) {
+            $cacheKey = $this->getCacheKey('full', $plantId, $request);
+            if ($request->boolean('refresh')) {
+                Cache::forget($cacheKey);
+            }
+            $initialData = Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId));
         }
-
-        $initialData = $plantId
-            ? Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId))
-            : $this->emptyPayload();
 
         return Inertia::render('Dashboard/Dashboard', [
             'patrons' => $patrons,
@@ -75,14 +75,14 @@ class ERPDashboardController extends Controller
                 ->get(['id', 'legal_name']);
         }) : collect();
 
-        $cacheKey = $this->getCacheKey('full', $plantId, $request);
-        if ($request->boolean('refresh')) {
-            Cache::forget($cacheKey);
+        $initialData = $this->emptyPayload();
+        if ($plantId) {
+            $cacheKey = $this->getCacheKey('full', $plantId, $request);
+            if ($request->boolean('refresh')) {
+                Cache::forget($cacheKey);
+            }
+            $initialData = Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId));
         }
-
-        $initialData = $plantId
-            ? Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId))
-            : $this->emptyPayload();
 
         return Inertia::render('Dashboard/AnalyticsDashboard', [
             'patrons' => $patrons,

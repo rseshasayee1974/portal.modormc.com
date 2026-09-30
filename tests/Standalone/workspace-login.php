@@ -59,6 +59,18 @@ $response = (new SetEntityContext)->handle($request, fn () => response('dashboar
 checkWorkspace($response->getContent() === 'dashboard' && !session('active_plant_id'), 'Empty account was redirected or retained stale context.');
 $resolvePlant = new ReflectionMethod(ERPDashboardController::class, 'resolvePlantId');
 checkWorkspace($resolvePlant->invoke(new ERPDashboardController) === null, 'Dashboard selected an unrelated plant.');
+foreach (['index', 'analytics'] as $action) {
+    foreach ([[], ['refresh' => 1, 'start_date' => '2026-09-01', 'end_date' => '2026-09-30']] as $filters) {
+        $dashboardRequest = Request::create('/dashboard', 'GET', $filters);
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $page = (new ERPDashboardController)->{$action}($dashboardRequest);
+        $props = (new ReflectionProperty(Inertia\Response::class, 'props'))->getValue($page);
+        checkWorkspace($props['patrons']->isEmpty() && $props['initialData']['metrics'] === [], 'Dashboard without a workspace must render empty data.');
+        checkWorkspace(DB::getQueryLog() === [], 'Dashboard without a workspace queried tenant data.');
+        DB::disableQueryLog();
+    }
+}
 
 DB::table('mm_entities')->insert(['id' => 1, 'is_suspended' => 0]);
 DB::table('mm_plants')->insert(['id' => 1, 'entity_id' => 1, 'is_active' => 1]);
