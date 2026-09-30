@@ -18,8 +18,8 @@ class RequireOtpVerification
         if (Auth::check()) {
             $user = Auth::user();
 
-            // Skip OTP routes themselves to prevent redirect loop
-            if ($request->routeIs('otp.*')) {
+            // Allow logout even while OTP verification is pending.
+            if ($request->routeIs('otp.*', 'logout')) {
                 return $next($request);
             }
 

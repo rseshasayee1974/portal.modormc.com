@@ -26,8 +26,8 @@ class SetEntityContext
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Skip middleware on entity/plant selection and non-authenticated routes
-        if ($request->routeIs('entity-context.*', 'login', 'register', 'password.*', 'verification.*')) {
+        // Logout must remain available even when no valid workspace is selected.
+        if ($request->routeIs('entity-context.*', 'login', 'logout', 'register', 'password.*', 'verification.*')) {
             return $next($request);
         }
 
