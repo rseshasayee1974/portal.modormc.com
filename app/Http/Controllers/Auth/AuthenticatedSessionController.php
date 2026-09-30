@@ -69,7 +69,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(config('fortify.home', route('dashboard', absolute: false)));
+        return redirect(app(\App\Services\LoginDestination::class)->resolve($request));
     }
 
     /**
@@ -218,7 +218,7 @@ class AuthenticatedSessionController extends Controller
 
         return response()->json([
             'message' => 'Logged in successfully.',
-            'redirect' => config('fortify.home', route('dashboard', absolute: false)),
+            'redirect' => app(\App\Services\LoginDestination::class)->resolve($request),
         ]);
     }
 

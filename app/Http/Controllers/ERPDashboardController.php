@@ -31,12 +31,12 @@ class ERPDashboardController extends Controller
         $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
 
         $patronCacheKey = $plantId ? "patrons.{$plantId}" : "patrons.all";
-        $patrons = Cache::remember($patronCacheKey, now()->addDays(7), function () use ($plantId) {
+        $patrons = $plantId ? Cache::remember($patronCacheKey, now()->addDays(7), function () use ($plantId) {
             return Patron::query()
                 ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
                 ->orderBy('legal_name')
                 ->get(['id', 'legal_name']);
-        });
+        }) : collect();
 
         $cacheKey = $this->getCacheKey('full', $plantId, $request);
         if ($request->boolean('refresh')) {
@@ -68,12 +68,12 @@ class ERPDashboardController extends Controller
         $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
 
         $patronCacheKey = $plantId ? "patrons.{$plantId}" : "patrons.all";
-        $patrons = Cache::remember($patronCacheKey, now()->addDays(7), function () use ($plantId) {
+        $patrons = $plantId ? Cache::remember($patronCacheKey, now()->addDays(7), function () use ($plantId) {
             return Patron::query()
                 ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
                 ->orderBy('legal_name')
                 ->get(['id', 'legal_name']);
-        });
+        }) : collect();
 
         $cacheKey = $this->getCacheKey('full', $plantId, $request);
         if ($request->boolean('refresh')) {
@@ -365,9 +365,7 @@ class ERPDashboardController extends Controller
             return (int) $plantId;
         }
 
-        return Invoice::latest('invoice_date')->value('plant_id')
-            ?? SalesOrder::latest()->value('plant_id')
-            ?? Plant::where('is_active', true)->value('id');
+        return null;
     }
 
     private function resolveDateRange(?string $startDate, ?string $endDate): array

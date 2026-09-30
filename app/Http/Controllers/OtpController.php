@@ -57,7 +57,7 @@ class OtpController extends Controller
         session()->forget(['otp_pending', 'otp_code', 'otp_expires_at']);
         session(['otp_verified' => true]);
 
-        return redirect()->route('dashboard');
+        return redirect(app(\App\Services\LoginDestination::class)->resolve($request));
     }
 
     /**

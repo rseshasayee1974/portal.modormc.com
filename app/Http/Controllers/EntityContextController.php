@@ -25,6 +25,10 @@ class EntityContextController extends Controller
         $user = Auth::user();
         $isSuperAdmin = $user->isSystemAdmin();
 
+        if (!app(\App\Services\PlantContextService::class)->hasWorkspaces($user, $isSuperAdmin)) {
+            return redirect(app(\App\Services\LoginDestination::class)->resolve(request()));
+        }
+
         $plants = collect();
 
         if ($isSuperAdmin) {

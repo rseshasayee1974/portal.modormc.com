@@ -40,6 +40,16 @@ class SetEntityContext
 
         /** @var PlantContextService $ctx */
         $ctx            = app(PlantContextService::class);
+        if (!$ctx->hasWorkspaces($user, $isSuperAdmin)) {
+            session()->forget(['active_entity_id', 'active_plant_id', 'default_entity_id', 'default_plant_id', 'gstin', 'mixer_capacity']);
+            if (!$isSuperAdmin) {
+                $this->clearUserRoles($user);
+            }
+            $this->trackLastVisitPage($request, $user);
+
+            return $next($request);
+        }
+
         $activeEntityId = $ctx->entityId();
         $activePlantId  = $ctx->plantId();
 

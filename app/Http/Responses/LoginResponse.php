@@ -40,6 +40,6 @@ class LoginResponse implements LoginResponseContract
         }
 
         // No OTP required — normal post-login redirect
-        return redirect()->intended(config('fortify.home', '/dashboard'));
+        return redirect(app(\App\Services\LoginDestination::class)->resolve($request));
     }
 }

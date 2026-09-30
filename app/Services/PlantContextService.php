@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Plant;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 
@@ -30,6 +31,26 @@ use Illuminate\Support\Facades\Session;
  */
 class PlantContextService
 {
+    /** Include restricted workspaces so their existing access checks still apply. */
+    public function hasWorkspaces(User $user, ?bool $isSuperAdmin = null): bool
+    {
+        $plants = Plant::query()->whereHas('entity');
+        if (!($isSuperAdmin ?? $user->isSystemAdmin())) {
+            $plants->whereExists(function ($query) use ($user) {
+                $query->selectRaw('1')->from('mm_entity_users')
+                    ->where('user_id', $user->id)
+                    ->whereNull('mm_entity_users.deleted_at')
+                    ->whereColumn('mm_entity_users.entity_id', 'mm_plants.entity_id')
+                    ->where(function ($assignment) {
+                        $assignment->whereNull('mm_entity_users.plant_id')
+                            ->orWhereColumn('mm_entity_users.plant_id', 'mm_plants.id');
+                    });
+            });
+        }
+
+        return $plants->exists();
+    }
+
     /**
      * Resolve the active plant ID.
      * Session > user default > null.
