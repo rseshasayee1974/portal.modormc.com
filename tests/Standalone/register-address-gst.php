@@ -20,6 +20,42 @@ function checkRegister(bool $condition, string $message): void
 {
     if (!$condition) throw new RuntimeException($message);
 }
+function checkStandardSales(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $report): void
+{
+    $headers = $sheet->rangeToArray('A4:'.$sheet->getHighestColumn().'4')[0];
+    $expected = ['Address_1' => '244/1, Mangalam Road',
+        'Address_2' => 'Lakshmi Garden Poomalur, Pallipalayam, Samalapuram', 'City' => 'Tiruppur', 'Zipcode' => '00641664',
+        'Shipping Address_1' => 'Delivery site street', 'Shipping Address_2' => 'Site area',
+        'Shipping Zipcode' => '000789', 'Truck' => 'TN10BF9876'];
+    foreach ($expected as $label => $value) {
+        checkRegister(count(array_keys($headers, $label, true)) === 1, "Standard sales missing/duplicate $label");
+        $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(array_search($label, $headers, true) + 1);
+        foreach ($report['data'] as $index => $row) {
+            $cell = $sheet->getCell($letter.($index + 5));
+            checkRegister($cell->getValue() === $value && $cell->getDataType() === 's', "Standard sales $label missing or not text");
+        }
+    }
+    $baseHeaders = array_column($report['columns'], 'label');
+    checkRegister(array_values(array_filter($headers, fn ($header) => in_array($header, $baseHeaders, true))) === $baseHeaders,
+        'Standard sales reordered/replaced existing GST or document columns');
+    checkRegister($sheet->getHighestRow() === count($report['data']) + 5, 'Standard sales changed the selected grouping');
+    checkRegister($sheet->getCell('A3')->getValue() === $report['note'], 'Standard sales rounding semantics changed');
+    foreach ($report['columns'] as $column) {
+        if ($column['format'] !== 'number') continue;
+        $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(array_search($column['label'], $headers, true) + 1);
+        foreach ($report['data'] as $index => $row) {
+            checkRegister(abs($sheet->getCell($letter.($index + 5))->getValue() - (float) \App\Services\Reports\RegisterReportColumns::value($row, $column['key'])) < 0.0001,
+                'Standard sales amount changed: '.$column['label']);
+        }
+        if ($column['total']) {
+            checkRegister(abs($sheet->getCell($letter.$sheet->getHighestRow())->getValue() - (float) \App\Services\Reports\RegisterReportColumns::value($report['totals'], $column['total'])) < 0.0001,
+                'Standard sales total changed: '.$column['label']);
+        }
+    }
+    checkRegister($sheet->getStyle('C5')->getAlignment()->getWrapText() && $sheet->getRowDimension(5)->getRowHeight() > 22,
+        'Standard sales address lines are clipped');
+    checkRegister($sheet->getFreezePane() === 'C5', 'Standard sales freezes too many wide address columns');
+}
 foreach ([
     'mm_plants' => 'id INTEGER, gstin TEXT, deleted_at TEXT',
     'mm_patrons' => 'id INTEGER, plant_id INTEGER, legal_name TEXT, gstin TEXT, patron_type TEXT, deleted_at TEXT',
@@ -139,9 +175,30 @@ foreach (['sales' => $sales, 'purchase' => $purchase] as $kind => $service) {
     $standardBook = IOFactory::load("$directory/$kind-standard.xlsx");
     $standardSheet = $standardBook->getActiveSheet();
     $standardHeaders = $standardSheet->rangeToArray('A4:'.$standardSheet->getHighestColumn().'4')[0];
-    checkRegister(in_array('CGST 2.5%', $standardHeaders, true) && in_array('IGST 28%', $standardHeaders, true)
-        && !in_array('ADDRESS_1', $standardHeaders, true), "$kind standard GST layout was replaced");
+    checkRegister(in_array('CGST 2.5%', $standardHeaders, true) && in_array('IGST 28%', $standardHeaders, true), "$kind standard GST layout was replaced");
     checkRegister($standardSheet->getHighestRow() === ($kind === 'sales' ? 6 : 7), "$kind standard summary grouping changed");
+    if ($kind === 'sales') {
+        $standardFilters = array_replace($formatFilters, ['excel_format' => 'standard']);
+        $baseReport = $sales->buildReport($standardFilters, true);
+        checkRegister(!in_array('address_1', array_column($baseReport['columns'], 'key'), true), 'Address columns widened screen/PDF layout');
+        checkStandardSales($standardSheet, $baseReport);
+        $detailFilters = array_replace($standardFilters, ['register_view' => 'detail']);
+        $detailReport = $sales->buildReport($detailFilters, true);
+        $sales->generateAndSaveReport('excel', $detailFilters, "$directory/sales-standard-detail.xlsx");
+        $detailBook = IOFactory::load("$directory/sales-standard-detail.xlsx");
+        checkStandardSales($detailBook->getActiveSheet(), $detailReport);
+        $detailBook->disconnectWorksheets();
+        $genericBook = app(\App\Services\Reports\ExcelExportService::class)->generateExcelReport('sales_register', '2026-09-04', '2026-09-04', $baseReport);
+        checkStandardSales($genericBook->getActiveSheet(), $baseReport);
+        $genericBook->disconnectWorksheets();
+        (new \App\Exports\SalesRegisterExport(app(\App\Repositories\ReportRepository::class)->getSalesRegisterQuery($detailFilters)))
+            ->export("$directory/sales-standard-legacy.xlsx");
+        $legacyBook = IOFactory::load("$directory/sales-standard-legacy.xlsx");
+        checkStandardSales($legacyBook->getActiveSheet(), $detailReport);
+        $legacyBook->disconnectWorksheets();
+    } else {
+        checkRegister(!in_array('Address_1', $standardHeaders, true), 'Purchase standard columns changed');
+    }
     $standardBook->disconnectWorksheets();
     $service->generateAndSaveReport('excel', $formatFilters, "$directory/$kind-address-gst.xlsx");
     $book = IOFactory::load("$directory/$kind-address-gst.xlsx");
@@ -191,9 +248,19 @@ $scopedReport = app(App\Services\Reports\RegisterAddressGstFormat::class)->prepa
     $sales->buildReport(['from_date' => '2026-09-04', 'to_date' => '2026-09-04', 'plant_id' => 1], true), 'sales_register', 1);
 checkRegister($scopedReport['data'][0]['address_1'] === '' && $scopedReport['data'][0]['shipping_address'] === ''
     && $scopedReport['data'][0]['shipping_zipcode'] === '', 'Foreign contacts/sites or deleted contact leaked into export');
+$standardScoped = $sales->prepareExcelReport($sales->buildReport(['from_date' => '2026-09-04', 'to_date' => '2026-09-04', 'plant_id' => 1], true), ['plant_id' => 1]);
+foreach (['address_1', 'address_2', 'city', 'zipcode', 'shipping_address_1', 'shipping_address_2', 'shipping_zipcode'] as $field) {
+    checkRegister($standardScoped['data'][0][$field] === '', "Standard sales leaked foreign/deleted $field");
+}
+DB::table('mm_invoices')->where('id', 900)->update(['partner_id' => 1, 'invoice_label' => 'Manual']);
+$manualReport = $sales->prepareExcelReport($sales->buildReport(['from_date' => '2026-09-04', 'to_date' => '2026-09-04', 'plant_id' => 1], true), ['plant_id' => 1]);
+checkRegister($manualReport['data'][0]['address_1'] === 'Supplier street' && $manualReport['data'][0]['zipcode'] === '000123', 'Standard sales linked party address fallback missing');
+checkRegister($manualReport['data'][0]['shipping_address_1'] === '' && $manualReport['data'][0]['truck'] === '', 'Manual invoice used unrelated dispatch');
 
 $empty = app(App\Services\Reports\RegisterAddressGstFormat::class)->prepare(
     $sales->buildReport(['from_date' => '2025-01-01', 'to_date' => '2025-01-01', 'plant_id' => 1], true), 'sales_register', 1);
 checkRegister($empty['data'] === [] && count($empty['columns']) === 26 && $empty['totals']['roundoff'] === 0.0, 'Empty format lost columns or created rows');
+$emptyStandard = $sales->prepareExcelReport($sales->buildReport(['from_date' => '2025-01-01', 'to_date' => '2025-01-01', 'plant_id' => 1], true), ['plant_id' => 1]);
+checkRegister($emptyStandard['data'] === [] && in_array('shipping_address_2', array_column($emptyStandard['columns'], 'key'), true), 'Empty standard sales lost address columns');
 
-echo "Address & GST column layout, item rows, address scoping, shipping, truck filtering, cell types, tax precision, roundoff and endpoint validation passed.\nQA files: $directory\n";
+echo "Standard sales summary/detail/legacy addresses, shipping, truck, GST totals and cell types; Address & GST layout, scoping, tax precision, roundoff and endpoint validation passed.\nQA files: $directory\n";

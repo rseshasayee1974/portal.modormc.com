@@ -12,15 +12,31 @@ class RegisterAddressGstFormat
 
     public function prepare(array $report, string $type, int $plantId): array
     {
+        $report['data'] = $this->rowsWithDetails($report['data'], $type, $plantId);
+        $report['columns'] = $this->columns();
+        $report['totals']['roundoff'] = round(array_sum(array_column($report['data'], 'roundoff')), 2);
+        $report['excel_format'] = self::KEY;
+        $report['note'] = 'GROSS is the stored item total including tax; SALES GST is the taxable item value. ROUNDOFF appears once per invoice/bill on its first matching item. Amounts are in INR.';
+        return $report;
+    }
+
+    public function prepareStandardSales(array $report, int $plantId): array
+    {
+        $report['data'] = $this->rowsWithDetails($report['data'], 'sales_register', $plantId);
+        $report['columns'] = RegisterReportColumns::standardSalesExcel($report['columns']);
+        return $report;
+    }
+
+    private function rowsWithDetails(array $sourceRows, string $type, int $plantId): array
+    {
         $sales = $type === 'sales_register';
         $rows = [];
         $seenDocuments = [];
-        $roundoffTotal = 0.0;
         $plant = $sales ? null : Plant::where('id', $plantId)->with(['addresses.state', 'addresses.addressType'])->first();
         $plantAddress = $this->preferredAddress($plant?->addresses ?? collect(), $plantId);
 
         // Batch lookups so addresses and delivery details do not add a query per item.
-        foreach (array_chunk($report['data'], 500) as $chunk) {
+        foreach (array_chunk($sourceRows, 500) as $chunk) {
             $ids = array_values(array_unique(array_column($chunk, 'document_id')));
             $documents = $sales ? $this->salesDocuments($ids, $plantId) : $this->purchaseDocuments($ids, $plantId);
             $parties = Patron::withoutGlobalScope('active_operational_status')->where('plant_id', $plantId)->whereIn('id', $documents->pluck('party_id')->filter())
@@ -43,7 +59,6 @@ class RegisterAddressGstFormat
                     ?? $this->preferredAddress($party?->addresses ?? collect(), $plantId);
                 $roundoff = isset($seenDocuments[$row['document_id']]) ? 0.0 : (float) ($document?->roundoff ?? 0);
                 $seenDocuments[$row['document_id']] = true;
-                $roundoffTotal += $roundoff;
                 $shippingParts = $sales
                     ? [$document?->shipping_address_1, $document?->shipping_address_2, $document?->shipping_city]
                     : [$plantAddress?->line_1, $plantAddress?->line_2, $plantAddress?->city];
@@ -56,6 +71,8 @@ class RegisterAddressGstFormat
                     'city' => $address?->city ?? '', 'state' => $address?->state?->state_name ?? $address?->state_code ?? '',
                     'zipcode' => $address?->zipcode ?? '',
                     'shipping_address' => $shipping ?: ($sales ? ($document?->shipping_name ?? '') : ''),
+                    'shipping_address_1' => $sales ? ($document?->shipping_address_1 ?? '') : ($plantAddress?->line_1 ?? ''),
+                    'shipping_address_2' => $sales ? ($document?->shipping_address_2 ?? '') : ($plantAddress?->line_2 ?? ''),
                     'shipping_zipcode' => $sales ? ($document?->shipping_zipcode ?? '') : ($plantAddress?->zipcode ?? ''),
                     'payment_mode' => $sales ? ($row['payment_mode'] ?? '') : '',
                     'invoice_no' => $row[$sales ? 'invoice_no' : 'bill_no'],
@@ -68,12 +85,7 @@ class RegisterAddressGstFormat
             }
         }
 
-        $report['data'] = $rows;
-        $report['columns'] = $this->columns();
-        $report['totals']['roundoff'] = round($roundoffTotal, 2);
-        $report['excel_format'] = self::KEY;
-        $report['note'] = 'GROSS is the stored item total including tax; SALES GST is the taxable item value. ROUNDOFF appears once per invoice/bill on its first matching item. Amounts are in INR.';
-        return $report;
+        return $rows;
     }
 
     private function salesDocuments(array $ids, int $plantId)

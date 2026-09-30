@@ -638,7 +638,7 @@
             <div class="totals-left">
                 @if (($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
                     <div class="small muted" style="margin-bottom:6px">Notes</div>
-                    <div style="margin-bottom:8px;font-size:11px">{{ $data['meta']['notes'] }}</div>
+                    <div class="customer-notes-content" style="margin-bottom:8px;font-size:11px">{{ $data['meta']['notes'] }}</div>
                 @endif
                 @if ($pdfSettings['total_words'] ?? true)
                     <div class="tow-label">Amount in Words :</div>
@@ -771,7 +771,7 @@
         @elseif (($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
             <div style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0;">
                 <div class="small muted" style="margin-bottom:6px">Notes</div>
-                <div style="margin-bottom:8px;font-size:11px">{{ $data['meta']['notes'] }}</div>
+                <div class="customer-notes-content" style="margin-bottom:8px;font-size:11px">{{ $data['meta']['notes'] }}</div>
             </div>
         @endif
 

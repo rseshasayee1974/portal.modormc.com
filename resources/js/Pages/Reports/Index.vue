@@ -19,6 +19,7 @@ import SiloStockValuationReport from './components/SiloStockValuationReport.vue'
 import InventoryStockReport from './components/InventoryStockReport.vue';
 import InventoryInwardReport from './components/InventoryInwardReport.vue';
 import ProductionBatchReport from './components/ProductionBatchReport.vue';
+import BatchingScheduleReport from './components/BatchingScheduleReport.vue';
 import MachinesListReport from './components/MachinesListReport.vue';
 import MachineTrackerReport from './components/MachineTrackerReport.vue';
 import MachineSummaryReport from './components/MachineSummaryReport.vue';
@@ -67,6 +68,8 @@ const props = defineProps({
     ledgers: Array,
     patrons: Array,
     machines: Array,
+    sites: Array,
+    pumps: Array,
     drivers: Array,
     salesExecutives: Array,
     employees: Array,
@@ -132,6 +135,7 @@ const reportCatalog = [
             { id: 'driver', name: 'Driver Report', description: 'Driver wise vehicle trips, delivered volume, batch sizes, and truck weights' },
             { id: 'cancelled_dispatch', name: 'Cancelled Dispatch Report', description: 'Log of cancelled dispatches, batches, reversed orders, and 50+ word notes' },
             // { id: 'sales_register', name: 'Sales Register Report', description: 'Itemized sales invoices with GST breakdown, rate, and taxable values' },
+            { id: 'batching_schedule', name: 'Batching Schedule Report', description: 'Schedule slots, unloading times and volumes filtered by unloading site, truck and pump' },
             { id: 'production_batch', name: 'Batch Production Sheet', description: 'Batch mix designs, target vs actual aggregate loads' },
         ]
     },
@@ -203,6 +207,8 @@ const reportType = ref(initialSelection.type);
 const selectedId = ref(null);
 const patronId = ref(null);
 const truckId = ref(null);
+const siteId = ref(null);
+const pumpVehicleId = ref(null);
 const driverId = ref(null);
 const salesExecutiveId = ref(null);
 const selectedEmployeeId = ref(null);
@@ -260,6 +266,7 @@ const getReportComponent = (type) => {
         case 'inventory_stock': return InventoryStockReport;
         case 'inventory_inward': return InventoryInwardReport;
         case 'production_batch': return ProductionBatchReport;
+        case 'batching_schedule': return BatchingScheduleReport;
         case 'machines_list': return MachinesListReport;
         case 'machine_tracker': return MachineTrackerReport;
         case 'machine_summary': return MachineSummaryReport;
@@ -605,6 +612,8 @@ watch(selectedModuleId, (newModuleId) => {
         patronId.value = null;
         mixDesignId.value = null;
         truckId.value = null;
+        siteId.value = null;
+        pumpVehicleId.value = null;
         driverId.value = null;
         salesExecutiveId.value = null;
         selectedEmployeeId.value = null;
@@ -633,6 +642,8 @@ watch(reportType, () => {
     gstType.value = null;
     paymentStatus.value = null;
     truckId.value = null;
+    siteId.value = null;
+    pumpVehicleId.value = null;
     driverId.value = null;
     salesExecutiveId.value = null;
     selectedEmployeeId.value = null;
@@ -646,7 +657,7 @@ watch(reportType, () => {
     generateReport();
 });
 
-watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, driverId, salesExecutiveId, selectedEmployeeId, ledgerVoucherFilter], () => {
+watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, ledgerVoucherFilter], () => {
     currentPage.value = 1;
     generateReport();
 });
@@ -674,6 +685,8 @@ const generateReport = async () => {
             end_date: endDate.value,
             valuation_method: valuationMethod.value,
             truck_id: truckId.value,
+            site_id: siteId.value,
+            pump_vehicle_id: pumpVehicleId.value,
             driver_id: driverId.value,
             sales_executive_id: salesExecutiveId.value,
             employee_id: selectedEmployeeId.value,
@@ -786,6 +799,8 @@ const exportPdf = () => {
         voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
+        site_id: siteId.value,
+        pump_vehicle_id: pumpVehicleId.value,
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
         employee_id: selectedEmployeeId.value,
@@ -848,6 +863,8 @@ const exportExcel = () => {
         voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
+        site_id: siteId.value,
+        pump_vehicle_id: pumpVehicleId.value,
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
         employee_id: selectedEmployeeId.value,
@@ -954,6 +971,8 @@ const currentReportParams = computed(() => {
         payment_status: paymentStatus.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
+        site_id: siteId.value,
+        pump_vehicle_id: pumpVehicleId.value,
     };
 });
 
@@ -998,6 +1017,8 @@ const generateShareLink = async () => {
                 document_status: registerStatus.value,
                 payment_status: paymentStatus.value,
                 truck_id: truckId.value,
+                site_id: siteId.value,
+                pump_vehicle_id: pumpVehicleId.value,
                 employee_id: selectedEmployeeId.value,
                 month: selectedMonth.value,
             }
@@ -1278,7 +1299,7 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Truck Dropdown -->
-                                    <div v-if="['machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver'].includes(reportType)"
+                                    <div v-if="['machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver', 'batching_schedule'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">{{
                                             ['machine_summary', 'vehicle_pl'].includes(reportType) ? 'Select Machine' :
@@ -1287,6 +1308,15 @@ const shareEmail = () => {
                                             optionValue="id"
                                             :placeholder="['machine_summary', 'vehicle_pl'].includes(reportType) ? 'All Machines' : 'All Trucks'"
                                             filter showClear />
+                                    </div>
+
+                                    <div v-if="reportType === 'batching_schedule'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Unloading Site</span>
+                                        <BaseSelect v-model="siteId" :options="sites || []" optionLabel="name" optionValue="id" placeholder="All Unloading Sites" filter showClear />
+                                    </div>
+                                    <div v-if="reportType === 'batching_schedule'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Pump</span>
+                                        <BaseSelect v-model="pumpVehicleId" :options="pumps || []" optionLabel="registration" optionValue="id" placeholder="All Pumps" filter showClear />
                                     </div>
 
                                     <!-- Driver Dropdown -->
@@ -1308,7 +1338,7 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Mix Design Dropdown -->
-                                    <div v-if="['sales', 'product_consolidated', 'production_batch', 'customer_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'sales_executive', 'driver', 'cancelled_dispatch'].includes(reportType)"
+                                    <div v-if="['sales', 'product_consolidated', 'production_batch', 'batching_schedule', 'customer_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'sales_executive', 'driver', 'cancelled_dispatch'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Mix
                                             Design</span>

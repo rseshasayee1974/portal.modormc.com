@@ -14,6 +14,10 @@ Tax columns come from the complete filtered period, and footer totals cover all 
 
 Excel and PDF exports include every matching record and preserve the selected view and filters. Both show the same rate-wise GST columns. All register PDFs use A4 landscape, including scheduled exports, shared downloads and legacy export entry points. PDF puts long audit fields below each detailed row. When more than six tax-rate columns are present, PDF prints the complete rate breakdown in continuation tables with matching row numbers and document references. Scheduled exports, shared PDFs and legacy export entry points use the same column definitions.
 
+### Standard Sales Register Excel addresses
+
+With **Excel Format > Standard register**, both Summary and Detailed sales exports include Address_1, Address_2, City, Zipcode, Shipping Address_1, Shipping Address_2, Shipping Zipcode and Truck. Billing details follow the primary contact/linked party address selection below; shipping lines and ZIP code come from the dispatch unloading site. Missing values remain blank. ZIP codes stay as text, long addresses wrap, and Date/Party remain frozen while scrolling. Existing invoice grouping, item rows, GST rate splits and totals are preserved. These address columns also apply to scheduled and legacy Sales Register Excel exports; screen/PDF layouts and the standard Purchase Register are unchanged.
+
 ### Address & GST Excel format
 
 Choose **Excel Format > Address & GST (item wise)**, then **Export Excel** in either register. This additional format always exports one row per matching item, even when the screen is showing the summary. Sales requires the Detailed Sales Register View and Export permissions. Standard Excel and PDF layouts remain available.

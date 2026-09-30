@@ -143,9 +143,18 @@
     .terms-text-content pre,
     .terms-text-content div {
         white-space: normal !important;
-        word-break: break-word !important;
-        overflow-wrap: break-word !important;
+        word-break: {{ ($data['document_module'] ?? '') === 'quotations' ? 'normal' : 'break-word' }} !important;
+        overflow-wrap: {{ ($data['document_module'] ?? '') === 'quotations' ? 'normal' : 'break-word' }} !important;
     }
+    @if (($data['document_module'] ?? '') === 'quotations')
+    .terms-text-content, .terms-text-content *,
+    .customer-notes-content, .customer-notes-content * {
+        word-break: normal !important;
+        overflow-wrap: normal !important;
+        word-wrap: normal !important;
+        hyphens: none !important;
+    }
+    @endif
     .terms-text-content p {
         margin: 0 0 2px 0 !important;
         padding: 0 !important;

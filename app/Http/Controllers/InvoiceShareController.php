@@ -302,7 +302,7 @@ class InvoiceShareController extends Controller
 
         $pdfData = $this->compileReportData($link);
 
-        $landscapeTypes = ['sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl', 'silo_stock_valuation', 'gstr1', 'gstr3b'];
+        $landscapeTypes = ['batching_schedule', 'sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl', 'silo_stock_valuation', 'gstr1', 'gstr3b'];
         $isOutstandingSummary = strtolower($pdfData['type']) === 'customer_outstanding'
             && empty($pdfData['pdfData']['is_single_patron']);
         $orientation = in_array(strtolower($pdfData['type']), $landscapeTypes) || $isOutstandingSummary ? 'landscape' : 'portrait';
@@ -426,6 +426,9 @@ class InvoiceShareController extends Controller
             'voucher_type'     => strtoupper($type),
             'valuation_method' => $params['valuation_method'] ?? 'FIFO',
             'truck_id'         => $params['truck_id'] ?? null,
+            'site_id'          => $params['site_id'] ?? null,
+            'pump_vehicle_id'  => $params['pump_vehicle_id'] ?? null,
+            'mix_design_id'    => $params['mix_design_id'] ?? null,
             'plant_id'         => $link->plant_id,
         ];
 
@@ -442,6 +445,7 @@ class InvoiceShareController extends Controller
             'INVENTORY_STOCK'      => 'reports.generic_report',
             'INVENTORY_INWARD'     => 'reports.generic_report',
             'PRODUCTION_BATCH'     => 'reports.generic_report',
+            'BATCHING_SCHEDULE'    => 'reports.generic_report',
             'MACHINES_LIST'        => 'reports.generic_report',
             'PAYROLL_PERSONNEL'    => 'reports.generic_report',
             'SILO_STOCK_VALUATION' => 'reports.generic_report',
@@ -478,6 +482,8 @@ class InvoiceShareController extends Controller
                 'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'center'],
                 'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
             ];
+        } elseif (strtolower($type) === 'batching_schedule') {
+            $extraParams = \App\Services\Reports\BatchingScheduleReportService::pdfColumns($data);
         } elseif (str_contains(strtolower($type), 'production_batch')) {
             $extraParams = [
                 'headers'    => ['Start Date', 'Batch No', 'Sales Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'],

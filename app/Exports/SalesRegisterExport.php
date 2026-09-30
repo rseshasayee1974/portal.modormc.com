@@ -13,6 +13,7 @@ class SalesRegisterExport
     {
         $service = app(SalesRegisterService::class);
         $report = $service->buildReportFromQuery($this->query);
+        $report = $service->prepareExcelReport($report);
         app(RegisterReportExport::class)->export(
             $filePath, 'Sales Register', ['period_label' => $period], $report
         );

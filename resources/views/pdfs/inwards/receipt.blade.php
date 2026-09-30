@@ -7,8 +7,8 @@
     <title>Goods Receipt Note - {{ $inward->inward_no }}</title>
     <style>
         @page {
-            margin: 10mm 12mm;
-            size: A4 portrait;
+            margin: 8mm;
+            size: A5 portrait;
         }
 
         * {
@@ -193,6 +193,7 @@
             .grn-container {
                 width: 100% !important;
                 max-width: 100% !important;
+                min-height: 0 !important;
                 margin: 0 !important;
                 border: 1.5px solid #000000 !important;
                 box-shadow: none !important;
@@ -200,11 +201,11 @@
             }
         }
 
-        /* ── A4 Document Sheet Container ── */
+        /* ── A5 Document Sheet Container ── */
         .grn-container {
-            width: 210mm;
+            width: {{ empty($is_pdf) ? '148mm' : '100%' }};
             max-width: 95vw;
-            min-height: 297mm;
+            min-height: {{ empty($is_pdf) ? '210mm' : '0' }};
 
             margin: @if (empty($is_pdf))
                 28px auto 60px auto
@@ -248,18 +249,18 @@
         }
 
         .header-table td {
-            padding: 12px 16px;
+            padding: 8px 10px;
             vertical-align: middle;
         }
 
         .company-logo {
-            max-height: 55px;
-            max-width: 140px;
+            max-height: 40px;
+            max-width: 100px;
             object-fit: contain;
         }
 
         .company-title {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 900;
             color: #0f172a;
             text-transform: uppercase;
@@ -278,7 +279,7 @@
         }
 
         .doc-badge-title {
-            font-size: 15px;
+            font-size: 12px;
             font-weight: 900;
             color: #1e3a8a;
             text-transform: uppercase;
@@ -322,7 +323,7 @@
         .info-table td {
             width: 50%;
             vertical-align: top;
-            padding: 10px 14px;
+            padding: 7px 8px;
         }
 
         .info-table > tbody > tr > td:first-child,
@@ -345,6 +346,7 @@
             padding: 3px 0;
             vertical-align: top;
             border: none !important;
+            overflow-wrap: anywhere;
         }
 
         .detail-label {
@@ -551,7 +553,7 @@
 
         .sig-table td {
             width: 33.33%;
-            padding: 24px 14px 10px 14px;
+            padding: 16px 8px 8px;
             text-align: center;
             vertical-align: bottom;
             border-right: 1px solid #f1f5f9;
@@ -563,7 +565,7 @@
 
         .sig-line {
             border-top: 1px dashed #94a3b8;
-            margin-top: 30px;
+            margin-top: 20px;
             padding-top: 4px;
             font-size: 9.5px;
             font-weight: 800;
@@ -614,7 +616,7 @@
                     <span>Print Receipt</span>
                 </button>
                 <a href="{{ route('inwards.download-receipt', $inward->id) }}" class="btn-download-pdf"
-                    title="Download as A4 PDF document">
+                    title="Download as A5 PDF document">
                     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
                         viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -677,7 +679,7 @@
         {{-- <div class="section-bar">Transaction & Transport Identification</div> --}}
         <table class="info-table">
             <tr>
-                <td style="width: 50%; vertical-align: top; padding: 10px 14px; border-right: 1px solid #e2e8f0;">
+                <td style="width: 50%; vertical-align: top; padding: 7px 8px; border-right: 1px solid #e2e8f0;">
                     <div class="info-box-title">Weighbridge & Truck Info</div>
                     <table class="detail-subtable" style="width: 100%; border-collapse: collapse;">
                         <tr>
@@ -712,7 +714,7 @@
                         </tr>
                     </table>
                 </td>
-                <td style="width: 50%; vertical-align: top; padding: 10px 14px;">
+                <td style="width: 50%; vertical-align: top; padding: 7px 8px;">
                     <div class="info-box-title">Weighbridge Weight Details</div>
                     <table class="detail-subtable" style="width: 100%; border-collapse: collapse;">
                         <tr>

@@ -67,21 +67,21 @@
         <h3 style="font-size: 11pt; font-weight: bold; color: #334155; margin: 0; text-transform: uppercase;">1. Sales Dispatch & Invoice wise Details</h3>
     </div>
 
-    <table class="data-table">
+    <table class="data-table dispatch-details-table">
         <thead>
             <tr>
                 <th width="3%">#</th>
-                <th width="9%">Date</th>
-                <th width="12%">Dispatch / Batch</th>
-                <th width="12%">Invoice Details</th>
-                <th width="20%">Customer / Site</th>
+                <th width="8%">Date</th>
+                <th width="11%">Dispatch / Batch</th>
+                <th width="11%">Invoice Details</th>
+                <th width="17%">Customer / Site</th>
                 <th width="6%">Qty (m³)</th>
                 <th width="6%">Empty Wt (T)</th>
                 <th width="6%">Loaded Wt (T)</th>
                 <th width="6%">Net Wt (T)</th>
-                <th width="7%">Taxable Amt (₹)</th>
-                <th width="6%">Tax Amt (₹)</th>
-                <th width="8%">Total Amt (₹)</th>
+                <th width="9%">Taxable Amt (₹)</th>
+                <th width="8%">Tax Amt (₹)</th>
+                <th width="9%">Total Amt (₹)</th>
             </tr>
         </thead>
         <tbody>

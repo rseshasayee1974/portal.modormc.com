@@ -356,6 +356,9 @@ class ExcelExportService
     public function generateExcelReport(string $type, ?string $start, ?string $end, array $data): Spreadsheet
     {
         if (in_array($type, ['sales_register', 'purchase_register'], true)) {
+            if ($type === 'sales_register' && ($data['excel_format'] ?? 'standard') === 'standard') {
+                $data = app(SalesRegisterService::class)->prepareExcelReport($data);
+            }
             return app(\App\Exports\RegisterReportExport::class)->workbook(
                 $type === 'sales_register' ? 'Sales Register' : 'Purchase Register',
                 ['from_date' => $start ?? '', 'to_date' => $end ?? ''], $data
@@ -519,6 +522,17 @@ class ExcelExportService
                         $row['truck_no'] ?? ''
                     ];
                 }
+            } elseif ($type === 'batching_schedule') {
+                $columns = BatchingScheduleReportService::COLUMNS;
+                $headersList = array_values($columns);
+                foreach (($data['transactions'] ?? []) as $row) {
+                    $rows[] = array_map(fn ($field) => $row[$field] ?? '', array_keys($columns));
+                }
+                $totalRow = array_map(fn ($field) => match ($field) {
+                    'date' => 'Total (excluding cancelled)',
+                    'quantity' => $data['total_quantity'] ?? 0,
+                    default => '',
+                }, array_keys($columns));
             } elseif ($type === 'production_batch') {
                 $headersList = ['Start Date', 'Batch No', 'Sales Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'];
                 foreach (($data['transactions'] ?? []) as $row) {

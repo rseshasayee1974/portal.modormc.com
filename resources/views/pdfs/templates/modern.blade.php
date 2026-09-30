@@ -747,7 +747,7 @@
         @if (($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
             <div class="bottom-section">
                 <div class="section-label">Notes</div>
-                <div>{{ $data['meta']['notes'] }}</div>
+                <div class="customer-notes-content">{{ $data['meta']['notes'] }}</div>
             </div>
         @endif
         @php

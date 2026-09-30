@@ -33,6 +33,7 @@ class ReportServiceFactory
             'inventory_stock'      => InventoryStockReportService::class,
             'inventory_inward'     => InventoryInwardReportService::class,
             'production_batch'     => ProductionBatchReportService::class,
+            'batching_schedule'    => BatchingScheduleReportService::class,
             'machines_list'        => MachinesListReportService::class,
             'machine_tracker'     => MachineTrackerReportService::class,
             'payroll_personnel'    => PayrollPersonnelReportService::class,

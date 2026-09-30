@@ -193,9 +193,7 @@ abstract class RegisterReportService implements ReportServiceInterface
         if ($addressGst) $filters['register_view'] = 'detail';
         $report = $this->buildReport($filters, true);
         if ($format === 'excel') {
-            if ($addressGst) {
-                $report = app(RegisterAddressGstFormat::class)->prepare($report, $this->reportType(), (int) $filters['plant_id']);
-            }
+            $report = $this->prepareExcelReport($report, $filters);
             app(\App\Exports\RegisterReportExport::class)->export(
                 $filePath, $this->targetName($filters), $filters, $report
             );
@@ -207,5 +205,17 @@ abstract class RegisterReportService implements ReportServiceInterface
         } else {
             throw new \InvalidArgumentException('Unsupported register export format.');
         }
+    }
+
+    public function prepareExcelReport(array $report, array $filters = []): array
+    {
+        $plantId = (int) ($filters['plant_id'] ?? app(PlantContextService::class)->requirePlantId());
+        if (($filters['excel_format'] ?? 'standard') === RegisterAddressGstFormat::KEY) {
+            return app(RegisterAddressGstFormat::class)->prepare($report, $this->reportType(), $plantId);
+        }
+        if ($this->reportType() === 'sales_register') {
+            return app(RegisterAddressGstFormat::class)->prepareStandardSales($report, $plantId);
+        }
+        return $report;
     }
 }

@@ -25,6 +25,7 @@ class RegisterReportExport
         $sheet = $book->getActiveSheet()->setTitle($title);
         $columns = $report['columns'];
         $addressGst = ($report['excel_format'] ?? '') === \App\Services\Reports\RegisterAddressGstFormat::KEY;
+        $hasAddresses = in_array('address_1', array_column($columns, 'key'), true);
         $last = Coordinate::stringFromColumnIndex(count($columns));
         $sheet->mergeCells("A1:{$last}1")->setCellValue('A1', $title.' - '.($addressGst ? 'Address & GST' : ucfirst($report['register_view'])));
         $period = $filters['period_label'] ?? ('Period: '.$filters['from_date'].' to '.$filters['to_date']);
@@ -39,6 +40,9 @@ class RegisterReportExport
         $sheet->getStyle("A4:{$last}4")->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
         $sheet->getStyle("A4:{$last}4")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('334155');
         $sheet->getStyle("A4:{$last}4")->getAlignment()->setWrapText(true);
+        if ($hasAddresses) {
+            $sheet->getStyle("A4:{$last}4")->getAlignment()->setVertical('center');
+        }
         if ($addressGst) {
             $book->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
             $sheet->getStyle("A4:{$last}4")->getAlignment()->setHorizontal('center')->setVertical('center');
@@ -79,12 +83,22 @@ class RegisterReportExport
                 $width = $column['key'] === 'irn' ? 68 : 34;
             }
             if ($column['key'] === 'description') $width = 60;
+            $addressColumn = in_array($column['key'], ['address_1', 'address_2', 'shipping_address_1', 'shipping_address_2', 'city', 'zipcode', 'shipping_zipcode'], true);
+            if ($addressColumn) {
+                $width = match ($column['key']) {
+                    'zipcode', 'shipping_zipcode' => 15,
+                    'city' => 24,
+                    default => 42,
+                };
+            }
             if ($addressGst) {
                 $width = match ($column['key']) {
                     'party', 'address_1', 'address_2', 'shipping_address' => 42,
                     'date', 'zipcode', 'shipping_zipcode', 'hsn_code', 'unit' => 15,
                     default => $width,
                 };
+            }
+            if ($addressGst || $addressColumn) {
                 $sheet->getStyle("{$letter}5:{$letter}{$totalRow}")->getAlignment()->setVertical('top')
                     ->setWrapText($column['format'] === 'text');
                 if ($column['format'] === 'text') {
@@ -100,7 +114,10 @@ class RegisterReportExport
         }
         $sheet->getStyle("A{$totalRow}:{$last}{$totalRow}")->getFont()->setBold(true);
         $sheet->getStyle("A{$totalRow}:{$last}{$totalRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('E2E8F0');
-        $sheet->freezePane($addressGst ? 'C5' : 'F5');
+        if ($hasAddresses) {
+            $sheet->getStyle("A5:{$last}{$totalRow}")->getAlignment()->setVertical('top');
+        }
+        $sheet->freezePane($addressGst || $hasAddresses ? 'C5' : 'F5');
         $sheet->setAutoFilter('A4:'.$last.max(4, $totalRow - 1));
         $sheet->getPageSetup()->setOrientation('landscape')->setFitToWidth(1)->setFitToHeight(0)->setRowsToRepeatAtTopByStartAndEnd(1, 4);
         return $book;

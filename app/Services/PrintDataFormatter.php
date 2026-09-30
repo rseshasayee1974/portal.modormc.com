@@ -1373,6 +1373,7 @@ class PrintDataFormatter
         ]);
 
         $data             = self::base();
+        $data['document_module'] = $module;
         $data['settings'] = $customSettings ?? self::getCustomSettings($model->plant_id, $module);
 
         if (!$customSettings && $module === 'customer_pos' && empty(CustomSetting::getForModule($model->plant_id, 'customer_pos'))) {

@@ -508,7 +508,7 @@ class PurchaseOrderInwardController extends Controller
         $data = $this->prepareReceiptData($inward);
         $data['is_pdf'] = true;
 
-        $pdf = Pdf::loadView('pdfs.inwards.receipt', $data)->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView('pdfs.inwards.receipt', $data)->setPaper('a5', 'portrait');
 
         $safeInwardNo = str_replace(['/', '\\'], '-', $inward->inward_no);
         $filename = "GRN_{$safeInwardNo}.pdf";

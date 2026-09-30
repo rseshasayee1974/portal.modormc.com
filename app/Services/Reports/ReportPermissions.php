@@ -36,6 +36,7 @@ class ReportPermissions
         'driver' => 'Driver Trip Report',
         'cancelled_dispatch' => 'Cancelled Dispatch Report',
         'production_batch' => 'Batch Production Sheet',
+        'batching_schedule' => 'Batching Schedule Report',
         'machines_list' => 'Machine Fleet Inventory',
         'machine_tracker' => 'Machine Tracker Log Sheet',
         'machine_summary' => 'Machine Summary Report',

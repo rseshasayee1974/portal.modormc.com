@@ -88,4 +88,28 @@ class RegisterReportColumns
         $add('tax_amount', 'Total Tax', 'number', 'gst');
         return $columns;
     }
+
+    /** Address columns are Excel-only; preserve the standard view and GST columns. */
+    public static function standardSalesExcel(array $columns): array
+    {
+        $details = [];
+        $existingKeys = array_column($columns, 'key');
+        foreach ([
+            'address_1' => 'Address_1', 'address_2' => 'Address_2', 'city' => 'City', 'zipcode' => 'Zipcode',
+            'shipping_address_1' => 'Shipping Address_1', 'shipping_address_2' => 'Shipping Address_2',
+            'shipping_zipcode' => 'Shipping Zipcode', 'truck' => 'Truck',
+        ] as $key => $label) {
+            if (!in_array($key, $existingKeys, true)) {
+                $details[] = ['key' => $key, 'label' => $label, 'format' => 'text', 'total' => null];
+            }
+        }
+        $result = [];
+        foreach ($columns as $column) {
+            $result[] = $column;
+            if ($column['key'] === 'customer_name') {
+                array_push($result, ...$details);
+            }
+        }
+        return $result;
+    }
 }
