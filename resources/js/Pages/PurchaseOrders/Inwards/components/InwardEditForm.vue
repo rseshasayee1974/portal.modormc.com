@@ -269,28 +269,26 @@ const saveInwardWeights = (inward: any) => {
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <input type="number" v-model="data.truck_loaded"
-                            :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
+                        <input type="number" v-model="data.truck_loaded" disabled
                             class="w-full bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-sm font-black text-slate-800 font-mono focus:bg-white focus:ring-1 focus:ring-indigo-500"
                             placeholder="0.00" @keyup.enter="saveGrossWeight(data, data.truck_loaded)" />
 
-                        <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
+                        <!-- <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
                             @click.stop="captureGrossWeight(data)" type="button" :class="[
                                 'relative px-2.5 py-1.5 rounded-md font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs border cursor-pointer shrink-0 h-9',
                                 isScaleConnected
                                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
                                     : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600'
                             ]" :title="isScaleConnected ? 'Capture Gross Weight from Scale' : 'Connect Weighbridge'">
-                            <!-- Pulsing Indicator Dot -->
-                            <span v-if="!data.truck_loaded || Number(data.truck_loaded) === 0"
-                                class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                <span
-                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-300 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-400"></span>
-                            </span>
-                            <ArrowDownTrayIcon class="w-3.5 h-3.5 text-white animate-bounce" />
-                            <span>Get Gross</span>
-                        </button>
+                        <span v-if="!data.truck_loaded || Number(data.truck_loaded) === 0"
+                            class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                            <span
+                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-300 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-400"></span>
+                        </span>
+                        <ArrowDownTrayIcon class="w-3.5 h-3.5 text-white animate-bounce" />
+                        <span>Get Gross</span>
+                        </button> -->
                     </div>
 
                     <!-- Photo Thumbnail -->

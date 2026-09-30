@@ -39,37 +39,37 @@ const props = defineProps<{
 const form = useForm({
     module: 'batching',
     settings: {
-        new_weight:        props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
-        newweight:         props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
-        manual_weight:     props.batchingSettings?.manual_weight == 1,
-        with_inventory:        props.batchingSettings?.with_inventory !== undefined ? (props.batchingSettings?.with_inventory == 1 || props.batchingSettings?.with_inventory === true || props.batchingSettings?.with_inventory === "true") : true,
-        camera:            props.batchingSettings?.camera == 1,
-        camera_url:        props.batchingSettings?.camera_url  || '',
-        camera_url_1:      props.batchingSettings?.camera_url_1 || '',
-        camera_url_2:      props.batchingSettings?.camera_url_2 || '',
-        loader_gif:        props.batchingSettings?.loader_gif   || '',
-        sheet_upload:      props.batchingSettings?.sheet_upload == 1,
-        hide_batch_form:   props.batchingSettings?.hide_batch_form == 1,
-        po_prefix:         props.batchingSettings?.po_prefix    || 'PO',
-        cpo_prefix:        props.batchingSettings?.cpo_prefix    || 'CPO',
-        so_prefix:         props.batchingSettings?.so_prefix    || 'SO',
-        quote_prefix:      props.batchingSettings?.quote_prefix || 'QT',
-        target_to_actual:  props.batchingSettings?.target_to_actual == 1,   
-        auto_carry_pump:   props.batchingSettings?.auto_carry_pump == 1,
-        schedule_to_batch: props.batchingSettings?.schedule_to_batch !== undefined 
-            ? (props.batchingSettings?.schedule_to_batch == 1 || props.batchingSettings?.schedule_to_batch === true || props.batchingSettings?.schedule_to_batch === "true") 
-            : false,
+        new_weight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
+        newweight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
+        manual_weight: props.batchingSettings?.manual_weight == 1,
+        with_inventory: props.batchingSettings?.with_inventory !== undefined ? (props.batchingSettings?.with_inventory == 1 || props.batchingSettings?.with_inventory === true || props.batchingSettings?.with_inventory === "true") : true,
+        camera: props.batchingSettings?.camera == 1,
+        camera_url: props.batchingSettings?.camera_url || '',
+        camera_url_1: props.batchingSettings?.camera_url_1 || '',
+        camera_url_2: props.batchingSettings?.camera_url_2 || '',
+        loader_gif: props.batchingSettings?.loader_gif || '',
+        sheet_upload: props.batchingSettings?.sheet_upload == 1,
+        hide_batch_form: props.batchingSettings?.hide_batch_form == 1,
+        po_prefix: props.batchingSettings?.po_prefix || 'PO',
+        cpo_prefix: props.batchingSettings?.cpo_prefix || 'CPO',
+        so_prefix: props.batchingSettings?.so_prefix || 'SO',
+        quote_prefix: props.batchingSettings?.quote_prefix || 'QT',
+        target_to_actual: props.batchingSettings?.target_to_actual == 1,
+        auto_carry_pump: props.batchingSettings?.auto_carry_pump == 1,
+        // schedule_to_batch: props.batchingSettings?.schedule_to_batch !== undefined 
+        //     ? (props.batchingSettings?.schedule_to_batch == 1 || props.batchingSettings?.schedule_to_batch === true || props.batchingSettings?.schedule_to_batch === "true") 
+        //     : false,
         default_transport: props.batchingSettings?.default_transport || '',
-        quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
+        quote_validity: props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
         is_grade_or_is_mix_design: props.batchingSettings?.is_grade_or_is_mix_design !== undefined ? Number(props.batchingSettings.is_grade_or_is_mix_design) : 2,
-        print_delivery_ingredients: props.batchingSettings?.print_delivery_ingredients !== undefined 
-            ? (props.batchingSettings?.print_delivery_ingredients == 1 || props.batchingSettings?.print_delivery_ingredients === true || props.batchingSettings?.print_delivery_ingredients === "true") 
+        print_delivery_ingredients: props.batchingSettings?.print_delivery_ingredients !== undefined
+            ? (props.batchingSettings?.print_delivery_ingredients == 1 || props.batchingSettings?.print_delivery_ingredients === true || props.batchingSettings?.print_delivery_ingredients === "true")
             : false,
         quotation_price_list: props.batchingSettings?.quotation_price_list !== undefined
             ? (props.batchingSettings?.quotation_price_list == 1 || props.batchingSettings?.quotation_price_list === true || props.batchingSettings?.quotation_price_list === "true")
             : false,
 
-        custom_params:     props.batchingSettings?.custom_params || [],
+        custom_params: props.batchingSettings?.custom_params || [],
         purchase_bill_conversion: [true, 1, '1', 'true'].includes(props.batchingSettings?.purchase_bill_conversion),
     }
 });
@@ -92,40 +92,40 @@ const toggle = (key: string) => { expanded.value[key] = !expanded.value[key]; };
 const settingRows = computed(() => [
     { section: 'Purchase', key: 'purchase_bill_conversion', label: 'Bill purchases using conversion quantity', value: form.settings.purchase_bill_conversion, type: 'bool' },
     // Weighbridge
-    { 
-        section: 'Weighbridge', 
-        key: 'new_weight',          
-        label: 'Local API Proxy Port',            
-        value: Number(form.settings.new_weight) === 2 
-            ? 'Mode 2 (Port 8074 HTTPS)' 
-            : (Number(form.settings.new_weight) === 1 ? 'Mode 1 (Port 8089 HTTP)' : '0 — Disabled (Serial)'),           
-        type: 'text' 
+    {
+        section: 'Weighbridge',
+        key: 'new_weight',
+        label: 'Local API Proxy Port',
+        value: Number(form.settings.new_weight) === 2
+            ? 'Mode 2 (Port 8074 HTTPS)'
+            : (Number(form.settings.new_weight) === 1 ? 'Mode 1 (Port 8089 HTTP)' : '0 — Disabled (Serial)'),
+        type: 'text'
     },
-    { section: 'Weighbridge', key: 'manual_weight',      label: 'Manual Weight Entry',             value: form.settings.manual_weight,        type: 'bool' },
-    { section: 'Weighbridge', key: 'with_inventory',         label: 'Stock Deduction',                 value: form.settings.with_inventory,           type: 'bool' },
+    { section: 'Weighbridge', key: 'manual_weight', label: 'Manual Weight Entry', value: form.settings.manual_weight, type: 'bool' },
+    { section: 'Weighbridge', key: 'with_inventory', label: 'Stock Deduction', value: form.settings.with_inventory, type: 'bool' },
     // Camera
-    { section: 'Camera',      key: 'camera',             label: 'Enable Snapshots',               value: form.settings.camera,              type: 'bool' },
-    { section: 'Camera',      key: 'camera_url',         label: 'Default Camera URL',              value: form.settings.camera_url,          type: 'text' },
-    { section: 'Camera',      key: 'camera_url_1',       label: 'Camera 1 (Entry/Empty)',          value: form.settings.camera_url_1,        type: 'text' },
-    { section: 'Camera',      key: 'camera_url_2',       label: 'Camera 2 (Exit/Loaded)',          value: form.settings.camera_url_2,        type: 'text' },
+    { section: 'Camera', key: 'camera', label: 'Enable Snapshots', value: form.settings.camera, type: 'bool' },
+    { section: 'Camera', key: 'camera_url', label: 'Default Camera URL', value: form.settings.camera_url, type: 'text' },
+    { section: 'Camera', key: 'camera_url_1', label: 'Camera 1 (Entry/Empty)', value: form.settings.camera_url_1, type: 'text' },
+    { section: 'Camera', key: 'camera_url_2', label: 'Camera 2 (Exit/Loaded)', value: form.settings.camera_url_2, type: 'text' },
     // Batch Sheet
-    { section: 'Batch Sheet', key: 'sheet_upload',       label: 'Upload Batch Sheet',             value: form.settings.sheet_upload,        type: 'bool' },
-    { section: 'Batch Sheet', key: 'hide_batch_form',    label: 'Hide Add & Edit Batch Forms',    value: form.settings.hide_batch_form,     type: 'bool' },
-    { section: 'Batch Sheet', key: 'target_to_actual',   label: 'One-Click Target to Actual',     value: form.settings.target_to_actual,    type: 'bool' },
-    { section: 'Batch Sheet', key: 'auto_carry_pump',    label: 'Auto-Select Previous Batch Pump', value: form.settings.auto_carry_pump,   type: 'bool' },
-    { section: 'Batch Sheet', key: 'schedule_to_batch',  label: 'Create Real Batch from Schedule',  value: form.settings.schedule_to_batch,   type: 'bool' },
-    { section: 'Defaults',    key: 'default_transport',  label: 'Default Transporter Name',        value: form.settings.default_transport,   type: 'text' },
-    { section: 'Defaults',    key: 'quote_validity',     label: 'Quotation Validity (Days)',       value: form.settings.quote_validity,      type: 'text' },
+    { section: 'Batch Sheet', key: 'sheet_upload', label: 'Upload Batch Sheet', value: form.settings.sheet_upload, type: 'bool' },
+    { section: 'Batch Sheet', key: 'hide_batch_form', label: 'Hide Add & Edit Batch Forms', value: form.settings.hide_batch_form, type: 'bool' },
+    { section: 'Batch Sheet', key: 'target_to_actual', label: 'One-Click Target to Actual', value: form.settings.target_to_actual, type: 'bool' },
+    { section: 'Batch Sheet', key: 'auto_carry_pump', label: 'Auto-Select Previous Batch Pump', value: form.settings.auto_carry_pump, type: 'bool' },
+    // { section: 'Batch Sheet', key: 'schedule_to_batch',  label: 'Create Real Batch from Schedule',  value: form.settings.schedule_to_batch,   type: 'bool' },
+    { section: 'Defaults', key: 'default_transport', label: 'Default Transporter Name', value: form.settings.default_transport, type: 'text' },
+    { section: 'Defaults', key: 'quote_validity', label: 'Quotation Validity (Days)', value: form.settings.quote_validity, type: 'text' },
     // Print
-    { section: 'Print',       key: 'print_delivery_ingredients', label: 'Delivery Token Ingredients', value: form.settings.print_delivery_ingredients, type: 'bool' },
-    { section: 'Print',       key: 'quotation_price_list',        label: 'Quotation as Price List (Title & Hide Totals)', value: form.settings.quotation_price_list, type: 'bool' },
+    { section: 'Print', key: 'print_delivery_ingredients', label: 'Delivery Token Ingredients', value: form.settings.print_delivery_ingredients, type: 'bool' },
+    { section: 'Print', key: 'quotation_price_list', label: 'Quotation as Price List (Title & Hide Totals)', value: form.settings.quotation_price_list, type: 'bool' },
     // Appearance
-    { section: 'Appearance',  key: 'loader_gif',         label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif,          type: 'text' },
+    { section: 'Appearance', key: 'loader_gif', label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif, type: 'text' },
     // Document Prefixes
-    { section: 'Document Prefixes', key: 'po_prefix',         label: 'Purchase Order Prefix',           value: form.settings.po_prefix,          type: 'text' },
-    { section: 'Document Prefixes', key: 'so_prefix',         label: 'Sales Order Prefix',              value: form.settings.so_prefix,          type: 'text' },
-    { section: 'Document Prefixes', key: 'cpo_prefix',         label: 'Customer Order Prefix',           value: form.settings.cpo_prefix,          type: 'text' },
-    { section: 'Document Prefixes', key: 'quote_prefix',      label: 'Quotation Prefix',                value: form.settings.quote_prefix,       type: 'text' },
+    { section: 'Document Prefixes', key: 'po_prefix', label: 'Purchase Order Prefix', value: form.settings.po_prefix, type: 'text' },
+    { section: 'Document Prefixes', key: 'so_prefix', label: 'Sales Order Prefix', value: form.settings.so_prefix, type: 'text' },
+    { section: 'Document Prefixes', key: 'cpo_prefix', label: 'Customer Order Prefix', value: form.settings.cpo_prefix, type: 'text' },
+    { section: 'Document Prefixes', key: 'quote_prefix', label: 'Quotation Prefix', value: form.settings.quote_prefix, type: 'text' },
     // Custom / Module-specific dynamic parameters
     ...form.settings.custom_params.map((p: any) => ({
         section: modules.find(m => m.value === p.module)?.label || 'Custom',
@@ -140,17 +140,17 @@ const settingRows = computed(() => [
 const submit = () => {
     const payload = {
         ...form.settings,
-        new_weight:         Number(form.settings.new_weight ?? 1),
-        newweight:          Number(form.settings.new_weight ?? 1),
-        manual_weight:      form.settings.manual_weight      ? 1 : 0,
-        with_inventory:         form.settings.with_inventory         ? 1 : 0,
-        camera:             form.settings.camera             ? 1 : 0,
-        sheet_upload:       form.settings.sheet_upload       ? 1 : 0,
-        hide_batch_form:    form.settings.hide_batch_form    ? 1 : 0,
-        target_to_actual:   form.settings.target_to_actual   ? 1 : 0,
-        auto_carry_pump:    form.settings.auto_carry_pump    ? 1 : 0,
-        schedule_to_batch:  form.settings.schedule_to_batch  ? 1 : 0,
-        quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
+        new_weight: Number(form.settings.new_weight ?? 1),
+        newweight: Number(form.settings.new_weight ?? 1),
+        manual_weight: form.settings.manual_weight ? 1 : 0,
+        with_inventory: form.settings.with_inventory ? 1 : 0,
+        camera: form.settings.camera ? 1 : 0,
+        sheet_upload: form.settings.sheet_upload ? 1 : 0,
+        hide_batch_form: form.settings.hide_batch_form ? 1 : 0,
+        target_to_actual: form.settings.target_to_actual ? 1 : 0,
+        auto_carry_pump: form.settings.auto_carry_pump ? 1 : 0,
+        // schedule_to_batch:  form.settings.schedule_to_batch  ? 1 : 0,
+        quote_validity: form.settings.quote_validity ? parseInt(form.settings.quote_validity as any, 10) : 15,
         print_delivery_ingredients: form.settings.print_delivery_ingredients ? 1 : 0,
         quotation_price_list: form.settings.quotation_price_list ? 1 : 0,
         material_print_mode: form.settings.material_print_mode || 'run',
@@ -190,12 +190,12 @@ const paramForm = ref({
 
 const addParameter = () => {
     if (!paramForm.value.key || !paramForm.value.label) return;
-    
+
     form.settings.custom_params.push({
         ...paramForm.value,
         value: paramForm.value.type === 'bool' ? false : ''
     });
-    
+
     paramForm.value = { module: 'batching', label: '', key: '', type: 'text' };
     showParamDialog.value = false;
 };
@@ -254,15 +254,18 @@ const deleteModule = (id: number) => {
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <ModuleSubTopNav />
             </div>
-            
+
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6 mt-4">
 
                 <div class="bg-white rounded-2xl border border-slate-100 p-6 flex items-center justify-between gap-4">
                     <div>
                         <h3 class="font-bold text-sm text-slate-700">Bill purchases using conversion quantity</h3>
-                        <p class="text-xs text-slate-500 mt-1">Use inward conversion quantity and converted UOM for new purchase bills. Enter bill rates per converted unit. Save All Settings to apply.</p>
+                        <p class="text-xs text-slate-500 mt-1">Use inward conversion quantity and converted UOM for new
+                            purchase
+                            bills. Enter bill rates per converted unit. Save All Settings to apply.</p>
                     </div>
-                    <InputSwitch v-model="form.settings.purchase_bill_conversion" aria-label="Bill purchases using conversion quantity" />
+                    <InputSwitch v-model="form.settings.purchase_bill_conversion"
+                        aria-label="Bill purchases using conversion quantity" />
                 </div>
 
                 <!-- ── Summary Table ──────────────────────────────────── -->
@@ -270,66 +273,65 @@ const deleteModule = (id: number) => {
                     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                         <div class="flex items-center gap-2">
                             <Cog6ToothIcon class="w-5 h-5 text-slate-400" />
-                            <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Current Settings Summary</h3>
+                            <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Current Settings
+                                Summary</h3>
                         </div>
                         <div class="flex items-center gap-2">
                             <template v-if="isSassOwner">
-                                <Button
-                                    icon="pi pi-plus-circle"
-                                    label="Add Parameter"
-                                    size="small"
-                                    severity="help"
-                                    text
-                                    @click="showParamDialog = true"
-                                />
-                                <Button
-                                    icon="pi pi-plus"
-                                    label="New Module"
-                                    size="small"
-                                    severity="secondary"
-                                    text
-                                    @click="showNewDialog = true"
-                                />
+                                <Button icon="pi pi-plus-circle" label="Add Parameter" size="small" severity="help" text
+                                    @click="showParamDialog = true" />
+                                <Button icon="pi pi-plus" label="New Module" size="small" severity="secondary" text
+                                    @click="showNewDialog = true" />
                             </template>
-                            <Button
-                                icon="pi pi-save"
-                                label="Save All Settings"
-                                size="small"
-                                :loading="form.processing"
-                                @click="submit"
-                            />
+                            <Button icon="pi pi-save" label="Save All Settings" size="small" :loading="form.processing"
+                                @click="submit" />
                         </div>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full border-collapse text-sm">
                             <thead>
                                 <tr class="border-b border-slate-100 bg-slate-50/30">
-                                    <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[18%]">Section</th>
-                                    <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[25%]">Setting</th>
-                                    <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[20%]">Key</th>
-                                    <th class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Value / Status</th>
+                                    <th
+                                        class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[18%]">
+                                        Section</th>
+                                    <th
+                                        class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[25%]">
+                                        Setting</th>
+                                    <th
+                                        class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[20%]">
+                                        Key</th>
+                                    <th
+                                        class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                        Value / Status</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-50">
-                                <tr v-for="row in settingRows" :key="row.key" class="hover:bg-slate-50/40 transition-colors">
+                                <tr v-for="row in settingRows" :key="row.key"
+                                    class="hover:bg-slate-50/40 transition-colors">
                                     <td class="px-5 py-3">
-                                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ row.section }}</span>
+                                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{
+                                            row.section }}</span>
                                     </td>
                                     <td class="px-5 py-3 font-semibold text-slate-700 text-xs">{{ row.label }}</td>
                                     <td class="px-5 py-3">
-                                        <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{{ row.key }}</code>
+                                        <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{{ row.key
+                                        }}</code>
                                     </td>
                                     <td class="px-5 py-3">
                                         <template v-if="row.type === 'bool'">
-                                            <span v-if="row.value" class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full">
+                                            <span v-if="row.value"
+                                                class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full">
                                                 <CheckCircleIcon class="w-3 h-3" /> Enabled
                                             </span>
-                                            <span v-else class="inline-flex items-center gap-1 text-[10px] font-bold bg-slate-100 text-slate-400 border border-slate-200 px-2 py-0.5 rounded-full">
+                                            <span v-else
+                                                class="inline-flex items-center gap-1 text-[10px] font-bold bg-slate-100 text-slate-400 border border-slate-200 px-2 py-0.5 rounded-full">
                                                 <XCircleIcon class="w-3 h-3" /> Disabled
                                             </span>
                                         </template>
                                         <template v-else>
-                                            <span v-if="row.value" class="text-xs text-slate-600 font-mono truncate max-w-[260px] block">{{ row.value }}</span>
+                                            <span v-if="row.value"
+                                                class="text-xs text-slate-600 font-mono truncate max-w-[260px] block">{{
+                                                    row.value }}</span>
                                             <span v-else class="text-[10px] italic text-slate-300">— not set —</span>
                                         </template>
                                     </td>
@@ -342,31 +344,31 @@ const deleteModule = (id: number) => {
                 <!-- Active Modules List -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Active Module Configurations</h3>
-                        <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase">{{ customSettings.length }} Modules</span>
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Active Module
+                            Configurations</h3>
+                        <span
+                            class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase">{{
+                                customSettings.length }} Modules</span>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                        <div v-for="setting in customSettings" :key="setting.id" 
+                        <div v-for="setting in customSettings" :key="setting.id"
                             class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-xl hover:shadow-sm transition-all">
                             <div class="flex items-center gap-2">
                                 <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                <span class="text-xs font-bold capitalize text-slate-700">{{ setting.module_name }}</span>
+                                <span class="text-xs font-bold capitalize text-slate-700">{{ setting.module_name
+                                    }}</span>
                             </div>
-                            <Button 
-                                icon="pi pi-trash" 
-                                severity="danger" 
-                                size="small"
-                                text 
-                                rounded
-                                @click="deleteModule(setting.id)"
-                            />
+                            <Button icon="pi pi-trash" severity="danger" size="small" text rounded
+                                @click="deleteModule(setting.id)" />
                         </div>
                     </div>
                 </div>
 
                 <!-- ── Edit Form: Accordion sections ──────────────────── -->
                 <div class="space-y-4">
-                    <p class="text-xs font-bold uppercase tracking-widest text-slate-400 px-1">Edit Settings — click a section to expand</p>
+                    <p class="text-xs font-bold uppercase tracking-widest text-slate-400 px-1">Edit Settings — click a
+                        section
+                        to expand</p>
 
                     <!-- 1. Weighbridge -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -374,88 +376,110 @@ const deleteModule = (id: number) => {
                             class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-emerald-50/30 transition-colors"
                             @click="toggle('weighbridge')">
                             <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-emerald-100 rounded-lg"><ScaleIcon class="w-4 h-4 text-emerald-600" /></div>
+                                <div class="p-1.5 bg-emerald-100 rounded-lg">
+                                    <ScaleIcon class="w-4 h-4 text-emerald-600" />
+                                </div>
                                 <span class="text-sm font-bold text-slate-700">Weighbridge Configuration</span>
                                 <span v-if="Number(form.settings.new_weight) > 0 || form.settings.manual_weight"
                                     class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.weighbridge" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon   v-else                        class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
                         </button>
 
                         <div v-if="expanded.weighbridge" class="p-6 space-y-4 animate-fade-in">
-                            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                                 <div>
-                                    <h4 class="font-bold text-slate-700 text-sm">Weighbridge & Camera API Mode <code class="text-[9px] text-slate-400 ml-1 font-normal">[new_weight]</code></h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">Configure scale and camera proxy port endpoints</p>
+                                    <h4 class="font-bold text-slate-700 text-sm">Weighbridge & Camera API Mode <code
+                                            class="text-[9px] text-slate-400 ml-1 font-normal">[new_weight]</code></h4>
+                                    <p class="text-xs text-slate-500 mt-0.5">Configure scale and camera proxy port
+                                        endpoints</p>
                                 </div>
-                                <select 
-                                    v-model.number="form.settings.new_weight" 
+                                <select v-model.number="form.settings.new_weight"
                                     @change="form.settings.newweight = form.settings.new_weight"
-                                    class="text-xs font-bold rounded-xl border border-slate-200 py-2 px-3 bg-white text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                                >
+                                    class="text-xs font-bold rounded-xl border border-slate-200 py-2 px-3 bg-white text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer">
                                     <option :value="0">0 — Disabled (Web Serial Port)</option>
-                                    <option :value="1">1 — Port 8089 (http://localhost:8089 & http://127.0.0.1:8089)</option>
-                                    <option :value="2">2 — Port 8074 (https://localhost:8074 & https://127.0.0.1:8074)</option>
+                                    <option :value="1">1 — Port 8089 (http://localhost:8089 & http://127.0.0.1:8089)
+                                    </option>
+                                    <option :value="2">2 — Port 8074 (https://localhost:8074 & https://127.0.0.1:8074)
+                                    </option>
                                 </select>
                             </div>
 
-                            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                                 <div>
-                                    <h4 class="font-bold text-slate-700 text-sm">Manual Weight Entry <code class="text-[9px] text-slate-400 ml-1 font-normal">[manual_weight]</code></h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">Allow users to type weight if scale is disconnected</p>
+                                    <h4 class="font-bold text-slate-700 text-sm">Manual Weight Entry <code
+                                            class="text-[9px] text-slate-400 ml-1 font-normal">[manual_weight]</code>
+                                    </h4>
+                                    <p class="text-xs text-slate-500 mt-0.5">Allow users to type weight if scale is
+                                        disconnected
+                                    </p>
                                 </div>
                                 <InputSwitch v-model="form.settings.manual_weight" />
                             </div>
 
 
 
-                            <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                                 <div>
-                                    <h4 class="font-bold text-emerald-700 text-sm">Stock Deduction <code class="text-[9px] text-emerald-400 ml-1 font-normal">[with_inventory]</code></h4>
-                                    <p class="text-xs text-emerald-500 mt-0.5">Deduct raw material inventory automatically during batch processing</p>
+                                    <h4 class="font-bold text-emerald-700 text-sm">Stock Deduction <code
+                                            class="text-[9px] text-emerald-400 ml-1 font-normal">[with_inventory]</code>
+                                    </h4>
+                                    <p class="text-xs text-emerald-500 mt-0.5">Deduct raw material inventory
+                                        automatically
+                                        during batch processing</p>
                                 </div>
                                 <InputSwitch v-model="form.settings.with_inventory" />
                             </div>
 
                             <!-- Dynamic Batching Params -->
-                            <div v-for="(p, idx) in form.settings.custom_params.filter(x => x.module === 'batching')" :key="'b-'+idx" 
+                            <div v-for="(p, idx) in form.settings.custom_params.filter(x => x.module === 'batching')"
+                                :key="'b-' + idx"
                                 class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
                                 <div class="flex-1">
-                                    <h4 class="font-bold text-slate-700 text-sm">{{ p.label }} <code class="text-[9px] text-slate-400 ml-1 font-normal">[{{ p.key }}]</code></h4>
-                                    <div v-if="p.type === 'text'" class="mt-2 max-w-md"><InputText v-model="p.value" class="w-full text-sm" /></div>
+                                    <h4 class="font-bold text-slate-700 text-sm">{{ p.label }} <code
+                                            class="text-[9px] text-slate-400 ml-1 font-normal">[{{ p.key }}]</code></h4>
+                                    <div v-if="p.type === 'text'" class="mt-2 max-w-md">
+                                        <InputText v-model="p.value" class="w-full text-sm" />
+                                    </div>
                                 </div>
                                 <div class="flex items-center gap-4">
                                     <InputSwitch v-if="p.type === 'bool'" v-model="p.value" />
-                                    <Button icon="pi pi-trash" severity="danger" text rounded @click="removeParameter(form.settings.custom_params.indexOf(p))" />
+                                    <Button icon="pi pi-trash" severity="danger" text rounded
+                                        @click="removeParameter(form.settings.custom_params.indexOf(p))" />
                                 </div>
                             </div>
 
                             <!-- Default Transporter -->
                             <div class="p-4 bg-orange-50 rounded-xl border border-orange-100">
-                                <h4 class="font-bold text-orange-700 text-sm">Default Transporter <code class="text-[9px] text-orange-400 ml-1 font-normal">[default_transport]</code></h4>
-                                <p class="text-xs text-orange-500 mt-0.5 mb-2">Enter the exact transporter name. The batch create form will auto-select this transporter on load.</p>
-                                <InputText
-                                    v-model="form.settings.default_transport"
-                                    placeholder="e.g. ABC Logistics Pvt Ltd"
-                                    class="w-full text-sm max-w-md"
-                                />
-                                <p v-if="form.settings.default_transport" class="text-[10px] text-orange-600 mt-1 font-semibold">
+                                <h4 class="font-bold text-orange-700 text-sm">Default Transporter <code
+                                        class="text-[9px] text-orange-400 ml-1 font-normal">[default_transport]</code>
+                                </h4>
+                                <p class="text-xs text-orange-500 mt-0.5 mb-2">Enter the exact transporter name. The
+                                    batch
+                                    create form will auto-select this transporter on load.</p>
+                                <InputText v-model="form.settings.default_transport"
+                                    placeholder="e.g. ABC Logistics Pvt Ltd" class="w-full text-sm max-w-md" />
+                                <p v-if="form.settings.default_transport"
+                                    class="text-[10px] text-orange-600 mt-1 font-semibold">
                                     ✓ Auto-selecting: {{ form.settings.default_transport }}
                                 </p>
                             </div>
 
                             <!-- Quotation Validity Offset -->
                             <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                                <h4 class="font-bold text-blue-700 text-sm">Quotation Validity Offset (Days) <code class="text-[9px] text-blue-400 ml-1 font-normal">[quote_validity]</code></h4>
-                                <p class="text-xs text-blue-500 mt-0.5 mb-2">Enter the number of days a quotation is valid. When creating or editing a quotation, the validity date will be automatically set to Quote Date + this number of days.</p>
-                                <InputText
-                                    v-model="form.settings.quote_validity"
-                                    type="number"
-                                    placeholder="e.g. 15"
-                                    class="w-full text-sm max-w-xs"
-                                    min="1"
-                                />
+                                <h4 class="font-bold text-blue-700 text-sm">Quotation Validity Offset (Days) <code
+                                        class="text-[9px] text-blue-400 ml-1 font-normal">[quote_validity]</code></h4>
+                                <p class="text-xs text-blue-500 mt-0.5 mb-2">Enter the number of days a quotation is
+                                    valid. When
+                                    creating or editing a quotation, the validity date will be automatically set to
+                                    Quote Date +
+                                    this number of days.</p>
+                                <InputText v-model="form.settings.quote_validity" type="number" placeholder="e.g. 15"
+                                    class="w-full text-sm max-w-xs" min="1" />
                             </div>
 
                             <!-- Add Pouring Rates to Total -->
@@ -498,37 +522,55 @@ const deleteModule = (id: number) => {
                             class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-cyan-50/30 transition-colors"
                             @click="toggle('camera')">
                             <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-cyan-100 rounded-lg"><VideoCameraIcon class="w-4 h-4 text-cyan-600" /></div>
+                                <div class="p-1.5 bg-cyan-100 rounded-lg">
+                                    <VideoCameraIcon class="w-4 h-4 text-cyan-600" />
+                                </div>
                                 <span class="text-sm font-bold text-slate-700">Camera Integration</span>
-                                <span v-if="form.settings.camera" class="text-[9px] bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
+                                <span v-if="form.settings.camera"
+                                    class="text-[9px] bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.camera" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon   v-else                   class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
                         </button>
 
                         <div v-if="expanded.camera" class="p-6 space-y-4 animate-fade-in">
-                            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                                 <div>
-                                    <h4 class="font-bold text-slate-700 text-sm">Enable Snapshots <code class="text-[9px] text-slate-400 ml-1 font-normal">[camera]</code></h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">Capture truck images during weight capture</p>
+                                    <h4 class="font-bold text-slate-700 text-sm">Enable Snapshots <code
+                                            class="text-[9px] text-slate-400 ml-1 font-normal">[camera]</code></h4>
+                                    <p class="text-xs text-slate-500 mt-0.5">Capture truck images during weight capture
+                                    </p>
                                 </div>
                                 <InputSwitch v-model="form.settings.camera" />
                             </div>
 
                             <div v-if="form.settings.camera" class="space-y-3 animate-fade-in">
                                 <div class="flex flex-col gap-1">
-                                    <label class="text-xs font-bold text-slate-500 uppercase">Default Camera URL <code class="text-[9px] text-slate-300 font-normal normal-case">[camera_url]</code></label>
-                                    <InputText v-model="form.settings.camera_url" placeholder="http://127.0.0.1:8089/api/cameras/{camera-id}/snapshot" class="w-full text-sm" />
-                                    <p class="text-xs text-slate-500">Use the local camera service's GET snapshot URL. Inward Tare uses Camera 1, then this default. Configure camera credentials in the local service; no application login is needed for capture.</p>
+                                    <label class="text-xs font-bold text-slate-500 uppercase">Default Camera URL <code
+                                            class="text-[9px] text-slate-300 font-normal normal-case">[camera_url]</code></label>
+                                    <InputText v-model="form.settings.camera_url"
+                                        placeholder="http://127.0.0.1:8089/api/cameras/{camera-id}/snapshot"
+                                        class="w-full text-sm" />
+                                    <p class="text-xs text-slate-500">Use the local camera service's GET snapshot URL.
+                                        Inward
+                                        Tare uses Camera 1, then this default. Configure camera credentials in the local
+                                        service; no application login is needed for capture.</p>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div class="flex flex-col gap-1">
-                                        <label class="text-xs font-bold text-slate-500 uppercase">Camera 1 — Entry/Empty <code class="text-[9px] text-slate-300 font-normal normal-case">[camera_url_1]</code></label>
-                                        <InputText v-model="form.settings.camera_url_1" placeholder="Optional specific URL" class="w-full text-sm" />
+                                        <label class="text-xs font-bold text-slate-500 uppercase">Camera 1 — Entry/Empty
+                                            <code
+                                                class="text-[9px] text-slate-300 font-normal normal-case">[camera_url_1]</code></label>
+                                        <InputText v-model="form.settings.camera_url_1"
+                                            placeholder="Optional specific URL" class="w-full text-sm" />
                                     </div>
                                     <div class="flex flex-col gap-1">
-                                        <label class="text-xs font-bold text-slate-500 uppercase">Camera 2 — Exit/Loaded <code class="text-[9px] text-slate-300 font-normal normal-case">[camera_url_2]</code></label>
-                                        <InputText v-model="form.settings.camera_url_2" placeholder="Optional specific URL" class="w-full text-sm" />
+                                        <label class="text-xs font-bold text-slate-500 uppercase">Camera 2 — Exit/Loaded
+                                            <code
+                                                class="text-[9px] text-slate-300 font-normal normal-case">[camera_url_2]</code></label>
+                                        <InputText v-model="form.settings.camera_url_2"
+                                            placeholder="Optional specific URL" class="w-full text-sm" />
                                     </div>
                                 </div>
                             </div>
@@ -541,66 +583,99 @@ const deleteModule = (id: number) => {
                             class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-violet-50/30 transition-colors"
                             @click="toggle('batch_sync')">
                             <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-violet-100 rounded-lg"><DocumentArrowUpIcon class="w-4 h-4 text-violet-600" /></div>
+                                <div class="p-1.5 bg-violet-100 rounded-lg">
+                                    <DocumentArrowUpIcon class="w-4 h-4 text-violet-600" />
+                                </div>
                                 <span class="text-sm font-bold text-slate-700">Batch Sheet Sync</span>
                                 <span v-if="form.settings.sheet_upload || form.settings.hide_batch_form"
                                     class="text-[9px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.batch_sync" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon   v-else                       class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
                         </button>
 
                         <div v-if="expanded.batch_sync" class="p-6 space-y-4 animate-fade-in">
                             <!-- sheet_upload -->
-                            <div class="flex items-center justify-between p-4 bg-violet-50 rounded-xl border border-violet-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-violet-50 rounded-xl border border-violet-100">
                                 <div>
-                                    <h4 class="font-bold text-violet-700 text-sm">Upload Batch Sheet <code class="text-[9px] text-violet-400 ml-1 font-normal">[sheet_upload]</code></h4>
-                                    <p class="text-xs text-violet-500 mt-0.5">Allow users to upload a PDF or photo of the printed batch sheet to auto-fill Actual weights in the Input Reconciliation table.</p>
+                                    <h4 class="font-bold text-violet-700 text-sm">Upload Batch Sheet <code
+                                            class="text-[9px] text-violet-400 ml-1 font-normal">[sheet_upload]</code>
+                                    </h4>
+                                    <p class="text-xs text-violet-500 mt-0.5">Allow users to upload a PDF or photo of
+                                        the
+                                        printed batch sheet to auto-fill Actual weights in the Input Reconciliation
+                                        table.</p>
                                     <div v-if="form.settings.sheet_upload" class="mt-2">
-                                        <span class="text-[9px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Upload Button Visible in Batch Edit</span>
+                                        <span
+                                            class="text-[9px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Upload
+                                            Button Visible in Batch Edit</span>
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.sheet_upload" />
                             </div>
 
                             <!-- hide_batch_form -->
-                            <div class="flex items-center justify-between p-4 bg-rose-50 rounded-xl border border-rose-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-rose-50 rounded-xl border border-rose-100">
                                 <div>
-                                    <h4 class="font-bold text-rose-700 text-sm">Hide Add &amp; Edit Batch Forms <code class="text-[9px] text-rose-400 ml-1 font-normal">[hide_batch_form]</code></h4>
-                                    <p class="text-xs text-rose-500 mt-0.5">Hides the "New Batch" create form and the inline Edit form on the Batches page. Use when batch creation/editing is managed only via the batch sheet upload or an external scheduler.</p>
+                                    <h4 class="font-bold text-rose-700 text-sm">Hide Add &amp; Edit Batch Forms <code
+                                            class="text-[9px] text-rose-400 ml-1 font-normal">[hide_batch_form]</code>
+                                    </h4>
+                                    <p class="text-xs text-rose-500 mt-0.5">Hides the "New Batch" create form and the
+                                        inline
+                                        Edit form on the Batches page. Use when batch creation/editing is managed only
+                                        via the
+                                        batch sheet upload or an external scheduler.</p>
                                     <div v-if="form.settings.hide_batch_form" class="mt-2">
-                                        <span class="text-[9px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">⚠ Add &amp; Edit forms are currently HIDDEN</span>
+                                        <span
+                                            class="text-[9px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">⚠
+                                            Add &amp; Edit forms are currently HIDDEN</span>
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.hide_batch_form" />
                             </div>
 
                             <!-- target_to_actual -->
-                            <div class="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-100">
                                 <div>
-                                    <h4 class="font-bold text-indigo-700 text-sm">One-Click Target to Actual <code class="text-[9px] text-indigo-400 ml-1 font-normal">[target_to_actual]</code></h4>
-                                    <p class="text-xs text-indigo-500 mt-0.5">Show a quick-action button in the materials table to copy all recipe targets directly into actual quantities.</p>
+                                    <h4 class="font-bold text-indigo-700 text-sm">One-Click Target to Actual <code
+                                            class="text-[9px] text-indigo-400 ml-1 font-normal">[target_to_actual]</code>
+                                    </h4>
+                                    <p class="text-xs text-indigo-500 mt-0.5">Show a quick-action button in the
+                                        materials table
+                                        to copy all recipe targets directly into actual quantities.</p>
                                     <div v-if="form.settings.target_to_actual" class="mt-2">
-                                        <span class="text-[9px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Target to Actual button Enabled</span>
+                                        <span
+                                            class="text-[9px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Target
+                                            to Actual button Enabled</span>
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.target_to_actual" />
                             </div>
 
                             <!-- auto_carry_pump -->
-                            <div class="flex items-center justify-between p-4 bg-sky-50 rounded-xl border border-sky-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-sky-50 rounded-xl border border-sky-100">
                                 <div>
-                                    <h4 class="font-bold text-sky-700 text-sm">Auto-Select Previous Batch Pump <code class="text-[9px] text-sky-400 ml-1 font-normal">[auto_carry_pump]</code></h4>
-                                    <p class="text-xs text-sky-500 mt-0.5">Automatically select the concrete pump type from the previous batch of the same sales order.</p>
+                                    <h4 class="font-bold text-sky-700 text-sm">Auto-Select Previous Batch Pump <code
+                                            class="text-[9px] text-sky-400 ml-1 font-normal">[auto_carry_pump]</code>
+                                    </h4>
+                                    <p class="text-xs text-sky-500 mt-0.5">Automatically select the concrete pump type
+                                        from the
+                                        previous batch of the same sales order.</p>
                                     <div v-if="form.settings.auto_carry_pump" class="mt-2">
-                                        <span class="text-[9px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pump Auto-Selection Enabled</span>
+                                        <span
+                                            class="text-[9px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pump
+                                            Auto-Selection Enabled</span>
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.auto_carry_pump" />
                             </div>
 
                             <!-- schedule_to_batch -->
-                            <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                            <!-- <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                                 <div>
                                     <h4 class="font-bold text-emerald-700 text-sm">Create Real Batch from Schedule <code class="text-[9px] text-emerald-400 ml-1 font-normal">[schedule_to_batch]</code></h4>
                                     <p class="text-xs text-emerald-500 mt-0.5">Automatically create a real batch and dispatch entry when scheduling a pour. If disabled, only the schedule slot will be created.</p>
@@ -612,7 +687,7 @@ const deleteModule = (id: number) => {
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.schedule_to_batch" />
-                            </div>
+                            </div> -->
 
                             <!-- material_print_mode -->
                             <!-- <div class="flex flex-col gap-2 p-4 bg-violet-50 rounded-xl border border-violet-100">
@@ -639,15 +714,20 @@ const deleteModule = (id: number) => {
                             </div> -->
 
                             <!-- Dynamic Sync Params -->
-                            <div v-for="(p, idx) in form.settings.custom_params.filter(x => x.module === 'sync' || (x.module === 'batching' && x.key.includes('sync')))" :key="'s-'+idx" 
+                            <div v-for="(p, idx) in form.settings.custom_params.filter(x => x.module === 'sync' || (x.module === 'batching' && x.key.includes('sync')))"
+                                :key="'s-' + idx"
                                 class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
                                 <div class="flex-1">
-                                    <h4 class="font-bold text-slate-700 text-sm">{{ p.label }} <code class="text-[9px] text-slate-400 ml-1 font-normal">[{{ p.key }}]</code></h4>
-                                    <div v-if="p.type === 'text'" class="mt-2 max-w-md"><InputText v-model="p.value" class="w-full text-sm" /></div>
+                                    <h4 class="font-bold text-slate-700 text-sm">{{ p.label }} <code
+                                            class="text-[9px] text-slate-400 ml-1 font-normal">[{{ p.key }}]</code></h4>
+                                    <div v-if="p.type === 'text'" class="mt-2 max-w-md">
+                                        <InputText v-model="p.value" class="w-full text-sm" />
+                                    </div>
                                 </div>
                                 <div class="flex items-center gap-4">
                                     <InputSwitch v-if="p.type === 'bool'" v-model="p.value" />
-                                    <Button icon="pi pi-trash" severity="danger" text rounded @click="removeParameter(form.settings.custom_params.indexOf(p))" />
+                                    <Button icon="pi pi-trash" severity="danger" text rounded
+                                        @click="removeParameter(form.settings.custom_params.indexOf(p))" />
                                 </div>
                             </div>
                         </div>
@@ -659,23 +739,35 @@ const deleteModule = (id: number) => {
                             class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-purple-50/30 transition-colors"
                             @click="toggle('print')">
                             <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-purple-100 rounded-lg"><PrinterIcon class="w-4 h-4 text-purple-600" /></div>
+                                <div class="p-1.5 bg-purple-100 rounded-lg">
+                                    <PrinterIcon class="w-4 h-4 text-purple-600" />
+                                </div>
                                 <span class="text-sm font-bold text-slate-700">Print Configuration</span>
-                                <span v-if="form.settings.print_delivery_ingredients || form.settings.quotation_price_list" 
+                                <span
+                                    v-if="form.settings.print_delivery_ingredients || form.settings.quotation_price_list"
                                     class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.print" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon   v-else                 class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
                         </button>
 
                         <div v-if="expanded.print" class="p-6 space-y-4 animate-fade-in">
                             <!-- print_delivery_ingredients -->
-                            <div class="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-100">
                                 <div>
-                                    <h4 class="font-bold text-purple-700 text-sm">Batching &amp; Ingredients Details on Delivery Token <code class="text-[9px] text-purple-400 ml-1 font-normal">[print_delivery_ingredients]</code></h4>
-                                    <p class="text-xs text-purple-500 mt-0.5">Show or hide the Recipe, Actual Quantity, and Deviation breakdown table on the Delivery Token (A4).</p>
+                                    <h4 class="font-bold text-purple-700 text-sm">Batching &amp; Ingredients Details on
+                                        Delivery
+                                        Token <code
+                                            class="text-[9px] text-purple-400 ml-1 font-normal">[print_delivery_ingredients]</code>
+                                    </h4>
+                                    <p class="text-xs text-purple-500 mt-0.5">Show or hide the Recipe, Actual Quantity,
+                                        and
+                                        Deviation breakdown table on the Delivery Token (A4).</p>
                                     <div v-if="form.settings.print_delivery_ingredients" class="mt-2">
-                                        <span class="text-[9px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Ingredients Section Visible on Delivery Token</span>
+                                        <span
+                                            class="text-[9px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Ingredients
+                                            Section Visible on Delivery Token</span>
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.print_delivery_ingredients" />
@@ -685,33 +777,39 @@ const deleteModule = (id: number) => {
                             <div class="flex flex-col gap-2 p-4 bg-teal-50 rounded-xl border border-teal-100">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <h4 class="font-bold text-teal-700 text-sm">Grade or Mix Design Name  <code class="text-[9px] text-teal-400 ml-1 font-normal">[is_grade_or_is_mix_design]</code></h4>
-                                        <p class="text-xs text-teal-500 mt-0.5">Choose whether to display the Concrete Grade or the Mix Design name on Quotations, Sales Orders, and Invoices.</p>
+                                        <h4 class="font-bold text-teal-700 text-sm">Grade or Mix Design Name <code
+                                                class="text-[9px] text-teal-400 ml-1 font-normal">[is_grade_or_is_mix_design]</code>
+                                        </h4>
+                                        <p class="text-xs text-teal-500 mt-0.5">Choose whether to display the Concrete
+                                            Grade or
+                                            the Mix Design name on Quotations, Sales Orders, and Invoices.</p>
                                     </div>
                                 </div>
                                 <div class="mt-2 max-w-md">
-                                    <Dropdown
-                                        v-model="form.settings.is_grade_or_is_mix_design"
-                                        :options="[
-                                            { label: 'Grade', value: 0 },
-                                            { label: 'Mix Design', value: 1 },
-                                            { label: 'Grade + Mix Design', value: 2 }
-                                        ]"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        placeholder="Select item name format"
-                                        class="w-full text-sm"
-                                    />
+                                    <Dropdown v-model="form.settings.is_grade_or_is_mix_design" :options="[
+                                        { label: 'Grade', value: 0 },
+                                        { label: 'Mix Design', value: 1 },
+                                        { label: 'Grade + Mix Design', value: 2 }
+                                    ]" optionLabel="label" optionValue="value" placeholder="Select item name format"
+                                        class="w-full text-sm" />
                                 </div>
                             </div>
 
                             <!-- quotation_price_list -->
-                            <div class="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-100">
+                            <div
+                                class="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-100">
                                 <div>
-                                    <h4 class="font-bold text-purple-700 text-sm">Quotation as Price List <code class="text-[9px] text-purple-400 ml-1 font-normal">[quotation_price_list]</code></h4>
-                                    <p class="text-xs text-purple-500 mt-0.5">When enabled, quotation prints will set the document name to "PRICE LIST" and hide the total amount column in the items table.</p>
+                                    <h4 class="font-bold text-purple-700 text-sm">Quotation as Price List <code
+                                            class="text-[9px] text-purple-400 ml-1 font-normal">[quotation_price_list]</code>
+                                    </h4>
+                                    <p class="text-xs text-purple-500 mt-0.5">When enabled, quotation prints will set
+                                        the
+                                        document name to "PRICE LIST" and hide the total amount column in the items
+                                        table.</p>
                                     <div v-if="form.settings.quotation_price_list" class="mt-2">
-                                        <span class="text-[9px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Quotation Print Name: PRICE LIST &bull; Totals Column Hidden</span>
+                                        <span
+                                            class="text-[9px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Quotation
+                                            Print Name: PRICE LIST &bull; Totals Column Hidden</span>
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.quotation_price_list" />
@@ -725,36 +823,50 @@ const deleteModule = (id: number) => {
                             class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-indigo-50/30 transition-colors"
                             @click="toggle('prefixes')">
                             <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-indigo-100 rounded-lg"><DocumentTextIcon class="w-4 h-4 text-indigo-600" /></div>
+                                <div class="p-1.5 bg-indigo-100 rounded-lg">
+                                    <DocumentTextIcon class="w-4 h-4 text-indigo-600" />
+                                </div>
                                 <span class="text-sm font-bold text-slate-700">Document Prefix Configuration</span>
-                                <span v-if="form.settings.po_prefix || form.settings.so_prefix || form.settings.quote_prefix" 
+                                <span
+                                    v-if="form.settings.po_prefix || form.settings.so_prefix || form.settings.quote_prefix"
                                     class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.prefixes" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon   v-else                        class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
                         </button>
 
                         <div v-if="expanded.prefixes" class="p-6 space-y-4 animate-fade-in">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div class="flex flex-col gap-1.5">
-                                    <label class="text-xs font-bold text-slate-500 uppercase">Purchase Order (PO) Prefix</label>
-                                    <InputText v-model="form.settings.po_prefix" placeholder="PO" class="w-full text-sm" />
-                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Purchase Orders.</p>
+                                    <label class="text-xs font-bold text-slate-500 uppercase">Purchase Order (PO)
+                                        Prefix</label>
+                                    <InputText v-model="form.settings.po_prefix" placeholder="PO"
+                                        class="w-full text-sm" />
+                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Purchase
+                                        Orders.</p>
                                 </div>
                                 <div class="flex flex-col gap-1.5">
                                     <label class="text-xs font-bold text-slate-500 uppercase">Sales Order Prefix</label>
-                                    <InputText v-model="form.settings.so_prefix" placeholder="SO" class="w-full text-sm" />
-                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Sales Orders.</p>
+                                    <InputText v-model="form.settings.so_prefix" placeholder="SO"
+                                        class="w-full text-sm" />
+                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Sales Orders.
+                                    </p>
                                 </div>
                                 <div class="flex flex-col gap-1.5">
-                                    <label class="text-xs font-bold text-slate-500 uppercase">Customer Purchase Order Prefix</label>
-                                    <InputText v-model="form.settings.cpo_prefix" placeholder="CPO" class="w-full text-sm" />
-                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Customer Purchase Orders.</p>
+                                    <label class="text-xs font-bold text-slate-500 uppercase">Customer Purchase Order
+                                        Prefix</label>
+                                    <InputText v-model="form.settings.cpo_prefix" placeholder="CPO"
+                                        class="w-full text-sm" />
+                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Customer
+                                        Purchase
+                                        Orders.</p>
                                 </div>
                                 <div class="flex flex-col gap-1.5">
                                     <label class="text-xs font-bold text-slate-500 uppercase">Quotation Prefix</label>
-                                    <InputText v-model="form.settings.quote_prefix" placeholder="QT" class="w-full text-sm" />
-                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Quotations.</p>
+                                    <InputText v-model="form.settings.quote_prefix" placeholder="QT"
+                                        class="w-full text-sm" />
+                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Quotations.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -766,19 +878,28 @@ const deleteModule = (id: number) => {
                             class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-indigo-50/30 transition-colors"
                             @click="toggle('appearance')">
                             <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-indigo-100 rounded-lg"><Cog6ToothIcon class="w-4 h-4 text-indigo-600" /></div>
+                                <div class="p-1.5 bg-indigo-100 rounded-lg">
+                                    <Cog6ToothIcon class="w-4 h-4 text-indigo-600" />
+                                </div>
                                 <span class="text-sm font-bold text-slate-700">System Appearance</span>
-                                <span v-if="form.settings.loader_gif" class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Custom Loader Set</span>
+                                <span v-if="form.settings.loader_gif"
+                                    class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Custom
+                                    Loader Set</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.appearance" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon   v-else                       class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
                         </button>
 
                         <div v-if="expanded.appearance" class="p-6 animate-fade-in">
                             <div class="flex flex-col gap-1 max-w-lg">
-                                <label class="text-xs font-bold text-slate-500 uppercase">Custom Global Loader (GIF URL) <code class="text-[9px] text-slate-300 font-normal normal-case">[loader_gif]</code></label>
-                                <InputText v-model="form.settings.loader_gif" placeholder="/storage/loaders/truck.gif" class="w-full text-sm" />
-                                <p class="text-[10px] text-slate-400 mt-1 italic">Use the "Image to GIF" tool to generate your custom loader.</p>
+                                <label class="text-xs font-bold text-slate-500 uppercase">Custom Global Loader (GIF URL)
+                                    <code
+                                        class="text-[9px] text-slate-300 font-normal normal-case">[loader_gif]</code></label>
+                                <InputText v-model="form.settings.loader_gif" placeholder="/storage/loaders/truck.gif"
+                                    class="w-full text-sm" />
+                                <p class="text-[10px] text-slate-400 mt-1 italic">Use the "Image to GIF" tool to
+                                    generate your
+                                    custom loader.</p>
                             </div>
                         </div>
                     </div>
@@ -789,30 +910,38 @@ const deleteModule = (id: number) => {
                             class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-amber-50/30 transition-colors"
                             @click="toggle('custom')">
                             <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-amber-100 rounded-lg"><PencilSquareIcon class="w-4 h-4 text-amber-600" /></div>
+                                <div class="p-1.5 bg-amber-100 rounded-lg">
+                                    <PencilSquareIcon class="w-4 h-4 text-amber-600" />
+                                </div>
                                 <span class="text-sm font-bold text-slate-700">Custom Parameters</span>
-                                <span v-if="form.settings.custom_params.length" class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase">{{ form.settings.custom_params.length }} Set</span>
+                                <span v-if="form.settings.custom_params.length"
+                                    class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase">{{
+                                        form.settings.custom_params.length }} Set</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.custom" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon   v-else                   class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
                         </button>
 
                         <div v-if="expanded.custom" class="p-6 space-y-4 animate-fade-in">
                             <div v-if="!form.settings.custom_params.length" class="text-center py-8">
-                                <p class="text-xs text-slate-400">No custom parameters added yet. Click "Add Parameter" to start.</p>
+                                <p class="text-xs text-slate-400">No custom parameters added yet. Click "Add Parameter"
+                                    to
+                                    start.</p>
                             </div>
-                            <div v-for="(p, index) in form.settings.custom_params" :key="index" 
+                            <div v-for="(p, index) in form.settings.custom_params" :key="index"
                                 class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                                 <div class="flex-1">
-                                    <h4 class="font-bold text-slate-700 text-sm">{{ p.label }} <code class="text-[9px] text-slate-400 ml-1 font-normal">[{{ p.key }}]</code></h4>
-                                    
+                                    <h4 class="font-bold text-slate-700 text-sm">{{ p.label }} <code
+                                            class="text-[9px] text-slate-400 ml-1 font-normal">[{{ p.key }}]</code></h4>
+
                                     <div v-if="p.type === 'text'" class="mt-2 max-w-md">
                                         <InputText v-model="p.value" placeholder="Enter value" class="w-full text-sm" />
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-4">
                                     <InputSwitch v-if="p.type === 'bool'" v-model="p.value" />
-                                    <Button icon="pi pi-trash" severity="danger" text rounded @click="removeParameter(index)" />
+                                    <Button icon="pi pi-trash" severity="danger" text rounded
+                                        @click="removeParameter(index)" />
                                 </div>
                             </div>
                         </div>
@@ -820,13 +949,8 @@ const deleteModule = (id: number) => {
 
                     <!-- Save footer -->
                     <div class="flex justify-end pt-2 pb-6">
-                        <Button
-                            icon="pi pi-save"
-                            label="Save All Settings"
-                            size="large"
-                            :loading="form.processing"
-                            @click="submit"
-                        />
+                        <Button icon="pi pi-save" label="Save All Settings" size="large" :loading="form.processing"
+                            @click="submit" />
                     </div>
                 </div>
 
@@ -837,9 +961,11 @@ const deleteModule = (id: number) => {
             <div class="space-y-4 py-2">
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-slate-500 uppercase">Module Name</label>
-                    <Dropdown v-model="newModuleForm.module" :options="modules" optionLabel="label" optionValue="value" placeholder="Select a module" class="w-full" />
+                    <Dropdown v-model="newModuleForm.module" :options="modules" optionLabel="label" optionValue="value"
+                        placeholder="Select a module" class="w-full" />
                 </div>
-                <p class="text-[10px] text-slate-400 italic">Adding a module will create a default settings record for it.</p>
+                <p class="text-[10px] text-slate-400 italic">Adding a module will create a default settings record for
+                    it.</p>
             </div>
             <template #footer>
                 <Button label="Cancel" icon="pi pi-times" text @click="showNewDialog = false" />
@@ -852,7 +978,8 @@ const deleteModule = (id: number) => {
             <div class="space-y-4 py-2">
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-slate-500 uppercase">Target Module</label>
-                    <Dropdown v-model="paramForm.module" :options="modules" optionLabel="label" optionValue="value" class="w-full" />
+                    <Dropdown v-model="paramForm.module" :options="modules" optionLabel="label" optionValue="value"
+                        class="w-full" />
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-slate-500 uppercase">Display Label</label>
@@ -864,7 +991,9 @@ const deleteModule = (id: number) => {
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-bold text-slate-500 uppercase">Value Type</label>
-                    <Dropdown v-model="paramForm.type" :options="[{label: 'Text / Number', value: 'text'}, {label: 'Toggle (On/Off)', value: 'bool'}]" optionLabel="label" optionValue="value" class="w-full" />
+                    <Dropdown v-model="paramForm.type"
+                        :options="[{ label: 'Text / Number', value: 'text' }, { label: 'Toggle (On/Off)', value: 'bool' }]"
+                        optionLabel="label" optionValue="value" class="w-full" />
                 </div>
             </div>
             <template #footer>
@@ -879,8 +1008,16 @@ const deleteModule = (id: number) => {
 .animate-fade-in {
     animation: fadeIn 0.2s ease-out;
 }
+
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 </style>
