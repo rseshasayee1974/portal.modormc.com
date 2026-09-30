@@ -14,6 +14,16 @@ Tax columns come from the complete filtered period, and footer totals cover all 
 
 Excel and PDF exports include every matching record and preserve the selected view and filters. Both show the same rate-wise GST columns. All register PDFs use A4 landscape, including scheduled exports, shared downloads and legacy export entry points. PDF puts long audit fields below each detailed row. When more than six tax-rate columns are present, PDF prints the complete rate breakdown in continuation tables with matching row numbers and document references. Scheduled exports, shared PDFs and legacy export entry points use the same column definitions.
 
+### Address & GST Excel format
+
+Choose **Excel Format > Address & GST (item wise)**, then **Export Excel** in either register. This additional format always exports one row per matching item, even when the screen is showing the summary. Sales requires the Detailed Sales Register View and Export permissions. Standard Excel and PDF layouts remain available.
+
+The 26 columns match the supplied layout: DATE, PARTY, ADDRESS_1, ADDRESS_2, CITY, STATE, ZIPCODE, SHIPPING ADDRESS, SHIPPING ZIPCODE, TYPE, INVOICE NO, TRUCK, GSTIN, PRODUCT, HSN/SAC, QUANTITY, UNIT, RATE, GROSS, SALES GST, TAX NAME, TAX AMOUNT, CGST, SGST, IGST and ROUNDOFF. Dates display as `dd-mm-yyyy`, tax amounts retain two decimals, and ZIP codes, HSN/SAC and document identifiers remain text.
+
+Party addresses use the primary contact's billing/primary address, falling back to the party's linked address. Sales shipping details come from the dispatch's unloading site. Purchases use the receiving plant's address and the distinct trucks recorded against that purchase item's active inwards. Missing values remain blank; purchase TYPE is blank because purchase orders do not store Cash/Credit. All related lookups stay within the selected plant and exclude deleted records.
+
+GROSS is the stored item total including tax. The sample's SALES GST heading means the taxable item value for both sales and purchases. ROUNDOFF is the stored document round-off, shown only on the first matching item of each invoice/bill so totals do not duplicate it. Other document-level adjustments and charges are not allocated to item values. Additional tax components remain included in TAX AMOUNT; the fixed sample layout has only CGST, SGST and IGST component columns.
+
 ## Deployment
 
 Apply the additive menu migration to the initialized application database:
@@ -30,6 +40,7 @@ The menu entries use individual report View permissions; see [report-permissions
 
 ```powershell
 php tests/Standalone/register-reports.php
+php -d memory_limit=512M tests/Standalone/register-address-gst.php
 php tests/Standalone/report-export-queue.php
 ```
 

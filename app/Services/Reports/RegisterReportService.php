@@ -189,8 +189,13 @@ abstract class RegisterReportService implements ReportServiceInterface
     public function generateAndSaveReport(string $format, array $filters, string $filePath): void
     {
         $filters = $this->normalizeFilters($filters);
+        $addressGst = $format === 'excel' && ($filters['excel_format'] ?? 'standard') === RegisterAddressGstFormat::KEY;
+        if ($addressGst) $filters['register_view'] = 'detail';
         $report = $this->buildReport($filters, true);
         if ($format === 'excel') {
+            if ($addressGst) {
+                $report = app(RegisterAddressGstFormat::class)->prepare($report, $this->reportType(), (int) $filters['plant_id']);
+            }
             app(\App\Exports\RegisterReportExport::class)->export(
                 $filePath, $this->targetName($filters), $filters, $report
             );

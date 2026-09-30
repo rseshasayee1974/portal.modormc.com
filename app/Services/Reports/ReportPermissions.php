@@ -52,7 +52,8 @@ class ReportPermissions
         $type = strtolower(trim($type));
         if ($type === 'deleted') $type = 'deleted_report';
         // Register services default to detail when their callers omit the layout.
-        if ($type === 'sales_register' && strtolower($params['register_view'] ?? 'detail') === 'detail') {
+        if ($type === 'sales_register' && (strtolower($params['register_view'] ?? 'detail') === 'detail'
+            || ($params['excel_format'] ?? '') === RegisterAddressGstFormat::KEY)) {
             $type = 'detailed_sales_register';
         }
         return $type;

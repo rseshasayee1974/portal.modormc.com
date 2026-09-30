@@ -30,6 +30,7 @@ package.json
 !/tests/Standalone/
 /tests/Standalone/*
 !/tests/Standalone/register-reports.php
+!/tests/Standalone/register-address-gst.php
 !/tests/Standalone/report-permissions.php
 !/tests/Standalone/purchase-receipt-billing.php
 !/tests/Standalone/purchase-conversion-billing.php

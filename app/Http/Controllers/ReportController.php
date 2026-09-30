@@ -165,6 +165,7 @@ class ReportController extends Controller
                 'mix_design_id'       => $request->input('mix_design_id'),
                 'voucher_type_filter' => $request->input('voucher_type_filter'),
                 'register_view'       => $request->input('register_view', 'detail'),
+                'excel_format'        => $request->input('excel_format', 'standard'),
                 'document_status'     => $request->input('document_status', 'active'),
             ];
 
@@ -397,6 +398,7 @@ class ReportController extends Controller
         $filters = $request->validate([
             'page' => 'nullable|integer|min:1',
             'register_view' => 'nullable|in:summary,detail',
+            'excel_format' => 'nullable|in:standard,address_gst',
             'document_status' => 'nullable|in:active,all,cancelled',
             'from_date'      => 'required|date',
             'to_date'        => 'required|date|after_or_equal:from_date',
@@ -440,6 +442,7 @@ class ReportController extends Controller
         $filters = $request->validate([
             'page' => 'nullable|integer|min:1',
             'register_view' => 'nullable|in:summary,detail',
+            'excel_format' => 'nullable|in:standard,address_gst',
             'document_status' => 'nullable|in:active,all,cancelled',
             'from_date'   => 'required|date',
             'to_date'     => 'required|date|after_or_equal:from_date',

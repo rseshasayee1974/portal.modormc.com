@@ -219,6 +219,13 @@ const registerView = ref(initialSelection.registerView === 'detail' || (reportTy
 const canExportReport = computed(() => hasReportPermission(reportType.value, 'export', registerView.value));
 const canShareReport = computed(() => hasReportPermission(reportType.value, 'share', registerView.value));
 const canScheduleReport = computed(() => hasReportPermission(reportType.value, 'schedule', registerView.value));
+const registerExcelFormat = ref('standard');
+const registerExcelFormatOptions = computed(() => [
+    { label: 'Standard register', value: 'standard' },
+    ...(reportType.value === 'purchase_register' || hasReportPermission('sales_register', 'export', 'detail')
+        ? [{ label: 'Address & GST (item wise)', value: 'address_gst' }] : []),
+]);
+watch([reportType, registerView], () => { registerExcelFormat.value = 'standard'; });
 const registerStatus = ref('active');
 const registerViewOptions = computed(() => [
     { label: 'Summary (invoice / bill)', value: 'summary' },
@@ -828,6 +835,9 @@ const exportPdf = () => {
 
 const exportExcel = () => {
     if (isExporting.value || !canExportReport.value) return;
+    const excelView = registerExcelFormat.value === 'address_gst' ? 'detail' : registerView.value;
+    if (['sales_register', 'purchase_register'].includes(reportType.value)
+        && !hasReportPermission(reportType.value, 'export', excelView)) return;
     let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
@@ -851,7 +861,8 @@ const exportExcel = () => {
             to_date: endDate.value,
             customer_id: patronId.value,
             gst_type: gstType.value,
-            register_view: registerView.value,
+            register_view: excelView,
+            excel_format: registerExcelFormat.value,
             document_status: registerStatus.value,
             payment_status: paymentStatus.value,
             export: 'excel'
@@ -862,7 +873,8 @@ const exportExcel = () => {
             to_date: endDate.value,
             supplier_id: patronId.value,
             gst_type: gstType.value,
-            register_view: registerView.value,
+            register_view: excelView,
+            excel_format: registerExcelFormat.value,
             document_status: registerStatus.value,
             export: 'excel'
         });
@@ -1230,6 +1242,13 @@ const shareEmail = () => {
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Document
                                             Status</span>
                                         <BaseSelect v-model="registerStatus" :options="registerStatusOptions"
+                                            optionLabel="label" optionValue="value" />
+                                    </div>
+
+                                    <div v-if="['sales_register', 'purchase_register'].includes(reportType) && canExportReport"
+                                        class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Excel Format</span>
+                                        <BaseSelect v-model="registerExcelFormat" :options="registerExcelFormatOptions"
                                             optionLabel="label" optionValue="value" />
                                     </div>
 
