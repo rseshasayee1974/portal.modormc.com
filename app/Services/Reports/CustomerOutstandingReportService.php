@@ -352,10 +352,12 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             ];
         }
 
-        // Sort customers: customer_name ascending order
-        $customersList = collect($customersList)->sortBy(function ($r) {
-            return strtolower($r['customer_name'] ?? '');
-        })->values()->all();
+        // Sort customers: customer_name ascending order and filter out zero balances
+        $customersList = collect($customersList)
+            ->where('total_outstanding', '>', 0)
+            ->sortBy(function ($r) {
+                return strtolower($r['customer_name'] ?? '');
+            })->values()->all();
 
         // Totals
         $totalInvoiced    = round(collect($customersList)->sum('total_invoiced'), 2);

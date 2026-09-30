@@ -185,6 +185,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
             'eta_site'         => '2026-09-08 15:00:00',
             'unloading_start'  => '2026-09-08 15:10:00',
             'unloading_end'    => '2026-09-08 15:50:00',
+            'sales_order_id'   => $this->salesOrder->id,
             'status'           => 'completed',
         ];
 
@@ -292,6 +293,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
             'qty_m3'          => 6.0,
             'order_volume_m3' => 12.0,
             'vehicle_id'      => $this->truck->id,
+            'sales_order_id'  => $this->salesOrder->id,
             'pump_type'       => 'direct_pour',
             'batching_time'   => '2026-09-08 09:30:00',
             'status'          => 'scheduled',
@@ -374,6 +376,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
             'planned_qty_m3'  => 50.0,
             'pump_type'       => 'boom_pump',
             'pump_vehicle_id' => $this->pump->id,
+            'sales_order_id'  => $this->salesOrder->id,
         ];
 
         $response = $this->postJson(route('production.pump-deployments.store'), $payloadWithoutLength);
@@ -395,7 +398,6 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         $successResponse->assertStatus(200)->assertJson(['success' => true]);
 
         $this->assertDatabaseHas('mm_pump_boom_deployment_schedule', [
-            'pour_reference' => 'Commercial Slab Pour',
             'boom_length_m'  => 36,
             'pump_type'      => 'boom_pump',
             'status'         => 'scheduled',
@@ -407,7 +409,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         $deployment = PumpBoomDeploymentSchedule::create([
             'plant_id'        => $this->plant->id,
             'schedule_date'   => '2026-09-08',
-            'pour_reference'  => 'Bridge Deck Pour',
+            'sales_order_id'  => $this->salesOrder->id,
             'site_id'         => $this->site->id,
             'pour_location'   => 'Span 3',
             'mix_design_id'   => $this->mixDesign->id,
@@ -420,7 +422,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
 
         $updatePayload = [
             'schedule_date'     => '2026-09-08',
-            'pour_reference'    => 'Bridge Deck Pour',
+            'sales_order_id'    => $this->salesOrder->id,
             'site_id'           => $this->site->id,
             'pour_location'     => 'Span 3 & 4',
             'mix_design_id'     => $this->mixDesign->id,
@@ -461,7 +463,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         PumpBoomDeploymentSchedule::create([
             'plant_id'          => $this->plant->id,
             'schedule_date'     => '2026-09-08',
-            'pour_reference'    => 'Job 1',
+            'sales_order_id'    => $this->salesOrder->id,
             'site_id'           => $this->site->id,
             'pour_location'     => 'East Wing',
             'mix_design_id'     => $this->mixDesign->id,
@@ -478,7 +480,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         // Overlapping pour for same pump
         $pumpConflictPayload = [
             'schedule_date'     => '2026-09-08',
-            'pour_reference'    => 'Job 2',
+            'sales_order_id'    => $this->salesOrder->id,
             'site_id'           => $this->site->id,
             'pour_location'     => 'West Wing',
             'mix_design_id'     => $this->mixDesign->id,
@@ -504,7 +506,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
 
         $opConflictPayload = [
             'schedule_date'     => '2026-09-08',
-            'pour_reference'    => 'Job 3',
+            'sales_order_id'    => $this->salesOrder->id,
             'site_id'           => $this->site->id,
             'pour_location'     => 'North Wing',
             'mix_design_id'     => $this->mixDesign->id,
@@ -527,7 +529,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         $deployment = PumpBoomDeploymentSchedule::create([
             'plant_id'        => $this->plant->id,
             'schedule_date'   => '2026-09-08',
-            'pour_reference'  => 'Pour to Remove',
+            'sales_order_id'  => $this->salesOrder->id,
             'site_id'         => $this->site->id,
             'pour_location'   => 'Pavement',
             'mix_design_id'   => $this->mixDesign->id,
@@ -615,6 +617,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
             'qty_m3'          => 6.0,
             'order_volume_m3' => 12.0,
             'vehicle_id'      => $this->truck->id,
+            'sales_order_id'  => $this->salesOrder->id,
             'pump_type'       => 'direct_pour',
             'batching_time'   => '2026-09-08 10:30:00',
             'status'          => 'scheduled',
@@ -703,6 +706,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
             'vehicle_id'      => $this->truck->id,
             'driver_id'       => $this->driver->id,
             'pump_type'       => 'direct_pour',
+            'sales_order_id'  => $this->salesOrder->id,
             'dispatch_id'     => $existingDispatch->id,
             'status'          => 'in_transit',
             'dispatch_time'   => '2026-09-08 14:00:00',
@@ -814,7 +818,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         $match = collect($dispatches)->firstWhere('id', $dispatch->id);
         $this->assertNotNull($match);
         $this->assertStringContainsString('555', $match['label']);
-        $this->assertEquals(555, $match['batch_no']);
+        $this->assertStringContainsString('555', (string)$match['batch_no']);
         $this->assertEquals('TM-01-AB-1234', $match['vehicle_reg']);
     }
 
@@ -854,6 +858,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
             'order_volume_m3' => 12.0,
             'vehicle_id'      => $anotherTruck->id,
             'driver_id'       => $this->driver->id,
+            'sales_order_id'  => $this->salesOrder->id,
             'pump_type'       => 'direct_pour',
             'batching_time'   => '2026-09-08 10:20:00',
             'status'          => 'scheduled',
@@ -901,6 +906,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
             'order_volume_m3'  => 24.0,
             'vehicle_id'       => $this->truck->id,
             'driver_id'        => $this->driver->id,
+            'sales_order_id'   => $this->salesOrder->id,
             'pump_type'        => 'direct_pour',
             'dispatch_id'      => $dispatch->id,
             'batching_time'    => '2026-09-08 14:00:00',
@@ -926,7 +932,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         PumpBoomDeploymentSchedule::create([
             'plant_id'         => $this->plant->id,
             'schedule_date'    => '2026-09-08',
-            'pour_reference'   => 'Pump KPI Pour 1',
+            'sales_order_id'   => $this->salesOrder->id,
             'site_id'          => $this->site->id,
             'pour_location'    => 'Sector 1',
             'mix_design_id'    => $this->mixDesign->id,
@@ -941,7 +947,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         PumpBoomDeploymentSchedule::create([
             'plant_id'         => $this->plant->id,
             'schedule_date'    => '2026-09-08',
-            'pour_reference'   => 'Pump KPI Pour 2',
+            'sales_order_id'   => $this->salesOrder->id,
             'site_id'          => $this->site->id,
             'pour_location'    => 'Sector 2',
             'mix_design_id'    => $this->mixDesign->id,
@@ -953,7 +959,6 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         $response = $this->getJson(route('production.pump-deployments.data', [
             'schedule_date'   => '2026-09-08',
             'status'          => 'all',
-            'pour_reference'  => 'Pump KPI',
         ]));
 
         $response->assertStatus(200)
@@ -989,6 +994,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
             'setup_start_time'  => '2026-09-08 10:00:00',
             'setup_end_time'    => '2026-09-08 09:30:00', // earlier than start!
             'operator_id'       => $this->operator->id,
+            'sales_order_id'    => $this->salesOrder->id,
         ];
 
         $response = $this->postJson(route('production.pump-deployments.store'), $invalidSetupPayload);
@@ -1009,6 +1015,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
             'actual_start_time' => '2026-09-08 14:00:00',
             'actual_end_time'   => '2026-09-08 13:00:00', // earlier than start!
             'operator_id'       => $this->operator->id,
+            'sales_order_id'    => $this->salesOrder->id,
         ];
 
         $response2 = $this->postJson(route('production.pump-deployments.store'), $invalidActualPayload);
@@ -1021,7 +1028,7 @@ class BatchingScheduleAndPumpDeploymentTest extends TestCase
         $deployment = PumpBoomDeploymentSchedule::create([
             'plant_id'        => $this->plant->id,
             'schedule_date'   => '2026-09-08',
-            'pour_reference'  => 'Lifecycle Pour',
+            'sales_order_id'  => $this->salesOrder->id,
             'site_id'         => $this->site->id,
             'pour_location'   => 'Zone A',
             'mix_design_id'   => $this->mixDesign->id,

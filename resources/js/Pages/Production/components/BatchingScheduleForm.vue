@@ -82,7 +82,7 @@ const pumpVehicleOptions = computed(() => [
     ...(props.dropdowns.pumps?.map(v => ({ label: v.registration, value: v.id })) || [])
 ]);
 const salesOrderOptions = computed(() => [
-    { label: '-- Manual Scheduling (No Sales Order) --', value: null },
+    // { label: '-- Manual Scheduling (No Sales Order) --', value: null },
     ...(props.dropdowns.salesOrders || []).map(so => ({
         label: `${so.order_number || ('SO-' + so.id)}${so.customer_name ? ' - ' + so.customer_name : ''}${so.site_name ? ' (' + so.site_name + ')' : ''}`,
         value: so.id,
@@ -216,6 +216,10 @@ const initForm = () => {
 watch(() => props.initialData, initForm, { immediate: true });
 
 const submitForm = async () => {
+    if (!form.value.sales_order_id) {
+        Swal.fire('Required Fields', 'Please select Sales Order.', 'warning');
+        return;
+    }
     if (!form.value.schedule_date || !form.value.site_id || !form.value.mix_design_id) {
         Swal.fire('Required Fields', 'Please complete Schedule Date, Destination Site, and Mix Design.', 'warning');
         return;
@@ -309,8 +313,8 @@ const submitForm = async () => {
             </div>
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,24rem)_auto] md:items-end">
-                <BaseSelect v-model="form.sales_order_id" :options="salesOrderOptions" optionLabel="label"
-                    optionValue="value" label="Sales Order" placeholder="Manual schedule" filter
+                <BaseSelect v-model="form.sales_order_id" :required="!isEditing" :options="salesOrderOptions"
+                    optionLabel="label" optionValue="value" label="Sales Order" placeholder="Manual schedule" filter
                     @change="onSalesOrderSelected(form.sales_order_id)" />
                 <div v-if="form.sales_order_id" class="pb-1">
                     <button type="button" @click="clearSalesOrderSelection"

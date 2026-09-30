@@ -80,11 +80,11 @@ const assignForm = useForm({
     effective_to: null as any,
 });
 
-const personnelOptions = computed(() => 
+const personnelOptions = computed(() =>
     props.personnel.map(p => ({ label: `${p.first_name} ${p.last_name || ''} (${p.employee_code})`, value: p.id }))
 );
 
-const shiftOptions = computed(() => 
+const shiftOptions = computed(() =>
     props.shifts.map(s => ({ label: `${s.shift_name} (${s.start_time} - ${s.end_time})`, value: s.id }))
 );
 
@@ -187,7 +187,7 @@ const unassignShift = (id: number) => {
         confirmButtonText: 'Yes, remove it!'
     }).then((result) => {
         if (result.isConfirmed) {
-              router.delete(route('shifts.unassign', id), {
+            router.delete(route('shifts.unassign', id), {
                 preserveScroll: true,
                 preserveState: true
             });
@@ -222,7 +222,7 @@ watch(
 
         <div class="py-6">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                
+
                 <Tabs v-model:value="activeTab">
                     <TabList class="mb-6">
                         <Tab value="shifts">
@@ -242,11 +242,12 @@ watch(
                         <TabPanel value="shifts">
                             <div class="space-y-6">
                                 <!-- Shift Form (3-column layout) -->
-                                <BaseCard v-if="isSassOwner" class="text-sm">
+                                <BaseCard class="text-sm">
                                     <template #header>
                                         <div class="flex items-center gap-2">
                                             <SparklesIcon class="w-5 h-5 text-indigo-500" />
-                                            <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
+                                            <span
+                                                class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
                                                 {{ editingShiftId ? 'Edit Shift Configuration' : 'Design New Shift' }}
                                             </span>
                                         </div>
@@ -255,78 +256,87 @@ watch(
                                     <form @submit.prevent="submitShift" class="space-y-6">
                                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <div class="flex flex-col gap-2">
-                                                <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Shift Name <span class="text-red-500">*</span></label>
-                                                <BaseInput v-model="shiftForm.shift_name" placeholder="e.g. Day Shift" :class="{'p-invalid': shiftForm.errors.shift_name}" />
-                                                <small v-if="shiftForm.errors.shift_name" class="p-error text-[10px]">{{ shiftForm.errors.shift_name }}</small>
+                                                <label
+                                                    class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Shift
+                                                    Name <span class="text-red-500">*</span></label>
+                                                <BaseInput v-model="shiftForm.shift_name" placeholder="e.g. Day Shift"
+                                                    :class="{ 'p-invalid': shiftForm.errors.shift_name }" />
+                                                <small v-if="shiftForm.errors.shift_name" class="p-error text-[10px]">{{
+                                                    shiftForm.errors.shift_name }}</small>
                                             </div>
                                             <div class="grid grid-cols-2 gap-4">
                                                 <div class="flex flex-col gap-2">
-                                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Start Time <span class="text-red-500">*</span></label>
-                                                    <BaseDatePicker v-model="shiftForm.start_time" mode="time" show-time :hour12="false" />
+                                                    <label
+                                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Start
+                                                        Time <span class="text-red-500">*</span></label>
+                                                    <BaseDatePicker v-model="shiftForm.start_time" mode="time" show-time
+                                                        :hour12="false" />
                                                 </div>
                                                 <div class="flex flex-col gap-2">
-                                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">End Time <span class="text-red-500">*</span></label>
-                                                    <BaseDatePicker v-model="shiftForm.end_time" show-time mode="time" :hour12="false" />
+                                                    <label
+                                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">End
+                                                        Time <span class="text-red-500">*</span></label>
+                                                    <BaseDatePicker v-model="shiftForm.end_time" show-time mode="time"
+                                                        :hour12="false" />
                                                 </div>
                                             </div>
                                             <div class="grid grid-cols-2 gap-4">
                                                 <div class="flex flex-col gap-2">
-                                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Grace Time</label>
-                                                    <BaseDatePicker v-model="shiftForm.grace_time" show-time mode="time" :hour12="false" />
+                                                    <label
+                                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Grace
+                                                        Time</label>
+                                                    <BaseDatePicker v-model="shiftForm.grace_time" show-time mode="time"
+                                                        :hour12="false" />
                                                 </div>
                                                 <div class="flex flex-col gap-2">
-                                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Working Hours</label>
-                                                    <BaseInput type="number" step="0.1" v-model="shiftForm.working_hours" />
+                                                    <label
+                                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Working
+                                                        Hours</label>
+                                                    <BaseInput type="number" step="0.1"
+                                                        v-model="shiftForm.working_hours" />
                                                 </div>
                                             </div>
-                                            <div 
-                                                @click="shiftForm.is_night_shift = !shiftForm.is_night_shift" 
+                                            <div @click="shiftForm.is_night_shift = !shiftForm.is_night_shift"
                                                 class="flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all duration-300 select-none bg-slate-50/50 dark:bg-slate-800/20"
-                                                :class="shiftForm.is_night_shift 
-                                                    ? 'border-indigo-500/50 shadow-sm shadow-indigo-500/5 dark:shadow-indigo-500/10 bg-indigo-50/20 dark:bg-indigo-950/10' 
-                                                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'"
-                                            >
+                                                :class="shiftForm.is_night_shift
+                                                    ? 'border-indigo-500/50 shadow-sm shadow-indigo-500/5 dark:shadow-indigo-500/10 bg-indigo-50/20 dark:bg-indigo-950/10'
+                                                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'">
                                                 <div class="flex flex-col gap-1">
-                                                    <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">Night Shift Schedule</span>
-                                                    <span class="text-[10px] text-gray-400">Is this shift active overnight?</span>
+                                                    <span
+                                                        class="text-xs font-semibold text-gray-700 dark:text-gray-200">Night
+                                                        Shift Schedule</span>
+                                                    <span class="text-[10px] text-gray-400">Is this shift active
+                                                        overnight?</span>
                                                 </div>
                                                 <ToggleSwitch v-model="shiftForm.is_night_shift" @click.stop />
                                             </div>
                                         </div>
 
-                                        <BaseFormActions 
-                                            :loading="shiftForm.processing"
+                                        <BaseFormActions :loading="shiftForm.processing"
                                             :label="editingShiftId ? 'Update Shift' : 'Save Shift'"
                                             :cancel-label="editingShiftId ? 'Cancel' : 'Reset'"
                                             :mode="editingShiftId ? 'edit' : 'add'"
                                             class="pt-6 border-t border-gray-100 dark:border-gray-700"
-                                            @cancel="resetShiftForm"
-                                        />
+                                            @cancel="resetShiftForm" />
                                     </form>
                                 </BaseCard>
 
                                 <!-- Shifts List -->
                                 <div class="bg-white dark:bg-slate-900 rounded-xl">
-                                    <BaseDataTable 
-                                        :value="shifts" 
-                                        dataKey="id"
-                                        stripedRows 
-                                        heading="Shift Schedule Definitions"
-                                        headingIcon="ClockIcon"
-                                        showSearch showSerial
-                                        paginator
-                                        :rows="30" 
-                                        :totalRecords="shifts.length"
-                                        class="p-datatable-sm"
-                                    >
+                                    <BaseDataTable :value="shifts" dataKey="id" stripedRows
+                                        heading="Shift Schedule Definitions" headingIcon="ClockIcon" showSearch
+                                        showSerial paginator :rows="30" :totalRecords="shifts.length"
+                                        class="p-datatable-sm">
                                         <Column header="Shift Name">
                                             <template #body="slotProps">
-                                                <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ slotProps.data.shift_name }}</span>
+                                                <span class="font-bold text-indigo-600 dark:text-indigo-400">{{
+                                                    slotProps.data.shift_name }}</span>
                                             </template>
                                         </Column>
                                         <Column header="Timings">
                                             <template #body="slotProps">
-                                                <span class="font-semibold">{{ slotProps.data.start_time }} - {{ slotProps.data.end_time }}</span>
+                                                <span class="font-semibold">{{ slotProps.data.start_time }} - {{
+                                                    slotProps.data.end_time }}</span>
                                             </template>
                                         </Column>
                                         <Column header="Grace Time">
@@ -341,26 +351,17 @@ watch(
                                         </Column>
                                         <Column header="Night Shift">
                                             <template #body="slotProps">
-                                                <Tag :severity="slotProps.data.is_night_shift ? 'warn' : 'info'" :value="slotProps.data.is_night_shift ? 'YES' : 'NO'" rounded />
+                                                <Tag :severity="slotProps.data.is_night_shift ? 'warn' : 'info'"
+                                                    :value="slotProps.data.is_night_shift ? 'YES' : 'NO'" rounded />
                                             </template>
                                         </Column>
-                                        <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
+                                        <Column header="Actions" alignFrozen="right" frozen>
                                             <template #body="slotProps">
                                                 <div class="flex justify-end gap-2">
-                                                    <BaseButton 
-                                                        icon="pi pi-pencil" 
-                                                        severity="info" 
-                                                        text 
-                                                        rounded 
-                                                        @click="editShift(slotProps.data)"
-                                                    />
-                                                    <BaseButton 
-                                                        icon="pi pi-trash" 
-                                                        severity="danger" 
-                                                        text 
-                                                        rounded 
-                                                        @click="deleteShift(slotProps.data.id)"
-                                                    />
+                                                    <BaseButton icon="pi pi-pencil" severity="info" text rounded
+                                                        @click="editShift(slotProps.data)" />
+                                                    <BaseButton icon="pi pi-trash" severity="danger" text rounded
+                                                        @click="deleteShift(slotProps.data.id)" />
                                                 </div>
                                             </template>
                                         </Column>
@@ -377,7 +378,8 @@ watch(
                                     <template #header>
                                         <div class="flex items-center gap-2">
                                             <CalendarDaysIcon class="w-5 h-5 text-indigo-500" />
-                                            <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
+                                            <span
+                                                class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
                                                 Link Employee to Shift
                                             </span>
                                         </div>
@@ -386,87 +388,96 @@ watch(
                                     <form @submit.prevent="submitAssign" class="space-y-6">
                                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <div class="flex flex-col gap-2">
-                                                <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select Employee <span class="text-red-500">*</span></label>
-                                                <BaseSelect v-model="assignForm.personnel_id" :options="personnelOptions" optionLabel="label" optionValue="value" placeholder="Select Employee" filter class="w-full" />
-                                                <small v-if="assignForm.errors.personnel_id" class="p-error text-[10px]">{{ assignForm.errors.personnel_id }}</small>
+                                                <label
+                                                    class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select
+                                                    Employee <span class="text-red-500">*</span></label>
+                                                <BaseSelect v-model="assignForm.personnel_id"
+                                                    :options="personnelOptions" optionLabel="label" optionValue="value"
+                                                    placeholder="Select Employee" filter class="w-full" />
+                                                <small v-if="assignForm.errors.personnel_id"
+                                                    class="p-error text-[10px]">{{
+                                                        assignForm.errors.personnel_id }}</small>
                                             </div>
                                             <div class="flex flex-col gap-2">
-                                                <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select Shift Schedule <span class="text-red-500">*</span></label>
-                                                <BaseSelect v-model="assignForm.shift_id" :options="shiftOptions" optionLabel="label" optionValue="value" placeholder="Select Shift" class="w-full" />
-                                                <small v-if="assignForm.errors.shift_id" class="p-error text-[10px]">{{ assignForm.errors.shift_id }}</small>
+                                                <label
+                                                    class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select
+                                                    Shift Schedule <span class="text-red-500">*</span></label>
+                                                <BaseSelect v-model="assignForm.shift_id" :options="shiftOptions"
+                                                    optionLabel="label" optionValue="value" placeholder="Select Shift"
+                                                    class="w-full" />
+                                                <small v-if="assignForm.errors.shift_id" class="p-error text-[10px]">{{
+                                                    assignForm.errors.shift_id }}</small>
                                             </div>
                                             <div class="grid grid-cols-2 gap-4">
                                                 <div class="flex flex-col gap-2">
-                                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective From <span class="text-red-500">*</span></label>
-                                                    <DatePicker v-model="assignForm.effective_from" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Start Date" class="w-full" />
-                                                    <small v-if="assignForm.errors.effective_from" class="p-error text-[10px]">{{ assignForm.errors.effective_from }}</small>
+                                                    <label
+                                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective
+                                                        From <span class="text-red-500">*</span></label>
+                                                    <DatePicker v-model="assignForm.effective_from"
+                                                        dateFormat="yy-mm-dd" showIcon iconDisplay="input"
+                                                        placeholder="Start Date" class="w-full" />
+                                                    <small v-if="assignForm.errors.effective_from"
+                                                        class="p-error text-[10px]">{{ assignForm.errors.effective_from
+                                                        }}</small>
                                                 </div>
                                                 <div class="flex flex-col gap-2">
-                                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective To</label>
-                                                    <DatePicker v-model="assignForm.effective_to" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="End Date (Optional)" class="w-full" />
+                                                    <label
+                                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective
+                                                        To</label>
+                                                    <DatePicker v-model="assignForm.effective_to" dateFormat="yy-mm-dd"
+                                                        showIcon iconDisplay="input" placeholder="End Date (Optional)"
+                                                        class="w-full" />
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <BaseFormActions 
-                                            :loading="assignForm.processing"
-                                            label="Assign Shift"
-                                            cancel-label="Reset"
-                                            mode="add"
+                                        <BaseFormActions :loading="assignForm.processing" label="Assign Shift"
+                                            cancel-label="Reset" mode="add"
                                             class="pt-6 border-t border-gray-100 dark:border-gray-700"
-                                            @cancel="() => { assignForm.reset(); assignForm.clearErrors(); }"
-                                        />
+                                            @cancel="() => { assignForm.reset(); assignForm.clearErrors(); }" />
                                     </form>
                                 </BaseCard>
 
                                 <!-- Assignments List -->
                                 <div class="bg-white dark:bg-slate-900 rounded-xl">
-                                    <BaseDataTable 
-                                        :value="employeeShifts" 
-                                        dataKey="id"
-                                        stripedRows 
-                                        heading="Employee Shift Rosters"
-                                        headingIcon="UserGroupIcon"
-                                        showSearch showSerial
-                                        paginator
-                                        :rows="30" 
-                                        :totalRecords="employeeShifts.length"
-                                        class="p-datatable-sm"
-                                    >
+                                    <BaseDataTable :value="employeeShifts" dataKey="id" stripedRows
+                                        heading="Employee Shift Rosters" headingIcon="UserGroupIcon" showSearch
+                                        showSerial paginator :rows="30" :totalRecords="employeeShifts.length"
+                                        class="p-datatable-sm">
                                         <Column header="Employee Code">
                                             <template #body="slotProps">
-                                                <span class="font-semibold">{{ slotProps.data.personnel?.employee_code }}</span>
+                                                <span class="font-semibold">{{ slotProps.data.personnel?.employee_code
+                                                    }}</span>
                                             </template>
                                         </Column>
                                         <Column header="Employee Name">
                                             <template #body="slotProps">
                                                 <span class="font-bold text-indigo-600 dark:text-indigo-400">
-                                                    {{ slotProps.data.personnel?.first_name }} {{ slotProps.data.personnel?.last_name || '' }}
+                                                    {{ slotProps.data.personnel?.first_name }} {{
+                                                        slotProps.data.personnel?.last_name || '' }}
                                                 </span>
                                             </template>
                                         </Column>
                                         <Column header="Shift Plan">
                                             <template #body="slotProps">
                                                 <span class="font-semibold text-slate-700 dark:text-slate-300">
-                                                    {{ slotProps.data.shift?.shift_name }} ({{ slotProps.data.shift?.start_time }} - {{ slotProps.data.shift?.end_time }})
+                                                    {{ slotProps.data.shift?.shift_name }} ({{
+                                                        slotProps.data.shift?.start_time }} - {{
+                                                        slotProps.data.shift?.end_time }})
                                                 </span>
                                             </template>
                                         </Column>
                                         <Column header="Effective Period">
                                             <template #body="slotProps">
-                                                <span>{{ slotProps.data.effective_from }} to {{ slotProps.data.effective_to || 'Present' }}</span>
+                                                <span>{{ slotProps.data.effective_from }} to {{
+                                                    slotProps.data.effective_to || 'Present' }}</span>
                                             </template>
                                         </Column>
-                                        <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
+                                        <Column header="Actions" alignFrozen="right" frozen>
                                             <template #body="slotProps">
                                                 <div class="flex justify-end gap-2">
-                                                    <BaseButton 
-                                                        icon="pi pi-trash" 
-                                                        severity="danger" 
-                                                        text 
-                                                        rounded 
-                                                        @click="unassignShift(slotProps.data.id)"
-                                                    />
+                                                    <BaseButton icon="pi pi-trash" severity="danger" text rounded
+                                                        @click="unassignShift(slotProps.data.id)" />
                                                 </div>
                                             </template>
                                         </Column>

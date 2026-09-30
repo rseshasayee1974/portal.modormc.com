@@ -78,9 +78,14 @@ const loadPoDetails = (poId: number | null) => {
 };
 
 const setupItems = (po: any) => {
+    const untUnit = props.units?.find((u: any) => String(u.label).toUpperCase() === 'UNT');
+    const defaultConvUomId = untUnit ? untUnit.value : (props.units?.[0]?.value ?? null);
+
     form.items = po.items.map((item: any) => {
         const prodConvRate = Number(item.product?.conversion_quantity ?? item.product?.convertsion_quantity ?? 0);
-        const convUomId = item.product?.unit_id || item.product_uom || item.uom_id || null;
+        let uomCode = typeof item.uom === 'string' ? item.uom : (item.uom?.unit_code || item.uom?.unit_name);
+        let convUomId = defaultConvUomId ?? item.product?.unit_id ?? item.product_uom ?? item.uom_id ?? null;
+
         return {
             order_item_id: item.id,
             product_id: item.product_id,
@@ -88,7 +93,7 @@ const setupItems = (po: any) => {
             product: item.product,
             ordered_qty: Number(item.product_quantity),
             received_qty_previously: Number(item.received_quantity || 0),
-            uom: item.uom?.unit_code,
+            uom: uomCode,
             uom_id: item.uom_id || item.product_uom,
             received_qty: 0,
             conversion_quantity: 0,
@@ -100,6 +105,18 @@ const setupItems = (po: any) => {
         };
     });
 };
+
+watch(() => props.units, (newUnits) => {
+    if (newUnits && newUnits.length > 0 && form.items) {
+        const untUnit = newUnits.find((u: any) => String(u.label).toUpperCase() === 'UNT');
+        const defaultId = untUnit ? untUnit.value : newUnits[0].value;
+        form.items.forEach((item: any) => {
+            if (!item.conversion_uom_id || !newUnits.some((u: any) => u.value == item.conversion_uom_id)) {
+                item.conversion_uom_id = defaultId;
+            }
+        });
+    }
+}, { immediate: true });
 
 const recalcReceivedQty = (item: any) => {
     item.received_qty = Math.max(0, Number(item.truck_loaded) || 0);
@@ -134,8 +151,6 @@ const captureInwardLoadedWeight = async (item: any) => {
         }
     });
 };
-
-
 
 if (props.purchase_order) {
     setupItems(props.purchase_order);
@@ -196,165 +211,200 @@ const remainingToReceive = (item: any) => {
 </script>
 
 <template>
-    <div :class="embedded ? 'w-full' : 'py-6 px-4 md:px-8 bg-[#f8fafc] min-h-screen'">
-        <div :class="embedded ? 'w-full' : 'max-w-4xl mx-auto'">
-            <form @submit.prevent="submit" class="space-y-6">
+    <div :class="embedded ? 'w-full' : 'py-4 px-3 md:px-6 bg-[#f8fafc] min-h-screen'">
+        <div :class="embedded ? 'w-full' : 'max-w-5xl md:max-w-6xl mx-auto'">
+            <form @submit.prevent="submit" class="space-y-4">
                 <!-- Top Section: Selection -->
-                <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="p-8 border-b border-slate-100 bg-slate-50/50">
-                        <div class="flex items-center gap-4 mb-8">
+                <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+                    <div class="p-5 md:p-6 border-b border-slate-100 bg-slate-50/50">
+                        <div class="flex items-center gap-3.5 mb-5">
                             <div
-                                class="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100">
-                                <ArrowPathIcon class="w-6 h-6 text-white" />
+                                class="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-100 shrink-0">
+                                <ArrowPathIcon class="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <h1 class="text-xl font-black text-slate-800 uppercase tracking-tight">Record Goods
+                                <h1 class="text-lg font-black text-slate-800 uppercase tracking-tight">Record Goods
                                     Receipt</h1>
-                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Inventory
+                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                                    Inventory
                                     Acquisition Portal</p>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="space-y-2">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
                                 <label
-                                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                                     <DocumentTextIcon class="w-3.5 h-3.5" />
                                     Purchase Order Reference
                                 </label>
                                 <BaseSelect v-model="selectedPoId" :options="poOptions"
                                     placeholder="Select reference order..." optionLabel="label" optionValue="value"
-                                    filter class="w-full !rounded-md !h-10 !bg-white" />
+                                    filter class="w-full !rounded-md !h-9 !bg-white" />
                             </div>
-                            <div class="space-y-2">
+                            <div class="space-y-1.5">
                                 <label
-                                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                                     <CalendarIcon class="w-3.5 h-3.5" />
                                     Arrival Date
                                 </label>
                                 <BaseDatePicker v-model="form.received_date" placeholder="Pick Date"
-                                    dateFormat="yy-mm-dd" class="w-full !rounded-md !h-10" />
+                                    dateFormat="yy-mm-dd" class="w-full !rounded-md !h-9" />
                             </div>
                         </div>
                     </div>
 
                     <!-- Item Entry Section -->
-                    <div v-if="form.items.length > 0" class="p-0">
-                        <table class="w-full border-collapse">
-                            <thead class="bg-white border-b border-slate-100">
-                                <tr>
+                    <div v-if="form.items.length > 0" class="p-0 overflow-x-auto border-t border-slate-200">
+                        <table class="w-full border-collapse border-b border-slate-200">
+                            <thead>
+                                <tr class="bg-slate-100/90 border-b border-slate-300">
                                     <th
-                                        class="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                        class="px-3.5 py-2.5 text-left text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[26%]">
                                         Product Details</th>
                                     <th
-                                        class="px-4 py-4 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest w-36">
+                                        class="px-3 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[18%]">
                                         Procurement Status</th>
                                     <th
-                                        class="px-4 py-4 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest w-36">
+                                        class="px-3 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[18%]">
                                         Truck</th>
                                     <th
-                                        class="px-4 py-4 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest w-44">
+                                        class="px-3 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[18%]">
                                         Conversion Qty & UOM</th>
                                     <th
-                                        class="px-4 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest w-52">
+                                        class="px-3.5 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider w-[20%]">
                                         Full Weight with Snap</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-50">
+                            <tbody class="divide-y divide-slate-200/70 bg-white">
                                 <tr v-for="(item, idx) in form.items" :key="idx"
-                                    class="hover:bg-slate-50/30 transition-colors">
-                                    <td class="px-6 py-6">
+                                    class="hover:bg-indigo-50/20 transition-colors">
+                                    <!-- Col 1: Product Details -->
+                                    <td class="px-3.5 py-2.5 align-middle border-r border-slate-200/80 bg-slate-50/30">
                                         <div class="flex flex-col">
                                             <span
-                                                class="text-[13px] font-bold text-slate-800 uppercase tracking-tight">{{
+                                                class="text-xs font-extrabold text-slate-800 uppercase tracking-tight">{{
                                                     item.product_title }}</span>
-                                            <div class="flex items-center gap-3 mt-1.5">
+                                            <div class="flex items-center gap-2 mt-1.5">
                                                 <span
-                                                    class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Ordered:
-                                                    {{ item.ordered_qty }} {{ item.uom }}</span>
-                                                <div class="w-1 h-1 rounded-full bg-slate-300"></div>
+                                                    class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Ordered:
+                                                    <strong class="text-slate-700 font-mono">{{ item.ordered_qty }} {{
+                                                        item.uom }}</strong></span>
+                                                <span class="text-slate-300">•</span>
                                                 <span
-                                                    class="text-[9px] text-emerald-600 font-bold uppercase tracking-wider">Accepted:
-                                                    {{ item.received_qty_previously }}</span>
+                                                    class="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Accepted:
+                                                    <strong class="text-emerald-700 font-mono">{{
+                                                        item.received_qty_previously }}</strong></span>
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-6 text-center">
+
+                                    <!-- Col 2: Procurement Status -->
+                                    <td
+                                        class="px-3 py-2.5 text-center align-middle border-r border-slate-200/80 bg-white">
                                         <div v-if="remainingToReceive(item) <= 0"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                                            class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200">
                                             <CheckCircleIcon class="w-3.5 h-3.5" />
-                                            <span class="text-[8px] font-black uppercase tracking-widest">Fully
+                                            <span class="text-[9px] font-extrabold uppercase tracking-wider">Fully
                                                 Received</span>
                                         </div>
-                                        <div v-else class="flex flex-col items-center gap-1.5">
-                                            <span
-                                                class="text-[8px] font-bold text-amber-500 uppercase tracking-widest">Pending:
-                                                {{ remainingToReceive(item) }} {{ item.uom }}</span>
-                                            <div class="w-24 bg-slate-100 h-1 rounded-full overflow-hidden">
-                                                <div class="bg-amber-400 h-full transition-all duration-500"
-                                                    :style="{ width: (item.received_qty_previously / item.ordered_qty * 100) + '%' }">
+                                        <div v-else class="flex flex-col items-center gap-1 px-1">
+                                            <div class="flex items-center justify-between w-full text-[10px] font-bold">
+                                                <span
+                                                    class="text-slate-400 uppercase tracking-wider text-[9px]">Pending</span>
+                                                <span class="text-amber-700 font-mono font-extrabold">
+                                                    {{ Number(remainingToReceive(item).toFixed(2)).toLocaleString() }}
+                                                    {{ item.uom }}
+                                                </span>
+                                            </div>
+                                            <div
+                                                class="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200/80">
+                                                <div class="bg-amber-400 h-full transition-all duration-500 rounded-full"
+                                                    :style="{ width: Math.min(100, Math.max(0, (item.received_qty_previously / item.ordered_qty * 100))) + '%' }">
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-6">
+
+                                    <!-- Col 3: Truck Selection -->
+                                    <td class="px-3 py-2.5 align-middle border-r border-slate-200/80 bg-slate-50/30">
                                         <BaseSelect v-model="item.truck_id" :options="vehicles || []"
                                             placeholder="Select Truck" optionLabel="label" optionValue="value" filter
-                                            class="w-full !rounded-md !h-10 !bg-white" />
+                                            class="w-full !rounded-md !h-9 !bg-white text-xs border border-slate-300" />
                                     </td>
-                                    <td class="px-4 py-6">
-                                        <div class="flex flex-row gap-1.5 w-44">
+
+                                    <!-- Col 4: Conversion Qty & UOM -->
+                                    <td class="px-3 py-2.5 align-middle border-r border-slate-200/80 bg-white">
+                                        <div class="flex items-center gap-1.5 w-full">
                                             <BaseInputNumber v-model="item.conversion_quantity" placeholder="Conv Qty"
                                                 :minFractionDigits="2" :maxFractionDigits="4"
-                                                class="w-full text-right !rounded-md overflow-hidden border border-slate-200"
-                                                inputClass="!text-right font-bold !h-9 !bg-slate-50/50" />
+                                                class="flex-1 min-w-0 !rounded-md overflow-hidden border border-slate-300"
+                                                inputClass="!text-right font-bold !h-9 !bg-slate-50/70 text-xs font-mono" />
                                             <BaseSelect v-model="item.conversion_uom_id" :options="units || []"
-                                                placeholder="Conv UOM" optionLabel="label" optionValue="value" filter
-                                                class="w-full !rounded-md !h-9 !bg-white text-xs" />
+                                                placeholder="UOM" optionLabel="label" optionValue="value" filter
+                                                class="w-24 shrink-0 !rounded-md !h-9 !bg-white text-xs border border-slate-300" />
                                         </div>
                                     </td>
-                                    <!-- Full Weight -->
-                                    <td class="px-4 py-6">
-                                        <div class="flex flex-col items-end gap-2">
-                                            <div class="flex items-center justify-end gap-1.5">
+
+                                    <!-- Col 5: Full Weight with Snap -->
+                                    <td class="px-3.5 py-2.5 align-middle bg-slate-50/30">
+                                        <div class="flex flex-col items-end gap-1.5 w-full">
+                                            <div class="flex items-center justify-end gap-1.5 w-full">
                                                 <BaseInputNumber v-model="item.truck_loaded" placeholder="Full Wt"
                                                     :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
                                                     :minFractionDigits="2"
-                                                    class="w-28 text-right !rounded-md overflow-hidden border border-slate-200"
-                                                    inputClass="!text-right font-bold !h-9 !bg-slate-50/50"
+                                                    class="flex-1 min-w-0 text-right !rounded-md overflow-hidden border border-slate-300"
+                                                    inputClass="!text-right font-extrabold !h-9 !bg-white text-xs font-mono text-slate-800"
                                                     @update:model-value="recalcReceivedQty(item)" />
-                                                <button v-if="remainingToReceive(item) > 0"
-                                                    @click="captureInwardLoadedWeight(item)" type="button"
-                                                    :class="['px-2.5 py-1.5 rounded-md transition-all border shrink-0 flex flex-col items-center gap-0.5 shadow-xs', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']"
+
+                                                <!-- Capture Weight Animated Button -->
+                                                <button v-if="remainingToReceive(item) > 0 && page.props.custom_settings?.batching?.manual_weight == 0"
+                                                    @click="captureInwardLoadedWeight(item)" type="button" :class="[
+                                                        'relative px-2.5 h-9 rounded-md transition-all border shrink-0 flex items-center justify-center gap-1 shadow-xs font-bold group cursor-pointer',
+                                                        isScaleConnected
+                                                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
+                                                            : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
+                                                    ]"
                                                     :title="isScaleConnected ? 'Capture Full Weight & Snap' : 'Connect Weighbridge & Capture Full'">
-                                                    <ScaleIcon class="w-4 h-4" />
+                                                    <!-- Pulsing Indicator Dot -->
+                                                    <span v-if="remainingToReceive(item) > 0 && !item.truck_loaded"
+                                                        class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                                        <span
+                                                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
+                                                        <span
+                                                            class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
+                                                    </span>
+
+                                                    <!-- Animated Arrow Down / Scale Icon -->
+                                                    <ArrowDownTrayIcon
+                                                        class="w-4 h-4 text-white transition-transform group-hover:scale-110 animate-bounce" />
                                                     <span v-if="page.props.custom_settings?.batching?.camera == 1"
-                                                        class="text-[7px] font-black uppercase tracking-widest leading-none">Full</span>
+                                                        class="text-[9px] font-black uppercase tracking-wider text-white">Full</span>
                                                 </button>
                                             </div>
 
                                             <div v-if="item.loaded_weight_photo"
-                                                class="relative group w-32 h-16 rounded-md overflow-hidden border border-slate-200 shadow-xs bg-slate-100">
+                                                class="relative group w-full h-12 rounded-md overflow-hidden border border-slate-300 shadow-xs bg-slate-900">
                                                 <img :src="item.loaded_weight_photo"
-                                                    class="w-full h-full object-cover cursor-pointer"
+                                                    class="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                                     @click="openImageModal(item.loaded_weight_photo, 'Full Weight Snap')" />
                                                 <div
-                                                    class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                                                    class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                                     <button
                                                         @click="openImageModal(item.loaded_weight_photo, 'Full Weight Snap')"
                                                         type="button"
-                                                        class="p-1 bg-white/80 hover:bg-white text-slate-800 rounded text-xs"
+                                                        class="p-1 bg-white text-slate-800 rounded hover:bg-slate-100 text-[10px] font-bold px-2 flex items-center gap-1"
                                                         title="View Full Image">
-                                                        <EyeIcon class="w-3 h-3" />
+                                                        <EyeIcon class="w-3 h-3" /> View
                                                     </button>
                                                     <button @click="item.loaded_weight_photo = null" type="button"
-                                                        class="p-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                                        class="p-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold px-2 flex items-center gap-1"
                                                         title="Remove Snap">
                                                         <TrashIcon class="w-3 h-3" />
                                                     </button>
                                                 </div>
                                                 <span
-                                                    class="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[7px] font-bold px-1 rounded">FULL</span>
+                                                    class="absolute bottom-0.5 right-0.5 bg-black/75 text-white text-[7px] font-mono font-bold px-1 rounded">FULL</span>
                                             </div>
                                         </div>
                                     </td>
@@ -363,35 +413,35 @@ const remainingToReceive = (item: any) => {
                         </table>
                     </div>
 
-                    <div v-else class="py-24 text-center bg-white">
+                    <div v-else class="py-16 text-center bg-white">
                         <div
-                            class="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 border border-slate-100">
-                            <Bars3CenterLeftIcon class="w-8 h-8 text-slate-200" />
+                            class="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3 border border-slate-100">
+                            <Bars3CenterLeftIcon class="w-6 h-6 text-slate-300" />
                         </div>
-                        <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest">Select Purchase Order
+                        <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Select Purchase Order
                         </h3>
-                        <p class="text-xs text-slate-400 mt-2">Choose an approved order to begin recording inventory
+                        <p class="text-[11px] text-slate-400 mt-1">Choose an approved order to begin recording inventory
                             inward.</p>
                     </div>
 
                     <!-- Footer -->
                     <div v-if="form.items.length > 0"
-                        class="p-8 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div class="flex flex-col gap-1.5 w-full md:w-auto">
+                        class="p-5 md:p-6 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div class="flex flex-col gap-1 w-full md:w-auto">
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Manual GRN
                                 Reference</label>
                             <BaseInput v-model="form.inward_no" placeholder="e.g. INV-12345"
                                 class="!rounded-md !h-9 border-slate-200 w-full md:w-64 text-xs font-mono" />
                         </div>
 
-                        <div class="flex gap-3 w-full md:w-auto">
+                        <div class="flex gap-3 w-full md:w-auto justify-end">
                             <BaseButton v-if="embedded" label="Clear Items" variant="text" severity="secondary"
                                 @click="selectedPoId = null" class="!text-xs !font-bold" />
                             <BaseButton v-else label="Back to Registry" variant="text" severity="secondary"
                                 @click="router.visit(route('inwards.index'))" class="!text-xs !font-bold" />
                             <BaseButton label="Confirm Goods Receipt" icon="pi pi-check-circle" variant="filled"
                                 :loading="form.processing" @click="submit"
-                                class="!rounded-md !px-8 !h-10 !font-black !text-[10px] !uppercase !tracking-widest !bg-indigo-600" />
+                                class="!rounded-md !px-6 !h-9 !font-black !text-[10px] !uppercase !tracking-widest !bg-indigo-600 shadow-sm" />
                         </div>
                     </div>
                 </div>

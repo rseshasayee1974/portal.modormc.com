@@ -9,15 +9,15 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { 
-    HomeIcon, 
-    Square3Stack3DIcon, 
-    CreditCardIcon, 
-    Cog6ToothIcon, 
-    SwatchIcon, 
-    ClipboardDocumentListIcon, 
-    IdentificationIcon, 
-    BriefcaseIcon, 
+import {
+    HomeIcon,
+    Square3Stack3DIcon,
+    CreditCardIcon,
+    Cog6ToothIcon,
+    SwatchIcon,
+    ClipboardDocumentListIcon,
+    IdentificationIcon,
+    BriefcaseIcon,
     ChartBarIcon,
     BellIcon,
     UserCircleIcon,
@@ -55,25 +55,25 @@ import OSAIChatDrawer from '@/Components/AI/OSAIChatDrawer.vue';
 
 
 const IconMap = {
-    HomeIcon, 
-    Square3Stack3DIcon, 
-    CreditCardIcon, 
-    Cog6ToothIcon, 
-    SwatchIcon, 
-    ClipboardDocumentListIcon, 
-    IdentificationIcon, 
-    BriefcaseIcon, 
-    ChartBarIcon, 
-    BellIcon, 
-    UserCircleIcon, 
-    ArrowUpRightIcon, 
-    ArrowDownLeftIcon, 
-    ClockIcon, 
-    DocumentTextIcon, 
-    ArrowDownOnSquareIcon, 
-    ArrowUpOnSquareIcon, 
-    ChartPieIcon, 
-    CogIcon, 
+    HomeIcon,
+    Square3Stack3DIcon,
+    CreditCardIcon,
+    Cog6ToothIcon,
+    SwatchIcon,
+    ClipboardDocumentListIcon,
+    IdentificationIcon,
+    BriefcaseIcon,
+    ChartBarIcon,
+    BellIcon,
+    UserCircleIcon,
+    ArrowUpRightIcon,
+    ArrowDownLeftIcon,
+    ClockIcon,
+    DocumentTextIcon,
+    ArrowDownOnSquareIcon,
+    ArrowUpOnSquareIcon,
+    ChartPieIcon,
+    CogIcon,
     UserPlusIcon,
     ReceiptPercentIcon,
     ScaleIcon,
@@ -199,10 +199,10 @@ const resetTimer = () => {
     const currentActivity = getStoredLastActivity();
     // Throttle activity updates to once every 2 seconds
     if (now - currentActivity < 2000) return;
-    
+
     localStorage.setItem('portal_last_activity', now.toString());
     lastActivity.value = now;
-    
+
     if (showTimeoutModal.value) {
         showTimeoutModal.value = false;
         pingSession();
@@ -221,7 +221,7 @@ const checkIdleTime = () => {
     const now = Date.now();
     const currentActivity = getStoredLastActivity();
     lastActivity.value = currentActivity; // Keep local ref in sync
-    
+
     const idleDuration = now - currentActivity;
 
     if (idleDuration >= IDLE_LOGOUT_TIME) {
@@ -243,14 +243,14 @@ onMounted(() => {
     events.forEach(event => window.addEventListener(event, resetTimer));
 
     idleInterval = setInterval(checkIdleTime, CHECK_INTERVAL);
-    
+
     // The global per-tab presence heartbeat also keeps active sessions alive.
 });
 
 onUnmounted(() => {
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     events.forEach(event => window.removeEventListener(event, resetTimer));
-    
+
     if (idleInterval) clearInterval(idleInterval);
 });
 
@@ -261,70 +261,68 @@ const mobileMenuOpen = ref(false);
 
 <template>
     <div>
+
         <Head :title="title" />
         <Banner />
         <Toast :life="1500" />
         <ConfirmDialog />
 
         <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
-            <nav class="bg-customBlue-600 dark:bg-customBlue-800 border-b border-customBlue-800 w-full z-50 shadow-md relative">
+            <nav
+                class="bg-customBlue-600 dark:bg-customBlue-800 border-b border-customBlue-800 w-full z-50 shadow-md relative">
                 <div class="w-full px-2 sm:px-4 lg:px-8">
                     <div class="flex items-center justify-between h-16 md:h-20">
-                        
+
                         <!-- Mobile Hamburger & Logo Block (visible below md) -->
-                        <div class="flex items-center md:hidden gap-3 pl-2">
-                            <button 
-                                @click="mobileMenuOpen = true"
-                                class="p-2 rounded-lg text-blue-200 hover:text-amber-300 hover:bg-white/10 focus:outline-none transition-colors"
-                            >
-                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        <div class="flex items-center md:hidden gap-3 pl-2 shrink-0">
+                            <button @click="mobileMenuOpen = true"
+                                class="p-2 rounded-lg text-blue-200 hover:text-amber-300 hover:bg-white/10 focus:outline-none transition-colors">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                                 </svg>
                             </button>
-                            <Link :href="route('dashboard')" class="flex items-center bg-white px-2 py-1 rounded-md shadow-xs">
-                                <ApplicationMark class="h-8 w-auto" />
+                            <Link :href="route('dashboard')"
+                                class="flex items-center bg-white px-2.5 py-1 rounded-lg shadow-sm shrink-0">
+                                <ApplicationMark class="h-8 max-w-[140px] w-auto object-contain" />
                             </Link>
                         </div>
 
                         <!-- Desktop Logo (visible on md and up) -->
-                        <div class="hidden md:flex w-64 items-center mr-3">
-                            <Link :href="route('dashboard')" class="">
-                                <ApplicationMark class="transition-transform group-hover:scale-105" />
+                        <div class="hidden md:flex items-center shrink-0 mr-4">
+                            <Link :href="route('dashboard')"
+                                class="flex items-center bg-white px-3 py-1.5 rounded-lg shadow-sm hover:shadow-md transition-all group shrink-0">
+                                <ApplicationMark
+                                    class="h-10 md:h-11 max-w-[200px] w-auto object-contain transition-transform group-hover:scale-105" />
                             </Link>
                         </div>
 
                         <!-- Scrollable Navigation Items (Hidden on mobile/tablet below md, visible on md and up) -->
-                        <div class="hidden md:flex flex-1 overflow-x-auto no-scrollbar">
-                            <div class="flex items-stretch justify-evenly min-w-max md:min-w-0 h-full">
-                                <Link
-                                    v-for="item in visibleNav"
-                                    :key="item.id"
+                        <div
+                            class="hidden md:flex flex-1 items-stretch justify-center overflow-x-auto no-scrollbar h-full mx-2">
+                            <div
+                                class="flex items-stretch justify-center gap-1 md:gap-1.5 lg:gap-2 mx-auto min-w-max h-full">
+                                <Link v-for="item in visibleNav" :key="item.id"
                                     :href="item.link === '#' ? '#' : (item.link.startsWith('/') ? item.link : '/' + item.link)"
                                     :class="[
                                         isTopMenuActive(item)
                                             ? 'border-b-4 border-amber-400 text-amber-400 bg-white/10'
                                             : 'border-b-4 border-transparent text-blue-200 hover:text-amber-300 hover:bg-white/10 hover:border-amber-300/50',
-                                        'flex flex-col items-center justify-center py-2 px-3 md:px-5 min-w-[3.5rem] md:min-w-[5rem] group focus:outline-none transition-all duration-200 cursor-pointer'
-                                    ]"
-                                >
-                                    <component
-                                        :is="IconMap[item.icon] || IconMap['HomeIcon']"
-                                        :class="[
-                                            isTopMenuActive(item)
-                                                ? 'text-amber-400'
-                                                : 'text-blue-300 group-hover:text-amber-300',
-                                            'h-6 w-6 md:h-7 md:w-7 mb-0.5 transition-colors duration-200 shrink-0'
-                                        ]"
-                                        aria-hidden="true"
-                                    />
-                                    <span
-                                        :class="[
-                                            isTopMenuActive(item)
-                                                ? 'text-amber-400 font-bold'
-                                                : 'text-blue-200 group-hover:text-amber-300 font-semibold',
-                                            'text-[9px] md:text-[10px] uppercase tracking-wide whitespace-nowrap transition-colors duration-200'
-                                        ]"
-                                    >{{ item.title }}</span>
+                                        'flex flex-col items-center justify-center py-1 px-2 lg:px-3 group focus:outline-none transition-all duration-200 cursor-pointer h-full'
+                                    ]">
+                                    <component :is="IconMap[item.icon] || IconMap['HomeIcon']" :class="[
+                                        isTopMenuActive(item)
+                                            ? 'text-amber-400'
+                                            : 'text-blue-300 group-hover:text-amber-300',
+                                        'h-5 w-5 lg:h-6 lg:w-6 mb-1 transition-colors duration-200 shrink-0'
+                                    ]" aria-hidden="true" />
+                                    <span :class="[
+                                        isTopMenuActive(item)
+                                            ? 'text-amber-400 font-bold'
+                                            : 'text-blue-200 group-hover:text-amber-300 font-semibold',
+                                        'text-[9px] lg:text-[10px] uppercase tracking-wider whitespace-nowrap transition-colors duration-200'
+                                    ]">{{ item.title }}</span>
                                 </Link>
                             </div>
                         </div>
@@ -342,7 +340,7 @@ const mobileMenuOpen = ref(false);
                                             </svg>
                                         </button>
                                     </template>
-                                    <template #content>
+<template #content>
                                         <div class="w-64 py-1">
                                             <div class="px-4 py-2 text-xs text-gray-400 font-semibold uppercase tracking-wide border-b border-gray-100 dark:border-gray-700">
                                                 Switch Workspace
@@ -370,8 +368,8 @@ const mobileMenuOpen = ref(false);
                                             </div>
                                         </div>
                                     </template>
-                                </Dropdown>
-                            </div> -->
+</Dropdown>
+</div> -->
 
                             <!-- Notification Bell -->
                             <!-- <button class="relative p-2 text-blue-200 hover:text-amber-300 transition-colors mr-1 sm:mr-2 focus:outline-none rounded-full">
@@ -411,15 +409,25 @@ const mobileMenuOpen = ref(false);
                                 <Dropdown v-if="$page.props.jetstream.hasTeamFeatures" align="right" width="60">
                                     <template #trigger>
                                         <span class="inline-flex rounded-md">
-                                            <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700 active:bg-gray-50 dark:active:bg-gray-700 transition ease-in-out duration-150">
-                                                <img v-if="$page.props.jetstream.managesProfilePhotos" class="size-6 rounded-full object-cover me-2 focus:border-pastelbeaver-400" :src="'/storage/'+$page.props.auth.user.profile_photo_path" :alt="$page.props.auth.user.username">
-                                                <svg v-else class="me-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                            <button type="button"
+                                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700 active:bg-gray-50 dark:active:bg-gray-700 transition ease-in-out duration-150">
+                                                <img v-if="$page.props.jetstream.managesProfilePhotos"
+                                                    class="size-6 rounded-full object-cover me-2 focus:border-pastelbeaver-400"
+                                                    :src="'/storage/' + $page.props.auth.user.profile_photo_path"
+                                                    :alt="$page.props.auth.user.username">
+                                                <svg v-else class="me-2 h-5 w-5 text-gray-400"
+                                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                    stroke-width="1.5" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                                                 </svg>
                                                 {{ $page.props.auth.user.current_team.name }}
 
-                                                <svg class="ms-2 -me-0.5 size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+                                                <svg class="ms-2 -me-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                                    stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
                                                 </svg>
                                             </button>
                                         </span>
@@ -433,11 +441,13 @@ const mobileMenuOpen = ref(false);
                                             </div>
 
                                             <!-- Team Settings -->
-                                            <DropdownLink :href="route('teams.show', $page.props.auth.user.current_team)">
+                                            <DropdownLink
+                                                :href="route('teams.show', $page.props.auth.user.current_team)">
                                                 Team Settings
                                             </DropdownLink>
 
-                                            <DropdownLink v-if="$page.props.jetstream.canCreateTeams" :href="route('teams.create')">
+                                            <DropdownLink v-if="$page.props.jetstream.canCreateTeams"
+                                                :href="route('teams.create')">
                                                 Create New Team
                                             </DropdownLink>
 
@@ -449,12 +459,18 @@ const mobileMenuOpen = ref(false);
                                                     Switch Teams
                                                 </div>
 
-                                                <template v-for="team in $page.props.auth.user.all_teams" :key="team.id">
+                                                <template v-for="team in $page.props.auth.user.all_teams"
+                                                    :key="team.id">
                                                     <form @submit.prevent="switchToTeam(team)">
                                                         <DropdownLink as="button">
                                                             <div class="flex items-center">
-                                                                <svg v-if="team.id == $page.props.auth.user.current_team_id" class="me-2 size-5 text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                <svg v-if="team.id == $page.props.auth.user.current_team_id"
+                                                                    class="me-2 size-5 text-green-400"
+                                                                    xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                                    viewBox="0 0 24 24" stroke-width="1.5"
+                                                                    stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                 </svg>
 
                                                                 <div>{{ team.name }}</div>
@@ -470,29 +486,44 @@ const mobileMenuOpen = ref(false);
 
                             <!-- Settings Dropdown -->
                             <div class="ms-3 relative">
-                                <Dropdown align="right" width="72" :contentClasses="['bg-[#f0f3f6] rounded-[24px] shadow-[-2px_-2px_3px_#ffffff,2px_2px_3px_#d1d9e6] overflow-hidden p-2']">
+                                <Dropdown align="right" width="72"
+                                    :contentClasses="['bg-[#f0f3f6] rounded-[24px] shadow-[-2px_-2px_3px_#ffffff,2px_2px_3px_#d1d9e6] overflow-hidden p-2']">
                                     <template #trigger>
-                                        <button v-if="$page.props.jetstream.managesProfilePhotos" class="flex items-center gap-2 p-1 pr-3 text-sm bg-white/10 hover:bg-white/20 border border-white/10 rounded-full transition-all duration-300 group focus:outline-none">
+                                        <button v-if="$page.props.jetstream.managesProfilePhotos"
+                                            class="flex items-center gap-2 p-1 pr-3 text-sm bg-white/10 hover:bg-white/20 border border-white/10 rounded-full transition-all duration-300 group focus:outline-none">
                                             <div class="relative">
-                                                <img class="size-8 rounded-full object-cover border-2 border-indigo-400/50 group-hover:border-indigo-400" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.username">
-                                                <div class="absolute bottom-0 right-0 size-2.5 bg-emerald-500 border-2 border-[#1e293b] rounded-full"></div>
+                                                <img class="size-8 rounded-full object-cover border-2 border-indigo-400/50 group-hover:border-indigo-400"
+                                                    :src="$page.props.auth.user.profile_photo_url"
+                                                    :alt="$page.props.auth.user.username">
+                                                <div
+                                                    class="absolute bottom-0 right-0 size-2.5 bg-emerald-500 border-2 border-[#1e293b] rounded-full">
+                                                </div>
                                             </div>
                                             <div class="flex flex-col items-start leading-tight">
-                                                <span class="text-xs font-bold text-white tracking-tight">{{ $page.props.auth.user.username }}</span>
-                                                <span class="text-[9px] text-indigo-200 font-medium uppercase tracking-widest">Active</span>
+                                                <span class="text-xs font-bold text-white tracking-tight">{{
+                                                    $page.props.auth.user.username }}</span>
+                                                <span
+                                                    class="text-[9px] text-indigo-200 font-medium uppercase tracking-widest">Active</span>
                                             </div>
-                                            <svg class="size-3.5 text-indigo-300 group-hover:text-white transition-colors ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                            <svg class="size-3.5 text-indigo-300 group-hover:text-white transition-colors ml-1"
+                                                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                             </svg>
                                         </button>
 
-                                        <button v-else type="button" class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-xl bg-white/10 text-indigo-100 hover:bg-white/20 hover:text-white border border-white/5 transition-all duration-200 focus:outline-none">
-                                            <div class="size-6 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300">
+                                        <button v-else type="button"
+                                            class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-xl bg-white/10 text-indigo-100 hover:bg-white/20 hover:text-white border border-white/5 transition-all duration-200 focus:outline-none">
+                                            <div
+                                                class="size-6 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300">
                                                 {{ $page.props.auth.user.username.charAt(0).toUpperCase() }}
                                             </div>
                                             {{ $page.props.auth.user.username }}
-                                            <svg class="size-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                            <svg class="size-4 text-indigo-300" xmlns="http://www.w3.org/2000/svg"
+                                                fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                             </svg>
                                         </button>
                                     </template>
@@ -501,78 +532,127 @@ const mobileMenuOpen = ref(false);
                                         <!-- User Branding Header -->
                                         <div class="px-5 py-5 border-b border-slate-200/50 mb-2">
                                             <div class="flex items-center gap-3">
-                                                <div class="size-10 rounded-xl bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] flex items-center justify-center text-slate-700 font-black text-lg">
+                                                <div
+                                                    class="size-10 rounded-xl bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] flex items-center justify-center text-slate-700 font-black text-lg">
                                                     {{ $page.props.auth.user.username.charAt(0).toUpperCase() }}
                                                 </div>
                                                 <div class="flex flex-col min-w-0">
-                                                    <span class="text-[15px] font-bold text-slate-800 leading-tight truncate">{{ $page.props.auth.user.username }}</span>
-                                                    <span class="text-[11px] text-slate-500 font-medium mt-0.5 truncate">{{ $page.props.auth.user.email }}</span>
+                                                    <span
+                                                        class="text-[15px] font-bold text-slate-800 leading-tight truncate">{{
+                                                            $page.props.auth.user.username }}</span>
+                                                    <span
+                                                        class="text-[11px] text-slate-500 font-medium mt-0.5 truncate">{{
+                                                            $page.props.auth.user.email }}</span>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <!-- Primary Actions -->
                                         <div class="px-2 space-y-4 pb-3">
-                                            <Link :href="route('profile.show')" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
-                                                <div class="flex items-center gap-4"> 
-                                                    <div class="text-slate-500 group-hover:text-amber-500 transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                            <Link :href="route('profile.show')"
+                                                class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
+                                                <div class="flex items-center gap-4">
+                                                    <div
+                                                        class="text-slate-500 group-hover:text-amber-500 transition-colors">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                            viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"
+                                                            class="size-5">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                                                         </svg>
                                                     </div>
-                                                    <span class="text-[14px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Edit profile</span>
+                                                    <span
+                                                        class="text-[14px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Edit
+                                                        profile</span>
                                                 </div>
                                             </Link>
 
-                                            <Link :href="route('profile.show')" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
-                                                <div class="flex items-center gap-4"> 
-                                                    <div class="text-slate-500 group-hover:text-amber-500 transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12a7.5 7.5 0 1 1 15 0 7.5 7.5 0 0 1-15 0Z" />
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                                            <Link :href="route('profile.show')"
+                                                class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
+                                                <div class="flex items-center gap-4">
+                                                    <div
+                                                        class="text-slate-500 group-hover:text-amber-500 transition-colors">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                            viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"
+                                                            class="size-5">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                d="M4.5 12a7.5 7.5 0 1 1 15 0 7.5 7.5 0 0 1-15 0Z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                                                         </svg>
                                                     </div>
-                                                    <span class="text-[14px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Account settings</span>
+                                                    <span
+                                                        class="text-[14px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Account
+                                                        settings</span>
                                                 </div>
                                             </Link>
 
                                             <!-- Switch Context Options -->
                                             <div class="border-t border-slate-200/50 my-2 mx-2" />
 
-                                            <Link :href="route('entity-context.index')" v-if="$page.props.user_role === 'Platform Admin' || $page.props.user_role === 'Saas Owner'" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
+                                            <Link :href="route('entity-context.index')"
+                                                v-if="$page.props.user_role === 'Platform Admin' || $page.props.user_role === 'Saas Owner'"
+                                                class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
                                                 <div class="flex items-center justify-between w-full">
-                                                    <div class="flex items-center gap-4"> 
-                                                        <div class="text-slate-500 group-hover:text-amber-500 transition-colors">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819" />
+                                                    <div class="flex items-center gap-4">
+                                                        <div
+                                                            class="text-slate-500 group-hover:text-amber-500 transition-colors">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                                viewBox="0 0 24 24" stroke-width="1.8"
+                                                                stroke="currentColor" class="size-5">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819" />
                                                             </svg>
                                                         </div>
                                                         <div class="flex flex-col">
-                                                            <span class="text-[14px] font-bold text-slate-700 leading-tight">Switch Entity</span>
-                                                            <span class="text-[11px] text-slate-400 font-medium truncate max-w-[120px]">{{ $page.props.active_entity?.entity_name || 'Select Entity' }}</span>
+                                                            <span
+                                                                class="text-[14px] font-bold text-slate-700 leading-tight">Switch
+                                                                Entity</span>
+                                                            <span
+                                                                class="text-[11px] text-slate-400 font-medium truncate max-w-[120px]">
+                                                                {{
+                                                                    $page.props.active_entity?.entity_name ||
+                                                                    'Select Entity' }}</span>
                                                         </div>
                                                     </div>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3 text-slate-400 group-hover:text-slate-600 transition-colors">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                        viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"
+                                                        class="size-3 text-slate-400 group-hover:text-slate-600 transition-colors">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                                                     </svg>
                                                 </div>
                                             </Link>
 
-                                            <Link :href="route('entity-context.index')" v-if="$page.props.plants_count > 1" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
+                                            <Link :href="route('entity-context.index')"
+                                                v-if="$page.props.plants_count > 1"
+                                                class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
                                                 <div class="flex items-center justify-between w-full">
-                                                    <div class="flex items-center gap-4"> 
-                                                        <div class="text-slate-500 group-hover:text-amber-500 transition-colors">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6h1.5m-1.5 3h1.5m-1.5 3h1.5M9 16.5h1.5m3 0h1.5" />
+                                                    <div class="flex items-center gap-4">
+                                                        <div
+                                                            class="text-slate-500 group-hover:text-amber-500 transition-colors">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                                viewBox="0 0 24 24" stroke-width="1.8"
+                                                                stroke="currentColor" class="size-5">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6h1.5m-1.5 3h1.5m-1.5 3h1.5M9 16.5h1.5m3 0h1.5" />
                                                             </svg>
                                                         </div>
                                                         <div class="flex flex-col">
-                                                            <span class="text-[14px] font-bold text-slate-700 leading-tight">Switch Plant</span>
-                                                            <span class="text-[11px] text-slate-400 font-medium truncate max-w-[120px]">{{ $page.props.active_plant?.plant_name || 'Select Plant' }}</span>
+                                                            <span
+                                                                class="text-[14px] font-bold text-slate-700 leading-tight">Switch
+                                                                Plant</span>
+                                                            <span
+                                                                class="text-[11px] text-slate-400 font-medium truncate max-w-[120px]">{{
+                                                                    $page.props.active_plant?.plant_name || 'Select Plant'
+                                                                }}</span>
                                                         </div>
                                                     </div>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3 text-slate-400 group-hover:text-slate-600 transition-colors">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                        viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"
+                                                        class="size-3 text-slate-400 group-hover:text-slate-600 transition-colors">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                                                     </svg>
                                                 </div>
                                             </Link>
@@ -581,14 +661,21 @@ const mobileMenuOpen = ref(false);
 
                                             <!-- Authentication -->
                                             <form @submit.prevent="logout">
-                                                <button type="submit" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] p-4 transition-all duration-300 hover:shadow-[inset_-6px_-6px_12px_#ffffff,inset_6px_6px_12px_#cbd5e1] text-left">
+                                                <button type="submit"
+                                                    class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] p-4 transition-all duration-300 hover:shadow-[inset_-6px_-6px_12px_#ffffff,inset_6px_6px_12px_#cbd5e1] text-left">
                                                     <div class="flex items-center gap-4 w-full">
-                                                        <div class="text-rose-500 group-hover:text-rose-500 transition-colors">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                                                        <div
+                                                            class="text-rose-500 group-hover:text-rose-500 transition-colors">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                                viewBox="0 0 24 24" stroke-width="1.8"
+                                                                stroke="currentColor" class="size-5">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                                                             </svg>
                                                         </div>
-                                                        <span class="text-[14px] font-bold text-rose-700 group-hover:text-rose-600 transition-colors">Sign out</span>
+                                                        <span
+                                                            class="text-[14px] font-bold text-rose-700 group-hover:text-rose-600 transition-colors">Sign
+                                                            out</span>
                                                     </div>
                                                 </button>
                                             </form>
@@ -602,32 +689,24 @@ const mobileMenuOpen = ref(false);
                 </div>
 
                 <!-- Mobile Menu Drawer Backdrop (visible below md breakpoint) -->
-                <div 
-                    v-if="mobileMenuOpen" 
-                    @click="mobileMenuOpen = false" 
-                    class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm transition-opacity md:hidden"
-                ></div>
+                <div v-if="mobileMenuOpen" @click="mobileMenuOpen = false"
+                    class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm transition-opacity md:hidden"></div>
 
                 <!-- Mobile Menu Drawer Panel (visible below md breakpoint) -->
-                <div 
-                    class="fixed inset-y-0 left-0 z-[70] w-80 max-w-xs bg-white dark:bg-gray-800 shadow-2xl transition-transform duration-300 transform md:hidden flex flex-col"
-                    :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
-                >
+                <div class="fixed inset-y-0 left-0 z-[70] w-80 max-w-xs bg-white dark:bg-gray-800 shadow-2xl transition-transform duration-300 transform md:hidden flex flex-col"
+                    :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'">
                     <!-- Drawer Header -->
-                    <div class="px-5 py-5 border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/50 flex justify-between items-center">
+                    <div
+                        class="px-5 py-5 border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/50 flex justify-between items-center">
                         <div class="flex items-center gap-3">
-                            <img
-                                v-if="$page.props.active_plant?.plant_logo"
-                                :src="$page.props.active_plant.plant_logo"
+                            <img v-if="$page.props.active_plant?.plant_logo" :src="$page.props.active_plant.plant_logo"
                                 alt="Plant Logo"
-                                class="h-9 w-auto object-contain bg-slate-200 dark:bg-gray-700 rounded-lg p-0.5"
-                            />
-                            <span class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">Modo Portal</span>
+                                class="h-9 w-auto object-contain bg-slate-200 dark:bg-gray-700 rounded-lg p-0.5" />
+                            <span class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">Modo
+                                Portal</span>
                         </div>
-                        <button 
-                            @click="mobileMenuOpen = false"
-                            class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-400 hover:text-slate-600 transition-colors"
-                        >
+                        <button @click="mobileMenuOpen = false"
+                            class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-400 hover:text-slate-600 transition-colors">
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -636,19 +715,24 @@ const mobileMenuOpen = ref(false);
 
                     <!-- Active User Profile Overview -->
                     <div class="px-5 py-4 border-b border-slate-100 dark:border-gray-700 flex items-center gap-3">
-                        <img class="size-9 rounded-full object-cover border border-slate-200" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.username">
+                        <img class="size-9 rounded-full object-cover border border-slate-200"
+                            :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.username">
                         <div class="flex flex-col min-w-0">
-                            <span class="text-sm font-bold text-slate-800 dark:text-white truncate">{{ $page.props.auth.user.username }}</span>
-                            <span class="text-[10px] text-slate-500 dark:text-gray-400 truncate">{{ $page.props.auth.user.email }}</span>
+                            <span class="text-sm font-bold text-slate-800 dark:text-white truncate">{{
+                                $page.props.auth.user.username
+                            }}</span>
+                            <span class="text-[10px] text-slate-500 dark:text-gray-400 truncate">{{
+                                $page.props.auth.user.email
+                            }}</span>
                         </div>
                     </div>
 
                     <!-- Drawer Navigation Items -->
                     <div class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 block mb-2">Main Navigation</span>
-                        <Link
-                            v-for="item in visibleNav"
-                            :key="item.id"
+                        <span
+                            class="text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 block mb-2">Main
+                            Navigation</span>
+                        <Link v-for="item in visibleNav" :key="item.id"
                             :href="item.link === '#' ? '#' : (item.link.startsWith('/') ? item.link : '/' + item.link)"
                             @click="mobileMenuOpen = false"
                             class="flex items-center gap-4 px-4 py-3 text-sm font-semibold rounded-xl transition-all"
@@ -656,42 +740,37 @@ const mobileMenuOpen = ref(false);
                                 isTopMenuActive(item)
                                     ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border-l-4 border-amber-500'
                                     : 'text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 border-l-4 border-transparent'
-                            ]"
-                        >
-                            <component
-                                :is="IconMap[item.icon] || IconMap['HomeIcon']"
-                                class="h-5 w-5 shrink-0"
-                                :class="isTopMenuActive(item) ? 'text-amber-500' : 'text-slate-400'"
-                            />
+                            ]">
+                            <component :is="IconMap[item.icon] || IconMap['HomeIcon']" class="h-5 w-5 shrink-0"
+                                :class="isTopMenuActive(item) ? 'text-amber-500' : 'text-slate-400'" />
                             <span>{{ item.title }}</span>
                         </Link>
                     </div>
 
                     <!-- Drawer Footer Actions -->
-                    <div class="p-4 border-t border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/30 space-y-2">
+                    <div
+                        class="p-4 border-t border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/30 space-y-2">
                         <div v-if="$page.props.plants_count > 1" class="w-full">
-                            <Link 
-                                :href="route('entity-context.index')"
-                                @click="mobileMenuOpen = false"
-                                class="flex items-center justify-between w-full px-3 py-2.5 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-700 dark:text-gray-300 hover:bg-slate-50 transition-colors"
-                            >
+                            <Link :href="route('entity-context.index')" @click="mobileMenuOpen = false"
+                                class="flex items-center justify-between w-full px-3 py-2.5 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-700 dark:text-gray-300 hover:bg-slate-50 transition-colors">
                                 <div class="flex items-center gap-2">
                                     <component :is="IconMap['BuildingLibraryIcon']" class="w-4 h-4 text-slate-400" />
                                     <span>Switch Plant</span>
                                 </div>
-                                <span class="text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded font-black max-w-[100px] truncate">
+                                <span
+                                    class="text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded font-black max-w-[100px] truncate">
                                     {{ $page.props.active_plant?.plant_name || 'Select' }}
                                 </span>
                             </Link>
                         </div>
-                        
+
                         <form @submit.prevent="logout">
-                            <button 
-                                type="submit" 
-                                class="w-full py-3 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 text-rose-650 dark:text-rose-455 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 border border-rose-100/50"
-                            >
-                                <svg xmlns="http://www.w3.org/2050/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                            <button type="submit"
+                                class="w-full py-3 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 text-rose-650 dark:text-rose-455 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 border border-rose-100/50">
+                                <svg xmlns="http://www.w3.org/2050/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                    stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                                 </svg>
                                 Sign Out
                             </button>
@@ -707,58 +786,57 @@ const mobileMenuOpen = ref(false);
                 </div>
             </header>
 
-                <main class="flex-1 max-w-7xl w-full mx-auto sm:px-6 lg:px-8">
+            <main class="flex-1 max-w-7xl w-full mx-auto sm:px-6 lg:px-8">
                 <slot />
             </main>
 
             <!-- Global Footer -->
             <footer class="bg-[#1d2d3e] text-slate-300 border-t border-[#2a3c50] mt-auto py-4 px-4 sm:px-6 lg:px-4">
-                <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div
+                    class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <!-- Logo & Project Tagline -->
                     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 max-w-xl">
                         <div class="flex items-center gap-2">
                             <div class="h-10 w-24 flex items-center justify-center  rounded-lg p-1.5 shrink-0">
-                                <img
-                                    v-if="$page.props.active_plant?.plant_logo"
-                                    :src="$page.props.active_plant.plant_logo"
-                                    alt="Plant Logo"
-                                    class="h-full w-full object-contain"
-                                />
-                                <img
-                                    v-else-if="activeEntity?.entity_logo"
-                                    :src="`/storage/${activeEntity.entity_logo}`"
-                                    alt="Logo"
-                                    class="h-full w-full object-contain"
-                                />
+                                <img v-if="$page.props.active_plant?.plant_logo"
+                                    :src="$page.props.active_plant.plant_logo" alt="Plant Logo"
+                                    class="h-full w-full object-contain" />
+                                <img v-else-if="activeEntity?.entity_logo" :src="`/storage/${activeEntity.entity_logo}`"
+                                    alt="Logo" class="h-full w-full object-contain" />
                                 <ApplicationMark v-else class="h-8 w-auto" />
                             </div>
 
                             <!-- Invisible suspension lock icon button (visible on hover or always if suspended) -->
-                            <button 
-                                v-if="activeEntity"
-                                @click="toggleFooterSuspension"
-                                class="p-2.5 rounded-xl transition-all duration-300"
-                                :class="[
-                                    activeEntity.is_suspended !== 0 
-                                        ? 'bg-rose-500/20 border border-rose-500/30 text-rose-450 hover:bg-rose-500/30' 
+                            <button v-if="activeEntity" @click="toggleFooterSuspension"
+                                class="p-2.5 rounded-xl transition-all duration-300" :class="[
+                                    activeEntity.is_suspended !== 0
+                                        ? 'bg-rose-500/20 border border-rose-500/30 text-rose-450 hover:bg-rose-500/30'
                                         : 'bg-white/5 border border-white/10 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10'
                                 ]"
-                                :title="activeEntity.is_suspended !== 0 ? 'Reactivate Organization' : 'Suspend Organization'"
-                            >
+                                :title="activeEntity.is_suspended !== 0 ? 'Reactivate Organization' : 'Suspend Organization'">
                                 <!-- Lock Closed Icon (Suspended) -->
-                                <svg v-if="activeEntity.is_suspended !== 0" data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" class="size-4 animate-pulse" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.412 15.655 9.75 21.75l3.745-4.012M9.257 13.5H3.75l2.659-2.849m2.048-2.194L14.25 2.25 12 10.5h8.25l-4.707 5.043M8.457 8.457 3 3m5.457 5.457 7.086 7.086m0 0L21 21"></path>
+                                <svg v-if="activeEntity.is_suspended !== 0" data-slot="icon" fill="none"
+                                    stroke-width="1.5" stroke="currentColor" class="size-4 animate-pulse"
+                                    viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M11.412 15.655 9.75 21.75l3.745-4.012M9.257 13.5H3.75l2.659-2.849m2.048-2.194L14.25 2.25 12 10.5h8.25l-4.707 5.043M8.457 8.457 3 3m5.457 5.457 7.086 7.086m0 0L21 21">
+                                    </path>
                                 </svg>
                                 <!-- Lock Open Icon (Active) -->
-                                <svg v-else data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" class="size-4 animate-pulse" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"></path>
+                                <svg v-else data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor"
+                                    class="size-4 animate-pulse" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+                                    aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"></path>
                                 </svg>
                             </button>
                         </div>
                         <div class="flex flex-col">
                             <span class="text-xs font-black tracking-wider text-amber-400 uppercase">ModoRmc</span>
                             <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                                Next-generation operational intelligence, automated batching records, and real-time fleet logistics management designed for ready-mix batch plants.
+                                Next-generation operational intelligence, automated batching records, and real-time
+                                fleet logistics
+                                management designed for ready-mix batch plants.
                             </p>
                         </div>
                     </div>
@@ -781,44 +859,44 @@ const mobileMenuOpen = ref(false);
         <OSAIChatDrawer /> -->
 
         <!-- Session Timeout Modal -->
-        <div v-if="showTimeoutModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 dark:border-gray-700 transform animate-in zoom-in-95 duration-300">
+        <div v-if="showTimeoutModal"
+            class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div
+                class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 dark:border-gray-700 transform animate-in zoom-in-95 duration-300">
                 <div class="p-8 text-center">
-                    <div class="mx-auto w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-6">
+                    <div
+                        class="mx-auto w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-6">
                         <ClockIcon class="h-10 w-10 text-amber-500 animate-pulse" />
                     </div>
-                    
-                    <h3 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Session Expiring Soon</h3>
+
+                    <h3 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Session Expiring
+                        Soon
+                    </h3>
                     <p class="text-slate-500 dark:text-gray-400 text-sm mb-8 leading-relaxed">
                         You've been inactive for a while. For your security, you will be automatically logged out in:
                     </p>
 
-                    <div class="inline-flex items-center justify-center bg-slate-50 dark:bg-gray-900 px-6 py-4 rounded-2xl mb-8 border border-slate-100 dark:border-gray-700">
+                    <div
+                        class="inline-flex items-center justify-center bg-slate-50 dark:bg-gray-900 px-6 py-4 rounded-2xl mb-8 border border-slate-100 dark:border-gray-700">
                         <span class="text-4xl font-mono font-black text-indigo-600 dark:text-indigo-400">
                             {{ Math.floor(remainingTime / 60) }}:{{ String(remainingTime % 60).padStart(2, '0') }}
                         </span>
                     </div>
 
                     <div class="flex flex-col gap-3">
-                        <button 
-                            @click="resetTimer"
-                            class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200 dark:shadow-none active:scale-[0.98]"
-                        >
+                        <button @click="resetTimer"
+                            class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200 dark:shadow-none active:scale-[0.98]">
                             Keep Me Logged In
                         </button>
-                        <button 
-                            @click="logout"
-                            class="w-full py-3 text-slate-400 hover:text-rose-500 font-bold text-sm transition-colors uppercase tracking-widest"
-                        >
+                        <button @click="logout"
+                            class="w-full py-3 text-slate-400 hover:text-rose-500 font-bold text-sm transition-colors uppercase tracking-widest">
                             Logout Now
                         </button>
                     </div>
                 </div>
                 <div class="h-1.5 w-full bg-slate-100 dark:border-gray-700 overflow-hidden">
-                    <div 
-                        class="h-full bg-indigo-500 transition-all duration-1000 linear"
-                        :style="{ width: (remainingTime / (10 * 60) * 100) + '%' }"
-                    ></div>
+                    <div class="h-full bg-indigo-500 transition-all duration-1000 linear"
+                        :style="{ width: (remainingTime / (10 * 60) * 100) + '%' }"></div>
                 </div>
             </div>
         </div>
@@ -831,43 +909,58 @@ const mobileMenuOpen = ref(false);
     0% {
         transform: translateX(-100%);
     }
+
     100% {
         transform: translateX(100%);
     }
 }
+
 @keyframes float {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translateY(0px);
     }
+
     50% {
         transform: translateY(-8px);
     }
 }
+
 @keyframes rotate-slow {
     0% {
         transform: rotate(0deg);
     }
+
     100% {
         transform: rotate(360deg);
     }
 }
+
 @keyframes pulse-glow {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: 0 0 12px rgba(99, 102, 241, 0.25), 0 0 4px rgba(99, 102, 241, 0.15);
     }
+
     50% {
         box-shadow: 0 0 22px rgba(99, 102, 241, 0.65), 0 0 8px rgba(99, 102, 241, 0.35);
     }
 }
+
 .animate-shimmer {
     animation: shimmer 2s infinite linear;
 }
+
 .animate-float {
     animation: float 5s ease-in-out infinite;
 }
+
 .animate-rotate-slow {
     animation: rotate-slow 25s linear infinite;
 }
+
 .animate-pulse-glow {
     animation: pulse-glow 2s infinite ease-in-out;
 }

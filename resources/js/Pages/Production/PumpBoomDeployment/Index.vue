@@ -679,8 +679,9 @@ const getStatusBadge = (status) => {
                                             {{ data.pour_location }}
                                         </div>
                                         <div v-if="data.site_contact_number"
-                                            class="text-[9px] text-gray-400 pl-4.5 mt-0.5 truncate max-w-[120px]">
-                                            📞 {{ data.site_contact_number }}
+                                            class="text-[9px] text-gray-400 pl-4.5 mt-0.5 truncate max-w-[120px] flex items-center gap-1">
+                                            <PhoneIcon class="w-3 h-3 text-gray-400 shrink-0" /> {{
+                                                data.site_contact_number }}
                                         </div>
                                     </template>
                                 </Column>

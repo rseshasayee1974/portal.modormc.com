@@ -219,7 +219,7 @@
                     $hasRecipe = ($pdfSettings['show_recipe_details'] ?? true) && !empty($item['recipe_materials']) && count($item['recipe_materials']) > 0;
                 @endphp
                 <tr>
-                    @if($pdfSettings['hsn_code'] ?? true) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td> @endif
+                    @if($pdfSettings['hsn_code'] ?? true) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ (!empty($item['hsn']) && trim((string)$item['hsn']) !== '-') ? $item['hsn'] : '38245010' }}</strong></td> @endif
                     <td style="text-align: center; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['grade'] ?? $item['name'] }}</td>
                     @if($pdfSettings['description'] ?? true) <td style="{{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['description'] }}</td> @endif
                     @if($pdfSettings['show_pump_charges'] ?? false) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? 'TM' }}</td> @endif
@@ -312,36 +312,40 @@
 
     {{-- AMOUNT IN WORDS & GRAND TOTAL SUMMARY --}}
     @if ($pdfSettings['show_totals'] ?? ($pdfSettings['amount'] ?? true))
+    @php
+        $groupedTaxLines = [];
+        if (!empty($data['totals']['tax_lines'])) {
+            foreach ($data['totals']['tax_lines'] as $tl) {
+                $lbl = $tl['label'] ?? '';
+                if (!$lbl) continue;
+                if (!isset($groupedTaxLines[$lbl])) {
+                    $groupedTaxLines[$lbl] = [
+                        'label' => $lbl,
+                        'amount' => 0,
+                    ];
+                }
+                $groupedTaxLines[$lbl]['amount'] += (float) ($tl['amount'] ?? 0);
+            }
+        }
+    @endphp
     <table class="totals-table">
         <tr>
             <td style="width: 60%; border-right: 1px solid #000;">
                 <div style="font-weight: bold; margin-bottom: 4px;">Amount in Words :</div>
-                @php
-                    $totTaxAmt = (float)($data['totals']['tax_amount'] ?? array_sum(array_column($data['totals']['tax_lines'] ?? [], 'amount')));
-                    $firstItem = $data['items'][0] ?? [];
-                    $totTaxRate = (float)($firstItem['tax_rate'] ?? 18);
-                    $firstTaxGroup = strtoupper($firstItem['tax_group'] ?? '');
-                    $firstTaxName = strtoupper($firstItem['tax_name'] ?? '');
-                    $isGlobalIgst = !empty($firstItem['is_igst']) || $firstTaxGroup === 'IGST' || str_contains($firstTaxName, 'IGST');
-                    $formattedTotTaxRate = $totTaxRate == floor($totTaxRate) ? (int)$totTaxRate : number_format($totTaxRate, 2);
-                @endphp
-                @if($isGlobalIgst)
-                    @if(($pdfSettings['igst'] ?? true) !== false)
-                        <div>IGST@ {{ $formattedTotTaxRate }}% Rs. {{ number_format($totTaxAmt, 2) }}</div>
-                    @endif
-                @else
+                @foreach ($groupedTaxLines as $tl)
                     @php
-                        $halfTotRate = $totTaxRate / 2;
-                        $halfTotAmt = $totTaxAmt / 2;
-                        $formattedHalfTotRate = $halfTotRate == floor($halfTotRate) ? (int)$halfTotRate : number_format($halfTotRate, 2);
+                        $showTax = true;
+                        if (str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTax = false;
+                        if (str_contains($tl['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) $showTax = false;
+                        if (str_contains($tl['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) $showTax = false;
                     @endphp
-                    @if(($pdfSettings['cgst'] ?? true) !== false)
-                        <div>CGST@ {{ $formattedHalfTotRate }}% Rs. {{ number_format($halfTotAmt, 2) }}</div>
+                    @if ($showTax && ($tl['amount'] ?? 0) > 0)
+                        @php
+                            $lbl = str_contains($tl['label'], '@') ? $tl['label'] : preg_replace('/^(CGST|SGST|IGST)\s+(\d+)/i', '$1@ $2', $tl['label']);
+                        @endphp
+                        <div>{{ $lbl }} {{ str_replace('Rupees ', 'Rs. ', \App\Services\PrintDataFormatter::numberToWords($tl['amount'], 'INR')) }}</div>
                     @endif
-                    @if(($pdfSettings['sgst'] ?? true) !== false)
-                        <div>SGST@ {{ $formattedHalfTotRate }}% Rs. {{ number_format($halfTotAmt, 2) }}</div>
-                    @endif
-                @endif
+                @endforeach
                 <div style="margin-top: 4px;">Grand Total <strong>{{ $data['meta']['total_words'] ?: 'Rs. ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</strong></div>
             </td>
             <td style="width: 40%; padding: 0;">
@@ -379,7 +383,21 @@
                         </tr>
                     @endif
                     @if (!empty($data['totals']['tax_lines']))
-                        @foreach ($data['totals']['tax_lines'] as $tl)
+                        @php
+                            $groupedTaxLines = [];
+                            foreach ($data['totals']['tax_lines'] as $tl) {
+                                $lbl = $tl['label'] ?? '';
+                                if (!$lbl) continue;
+                                if (!isset($groupedTaxLines[$lbl])) {
+                                    $groupedTaxLines[$lbl] = [
+                                        'label' => $lbl,
+                                        'amount' => 0,
+                                    ];
+                                }
+                                $groupedTaxLines[$lbl]['amount'] += (float) ($tl['amount'] ?? 0);
+                            }
+                        @endphp
+                        @foreach ($groupedTaxLines as $tl)
                             @php
                                 $showTax = true;
                                 if (str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTax = false;
