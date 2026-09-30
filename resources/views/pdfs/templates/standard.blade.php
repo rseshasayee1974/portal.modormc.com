@@ -533,7 +533,7 @@
                             </td>
                         @endif
                         @if ($pdfSettings['qty'] ?? true)
-                            <td class="text-right bold" style="vertical-align: middle; font-size: 11.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['qty_display'] ?? ((float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.')) }}</td>
+                            <td class="text-right bold" style="vertical-align: middle; font-size: 9.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['qty_display'] ?? ((float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.')) }}</td>
                         @endif
                         @if ($pdfSettings['unit'] ?? true)
                             <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['unit'] }}</td>
