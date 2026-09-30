@@ -58,7 +58,7 @@ class PurchaseRegisterService extends RegisterReportService
             'document_type' => 'Purchase',
             'document_status' => $order?->state ?? '',
             'created_by' => $order?->creator?->email ?? $order?->creator?->username ?? '',
-            'hsn_code' => $item->hsn_code ?? '',
+            'hsn_code' => $item->product?->hsn_code ?? $item->hsn_code ?? '',
             'unit' => $item->uom?->unit_code ?: ($item->uom?->unit_name ?? ''),
             'qty' => (float) $item->product_quantity,
             'purchase_rate' => (float) $item->unit_price,

@@ -76,6 +76,7 @@ const props = defineProps<{
 
 const page = usePage();
 const editingId = ref<number | null>(null);
+const expandedRows = ref<any[]>([]);
 
 const machineOptions = computed(() => props.machines.map(m => ({ label: m.registration, value: m.id })));
 const vendorOptions = computed(() => props.vendors.map(v => ({ label: v.legal_name, value: v.id })));
@@ -138,42 +139,48 @@ const getInitialForm = () => ({
 });
 
 const form = useForm(getInitialForm());
+const editForm = useForm(getInitialForm());
 
 function trim(str: string) {
     return str.trim();
 }
 
 const startEdit = (req: MaintenanceRequest) => {
+    if (editingId.value === req.id) {
+        cancelEdit();
+        return;
+    }
+
     editingId.value = req.id;
-    form.name = req.name;
-    form.description = req.description;
-    form.machine_id = req.machine_id;
-    form.max_idle_days = req.max_idle_days || '';
-    form.inventory_req_lines = req.inventory_req_lines;
-    form.maintanence_type = req.maintanence_type;
-    form.service_km = Number(req.service_km);
-    form.priority = req.priority;
-    form.responsible_id = req.responsible_id;
-    form.repair_location = req.repair_location;
-    form.repair_vendor_id = req.repair_vendor_id;
-    form.bill_no = req.bill_no || '';
-    form.order_no = req.order_no || '';
-    form.amount_untaxed = Number(req.amount_untaxed || 0);
-    form.amount_tax = Number(req.amount_tax || 0);
-    form.amount_total = Number(req.amount_total || 0);
-    form.discount_amount = Number(req.discount_amount);
-    form.shipping_charges = Number(req.shipping_charges);
-    form.shipping_tax_id = req.shipping_tax_id;
-    form.adjustment = Number(req.adjustment);
-    form.rounding_value = Number(req.rounding_value);
-    form.filename = req.filename || '';
-    form.status = req.status;
-    form.tax_inclusive = Boolean(req.tax_inclusive);
-    form.bill_status = req.bill_status;
-    form.dead_line = req.dead_line ? String(req.dead_line).substring(0, 10) : null;
-    form.start_date = req.start_date ? String(req.start_date).substring(0, 10) : null;
-    form.end_date = req.end_date ? String(req.end_date).substring(0, 10) : null;
-    form.lines = (req.lines || []).map(l => ({
+    editForm.name = req.name;
+    editForm.description = req.description;
+    editForm.machine_id = req.machine_id;
+    editForm.max_idle_days = req.max_idle_days || '';
+    editForm.inventory_req_lines = req.inventory_req_lines;
+    editForm.maintanence_type = req.maintanence_type;
+    editForm.service_km = Number(req.service_km);
+    editForm.priority = req.priority;
+    editForm.responsible_id = req.responsible_id;
+    editForm.repair_location = req.repair_location;
+    editForm.repair_vendor_id = req.repair_vendor_id;
+    editForm.bill_no = req.bill_no || '';
+    editForm.order_no = req.order_no || '';
+    editForm.amount_untaxed = Number(req.amount_untaxed || 0);
+    editForm.amount_tax = Number(req.amount_tax || 0);
+    editForm.amount_total = Number(req.amount_total || 0);
+    editForm.discount_amount = Number(req.discount_amount);
+    editForm.shipping_charges = Number(req.shipping_charges);
+    editForm.shipping_tax_id = req.shipping_tax_id;
+    editForm.adjustment = Number(req.adjustment);
+    editForm.rounding_value = Number(req.rounding_value);
+    editForm.filename = req.filename || '';
+    editForm.status = req.status;
+    editForm.tax_inclusive = Boolean(req.tax_inclusive);
+    editForm.bill_status = req.bill_status;
+    editForm.dead_line = req.dead_line ? String(req.dead_line).substring(0, 10) : null;
+    editForm.start_date = req.start_date ? String(req.start_date).substring(0, 10) : null;
+    editForm.end_date = req.end_date ? String(req.end_date).substring(0, 10) : null;
+    editForm.lines = (req.lines || []).map(l => ({
         ...l,
         date_planned: l.date_planned ? new Date(l.date_planned) : null,
         price_unit: Number(l.price_unit),
@@ -182,28 +189,33 @@ const startEdit = (req: MaintenanceRequest) => {
         price_tax: Number(l.price_tax),
         received_price: l.received_price ? Number(l.received_price) : null,
     }));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Programmatically expand the row to show the edit form
+    expandedRows.value = [req];
 };
 
 const cancelEdit = () => {
     editingId.value = null;
-    form.reset();
-    form.clearErrors();
+    expandedRows.value = [];
+    editForm.reset();
+    editForm.clearErrors();
 };
 
-const submitForm = () => {
+const submitCreate = () => {
+    form.post(route('maintenance-requests.store'), {
+        onSuccess: () => {
+            form.reset();
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Request registered successfully', showConfirmButton: false, timer: 1500 });
+        }
+    });
+};
+
+const submitEdit = () => {
     if (editingId.value) {
-        form.put(route('maintenance-requests.update', editingId.value), {
+        editForm.put(route('maintenance-requests.update', editingId.value), {
             onSuccess: () => {
                 cancelEdit();
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Request modified successfully', showConfirmButton: false, timer: 1500 });
-            }
-        });
-    } else {
-        form.post(route('maintenance-requests.store'), {
-            onSuccess: () => {
-                form.reset();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Request registered successfully', showConfirmButton: false, timer: 1500 });
             }
         });
     }
@@ -244,10 +256,10 @@ watch(() => page.props.flash, (flash: any) => {
 
         <div class="my-5">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-                <!-- Create / Edit Form Component -->
+                <!-- Create Form Component -->
                 <MaintenanceRequestForm
                     :form="form"
-                    :editingId="editingId"
+                    :editingId="null"
                     :machineOptions="machineOptions"
                     :vendorOptions="vendorOptions"
                     :userOptions="userOptions"
@@ -257,8 +269,7 @@ watch(() => page.props.flash, (flash: any) => {
                     :maintenanceTypes="maintenanceTypes"
                     :priorityLevels="priorityLevels"
                     :requestStatuses="requestStatuses"
-                    @submit="submitForm"
-                    @cancel="cancelEdit"
+                    @submit="submitCreate"
                 />
 
                 <!-- DataTable Component -->
@@ -267,9 +278,32 @@ watch(() => page.props.flash, (flash: any) => {
                     :maintenanceTypes="maintenanceTypes"
                     :priorityLevels="priorityLevels"
                     :requestStatuses="requestStatuses"
+                    :editingId="editingId"
+                    v-model:expandedRows="expandedRows"
                     @edit="startEdit"
                     @delete="deleteRequest"
-                />
+                >
+                    <template #edit-form="{ data }">
+                        <div class="p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl m-2 relative">
+                            <MaintenanceRequestForm
+                                :form="editForm"
+                                :editingId="editingId"
+                                :machineOptions="machineOptions"
+                                :vendorOptions="vendorOptions"
+                                :userOptions="userOptions"
+                                :taxOptions="taxOptions"
+                                :productOptions="productOptions"
+                                :unitOptions="unitOptions"
+                                :maintenanceTypes="maintenanceTypes"
+                                :priorityLevels="priorityLevels"
+                                :requestStatuses="requestStatuses"
+                                @submit="submitEdit"
+                                @cancel="cancelEdit"
+                                class="!my-0 !shadow-none !border-none !ring-0"
+                            />
+                        </div>
+                    </template>
+                </MaintenanceRequestTable>
             </div>
         </div>
     </AppLayout>

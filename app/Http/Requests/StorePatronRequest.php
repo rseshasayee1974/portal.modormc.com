@@ -96,7 +96,7 @@ class StorePatronRequest extends FormRequest
             'operational_status' => 'required|string|max:100',
             'pan_no' => 'nullable|string|max:20',
           'gstin' => 'nullable|string|max:20|required_without:aadhar_number',
-        'aadhar_number' => 'nullable|string|max:20|required_without:gstin',
+        'aadhar_number' => 'nullable|max:20|required_without:gstin',
             'status' => 'required|boolean',
             'displayed' => 'required|boolean',
 

@@ -6,23 +6,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #000; font-size: 9.5pt; margin: 0; padding: 0; line-height: 1.25; }
         .inv-root { width: 100%; border: 1px solid #000; box-sizing: border-box; }
         
-        .header-table { width: 100%; border-collapse: collapse; }
+        .header-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; }
         .header-table td { vertical-align: top; padding: 8px 10px; }
         .header-title { text-align: right; text-transform: uppercase; font-size: 13pt; font-weight: bold; }
         .header-subtitle { text-align: right; text-transform: uppercase; font-size: 9pt; color: #333; margin-top: 2px; }
 
         .irn-bar { border-top: 1px solid #000; padding: 6px 10px; font-size: 8.5pt; width: 100%; box-sizing: border-box; }
-        .irn-bar table { width: 100%; border-collapse: collapse; }
+        .irn-bar table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; }
         .irn-bar td { vertical-align: middle; padding: 0; }
 
-        .block-table { width: 100%; border-collapse: collapse; border-top: 1px solid #000; }
+        .block-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; border-top: 1px solid #000; }
         .block-th { background: #f2f2f2; border-bottom: 1px solid #000; border-right: 1px solid #000; font-size: 9pt; font-weight: bold; padding: 4px 8px; text-align: left; }
         .block-th:last-child { border-right: none; }
         .block-td { border-right: 1px solid #000; padding: 6px 8px; vertical-align: top; font-size: 8.5pt; }
@@ -34,19 +43,28 @@
 
         .carrier-bar { border-top: 1px solid #000; padding: 5px 8px; font-size: 9pt; background: #fff; }
 
-        .items-table { width: 100%; border-collapse: collapse; border-top: 1px solid #000; border-bottom: 1px solid #000; }
+        .items-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; border-top: 1px solid #000; border-bottom: 1px solid #000; }
         .items-table th { border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px 6px; font-size: 8.5pt; font-weight: bold; text-align: center; background: #f9f9f9; }
         .items-table th:last-child { border-right: none; }
         .items-table td { border-right: 1px solid #000; border-bottom: 1px solid #ddd; padding: 5px 6px; font-size: 8.5pt; vertical-align: middle; }
         .items-table td:last-child { border-right: none; }
         .items-table tr:last-child td { border-bottom: none; }
 
-        .tax-table { width: 100%; border-collapse: collapse; }
+        .tax-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; }
         .tax-table td { border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 3px 6px; font-size: 8pt; }
         .tax-table td:last-child { border-right: none; }
         .tax-table tr:last-child td { border-bottom: none; }
 
-        .totals-table { width: 100%; border-collapse: collapse; border-top: 1px solid #000; }
+        .totals-table { width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse; border-top: 1px solid #000; }
         .totals-table td { padding: 5px 8px; vertical-align: top; font-size: 8.5pt; }
 
         .terms-block { border-top: 1px solid #000; border-right: 1px solid #000; width: 60%; padding: 6px 8px; vertical-align: top; font-size: 8pt; }
@@ -292,7 +310,7 @@
                                         <tr style="{{ $cIdx > 0 ? 'border-top: 1px solid #e2e8f0;' : '' }}">
                                             @foreach ($chunk as $sIdx => $seg)
                                                 @php $isLast = ($sIdx === count($chunk) - 1); @endphp
-                                                <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }} white-space: nowrap; vertical-align: middle;">
+                                                <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }}  vertical-align: middle;">
                                                     <span style="color: #64748b; margin-right: 2px;">&bull;</span> {{ $seg['name'] }} ({{ $seg['qty'] }} {{ $seg['uom'] }})
                                                 </td>
                                             @endforeach
@@ -349,7 +367,10 @@
                 <div style="margin-top: 4px;">Grand Total <strong>{{ $data['meta']['total_words'] ?: 'Rs. ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</strong></div>
             </td>
             <td style="width: 40%; padding: 0;">
-                <table style="width: 100%; border-collapse: collapse;">
+                <table style="width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse;">
                     @if (!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)
                         <tr>
                             <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">Sub Total / Gross Amount</td>
@@ -441,16 +462,19 @@
     @endif
 
     {{-- TERMS & CONDITIONS + BANK INFORMATION --}}
-    <table style="width: 100%; border-collapse: collapse;">
+    <table style="width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse;">
         <tr>
             <td class="terms-block">
                 @if(($pdfSettings['terms'] ?? true) !== false)
                     @php
                         $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
-                        $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
+                        $termsHtml = str_replace('&nbsp;', ' ', (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText);
                     @endphp
                     <div style="font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">TERMS &amp; CONDITIONS :</div>
-                    <div class="terms-text-content" style="font-size: 7.5pt; line-height: 1.35; white-space: normal !important; word-break: break-word;">
+                    <div class="terms-text-content" style="font-size: 7.5pt; line-height: 1.35; white-space: normal !important; ">
                         @if(!empty($termsHtml))
                             {!! $termsHtml !!}
                         @else
@@ -492,7 +516,10 @@
     </table>
 
     {{-- FOOTER SIGNATURE & CERTIFICATE SECTION --}}
-    <table style="width: 100%; border-collapse: collapse;">
+    <table style="width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+            border-collapse: collapse;">
         <tr>
             <td class="footer-cert">
                 Certificate that the goods on which the GST tax has been charged have not been exempted under the GST Tax Act or the rules made thereunder and the amount charged on Account of GST Tax on these goods are not more than that what is payable under the provisions of the relevant Act or the Rules made thereunder<br>

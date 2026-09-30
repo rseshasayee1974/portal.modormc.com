@@ -72,7 +72,7 @@ class SalesRegisterService extends RegisterReportService
             'bill_no'        => $invoice?->invoice_number ?? '',
             'document_type'  => $invoice?->invoice_label ?? 'Sales',
             'document_status'=> $invoice?->status ?? '',
-            'hsn_code'       => $item->hsn_code ?? '',
+            'hsn_code'       => $item->product?->hsn_code ?? $item->hsn_code ?? '',
             'unit'           => $unit,
             'payment_mode'   => ucfirst(strtolower(trim($item->register_payment_mode ?? ''))),
             'tax_name'       => $this->taxName($taxes),
