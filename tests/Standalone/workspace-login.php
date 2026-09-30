@@ -17,7 +17,9 @@ use Illuminate\Support\Facades\DB;
 
 config(['database.default' => 'workspace_test', 'database.connections.workspace_test' => [
     'driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '',
-], 'cache.default' => 'array', 'session.driver' => 'array', 'logging.default' => 'null']);
+], 'cache.default' => 'array', 'permission.cache.store' => 'array', 'session.driver' => 'array', 'logging.default' => 'null']);
+app(Spatie\Permission\PermissionRegistrar::class)->initializeCache();
+app(Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
 function checkWorkspace(bool $condition, string $message): void {
     if (!$condition) throw new RuntimeException($message);
@@ -26,7 +28,14 @@ function checkWorkspace(bool $condition, string $message): void {
 foreach ([
     'mm_entities' => 'id INTEGER PRIMARY KEY, is_suspended INTEGER, deleted_at TEXT',
     'mm_plants' => 'id INTEGER PRIMARY KEY, entity_id INTEGER, is_active INTEGER, deleted_at TEXT',
-    'mm_entity_users' => 'id INTEGER PRIMARY KEY, entity_id INTEGER, plant_id INTEGER, user_id INTEGER, deleted_at TEXT',
+    'mm_entity_users' => 'id INTEGER PRIMARY KEY, entity_id INTEGER, plant_id INTEGER, user_id INTEGER, role_id INTEGER, deleted_at TEXT',
+    'mm_roles' => 'id INTEGER PRIMARY KEY, name TEXT, code TEXT, guard_name TEXT, deleted_at TEXT',
+    'mm_permissions' => 'id INTEGER PRIMARY KEY, name TEXT, guard_name TEXT, deleted_at TEXT',
+    'mm_role_has_permissions' => 'role_id INTEGER, permission_id INTEGER',
+    'mm_model_has_permissions' => 'permission_id INTEGER, model_id INTEGER, model_type TEXT',
+    'mm_model_has_roles' => 'role_id INTEGER, model_id INTEGER, model_type TEXT',
+    'mm_users' => 'id INTEGER PRIMARY KEY, username TEXT, email TEXT, default_entity_id INTEGER, default_plant_id INTEGER, deleted_at TEXT',
+    'mm_menus' => 'id INTEGER PRIMARY KEY, menutype INTEGER, title TEXT, alias TEXT, link TEXT, permission_name TEXT, parent_id INTEGER, ordering INTEGER, published INTEGER, deleted_at TEXT',
 ] as $table => $columns) DB::statement("CREATE TABLE $table ($columns)");
 
 $user = new class extends User {
@@ -144,5 +153,78 @@ checkWorkspace($ctx->validDefaultPlant($user) === null, 'Revoked default assignm
 DB::table('mm_entity_users')->where('id', 1)->update(['plant_id' => 1]);
 DB::table('mm_entity_users')->where('id', 1)->update(['deleted_at' => '2026-09-30']);
 checkWorkspace(!$ctx->hasWorkspaces($user), 'Deleted assignment was accepted.');
+
+DB::table('mm_roles')->insert([
+    ['id' => 10, 'name' => 'Operations Manager', 'code' => 'OPERATIONS_MANAGER', 'guard_name' => 'web'],
+    ['id' => 11, 'name' => 'Sales Manager', 'code' => 'SALES_MANAGER', 'guard_name' => 'web'],
+]);
+DB::table('mm_permissions')->insert([
+    ['id' => 1, 'name' => 'DISPATCH.VIEW', 'guard_name' => 'web'],
+    ['id' => 2, 'name' => 'SALES_ORDER.VIEW', 'guard_name' => 'web'],
+]);
+DB::table('mm_role_has_permissions')->insert([['role_id' => 10, 'permission_id' => 1], ['role_id' => 11, 'permission_id' => 2]]);
+DB::table('mm_entity_users')->where('id', 1)->update(['plant_id' => null, 'role_id' => 10, 'deleted_at' => null]);
+session(['active_entity_id' => 1, 'active_plant_id' => 1]);
+(new SetEntityContext)->handle($request, fn () => response('dashboard'));
+checkWorkspace($user->hasRole('Operations Manager'), 'Organization-wide manager role was lost.');
+checkWorkspace($user->hasPermissionTo('DISPATCH.VIEW'), 'Organization-wide manager permission was lost.');
+checkWorkspace(!$user->hasPermissionTo('SALES_ORDER.VIEW'), 'Manager gained unrelated permissions.');
+DB::table('mm_entity_users')->insert(['id' => 2, 'user_id' => 77, 'entity_id' => 1, 'plant_id' => 1, 'role_id' => 11]);
+App\Models\EntityUser::clearContextCache(77);
+(new SetEntityContext)->handle($request, fn () => response('dashboard'));
+checkWorkspace($user->hasRole('Sales Manager') && !$user->hasPermissionTo('DISPATCH.VIEW'), 'Specific plant role did not override organization role.');
+checkWorkspace(App\Models\EntityUser::forContext(77, 1, 2)?->role_id === 10, 'Other plant inherited the specific plant role.');
+checkWorkspace(App\Models\EntityUser::forContext(77, 99, 1) === null, 'Role crossed organization boundary.');
+DB::table('mm_entity_users')->where('id', 2)->update(['deleted_at' => '2026-09-30']);
+App\Models\EntityUser::clearContextCache(77);
+(new SetEntityContext)->handle($request, fn () => response('dashboard'));
+checkWorkspace($user->hasRole('Operations Manager'), 'Deleted plant assignment prevented organization fallback.');
+DB::table('mm_roles')->where('id', 10)->update(['deleted_at' => '2026-09-30']);
+checkWorkspace(App\Models\EntityUser::forContext(77, 1, 1)?->role === null, 'Deleted role retained permissions.');
+DB::table('mm_entity_users')->where('user_id', 77)->update(['deleted_at' => '2026-09-30']);
+DB::table('mm_model_has_roles')->insert(['role_id' => 11, 'model_id' => 77, 'model_type' => $user->getMorphClass()]);
+(new SetEntityContext)->handle($request, fn () => response('dashboard'));
+checkWorkspace(!session('active_plant_id') && $user->hasRole('Sales Manager') && $user->hasPermissionTo('SALES_ORDER.VIEW'), 'Account-level manager grants were cleared without a workspace.');
+DB::table('mm_permissions')->insert(['id' => 3, 'name' => 'ADDRESS_TYPE.VIEW', 'guard_name' => 'web']);
+DB::table('mm_role_has_permissions')->insert(['role_id' => 11, 'permission_id' => 3]);
+$user->unsetRelation('roles');
+DB::table('mm_menus')->insert([
+    ['id' => 2, 'menutype' => 1, 'title' => 'Master', 'alias' => 'master', 'link' => 'master', 'permission_name' => 'MASTER.VIEW', 'parent_id' => 0, 'ordering' => 1, 'published' => 1],
+    ['id' => 3, 'menutype' => 2, 'title' => 'Address types', 'alias' => 'addresstypes', 'link' => 'master/addresstypes', 'permission_name' => 'ADDRESS_TYPE.VIEW', 'parent_id' => 2, 'ordering' => 1, 'published' => 1],
+    ['id' => 4, 'menutype' => 2, 'title' => 'Roles', 'alias' => 'roles', 'link' => 'settings/roles', 'permission_name' => 'ROLE.VIEW', 'parent_id' => 2, 'ordering' => 2, 'published' => 1],
+]);
+$shared = (new App\Http\Middleware\HandleInertiaRequests)->share($request);
+checkWorkspace($shared['user_role'] === 'Sales Manager' && $shared['user_permissions']->contains('ADDRESS_TYPE.VIEW'), 'Manager grants were missing from shared page props.');
+checkWorkspace($shared['menus']['top_nav']->contains('id', 2), 'Master parent was hidden despite an authorized child.');
+checkWorkspace($shared['menus']['sidebar_nav'][2]->contains('id', 3) && !$shared['menus']['sidebar_nav'][2]->contains('id', 4), 'Master menus did not follow manager grants.');
+DB::table('mm_roles')->insert(['id' => 12, 'name' => 'Administrator', 'code' => 'ADMINISTRATOR', 'guard_name' => 'web']);
+DB::table('mm_permissions')->insert(['id' => 4, 'name' => 'ROLE.VIEW', 'guard_name' => 'web']);
+DB::table('mm_role_has_permissions')->insert([['role_id' => 12, 'permission_id' => 3], ['role_id' => 12, 'permission_id' => 4]]);
+app(Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+DB::table('mm_model_has_roles')->where('model_id', 77)->update(['role_id' => 12]);
+DB::table('mm_entity_users')->where('id', 1)->update(['plant_id' => null, 'role_id' => null, 'deleted_at' => null]);
+App\Models\EntityUser::clearContextCache(77);
+session(['active_entity_id' => 1, 'active_plant_id' => 1]);
+(new SetEntityContext)->handle($request, fn () => response('dashboard'));
+checkWorkspace($user->hasRole('Administrator') && $user->hasPermissionTo('ROLE.VIEW'), 'Account Administrator lost grants when workspace had no role override.');
+checkWorkspace(!$user->hasPermissionTo('DISPATCH.VIEW'), 'Administrator gained an unassigned permission.');
+session()->forget(['active_entity_id', 'active_plant_id']);
+$shared = (new App\Http\Middleware\HandleInertiaRequests)->share($request);
+checkWorkspace($shared['user_role'] === 'Administrator' && $shared['menus']['sidebar_nav'][2]->contains('id', 4), 'Administrator role grants were missing from page menus.');
+DB::table('mm_model_has_roles')->where('model_id', 77)->delete();
+$user->unsetRelation('roles');
+$shared = (new App\Http\Middleware\HandleInertiaRequests)->share($request);
+checkWorkspace($shared['user_permissions']->isEmpty() && !$shared['menus']['top_nav']->contains('id', 2), 'Account without grants gained restricted menus.');
+DB::table('mm_users')->insert(['id' => 88, 'username' => 'administrator-fixture', 'email' => 'administrator@example.test']);
+DB::table('mm_model_has_roles')->insert(['role_id' => 12, 'model_id' => 88, 'model_type' => User::class]);
+DB::flushQueryLog();
+DB::enableQueryLog();
+$auditStatus = Illuminate\Support\Facades\Artisan::call('access:diagnose', ['account' => 'administrator-fixture']);
+$auditOutput = Illuminate\Support\Facades\Artisan::output();
+checkWorkspace($auditStatus === 0 && str_contains($auditOutput, 'Administrator') && str_contains($auditOutput, 'Read-only audit completed'), 'Production access diagnostic did not report the account role.');
+foreach (DB::getQueryLog() as $query) {
+    checkWorkspace(!preg_match('/^\s*(insert|update|delete|create|alter|drop)\b/i', $query['query']), 'Read-only diagnostic modified the database.');
+}
+DB::disableQueryLog();
 
 echo "Workspace login checks passed.\n";

@@ -70,7 +70,7 @@ class EntityUser extends Model
     public static function getContextVersion(int $userId): string
     {
         return \Illuminate\Support\Facades\Cache::rememberForever("user_context_version_{$userId}", function () {
-            return (string) now()->timestamp;
+            return (string) \Illuminate\Support\Str::uuid();
         });
     }
 
@@ -82,7 +82,7 @@ class EntityUser extends Model
     public static function getGlobalRolesVersion(): string
     {
         return \Illuminate\Support\Facades\Cache::rememberForever("global_roles_version", function () {
-            return (string) now()->timestamp;
+            return (string) \Illuminate\Support\Str::uuid();
         });
     }
 
@@ -103,6 +103,22 @@ class EntityUser extends Model
 
 	public function role()
 	{
-		return $this->belongsTo(\Spatie\Permission\Models\Role::class, 'role_id');
+		return $this->belongsTo(\App\Models\Role::class, 'role_id');
 	}
+
+    public static function forContext(int $userId, int $entityId, ?int $plantId): ?self
+    {
+        return self::with('role.permissions')
+            ->where('user_id', $userId)
+            ->where('entity_id', $entityId)
+            ->where(function ($query) use ($plantId) {
+                $query->whereNull('plant_id');
+                if ($plantId) {
+                    $query->orWhere('plant_id', $plantId);
+                }
+            })
+            ->orderByRaw('plant_id IS NULL')
+            ->orderBy('id')
+            ->first();
+    }
 }

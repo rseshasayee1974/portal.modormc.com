@@ -39,29 +39,6 @@ export function usePermissions() {
         const normalized = permission.toLowerCase();
         if (isSassOwner.value) return true;
 
-        // Master data permissions are strictly restricted to Super Administrators
-        const masterModules = [
-            'master',
-            'address_type',
-            'bank_account_type',
-            'contact_type',
-            'country',
-            'currency',
-            'entity_type',
-            'invoice_status',
-            'payment_status',
-            'plan',
-            'subscription_status',
-            'state_code',
-            'menu',
-            'role',
-            'permission'
-        ];
-        const moduleName = normalized.split('.')[0];
-        if (masterModules.includes(moduleName)) {
-            return ['Saas Owner', 'Platform Admin'].includes(userRole.value);
-        }
-
         if (isSuperAdmin.value) return true;
         // console.log('normalized', normalized);
         // console.log('permissions', permissions.value);

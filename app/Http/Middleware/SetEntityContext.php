@@ -43,7 +43,8 @@ class SetEntityContext
         if (!$ctx->hasWorkspaces($user, $isSuperAdmin)) {
             session()->forget(['active_entity_id', 'active_plant_id', 'default_entity_id', 'default_plant_id', 'gstin', 'mixer_capacity']);
             if (!$isSuperAdmin) {
-                $this->clearUserRoles($user);
+                // Drop contextual roles and reload persisted account grants when needed.
+                $user->unsetRelation('roles');
             }
             $this->trackLastVisitPage($request, $user);
 
@@ -185,18 +186,18 @@ class SetEntityContext
      */
     private function assignRequestRole($user, int $entityId, ?int $plantId, bool $isSuperAdmin): void
     {
+        if ($isSuperAdmin) {
+            return;
+        }
+
         $userId = $user->id;
         $userVersion = EntityUser::getContextVersion($userId);
         $globalVersion = EntityUser::getGlobalRolesVersion();
 
-        $cacheKey = "role_ctx_{$userId}_{$entityId}_" . ($plantId ?? 0) . "_{$userVersion}_{$globalVersion}";
+        $cacheKey = "role_ctx_v2_{$userId}_{$entityId}_" . ($plantId ?? 0) . "_{$userVersion}_{$globalVersion}";
 
         $role = Cache::remember($cacheKey, now()->addDay(), function () use ($userId, $entityId, $plantId) {
-            $entityUser = EntityUser::with(['role.permissions'])
-                ->where('user_id', $userId)
-                ->where('entity_id', $entityId)
-                ->when($plantId, fn($q) => $q->where('plant_id', $plantId))
-                ->first();
+            $entityUser = EntityUser::forContext($userId, $entityId, $plantId);
 
             return $entityUser && $entityUser->role ? $entityUser->role : null;
         });
@@ -206,8 +207,14 @@ class SetEntityContext
             $user->unsetRelation('roles');
             $user->setRelation('roles', collect([$role]));
         } elseif (!$isSuperAdmin) {
-            // No role for this entity/plant — clear roles
-            $this->clearUserRoles($user);
+            $assignment = EntityUser::forContext($userId, $entityId, $plantId);
+            if ($assignment && $assignment->role_id === null) {
+                // Workspace access without a role override uses explicit account grants.
+                $user->unsetRelation('roles');
+            } else {
+                // Missing assignment or invalid role must not inherit account privileges.
+                $this->clearUserRoles($user);
+            }
         }
         // Super admins keep their existing System Administrator role
     }
