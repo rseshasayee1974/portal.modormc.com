@@ -24,7 +24,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Jobs\CreateScheduledBatchJob;
 
 class ConcreteBatchingScheduleController extends Controller
 {
@@ -445,13 +444,10 @@ class ConcreteBatchingScheduleController extends Controller
                 $salesOrder->update(['mix_design_id' => $mixDesignId]);
             }
 
-            $batch = null;
-            $dispatch = null;
-
             // 3. Create ConcreteBatchingSchedule
             $validated['plant_id']    = $plantId;
-            $validated['batch_id']    = $batch?->id;
-            $validated['dispatch_id'] = $dispatch?->id ?? ($validated['dispatch_id'] ?? null);
+            $validated['batch_id']    = null;
+            $validated['dispatch_id'] = $validated['dispatch_id'] ?? null;
             $validated['status']      = $chosenStatus;
 
             if (empty($validated['sales_order_id'])) {
@@ -532,40 +528,6 @@ class ConcreteBatchingScheduleController extends Controller
         return DB::transaction(function () use ($schedule, $validated, $newStatus) {
             $schedule->update($validated);
 
-            // Sync Batch
-            if ($schedule->batch_id) {
-                $batchUpdates = [
-                    'batch_size'     => $validated['qty_m3'],
-                    'start_time'     => !empty($validated['batching_time']) ? $validated['batching_time'] : now()->format('Y-m-d H:i:s'),
-                    'sales_order_id' => $validated['sales_order_id'] ?? null,
-                    'status'         => $this->mapBatchStatus($newStatus),
-                ];
-                if ($newStatus === 'completed') {
-                    $batchUpdates['end_time'] = !empty($validated['unloading_end']) ? $validated['unloading_end'] : now()->format('Y-m-d H:i:s');
-                }
-                Batch::where('id', $schedule->batch_id)->update($batchUpdates);
-            }
-
-            // Sync Dispatch
-            if ($schedule->dispatch_id) {
-                $dispatchUpdates = [
-                    'truck_id'        => $validated['vehicle_id'] ?? null,
-                    'driver_id'       => $validated['driver_id'] ?? null,
-                    'unload_site_id'  => $validated['site_id'],
-                    'mixdesign_id'    => $validated['mix_design_id'],
-                    'concrete_pump'   => $validated['pump_vehicle_id'] ?? null,
-                    'delivered_qty'   => $validated['qty_m3'],
-                    'dispatch_status' => $this->mapDispatchStatus($newStatus, 'Draft'),
-                ];
-                if (!empty($validated['dispatch_time'])) {
-                    $dispatchUpdates['dispatch_time'] = $validated['dispatch_time'];
-                }
-                if ($newStatus === 'completed') {
-                    $dispatchUpdates['delivery_time'] = !empty($validated['unloading_end']) ? $validated['unloading_end'] : now()->format('Y-m-d H:i:s');
-                }
-                Dispatch::where('id', $schedule->dispatch_id)->update($dispatchUpdates);
-            }
-
             if (!empty($schedule->sales_order_id)) {
                 SalesOrder::find($schedule->sales_order_id)?->refreshProduction();
             }
@@ -614,20 +576,6 @@ class ConcreteBatchingScheduleController extends Controller
 
         return DB::transaction(function () use ($schedule, $updates, $newStatus, $now) {
             $schedule->update($updates);
-
-            if ($schedule->batch_id) {
-                Batch::where('id', $schedule->batch_id)->update([
-                    'status'   => $this->mapBatchStatus($newStatus),
-                    'end_time' => $newStatus === 'completed' ? $now : null,
-                ]);
-            }
-
-            if ($schedule->dispatch_id) {
-                Dispatch::where('id', $schedule->dispatch_id)->update([
-                    'dispatch_status' => $this->mapDispatchStatus($newStatus, 'Draft'),
-                    'delivery_time'   => $newStatus === 'completed' ? $now : null,
-                ]);
-            }
 
             if (!empty($schedule->sales_order_id)) {
                 SalesOrder::find($schedule->sales_order_id)?->refreshProduction();
@@ -723,12 +671,6 @@ class ConcreteBatchingScheduleController extends Controller
         $salesOrderId = $schedule->sales_order_id;
 
         DB::transaction(function () use ($schedule) {
-            if ($schedule->batch_id) {
-                Batch::where('id', $schedule->batch_id)->delete();
-            }
-            if ($schedule->dispatch_id) {
-                Dispatch::where('id', $schedule->dispatch_id)->delete();
-            }
             $schedule->delete();
         });
 
