@@ -31,6 +31,33 @@ use Illuminate\Support\Facades\Session;
  */
 class PlantContextService
 {
+    /** Saved preferences may refer to a removed, restricted, or reassigned plant. */
+    public function validDefaultPlant(User $user, ?bool $isSuperAdmin = null): ?Plant
+    {
+        if (!$user->default_entity_id || !$user->default_plant_id) {
+            return null;
+        }
+
+        $isSuperAdmin ??= $user->isSystemAdmin();
+        $plant = Plant::where('id', $user->default_plant_id)
+            ->where('entity_id', $user->default_entity_id)
+            ->where('is_active', 1)
+            ->whereHas('entity', function ($query) use ($isSuperAdmin) {
+                if (!$isSuperAdmin) {
+                    $query->where('is_suspended', 0);
+                }
+            })->first();
+
+        if ($plant && !$isSuperAdmin && !\App\Models\EntityUser::where('user_id', $user->id)
+            ->where('entity_id', $plant->entity_id)
+            ->where(fn ($query) => $query->whereNull('plant_id')->orWhere('plant_id', $plant->id))
+            ->exists()) {
+            return null;
+        }
+
+        return $plant;
+    }
+
     /** Include restricted workspaces so their existing access checks still apply. */
     public function hasWorkspaces(User $user, ?bool $isSuperAdmin = null): bool
     {
@@ -64,14 +91,15 @@ class PlantContextService
 
         // Graceful fallback: use the user's saved default
         $user = Auth::user();
-        if ($user && $user->default_plant_id) {
+        if ($user && ($plant = $this->validDefaultPlant($user))) {
             // Re-hydrate the session so downstream code using raw session() still works
-            Session::put('active_plant_id', $user->default_plant_id);
-            $gstin = Plant::where('id', $user->default_plant_id)->value('gstin');
+            Session::put('active_entity_id', $plant->entity_id);
+            Session::put('active_plant_id', $plant->id);
+            $gstin = $plant->gstin;
             if ($gstin) {
                 Session::put('gstin', $gstin);
             }
-            return (int) $user->default_plant_id;
+            return (int) $plant->id;
         }
 
         return null;

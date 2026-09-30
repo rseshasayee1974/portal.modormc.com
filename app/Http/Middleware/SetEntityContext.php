@@ -27,7 +27,7 @@ class SetEntityContext
     public function handle(Request $request, Closure $next): Response
     {
         // Logout must remain available even when no valid workspace is selected.
-        if ($request->routeIs('entity-context.*', 'login', 'logout', 'register', 'password.*', 'verification.*')) {
+        if ($request->routeIs('entity-context.*', 'otp.*', 'login', 'logout', 'register', 'password.*', 'verification.*')) {
             return $next($request);
         }
 
@@ -130,8 +130,8 @@ class SetEntityContext
     private function resolveDefaultContext($user, bool $isSuperAdmin): array
     {
         // 1. Check for user-defined defaults
-        if ($user->default_entity_id && $user->default_plant_id) {
-            return [$user->default_entity_id, $user->default_plant_id];
+        if ($plant = app(PlantContextService::class)->validDefaultPlant($user, $isSuperAdmin)) {
+            return [$plant->entity_id, $plant->id];
         }
 
         // 2. Check for "Only One Choice" auto-select scenario

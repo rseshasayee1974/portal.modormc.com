@@ -89,6 +89,12 @@ $response = (new App\Http\Middleware\RequireOtpVerification)->handle($logoutRequ
 checkWorkspace($response->getContent() === 'logout reached', 'Pending OTP intercepted logout.');
 $response = (new App\Http\Middleware\RequireOtpVerification)->handle($request, fn () => response('dashboard'));
 checkWorkspace($response->isRedirect(route('otp.show')), 'OTP verification no longer protects other routes.');
+$otpRequest = Request::create('https://modormc.com/verifyotp');
+$otpRoute = new Illuminate\Routing\Route('GET', 'verifyotp', fn () => null);
+$otpRoute->name('otp.show');
+$otpRequest->setRouteResolver(fn () => $otpRoute);
+$response = (new SetEntityContext)->handle($otpRequest, fn () => response('otp reached'));
+checkWorkspace($response->getContent() === 'otp reached', 'Workspace selection intercepted OTP verification.');
 $user->is_otp_enabled = false;
 session()->forget('otp_pending');
 DB::table('mm_plants')->where('id', 2)->delete();
@@ -98,6 +104,25 @@ DB::table('mm_entity_users')->where('id', 1)->update(['plant_id' => 1]);
 DB::table('mm_entities')->where('id', 1)->update(['is_suspended' => 1]);
 DB::table('mm_plants')->where('id', 1)->update(['is_active' => -1]);
 checkWorkspace($ctx->hasWorkspaces($user), 'Restricted workspace must retain existing restriction flow.');
+$user->forceFill(['default_entity_id' => 1, 'default_plant_id' => 1]);
+foreach ([['is_suspended' => 1, 'is_active' => 1], ['is_suspended' => 0, 'is_active' => -1], ['is_suspended' => 0, 'is_active' => 0]] as $state) {
+    DB::table('mm_entities')->where('id', 1)->update(['is_suspended' => $state['is_suspended']]);
+    DB::table('mm_plants')->where('id', 1)->update(['is_active' => $state['is_active']]);
+    session()->forget(['active_entity_id', 'active_plant_id']);
+    checkWorkspace($ctx->validDefaultPlant($user) === null && $ctx->plantId() === null, 'Restricted default was restored.');
+    $response = (new SetEntityContext)->handle($request, fn () => response('dashboard'));
+    checkWorkspace($response->isRedirect(route('entity-context.index')), 'Restricted dashboard must lead to selector.');
+    checkWorkspace((new EntityContextController)->index() instanceof Inertia\Response, 'Selector redirected back to restricted dashboard.');
+}
+DB::table('mm_entities')->where('id', 1)->update(['is_suspended' => 0]);
+DB::table('mm_plants')->where('id', 1)->update(['is_active' => 1]);
+checkWorkspace($ctx->validDefaultPlant($user)?->id === 1, 'Valid default was rejected.');
+$user->default_entity_id = 99;
+checkWorkspace($ctx->validDefaultPlant($user) === null, 'Mismatched default entity was accepted.');
+$user->default_entity_id = 1;
+DB::table('mm_entity_users')->where('id', 1)->update(['plant_id' => 99]);
+checkWorkspace($ctx->validDefaultPlant($user) === null, 'Revoked default assignment was restored.');
+DB::table('mm_entity_users')->where('id', 1)->update(['plant_id' => 1]);
 DB::table('mm_entity_users')->where('id', 1)->update(['deleted_at' => '2026-09-30']);
 checkWorkspace(!$ctx->hasWorkspaces($user), 'Deleted assignment was accepted.');
 

@@ -118,11 +118,11 @@ class EntityContextController extends Controller
         $plants = $plants->unique('id')->values();
 
         // 1. Auto-redirect if user has defaults set (only if session is currently empty)
-        if (!session('active_entity_id') && $user->default_entity_id && $user->default_plant_id) {
-            $defaultPlant = Plant::find($user->default_plant_id);
+        if (!session('active_entity_id')
+            && ($defaultPlant = app(\App\Services\PlantContextService::class)->validDefaultPlant($user, $isSuperAdmin))) {
             session([
-                'active_entity_id' => $user->default_entity_id,
-                'active_plant_id'  => $user->default_plant_id,
+                'active_entity_id' => $defaultPlant->entity_id,
+                'active_plant_id'  => $defaultPlant->id,
                 'gstin'            => $defaultPlant?->gstin,
             ]);
             return redirect()->route('dashboard');
