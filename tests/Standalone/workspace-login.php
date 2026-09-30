@@ -103,7 +103,7 @@ checkWorkspace(!$ctx->hasWorkspaces($user), 'Nonexistent specific plant was acce
 DB::table('mm_entity_users')->where('id', 1)->update(['plant_id' => 1]);
 DB::table('mm_entities')->where('id', 1)->update(['is_suspended' => 1]);
 DB::table('mm_plants')->where('id', 1)->update(['is_active' => -1]);
-checkWorkspace($ctx->hasWorkspaces($user), 'Restricted workspace must retain existing restriction flow.');
+checkWorkspace(!$ctx->hasWorkspaces($user), 'Suspended organization must not count as a displayed workspace.');
 $user->forceFill(['default_entity_id' => 1, 'default_plant_id' => 1]);
 foreach ([['is_suspended' => 1, 'is_active' => 1], ['is_suspended' => 0, 'is_active' => -1], ['is_suspended' => 0, 'is_active' => 0]] as $state) {
     DB::table('mm_entities')->where('id', 1)->update(['is_suspended' => $state['is_suspended']]);
@@ -111,8 +111,15 @@ foreach ([['is_suspended' => 1, 'is_active' => 1], ['is_suspended' => 0, 'is_act
     session()->forget(['active_entity_id', 'active_plant_id']);
     checkWorkspace($ctx->validDefaultPlant($user) === null && $ctx->plantId() === null, 'Restricted default was restored.');
     $response = (new SetEntityContext)->handle($request, fn () => response('dashboard'));
-    checkWorkspace($response->isRedirect(route('entity-context.index')), 'Restricted dashboard must lead to selector.');
-    checkWorkspace((new EntityContextController)->index() instanceof Inertia\Response, 'Selector redirected back to restricted dashboard.');
+    $selection = (new EntityContextController)->index();
+    if ($state['is_suspended'] === 0 && $state['is_active'] === -1) {
+        checkWorkspace($response->isRedirect(route('entity-context.index')), 'Visible restricted workspace must still require selection.');
+        checkWorkspace($selection instanceof Inertia\Response, 'Visible restricted workspace must retain its restriction screen.');
+    } else {
+        checkWorkspace($response->getContent() === 'dashboard', 'Empty workspace list blocked the dashboard.');
+        checkWorkspace($selection instanceof Illuminate\Http\RedirectResponse && $selection->getTargetUrl() === url('/settings/roles'), 'Empty workspace list did not skip to last visit.');
+        checkWorkspace(!session('active_plant_id') && $ctx->plantId() === null, 'Hidden workspace retained plant access.');
+    }
 }
 DB::table('mm_entities')->where('id', 1)->update(['is_suspended' => 0]);
 DB::table('mm_plants')->where('id', 1)->update(['is_active' => 1]);

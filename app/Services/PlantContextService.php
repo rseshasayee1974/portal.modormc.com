@@ -58,11 +58,12 @@ class PlantContextService
         return $plant;
     }
 
-    /** Include restricted workspaces so their existing access checks still apply. */
+    /** Match the workspaces displayed by EntityContextController. */
     public function hasWorkspaces(User $user, ?bool $isSuperAdmin = null): bool
     {
-        $plants = Plant::query()->whereHas('entity');
+        $plants = Plant::query()->where('is_active', '!=', 0);
         if (!($isSuperAdmin ?? $user->isSystemAdmin())) {
+            $plants->whereHas('entity', fn ($query) => $query->where('is_suspended', 0));
             $plants->whereExists(function ($query) use ($user) {
                 $query->selectRaw('1')->from('mm_entity_users')
                     ->where('user_id', $user->id)
