@@ -363,6 +363,79 @@ class PrintDataFormatter
         return 0;
     }
 
+    /**
+     * Resolves the HSN code for an item, falling back through item properties,
+     * product, mix design, concrete grade, and finally default '38245010'.
+     */
+    public static function resolveHsnCode($item, ...$objects): string
+    {
+        $candidates = [];
+
+        if (is_array($item)) {
+            $candidates[] = $item['hsn_code'] ?? null;
+            $candidates[] = $item['hsn'] ?? null;
+            $candidates[] = $item['concreteGrade']['hsn_code'] ?? null;
+            $candidates[] = $item['concrete_grade']['hsn_code'] ?? null;
+            $candidates[] = $item['mix_design']['concrete_grade']['hsn_code'] ?? null;
+            $candidates[] = $item['mixDesign']['concreteGrade']['hsn_code'] ?? null;
+        } elseif (is_object($item)) {
+            $candidates[] = $item->hsn_code ?? null;
+            $candidates[] = $item->hsn ?? null;
+            $candidates[] = $item->concreteGrade?->hsn_code ?? null;
+            $candidates[] = $item->concrete_grade?->hsn_code ?? null;
+            $candidates[] = $item->mixDesign?->concreteGrade?->hsn_code ?? null;
+            $candidates[] = $item->mixDesign?->concrete_grade?->hsn_code ?? null;
+            $candidates[] = $item->mixDesign?->hsn_code ?? null;
+            $candidates[] = $item->product?->hsn_code ?? null;
+            $candidates[] = $item->product?->hsn ?? null;
+
+            if (!empty($item->mixDesign?->concrete_grade_id)) {
+                $candidates[] = \App\Models\ConcreteGrade::find($item->mixDesign->concrete_grade_id)?->hsn_code;
+            }
+            if (!empty($item->concrete_grade_id)) {
+                $candidates[] = \App\Models\ConcreteGrade::find($item->concrete_grade_id)?->hsn_code;
+            }
+        }
+
+        foreach ($objects as $obj) {
+            if (is_object($obj)) {
+                $candidates[] = $obj->hsn_code ?? null;
+                $candidates[] = $obj->hsn ?? null;
+                $candidates[] = $obj->concreteGrade?->hsn_code ?? null;
+                $candidates[] = $obj->concrete_grade?->hsn_code ?? null;
+                $candidates[] = $obj->mixDesign?->concreteGrade?->hsn_code ?? null;
+                $candidates[] = $obj->mixDesign?->concrete_grade?->hsn_code ?? null;
+                $candidates[] = $obj->mixDesign?->hsn_code ?? null;
+                $candidates[] = $obj->salesOrder?->mixDesign?->concreteGrade?->hsn_code ?? null;
+                $candidates[] = $obj->salesOrder?->mixDesign?->concrete_grade?->hsn_code ?? null;
+                $candidates[] = $obj->salesOrder?->mixDesign?->hsn_code ?? null;
+
+                if (!empty($obj->mixDesign?->concrete_grade_id)) {
+                    $candidates[] = \App\Models\ConcreteGrade::find($obj->mixDesign->concrete_grade_id)?->hsn_code;
+                }
+                if (!empty($obj->salesOrder?->mixDesign?->concrete_grade_id)) {
+                    $candidates[] = \App\Models\ConcreteGrade::find($obj->salesOrder->mixDesign->concrete_grade_id)?->hsn_code;
+                }
+            } elseif (is_array($obj)) {
+                $candidates[] = $obj['hsn_code'] ?? null;
+                $candidates[] = $obj['hsn'] ?? null;
+                $candidates[] = $obj['concreteGrade']['hsn_code'] ?? null;
+                $candidates[] = $obj['concrete_grade']['hsn_code'] ?? null;
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            if (!empty($candidate)) {
+                $trimmed = trim((string)$candidate);
+                if ($trimmed !== '' && $trimmed !== '-' && strtolower($trimmed) !== 'null') {
+                    return $trimmed;
+                }
+            }
+        }
+
+        return '38245010';
+    }
+
     // =========================================================================
     //  3. COMPANY, PARTNER & ADDRESS FORMATTERS
     // =========================================================================
@@ -1136,7 +1209,7 @@ class PrintDataFormatter
                 'name'             => $itemName,
                 'grade'            => $itemName,
                 'description'      => '',
-                'hsn'              => $item->hsn_code ?? '-',
+                'hsn'              => self::resolveHsnCode($item, $dispatch, $mixDesignObj),
                 'qty'              => (float) $item->quantity,
                 'qty_display'      => $isPurchaseBill && $item->purchase_order_item_id !== null
                     ? rtrim(rtrim(number_format((float) $item->quantity, 4), '0'), '.') : null,
@@ -1696,27 +1769,31 @@ class PrintDataFormatter
     public static function fromDeliveryChallan($batch): array
     {
         $batch->loadMissing([
-            'salesOrder', 'salesOrder.customer', 'salesOrder.site', 'salesOrder.plant', 'salesOrder.plant.entity',
+            'plant', 'salesOrder', 'salesOrder.customer', 'salesOrder.site', 'salesOrder.plant', 'salesOrder.plant.entity',
             'salesOrder.plant.addresses', 'salesOrder.mixDesign', 'salesOrder.mixDesign.concrete_grade', 'salesOrder.mixDesign.unit',
-            'dispatches', 'dispatches.truck', 'dispatches.driver', 'dispatches.transport', 'dispatches.loadTax', 'materials.product',
+            'dispatches', 'dispatches.truck', 'dispatches.driver', 'dispatches.transport', 'dispatches.loadTax', 'dispatches.customer', 'dispatches.site', 'dispatches.mixDesign', 'dispatches.mixDesign.concrete_grade', 'dispatches.uom', 'materials.product',
             'materials.uom', 'operator'
         ]);
 
+        $dispatch          = $batch->dispatches->first();
+        $plantId           = $batch->plant_id ?? $batch->salesOrder?->plant_id ?? $dispatch?->plant_id;
+        $plant             = $batch->plant ?? $batch->salesOrder?->plant;
         $data              = self::base();
-        $data['settings']  = self::getCustomSettings($batch->salesOrder->plant_id, 'delivery_challans');
+        $data['settings']  = self::getCustomSettings($plantId, 'delivery_challans');
         $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'DELIVERY CHALLAN';
         $data['doc_no']    = strtoupper('B' . ($batch->batch_no ?? $batch->id));
         $data['doc_date']  = optional($batch->load_time ?? $batch->created_at)->format('d/m/Y H:i');
 
-        $dispatch              = $batch->dispatches->first();
         $data['delivery_date'] = $dispatch?->load_time ? Carbon::parse($dispatch->load_time)->format('d/m/Y H:i') : ($batch->load_time ? $batch->load_time->format('d/m/Y H:i') : 'N/A');
         $data['state']         = $batch->status_text ?? 'DISPATCHED';
 
-        $data['company'] = self::formatCompany($batch->salesOrder->plant);
-        $data['bill_to'] = self::formatPartner($batch->salesOrder->customer);
-        $data['ship_to'] = self::formatShipTo($batch->salesOrder->site, $data['bill_to']);
+        $data['company'] = self::formatCompany($plant);
+        $customer        = $dispatch?->customer ?? $batch->salesOrder?->customer;
+        $site            = $dispatch?->site ?? $batch->salesOrder?->site;
+        $data['bill_to'] = self::formatPartner($customer);
+        $data['ship_to'] = self::formatShipTo($site, $data['bill_to']);
 
-        $settings           = CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
+        $settings           = CustomSetting::getForModule($plantId, 'batching');
         $printMode          = $settings['material_print_mode'] ?? 'run';
         $formattedMaterials = $batch->getFormattedMaterials($printMode);
 
@@ -1735,21 +1812,21 @@ class PrintDataFormatter
         });
 
         $itemsList = [];
-        if ($dispatch) {
-            $mixDesign           = $batch->salesOrder?->mixDesign;
-            $printItemNameFormat = self::getPrintItemNameFormat($data['settings'], $batch->salesOrder?->plant_id);
+        if ($dispatch || $batch) {
+            $mixDesign           = $dispatch?->mixDesign ?? $batch->salesOrder?->mixDesign;
+            $printItemNameFormat = self::getPrintItemNameFormat($data['settings'], $plantId);
             $mixDesignName       = self::resolvePrintedItemName($mixDesign, $printItemNameFormat);
-            $qty                 = (float) ($dispatch->delivered_qty ?: $batch->batch_size);
-            $rate                = (float) ($dispatch->load_rate ?? 0);
-            $subTotal            = (float) ($dispatch->load_untax_amount ?? ($qty * $rate));
-            $taxAmount           = (float) ($dispatch->load_tax_amount ?? 0);
-            $totalAmount         = (float) ($dispatch->load_total_amount ?? ($subTotal + $taxAmount));
-            $taxRate             = $dispatch->loadTax?->rate ?? 0;
-            $taxName             = $dispatch->loadTax?->name ?? '-';
+            $qty                 = (float) ($dispatch?->delivered_qty ?: $batch->batch_size);
+            $rate                = (float) ($dispatch?->load_rate ?? $batch->salesOrder?->rate ?? 0);
+            $subTotal            = (float) ($dispatch?->load_untax_amount ?? ($qty * $rate));
+            $taxAmount           = (float) ($dispatch?->load_tax_amount ?? 0);
+            $totalAmount         = (float) ($dispatch?->load_total_amount ?? ($subTotal + $taxAmount));
+            $taxRate             = $dispatch?->loadTax?->rate ?? 0;
+            $taxName             = $dispatch?->loadTax?->name ?? '-';
 
             $itemsList[] = [
                 'no' => 1, 'name' => $mixDesignName, 'grade' => $mixDesignName, 'description' => '', 'hsn' => '38245010',
-                'qty' => $qty, 'received_qty' => $qty, 'unit' => $dispatch->uom?->unit_code ?? 'CBM', 'unit_price' => $rate,
+                'qty' => $qty, 'received_qty' => $qty, 'unit' => $dispatch?->uom?->unit_code ?? 'CBM', 'unit_price' => $rate,
                 'tax_name' => $taxName, 'tax_rate' => $taxRate, 'tax_amount' => $taxAmount, 'total' => $totalAmount,
             ];
         }
@@ -1807,10 +1884,10 @@ class PrintDataFormatter
             'currency_code'   => 'INR',
             'currency_symbol' => '₹',
             'notes'           => $weightNotes,
-            'terms_text'      => self::resolveTermsCondition($data['settings'], 'Delivery Challan', $batch->salesOrder->plant_id, $batch->salesOrder?->terms_conditions ?? "1. Goods received in good condition.\n2. Any variation in quantity to be reported immediately."),
+            'terms_text'      => self::resolveTermsCondition($data['settings'], 'Delivery Challan', $plantId, $batch->salesOrder?->terms_conditions ?? "1. Goods received in good condition.\n2. Any variation in quantity to be reported immediately."),
             'total_words'     => '',
             'po_number'       => $batch->salesOrder?->order_no ?? '-',
-            'project_name'    => 'Concrete Grade: ' . self::resolveMixDesignName($batch->salesOrder?->mixDesign),
+            'project_name'    => 'Concrete Grade: ' . self::resolveMixDesignName($mixDesign),
         ];
         $data['batch'] = $batch;
 

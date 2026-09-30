@@ -72,7 +72,7 @@ class PumpBoomDeploymentController extends Controller
     {
         return [
             'schedule_date'      => 'required|date',
-            'pour_reference'     => 'nullable|string|max:100',
+            'pour_reference'     => 'nullable|max:100',
             'sales_order_id'     => 'required|exists:mm_sales_orders,id',
             'batch_id'           => 'nullable|exists:mm_batches,id',
             'site_id'            => 'nullable|exists:mm_sites,id',
@@ -83,6 +83,7 @@ class PumpBoomDeploymentController extends Controller
             'grade'              => 'nullable|string|max:100',
             'planned_qty_m3'     => 'required|numeric|min:0.1',
             'pump_type'          => ['nullable', Rule::in(array_column(self::PUMP_TYPE_OPTIONS, 'value'))],
+            'boom_length_m'      => 'nullable|numeric',
             'pump_vehicle_id'    => 'required_without:pump_no|nullable|exists:mm_machines,id',
             'pump_no'            => 'required_without:pump_vehicle_id|nullable|string|max:100',
             'operator_id'        => 'nullable|exists:mm_personnels,id',
@@ -416,6 +417,7 @@ class PumpBoomDeploymentController extends Controller
         $this->validatePumpOverlap($plantId, $validated);
         $this->validateOperatorOverlap($plantId, $validated);
 
+        unset($validated['pour_reference']);
         $deployment = PumpBoomDeploymentSchedule::create($validated);
 
         return response()->json([
@@ -472,6 +474,7 @@ class PumpBoomDeploymentController extends Controller
         $this->validatePumpOverlap($plantId, $validated, $deployment->id);
         $this->validateOperatorOverlap($plantId, $validated, $deployment->id);
 
+        unset($validated['pour_reference']);
         $deployment->update($validated);
 
         return response()->json([

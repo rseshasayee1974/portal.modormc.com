@@ -22,5 +22,5 @@ const logoAlt = computed(() => {
 </script>
 
 <template>
-    <img :src="logoSrc" :alt="logoAlt" class="object-contain" />
+    <img :src="logoSrc" :alt="logoAlt" class="max-h-full w-auto object-contain shrink-0" />
 </template>

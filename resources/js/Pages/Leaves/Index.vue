@@ -269,7 +269,7 @@ const deleteBalance = (id: number) => {
                         <TabPanel value="applications">
                             <div class="space-y-6">
                                 <!-- Application Form (3-column layout) -->
-                                <BaseCard v-if="isSassOwner" class="text-sm">
+                                <BaseCard class="text-sm">
                                     <template #header>
                                         <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
                                             {{ editingAppId ? 'Edit Leave Application' : 'Request Time Off' }}
@@ -370,7 +370,7 @@ const deleteBalance = (id: number) => {
                                             <template #body="slotProps">
                                                 <span>{{ formatDate(slotProps.data.from_date) }} to {{
                                                     formatDate(slotProps.data.to_date)
-                                                }}</span>
+                                                    }}</span>
                                             </template>
                                         </Column>
                                         <Column header="Days">
@@ -384,7 +384,7 @@ const deleteBalance = (id: number) => {
                                                     :value="slotProps.data.status.toUpperCase()" rounded />
                                             </template>
                                         </Column>
-                                        <Column v-if="isSassOwner" header="Action / Approval" alignFrozen="right"
+                                        <Column header="Action / Approval" alignFrozen="right"
                                             frozen>
                                             <template #body="slotProps">
                                                 <div class="flex justify-end gap-2">
@@ -412,7 +412,7 @@ const deleteBalance = (id: number) => {
                         <TabPanel value="balances">
                             <div class="space-y-6">
                                 <!-- Balance Form (3-column layout) -->
-                                <BaseCard v-if="isSassOwner" class="text-sm">
+                                <BaseCard class="text-sm">
                                     <template #header>
                                         <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
                                             {{ editingBalanceId
@@ -531,7 +531,7 @@ const deleteBalance = (id: number) => {
                                                     :value="slotProps.data.balance" rounded />
                                             </template>
                                         </Column>
-                                        <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
+                                        <Column header="Actions" alignFrozen="right" frozen>
                                             <template #body="slotProps">
                                                 <div class="flex justify-end gap-2">
                                                     <BaseButton icon="pi pi-pencil" severity="info" text rounded

@@ -333,6 +333,11 @@ class Batch extends Model
         ];
     }
 
+    public function plant()
+    {
+        return $this->belongsTo(Plant::class, 'plant_id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

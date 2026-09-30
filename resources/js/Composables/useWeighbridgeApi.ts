@@ -16,11 +16,11 @@ export function useWeighbridgeApi() {
     const resolveMode = (passedMode?: number): number => {
         if (passedMode === 1 || passedMode === 2) return passedMode;
         const customSettings: any = page?.props?.custom_settings || {};
-        const val = customSettings.batching?.new_weight 
-            ?? customSettings.batching?.newweight 
-            ?? customSettings.new_weight 
-            ?? customSettings.newweight 
-            ?? localStorage.getItem('new_weight') 
+        const val = customSettings.batching?.new_weight
+            ?? customSettings.batching?.newweight
+            ?? customSettings.new_weight
+            ?? customSettings.newweight
+            ?? localStorage.getItem('new_weight')
             ?? localStorage.getItem('newweight');
         return Number(val || 1);
     };

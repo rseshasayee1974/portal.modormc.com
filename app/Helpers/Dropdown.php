@@ -670,10 +670,11 @@ if (!function_exists('Productunit')) {
             return $query->whereNull('deleted_at')
         ->orderByRaw("
             CASE
-                WHEN unit_code = 'KGS' THEN 0
-                WHEN unit_code = 'MTR' THEN 1
-                WHEN unit_code = 'CBM' THEN 2
-                ELSE 3
+                WHEN unit_code = 'UNT' THEN 0
+                WHEN unit_code = 'KGS' THEN 1
+                WHEN unit_code = 'MTR' THEN 2
+                WHEN unit_code = 'CBM' THEN 3
+                ELSE 4
             END
         ")
         ->orderBy('unit_name')

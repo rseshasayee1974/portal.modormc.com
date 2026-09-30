@@ -194,6 +194,11 @@ class Dispatch extends Model
         return $this->belongsTo(Patron::class, 'customer_id');
     }
 
+    public function site(): BelongsTo
+    {
+        return $this->belongsTo(Site::class, 'load_site_id');
+    }
+
     public function mixDesign(): BelongsTo
     {
         return $this->belongsTo(MixDesign::class, 'mixdesign_id');

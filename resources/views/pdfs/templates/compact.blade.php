@@ -423,6 +423,10 @@
                         </td>
                         <td style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
                             <div style="font-size: 12.5px; font-weight: 700; color: #0f172a;">{{ $item['name'] }}</div>
+                            @if ($pdfSettings['hsn_code'] ?? true)
+                                @php $itemHsn = (!empty($item['hsn']) && trim((string)$item['hsn']) !== '-') ? $item['hsn'] : '38245010'; @endphp
+                                <div style="font-size: 10px; color: #64748b; margin-top: 1px;"><span style="color: #2563eb; font-weight: 600;">HSN:</span> {{ $itemHsn }}</div>
+                            @endif
                         </td>
                         @if ($pdfSettings['show_pump_charges'] ?? true)
                             <td class="text-left" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? '-' }}</td>
@@ -467,12 +471,13 @@
                                     <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
                                         <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
                                             @php
+                                                $hsnVal = (!empty($item['hsn']) && trim((string)$item['hsn']) !== '-') ? $item['hsn'] : '38245010';
                                                 $allSegments = [];
                                                 foreach ($item['recipe_materials'] as $rm) {
                                                     $allSegments[] = ['is_hsn' => false, 'name' => $rm['name'], 'qty' => $rm['qty'], 'uom' => $rm['uom']];
                                                 }
                                                 if ($pdfSettings['hsn_code'] ?? true) {
-                                                    $allSegments[] = ['is_hsn' => true, 'val' => $item['hsn'] ?? '-'];
+                                                    $allSegments[] = ['is_hsn' => true, 'val' => $hsnVal];
                                                 }
                                                 $chunkSize = count($allSegments) > 3 ? (int)ceil(count($allSegments) / 2) : count($allSegments);
                                                 $chunks = array_chunk($allSegments, max(1, $chunkSize));
@@ -495,11 +500,11 @@
                                     </div>
                                 @elseif ($hasDesc)
                                     <div class="item-sub">{{ $item['description'] }}</div>
-                                    @if (($pdfSettings['hsn_code'] ?? true) && ($item['hsn'] ?? false))
-                                        <div class="small muted" style="margin-top: 2px;"><span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $item['hsn'] }}</div>
+                                    @if ($pdfSettings['hsn_code'] ?? true)
+                                        <div class="small muted" style="margin-top: 2px;"><span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $hsnVal }}</div>
                                     @endif
-                                @elseif (($pdfSettings['hsn_code'] ?? true) && ($item['hsn'] ?? false))
-                                    <div class="small muted" style="margin-top: 2px;"><span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $item['hsn'] }}</div>
+                                @elseif ($pdfSettings['hsn_code'] ?? true)
+                                    <div class="small muted" style="margin-top: 2px;"><span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $hsnVal }}</div>
                                 @endif
                                 @include('pdfs.partials._pump_rates_table', ['item' => $item])
                             </td>
@@ -513,6 +518,22 @@
         </table>
 
         @if ($pdfSettings['show_totals'] ?? ($pdfSettings['amount'] ?? true))
+        @php
+            $groupedTaxLines = [];
+            if (!empty($data['totals']['tax_lines'])) {
+                foreach ($data['totals']['tax_lines'] as $tl) {
+                    $lbl = $tl['label'] ?? '';
+                    if (!$lbl) continue;
+                    if (!isset($groupedTaxLines[$lbl])) {
+                        $groupedTaxLines[$lbl] = [
+                            'label' => $lbl,
+                            'amount' => 0,
+                        ];
+                    }
+                    $groupedTaxLines[$lbl]['amount'] += (float) ($tl['amount'] ?? 0);
+                }
+            }
+        @endphp
         <div style="display: table; width: 100%;">
             <table class="totals-compact">
                 @if(!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)
@@ -559,7 +580,7 @@
                         </td>
                     </tr>
                 @endif
-                @foreach ($data['totals']['tax_lines'] as $tl)
+                @foreach ($groupedTaxLines as $tl)
                     @php
                         $showTax = true;
                         if (str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) {
@@ -613,6 +634,32 @@
                 </tr>
             </table>
         </div>
+        @if ($pdfSettings['total_words'] ?? true)
+            <div style="padding: 6px 10px; font-size: 10px; border-top: 1px solid #cbd5e1; background: #fafafa;">
+                <div style="font-weight: bold; margin-bottom: 2px; color: #475569;">Amount in Words :</div>
+                @foreach ($groupedTaxLines as $tl)
+                    @php
+                        $showTaxLine = true;
+                        if (str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTaxLine = false;
+                        if (str_contains($tl['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) $showTaxLine = false;
+                        if (str_contains($tl['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) $showTaxLine = false;
+                    @endphp
+                    @if ($showTaxLine && ($tl['amount'] ?? 0) > 0)
+                        @php
+                            $lbl = str_contains($tl['label'], '@') ? $tl['label'] : preg_replace('/^(CGST|SGST|IGST)\s+(\d+)/i', '$1@ $2', $tl['label']);
+                        @endphp
+                        <div style="color: #475569;">
+                            {{ $lbl }} {{ str_replace('Rupees ', 'Rs. ', \App\Services\PrintDataFormatter::numberToWords($tl['amount'], 'INR')) }}
+                        </div>
+                    @endif
+                @endforeach
+                @php
+                    $rawGrandWords = !empty($data['meta']['total_words']) ? $data['meta']['total_words'] : \App\Services\PrintDataFormatter::numberToWords($data['totals']['grand_total'], 'INR');
+                    $cleanGrandWords = preg_replace('/^(Rupees|Rs\.?)\s*/i', '', $rawGrandWords);
+                @endphp
+                <div style="margin-top: 3px;">Grand Total <strong>Rs. {{ $cleanGrandWords }}</strong></div>
+            </div>
+        @endif
         @endif
 
         @php

@@ -56,6 +56,9 @@ const form = useForm({
         quote_prefix:      props.batchingSettings?.quote_prefix || 'QT',
         target_to_actual:  props.batchingSettings?.target_to_actual == 1,   
         auto_carry_pump:   props.batchingSettings?.auto_carry_pump == 1,
+        schedule_to_batch: props.batchingSettings?.schedule_to_batch !== undefined 
+            ? (props.batchingSettings?.schedule_to_batch == 1 || props.batchingSettings?.schedule_to_batch === true || props.batchingSettings?.schedule_to_batch === "true") 
+            : false,
         default_transport: props.batchingSettings?.default_transport || '',
         quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
         is_grade_or_is_mix_design: props.batchingSettings?.is_grade_or_is_mix_design !== undefined ? Number(props.batchingSettings.is_grade_or_is_mix_design) : 2,
@@ -110,6 +113,7 @@ const settingRows = computed(() => [
     { section: 'Batch Sheet', key: 'hide_batch_form',    label: 'Hide Add & Edit Batch Forms',    value: form.settings.hide_batch_form,     type: 'bool' },
     { section: 'Batch Sheet', key: 'target_to_actual',   label: 'One-Click Target to Actual',     value: form.settings.target_to_actual,    type: 'bool' },
     { section: 'Batch Sheet', key: 'auto_carry_pump',    label: 'Auto-Select Previous Batch Pump', value: form.settings.auto_carry_pump,   type: 'bool' },
+    { section: 'Batch Sheet', key: 'schedule_to_batch',  label: 'Create Real Batch from Schedule',  value: form.settings.schedule_to_batch,   type: 'bool' },
     { section: 'Defaults',    key: 'default_transport',  label: 'Default Transporter Name',        value: form.settings.default_transport,   type: 'text' },
     { section: 'Defaults',    key: 'quote_validity',     label: 'Quotation Validity (Days)',       value: form.settings.quote_validity,      type: 'text' },
     // Print
@@ -145,6 +149,7 @@ const submit = () => {
         hide_batch_form:    form.settings.hide_batch_form    ? 1 : 0,
         target_to_actual:   form.settings.target_to_actual   ? 1 : 0,
         auto_carry_pump:    form.settings.auto_carry_pump    ? 1 : 0,
+        schedule_to_batch:  form.settings.schedule_to_batch  ? 1 : 0,
         quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
         print_delivery_ingredients: form.settings.print_delivery_ingredients ? 1 : 0,
         quotation_price_list: form.settings.quotation_price_list ? 1 : 0,
@@ -592,6 +597,21 @@ const deleteModule = (id: number) => {
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.auto_carry_pump" />
+                            </div>
+
+                            <!-- schedule_to_batch -->
+                            <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                                <div>
+                                    <h4 class="font-bold text-emerald-700 text-sm">Create Real Batch from Schedule <code class="text-[9px] text-emerald-400 ml-1 font-normal">[schedule_to_batch]</code></h4>
+                                    <p class="text-xs text-emerald-500 mt-0.5">Automatically create a real batch and dispatch entry when scheduling a pour. If disabled, only the schedule slot will be created.</p>
+                                    <div v-if="form.settings.schedule_to_batch" class="mt-2">
+                                        <span class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Real Batch Creation Enabled</span>
+                                    </div>
+                                    <div v-else class="mt-2">
+                                        <span class="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Real Batch Creation Disabled (Schedule Only)</span>
+                                    </div>
+                                </div>
+                                <InputSwitch v-model="form.settings.schedule_to_batch" />
                             </div>
 
                             <!-- material_print_mode -->

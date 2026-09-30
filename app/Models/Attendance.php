@@ -28,6 +28,7 @@ class Attendance extends Model
         'is_late',
         'is_early_departure',
         'source',
+        'notes',
     ];
 
     protected $casts = [

@@ -354,7 +354,7 @@
                     $displayGrade = $item['name'] ?? $item['grade'] ?? '-';
                 @endphp
                 <tr>
-                    @if($showHsn) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td> @endif
+                    @if($showHsn) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ (!empty($item['hsn']) && trim((string)$item['hsn']) !== '-') ? $item['hsn'] : '38245010' }}</strong></td> @endif
                     <td style="text-align: center; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $displayGrade }}</td>
                     @if($showDesc) <td style="{{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $hasValue($item['description'] ?? null) ? $item['description'] : '' }}</td> @endif
                     @if($showPump) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? 'TM' }}</td> @endif
@@ -434,16 +434,20 @@
 
     {{-- AMOUNT IN WORDS & GRAND TOTAL SUMMARY --}}
     @php
-        $totTaxAmt = (float)($data['totals']['tax_amount'] ?? array_sum(array_column($data['totals']['tax_lines'] ?? [], 'amount')));
-        $firstItem = $data['items'][0] ?? [];
-        $totTaxRate = (float)($firstItem['tax_rate'] ?? 18);
-        $firstTaxGroup = strtoupper($firstItem['tax_group'] ?? '');
-        $firstTaxName = strtoupper($firstItem['tax_name'] ?? '');
-        $isGlobalIgst = !empty($firstItem['is_igst']) || $firstTaxGroup === 'IGST' || str_contains($firstTaxName, 'IGST');
-        $formattedTaxRate = $formatRate($totTaxRate);
-        $halfTotRate = $totTaxRate / 2;
-        $halfTotAmt = $totTaxAmt / 2;
-        $formattedHalfRate = $formatRate($halfTotRate);
+        $groupedTaxLines = [];
+        if (!empty($data['totals']['tax_lines'])) {
+            foreach ($data['totals']['tax_lines'] as $tl) {
+                $lbl = $tl['label'] ?? '';
+                if (!$lbl) continue;
+                if (!isset($groupedTaxLines[$lbl])) {
+                    $groupedTaxLines[$lbl] = [
+                        'label' => $lbl,
+                        'amount' => 0,
+                    ];
+                }
+                $groupedTaxLines[$lbl]['amount'] += (float) ($tl['amount'] ?? 0);
+            }
+        }
         $rawGrandWords = !empty($data['meta']['total_words']) ? $data['meta']['total_words'] : \App\Services\PrintDataFormatter::numberToWords($data['totals']['grand_total'], 'INR');
         $cleanGrandWords = preg_replace('/^(Rupees|Rs\.?)\s*/i', '', $rawGrandWords);
     @endphp
@@ -453,18 +457,20 @@
             <td class="totals-words">
                 @if(($pdfSettings['total_words'] ?? true) !== false)
                     <div style="font-weight: bold; margin-bottom: 3px;">Amount in Words :</div>
-                    @if($isGlobalIgst)
-                        @if(($pdfSettings['igst'] ?? true) !== false && $totTaxAmt > 0)
-                            <div>IGST@ {{ $formattedTaxRate }}% {{ str_replace('Rupees ', 'Rs. ', \App\Services\PrintDataFormatter::numberToWords($totTaxAmt, 'INR')) }}</div>
+                    @foreach ($groupedTaxLines as $tl)
+                        @php
+                            $showTaxLine = true;
+                            if (str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTaxLine = false;
+                            if (str_contains($tl['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) $showTaxLine = false;
+                            if (str_contains($tl['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) $showTaxLine = false;
+                        @endphp
+                        @if ($showTaxLine && ($tl['amount'] ?? 0) > 0)
+                            @php
+                                $lbl = str_contains($tl['label'], '@') ? $tl['label'] : preg_replace('/^(CGST|SGST|IGST)\s+(\d+)/i', '$1@ $2', $tl['label']);
+                            @endphp
+                            <div>{{ $lbl }} {{ str_replace('Rupees ', 'Rs. ', \App\Services\PrintDataFormatter::numberToWords($tl['amount'], 'INR')) }}</div>
                         @endif
-                    @else
-                        @if(($pdfSettings['cgst'] ?? true) !== false && $halfTotAmt > 0)
-                            <div>CGST@ {{ $formattedHalfRate }}% {{ str_replace('Rupees ', 'Rs. ', \App\Services\PrintDataFormatter::numberToWords($halfTotAmt, 'INR')) }}</div>
-                        @endif
-                        @if(($pdfSettings['sgst'] ?? true) !== false && $halfTotAmt > 0)
-                            <div>SGST@ {{ $formattedHalfRate }}% {{ str_replace('Rupees ', 'Rs. ', \App\Services\PrintDataFormatter::numberToWords($halfTotAmt, 'INR')) }}</div>
-                        @endif
-                    @endif
+                    @endforeach
                     <div style="margin-top: 3px;">Grand Total <strong>Rs. {{ $cleanGrandWords }}</strong></div>
                 @endif
             </td>
@@ -502,8 +508,8 @@
                             <td class="val-cell">{{ number_format($data['totals']['pass_amount'], 2) }}</td>
                         </tr>
                     @endif
-                    @if (!empty($data['totals']['tax_lines']))
-                        @foreach ($data['totals']['tax_lines'] as $tl)
+                    @if (!empty($groupedTaxLines))
+                        @foreach ($groupedTaxLines as $tl)
                             @php
                                 $showTaxLine = true;
                                 if (str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTaxLine = false;
