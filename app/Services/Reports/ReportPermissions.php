@@ -37,6 +37,7 @@ class ReportPermissions
         'cancelled_dispatch' => 'Cancelled Dispatch Report',
         'production_batch' => 'Batch Production Sheet',
         'batching_schedule' => 'Batching Schedule Report',
+        'pump_boom_deployment' => 'Pump & Boom Deployment Report',
         'machines_list' => 'Machine Fleet Inventory',
         'machine_tracker' => 'Machine Tracker Log Sheet',
         'machine_summary' => 'Machine Summary Report',

@@ -533,6 +533,17 @@ class ExcelExportService
                     'quantity' => $data['total_quantity'] ?? 0,
                     default => '',
                 }, array_keys($columns));
+            } elseif ($type === 'pump_boom_deployment') {
+                $columns = PumpBoomDeploymentReportService::COLUMNS;
+                $headersList = array_values($columns);
+                foreach (($data['transactions'] ?? []) as $row) {
+                    $rows[] = array_map(fn ($field) => $row[$field] ?? '', array_keys($columns));
+                }
+                $totalRow = array_map(fn ($field) => match ($field) {
+                    'date' => 'Total (excluding cancelled)',
+                    'quantity' => $data['total_quantity'] ?? 0,
+                    default => '',
+                }, array_keys($columns));
             } elseif ($type === 'production_batch') {
                 $headersList = ['Start Date', 'Batch No', 'Sales Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'];
                 foreach (($data['transactions'] ?? []) as $row) {
