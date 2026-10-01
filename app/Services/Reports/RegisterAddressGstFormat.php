@@ -15,6 +15,7 @@ class RegisterAddressGstFormat
         $report['data'] = $this->rowsWithDetails($report['data'], $type, $plantId);
         $report['columns'] = $this->columns();
         $report['totals']['roundoff'] = round(array_sum(array_column($report['data'], 'roundoff')), 2);
+        $report['totals']['discount'] = round(array_sum(array_column($report['data'], 'discount')), 2);
         $report['excel_format'] = self::KEY;
         $report['note'] = 'GROSS is the stored item total including tax; SALES GST is the taxable item value. ROUNDOFF appears once per invoice/bill on its first matching item. Amounts are in INR.';
         return $report;
@@ -24,6 +25,8 @@ class RegisterAddressGstFormat
     {
         $report['data'] = $this->rowsWithDetails($report['data'], 'sales_register', $plantId);
         $report['columns'] = RegisterReportColumns::standardSalesExcel($report['columns']);
+        $report['totals']['roundoff'] = round(array_sum(array_column($report['data'], 'roundoff')), 2);
+        $report['totals']['discount'] = round(array_sum(array_column($report['data'], 'discount')), 2);
         return $report;
     }
 
@@ -58,6 +61,7 @@ class RegisterAddressGstFormat
                 $address = $this->preferredAddress($contact?->addresses ?? collect(), $plantId)
                     ?? $this->preferredAddress($party?->addresses ?? collect(), $plantId);
                 $roundoff = isset($seenDocuments[$row['document_id']]) ? 0.0 : (float) ($document?->roundoff ?? 0);
+                $discount = isset($seenDocuments[$row['document_id']]) ? 0.0 : (float) ($document?->discount ?? 0);
                 $seenDocuments[$row['document_id']] = true;
                 $shippingParts = $sales
                     ? [$document?->shipping_address_1, $document?->shipping_address_2, $document?->shipping_city]
@@ -80,6 +84,7 @@ class RegisterAddressGstFormat
                     'rate' => $row[$sales ? 'rate' : 'purchase_rate'],
                     'gross' => $row['net_amount'],
                     'tax_name' => $row['tax_name'] ?? $this->taxName($row['taxes'] ?? []),
+                    'discount' => round($discount, 2),
                     'roundoff' => round($roundoff, 2),
                 ]);
             }
@@ -100,14 +105,14 @@ class RegisterAddressGstFormat
                 $join->on('site.id', '=', 'dispatch.unload_site_id')->where('site.plant_id', $plantId)->whereNull('site.deleted_at');
             })->where('invoice.plant_id', $plantId)->where('invoice.invoice_type', 'sales')->whereIn('invoice.id', $ids)->whereNull('invoice.deleted_at')
             ->get(['invoice.id', DB::raw('COALESCE(NULLIF(invoice.partner_id, 0), NULLIF(dispatch.customer_id, 0), sales_order.customer_id) as party_id'),
-                'invoice.round_off as roundoff', 'site.name as shipping_name', 'site.site_address_1 as shipping_address_1',
+                'invoice.round_off as roundoff', 'invoice.discount_total as discount', 'site.name as shipping_name', 'site.site_address_1 as shipping_address_1',
                 'site.site_address_2 as shipping_address_2', 'site.city as shipping_city', 'site.zipcode as shipping_zipcode'])->keyBy('id');
     }
 
     private function purchaseDocuments(array $ids, int $plantId)
     {
         return DB::table('mm_purchase_orders')->where('plant_id', $plantId)->whereIn('id', $ids)->whereNull('deleted_at')
-            ->get(['id', 'vendor_id as party_id', 'rounding_value as roundoff'])->keyBy('id');
+            ->get(['id', 'vendor_id as party_id', 'rounding_value as roundoff', 'discount_amount as discount'])->keyBy('id');
     }
 
     private function preferredAddress($addresses, int $plantId)
@@ -137,13 +142,13 @@ class RegisterAddressGstFormat
         foreach ([
             ['date', 'DATE', 'date'], ['party', 'PARTY'], ['address_1', 'ADDRESS_1'], ['address_2', 'ADDRESS_2'],
             ['city', 'CITY'], ['state', 'STATE'], ['zipcode', 'ZIPCODE'], ['shipping_address', 'SHIPPING ADDRESS'],
-            ['shipping_zipcode', 'SHIPPING ZIPCODE'], ['payment_mode', 'TYPE'], ['invoice_no', 'INVOICE NO'],
+            ['shipping_zipcode', 'SHIPPING ZIPCODE'], ['payment_mode', 'TYPE (CASH OR CREDIT)'], ['invoice_no', 'INVOICE NO'],
             ['truck', 'TRUCK'], ['gst_number', 'GSTIN'], ['product_name', 'PRODUCT'], ['hsn_code', 'HSN/SAC'],
             ['qty', 'QUANTITY', 'number', 'qty'], ['unit', 'UNIT'], ['rate', 'RATE', 'number'],
-            ['gross', 'GROSS', 'number', 'grand_total'], ['taxable_amount', 'SALES GST', 'number', 'taxable'],
+            ['gross', 'GROSS', 'number', 'grand_total'], ['discount', 'DISCOUNT', 'number', 'discount'], ['taxable_amount', 'SALES GST', 'number', 'taxable'],
             ['tax_name', 'TAX NAME'], ['tax_amount', 'TAX AMOUNT', 'number', 'gst'],
             ['cgst', 'CGST', 'number', 'cgst'], ['sgst', 'SGST', 'number', 'sgst'], ['igst', 'IGST', 'number', 'igst'],
-            ['roundoff', 'ROUNDOFF', 'number', 'roundoff'],
+            ['roundoff', 'ROUND OFF', 'number', 'roundoff'],
         ] as $column) {
             $columns[] = ['key' => $column[0], 'label' => $column[1], 'format' => $column[2] ?? 'text', 'total' => $column[3] ?? null];
         }

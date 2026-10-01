@@ -303,9 +303,13 @@ class QueueReportExportJob implements ShouldQueue
             ];
         }
 
+        $paperSize = 'a4';
         $orientation = 'portrait';
-        if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
+        if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER', 'INVENTORY_INWARD']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
             $orientation = 'landscape';
+        }
+        if (strtoupper($type) === 'INVENTORY_INWARD') {
+            $paperSize = 'a5';
         }
 
         $startLabel = !empty($params['start']) ? (str_contains($params['start'], ':') ? \Carbon\Carbon::parse($params['start'])->format('d-m-Y H:i') : \Carbon\Carbon::parse($params['start'])->format('d-m-Y')) : '';
@@ -327,7 +331,7 @@ class QueueReportExportJob implements ShouldQueue
         ], $data, $extraParams);
 
         $pdf = Pdf::loadView($view, $pdfData)
-            ->setPaper('a4', $orientation)
+            ->setPaper($paperSize, $orientation)
             ->setOption([
                 'defaultFont' => 'DejaVu Sans',
                 'isHtml5ParserEnabled' => true,

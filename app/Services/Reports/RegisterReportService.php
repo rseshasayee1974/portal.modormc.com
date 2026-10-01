@@ -82,6 +82,7 @@ abstract class RegisterReportService implements ReportServiceInterface
         $count = 0;
         $group = null;
         $totals = ['qty' => 0.0, 'taxable' => 0.0, 'gst' => 0.0, 'grand_total' => 0.0,
+            'discount' => 0.0, 'roundoff' => 0.0,
             'cgst' => 0.0, 'sgst' => 0.0, 'utgst' => 0.0, 'igst' => 0.0, 'tcs' => 0.0, 'taxes' => []];
         $fields = ['qty' => 'qty', 'taxable_amount' => 'taxable', 'tax_amount' => 'gst',
             'net_amount' => 'grand_total', 'cgst' => 'cgst', 'sgst' => 'sgst', 'utgst' => 'utgst', 'igst' => 'igst', 'tcs' => 'tcs'];
@@ -92,7 +93,16 @@ abstract class RegisterReportService implements ReportServiceInterface
             $count++;
         };
 
+        $seenDocuments = [];
+
         foreach ($items as $row) {
+            $docId = $row['document_id'] ?? null;
+            if ($docId && !isset($seenDocuments[$docId])) {
+                $seenDocuments[$docId] = true;
+                $totals['discount'] += (float) ($row['discount'] ?? 0);
+                $totals['roundoff'] += (float) ($row['roundoff'] ?? 0);
+            }
+
             $row['taxes'] = $row['taxes'] ?? [];
             $row['tax_amount'] = $row['tax_amount'] ?? array_sum($row['taxes']);
             // Derive component totals from the rate splits, including UTGST on its own.

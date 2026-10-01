@@ -587,6 +587,7 @@ class PurchaseOrderInwardController extends Controller
                         'png' => 'image/png',
                         'gif' => 'image/gif',
                         'webp' => 'image/webp',
+                        'svg' => 'image/svg+xml',
                         default => 'image/jpeg',
                     };
                     return "data:{$mime};base64," . base64_encode($content);

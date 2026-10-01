@@ -327,9 +327,13 @@ class ReportController extends Controller
         $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->format('d-m-Y')) : '';
         $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->format('d-m-Y')) : '';
 
+        $paperSize = 'a4';
         $orientation = 'portrait';
-        if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
+        if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER', 'INVENTORY_INWARD']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
             $orientation = 'landscape';
+        }
+        if (strtoupper($type) === 'INVENTORY_INWARD') {
+            $paperSize = 'a5';
         }
 
         $css = $this->getReportCss($type);
@@ -347,7 +351,7 @@ class ReportController extends Controller
         ], $data, $extraParams);
 
         $pdf = Pdf::loadView($view, $pdfData)
-            ->setPaper('a4', $orientation)
+            ->setPaper($paperSize, $orientation)
             ->setOption([
                 'defaultFont' => 'DejaVu Sans',
                 'isHtml5ParserEnabled' => true,
