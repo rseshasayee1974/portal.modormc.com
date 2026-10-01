@@ -45,7 +45,8 @@
         }
 
         .co-name {
-            font-size: 15px;
+            font-family: var(--font-heading);
+            font-size: 18px;
             font-weight: 700;
         }
 
@@ -56,9 +57,11 @@
         }
 
         .inv-title {
-            font-size: 24px;
+            font-family: var(--font-heading);
+            font-size: 22px;
             font-weight: 900;
             line-height: 1.1;
+            color: #0f172a;
         }
 
         .inv-ref {
@@ -137,20 +140,22 @@
         }
 
         .items-table th {
-            border-top: 1.5px solid #1e293b;
-            border-bottom: 1.5px solid #1e293b;
-            padding: 5px 8px;
-            font-size: 10px;
+            border-top: 1px solid #cbd5e1;
+            border-bottom: 1px solid #cbd5e1;
+            background: #f8fafc;
+            padding: 5px 4px;
+            font-size: 8.5px;
             font-weight: 700;
+            color: #475569;
             text-transform: uppercase;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.03em;
         }
 
         .items-table td {
-            padding: 6px 8px;
+            padding: 5px 4px;
             vertical-align: top;
             border-bottom: 1px solid #e2e8f0;
-            font-size: 11px;
+            font-size: 10px;
         }
 
         /* TOTALS + FOOTER BLOCK */
@@ -189,13 +194,13 @@
             color: #64748b;
             padding-right: 14px !important;
             width: 58%;
-            font-size: 11px;
+            font-size: 10px;
         }
 
         .bt-val {
             text-align: right;
             white-space: nowrap;
-            font-size: 11px;
+            font-size: 8px;
         }
 
         .bt-total-row {
@@ -467,30 +472,30 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th class="text-center" style="width:4%">#</th>
+                    <th class="text-center" style="width:3%">#</th>
                     <th class="text-left">Item &amp; Description</th>
                     @if ($pdfSettings['show_pump_charges'] ?? true)
-                        <th class="text-left" style="width:10%">Concrete Type</th>
-                        <th class="text-right" style="width:10%">Pump Charges</th>
+                        <th class="text-left" style="width:9%">Concrete Type</th>
+                        <th class="text-left" style="width:9%">Pump Charges</th>
                     @endif
                     @if ($pdfSettings['qty'] ?? true)
-                        <th class="text-right" style="width:6%">Qty</th>
+                        <th class="text-right" style="width:5%">Qty</th>
                     @endif
                     @if ($pdfSettings['unit'] ?? true)
-                        <th class="text-center" style="width:5%">UOM</th>
+                        <th class="text-center" style="width:4%">UOM</th>
                     @endif
-                    <th class="text-right" style="width:10%">{{ $labels['rate'] ?? 'Rate' }}</th>
+                    <th class="text-right" style="width:9%">{{ $labels['rate'] ?? 'Rate' }}</th>
                     @if ($pdfSettings['discount'] ?? false)
                         <th class="text-right" style="width:7%">Discount</th>
                     @endif
                     @if ($pdfSettings['tax_rate'] ?? true)
-                        <th class="text-right" style="width:6%">Tax %</th>
+                        <th class="text-right" style="width:5%">Tax %</th>
                     @endif
                     @if ($pdfSettings['tax_amount'] ?? true)
-                        <th class="text-right" style="width:9%">Tax Amt</th>
+                        <th class="text-right" style="width:8%">Tax Amt</th>
                     @endif
                     @if ($pdfSettings['amount'] ?? true)
-                        <th class="text-right" style="width:13%">{{ $labels['amount'] ?? 'Amount' }}</th>
+                        <th class="text-right" style="width:11%">{{ $labels['amount'] ?? 'Amount' }}</th>
                     @endif
                 </tr>
             </thead>
@@ -517,7 +522,7 @@
                     @endphp
                     <tr>
                         <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
-                            <span style="display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; background-color: #e0edff; color: #2563eb; font-weight: 700; font-size: 11px; border-radius: 6px;">{{ $item['no'] }}</span>
+                            <span style="display: inline-block; text-align: center; color: #2563eb; font-weight: 700; font-size: 11px;">{{ $item['no'] }}</span>
                         </td>
                         <td style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
                             <div style="font-size: 12.5px; font-weight: 700; color: #0f172a;">{{ $item['name'] }}</div>
@@ -528,7 +533,7 @@
                         </td>
                         @if ($pdfSettings['show_pump_charges'] ?? true)
                             <td class="text-left" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? '-' }}</td>
-                            <td class="text-right" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                            <td class="text-left" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
                                 {{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}
                             </td>
                         @endif
@@ -568,9 +573,9 @@
                                     $hsnVal = (!empty($item['hsn']) && trim((string)$item['hsn']) !== '-') ? $item['hsn'] : '38245010';
                                 @endphp
                                 @if ($hasRecipe)
-                                    <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
-                                    <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
-                                        <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
+                                    <div style="font-size: 9px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; margin-bottom: 4px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
+                                    <div style="display: inline-block; padding: 2px 4px;">
+                                        <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9px; color: #475569;">
                                             @php
                                                 $allSegments = [];
                                                 foreach ($item['recipe_materials'] as $rm) {
@@ -580,14 +585,14 @@
                                                 $chunks = array_chunk($allSegments, max(1, $chunkSize));
                                             @endphp
                                             @foreach ($chunks as $cIdx => $chunk)
-                                                <tr style="{{ $cIdx > 0 ? 'border-top: 1px solid #e2e8f0;' : '' }}">
+                                                <tr style="{{ $cIdx > 0 ? 'border-top: 1px solid #f1f5f9;' : '' }}">
                                                     @foreach ($chunk as $sIdx => $seg)
                                                         @php $isLast = ($sIdx === count($chunk) - 1); @endphp
-                                                        <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }}  vertical-align: middle;">
+                                                        <td style="padding: 3px 10px 3px 4px; {{ !$isLast ? 'border-right: 1px solid #f1f5f9;' : '' }}  vertical-align: middle;">
                                                             @if (!empty($seg['is_hsn']))
                                                                 <span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $seg['val'] }}
                                                             @else
-                                                                <span style="color: #64748b; margin-right: 2px;">&bull;</span> {{ $seg['name'] }} ({{ $seg['qty'] }} {{ $seg['uom'] }})
+                                                                <span style="color: #94a3b8; margin-right: 3px;">&bull;</span> <span style="color: #334155;">{{ $seg['name'] }}</span> <span style="color: #64748b;">({{ $seg['qty'] }} {{ $seg['uom'] }})</span>
                                                             @endif
                                                         </td>
                                                     @endforeach
@@ -595,7 +600,8 @@
                                             @endforeach
                                         </table>
                                     </div>
-                                @elseif ($hasDesc)
+                                @endif
+                                @if ($hasDesc)
                                     <div class="item-sub">{{ $item['description'] }}</div>
                                    
                                 @endif

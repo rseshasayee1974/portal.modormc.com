@@ -417,7 +417,8 @@
                                             @endforeach
                                         </table>
                                     </div>
-                                @elseif ($hasDesc)
+                                @endif
+                                @if ($hasDesc)
                                     <div class="item-sub">{{ $item['description'] }}</div>
                                 @endif
                                 @include('pdfs.partials._pump_rates_table', ['item' => $item])

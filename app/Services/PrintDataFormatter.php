@@ -677,21 +677,7 @@ class PrintDataFormatter
 
     public static function formatMixDesignDescription(?string $baseDesc, $mixDesign): string
     {
-        $description = $baseDesc ?? '';
-        if ($mixDesign && $mixDesign->items && $mixDesign->items->count() > 0) {
-            $materials = $mixDesign->items->map(function ($mdItem) {
-                $prodName = $mdItem->product->title ?? $mdItem->product?->title ?? 'Unknown';
-                $qty = (float) $mdItem->actual_quantity;
-                $unit = $mdItem->uom->unit_code ?? $mdItem->uom?->unit_code ?? '';
-                $formattedQty = $qty == floor($qty) ? (int) $qty : number_format($qty, 2);
-                return trim("• {$prodName} ({$formattedQty} {$unit})");
-            })->filter()->implode("\n");
-            
-            if ($materials) {
-                $description .= $description ? "\n\nRecipe Details:\n{$materials}" : "Recipe Details:\n{$materials}";
-            }
-        }
-        return $description;
+        return $baseDesc ?? '';
     }
 
     public static function resolveRecipeMaterials($mixDesign): array
