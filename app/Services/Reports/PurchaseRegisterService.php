@@ -54,7 +54,6 @@ class PurchaseRegisterService extends RegisterReportService
             'bill_date' => ($order?->billed_date ?? $order?->date_order ?? $order?->created_at)?->toDateString() ?? '',
             'supplier_name' => $vendor?->legal_name ?? 'N/A',
             'gst_number' => $vendor?->gstin ?? '',
-            'payment_mode' => [0 => 'Credit', 1 => 'Cash', 2 => 'Credit'][$order?->payment_mode ?? 0] ?? 'Credit',
             'product_name' => $item->product?->title ?? $item->description ?? 'N/A',
             'document_type' => 'Purchase',
             'document_status' => $order?->state ?? '',
@@ -71,7 +70,7 @@ class PurchaseRegisterService extends RegisterReportService
             'igst' => round($sum(['IGST']), 2),
             'taxes' => $taxes,
             'discount' => (float) ($order?->discount_amount ?? 0),
-            'roundoff' => (float) ($order?->round_off ?? 0),
+            'roundoff' => (float) ($order?->rounding_value ?? 0),
             'net_amount' => (float) $item->price_total,
         ];
     }

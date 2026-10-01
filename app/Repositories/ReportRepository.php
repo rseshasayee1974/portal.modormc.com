@@ -238,8 +238,7 @@ class ReportRepository
                         'vendor_id',
                         'plant_id',
                         'discount_amount',
-                        'round_off',
-                        'payment_mode',
+                        'rounding_value',
                     ]);
                 },
                 'order.creator:id,username,email',
