@@ -26,6 +26,7 @@ class PurchaseReceiptBilling
                 if ((int) $line->purchase_order_item_id !== (int) $item->id) continue;
                 $remaining = (float) $line->quantity;
                 foreach ($item->history->sortBy('id') as $receipt) {
+                    if ($line->purchase_order_history_id && (int) $line->purchase_order_history_id !== (int) $receipt->id) continue;
                     if ($receipt->created_at && $bill->created_at && $receipt->created_at > $bill->created_at) continue;
                     $available = max(0, (float) $receipt->received_qty - ($used[$receipt->id] ?? 0));
                     $ratio = (int) $line->uom_id === (int) $item->product_uom ? 1.0
@@ -51,6 +52,12 @@ class PurchaseReceiptBilling
 
     public function originalQuantity(PurchaseOrder $order, PurchaseOrderItem $item, $bill, $line): float
     {
+        if ($line->purchase_order_history_id) {
+            $receipt = $item->history->firstWhere('id', $line->purchase_order_history_id);
+            if ($receipt && (int) $line->uom_id !== (int) $item->product_uom && (float) $receipt->conversion_quantity > 0) {
+                return round((float) $line->quantity * (float) $receipt->received_qty / (float) $receipt->conversion_quantity, 2);
+            }
+        }
         if ((int) $line->uom_id === (int) $item->product_uom) return (float) $line->quantity;
         [, $allocations] = $this->allocations($order, $item);
         $quantity = round(array_sum($allocations[$bill->id] ?? []), 2);
@@ -60,7 +67,7 @@ class PurchaseReceiptBilling
         return $quantity;
     }
 
-    public function quantity(PurchaseOrder $order, PurchaseOrderItem $item, bool $converted): array
+    public function quantity(PurchaseOrder $order, PurchaseOrderItem $item, bool $converted, ?int $receiptId = null): array
     {
         $base = max(0, (float) $item->received_quantity - (float) $item->invoiced_quantity);
         [$used] = $this->allocations($order, $item);
@@ -70,6 +77,7 @@ class PurchaseReceiptBilling
         $legacy = max(0, (float) $item->invoiced_quantity - $tracked);
         $remaining = $base;
         $quantity = 0;
+        $selectedBase = 0;
         $uom = null;
         foreach ($item->history->sortBy('id') as $receipt) {
             $available = max(0, (float) $receipt->received_qty - ($used[$receipt->id] ?? 0));
@@ -79,6 +87,8 @@ class PurchaseReceiptBilling
             $take = min($remaining, $available);
             if ($take <= 0) continue;
             $remaining -= $take;
+            if ($receiptId !== null && (int) $receipt->id !== $receiptId) continue;
+            $selectedBase += $take;
             if ($converted) {
                 if ((float) $receipt->conversion_quantity <= 0 || !$receipt->conversion_uom_id) {
                     throw ValidationException::withMessages(['items' => 'Enter conversion quantity and converted UOM on each unbilled inward receipt.']);
@@ -93,17 +103,17 @@ class PurchaseReceiptBilling
                 $quantity += (float) $receipt->conversion_quantity * $take / (float) $receipt->received_qty;
             }
         }
-        if ($converted && $remaining > 0.00001) {
+        if ($converted && $receiptId === null && $remaining > 0.00001) {
             throw ValidationException::withMessages(['items' => 'Conversion billing requires inward receipts for all unbilled received quantities.']);
         }
-        if ($converted && $base > 0 && round($quantity, 4) <= 0) {
+        if ($converted && ($receiptId === null ? $base : $selectedBase) > 0 && round($quantity, 4) <= 0) {
             throw ValidationException::withMessages(['items' => 'The converted bill quantity must be at least 0.0001.']);
         }
 
         return [
-            'quantity' => $converted ? round($quantity, 4) : $base,
+            'quantity' => $converted ? round($quantity, 4) : ($receiptId === null ? $base : $selectedBase),
             'uom_id' => $converted ? $uom : $item->product_uom,
-            'received_quantity' => $base,
+            'received_quantity' => $receiptId === null ? $base : round($selectedBase, 2),
         ];
     }
 }

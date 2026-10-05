@@ -111,3 +111,50 @@ $secondReceipt->conversion_quantity = 0;
 try { $service->quantity($order, $item, true); throw new RuntimeException('Missing conversion accepted'); }
 catch (ValidationException $e) {}
 echo "PASS: converted quantity/UOM, precision, rates, tax, charges, partial receipts, duplicate prevention, void/rebill, legacy bills and settings.\n";
+
+// Inward selection can bill a later receipt first without consuming the earlier receipt.
+$item->invoiced_quantity = 0;
+$secondReceipt->conversion_quantity = 5;
+$controller->converted = true;
+$selection = Request::create('/', 'POST', ['inward_ids' => [2], 'items' => [
+    ['order_item_id' => 42, 'inward_id' => 2, 'unit_price' => 200],
+]]);
+$selected = $method->invoke($controller, $selection, $order);
+$check(1, count($selected['items']), 'Only selected inward included');
+$check(2, $selected['items'][0]['purchase_order_history_id'], 'Inward link');
+$check(5, $selected['items'][0]['quantity'], 'Selected converted quantity');
+$check(200, $selected['_received_quantities'][42], 'Only selected original quantity is consumed');
+$check(20, $selected['shipping_charges'], 'Selected inward proportional shipping');
+$selectedLine = new InvoiceItem($selected['items'][0]);
+$selectedBill = new Invoice;
+$selectedBill->id = 10;
+$selectedBill->created_at = '2026-10-05 10:00:00';
+$selectedBill->setRelation('items', new Collection([$selectedLine]));
+$order->setRelation('billingHistory', new Collection([$selectedBill]));
+$item->invoiced_quantity = 200;
+$check(2.1234, $service->quantity($order, $item, true, 1)['quantity'], 'Earlier inward remains unbilled');
+$check(0, $service->quantity($order, $item, true, 2)['quantity'], 'Selected inward no longer billable');
+try { $method->invoke($controller, $selection, $order); throw new RuntimeException('Duplicate selected inward accepted'); }
+catch (ValidationException $e) {}
+$selectedBill->deleted_at = '2026-10-05 11:00:00';
+$check(200, $service->originalQuantity($order, $item, $selectedBill, $selectedLine), 'Void selected inward original quantity');
+$item->invoiced_quantity = 0;
+$check(5, $service->quantity($order, $item, true, 2)['quantity'], 'Voided inward is billable again');
+
+$selection->merge(['inward_ids' => [1, 2], 'items' => []]);
+$combined = $method->invoke($controller, $selection, $order);
+$check(2, count($combined['items']), 'Combined bill keeps separate inward lines');
+$check(300, $combined['_received_quantities'][42], 'Combined original quantity');
+$combinedBill = new Invoice;
+foreach ($combined['items'] as $data) {
+    $invoiceLine = new InvoiceItem($data);
+    $expected = $data['purchase_order_history_id'] === 1 ? 100 : 200;
+    $check($expected, $service->originalQuantity($order, $item, $combinedBill, $invoiceLine), 'Each combined line releases its own inward');
+}
+$controller->converted = false;
+$selection->merge(['inward_ids' => [2]]);
+$check(200, $method->invoke($controller, $selection, $order)['items'][0]['quantity'], 'Inward selection without conversion');
+$selection->merge(['inward_ids' => [999999]]);
+try { $method->invoke($controller, $selection, $order); throw new RuntimeException('Foreign inward accepted'); }
+catch (ValidationException $e) {}
+echo "PASS: inward selection, later receipt first, selected-only accounting, duplicate rejection, combined bill, void/rebill and foreign inward rejection.\n";

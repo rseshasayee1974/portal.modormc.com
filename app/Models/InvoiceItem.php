@@ -15,6 +15,7 @@ class InvoiceItem extends Model
     protected $fillable = [
         'invoice_id',
         'purchase_order_item_id',
+        'purchase_order_history_id',
         'item_id',
         'uom_id',
         'item_name',
@@ -41,6 +42,7 @@ class InvoiceItem extends Model
     }
 
     protected $casts = [
+        'purchase_order_history_id' => 'integer',
         'item_id'         => 'integer',
         'tax_id'          => 'integer',
         'uom_id'          => 'integer',

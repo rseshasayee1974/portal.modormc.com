@@ -161,7 +161,10 @@ class PurchaseOrderController extends Controller
             'invoice_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date'],
             'items' => ['sometimes', 'array'],
-            'items.*.order_item_id' => ['required', 'integer', 'distinct', \Illuminate\Validation\Rule::exists('mm_purchase_order_items', 'id')->where('order_id', $purchase_order->id)->whereNull('deleted_at')],
+            'inward_ids' => ['sometimes', 'required', 'array', 'min:1'],
+            'inward_ids.*' => ['required', 'integer', 'distinct', \Illuminate\Validation\Rule::exists('mm_purchase_order_history', 'id')->where('order_id', $purchase_order->id)->whereNull('deleted_at')],
+            'items.*.inward_id' => ['required_with:inward_ids', 'integer', 'distinct', \Illuminate\Validation\Rule::exists('mm_purchase_order_history', 'id')->where('order_id', $purchase_order->id)->whereNull('deleted_at')],
+            'items.*.order_item_id' => ['required', 'integer', \Illuminate\Validation\Rule::exists('mm_purchase_order_items', 'id')->where('order_id', $purchase_order->id)->whereNull('deleted_at')],
             'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],
         ]);
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $purchase_order) {
@@ -180,27 +183,30 @@ class PurchaseOrderController extends Controller
         }
 
         try {
+            $receivedQuantities = $invoiceData['_received_quantities'];
+            unset($invoiceData['_received_quantities']);
             $invoice = null;
-            \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order, $request, $invoiceData, &$invoice) {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order, $request, $invoiceData, $receivedQuantities, &$invoice) {
                 $invoice = \App\Models\Invoice::createWithItems($invoiceData);
 
                 if ($invoice->status === \App\Models\Invoice::STATUS_APPROVED || $invoice->status === \App\Models\Invoice::STATUS_PAID) {
                     $invoice->postToAccounting();
                 }
 
+                foreach ($purchase_order->items as $item) {
+                    if (isset($receivedQuantities[$item->id])) {
+                        $item->update(['invoiced_quantity' => (float) $item->invoiced_quantity + $receivedQuantities[$item->id]]);
+                    }
+                }
+                $fullyBilled = $purchase_order->items->every(fn ($item) => (float) $item->invoiced_quantity >= (float) $item->received_quantity);
                 $purchase_order->update([
                     'invoice_status' => 1,
                     'billing_id' => $invoice->id,
-                    'state'          => (int)$purchase_order->receipt_status === 2 ? 'billed' : 'approved',
+                    'state'          => (int)$purchase_order->receipt_status === 2 && $fullyBilled ? 'billed' : 'approved',
                     'billed_date'    => $request->input('invoice_date', now()),
                     'journal_status' => 1
                 ]);
 
-                foreach ($purchase_order->items as $item) {
-                    $item->update([
-                        'invoiced_quantity' => $item->received_quantity
-                    ]);
-                }
             });
 
             return redirect()->back()->with('success', 'Purchase Bill generated successfully and posted to accounting: ' . $invoice->invoice_number);
@@ -221,16 +227,40 @@ class PurchaseOrderController extends Controller
         $converted = $this->conversionBillingEnabled($purchase_order);
         $purchase_order->loadMissing(['items.history', 'bills.items']);
         $quantities = new \App\Services\PurchaseReceiptBilling;
+        $receivedQuantities = [];
+        $billingLines = [];
+        if ($request->has('inward_ids')) {
+            $rates = collect($request->input('items', []))->keyBy('inward_id');
+            foreach ($request->input('inward_ids', []) as $receiptId) {
+                $item = $purchase_order->items->first(fn ($item) => $item->history->contains('id', $receiptId));
+                if (!$item) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['inward_ids' => 'The selected inward does not belong to this purchase order.']);
+                }
+                $rate = $rates->get($receiptId);
+                if ($rate && (int) $rate['order_item_id'] !== (int) $item->id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'The inward does not belong to the selected PO line.']);
+                }
+                $billingLines[] = [$item, (int) $receiptId, $rate['unit_price'] ?? $item->unit_price];
+            }
+        } else {
+            foreach ($purchase_order->items as $item) {
+                $billingLines[] = [$item, null, $billRates->get($item->id)['unit_price'] ?? $item->unit_price];
+            }
+        }
 
-        foreach ($purchase_order->items as $item) {
-            if ((float)$item->received_quantity <= (float)$item->invoiced_quantity) {
+        foreach ($billingLines as [$item, $receiptId, $rate]) {
+            if ($receiptId === null && (float)$item->received_quantity <= (float)$item->invoiced_quantity) {
                 continue;
             }
 
-            $billingQuantity = $quantities->quantity($purchase_order, $item, $converted);
+            $billingQuantity = $quantities->quantity($purchase_order, $item, $converted, $receiptId);
             $baseQty = $billingQuantity['received_quantity'];
+            if ($receiptId !== null && $baseQty <= 0) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['inward_ids' => 'A selected inward is already billed or has no received quantity. Refresh and select unbilled inwards.']);
+            }
+            $receivedQuantities[$item->id] = ($receivedQuantities[$item->id] ?? 0) + $baseQty;
             $qty = $billingQuantity['quantity'];
-            $priceUnit = (float) ($billRates->get($item->id)['unit_price'] ?? $item->unit_price);
+            $priceUnit = (float) $rate;
             // Allocate fixed PO charges by received share, independently of the bill's rate.
             $receiptOrderValue += (float)$item->product_quantity > 0
                 ? (float)$item->price_subtotal * $baseQty / (float)$item->product_quantity : 0;
@@ -286,6 +316,7 @@ class PurchaseOrderController extends Controller
 
             $itemsData[] = [
                 'purchase_order_item_id' => $item->id,
+                'purchase_order_history_id' => $receiptId,
                 'item_id'   => $item->product_id,
                 'item_name'       => $item->product->title ?? $item->description,
                 'hsn_code'        => $item->product->hsn_code ?? null,
@@ -347,7 +378,8 @@ class PurchaseOrderController extends Controller
             'status'           => \App\Models\Invoice::STATUS_APPROVED,
             'created_by'       => auth()->id(),
             'updated_by'       => auth()->id(),
-            'items'            => $itemsData
+            'items'            => $itemsData,
+            '_received_quantities' => $receivedQuantities,
         ];
 
     }
@@ -364,6 +396,20 @@ class PurchaseOrderController extends Controller
         $order->loadMissing(['items.history.conversionUom', 'bills.items']);
         $quantities = new \App\Services\PurchaseReceiptBilling;
         foreach ($order->items as $item) {
+            $inwards = [];
+            foreach ($item->history as $receipt) {
+                $basePreview = $quantities->quantity($order, $item, false, $receipt->id);
+                if ($basePreview['received_quantity'] <= 0) continue;
+                try {
+                    $preview = $quantities->quantity($order, $item, $converted, $receipt->id);
+                    $preview['converted_uom'] = $converted ? $receipt->conversionUom?->unit_code : $item->uom?->unit_code;
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    $preview = ['error' => $e->validator->errors()->first()];
+                }
+                $inwards[] = ['id' => $receipt->id, 'inward_no' => $receipt->inward_no,
+                    'received_date' => $receipt->received_date, 'billing_preview' => $preview];
+            }
+            $item->setAttribute('billable_inwards', $inwards);
             $item->setAttribute('converted_receipts', $item->history->groupBy('conversion_uom_id')->map(fn ($receipts) => [
                 'quantity' => round($receipts->sum('conversion_quantity'), 4),
                 'converted_uom' => $receipts->first()->conversionUom?->unit_code,

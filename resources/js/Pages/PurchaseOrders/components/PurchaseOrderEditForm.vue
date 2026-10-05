@@ -54,14 +54,36 @@ const billForm = ref({
     account_id: null,
     invoice_date: entityToday(),
     due_date: props.form.due_date || entityToday(),
-    items: [] as { order_item_id: number; unit_price: number }[]
+    inward_ids: [] as number[],
+    items: [] as { order_item_id: number; inward_id: number; unit_price: number }[]
 });
 const billErrors = ref<Record<string, string>>({});
-const billableItems = computed(() => (props.purchaseOrder?.items || []).filter((item: any) => Number(item.received_quantity) > Number(item.invoiced_quantity)));
+const availableInwards = computed(() => (props.purchaseOrder?.items || []).flatMap((item: any) =>
+    (item.billable_inwards || []).map((inward: any) => ({ ...item, inward_id: inward.id, inward_no: inward.inward_no, received_date: inward.received_date, billing_preview: inward.billing_preview }))));
+const inwardGroups = computed(() => {
+    const groups = new Map<string, { label: string; ids: number[]; products: string[] }>();
+    for (const item of availableInwards.value) {
+        const label = item.inward_no || `Inward #${item.inward_id}`;
+        const group = groups.get(label) || { label, ids: [], products: [] };
+        group.ids.push(item.inward_id);
+        group.products.push(item.product?.title || item.description);
+        groups.set(label, group);
+    }
+    return [...groups.values()];
+});
+const billableItems = computed(() => availableInwards.value.filter((item: any) => billForm.value.inward_ids.includes(item.inward_id)));
+const selectInwards = (ids: number[], selected: boolean) => {
+    billForm.value.inward_ids = selected ? [...new Set([...billForm.value.inward_ids, ...ids])] : billForm.value.inward_ids.filter(id => !ids.includes(id));
+    const rates = new Map(billForm.value.items.map(line => [line.inward_id, line.unit_price]));
+    billForm.value.items = billableItems.value.map((item: any) => ({ order_item_id: item.id, inward_id: item.inward_id, unit_price: rates.get(item.inward_id) ?? Number(item.unit_price) }));
+};
 const billingQuantity = (item: any) => Number(item?.billing_preview?.quantity ?? Math.max(0, Number(item?.received_quantity || 0) - Number(item?.invoiced_quantity || 0)));
 const billingUom = (item: any) => item?.billing_preview?.converted_uom ?? item?.uom?.unit_code;
 const conversionText = (item: any) => (item?.converted_receipts || []).filter((r: any) => Number(r.quantity) > 0).map((r: any) => `${Number(r.quantity).toFixed(4)} ${r.converted_uom || ''}`).join(', ') || '—';
 const hasConversionError = computed(() => billableItems.value.some((item: any) => item.billing_preview?.error));
+const billInwardNumbers = (bill: any) => [...new Set((bill.items || []).map((line: any) =>
+    (props.purchaseOrder?.items || []).flatMap((item: any) => item.history || []).find((receipt: any) => receipt.id === line.purchase_order_history_id)?.inward_no
+).filter(Boolean))].join(', ');
 
 const toggle = () => {
     isOpen.value = !isOpen.value;
@@ -99,11 +121,13 @@ const approveStatusOptions = [
 
 const handleGenerateBill = () => {
     billErrors.value = {};
-    billForm.value.items = billableItems.value.map((item: any) => ({ order_item_id: item.id, unit_price: Number(item.unit_price) }));
+    billForm.value.inward_ids = [];
+    billForm.value.items = [];
     showBillDialog.value = true;
 };
 
 const executeBillGeneration = () => {
+    if (!billForm.value.inward_ids.length || hasConversionError.value) return;
     if (!billForm.value.account_id) {
         Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Please select a ledger account', showConfirmButton: false, timer: 1500 });
         return;
@@ -458,6 +482,7 @@ const handleDeleteBill = (billId: number) => {
                     <span>{{ bill.prefix }}{{ bill.invoice_number }}</span>
                     <span>{{ bill.invoice_date?.substring(0, 10) }}</span>
                     <span>Amount: {{ bill.total_amount }}</span>
+                    <span v-if="billInwardNumbers(bill)">Inward: {{ billInwardNumbers(bill) }}</span>
                     <a :href="route('print.document', { module: 'purchase_bills', id: bill.encrypted_id, action: 'view' })"
                         target="_blank" class="text-indigo-600">Print bill</a>
                     <BaseButton label="Void" severity="danger" variant="text" @click="handleDeleteBill(bill.id)" />
@@ -530,15 +555,30 @@ const handleDeleteBill = (billId: number) => {
 
         <div class="space-y-6 py-4">
             <div class="space-y-3">
+                <fieldset class="border border-slate-200 rounded-lg p-3 space-y-2">
+                    <legend class="px-1 font-semibold text-sm">Select inward numbers</legend>
+                    <div class="flex gap-3 text-xs">
+                        <button type="button" class="text-indigo-600" @click="selectInwards(availableInwards.map((item: any) => item.inward_id), true)">Select all</button>
+                        <button type="button" class="text-slate-600" @click="selectInwards(billForm.inward_ids, false)">Clear</button>
+                    </div>
+                    <label v-for="group in inwardGroups" :key="group.label" class="flex items-start gap-2 py-1 text-sm cursor-pointer">
+                        <input type="checkbox" class="mt-1 rounded border-slate-300" :checked="group.ids.every(id => billForm.inward_ids.includes(id))"
+                            @change="selectInwards(group.ids, ($event.target as HTMLInputElement).checked)" />
+                        <span><strong>{{ group.label }}</strong><span class="block text-xs text-slate-500">{{ group.products.join(', ') }}</span></span>
+                    </label>
+                    <p v-if="!inwardGroups.length" class="text-sm text-slate-500">No unbilled inward receipts are available.</p>
+                    <p v-else-if="!billForm.inward_ids.length" class="text-xs text-slate-500">Select one inward for a separate bill, or multiple inwards for a combined bill.</p>
+                </fieldset>
                 <p class="text-sm text-slate-600">Set the rate for this bill. Each new bill starts with the PO rate.</p>
                 <p class="text-sm text-indigo-600">{{ purchaseOrder?.tax_inclusive ? 'Bill rates include tax.' : 'Tax is added to bill rates.' }}</p>
                 <p v-if="purchaseOrder?.conversion_billing_enabled" class="text-sm text-indigo-600">Enter the rate per
                     converted unit shown below.</p>
                 <p v-else class="text-sm text-amber-700">Conversion billing is disabled. Enable “Bill purchases using
                     conversion quantity” in Custom Settings to use the converted unit and quantity.</p>
-                <div v-for="(line, index) in billForm.items" :key="line.order_item_id"
+                <div v-for="(line, index) in billForm.items" :key="line.inward_id"
                     class="border rounded-lg p-3 space-y-2">
                     <div class="font-semibold">{{ billableItems[index]?.product?.title }}</div>
+                    <div class="text-xs font-semibold text-indigo-600">Inward: {{ billableItems[index]?.inward_no || `#${line.inward_id}` }}</div>
                     <div v-if="!billableItems[index]?.billing_preview?.error"
                         class="rounded-lg bg-indigo-50 px-3 py-2 text-sm text-indigo-700">
                         <div class="text-xs font-semibold">{{ purchaseOrder?.conversion_billing_enabled
@@ -588,7 +628,7 @@ const handleDeleteBill = (billId: number) => {
                         <ArchiveBoxIcon class="w-4 h-4 text-amber-600" />
                     </div>
                     <p class="text-[11px] font-medium text-amber-700 leading-relaxed">
-                        This will bill only the unbilled received quantity at the rates entered above, with applicable
+                        This will bill only the selected inwards' unbilled received quantities at the rates entered above, with applicable
                         taxes
                         and proportional discounts and charges. These rates apply only to this bill.
                     </p>
@@ -600,7 +640,7 @@ const handleDeleteBill = (billId: number) => {
             <div class="flex justify-end gap-3 pt-4 border-t border-slate-50">
                 <BaseButton label="Cancel" variant="text" severity="secondary" @click="showBillDialog = false"
                     class="!text-xs font-bold uppercase tracking-widest" />
-                <BaseButton label="Generate Bill" variant="filled" severity="primary" :disabled="hasConversionError"
+                <BaseButton label="Generate Bill" variant="filled" severity="primary" :disabled="hasConversionError || !billForm.inward_ids.length"
                     @click="executeBillGeneration" />
             </div>
         </template>

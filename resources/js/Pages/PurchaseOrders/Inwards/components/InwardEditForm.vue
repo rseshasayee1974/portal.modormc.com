@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 // Components
 import Dialog from 'primevue/dialog';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import InwardTruckSelect from './InwardTruckSelect.vue';
 
 import { CheckCircleIcon, ScaleIcon, PrinterIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
@@ -15,10 +16,15 @@ const props = withDefaults(defineProps<{ inward: any; vehicles?: any[]; units?: 
     units: () => [],
 });
 const data = ref({ ...props.inward });
+const createdTrucks = ref<any[]>([]);
+const truckOptions = computed(() => [
+    ...props.vehicles,
+    ...createdTrucks.value.filter(truck => !props.vehicles.some(vehicle => vehicle.value === truck.value)),
+]);
 const detailsSaving = ref(false);
 const detailsErrors = ref<Record<string, string>>({});
 const isBilled = computed(() => Number(data.value.item?.invoiced_quantity || 0) > 0);
-const truckLabel = computed(() => props.vehicles.find(vehicle => Number(vehicle.value) === Number(data.value.truck_id))?.label || (data.value.truck_id ? data.value.truck?.registration : 'External Vehicle'));
+const truckLabel = computed(() => truckOptions.value.find(vehicle => Number(vehicle.value) === Number(data.value.truck_id))?.label || (data.value.truck_id ? data.value.truck?.registration : 'External Vehicle'));
 watch(() => props.inward, (inward) => { data.value = { ...inward }; });
 const page = usePage();
 const isManualWeightDisabled = computed(() => page.props.custom_settings?.batching?.manual_weight == 1);
@@ -281,7 +287,7 @@ const saveInwardDetails = () => {
         <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
             <h4 class="text-xs font-bold text-slate-700">Edit vehicle and units</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <BaseSelect v-model="data.truck_id" :options="vehicles" label="Vehicle / Truck" optionLabel="label" optionValue="value" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" />
+                <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
                 <BaseSelect v-model="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required :disabled="isBilled || detailsSaving" :error="detailsErrors.uom_id" />
                 <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
                 <div class="space-y-1">

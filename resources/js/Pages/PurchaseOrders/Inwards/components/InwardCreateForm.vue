@@ -10,6 +10,7 @@ import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import Dialog from 'primevue/dialog';
+import InwardTruckSelect from './InwardTruckSelect.vue';
 import Swal from 'sweetalert2';
 import {
     ArchiveBoxIcon,
@@ -47,6 +48,11 @@ const props = defineProps<{
 }>();
 
 const selectedPoId = ref(props.purchase_order?.id || null);
+const createdTrucks = ref<any[]>([]);
+const truckOptions = computed(() => [
+    ...(props.vehicles || []),
+    ...createdTrucks.value.filter(truck => !props.vehicles?.some(vehicle => vehicle.value === truck.value)),
+]);
 
 const poOptions = computed(() => {
     return props.purchaseOrders.map(po => ({
@@ -328,9 +334,8 @@ const remainingToReceive = (item: any) => {
 
                                     <!-- Col 3: Truck Selection -->
                                     <td class="px-3 py-2.5 align-middle border-r border-slate-200/80 bg-slate-50/30">
-                                        <BaseSelect v-model="item.truck_id" :options="vehicles || []"
-                                            placeholder="Select Truck" optionLabel="label" optionValue="value" filter
-                                            class="w-full !rounded-md !h-9 !bg-white text-xs border border-slate-300" />
+                                        <InwardTruckSelect v-model="item.truck_id" :options="truckOptions"
+                                            @created="createdTrucks.push($event)" />
                                     </td>
 
                                     <!-- Col 4: Conversion Qty & UOM -->

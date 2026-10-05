@@ -50,7 +50,7 @@ class MachineController extends Controller
     {
         $this->authorizeModule('create');
         
-        DB::transaction(function () use ($request) {
+        $machine = DB::transaction(function () use ($request) {
             $plant = Plant::findOrFail(session('active_plant_id'));
             $entityId = session('active_entity_id') ?? $plant->entity_id;
             
@@ -63,7 +63,13 @@ class MachineController extends Controller
             ));
 
             $machine->syncFleetRelations($request->validated());
+
+            return $machine;
         });
+
+        if ($request->expectsJson()) {
+            return response()->json(['machine' => $machine], 201);
+        }
 
         return redirect()->back()->with('success', 'Machine created successfully.');
     }
