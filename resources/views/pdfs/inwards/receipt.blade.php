@@ -7,8 +7,8 @@
     <title>Goods Receipt Note - {{ $inward->inward_no }}</title>
     <style>
         @page {
-            margin: 8mm;
-            size: A5 portrait;
+            margin: 4mm;
+            size: A5 landscape;
         }
 
         * {
@@ -203,9 +203,9 @@
 
         /* ── A5 Document Sheet Container ── */
         .grn-container {
-            width: {{ empty($is_pdf) ? '148mm' : '100%' }};
+            width: {{ empty($is_pdf) ? '210mm' : '100%' }};
             max-width: 95vw;
-            min-height: {{ empty($is_pdf) ? '210mm' : '0' }};
+            min-height: {{ empty($is_pdf) ? '148mm' : '0' }};
 
             margin: @if (empty($is_pdf))
                 28px auto 60px auto
@@ -437,7 +437,7 @@
 
         .photos-container td {
             width: 50%;
-            padding: 10px;
+            padding: 5px 8px;
             vertical-align: top;
         }
 
@@ -466,17 +466,17 @@
 
         .snap-img {
             max-width: 100%;
-            max-height: 160px;
-            height: 150px;
+            max-height: 110px;
+            height: 100px;
             width: auto;
             object-fit: contain;
             display: block;
             margin: 0 auto;
-            padding: 4px;
+            padding: 2px;
         }
 
         .snap-empty {
-            padding: 40px 10px;
+            padding: 30px 10px;
             text-align: center;
             width: 100%;
             color: #94a3b8;
@@ -553,7 +553,7 @@
 
         .sig-table td {
             width: 33.33%;
-            padding: 16px 8px 8px;
+            padding: 8px 8px 4px;
             text-align: center;
             vertical-align: bottom;
             border-right: 1px solid #f1f5f9;
@@ -565,7 +565,7 @@
 
         .sig-line {
             border-top: 1px dashed #94a3b8;
-            margin-top: 20px;
+            margin-top: 12px;
             padding-top: 4px;
             font-size: 9.5px;
             font-weight: 800;

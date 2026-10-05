@@ -20,6 +20,7 @@ import InventoryStockReport from './components/InventoryStockReport.vue';
 import InventoryInwardReport from './components/InventoryInwardReport.vue';
 import ProductionBatchReport from './components/ProductionBatchReport.vue';
 import BatchingScheduleReport from './components/BatchingScheduleReport.vue';
+import PumpBoomDeploymentReport from './components/PumpBoomDeploymentReport.vue';
 import MachinesListReport from './components/MachinesListReport.vue';
 import MachineTrackerReport from './components/MachineTrackerReport.vue';
 import MachineSummaryReport from './components/MachineSummaryReport.vue';
@@ -136,6 +137,7 @@ const reportCatalog = [
             { id: 'cancelled_dispatch', name: 'Cancelled Dispatch Report', description: 'Log of cancelled dispatches, batches, reversed orders, and 50+ word notes' },
             // { id: 'sales_register', name: 'Sales Register Report', description: 'Itemized sales invoices with GST breakdown, rate, and taxable values' },
             { id: 'batching_schedule', name: 'Batching Schedule Report', description: 'Schedule slots, unloading times and volumes filtered by unloading site, truck and pump' },
+            { id: 'pump_boom_deployment', name: 'Pump & Boom Deployment Report', description: 'Pump deployment schedules, setup and pour times, durations and delays' },
             { id: 'production_batch', name: 'Batch Production Sheet', description: 'Batch mix designs, target vs actual aggregate loads' },
         ]
     },
@@ -267,6 +269,7 @@ const getReportComponent = (type) => {
         case 'inventory_inward': return InventoryInwardReport;
         case 'production_batch': return ProductionBatchReport;
         case 'batching_schedule': return BatchingScheduleReport;
+        case 'pump_boom_deployment': return PumpBoomDeploymentReport;
         case 'machines_list': return MachinesListReport;
         case 'machine_tracker': return MachineTrackerReport;
         case 'machine_summary': return MachineSummaryReport;
@@ -1268,7 +1271,8 @@ const shareEmail = () => {
 
                                     <div v-if="['sales_register', 'purchase_register'].includes(reportType) && canExportReport"
                                         class="lg:col-span-1">
-                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Excel Format</span>
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Excel
+                                            Format</span>
                                         <BaseSelect v-model="registerExcelFormat" :options="registerExcelFormatOptions"
                                             optionLabel="label" optionValue="value" />
                                     </div>
@@ -1310,13 +1314,17 @@ const shareEmail = () => {
                                             filter showClear />
                                     </div>
 
-                                    <div v-if="reportType === 'batching_schedule'" class="lg:col-span-1">
-                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Unloading Site</span>
-                                        <BaseSelect v-model="siteId" :options="sites || []" optionLabel="name" optionValue="id" placeholder="All Unloading Sites" filter showClear />
+                                    <div v-if="['batching_schedule', 'pump_boom_deployment'].includes(reportType)" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Unloading
+                                            Site</span>
+                                        <BaseSelect v-model="siteId" :options="sites || []" optionLabel="name"
+                                            optionValue="id" placeholder="All Unloading Sites" filter showClear />
                                     </div>
-                                    <div v-if="reportType === 'batching_schedule'" class="lg:col-span-1">
+                                    <div v-if="['batching_schedule', 'pump_boom_deployment'].includes(reportType)" class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Pump</span>
-                                        <BaseSelect v-model="pumpVehicleId" :options="pumps || []" optionLabel="registration" optionValue="id" placeholder="All Pumps" filter showClear />
+                                        <BaseSelect v-model="pumpVehicleId" :options="pumps || []"
+                                            optionLabel="registration" optionValue="id" placeholder="All Pumps" filter
+                                            showClear />
                                     </div>
 
                                     <!-- Driver Dropdown -->
@@ -1338,7 +1346,7 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Mix Design Dropdown -->
-                                    <div v-if="['sales', 'product_consolidated', 'production_batch', 'batching_schedule', 'customer_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'sales_executive', 'driver', 'cancelled_dispatch'].includes(reportType)"
+                                    <div v-if="['sales', 'product_consolidated', 'production_batch', 'batching_schedule', 'pump_boom_deployment', 'customer_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'sales_executive', 'driver', 'cancelled_dispatch'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Mix
                                             Design</span>

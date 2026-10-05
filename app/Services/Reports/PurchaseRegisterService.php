@@ -69,6 +69,8 @@ class PurchaseRegisterService extends RegisterReportService
             'utgst' => round($sum(['UTGST']), 2),
             'igst' => round($sum(['IGST']), 2),
             'taxes' => $taxes,
+            'discount' => (float) ($order?->discount_amount ?? 0),
+            'roundoff' => (float) ($order?->rounding_value ?? 0),
             'net_amount' => (float) $item->price_total,
         ];
     }

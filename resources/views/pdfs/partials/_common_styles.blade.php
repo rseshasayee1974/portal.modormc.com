@@ -3,6 +3,7 @@
      Shared CSS reset + common variables used by ALL templates --}}
 
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 
     /* ═══════════════════════════════════════════════════════════════
        RESET & 
@@ -20,8 +21,9 @@
     }
 
     :root {
-        --font-base: 'DejaVu Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        --font-base: 'Inter', Helvetica, Arial, 'DejaVu Sans', sans-serif;
         --font-serif: Georgia, 'Times New Roman', serif;
+        --font-heading: 'Outfit', 'Inter', Helvetica, Arial, sans-serif;
 
         --color-ink: #1e293b;
         --color-muted: #64748b;
@@ -55,7 +57,7 @@
     }
 
     body {
-        font-family: 'DejaVu Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-family: 'Inter', Helvetica, Arial, 'DejaVu Sans', sans-serif;
         font-size: 11px;
         color: #1e293b;
         background: #fff;

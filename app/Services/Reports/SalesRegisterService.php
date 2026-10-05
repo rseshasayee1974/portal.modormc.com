@@ -100,6 +100,8 @@ class SalesRegisterService extends RegisterReportService
             'igst'           => round($igst, 2),
             'taxes'          => $taxes,          // rate-wise: {CGST_9.00: 450, SGST_9.00: 450}
             'net_amount'     => (float) $item->line_total,
+            'discount'       => (float) ($invoice?->discount_total ?? 0),
+            'roundoff'       => (float) ($invoice?->round_off ?? 0),
             'payment_status' => $paymentStatus,
         ];
     }

@@ -575,7 +575,8 @@
                                             @endforeach
                                         </table>
                                     </div>
-                                @elseif ($hasDesc)
+                                @endif
+                                @if ($hasDesc)
                                     <div class="item-sub">{{ $item['description'] }}</div>
                                     @if ($pdfSettings['hsn_code'] ?? true)
                                         <div class="small muted" style="margin-top: 2px;"><span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $hsnVal }}</div>

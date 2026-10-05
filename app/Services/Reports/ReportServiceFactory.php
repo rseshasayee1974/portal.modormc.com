@@ -34,6 +34,7 @@ class ReportServiceFactory
             'inventory_inward'     => InventoryInwardReportService::class,
             'production_batch'     => ProductionBatchReportService::class,
             'batching_schedule'    => BatchingScheduleReportService::class,
+            'pump_boom_deployment' => PumpBoomDeploymentReportService::class,
             'machines_list'        => MachinesListReportService::class,
             'machine_tracker'     => MachineTrackerReportService::class,
             'payroll_personnel'    => PayrollPersonnelReportService::class,

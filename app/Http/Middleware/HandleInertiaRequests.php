@@ -163,13 +163,55 @@ class HandleInertiaRequests extends Middleware
                 return $reportPermissions[$id]['view'] ?? false;
             };
 
+            $isMasterMenu = function ($menu) {
+                // If it is the Master menu or a child of it
+                if ($menu->id === 2 || $menu->parent_id === 2) {
+                    return true;
+                }
+                
+                if ($menu->permission_name) {
+                    $prefix = strtolower(explode('.', $menu->permission_name)[0]);
+                    $masterModules = [
+                        'master',
+                        'address_type',
+                        'bank_account_type',
+                        'contact_type',
+                        'country',
+                        'leave_type',
+                        'currency',
+                        'entity_type',
+                        'invoice_status',
+                        'payment_status',
+                        'payment_method',
+                        'plan',
+                        'subscription_status',
+                        'state_code',
+                        'menu',
+                        'role',
+                        'permission'
+                    ];
+                    if (in_array($prefix, $masterModules)) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            };
+
+            $isSassOwnerOnly = $user->hasAnyRole(['Saas Owner', 'Platform Admin']);
+
             $sideNav = \App\Models\Menu::where('menutype', 2)
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions, $reportMenuAllowed) {
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $reportMenuAllowed, $isMasterMenu, $isSassOwnerOnly) {
+                   
                     $reportAllowed = $reportMenuAllowed($item);
                     if ($reportAllowed !== null) return $reportAllowed;
+                                       if ($isMasterMenu($item)) {
+                        return $isSassOwnerOnly;
+                    }
+
                     if ($isSuper) return true;
                     if (!$item->permission_name) return true;
                     return $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name));
@@ -181,10 +223,14 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions, $sideNav, $reportPermissions) {
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $sideNav, $reportPermissions, $isMasterMenu, $isSassOwnerOnly) {
                     if ($item->alias === 'report') {
                         return (bool) array_filter($reportPermissions, fn ($actions) => $actions['view']);
                     }
+                    if ($isMasterMenu($item)) {
+                        return $isSassOwnerOnly;
+                    }
+
                     if ($isSuper) return true;
 
                     $hasDirectPerm = $item->permission_name

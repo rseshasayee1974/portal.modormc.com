@@ -26,6 +26,7 @@ class RegisterReportColumns
         $add($sales ? 'invoice_date' : 'bill_date', 'Date', 'date');
         $add($sales ? 'customer_name' : 'supplier_name', $sales ? 'Customer' : 'Supplier');
         $add('gst_number', 'GSTIN');
+        $add('payment_mode', 'Type');
         $add($sales ? 'invoice_no' : 'bill_no', $sales ? 'Invoice No' : 'Bill No');
         $add($sales ? 'bill_no' : 'po_number', $sales ? 'Bill No' : 'PO No');
         if ($view === 'detail') {
@@ -36,11 +37,13 @@ class RegisterReportColumns
             $add('unit', 'Unit');
             $add($sales ? 'rate' : 'purchase_rate', 'Rate', 'number');
         }
+        $add('discount', 'Discount', 'number', 'discount');
         $add('taxable_amount', 'Taxable Amount', 'number', 'taxable');
         foreach ($taxColumns as $column) {
             $add('taxes.'.$column['key'], $column['label'], 'number', 'taxes.'.$column['key']);
         }
         $add('tax_amount', 'Total Tax', 'number', 'gst');
+        $add('roundoff', 'Round Off', 'number', 'roundoff');
         $add('net_amount', 'Net Amount', 'number', 'grand_total');
         if ($view === 'detail') {
             if ($sales) {
@@ -62,6 +65,7 @@ class RegisterReportColumns
         $add('invoice_date', 'Date', 'date');
         $add('customer_name', 'Party');
         $add('gst_number', 'GSTIN');
+        $add('payment_mode', 'Type');
         $add('invoice_no', 'Invoice No');
         $add('bill_no', 'Bill No');
         $add('product_name', 'Product');
@@ -69,6 +73,7 @@ class RegisterReportColumns
         $add('qty', 'Quantity', 'number', 'qty');
         $add('rate', 'Product Rate', 'number');
         $add('unit', 'Unit');
+        $add('discount', 'Discount', 'number', 'discount');
         $add('net_amount', 'Gross', 'number', 'grand_total');
         $add('tax_name', 'Tax Name');
         $add('taxable_amount', 'Sales GST (Taxable)', 'number', 'taxable');
@@ -86,28 +91,55 @@ class RegisterReportColumns
         $add('party_type', 'Party Type');
         $add('created_by', 'Created By');
         $add('tax_amount', 'Total Tax', 'number', 'gst');
+        $add('roundoff', 'Round Off', 'number', 'roundoff');
         return $columns;
     }
 
     /** Address columns are Excel-only; preserve the standard view and GST columns. */
     public static function standardSalesExcel(array $columns): array
     {
-        $details = [];
         $existingKeys = array_column($columns, 'key');
-        foreach ([
-            'address_1' => 'Address_1', 'address_2' => 'Address_2', 'city' => 'City', 'zipcode' => 'Zipcode',
-            'shipping_address_1' => 'Shipping Address_1', 'shipping_address_2' => 'Shipping Address_2',
-            'shipping_zipcode' => 'Shipping Zipcode', 'truck' => 'Truck',
-        ] as $key => $label) {
-            if (!in_array($key, $existingKeys, true)) {
-                $details[] = ['key' => $key, 'label' => $label, 'format' => 'text', 'total' => null];
+        
+        $addressExtras = [
+            ['key' => 'address_1', 'label' => 'Address_1', 'format' => 'text', 'total' => null],
+            ['key' => 'address_2', 'label' => 'Address_2', 'format' => 'text', 'total' => null],
+            ['key' => 'city', 'label' => 'City', 'format' => 'text', 'total' => null],
+            ['key' => 'zipcode', 'label' => 'Zipcode', 'format' => 'text', 'total' => null],
+            ['key' => 'shipping_address_1', 'label' => 'Shipping Address_1', 'format' => 'text', 'total' => null],
+            ['key' => 'shipping_address_2', 'label' => 'Shipping Address_2', 'format' => 'text', 'total' => null],
+            ['key' => 'shipping_zipcode', 'label' => 'Shipping Zipcode', 'format' => 'text', 'total' => null],
+            ['key' => 'truck', 'label' => 'Truck', 'format' => 'text', 'total' => null],
+        ];
+
+        $addressDetails = [];
+        foreach ($addressExtras as $extra) {
+            if (!in_array($extra['key'], $existingKeys, true)) {
+                $addressDetails[] = $extra;
             }
         }
+
         $result = [];
         foreach ($columns as $column) {
+            if ($column['key'] === 'invoice_no') {
+                if (!in_array('payment_mode', $existingKeys, true)) {
+                    $result[] = ['key' => 'payment_mode', 'label' => 'Type', 'format' => 'text', 'total' => null];
+                }
+            }
+            if ($column['key'] === 'taxable_amount') {
+                if (!in_array('discount', $existingKeys, true)) {
+                    $result[] = ['key' => 'discount', 'label' => 'Discount', 'format' => 'number', 'total' => 'discount'];
+                }
+            }
+            if ($column['key'] === 'net_amount') {
+                if (!in_array('roundoff', $existingKeys, true)) {
+                    $result[] = ['key' => 'roundoff', 'label' => 'Round Off', 'format' => 'number', 'total' => 'roundoff'];
+                }
+            }
+
             $result[] = $column;
+            
             if ($column['key'] === 'customer_name') {
-                array_push($result, ...$details);
+                array_push($result, ...$addressDetails);
             }
         }
         return $result;

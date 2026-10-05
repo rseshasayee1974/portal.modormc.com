@@ -55,6 +55,8 @@ class ReportRepository
                         'plant_id',
                         'invoice_label',
                         'ref_id',
+                        'discount_total',
+                        'round_off',
                     ]);
                 },
                 'invoice.creator:id,username,email',
@@ -235,6 +237,8 @@ class ReportRepository
                         'state',
                         'vendor_id',
                         'plant_id',
+                        'discount_amount',
+                        'rounding_value',
                     ]);
                 },
                 'order.creator:id,username,email',

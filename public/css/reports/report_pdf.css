@@ -1,6 +1,4 @@
 @page {
-    /* size: A4 landscape; */
-    size: A4 portrait !important;
     margin: 8mm;
 }
 
@@ -22,6 +20,7 @@ body {
     margin-bottom: 12px;
     border-collapse: collapse;
 }
+
 .header-table td {
     border: 0;
     padding: 4px 6px;
@@ -33,6 +32,7 @@ body {
     font-size: 8pt;
     line-height: 1.35;
 }
+
 .address-title {
     font-size: 7pt;
     font-weight: bold;
@@ -40,6 +40,7 @@ body {
     text-transform: uppercase;
     display: block;
 }
+
 .address-name {
     font-size: 11pt;
     font-weight: bold;
@@ -60,6 +61,7 @@ body {
     border-radius: 3px;
     text-transform: uppercase;
 }
+
 .period-text {
     font-size: 8pt;
     font-weight: normal;
@@ -73,6 +75,7 @@ body {
     border-collapse: separate;
     border-spacing: 5px;
 }
+
 .kpi-card {
     background: #f8fafc;
     border: 1px solid #cbd5e1;
@@ -80,6 +83,7 @@ body {
     text-align: center;
     border-radius: 4px;
 }
+
 .kpi-label {
     font-size: 6.5pt;
     font-weight: bold;
@@ -87,20 +91,25 @@ body {
     color: #64748b;
     margin-bottom: 2px;
 }
+
 .kpi-val {
     font-size: 9.5pt;
     font-weight: bold;
     color: #0f172a;
 }
+
 .kpi-alert {
     color: #b91c1c;
 }
+
 .kpi-success {
     color: #166534;
 }
+
 .kpi-danger {
     color: #991b1b;
 }
+
 .kpi-info {
     color: #0369a1;
 }
@@ -112,6 +121,7 @@ body {
     padding-bottom: 3px;
     border-bottom: 1.5px solid #0284c7;
 }
+
 .section-title {
     font-size: 9.5pt;
     font-weight: bold;
@@ -119,6 +129,7 @@ body {
     text-transform: uppercase;
     margin: 0;
 }
+
 .section-sub {
     font-size: 7pt;
     color: #64748b;
@@ -131,6 +142,7 @@ body {
     margin-bottom: 15px;
     font-size: 7pt;
 }
+
 .data-table th {
     background: #f1f5f9;
     color: #334155;
@@ -139,21 +151,37 @@ body {
     padding: 5px 4px;
     border: 1px solid #cbd5e1;
 }
+
 .data-table td {
     padding: 4.5px 4px;
     border: 1px solid #e2e8f0;
     vertical-align: middle;
 }
+
 .data-table tr:nth-child(even) {
     background: #f8fafc;
 }
 
 /* Text Alignment & Helpers */
-.text-right { text-align: right !important; }
-.text-center { text-align: center !important; }
-.text-left { text-align: left !important; }
-.font-bold { font-weight: bold !important; }
-.uppercase { text-transform: uppercase !important; }
+.text-right {
+    text-align: right !important;
+}
+
+.text-center {
+    text-align: center !important;
+}
+
+.text-left {
+    text-align: left !important;
+}
+
+.font-bold {
+    font-weight: bold !important;
+}
+
+.uppercase {
+    text-transform: uppercase !important;
+}
 
 /* Total & Summary Rows */
 .total-row td {
@@ -171,10 +199,27 @@ body {
     font-weight: bold;
     display: inline-block;
 }
-.badge-danger { background: #fee2e2; color: #991b1b; }
-.badge-warning { background: #fef3c7; color: #92400e; }
-.badge-info { background: #e0f2fe; color: #075985; }
-.badge-success { background: #dcfce7; color: #166534; }
+
+.badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-info {
+    background: #e0f2fe;
+    color: #075985;
+}
+
+.badge-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
 .badge-cancelled {
     background-color: #fee2e2;
     color: #991b1b;
@@ -185,6 +230,7 @@ body {
     display: inline-block;
     text-transform: uppercase;
 }
+
 .badge-dr {
     background-color: #e0f2fe;
     color: #075985;
@@ -194,6 +240,7 @@ body {
     font-weight: bold;
     display: inline-block;
 }
+
 .badge-cr {
     background-color: #fef2f2;
     color: #dc2626;
@@ -203,6 +250,7 @@ body {
     font-weight: bold;
     display: inline-block;
 }
+
 .badge-voucher {
     display: inline-block;
     font-size: 6pt;
@@ -216,8 +264,15 @@ body {
 }
 
 /* Status Utilities */
-.status-pass { color: #166534; font-weight: bold; }
-.status-fail { color: #b91c1c; font-weight: bold; }
+.status-pass {
+    color: #166534;
+    font-weight: bold;
+}
+
+.status-fail {
+    color: #b91c1c;
+    font-weight: bold;
+}
 
 /* Statement / General Report Titles */
 .statement-title-container,
@@ -230,6 +285,7 @@ body {
     margin-bottom: 12px;
     text-align: center;
 }
+
 .statement-title,
 .report-title,
 .title,
@@ -241,6 +297,7 @@ body {
     margin: 0;
     text-transform: uppercase;
 }
+
 .statement-period,
 .statement-subtitle,
 .filter-info,
@@ -259,12 +316,14 @@ body {
     border: 1px solid #cbd5e1;
     background-color: #f8fafc;
 }
+
 .details-table td {
     border: 1px solid #cbd5e1 !important;
     padding: 6px 8px !important;
     font-size: 7.5pt;
     vertical-align: top;
 }
+
 .details-title {
     font-weight: bold;
     color: #64748b;
@@ -273,6 +332,7 @@ body {
     margin-bottom: 3px;
     display: block;
 }
+
 .party-name {
     font-weight: bold;
     font-size: 10pt;
@@ -282,9 +342,21 @@ body {
 }
 
 /* Ledger & Statement Rows */
-.opening-row td { background-color: #f8fafc !important; font-weight: bold !important; }
-.closing-row td { background-color: #e2e8f0 !important; font-weight: bold !important; }
-.balance-due-row td { background-color: #f1f5f9 !important; font-weight: bold !important; border-top: 1.5px solid #0f172a !important; }
+.opening-row td {
+    background-color: #f8fafc !important;
+    font-weight: bold !important;
+}
+
+.closing-row td {
+    background-color: #e2e8f0 !important;
+    font-weight: bold !important;
+}
+
+.balance-due-row td {
+    background-color: #f1f5f9 !important;
+    font-weight: bold !important;
+    border-top: 1.5px solid #0f172a !important;
+}
 
 /* Summary Box & Table */
 .summary-box {
@@ -293,15 +365,18 @@ body {
     background-color: #f8fafc;
     padding: 6px 10px;
 }
+
 .summary-table {
     width: 100%;
     border-collapse: collapse;
 }
+
 .summary-table td {
     padding: 3px 5px;
     font-size: 7.5pt;
     border: 0 !important;
 }
+
 .summary-table th {
     padding: 4px 5px;
     font-size: 7.5pt;
@@ -324,6 +399,7 @@ body {
     margin-top: 25px;
     text-align: right;
 }
+
 .signature-line {
     border-top: 1px solid #0f172a;
     display: inline-block;
@@ -333,6 +409,7 @@ body {
     font-size: 8pt;
     font-weight: bold;
 }
+
 .footer {
     font-size: 7pt;
     color: #64748b;
@@ -358,5 +435,10 @@ body {
 }
 
 /* Print Utilities */
-.page-break { page-break-after: always; }
-.avoid-break { page-break-inside: avoid; }
+.page-break {
+    page-break-after: always;
+}
+
+.avoid-break {
+    page-break-inside: avoid;
+}
