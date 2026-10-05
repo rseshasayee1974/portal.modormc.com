@@ -96,7 +96,7 @@ class BulkDocumentZipExportService
 
                         $sanitizedNumber = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $invoice->full_number);
                         $partnerName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $invoice->partner?->legal_name ?? 'party');
-                        $docType = strtolower($invoice->invoice_type) === 'sales' ? 'INV' : 'BILL';
+                        $docType = in_array(strtolower($invoice->invoice_type), ['sales', 'invoice'], true) ? 'INV' : 'BILL';
 
                         $pdfFileName = "{$docType}_{$sanitizedNumber}_{$partnerName}_{$invoice->id}.pdf";
                         $tempPdfPath = $tempDir . '/' . $pdfFileName;

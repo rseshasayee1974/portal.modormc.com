@@ -123,8 +123,13 @@ class PurchaseOrderItem extends Model
             $tax = Tax::find($this->tax_id);
         }
 
-        if ($tax) {
-            $this->price_tax = ($this->price_subtotal * (float) $tax->tax_rate) / 100;
+        $taxRate = (float) ($tax?->tax_rate ?? 0);
+        if ($this->order?->tax_inclusive && $taxRate > 0) {
+            $net = (float) $this->price_subtotal;
+            $this->price_subtotal = round($net / (1 + $taxRate / 100), 2);
+            $this->price_tax = round($net - (float) $this->price_subtotal, 2);
+        } elseif ($tax) {
+            $this->price_tax = round((float) $this->price_subtotal * $taxRate / 100, 2);
         } else {
             $this->price_tax = 0;
         }

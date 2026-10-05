@@ -27,20 +27,27 @@ $tables = [
     'mm_patrons' => 'id INTEGER, plant_id INTEGER, legal_name TEXT, gstin TEXT, patron_type TEXT, deleted_at TEXT',
     'mm_dispatches' => 'id INTEGER, plant_id INTEGER, customer_id INTEGER, sales_order_id INTEGER, truck_id INTEGER, unload_site_id INTEGER, payment_mode TEXT, deleted_at TEXT',
     'mm_sales_orders' => 'id INTEGER, plant_id INTEGER, customer_id INTEGER, deleted_at TEXT',
-    'mm_sites' => 'id INTEGER, plant_id INTEGER, name TEXT, deleted_at TEXT',
+    'mm_sites' => 'id INTEGER, plant_id INTEGER, name TEXT, site_address_1 TEXT, site_address_2 TEXT, city TEXT, zipcode TEXT, deleted_at TEXT',
     'mm_machines' => 'id INTEGER, plant_id INTEGER, registration TEXT, deleted_at TEXT',
     'mm_users' => 'id INTEGER, username TEXT, email TEXT, deleted_at TEXT',
     'mm_product_units' => 'id INTEGER, unit_name TEXT, unit_code TEXT, deleted_at TEXT',
     'mm_products' => 'id INTEGER, plant_id INTEGER, title TEXT, deleted_at TEXT',
     'mm_taxes' => 'id INTEGER, plant_id INTEGER, tax_name TEXT, tax_rate REAL, tax_group TEXT, deleted_at TEXT',
-    'mm_invoices' => 'id INTEGER, plant_id INTEGER, prefix TEXT, invoice_number TEXT, invoice_date TEXT, partner_id INTEGER, status TEXT, paid_amount REAL, balance_amount REAL, created_by INTEGER, invoice_label TEXT, invoice_type TEXT, ref_id INTEGER, deleted_at TEXT',
+    'mm_invoices' => 'id INTEGER, plant_id INTEGER, prefix TEXT, invoice_number TEXT, invoice_date TEXT, partner_id INTEGER, status TEXT, paid_amount REAL, balance_amount REAL, created_by INTEGER, invoice_label TEXT, invoice_type TEXT, ref_id INTEGER, round_off REAL DEFAULT 0, deleted_at TEXT',
     'mm_invoice_items' => 'id INTEGER, invoice_id INTEGER, item_id INTEGER, uom_id INTEGER, item_name TEXT, hsn_code TEXT, quantity REAL, price_unit REAL, subtotal REAL, line_tax_amount REAL, line_total REAL, deleted_at TEXT',
     'mm_order_taxes' => 'id INTEGER, order_id INTEGER, order_items_id INTEGER, order_type TEXT, name TEXT, rate REAL, amount REAL, deleted_at TEXT',
     'mm_einvoice_invoice_rel' => 'id INTEGER, invoice_id INTEGER, einv_irn TEXT, einv_ack_date TEXT, einv_cancel_at TEXT, einv_status TEXT',
-    'mm_purchase_orders' => 'id INTEGER, plant_id INTEGER, po_number TEXT, bill_number TEXT, date_order TEXT, billed_date TEXT, created_at TEXT, vendor_id INTEGER, created_by INTEGER, state TEXT, deleted_at TEXT',
+    'mm_purchase_orders' => 'id INTEGER, plant_id INTEGER, po_number TEXT, bill_number TEXT, date_order TEXT, billed_date TEXT, created_at TEXT, vendor_id INTEGER, created_by INTEGER, state TEXT, rounding_value REAL DEFAULT 0, deleted_at TEXT',
     'mm_purchase_order_items' => 'id INTEGER, order_id INTEGER, product_id INTEGER, product_uom INTEGER, tax_id INTEGER, hsn_code TEXT, description TEXT, product_quantity REAL, unit_price REAL, price_subtotal REAL, price_tax REAL, price_total REAL, deleted_at TEXT',
 ];
 foreach ($tables as $table => $columns) DB::statement("CREATE TABLE $table ($columns)");
+foreach ([
+    'mm_contacts' => 'id INTEGER, patron_id INTEGER, plant_id INTEGER, is_primary INTEGER, deleted_at TEXT',
+    'mm_addresses' => 'id INTEGER, plant_id INTEGER, contact_id INTEGER, address_type_id INTEGER, line_1 TEXT, line_2 TEXT, city TEXT, state_id INTEGER, state_code TEXT, zipcode TEXT, is_primary INTEGER, deleted_at TEXT',
+    'mm_address_types' => 'id INTEGER, type TEXT, deleted_at TEXT',
+    'mm_address_relation' => 'address_id INTEGER, addressable_id INTEGER, addressable_type TEXT',
+    'mm_state_codes' => 'id INTEGER, state_name TEXT, deleted_at TEXT',
+] as $table => $columns) DB::statement("CREATE TABLE $table ($columns)");
 DB::table('mm_plants')->insert([['id' => 1, 'gstin' => '33TEST'], ['id' => 2, 'gstin' => '29TEST']]);
 DB::table('mm_patrons')->insert([
     ['id' => 1, 'plant_id' => 1, 'legal_name' => '=SUM(1,2)', 'gstin' => '33VENDOR'],
@@ -162,7 +169,9 @@ foreach (['sales' => $sales, 'purchase' => $purchase] as $kind => $service) {
         checkRegister(str_contains($sheet->getCell('A2')->getValue(), '2026-09-01 to 2026-09-01'), 'Excel period lost');
         checkRegister($sheet->getCell('B5')->getDataType() === 's' && $sheet->getCell('B5')->getValue() === '=SUM(1,2)', 'Party name became a formula');
         checkRegister($sheet->getCell('A5')->getDataType() === 'n', 'Excel date is not typed');
-        checkRegister($sheet->getCell('E5')->getDataType() === 's', 'Document identifier lost text format');
+        $headings = $sheet->rangeToArray('A4:'.$sheet->getHighestColumn().'4')[0];
+        $numberColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(array_search($kind === 'sales' ? 'Invoice No' : 'Bill No', $headings, true) + 1);
+        checkRegister($sheet->getCell($numberColumn.'5')->getDataType() === 's', 'Document identifier lost text format');
         $expectedRows = $kind === 'sales' && $view === 'detail' ? 3 : 2;
         checkRegister($sheet->getHighestRow() === $expectedRows + 5, 'Export only contains the first page');
         $headings = $sheet->rangeToArray('A4:'.$sheet->getHighestColumn().'4')[0];

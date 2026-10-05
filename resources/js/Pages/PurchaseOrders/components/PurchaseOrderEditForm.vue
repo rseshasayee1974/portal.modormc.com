@@ -196,6 +196,14 @@ const handleDeleteBill = (billId: number) => {
                         /> -->
                 </div>
 
+                <div class="mt-4 space-y-1">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <input type="checkbox" v-model="form.tax_inclusive" :disabled="isReceived || (purchaseOrder?.bills?.length || 0) > 0" class="rounded border-slate-300 text-indigo-600 disabled:opacity-50" />
+                        Tax inclusive
+                    </label>
+                    <p class="text-xs text-slate-500">Item rates include tax when enabled.</p>
+                    <p v-if="form.errors?.tax_inclusive" class="text-xs text-red-600">{{ form.errors.tax_inclusive }}</p>
+                </div>
                 <!-- Items Table -->
                 <div class="mt-8">
                     <div v-if="!isReceived" class="flex items-center justify-between mb-3 px-1">
@@ -523,6 +531,7 @@ const handleDeleteBill = (billId: number) => {
         <div class="space-y-6 py-4">
             <div class="space-y-3">
                 <p class="text-sm text-slate-600">Set the rate for this bill. Each new bill starts with the PO rate.</p>
+                <p class="text-sm text-indigo-600">{{ purchaseOrder?.tax_inclusive ? 'Bill rates include tax.' : 'Tax is added to bill rates.' }}</p>
                 <p v-if="purchaseOrder?.conversion_billing_enabled" class="text-sm text-indigo-600">Enter the rate per
                     converted unit shown below.</p>
                 <p v-else class="text-sm text-amber-700">Conversion billing is disabled. Enable “Bill purchases using
@@ -554,7 +563,7 @@ const handleDeleteBill = (billId: number) => {
                     <p v-if="billableItems[index]?.billing_preview?.error" class="text-sm text-red-600">{{
                         billableItems[index].billing_preview.error }}</p>
                     <div v-else class="rounded-lg border border-slate-200 p-3 text-sm">
-                        <div class="flex justify-between gap-3"><span>Amount before discount and tax</span><strong>{{
+                        <div class="flex justify-between gap-3"><span>{{ purchaseOrder?.tax_inclusive ? 'Amount including tax, before discount' : 'Amount before discount and tax' }}</span><strong>{{
                             (billingQuantity(billableItems[index]) * Number(line.unit_price || 0)).toFixed(2)
                                 }}</strong></div>
                         <div class="mt-1 text-xs text-slate-500">{{ billingQuantity(billableItems[index]).toFixed(4) }}

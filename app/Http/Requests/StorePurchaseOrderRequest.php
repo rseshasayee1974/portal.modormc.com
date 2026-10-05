@@ -35,6 +35,7 @@ class StorePurchaseOrderRequest extends FormRequest
             'exchange_rate' => 'nullable|numeric|min:0',
             'amount_untaxed' => 'nullable|numeric|min:0',
             'amount_tax' => 'nullable|numeric|min:0',
+            'tax_inclusive' => 'sometimes|boolean',
             'amount_total' => 'nullable|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
             'shipping_charges' => 'nullable|numeric|min:0',

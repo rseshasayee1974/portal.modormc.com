@@ -7,6 +7,7 @@ use App\Models\ConcreteQualityTestSpecimen;
 use App\Models\Plant;
 use App\Models\Batch;
 use App\Models\Patron;
+use App\Models\Personnel;
 use App\Models\Invoice;
 use App\Models\ConcreteGrade;
 use App\Models\Image;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class ConcreteQualityTestController extends Controller
@@ -77,7 +79,7 @@ class ConcreteQualityTestController extends Controller
 
         $tests = $query->paginate(30)->withQueryString();
 
-        $plants = Plant::select('id', 'name')->get();
+        $plants = Plant::whereKey($activePlantId)->get(['id', 'name']);
 
         $batches = Batch::when($activePlantId, function ($q) use ($activePlantId) {
                 return $q->where('plant_id', $activePlantId);
@@ -104,7 +106,7 @@ class ConcreteQualityTestController extends Controller
         $this->authorizeModule('create');
         $activePlantId = session('active_plant_id');
 
-        $plants = Plant::select('id', 'name')->get();
+        $plants = Plant::whereKey($activePlantId)->get(['id', 'name']);
         $grades = ConcreteGrade::select('id', 'name', 'concrete_code')->where('status', 1)->get();
 
         // Standard default grades if none exist
@@ -121,22 +123,14 @@ class ConcreteQualityTestController extends Controller
             ]);
         }
 
-        $patrons = Patron::withoutGlobalScope('active_operational_status')
-            ->select('id', 'legal_name', 'plant_id')
-            ->limit(100)
-            ->get()
-            ->map(function ($p) {
-                return [
-                    'id' => $p->id,
-                    'name' => $p->name ?? $p->legal_name,
-                ];
-            });
+        $patrons = $this->patronOptions($activePlantId);
 
         return Inertia::render('ConcreteQualityTests/Create', [
             'plants' => $plants,
             'activePlantId' => $activePlantId,
             'grades' => $grades,
             'patrons' => $patrons,
+            'personnels' => $this->personnelOptions($activePlantId),
             'defaultTestNumber' => 'AUTO GEN ON SAVE',
             'today' => now()->format('Y-m-d'),
         ]);
@@ -150,9 +144,9 @@ class ConcreteQualityTestController extends Controller
         $this->authorizeModule('create');
 
         $validated = $request->validate([
-            'plant_id' => 'required|exists:mm_plants,id',
+            'plant_id' => ['required', 'exists:mm_plants,id', Rule::in([session('active_plant_id')])],
             'account_name' => 'required|string|max:255',
-            'patron_id' => 'nullable|exists:mm_patrons,id',
+            'patron_id' => ['required', Rule::exists('mm_patrons', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             'invoice_id' => 'nullable|exists:mm_invoices,id',
             'invoice_no' => 'nullable|string|max:100',
             'grade' => 'required|string|max:100',
@@ -191,6 +185,8 @@ class ConcreteQualityTestController extends Controller
             'status' => 'nullable|string|in:pending,passed,failed',
             'remarks' => 'nullable|string',
         ]);
+
+        $validated['account_name'] = Patron::withoutGlobalScope('active_operational_status')->findOrFail($validated['patron_id'])->name;
 
         DB::beginTransaction();
         try {
@@ -316,10 +312,12 @@ class ConcreteQualityTestController extends Controller
     public function edit(ConcreteQualityTest $concreteQualityTest)
     {
         $this->authorizeModule('edit');
+        $activePlantId = session('active_plant_id');
+        abort_unless((int) $concreteQualityTest->plant_id === (int) $activePlantId, 404);
 
         $concreteQualityTest->load(['plant', 'specimens', 'patron', 'invoice']);
 
-        $plants = Plant::select('id', 'name')->get();
+        $plants = Plant::whereKey($activePlantId)->get(['id', 'name']);
         $grades = ConcreteGrade::select('id', 'name', 'concrete_code')->where('status', 1)->get();
 
         if ($grades->isEmpty()) {
@@ -335,22 +333,15 @@ class ConcreteQualityTestController extends Controller
             ]);
         }
 
-        $patrons = Patron::withoutGlobalScope('active_operational_status')
-            ->select('id', 'legal_name', 'plant_id')
-            ->limit(100)
-            ->get()
-            ->map(function ($p) {
-                return [
-                    'id' => $p->id,
-                    'name' => $p->name ?? $p->legal_name,
-                ];
-            });
+        $patrons = $this->patronOptions($activePlantId);
 
         return Inertia::render('ConcreteQualityTests/Edit', [
             'test' => $concreteQualityTest,
             'plants' => $plants,
             'grades' => $grades,
             'patrons' => $patrons,
+            'activePlantId' => $activePlantId,
+            'personnels' => $this->personnelOptions($activePlantId),
         ]);
     }
 
@@ -360,11 +351,12 @@ class ConcreteQualityTestController extends Controller
     public function update(Request $request, ConcreteQualityTest $concreteQualityTest)
     {
         $this->authorizeModule('edit');
+        abort_unless((int) $concreteQualityTest->plant_id === (int) session('active_plant_id'), 404);
 
         $validated = $request->validate([
-            'plant_id' => 'required|exists:mm_plants,id',
+            'plant_id' => ['required', 'exists:mm_plants,id', Rule::in([session('active_plant_id')])],
             'account_name' => 'required|string|max:255',
-            'patron_id' => 'nullable|exists:mm_patrons,id',
+            'patron_id' => ['required', Rule::exists('mm_patrons', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             'invoice_id' => 'nullable|exists:mm_invoices,id',
             'invoice_no' => 'nullable|string|max:100',
             'grade' => 'required|string|max:100',
@@ -404,6 +396,8 @@ class ConcreteQualityTestController extends Controller
             'status' => 'nullable|string|in:pending,passed,failed',
             'remarks' => 'nullable|string',
         ]);
+
+        $validated['account_name'] = Patron::withoutGlobalScope('active_operational_status')->findOrFail($validated['patron_id'])->name;
 
         DB::beginTransaction();
         try {
@@ -494,6 +488,25 @@ class ConcreteQualityTestController extends Controller
         }
     }
 
+    private function patronOptions($plantId)
+    {
+        return Patron::withoutGlobalScope('active_operational_status')
+            ->where('plant_id', $plantId)->orderBy('legal_name')->get(['id', 'legal_name'])
+            ->map(fn ($patron) => ['id' => $patron->id, 'name' => $patron->name]);
+    }
+
+    private function personnelOptions($plantId)
+    {
+        return Personnel::where('plant_id', $plantId)->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name', 'employee_code'])
+            ->map(fn ($person) => [
+                'id' => $person->id,
+                'name' => trim($person->first_name . ' ' . $person->last_name),
+                'label' => trim($person->first_name . ' ' . $person->last_name)
+                    . ($person->employee_code ? " ({$person->employee_code})" : ''),
+            ]);
+    }
+
     /**
      * Remove the specified resource from storage.
      */
@@ -517,7 +530,7 @@ class ConcreteQualityTestController extends Controller
     public function lookupInvoices(Request $request)
     {
         $search = $request->input('search');
-        $plantId = $request->input('plant_id') ?: session('active_plant_id');
+        $plantId = session('active_plant_id');
 
         $query = Invoice::with(['partner.addresses', 'items.mixDesign', 'items.concreteGrade'])
             ->when($plantId, function ($q) use ($plantId) {

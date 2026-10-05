@@ -52,8 +52,10 @@ const form = useForm({
     partner_id: null,
     account_id: null,
     journal_id: null,
-    invoice_type: 'bill',
-    invoice_label: 'Purchase Bill',
+    invoice_type: 'Bill',
+    invoice_label: 'Manual',
+    document_type: 'BILL',
+    document_source: 'MANUAL',
     prefix: props.next_invoice_details?.prefix || '',
     invoice_number: '',
     ref_id: null,
@@ -159,6 +161,8 @@ const mergeSelectedPOs = () => {
     
     form.items = Object.values(grouped);
     form.purchase_order_ids = [...selectedPOs.value];
+    form.document_source = form.purchase_order_ids.length ? 'PURCHASE_STOCKIN' : 'MANUAL';
+    form.invoice_label = form.purchase_order_ids.length ? 'purchase' : 'Manual';
     calculateTotals();
     toast.add({ severity: 'success', summary: 'Merged', detail: `${selectedPOs.value.length} POs consolidated.`, life: 1500 });
 };
@@ -307,7 +311,7 @@ const validateInvoiceNumber = async () => {
                 invoice_number: form.invoice_number.trim(),
                 prefix: form.prefix || '',
                 account_id: form.account_id || '',
-                invoice_type: 'bill'
+                invoice_type: 'Bill'
             }
         });
         invoiceNumberStatus.value = {
@@ -356,7 +360,7 @@ const onAccountChange = async () => {
         const response = await axios.get(route('invoices.next-number'), {
             params: {
                 account_id: form.account_id,
-                invoice_type: 'bill'
+                invoice_type: 'Bill'
             }
         });
         if (response.data?.prefix) {
@@ -459,7 +463,7 @@ const handleCreatePartner = async (name: string) => {
     try {
         const response = await axios.post(route('patrons.store'), {
             legal_name: name,
-            patron_type: form.invoice_type === 'purchase' ? ['Vendor', 'Supplier'] : ['Customer'],
+            patron_type: ['Vendor', 'Supplier'],
             operational_status: 'active',
             status: true,
             displayed: true,

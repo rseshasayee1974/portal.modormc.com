@@ -59,7 +59,7 @@ class TdsCertificateReportService implements ReportServiceInterface
         $salesTds = Invoice::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->where('partner_id', $patronId)
-            ->where('invoice_type', 'sales')
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
             ->where('tds_amount', '>', 0)
             ->whereBetween('invoice_date', [$start, $end])
             ->get();

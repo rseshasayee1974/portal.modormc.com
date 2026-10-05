@@ -385,7 +385,7 @@ class ERPDashboardController extends Controller
         $table = (new Invoice)->getTable();
         return Invoice::query()
             ->where("{$table}.plant_id", $plantId)
-            ->where("{$table}.invoice_type", 'sales')
+            ->whereIn("{$table}.invoice_type", \App\Support\InvoiceClassification::aliases('Invoice'))
             ->whereBetween("{$table}.invoice_date", [$start->toDateString(), $end->toDateString()])
             ->when($patronId, fn ($query) => $query->where("{$table}.partner_id", $patronId));
     }
@@ -425,13 +425,13 @@ class ERPDashboardController extends Controller
     {
         $receivables = (float) Invoice::query()
             ->where('plant_id', $plantId)
-            ->where('invoice_type', 'sales')
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
             ->when($patronId, fn ($query) => $query->where('partner_id', $patronId))
             ->sum('balance_amount');
 
         $payables = (float) Invoice::query()
             ->where('plant_id', $plantId)
-            ->where('invoice_type', 'bill')
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))
             ->when($patronId, fn ($query) => $query->where('partner_id', $patronId))
             ->sum('balance_amount');
 

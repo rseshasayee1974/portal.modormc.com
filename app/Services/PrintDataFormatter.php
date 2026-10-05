@@ -82,8 +82,8 @@ class PrintDataFormatter
                 case 'gst_invoices':
                 case 'billings':
                 case 'purchase_bills':
-                    $type = ($category === 'purchase_bills') ? 'bill' : 'invoice';
-                    $invoice = Invoice::where('plant_id', $plantId)->where('invoice_type', $type)->latest()->first()
+                    $type = in_array($category, ['purchase_bills', 'billings'], true) ? 'Bill' : 'Invoice';
+                    $invoice = Invoice::where('plant_id', $plantId)->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases($type))->latest()->first()
                         ?? Invoice::latest()->first();
                     if ($invoice) {
                         return self::fromInvoice($invoice);
@@ -1081,7 +1081,7 @@ class PrintDataFormatter
 
     public static function fromInvoice($invoice): array
     {
-        $isPurchaseBill = strtolower((string)$invoice->invoice_type) === 'bill';
+        $isPurchaseBill = in_array(strtolower((string) $invoice->invoice_type), ['bill', 'purchase'], true);
         $invoice->loadMissing([
             'plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses',
             'items.tax', 'items.uom', 'items.itemTaxes', 'orderTaxes'
@@ -1104,7 +1104,7 @@ class PrintDataFormatter
             $data['settings']['pdf']['labels']['bill_to'] = 'Supplier';
         }
 
-        $defaultTitle = $invoice->invoice_type === 'bill' ? 'PURCHASE BILL' : 'TAX INVOICE';
+        $defaultTitle = $isPurchaseBill ? 'PURCHASE BILL' : 'TAX INVOICE';
         $docTitle     = $data['settings']['pdf']['labels']['invoice_title'] ?? $defaultTitle;
         if (!empty($invoice->invoice_label)) {
             if (strtolower($invoice->invoice_label) === 'manual') $docTitle = 'MANUAL BILLING';
@@ -1288,7 +1288,7 @@ class PrintDataFormatter
             'grand_total' => $grandTotalVal,
         ];
 
-        $orderTypeForTerms = $invoice->invoice_type === 'bill' ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
+        $orderTypeForTerms = $isPurchaseBill ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
         $poNumber          = $customerPO?->customer_po_reference
             ?: ($customerPO?->reference
             ?: ($salesOrder?->customer_po_reference

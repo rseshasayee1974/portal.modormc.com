@@ -98,7 +98,7 @@ class RegisterAddressGstFormat
                 $join->on('sales_order.id', '=', 'dispatch.sales_order_id')->where('sales_order.plant_id', $plantId)->whereNull('sales_order.deleted_at');
             })->leftJoin('mm_sites as site', function ($join) use ($plantId) {
                 $join->on('site.id', '=', 'dispatch.unload_site_id')->where('site.plant_id', $plantId)->whereNull('site.deleted_at');
-            })->where('invoice.plant_id', $plantId)->where('invoice.invoice_type', 'sales')->whereIn('invoice.id', $ids)->whereNull('invoice.deleted_at')
+            })->where('invoice.plant_id', $plantId)->whereIn('invoice.invoice_type', \App\Support\InvoiceClassification::aliases('sales'))->whereIn('invoice.id', $ids)->whereNull('invoice.deleted_at')
             ->get(['invoice.id', DB::raw('COALESCE(NULLIF(invoice.partner_id, 0), NULLIF(dispatch.customer_id, 0), sales_order.customer_id) as party_id'),
                 'invoice.round_off as roundoff', 'site.name as shipping_name', 'site.site_address_1 as shipping_address_1',
                 'site.site_address_2 as shipping_address_2', 'site.city as shipping_city', 'site.zipcode as shipping_zipcode'])->keyBy('id');

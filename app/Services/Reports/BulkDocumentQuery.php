@@ -10,12 +10,12 @@ class BulkDocumentQuery
     public function build(int $plantId, array $filters): Builder
     {
         $query = Invoice::query()->where('plant_id', $plantId)
-            ->whereRaw("LOWER(invoice_type) IN ('sales', 'bill')")
+            ->whereRaw("LOWER(invoice_type) IN ('invoice', 'sales', 'bill', 'purchase')")
             ->where(function ($q) { $q->whereNull('status')->orWhereRaw("LOWER(status) NOT IN ('cancelled', 'canceled')"); })
             ->whereDate('invoice_date', '>=', $filters['start_date'])
             ->whereDate('invoice_date', '<=', $filters['end_date']);
         if ($type = $filters['type'] ?? null) {
-            $query->whereRaw('LOWER(invoice_type) = ?', [$type === 'invoice' ? 'sales' : 'bill']);
+            $query->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(invoice_type)'), strtolower($type) === 'invoice' ? ['invoice', 'sales'] : ['bill', 'purchase']);
         }
         if ($subtype = $filters['subtype'] ?? null) {
             [$type, $labels] = match ($subtype) {
@@ -24,7 +24,7 @@ class BulkDocumentQuery
                 'manual_bill' => ['bill', ['manual']],
                 'vendor_bill' => ['bill', ['purchase', 'vendor bill']],
             };
-            $query->whereRaw('LOWER(invoice_type) = ?', [$type])
+            $query->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(invoice_type)'), $type === 'sales' ? ['invoice', 'sales'] : ['bill', 'purchase'])
                 ->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(invoice_label)'), $labels);
         }
         if ($patron = $filters['patron_id'] ?? null) $query->where('partner_id', $patron);
@@ -35,7 +35,7 @@ class BulkDocumentQuery
         $journal = function ($q) use ($plantId) {
             $q->selectRaw('1')->from('mm_journal_entries as j')
                 ->whereColumn('j.ref_id', 'mm_invoices.id')->where('j.plant_id', $plantId)
-                ->whereRaw("j.ref_module = CASE WHEN LOWER(mm_invoices.invoice_type) = 'sales' THEN 'invoice' ELSE 'bill' END")
+                ->whereRaw("j.ref_module = CASE WHEN LOWER(mm_invoices.invoice_type) IN ('invoice', 'sales') THEN 'invoice' ELSE 'bill' END")
                 ->whereNull('j.deleted_at')->where('j.is_deleted', 0);
         };
         if ($ledger = $filters['ledger_id'] ?? null) {

@@ -271,7 +271,13 @@ class PurchaseOrderController extends Controller
                 }
             }
 
-            $lineTax = ($lineSubtotal * $taxRate) / 100;
+            if ($purchase_order->tax_inclusive && $taxRate > 0) {
+                $net = $lineSubtotal;
+                $lineSubtotal = round($net / (1 + $taxRate / 100), 2);
+                $lineTax = round($net - $lineSubtotal, 2);
+            } else {
+                $lineTax = ($lineSubtotal * $taxRate) / 100;
+            }
             $lineTotal = $lineSubtotal + $lineTax;
 
             $subtotalSum += $lineSubtotal;
@@ -319,8 +325,11 @@ class PurchaseOrderController extends Controller
             'plant_id'         => session('active_plant_id', $purchase_order->plant_id),
             'partner_id'       => $purchase_order->vendor_id,
             'account_id'       => $request->input('account_id'),
-            'invoice_type'     => 'bill',
+            'invoice_type'     => 'Bill',
             'invoice_label'    => 'purchase',
+            'document_type'    => 'BILL',
+            'document_source'  => 'PURCHASE_STOCKIN',
+            'is_tax_inclusive' => (bool) $purchase_order->tax_inclusive,
             'ref_id'           => $purchase_order->id,
             'ref_title'        => $purchase_order->po_number ?? $purchase_order->ref_no,
             'invoice_date'     => $request->input('invoice_date', now()),

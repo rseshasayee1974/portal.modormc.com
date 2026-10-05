@@ -49,8 +49,10 @@ const form = useForm({
     partner_id: null,
     account_id: null,
     journal_id: null,
-    invoice_type: 'sales',
-    invoice_label: 'Tax Invoice',
+    invoice_type: 'Invoice',
+    invoice_label: 'Manual',
+    document_type: 'INVOICE',
+    document_source: 'MANUAL',
     prefix: props.next_invoice_details?.prefix || '',
     invoice_number: '',
     ref_id: null,
@@ -149,6 +151,8 @@ const mergeSelectedDispatches = () => {
     form.is_tax_inclusive = anyTaxInclusive;
     form.items = Object.values(grouped);
     form.dispatch_ids = [...selectedDispatches.value];
+    form.document_source = form.dispatch_ids.length ? 'DISPATCH' : 'MANUAL';
+    form.invoice_label = form.dispatch_ids.length ? 'Dispatch' : 'Manual';
     calculateTotals();
     toast.add({ severity: 'success', summary: 'Merged', detail: `${selectedDispatches.value.length} dispatches consolidated.` + (anyTaxInclusive ? ' (Tax Inclusive)' : ''), life: 1500 });
 };
@@ -362,7 +366,7 @@ const onAccountChange = async () => {
         const response = await axios.get(route('invoices.next-number'), {
             params: {
                 account_id: form.account_id,
-                invoice_type: form.invoice_type || 'sales'
+                invoice_type: form.invoice_type || 'Invoice'
             }
         });
         if (response.data?.prefix) {
@@ -401,6 +405,8 @@ const resetForm = () => {
     form.reset();
     form.items = [createNewItem()];
     form.dispatch_ids = [];
+    form.document_source = 'MANUAL';
+    form.invoice_label = 'Manual';
     selectedDispatches.value = [];
     uninvoicedDispatches.value = [];
     isManualInvoiceNumber.value = false;
@@ -487,7 +493,7 @@ const handleCreatePartner = async (name: string) => {
     try {
         const response = await axios.post(route('patrons.store'), {
             legal_name: name,
-            patron_type: form.invoice_type === 'purchase' ? ['Vendor', 'Supplier'] : ['Customer'],
+            patron_type: ['Customer'],
             operational_status: 'active',
             status: true,
             displayed: true,

@@ -32,7 +32,7 @@ class InvoiceController extends Controller
                     'items.uom:id,unit_code',
                     'items.tax',
                 ])
-                ->where('invoice_type', 'sales')
+                ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
                 ->where('plant_id', $plantId)->where('deleted_at',null)
                 ->latest()
                 ->get(),
@@ -59,9 +59,14 @@ class InvoiceController extends Controller
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $plantId) {
             $validated = $request->validated();
+            $fromDispatch = !empty($validated['dispatch_ids']);
+            $validated['invoice_type'] = 'Invoice';
+            $validated['invoice_label'] = $fromDispatch ? 'Dispatch' : 'Manual';
+            $validated['document_type'] = 'INVOICE';
+            $validated['document_source'] = $fromDispatch ? 'DISPATCH' : 'MANUAL';
             
             // Strictly enforce prefix from verified ledger configuration, preventing any client-side tampering
-            $details = Invoice::generateNumber($plantId, $validated['invoice_type'] ?? 'sales', $validated['account_id'] ?? null);
+            $details = Invoice::generateNumber($plantId, $validated['invoice_type'] ?? 'Invoice', $validated['account_id'] ?? null);
             $validated['prefix'] = $details['prefix'];
 
             // Auto-generate numbering if not provided
@@ -146,7 +151,7 @@ class InvoiceController extends Controller
 
         $rawNumber = trim((string)$request->query('invoice_number', ''));
         $accountId = $request->query('account_id');
-        $type = $request->query('invoice_type', 'sales');
+        $type = $request->query('document_type', $request->query('invoice_type', 'Invoice'));
         $excludeId = $request->query('exclude_id');
 
         // Always strictly determine prefix from the ledger and plant configuration, never trust client input
@@ -227,7 +232,7 @@ class InvoiceController extends Controller
         $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
         $accountId = $request->query('account_id');
-        $type = $request->query('invoice_type', 'sales');
+        $type = $request->query('document_type', $request->query('invoice_type', 'Invoice'));
 
         $details = Invoice::generateNumber($plantId, $type, $accountId ? (int)$accountId : null);
 
@@ -276,16 +281,23 @@ class InvoiceController extends Controller
         $plantId = session('active_plant_id');
 // dd($request->all());
         $query = Invoice::where('plant_id', $plantId)
-            ->where('status', 'approved')
+            ->whereIn('status', ['Approved', 'approved', 'APPROVED'])
             ->where('balance_amount', '>', 0);
 
         if ($request->has('partner_id')) {
             $query->where('partner_id', $request->partner_id);
         }
 
-        if ($request->has('type')) {
+        if ($request->filled('document_type')) {
+            $request->validate(['document_type' => 'required|in:INVOICE,BILL']);
+            $query->where('document_type', $request->document_type);
+        } elseif ($request->has('type')) {
             // 'sales' or 'bill'
-            $query->where('invoice_type', $request->type);
+            $query->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases($request->type));
+        }
+        if ($request->filled('document_source')) {
+            $request->validate(['document_source' => 'required|in:DISPATCH,PURCHASE_STOCKIN,MANUAL']);
+            $query->where('document_source', $request->document_source);
         }
 // dd($query->latest()->get());
         return response()->json($query->latest()->get());

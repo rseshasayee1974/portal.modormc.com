@@ -284,7 +284,7 @@ class OverallReportService implements ReportServiceInterface
                     'einvoiceRelation',
                     'ewaybillDetail',
                 ])
-                ->where('invoice_type', 'sales')
+                ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
                 ->whereNull('deleted_at')
                 ->where(function ($q) {
                     $q->whereNull('status')->orWhere('status', '!=', 'Cancelled');
@@ -354,7 +354,7 @@ class OverallReportService implements ReportServiceInterface
         try {
             $purchaseBillQuery = Invoice::query()
                 ->with(['partner:id,legal_name,gstin', 'orderTaxes'])
-                ->whereIn('invoice_type', ['bill', 'purchase'])
+                ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))
                 ->whereNull('deleted_at');
             if ($plantId) $purchaseBillQuery->where('plant_id', $plantId);
             if ($customerId) $purchaseBillQuery->where('partner_id', $customerId);

@@ -35,7 +35,7 @@ class DeletedReportService implements ReportServiceInterface
         try {
             $invQuery = Invoice::onlyTrashed()
                 ->where('plant_id', $plantId)
-                ->where('invoice_type', '!=', 'bill')
+                ->whereNotIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))
                 ->whereBetween('deleted_at', [$start, $end])
                 ->with(['partner:id,legal_name']);
 
@@ -67,7 +67,7 @@ class DeletedReportService implements ReportServiceInterface
         try {
             $billQuery = Invoice::onlyTrashed()
                 ->where('plant_id', $plantId)
-                ->where('invoice_type', '=', 'bill')
+                ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))
                 ->whereBetween('deleted_at', [$start, $end])
                 ->with(['partner:id,legal_name']);
 

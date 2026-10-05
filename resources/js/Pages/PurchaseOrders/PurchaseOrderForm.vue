@@ -61,6 +61,7 @@ const form = useForm({
     exchange_rate: props.purchaseOrder?.exchange_rate || 1.0,
     amount_untaxed: props.purchaseOrder?.amount_untaxed || 0,
     amount_tax: props.purchaseOrder?.amount_tax || 0,
+    tax_inclusive: Boolean(props.purchaseOrder?.tax_inclusive),
     amount_total: props.purchaseOrder?.amount_total || 0,
     discount_amount: props.purchaseOrder?.discount_amount || 0,
     shipping_charges: props.purchaseOrder?.shipping_charges || 0,
@@ -147,7 +148,12 @@ const calculateItemTotals = (index) => {
     item.price_subtotal = subtotal - discount;
     
     const tax = props.taxes.find(t => t.id === item.tax_id);
-    if (tax) {
+    const taxRate = Number(tax?.tax_rate) || 0;
+    if (form.tax_inclusive && taxRate > 0) {
+        const net = item.price_subtotal;
+        item.price_subtotal = Math.round((net / (1 + taxRate / 100) + Number.EPSILON) * 100) / 100;
+        item.price_tax = Math.round((net - item.price_subtotal + Number.EPSILON) * 100) / 100;
+    } else if (tax) {
         item.price_tax = (item.price_subtotal * (Number(tax.tax_rate) || 0)) / 100;
     } else {
         item.price_tax = 0;
@@ -168,6 +174,7 @@ const calculateFinalTotals = () => {
 };
 
 watch(() => [form.shipping_charges, form.adjustment, form.rounding_value, form.discount_amount], calculateFinalTotals);
+watch(() => form.tax_inclusive, () => form.items.forEach((_, index) => calculateItemTotals(index)));
 
 const submit = () => {
     const routeName = isEdit ? 'purchaseorder.update' : 'purchaseorder.store';
@@ -296,6 +303,14 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                             :error="form.errors.vendor_id"
                         />
                         
+                        <div class="flex flex-col gap-1">
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input type="checkbox" v-model="form.tax_inclusive" class="rounded border-slate-300 text-indigo-600" />
+                                Tax inclusive
+                            </label>
+                            <p class="text-xs text-slate-500">Item rates include tax when enabled.</p>
+                            <p v-if="form.errors.tax_inclusive" class="text-xs text-red-600">{{ form.errors.tax_inclusive }}</p>
+                        </div>
                         <BaseDatePicker
                             v-model="form.date_order"
                             label="Order Date"

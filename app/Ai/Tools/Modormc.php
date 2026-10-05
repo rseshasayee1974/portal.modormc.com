@@ -267,7 +267,7 @@ class Modormc implements Tool
         ')->first();
 
         // Billed Sales Invoices
-        $invoiceQuery = DB::table('mm_invoices')->where('invoice_type', 'sales')->whereNull('deleted_at');
+        $invoiceQuery = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('sales'))->whereNull('deleted_at');
         if ($dateFrom) $invoiceQuery->where('invoice_date', '>=', $dateFrom);
         if ($dateTo)   $invoiceQuery->where('invoice_date', '<=', $dateTo);
 
@@ -493,7 +493,7 @@ class Modormc implements Tool
         $dateFrom = $this->getParam($request, 'date_from');
         $dateTo   = $this->getParam($request, 'date_to');
 
-        $salesQuery = DB::table('mm_invoices')->where('invoice_type', 'sales')->whereNull('deleted_at');
+        $salesQuery = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('sales'))->whereNull('deleted_at');
         if ($dateFrom) $salesQuery->where('invoice_date', '>=', $dateFrom);
         if ($dateTo)   $salesQuery->where('invoice_date', '<=', $dateTo);
 
@@ -507,7 +507,7 @@ class Modormc implements Tool
             COALESCE(SUM(balance_amount), 0) as outstanding_balance
         ")->first();
 
-        $billQuery = DB::table('mm_invoices')->where('invoice_type', 'bill')->whereNull('deleted_at');
+        $billQuery = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('bill'))->whereNull('deleted_at');
         if ($dateFrom) $billQuery->where('invoice_date', '>=', $dateFrom);
         if ($dateTo)   $billQuery->where('invoice_date', '<=', $dateTo);
 
@@ -685,13 +685,13 @@ class Modormc implements Tool
         $dispatchQuery = DB::table('mm_dispatches')->whereNull('deleted_at')->whereDate('dispatch_time', $today);
         $dispatchStats = $dispatchQuery->selectRaw('COUNT(*) as count, COALESCE(SUM(delivered_qty), 0) as total_qty_m3, COALESCE(SUM(load_total_amount), 0) as total_amount')->first();
 
-        $invoiceQuery = DB::table('mm_invoices')->where('invoice_type', 'sales')->whereNull('deleted_at')->whereDate('invoice_date', $today);
+        $invoiceQuery = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('sales'))->whereNull('deleted_at')->whereDate('invoice_date', $today);
         $invoiceStats = $invoiceQuery->selectRaw('COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total_amount')->first();
 
         $poQuery = DB::table('mm_purchase_orders')->whereNull('deleted_at')->whereDate('date_order', $today);
         $poStats = $poQuery->selectRaw('COUNT(*) as count, COALESCE(SUM(amount_total), 0) as total_amount')->first();
 
-        $billQuery = DB::table('mm_invoices')->where('invoice_type', 'bill')->whereNull('deleted_at')->whereDate('invoice_date', $today);
+        $billQuery = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('bill'))->whereNull('deleted_at')->whereDate('invoice_date', $today);
         $billStats = $billQuery->selectRaw('COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total_amount')->first();
 
         return json_encode([

@@ -118,7 +118,7 @@ class OpeningBalanceService
             if ($patronIds->isNotEmpty()) {
                 // Patron statements also read source invoices/payments that may not be posted yet.
                 $hasHistory = $hasHistory || DB::table('mm_invoices')->where('plant_id', $plantId)
-                    ->whereIn('partner_id', $patronIds)->where('invoice_type', 'sales')->whereNull('deleted_at')
+                    ->whereIn('partner_id', $patronIds)->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))->whereNull('deleted_at')
                     ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'Cancelled'))
                     ->where('invoice_date', '<', $batch->cutover_date->toDateString())->exists()
                     || DB::table('mm_payments')->where('plant_id', $plantId)->whereIn('patron_id', $patronIds)->whereNull('deleted_at')

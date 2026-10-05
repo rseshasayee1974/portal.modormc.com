@@ -46,6 +46,7 @@ class PurchaseOrder extends Model
         'exchange_rate',
         'amount_untaxed',
         'amount_tax',
+        'tax_inclusive',
         'amount_total',
         'discount_amount',
         'shipping_charges',
@@ -71,6 +72,7 @@ class PurchaseOrder extends Model
         'billed_date' => 'date',
         'amount_untaxed' => 'decimal:2',
         'amount_tax' => 'decimal:2',
+        'tax_inclusive' => 'boolean',
         'amount_total' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'shipping_charges' => 'decimal:2',
@@ -136,18 +138,18 @@ class PurchaseOrder extends Model
 
     public function bill()
     {
-        return $this->hasOne(Invoice::class, 'ref_id')->where('invoice_type', 'bill');
+        return $this->hasOne(Invoice::class, 'ref_id')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'));
     }
 
     public function bills()
     {
-        return $this->hasMany(Invoice::class, 'ref_id')->where('invoice_type', 'bill')->where('invoice_label', 'purchase');
+        return $this->hasMany(Invoice::class, 'ref_id')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))->whereIn('invoice_label', ['purchase', 'Purchase', 'PURCHASE']);
     }
 
     public function billingHistory()
     {
         return $this->hasMany(Invoice::class, 'ref_id')->withTrashed()
-            ->where('invoice_type', 'bill')->where('invoice_label', 'purchase')
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))->whereIn('invoice_label', ['purchase', 'Purchase', 'PURCHASE'])
             ->with(['items' => fn ($query) => $query->withTrashed()]);
     }
 
@@ -297,6 +299,12 @@ class PurchaseOrder extends Model
             $headerData = Arr::except($data, ['items']);
             $headerData['updated_by'] = $userId;
 
+            $taxModeChanged = array_key_exists('tax_inclusive', $data)
+                && (bool) $data['tax_inclusive'] !== (bool) $this->tax_inclusive;
+            if ($taxModeChanged && $this->bills()->exists()) {
+                throw ValidationException::withMessages(['tax_inclusive' => 'Void the linked bills before changing the tax-inclusive option.']);
+            }
+
             if (!$this->plant_id) {
                 $headerData['plant_id'] = $plantId;
             }
@@ -305,6 +313,10 @@ class PurchaseOrder extends Model
 
             if (array_key_exists('items', $data)) {
                 $this->syncItems($data['items'] ?? [], (int) $userId, (int) $plantId);
+            } elseif ($taxModeChanged) {
+                foreach ($this->items()->get() as $item) {
+                    $item->calculateItemTotals();
+                }
             }
 
             $this->unsetRelation('items');

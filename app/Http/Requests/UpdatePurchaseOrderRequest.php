@@ -43,6 +43,7 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'exchange_rate' => 'sometimes|numeric|min:0',
             'amount_untaxed' => 'sometimes|numeric',
             'amount_tax' => 'sometimes|numeric',
+            'tax_inclusive' => 'sometimes|boolean',
             'amount_total' => 'sometimes|numeric',
             'discount_amount' => 'nullable|numeric',
             'shipping_charges' => 'nullable|numeric',

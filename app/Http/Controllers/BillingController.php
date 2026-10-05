@@ -31,7 +31,7 @@ class BillingController extends Controller
                     'items.tax',
                 ])
                 ->where('plant_id', $plantId)
-                ->where('invoice_type', 'bill')
+                ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))
                 ->latest()
                 ->get();
                 
@@ -45,7 +45,7 @@ class BillingController extends Controller
                     'items.tax',
                 ])
                 ->where('plant_id', $plantId)
-                ->where('invoice_type', 'bill')
+                ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))
                 ->latest()
                 ->get(),
             'patrons' => toSelectOptions(PatronsDropdown(), 'legal_name'),
@@ -95,8 +95,10 @@ class BillingController extends Controller
             $invoice = Invoice::createWithItems(array_merge($validated, [
                 'plant_id'        => $plantId,
                 'ref_id'          => $poIds,
-                'invoice_type'    => 'bill',
-                'invoice_label'   => 'Manual',
+                'invoice_type'    => 'Bill',
+                'invoice_label'   => $poIds ? 'Purchase' : 'Manual',
+                'document_type'   => 'BILL',
+                'document_source' => $poIds ? 'PURCHASE_STOCKIN' : 'MANUAL',
                 'status'          => Invoice::STATUS_APPROVED,
                 'due_date'        => !empty($validated['due_date']) ? $validated['due_date'] : $validated['invoice_date'],
                 'einvoice_status' => 0,

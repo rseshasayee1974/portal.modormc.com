@@ -30,7 +30,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
         // 1. Query Sales Invoices (whereNull('deleted_at') and status != 'Cancelled')
         $invoiceQuery = Invoice::query()
-            ->where('invoice_type', 'sales')
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
             ->whereNull('deleted_at')
             ->where(function ($q) {
                 $q->whereNull('status')
@@ -446,7 +446,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
         // 1. Sales Invoices Query
         $invQuery = Invoice::query()
-            ->where('invoice_type', 'sales')
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
             ->where('partner_id', $patronId)
             ->whereNull('deleted_at')
             ->where(function ($q) {

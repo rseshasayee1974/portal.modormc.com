@@ -70,7 +70,7 @@ class BulkDocumentReportController extends Controller
         if (!$export) {
             return response()->json(['count' => $count, 'documents' => $documents->map(fn($d) => [
                 'id' => $d->id, 'number' => $d->full_number, 'date' => $d->invoice_date?->format('Y-m-d'),
-                'type' => strtolower($d->invoice_type) === 'sales' ? 'Invoice' : 'Bill',
+                'type' => in_array(strtolower($d->invoice_type), ['sales', 'invoice'], true) ? 'Invoice' : 'Bill',
                 'subtype' => $d->invoice_label, 'patron' => $d->partner?->legal_name,
                 'tax' => $d->tax_amount, 'total' => $d->total_amount,
             ])]);

@@ -126,7 +126,7 @@ class ModoFinance implements Tool
     {
         $query = DB::table('mm_invoice_items')
             ->join('mm_invoices', 'mm_invoice_items.invoice_id', '=', 'mm_invoices.id')
-            ->where('mm_invoices.invoice_type', 'sales')
+            ->whereIn('mm_invoices.invoice_type', \App\Support\InvoiceClassification::aliases('sales'))
             ->whereNull('mm_invoices.deleted_at')
             ->whereNull('mm_invoice_items.deleted_at');
 
@@ -179,13 +179,13 @@ class ModoFinance implements Tool
     protected function getProfitLoss(): string
     {
         // Sales revenue by month
-        $salesQ = DB::table('mm_invoices')->where('invoice_type', 'sales')->whereNull('deleted_at');
+        $salesQ = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('sales'))->whereNull('deleted_at');
         if ($this->plantId !== null) $salesQ->where('plant_id', $this->plantId);
         $salesByMonth = $salesQ->selectRaw("DATE_FORMAT(invoice_date, '%Y-%m') as month, SUM(subtotal) as total_sales")
             ->groupBy('month')->get()->pluck('total_sales', 'month');
 
         // Material purchases by month
-        $billsQ = DB::table('mm_invoices')->where('invoice_type', 'bill')->whereNull('deleted_at');
+        $billsQ = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('bill'))->whereNull('deleted_at');
         if ($this->plantId !== null) $billsQ->where('plant_id', $this->plantId);
         $billsByMonth = $billsQ->selectRaw("DATE_FORMAT(invoice_date, '%Y-%m') as month, SUM(subtotal) as total_bills")
             ->groupBy('month')->get()->pluck('total_bills', 'month');
@@ -289,11 +289,11 @@ class ModoFinance implements Tool
         );
         $cashTotal = $cashDebit - $cashCredit;
 
-        $salesQ = DB::table('mm_invoices')->where('invoice_type', 'sales')->whereNull('deleted_at');
+        $salesQ = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('sales'))->whereNull('deleted_at');
         if ($this->plantId !== null) $salesQ->where('plant_id', $this->plantId);
         $totalSales = (float) $salesQ->sum('subtotal');
 
-        $billsQ = DB::table('mm_invoices')->where('invoice_type', 'bill')->whereNull('deleted_at');
+        $billsQ = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('bill'))->whereNull('deleted_at');
         if ($this->plantId !== null) $billsQ->where('plant_id', $this->plantId);
         $totalBills = (float) $billsQ->sum('subtotal');
 
@@ -369,7 +369,7 @@ class ModoFinance implements Tool
     {
         $query = DB::table('mm_invoices')
             ->join('mm_patrons', 'mm_invoices.partner_id', '=', 'mm_patrons.id')
-            ->where('mm_invoices.invoice_type', 'sales')
+            ->whereIn('mm_invoices.invoice_type', \App\Support\InvoiceClassification::aliases('sales'))
             ->where('mm_invoices.balance_amount', '>', 0)
             ->whereNull('mm_invoices.deleted_at')
             ->select('mm_patrons.legal_name as customer_name', 'mm_invoices.invoice_number', 'mm_invoices.prefix', 'mm_invoices.invoice_date', 'mm_invoices.due_date', 'mm_invoices.balance_amount');

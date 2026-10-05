@@ -3,6 +3,8 @@ import { entityToday } from '@/Utils/entityDateTime';
 import { ref, computed, watch, onMounted } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import Dialog from 'primevue/dialog';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import axios from 'axios';
 
 const props = defineProps<{
@@ -10,6 +12,7 @@ const props = defineProps<{
     plants: any[];
     grades: any[];
     patrons?: any[];
+    personnels?: any[];
     activePlantId?: number | null;
     isEdit?: boolean;
 }>();
@@ -27,12 +30,13 @@ const defaultSpecimens = [
 ];
 
 const today = entityToday();
+const testAgeOptions = [3, 7, 14, 28, 56, 90].map(value => ({ label: String(value), value }));
 
 const form = useForm({
     id: props.initialData?.id ?? null,
-    plant_id: props.initialData?.plant_id ?? (props.activePlantId || (props.plants?.[0]?.id ?? null)),
+    plant_id: props.activePlantId ?? props.plants?.[0]?.id ?? null,
     account_name: props.initialData?.account_name ?? '',
-    patron_id: props.initialData?.patron_id ?? null,
+    patron_id: props.initialData?.patron_id ?? props.patrons?.find(p => p.name === props.initialData?.account_name)?.id ?? null,
     invoice_id: props.initialData?.invoice_id ?? null,
     invoice_no: props.initialData?.invoice_no ?? '',
     grade: props.initialData?.grade ?? (props.grades?.[0]?.name ?? 'M25 (Gst)'),
@@ -64,6 +68,17 @@ const form = useForm({
             compressive_strength: s.compressive_strength ?? '',
         }))
         : JSON.parse(JSON.stringify(defaultSpecimens)),
+});
+
+const personnelOptions = computed(() => {
+    const options = [...(props.personnels || [])];
+    // Retain names already recorded on older tests when the personnel record is unavailable.
+    for (const name of [props.initialData?.lab_technician, props.initialData?.field_technician]) {
+        if (name && !options.some(person => person.name === name)) {
+            options.push({ name, label: name });
+        }
+    }
+    return options;
 });
 
 // Auto-calculate Date of Testing based on Concrete Date + Age of Test
@@ -185,13 +200,9 @@ const selectInvoice = (inv: any) => {
 };
 
 // Patron selection helper
-const onPatronChange = (e: any) => {
-    const patronId = parseInt(e.target.value);
-    if (!patronId) return;
-    const p = props.patrons?.find(x => x.id === patronId);
-    if (p) {
-        form.account_name = p.name;
-    }
+const onPatronChange = (patronId: number | null) => {
+    const patron = props.patrons?.find(p => Number(p.id) === Number(patronId));
+    form.account_name = patron?.name || '';
 };
 
 // Submit handler
@@ -247,17 +258,17 @@ const cancelForm = () => {
                             <label class="col-span-4 font-medium text-gray-700">
                                 Account Name <span class="text-red-500">*</span>
                             </label>
-                            <div class="col-span-8 relative flex items-center">
-                                <input
-                                    v-model="form.account_name"
-                                    type="text"
+                            <div class="col-span-8">
+                                <BaseSelect
+                                    v-model="form.patron_id"
+                                    :options="patrons || []"
+                                    optionLabel="name"
+                                    optionValue="id"
+                                    :error="form.errors.patron_id || form.errors.account_name"
                                     required
-                                    placeholder="Enter Account / Customer Name"
-                                    class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500 pr-8"
+                                    placeholder="Select patron"
+                                    @update:modelValue="onPatronChange"
                                 />
-                                <div class="absolute right-2 text-gray-400 pointer-events-none">
-                                    <i class="pi pi-user text-xs"></i>
-                                </div>
                             </div>
                         </div>
 
@@ -267,15 +278,16 @@ const cancelForm = () => {
                                 Factory <span class="text-red-500">*</span>
                             </label>
                             <div class="col-span-8">
-                                <select
+                                <BaseSelect
                                     v-model="form.plant_id"
+                                    :options="plants"
+                                    optionLabel="name"
+                                    optionValue="id"
+                                    placeholder="Select factory"
+                                    :error="form.errors.plant_id"
+                                    disabled
                                     required
-                                    class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500 bg-white"
-                                >
-                                    <option v-for="plant in plants" :key="plant.id" :value="plant.id">
-                                        {{ plant.name }}
-                                    </option>
-                                </select>
+                                />
                             </div>
                         </div>
 
@@ -309,15 +321,15 @@ const cancelForm = () => {
                                 Grade <span class="text-red-500">*</span>
                             </label>
                             <div class="col-span-8">
-                                <select
+                                <BaseSelect
                                     v-model="form.grade"
+                                    :options="grades"
+                                    optionLabel="name"
+                                    optionValue="name"
+                                    placeholder="Select grade"
+                                    :error="form.errors.grade"
                                     required
-                                    class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500 bg-white"
-                                >
-                                    <option v-for="g in grades" :key="g.id || g.name" :value="g.name">
-                                        {{ g.name }}
-                                    </option>
-                                </select>
+                                />
                             </div>
                         </div>
 
@@ -327,11 +339,10 @@ const cancelForm = () => {
                                 Concrete Date <span class="text-red-500">*</span>
                             </label>
                             <div class="col-span-8">
-                                <input
+                                <BaseDatePicker
                                     v-model="form.concrete_date"
-                                    type="date"
+                                    :error="form.errors.concrete_date"
                                     required
-                                    class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                 />
                             </div>
                         </div>
@@ -342,18 +353,15 @@ const cancelForm = () => {
                                 Age Of Test (days) <span class="text-red-500">*</span>
                             </label>
                             <div class="col-span-8">
-                                <select
+                                <BaseSelect
                                     v-model="form.age_of_test_days"
+                                    :options="testAgeOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    :filter="false"
+                                    :error="form.errors.age_of_test_days"
                                     required
-                                    class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500 bg-white"
-                                >
-                                    <option :value="3">3</option>
-                                    <option :value="7">7</option>
-                                    <option :value="14">14</option>
-                                    <option :value="28">28</option>
-                                    <option :value="56">56</option>
-                                    <option :value="90">90</option>
-                                </select>
+                                />
                             </div>
                         </div>
 
@@ -363,11 +371,10 @@ const cancelForm = () => {
                                 Date Of Testing <span class="text-red-500">*</span>
                             </label>
                             <div class="col-span-8">
-                                <input
+                                <BaseDatePicker
                                     v-model="form.date_of_testing"
-                                    type="date"
+                                    :error="form.errors.date_of_testing"
                                     required
-                                    class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                 />
                             </div>
                         </div>
@@ -523,16 +530,16 @@ const cancelForm = () => {
                             <label class="col-span-4 font-medium text-gray-700">
                                 Lab Technician
                             </label>
-                            <div class="col-span-8 relative flex items-center">
-                                <input
+                            <div class="col-span-8">
+                                <BaseSelect
                                     v-model="form.lab_technician"
-                                    type="text"
-                                    placeholder="e.g. PRADEEP RAJ"
-                                    class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500 pr-8"
+                                    :options="personnelOptions"
+                                    optionLabel="label"
+                                    optionValue="name"
+                                    :error="form.errors.lab_technician"
+                                    placeholder="Select lab technician"
+                                    showClear
                                 />
-                                <div class="absolute right-2 text-gray-400 pointer-events-none">
-                                    <i class="pi pi-user text-xs"></i>
-                                </div>
                             </div>
                         </div>
 
@@ -541,16 +548,16 @@ const cancelForm = () => {
                             <label class="col-span-4 font-medium text-gray-700">
                                 Field Technician
                             </label>
-                            <div class="col-span-8 relative flex items-center">
-                                <input
+                            <div class="col-span-8">
+                                <BaseSelect
                                     v-model="form.field_technician"
-                                    type="text"
-                                    placeholder="e.g. PAVITHRAN"
-                                    class="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500 pr-8"
+                                    :options="personnelOptions"
+                                    optionLabel="label"
+                                    optionValue="name"
+                                    :error="form.errors.field_technician"
+                                    placeholder="Select field technician"
+                                    showClear
                                 />
-                                <div class="absolute right-2 text-gray-400 pointer-events-none">
-                                    <i class="pi pi-user text-xs"></i>
-                                </div>
                             </div>
                         </div>
 

@@ -24,8 +24,8 @@ class Gstr3bReportService implements ReportServiceInterface
         // 1. OUTWARD SUPPLIES (Sales Invoices)
         $salesInvoices = Invoice::where('plant_id', $plantId)
             ->whereNull('deleted_at')
-            ->where('invoice_type', 'sales')
-            ->whereIn('status', ['approved', 'paid'])
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
+            ->whereIn('status', ['Approved', 'approved', 'APPROVED', 'Paid', 'paid', 'PAID'])
             ->whereBetween('invoice_date', [$start, $end])
             ->get();
 

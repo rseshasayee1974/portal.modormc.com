@@ -8,6 +8,7 @@ defineProps<{
     plants: any[];
     grades: any[];
     patrons: any[];
+    personnels: any[];
     activePlantId: number | null;
     defaultTestNumber: string;
     today: string;
@@ -26,6 +27,7 @@ defineProps<{
                 :plants="plants"
                 :grades="grades"
                 :patrons="patrons"
+                :personnels="personnels"
                 :active-plant-id="activePlantId"
                 :is-edit="false"
             />

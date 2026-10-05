@@ -5,12 +5,20 @@ import Swal from 'sweetalert2';
 
 // Components
 import Dialog from 'primevue/dialog';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
 
 import { CheckCircleIcon, ScaleIcon, PrinterIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 
-const props = defineProps<{ inward: any }>();
+const props = withDefaults(defineProps<{ inward: any; vehicles?: any[]; units?: any[] }>(), {
+    vehicles: () => [],
+    units: () => [],
+});
 const data = ref({ ...props.inward });
+const detailsSaving = ref(false);
+const detailsErrors = ref<Record<string, string>>({});
+const isBilled = computed(() => Number(data.value.item?.invoiced_quantity || 0) > 0);
+const truckLabel = computed(() => props.vehicles.find(vehicle => Number(vehicle.value) === Number(data.value.truck_id))?.label || (data.value.truck_id ? data.value.truck?.registration : 'External Vehicle'));
 watch(() => props.inward, (inward) => { data.value = { ...inward }; });
 const page = usePage();
 const isManualWeightDisabled = computed(() => page.props.custom_settings?.batching?.manual_weight == 1);
@@ -194,6 +202,27 @@ const saveInwardWeights = (inward: any) => {
         }
     });
 };
+
+const saveInwardDetails = () => {
+    const payload: Record<string, any> = {};
+    for (const field of ['truck_id', 'uom_id', 'conversion_uom_id', 'conversion_quantity']) {
+        const value = data.value[field] ?? null;
+        const original = props.inward[field] ?? null;
+        if (value !== original && (value === null || original === null || Number(value) !== Number(original))) {
+            payload[field] = value;
+        }
+    }
+    if (!Object.keys(payload).length || detailsSaving.value) return;
+    detailsErrors.value = {};
+    detailsSaving.value = true;
+    router.post(route('inwards.update-weight', data.value.id), payload, {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Truck and units saved', showConfirmButton: false, timer: 1500 }),
+        onError: (errors) => { detailsErrors.value = errors; },
+        onFinish: () => { detailsSaving.value = false; },
+    });
+};
 </script>
 
 <template>
@@ -211,8 +240,7 @@ const saveInwardWeights = (inward: any) => {
                         <h3 class="text-xs font-black text-slate-800 uppercase tracking-tight">Weighment Station</h3>
                         <span class="text-[10px] font-mono text-slate-500 font-bold">GRN: {{ data.inward_no
                             }}</span>
-                        <span class="text-[10px] text-slate-500 font-bold">• Truck: {{ data.truck?.registration ||
-                            'External Vehicle' }}</span>
+                        <span class="text-[10px] text-slate-500 font-bold">• Truck: {{ truckLabel }}</span>
                         <span v-if="Number(data.truck_loaded || 0) > 0 && Number(data.truck_empty || 0) > 0"
                             class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">
                             Completed
@@ -245,9 +273,28 @@ const saveInwardWeights = (inward: any) => {
                     class="px-3.5 py-1.5 rounded-md font-black text-sm uppercase flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer border-0"
                     title="Save Changes">
                     <CheckCircleIcon class="w-3.5 h-3.5" />
-                    <span>Save</span>
+                    <span>Save weights</span>
                 </button>
             </div>
+        </div>
+
+        <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
+            <h4 class="text-xs font-bold text-slate-700">Edit vehicle and units</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <BaseSelect v-model="data.truck_id" :options="vehicles" label="Vehicle / Truck" optionLabel="label" optionValue="value" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" />
+                <BaseSelect v-model="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required :disabled="isBilled || detailsSaving" :error="detailsErrors.uom_id" />
+                <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
+                <div class="space-y-1">
+                    <label :for="'inward-conversion-' + data.id" class="text-xs font-medium text-slate-600">Converted quantity</label>
+                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number" min="0" step="0.0001" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
+                    <p v-if="detailsErrors.conversion_quantity" class="text-xs text-red-600">{{ detailsErrors.conversion_quantity }}</p>
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <p class="text-xs text-slate-500">{{ isBilled ? 'Void the linked bills before changing receipt quantities or units.' : 'Received UOM changes move the receipt quantity to the selected stock unit. Quantities are not converted automatically.' }}</p>
+                <button type="button" @click="saveInwardDetails" :disabled="detailsSaving" class="shrink-0 px-3 py-2 rounded-md bg-indigo-600 text-white text-xs font-bold disabled:opacity-50">{{ detailsSaving ? 'Saving…' : 'Save truck & units' }}</button>
+            </div>
+            <p v-if="detailsErrors.inward" class="text-xs text-red-600">{{ detailsErrors.inward }}</p>
         </div>
 
         <!-- Main Body Grid -->

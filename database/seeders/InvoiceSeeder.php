@@ -25,7 +25,7 @@ class InvoiceSeeder extends Seeder
         Invoice::factory(5)->create([
             'plant_id' => $plant->id,
             'partner_id' => $patrons[1]->id,
-            'invoice_type' => 'sales',
+            'invoice_type' => 'Invoice',
         ])->each(function ($invoice) use ($tax) {
             
             // Add items
@@ -49,7 +49,7 @@ class InvoiceSeeder extends Seeder
         Invoice::factory(2)->create([
             'plant_id' => $plant->id,
             'partner_id' => $patrons[0]->id,
-            'invoice_type' => 'sales',
+            'invoice_type' => 'Invoice',
         ])->each(function ($invoice) use ($tax) {
             $item = new InvoiceItem([
                 'invoice_id' => $invoice->id,

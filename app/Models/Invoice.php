@@ -27,7 +27,7 @@ class Invoice extends Model implements Postable
 
     protected $fillable = [
         'plant_id', 'partner_id', 'account_id', 
-        'invoice_type', 'invoice_label', 'ref_id', 'ref_title',  
+        'invoice_type', 'invoice_label', 'document_type', 'document_source', 'ref_id', 'ref_title',
         'invoice_number', 'prefix', 'invoice_date', 'due_date', 'period',
         'subtotal', 'global_discount_type', 'global_discount', 'discount_total', 'tax_amount', 'adjustment',
         'shipping_charges', 'shipping_tax_id',
@@ -141,7 +141,7 @@ class Invoice extends Model implements Postable
             }
 
             // Generate default details for prefix and next number
-            $details = self::generateNumber($plantId, $m->invoice_label ?? $m->invoice_type ?? 'sales', $m->account_id);
+            $details = self::generateNumber($plantId, strtolower((string) $m->invoice_type) === 'bill' ? 'bill' : ($m->invoice_label ?? $m->invoice_type ?? 'Invoice'), $m->account_id);
 
             if (empty($m->prefix) || in_array(trim($m->prefix), ['INV', 'INV/', 'Inv', 'Inv/'], true)) {
                 $m->prefix = $details['prefix'];
@@ -169,9 +169,11 @@ class Invoice extends Model implements Postable
         });
 
         static::saving(function ($m) {
+            $m->normalizeDocumentClassification();
+
             if (empty($m->prefix)) {
                 $plantId = (int)($m->plant_id ?: session('active_plant_id') ?: 1);
-                $details = self::generateNumber($plantId, $m->invoice_label ?? $m->invoice_type ?? 'sales', $m->account_id);
+                $details = self::generateNumber($plantId, strtolower((string) $m->invoice_type) === 'bill' ? 'bill' : ($m->invoice_label ?? $m->invoice_type ?? 'Invoice'), $m->account_id);
                 $m->prefix = $details['prefix'];
             }
 
@@ -221,7 +223,7 @@ class Invoice extends Model implements Postable
             $m->orderTaxes()->delete();
 
             // Release only the quantities belonging to the voided bill.
-            if ($m->invoice_type === 'bill' && $m->ref_id) {
+            if (in_array(strtolower((string) $m->invoice_type), ['bill', 'purchase'], true) && $m->ref_id) {
                 foreach (\App\Models\PurchaseOrder::whereIn('id', explode(',', $m->ref_id))->lockForUpdate()->get() as $order) {
                     $linked = $m->items->whereNotNull('purchase_order_item_id');
                     foreach ($linked as $line) {
@@ -260,6 +262,37 @@ class Invoice extends Model implements Postable
                 $dispatch->resetInvoice();
             }
         });
+    }
+
+    /** Keep legacy accounting/reporting fields in sync with the commercial classification. */
+    public function normalizeDocumentClassification(): void
+    {
+        $legacy = \App\Support\InvoiceClassification::fromLegacy($this->invoice_type, $this->invoice_label);
+        $type = ($this->isDirty('document_type') || !$this->isDirty('invoice_type')) && $this->document_type !== null
+            ? $this->document_type : $legacy['document_type'];
+        $source = ($this->isDirty('document_source') || (!$this->isDirty('invoice_label') && !$this->isDirty('invoice_type'))) && $this->document_source !== null
+            ? $this->document_source : $legacy['document_source'];
+        if ($type !== null && $source === null) $source = 'MANUAL';
+        \App\Support\InvoiceClassification::validate($type, $source);
+
+        // Do not silently turn credit/debit notes into ordinary invoices or bills.
+        if ($type !== null && $legacy['document_type'] === null && !empty($this->invoice_type)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'document_type' => 'Credit/debit notes cannot be classified as an invoice or bill.',
+            ]);
+        }
+        if ($type !== null) {
+            $this->invoice_type = $type === 'BILL' ? 'Bill' : 'Invoice';
+            if ($source !== 'MANUAL' || $legacy['document_source'] !== $source || empty($this->invoice_label)) {
+                $this->invoice_label = match ($source) {
+                    'DISPATCH' => 'Dispatch',
+                    'PURCHASE_STOCKIN' => 'purchase',
+                    default => 'Manual',
+                };
+            }
+        }
+        $this->document_type = $type;
+        $this->document_source = $source;
     }
 
     // ------------------------------------------------------------------ business logic
@@ -605,6 +638,11 @@ class Invoice extends Model implements Postable
      */
     public static function createFromSource($source, string $type, array $params = []): self
     {
+        $type = match (strtolower($type)) {
+            'bill', 'purchase' => 'bill',
+            'sales', 'invoice' => 'sales',
+            default => throw new \InvalidArgumentException('Source document type must be INVOICE or BILL.'),
+        };
         return DB::transaction(function () use ($source, $type, $params) {
             $plantId = $params['plant_id'] ?? session('active_plant_id');
             $userId  = auth()->id();
@@ -717,10 +755,12 @@ class Invoice extends Model implements Postable
             // 1. Create the Invoice Header
             $invoiceHeaderData = [
                 'plant_id'         => $plantId,
-                'partner_id'       => $params['partner_id'] ?? ($type === 'bill' ? $source->vendor_id : $source->customer_id),
+                'partner_id'       => $params['partner_id'] ?? ($type === 'Bill' ? $source->vendor_id : $source->customer_id),
                 'account_id'       => $params['account_id'] ?? null,
                 'invoice_type'     => $type,
-                'invoice_label'    => $params['invoice_label'] ?? null,
+                'invoice_label'    => $params['invoice_label'] ?? ($type === 'Bill' ? 'Purchase' : 'Dispatch'),
+                'document_type'    => $type === 'Bill' ? 'BILL' : 'INVOICE',
+                'document_source'  => $type === 'Bill' ? 'PURCHASE_STOCKIN' : 'DISPATCH',
                 'is_tax_inclusive' => $isTaxInclusive,
                 'ref_id'           => $source->id,
                 'ref_title'        => null,

@@ -27,6 +27,12 @@ package.json
 /tests
 !/tests/
 /tests/*
+!/tests/Feature/
+/tests/Feature/*
+!/tests/Feature/InvoiceClassificationTest.php
+!/tests/Feature/InwardDetailsTest.php
+!/tests/Feature/ConcreteQualityDropdownTest.php
+!/tests/Feature/PurchaseOrderTaxInclusiveTest.php
 !/tests/Standalone/
 /tests/Standalone/*
 !/tests/Standalone/register-reports.php
@@ -35,6 +41,8 @@ package.json
 !/tests/Standalone/batching-schedule-report.php
 !/tests/Standalone/purchase-receipt-billing.php
 !/tests/Standalone/purchase-conversion-billing.php
+!/tests/Standalone/bulk-document-pdf.php
+!/tests/Standalone/bulk-document-zip.php
 Homestead.json
 Homestead.yaml
 Thumbs.db

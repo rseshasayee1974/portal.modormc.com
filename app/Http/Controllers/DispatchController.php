@@ -358,7 +358,7 @@ class DispatchController extends Controller
                     $manualNumber = str_pad((string)$manualNumber, 5, '0', STR_PAD_LEFT);
                 }
 
-                $invoice = \App\Models\Invoice::createFromSource($dispatch, 'sales', [
+                $invoice = \App\Models\Invoice::createFromSource($dispatch, 'Invoice', [
                     'account_id'     => $validated['ledger_id'],
                     'invoice_date'   => $validated['invoice_date'],
                     'invoice_number' => $manualNumber,
@@ -366,6 +366,8 @@ class DispatchController extends Controller
                     'partner_id'       => $partnerId,
                     'plant_id'         => $dispatch->plant_id,
                     'invoice_label'    => 'Dispatch',
+                    'document_type'    => 'INVOICE',
+                    'document_source'  => 'DISPATCH',
                     'is_tax_inclusive' => (bool)$dispatch->is_tax_inclusive,
                 ]);
                 $dispatch->invoice($invoice);

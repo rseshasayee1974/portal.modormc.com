@@ -19,7 +19,7 @@ td, th { padding: 2mm; vertical-align: top; }
 .footer { margin-top: 12mm; border-top: 1px solid #cbd5e1; padding-top: 3mm; }
 </style></head><body>
 @php
-    $bill = strtolower($invoice->invoice_type) === 'bill';
+    $bill = in_array(strtolower($invoice->invoice_type), ['bill', 'purchase'], true);
     $plant = $invoice->plant;
     $party = $invoice->partner;
     $money = fn($n) => number_format((float) $n, 2);

@@ -23,8 +23,8 @@ class Gstr1ReportService implements ReportServiceInterface
         $invoices = Invoice::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->with(['partner.addresses.state'])
-            ->whereIn('invoice_type', ['sales', 'credit_note', 'debit_note'])
-            ->whereIn('status', ['approved', 'paid'])
+            ->whereIn('invoice_type', array_merge(\App\Support\InvoiceClassification::aliases('Invoice'), ['credit_note', 'debit_note']))
+            ->whereIn('status', ['Approved', 'approved', 'APPROVED', 'Paid', 'paid', 'PAID'])
             ->whereBetween('invoice_date', [$start, $end])
             ->get();
 

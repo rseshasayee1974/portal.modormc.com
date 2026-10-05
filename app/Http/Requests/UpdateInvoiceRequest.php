@@ -6,6 +6,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateInvoiceRequest extends FormRequest
 {
+    use Concerns\ValidatesInvoiceClassification;
+
+    protected function prepareForValidation(): void
+    {
+        $this->prepareDocumentClassification();
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -17,8 +24,10 @@ class UpdateInvoiceRequest extends FormRequest
             'partner_id'       => 'required|exists:mm_patrons,id',
             'account_id'       => 'nullable|exists:mm_accounts,id',
             'journal_id'       => 'nullable|exists:mm_journal_entries,id',
-            'invoice_type'     => 'required|string|max:50',
+            'invoice_type'     => 'required|in:Invoice,Bill,credit_note,debit_note',
             'invoice_label'    => 'nullable|string|max:100',
+            'document_type'    => 'nullable|in:INVOICE,BILL',
+            'document_source'  => 'nullable|in:DISPATCH,PURCHASE_STOCKIN,MANUAL',
             'ref_id'           => 'nullable|integer',
             'ref_title'        => 'nullable|string|max:255',
             'truck_id'         => 'nullable|exists:mm_machines,id',

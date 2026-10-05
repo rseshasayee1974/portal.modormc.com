@@ -9,6 +9,8 @@ defineProps<{
     plants: any[];
     grades: any[];
     patrons: any[];
+    personnels: any[];
+    activePlantId: number | null;
 }>();
 </script>
 
@@ -25,6 +27,8 @@ defineProps<{
                 :plants="plants"
                 :grades="grades"
                 :patrons="patrons"
+                :personnels="personnels"
+                :active-plant-id="activePlantId"
                 :is-edit="true"
             />
         </div>

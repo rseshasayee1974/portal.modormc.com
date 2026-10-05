@@ -38,7 +38,7 @@ class ReportRepository
             ])
             ->whereNull('mm_invoice_items.deleted_at')
             ->whereHas('invoice', function ($q) {
-                $q->where('invoice_type', 'sales')->whereNull('deleted_at');
+                $q->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))->whereNull('deleted_at');
             })
             ->with([
                 'invoice' => function ($q) {

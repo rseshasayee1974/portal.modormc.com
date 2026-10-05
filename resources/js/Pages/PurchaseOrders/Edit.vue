@@ -42,6 +42,7 @@ const form = useForm({
     exchange_rate: props.purchaseOrder?.exchange_rate || 0.0,
     amount_untaxed: Number(props.purchaseOrder?.amount_untaxed) || 0,
     amount_tax: Number(props.purchaseOrder?.amount_tax) || 0,
+    tax_inclusive: Boolean(props.purchaseOrder?.tax_inclusive),
     amount_total: Number(props.purchaseOrder?.amount_total) || 0,
     discount_amount: Number(props.purchaseOrder?.discount_amount) || 0,
     shipping_charges: Number(props.purchaseOrder?.shipping_charges) || 0,
@@ -128,7 +129,12 @@ const calculateItemTotals = (index: number) => {
     item.price_subtotal = subtotal - discount;
     
     const tax = props.taxes.find(t => t.id === item.tax_id);
-    if (tax) {
+    const taxRate = Number(tax?.tax_rate) || 0;
+    if (form.tax_inclusive && taxRate > 0) {
+        const net = item.price_subtotal;
+        item.price_subtotal = Math.round((net / (1 + taxRate / 100) + Number.EPSILON) * 100) / 100;
+        item.price_tax = Math.round((net - item.price_subtotal + Number.EPSILON) * 100) / 100;
+    } else if (tax) {
         item.price_tax = (item.price_subtotal * (Number(tax.tax_rate) || 0)) / 100;
     } else {
         item.price_tax = 0;
@@ -149,6 +155,7 @@ const calculateFinalTotals = () => {
 };
 
 watch(() => [form.shipping_charges, form.adjustment, form.discount_amount], calculateFinalTotals);
+watch(() => form.tax_inclusive, () => form.items.forEach((_, index) => calculateItemTotals(index)));
 
 const submit = () => {
     form.put(route('purchaseorder.update', props.purchaseOrder.id), {

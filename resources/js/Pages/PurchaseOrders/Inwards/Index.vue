@@ -224,7 +224,7 @@ const deleteInward = (inward: any) => {
                             </Column>
 
                             <template #expansion="{ data }">
-                                <InwardEditForm :key="data.id" :inward="data" />
+                                <InwardEditForm :key="data.id" :inward="data" :vehicles="vehicles" :units="units" />
                             </template>
 
                             <template #empty>
