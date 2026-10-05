@@ -57,6 +57,7 @@ class ReportRepository
                         'ref_id',
                         'discount_total',
                         'round_off',
+                        'adjustment',
                     ]);
                 },
                 'invoice.creator:id,username,email',
@@ -181,6 +182,7 @@ class ReportRepository
             })
             ->addSelect([
                 'register_dispatch.payment_mode as register_payment_mode',
+                'register_dispatch.round_off as register_roundoff',
                 'register_site.name as register_unloading',
                 'register_truck.registration as register_truck_number',
                 'register_customer.legal_name as register_customer_name',

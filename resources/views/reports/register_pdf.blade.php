@@ -108,7 +108,7 @@
 
         // Build single-row columns for Landscape A4
         $cols = [];
-        $cols[] = ['key' => 'index', 'label' => '#', 'align' => 'text-center', 'w' => 2.5];
+        $cols[] = ['key' => 'index', 'label' => '#', 'align' => 'text-center', 'w' => $isSales ? 3 : 2.5];
         $cols[] = ['key' => $isSales ? 'invoice_date' : 'bill_date', 'label' => 'Date', 'format' => 'date', 'align' => 'text-center', 'w' => 5.5];
         $cols[] = ['key' => $isSales ? 'invoice_no' : 'bill_no', 'label' => $isSales ? 'Invoice No' : 'Bill No', 'align' => 'text-left', 'w' => $isDetail ? 7.5 : 9];
 
@@ -139,6 +139,9 @@
         }
 
         $cols[] = ['key' => 'tax_amount', 'label' => 'Total Tax', 'format' => 'number', 'total' => 'gst', 'align' => 'text-right', 'w' => 5.5];
+        if ($isSales) {
+            $cols[] = ['key' => 'roundoff', 'label' => 'Round Off', 'format' => 'number', 'total' => 'roundoff', 'align' => 'text-right', 'w' => 4.5];
+        }
         $cols[] = ['key' => 'net_amount', 'label' => 'Net Amount', 'format' => 'number', 'total' => 'grand_total', 'align' => 'text-right', 'w' => 7.5];
 
         // Compute normalized percentage widths summing to 100%

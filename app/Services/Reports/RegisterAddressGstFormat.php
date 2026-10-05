@@ -60,7 +60,9 @@ class RegisterAddressGstFormat
                     ->sortBy([['is_primary', 'desc'], ['id', 'asc']])->first();
                 $address = $this->preferredAddress($contact?->addresses ?? collect(), $plantId)
                     ?? $this->preferredAddress($party?->addresses ?? collect(), $plantId);
-                $roundoff = isset($seenDocuments[$row['document_id']]) ? 0.0 : (float) ($document?->roundoff ?? 0);
+                $roundoff = isset($seenDocuments[$row['document_id']]) ? 0.0 : ($sales
+                    ? SalesRegisterService::resolveRoundOff($document?->roundoff, $document?->dispatch_roundoff, $document?->adjustment)
+                    : (float) ($document?->roundoff ?? 0));
                 $discount = isset($seenDocuments[$row['document_id']]) ? 0.0 : (float) ($document?->discount ?? 0);
                 $seenDocuments[$row['document_id']] = true;
                 $shippingParts = $sales
@@ -105,7 +107,8 @@ class RegisterAddressGstFormat
                 $join->on('site.id', '=', 'dispatch.unload_site_id')->where('site.plant_id', $plantId)->whereNull('site.deleted_at');
             })->where('invoice.plant_id', $plantId)->whereIn('invoice.invoice_type', \App\Support\InvoiceClassification::aliases('sales'))->whereIn('invoice.id', $ids)->whereNull('invoice.deleted_at')
             ->get(['invoice.id', DB::raw('COALESCE(NULLIF(invoice.partner_id, 0), NULLIF(dispatch.customer_id, 0), sales_order.customer_id) as party_id'),
-                'invoice.round_off as roundoff', 'invoice.discount_total as discount', 'site.name as shipping_name', 'site.site_address_1 as shipping_address_1',
+                'invoice.round_off as roundoff', 'dispatch.round_off as dispatch_roundoff', 'invoice.adjustment',
+                'invoice.discount_total as discount', 'site.name as shipping_name', 'site.site_address_1 as shipping_address_1',
                 'site.site_address_2 as shipping_address_2', 'site.city as shipping_city', 'site.zipcode as shipping_zipcode'])->keyBy('id');
     }
 

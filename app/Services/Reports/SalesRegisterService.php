@@ -101,9 +101,18 @@ class SalesRegisterService extends RegisterReportService
             'taxes'          => $taxes,          // rate-wise: {CGST_9.00: 450, SGST_9.00: 450}
             'net_amount'     => (float) $item->line_total,
             'discount'       => (float) ($invoice?->discount_total ?? 0),
-            'roundoff'       => (float) ($invoice?->round_off ?? 0),
+            'roundoff'       => self::resolveRoundOff($invoice?->round_off, $item->register_roundoff ?? null, $invoice?->adjustment),
             'payment_status' => $paymentStatus,
         ];
+    }
+
+    public static function resolveRoundOff($invoiceRoundOff, $dispatchRoundOff, $adjustment): float
+    {
+        // Prefer dedicated rounding; the invoice form stores Round Off / Adj in adjustment.
+        foreach ([$invoiceRoundOff, $dispatchRoundOff, $adjustment] as $value) {
+            if (round((float) $value, 2) != 0.0) return round((float) $value, 2);
+        }
+        return 0.0;
     }
 
     private function taxName(array $taxes): string

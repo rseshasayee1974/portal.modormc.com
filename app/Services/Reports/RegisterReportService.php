@@ -101,6 +101,9 @@ abstract class RegisterReportService implements ReportServiceInterface
                 $seenDocuments[$docId] = true;
                 $totals['discount'] += (float) ($row['discount'] ?? 0);
                 $totals['roundoff'] += (float) ($row['roundoff'] ?? 0);
+            } elseif ($this->reportType() === 'sales_register') {
+                // Match the Excel exports: show document rounding on its first matching item only.
+                $row['roundoff'] = 0.0;
             }
 
             $row['taxes'] = $row['taxes'] ?? [];
@@ -151,7 +154,8 @@ abstract class RegisterReportService implements ReportServiceInterface
             'tax_columns' => $taxColumns,
             'columns' => RegisterReportColumns::for($this->reportType(), $filters['register_view'], $taxColumns),
             'note' => ($sampleDetail ? 'Gross is the stored item total including tax; Sales GST is the taxable item value. ' : '')
-                .'Amounts are based on matching invoice or bill items. Document-level charges, discounts and rounding are excluded.',
+                .'Amounts are based on matching invoice or bill items. Document-level charges, discounts and rounding are excluded from item amounts.'
+                .($this->reportType() === 'sales_register' ? ' Round Off is shown separately once per invoice, on its first matching item.' : ''),
             'pagination' => ['total' => $count, 'per_page' => $perPage, 'current_page' => $page,
                 'last_page' => max(1, (int) ceil($count / $perPage))],
         ];
