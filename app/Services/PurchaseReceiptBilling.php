@@ -41,7 +41,7 @@ class PurchaseReceiptBilling
                     if ($line->purchase_order_history_id && (int) $line->purchase_order_history_id !== (int) $receipt->id) continue;
                     if ($receipt->created_at && $bill->created_at && $receipt->created_at > $bill->created_at) continue;
                     $available = max(0, (float) $receipt->received_qty - ($used[$receipt->id] ?? 0));
-                    $ratio = (int) $line->uom_id === (int) $item->product_uom ? 1.0
+                    $ratio = (int) $line->uom_id === (int) ($receipt->uom_id ?? $item->product_uom) ? 1.0
                         : ((int) $line->uom_id === (int) $receipt->conversion_uom_id && (float) $receipt->received_qty > 0
                             ? (float) $receipt->conversion_quantity / (float) $receipt->received_qty : 0);
                     if ($ratio <= 0 || $available <= 0 || $remaining <= 0) continue;
@@ -66,7 +66,10 @@ class PurchaseReceiptBilling
     {
         if ($line->purchase_order_history_id) {
             $receipt = $item->history->firstWhere('id', $line->purchase_order_history_id);
-            if ($receipt && (int) $line->uom_id !== (int) $item->product_uom && (float) $receipt->conversion_quantity > 0) {
+            if ($receipt && (int) $line->uom_id === (int) ($receipt->uom_id ?? $item->product_uom)) {
+                return (float) $line->quantity;
+            }
+            if ($receipt && (int) $line->uom_id === (int) $receipt->conversion_uom_id && (float) $receipt->conversion_quantity > 0) {
                 return round((float) $line->quantity * (float) $receipt->received_qty / (float) $receipt->conversion_quantity, 2);
             }
         }
@@ -105,7 +108,7 @@ class PurchaseReceiptBilling
                 if ((float) $receipt->conversion_quantity <= 0 || !$receipt->conversion_uom_id) {
                     throw ValidationException::withMessages(['items' => 'Enter conversion quantity and converted UOM on each unbilled inward receipt.']);
                 }
-                if ((int) $receipt->conversion_uom_id === (int) $item->product_uom && abs((float) $receipt->conversion_quantity - (float) $receipt->received_qty) > 0.00001) {
+                if ((int) $receipt->conversion_uom_id === (int) ($receipt->uom_id ?? $item->product_uom) && abs((float) $receipt->conversion_quantity - (float) $receipt->received_qty) > 0.00001) {
                     throw ValidationException::withMessages(['items' => 'Choose a different converted UOM when the conversion changes the quantity.']);
                 }
                 if ($uom !== null && $uom !== (int) $receipt->conversion_uom_id) {

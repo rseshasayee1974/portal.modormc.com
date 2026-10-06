@@ -69,7 +69,6 @@ class PurchaseBillGenerator
         $discountSum = 0;
         $receiptOrderValue = 0;
         $billRates = collect($request->input('items', []))->keyBy('order_item_id');
-        $converted = false;
         $purchase_order->loadMissing(['items.history', 'bills.items']);
         $quantities = new \App\Services\PurchaseReceiptBilling;
         $receivedQuantities = [];
@@ -98,7 +97,12 @@ class PurchaseBillGenerator
                 continue;
             }
 
+            $receipt = $receiptId !== null ? $item->history->firstWhere('id', $receiptId) : null;
+            $converted = $receipt && (float) $receipt->conversion_quantity > 0;
             $billingQuantity = $quantities->quantity($purchase_order, $item, $converted, $receiptId);
+            if ($receipt && !$converted) {
+                $billingQuantity['uom_id'] = $receipt->uom_id;
+            }
             $baseQty = $billingQuantity['received_quantity'];
             if ($receiptId !== null && $baseQty <= 0) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['inward_ids' => 'A selected inward is already billed or has no received quantity. Refresh and select unbilled inwards.']);

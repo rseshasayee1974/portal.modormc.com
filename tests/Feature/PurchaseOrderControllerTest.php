@@ -470,20 +470,49 @@ class PurchaseOrderControllerTest extends TestCase
     public function test_inward_save_bills_updated_quantity_and_prevents_a_second_bill(): void
     {
         $inward = $this->inwardForBilling();
-        $payload = $this->inwardBillPayload() + ['truck_empty' => 3, 'conversion_quantity' => 2];
+        $unit = \App\Models\ProductUnit::factory()->create();
+        $payload = $this->inwardBillPayload() + ['truck_empty' => 3, 'conversion_quantity' => 2, 'conversion_uom_id' => $unit->id];
         $this->post(route('inwards.update-weight', $inward), $payload)->assertSessionHasNoErrors()->assertSessionHas('success');
         $inward->refresh();
         $bill = $inward->order->bills()->firstOrFail();
         $line = $bill->items()->firstOrFail();
         $this->assertEquals(7, $inward->received_qty);
         $this->assertEquals(7, $inward->item->invoiced_quantity);
-        $this->assertEquals(7, $line->quantity);
+        $this->assertEquals(2, $line->quantity);
+        $this->assertEquals($unit->id, $line->uom_id);
         $this->assertEquals(125, $line->price_unit);
-        $this->assertEquals(875, $bill->total_amount);
+        $this->assertEquals(250, $bill->total_amount);
         $this->assertEquals($inward->id, $line->purchase_order_history_id);
         $this->assertDatabaseHas('mm_quantity', ['product_id' => $this->product->id, 'quantity' => 7]);
         $this->post(route('inwards.update-weight', $inward), $this->inwardBillPayload())->assertSessionHasErrors('bill.inward_ids');
         $this->assertEquals(1, $inward->order->bills()->count());
+        $this->delete(route('purchaseorder.delete-bill', $inward->order), ['bill_id' => $bill->id])->assertSessionHas('success');
+        $this->assertEquals(0, $inward->item->fresh()->invoiced_quantity);
+    }
+
+    public function test_inward_without_conversion_bills_received_quantity_and_unit(): void
+    {
+        $inward = $this->inwardForBilling();
+        $inward->update(['uom_id' => ProductUnit::factory()->create()->id]);
+        $this->post(route('inwards.update-weight', $inward), $this->inwardBillPayload())->assertSessionHasNoErrors();
+        $bill = $inward->order->bills()->firstOrFail();
+        $line = $bill->items()->firstOrFail();
+        $this->assertEquals(10, $line->quantity);
+        $this->assertEquals($inward->uom_id, $line->uom_id);
+        $this->assertEquals(1250, $line->line_total);
+        $this->delete(route('purchaseorder.delete-bill', $inward->order), ['bill_id' => $bill->id])->assertSessionHas('success');
+        $this->assertEquals(0, $inward->item->fresh()->invoiced_quantity);
+    }
+
+    public function test_converted_inward_bill_requires_conversion_unit_and_rolls_back(): void
+    {
+        $inward = $this->inwardForBilling();
+        $this->post(route('inwards.update-weight', $inward), $this->inwardBillPayload() + [
+            'truck_empty' => 3, 'conversion_quantity' => 2,
+        ])->assertSessionHasErrors('bill.items');
+        $this->assertEquals(10, $inward->fresh()->received_qty);
+        $this->assertEquals(0, $inward->item->fresh()->invoiced_quantity);
+        $this->assertEquals(0, $inward->order->bills()->count());
     }
 
     public function test_invalid_inward_bill_rolls_back_weight_stock_and_units(): void

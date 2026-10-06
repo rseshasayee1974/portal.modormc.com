@@ -31,6 +31,12 @@ const detailsSaving = ref(false);
 const detailsErrors = ref<Record<string, string>>({});
 const isBilled = computed(() => Boolean(data.value.is_billed));
 const generateBill = ref(false);
+const billsConvertedQuantity = computed(() => Number(data.value.conversion_quantity || 0) > 0);
+const billingUomLabel = computed(() => {
+    const unitId = billsConvertedQuantity.value ? data.value.conversion_uom_id : data.value.uom_id;
+    return props.units.find(unit => Number(unit.value) === Number(unitId))?.label
+        || (billsConvertedQuantity.value ? 'converted unit' : data.value.uom?.unit_code || 'received unit');
+});
 const billForm = ref({
     account_id: null,
     invoice_date: entityToday(),
@@ -246,8 +252,9 @@ const saveInwardDetails = () => {
                     <BaseSelect v-model="billForm.account_id" :options="accounts" label="Purchase account" optionLabel="label" optionValue="value" placeholder="Select account" required filter :disabled="formBusy" :error="detailsErrors['bill.account_id']" />
                     <BaseDatePicker v-model="billForm.invoice_date" label="Bill date" required :disabled="formBusy" :error="detailsErrors['bill.invoice_date']" />
                     <BaseDatePicker v-model="billForm.due_date" label="Due date" :disabled="formBusy" :error="detailsErrors['bill.due_date']" />
-                    <BaseInputNumber v-model="billForm.unit_price" :label="`Rate per ${data.order?.items?.find((item: any) => item.id === data.order_item_id)?.uom?.unit_code || 'PO unit'}`" :min="0" :minFractionDigits="2" :maxFractionDigits="2" required :disabled="formBusy" :error="detailsErrors['bill.unit_price']" />
+                    <BaseInputNumber v-model="billForm.unit_price" :label="`Rate per ${billingUomLabel}`" :min="0" :minFractionDigits="2" :maxFractionDigits="2" required :disabled="formBusy" :error="detailsErrors['bill.unit_price']" />
                 </div>
+                <p class="text-xs text-indigo-600">Bill quantity: {{ Number(billsConvertedQuantity ? data.conversion_quantity : data.received_qty).toLocaleString(APP_LOCALE) }} {{ billingUomLabel }} ({{ billsConvertedQuantity ? 'converted quantity' : 'received quantity' }}).</p>
                 <!-- <p class="text-xs text-indigo-600">{{ data.order?.tax_inclusive ? 'The rate includes tax.' : 'Tax is added to the rate.' }} Purchase order discounts and charges apply.</p> -->
             </template>
         </div>
@@ -304,7 +311,6 @@ const saveInwardDetails = () => {
                                 class="text-[9px] text-slate-500 font-bold uppercase tracking-wider leading-tight w-8">Gross
                                 Snap</span>
                         </div>
-                    </div>
                 </div>
 
                 <!-- Tare (Empty) Card -->
@@ -352,7 +358,6 @@ const saveInwardDetails = () => {
                                 class="text-[9px] text-amber-700 font-bold uppercase tracking-wider leading-tight w-8">Tare
                                 Snap</span>
                         </div>
-                    </div>
                 </div>
             </div>
 
