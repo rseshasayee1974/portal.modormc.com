@@ -173,7 +173,11 @@ class PurchaseOrderInwardController extends Controller
                 $convUomId = !empty($itemData['conversion_uom_id']) ? (int)$itemData['conversion_uom_id'] : null;
 
                 if (($convQty === null || $convQty == 0) && $itemProduct && (float)$itemProduct->conversion_quantity > 0) {
-                    $convQty = $acceptedQty / (float)$itemProduct->conversion_quantity;
+                    $itemUom = $item->uom;
+                    $isUnt = $itemUom && (in_array(strtoupper($itemUom->unit_code), ['UNT', 'UNT/UNT', 'UNIT']) || in_array(strtoupper($itemUom->unit_name), ['UNT', 'UNT/UNT', 'UNIT']));
+                    if (!$isUnt) {
+                        $convQty = $acceptedQty / (float)$itemProduct->conversion_quantity;
+                    }
                 }
                 if (!$convUomId && $itemProduct) {
                     $convUomId = $itemProduct->unit_id;

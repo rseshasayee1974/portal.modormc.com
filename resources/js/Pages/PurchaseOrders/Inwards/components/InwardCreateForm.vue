@@ -126,6 +126,13 @@ watch(() => props.units, (newUnits) => {
 
 const recalcReceivedQty = (item: any) => {
     item.received_qty = Math.max(0, Number(item.truck_loaded) || 0);
+
+    const uomStr = String(item.uom || '').toUpperCase();
+    if (uomStr === 'UNT' || uomStr === 'UNT/UNT' || uomStr === 'UNIT') {
+        item.conversion_quantity = 0;
+        return;
+    }
+
     const rate = Number(item.prodConvRate || item.product?.conversion_quantity || item.product?.convertsion_quantity || 0);
     if (rate > 0) {
         item.conversion_quantity = Number((item.received_qty / rate).toFixed(4));
@@ -363,7 +370,8 @@ const remainingToReceive = (item: any) => {
                                                     @update:model-value="recalcReceivedQty(item)" />
 
                                                 <!-- Capture Weight Animated Button -->
-                                                <button v-if="remainingToReceive(item) > 0 && page.props.custom_settings?.batching?.manual_weight == 0"
+                                                <button
+                                                    v-if="remainingToReceive(item) > 0 && page.props.custom_settings?.batching?.manual_weight == 0"
                                                     @click="captureInwardLoadedWeight(item)" type="button" :class="[
                                                         'relative px-2.5 h-9 rounded-md transition-all border shrink-0 flex items-center justify-center gap-1 shadow-xs font-bold group cursor-pointer',
                                                         isScaleConnected
