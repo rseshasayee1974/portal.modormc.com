@@ -308,24 +308,31 @@ class Dispatch extends Model
      */
     public function getWhatsAppUrl(): ?string
     {
-        $this->load(['customer.contacts', 'workOrder', 'mixDesign', 'truck', 'driver']);
+        $mobile = $this->getWhatsAppContact();
+        if (!$mobile) return null;
+
+        $notification = new \App\Notifications\DispatchCompletedNotification($this);
+        return 'https://wa.me/' . $mobile . '?text=' . urlencode($notification->toWhatsAppMessage());
+    }
+
+    public function getWhatsAppContact(): ?string
+    {
+        $this->loadMissing('customer.contacts');
         
         $customer = $this->customer;
         if (!$customer) return null;
         
-        $contact = $customer->contacts()->where('is_primary', 1)->first() ?? $customer->contacts()->first();
+        $contact = $customer->contacts->firstWhere('is_primary', true) ?? $customer->contacts->first();
         if (!$contact || !$contact->mobile) return null;
 
         $mobile = preg_replace('/[^0-9]/', '', $contact->mobile);
+        if ($mobile === '') return null;
         // Add country code if 10 digits
         if (strlen($mobile) === 10) {
             $mobile = '91' . $mobile;
         }
 
-        $notification = new \App\Notifications\DispatchCompletedNotification($this);
-        $message = $notification->toWhatsAppMessage();
-
-        return "https://wa.me/" . $mobile . "?text=" . urlencode($message);
+        return preg_match('/^[1-9][0-9]{9,14}$/', $mobile) ? $mobile : null;
     }
 
     /**

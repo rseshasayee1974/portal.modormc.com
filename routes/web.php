@@ -282,6 +282,7 @@ Route::middleware([
         Route::delete('dispatches/{dispatch}/delete-invoice', [\App\Http\Controllers\DispatchController::class, 'deleteInvoice'])->name('dispatches.delete-invoice');
         Route::post('dispatches/{dispatch}/cancel', [\App\Http\Controllers\DispatchController::class, 'cancel'])->name('dispatches.cancel');
         Route::get('dispatches/{dispatch}/whatsapp-url', [\App\Http\Controllers\DispatchController::class, 'whatsappUrl'])->name('dispatches.whatsapp-url');
+        Route::post('dispatches/{dispatch}/whatsapp-send', [\App\Http\Controllers\DispatchController::class, 'sendWhatsApp'])->name('dispatches.whatsapp-send');
         Route::resource('dispatches', \App\Http\Controllers\DispatchController::class);
         
         Route::resource('partyrates', \App\Http\Controllers\PartyRateController::class)->except(['create', 'edit', 'show']);
