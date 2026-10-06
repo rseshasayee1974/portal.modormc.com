@@ -13,7 +13,7 @@ class RegisterAddressGstFormat
     public function prepare(array $report, string $type, int $plantId): array
     {
         $report['data'] = $this->rowsWithDetails($report['data'], $type, $plantId);
-        $report['columns'] = $this->columns();
+        $report['columns'] = $this->columns($type);
         $report['totals']['roundoff'] = round(array_sum(array_column($report['data'], 'roundoff')), 2);
         $report['totals']['discount'] = round(array_sum(array_column($report['data'], 'discount')), 2);
         $report['excel_format'] = self::KEY;
@@ -27,6 +27,7 @@ class RegisterAddressGstFormat
         $report['columns'] = RegisterReportColumns::standardSalesExcel($report['columns']);
         $report['totals']['roundoff'] = round(array_sum(array_column($report['data'], 'roundoff')), 2);
         $report['totals']['discount'] = round(array_sum(array_column($report['data'], 'discount')), 2);
+        $report['note'] = 'Net Amount is the stored item total including tax; Taxable Amount is the taxable item value. Document-level charges, discounts and rounding are excluded from item amounts. Round Off appears once per invoice. Total Tax includes all recorded taxes.';
         return $report;
     }
 
@@ -81,7 +82,6 @@ class RegisterAddressGstFormat
                     'shipping_address_2' => $sales ? ($document?->shipping_address_2 ?? '') : ($plantAddress?->line_2 ?? ''),
                     'shipping_zipcode' => $sales ? ($document?->shipping_zipcode ?? '') : ($plantAddress?->zipcode ?? ''),
                     'payment_mode' => $sales ? ($row['payment_mode'] ?? '') : '',
-                    'invoice_no' => $row[$sales ? 'invoice_no' : 'bill_no'],
                     'truck' => $sales ? ($row['truck'] ?? '') : $trucks->get($row['document_id'].':'.$row['id'], collect())->pluck('registration')->unique()->implode(', '),
                     'rate' => $row[$sales ? 'rate' : 'purchase_rate'],
                     'gross' => $row['net_amount'],
@@ -139,13 +139,15 @@ class RegisterAddressGstFormat
         return implode(' + ', array_map(fn ($type, $rate) => $type.' '.$rate.'%', array_keys($rates), $rates));
     }
 
-    public function columns(): array
+    public function columns(string $type = 'sales_register'): array
     {
+        $sales = $type === 'sales_register';
         $columns = [];
         foreach ([
             ['date', 'DATE', 'date'], ['party', 'PARTY'], ['address_1', 'ADDRESS_1'], ['address_2', 'ADDRESS_2'],
             ['city', 'CITY'], ['state', 'STATE'], ['zipcode', 'ZIPCODE'], ['shipping_address', 'SHIPPING ADDRESS'],
-            ['shipping_zipcode', 'SHIPPING ZIPCODE'], ['payment_mode', 'TYPE (CASH OR CREDIT)'], ['invoice_no', 'INVOICE NO'],
+            ['shipping_zipcode', 'SHIPPING ZIPCODE'], ['payment_mode', 'TYPE (CASH OR CREDIT)'],
+            [$sales ? 'invoice_no' : 'bill_no', $sales ? 'INVOICE NO' : 'BILL NO'],
             ['truck', 'TRUCK'], ['gst_number', 'GSTIN'], ['product_name', 'PRODUCT'], ['hsn_code', 'HSN/SAC'],
             ['qty', 'QUANTITY', 'number', 'qty'], ['unit', 'UNIT'], ['rate', 'RATE', 'number'],
             ['gross', 'GROSS', 'number', 'grand_total'], ['discount', 'DISCOUNT', 'number', 'discount'], ['taxable_amount', 'SALES GST', 'number', 'taxable'],

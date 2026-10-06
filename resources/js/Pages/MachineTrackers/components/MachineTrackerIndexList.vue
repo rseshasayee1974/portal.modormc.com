@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref } from 'vue';
 import Column from 'primevue/column';
 import { PencilSquareIcon, TrashIcon, ClockIcon } from '@heroicons/vue/24/outline';
@@ -113,7 +114,7 @@ const getShiftLabel = (shiftVal: number) => {
                             {{ Number(slotProps.data.fuel || 0) }} L
                         </span>
                         <span class="text-[10px] text-slate-400">
-                            ₹{{ Number(slotProps.data.amount || 0).toLocaleString('en-IN', {
+                            ₹{{ Number(slotProps.data.amount || 0).toLocaleString(APP_LOCALE, {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2
                             }) }}

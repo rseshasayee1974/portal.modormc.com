@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { usePermissions } from '@/Composables/usePermissions';
@@ -168,7 +169,7 @@ const downloadSOPDF = () => {
                 <template #body="{ data }">
                     <div class="flex flex-col gap-1 text-xs w-36 py-0.5">
                         <div class="flex items-center justify-between font-semibold text-slate-700">
-                            <span>{{ Number(data.produced_qty || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }) }} / {{ Number(data.total_qty || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }) }} <span class="text-[10px] text-slate-400 font-normal">m³</span></span>
+                            <span>{{ Number(data.produced_qty || 0).toLocaleString(APP_LOCALE, { maximumFractionDigits: 2 }) }} / {{ Number(data.total_qty || 0).toLocaleString(APP_LOCALE, { maximumFractionDigits: 2 }) }} <span class="text-[10px] text-slate-400 font-normal">m³</span></span>
                             <!-- <span class="text-[10px] font-bold text-slate-500">{{ Math.min(100, Math.max(0, Math.round(((Number(data.produced_qty) || 0) / Math.max(1, Number(data.total_qty) || 1)) * 100))) }}%</span> -->
                         </div>
 

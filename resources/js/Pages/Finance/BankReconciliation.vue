@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -120,7 +121,7 @@ const quickVoucherForm = useForm({
 
 // Helper: Format INR currency
 const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
         minimumFractionDigits: 2,

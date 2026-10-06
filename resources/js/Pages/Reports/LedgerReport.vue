@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
@@ -43,7 +44,7 @@ const transactionsWithBalance = computed(() => {
 });
 
 const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
     }).format(val);

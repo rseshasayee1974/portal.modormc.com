@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { watch } from 'vue';
 import { entityDateTime } from '@/Utils/entityDateTime';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -325,7 +326,7 @@ watch(
                                         <td class="p-1.5 align-middle">
                                             <span
                                                 class="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">
-                                                ₹{{ Number(line.price_total || 0).toLocaleString('en-IN',
+                                                ₹{{ Number(line.price_total || 0).toLocaleString(APP_LOCALE,
                                                     { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                             </span>
                                         </td>
@@ -356,7 +357,7 @@ watch(
                                     class="flex justify-between items-center text-xs font-bold text-slate-600 dark:text-slate-300">
                                     <span>Untaxed Subtotal</span>
                                     <span class="font-mono text-sm">₹{{ Number(form.amount_untaxed ||
-                                        0).toLocaleString('en-IN', {
+                                        0).toLocaleString(APP_LOCALE, {
                                             minimumFractionDigits: 2, maximumFractionDigits: 2
                                         }) }}</span>
                                 </div>
@@ -364,7 +365,7 @@ watch(
                                     class="flex justify-between items-center text-xs font-bold text-indigo-600 dark:text-indigo-400">
                                     <span>Taxes Amount (+)</span>
                                     <span class="font-mono text-sm">₹{{ Number(form.amount_tax ||
-                                        0).toLocaleString('en-IN', {
+                                        0).toLocaleString(APP_LOCALE, {
                                             minimumFractionDigits: 2, maximumFractionDigits: 2
                                         }) }}</span>
                                 </div>
@@ -399,7 +400,7 @@ watch(
                                         Ticket Amount</span>
                                     <span
                                         class="text-base font-black font-mono text-indigo-600 dark:text-indigo-400">₹{{
-                                            Number(form.amount_total || 0).toLocaleString('en-IN', {
+                                            Number(form.amount_total || 0).toLocaleString(APP_LOCALE, {
                                                 minimumFractionDigits:
                                                     2, maximumFractionDigits: 2
                                             }) }}</span>

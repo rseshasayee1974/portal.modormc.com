@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
@@ -109,7 +110,7 @@ const submit = () => {
                                     <label
                                         class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">Amount
                                         (INR)</label>
-                                    <BaseInputNumber v-model="form.amount" mode="currency" currency="INR" locale="en-IN"
+                                    <BaseInputNumber v-model="form.amount" mode="currency" currency="INR" :locale="APP_LOCALE"
                                         inputClass="text-lg font-black text-slate-800 !bg-emerald-50/30 !border-emerald-100"
                                         class="w-full" :error="form.errors.amount" />
                                 </div>

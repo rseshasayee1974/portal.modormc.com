@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed, watch } from 'vue';
 import { formatCurrency, formatQuantity } from '@/Utils/formatters';
 
@@ -229,7 +230,7 @@ const getTypeBadgeClass = (type) => {
                                 </span>
                             </td>
                             <td class="py-3 px-4 text-right font-black text-slate-800 whitespace-nowrap">
-                                {{ Number(row.amount).toLocaleString('en-IN', {
+                                {{ Number(row.amount).toLocaleString(APP_LOCALE, {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2
                                 }) }}
@@ -257,7 +258,7 @@ const getTypeBadgeClass = (type) => {
                                 Filtered Total ({{ filteredList.length }} records):
                             </td>
                             <td class="py-3 px-4 text-right text-sm font-black text-rose-700">
-                                {{ Number(filteredTotalAmount).toLocaleString('en-IN', {
+                                {{ Number(filteredTotalAmount).toLocaleString(APP_LOCALE, {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2
                                 }) }}

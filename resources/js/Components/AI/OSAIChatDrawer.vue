@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate, entityLocaleTime } from '@/Utils/entityDateTime';
 import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { usePage } from '@inertiajs/vue3';
@@ -474,8 +475,8 @@ const viewHistorySession = async (id) => {
 const formatHistoryDate = (ts) => {
     if (!ts) return '';
     const d = new Date(ts);
-    return entityLocaleDate(ts, 'en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-        + ' ' + entityLocaleTime(ts, 'en-IN', { hour: '2-digit', minute: '2-digit' });
+    return entityLocaleDate(ts, APP_LOCALE, { day: '2-digit', month: 'short', year: 'numeric' })
+        + ' ' + entityLocaleTime(ts, APP_LOCALE, { hour: '2-digit', minute: '2-digit' });
 };
 
 // ── Chart Helpers ─────────────────────────────────────────────────────────────
@@ -553,9 +554,9 @@ const getChartOptions = (chartData, type) => {
     if (isCircular) {
         baseOptions.labels = chartData.labels || [];
         if (normalizedType === 'radialBar') {
-            baseOptions.plotOptions = { radialBar: { dataLabels: { name: { show: true, fontSize: '13px', color: '#94a3b8' }, value: { show: true, fontSize: '15px', color: '#f8fafc', formatter: val => val }, total: { show: true, label: 'Total', color: '#94a3b8', formatter: w => (w.globals.series || []).reduce((a, b) => a + b, 0).toLocaleString('en-IN') } } } };
+            baseOptions.plotOptions = { radialBar: { dataLabels: { name: { show: true, fontSize: '13px', color: '#94a3b8' }, value: { show: true, fontSize: '15px', color: '#f8fafc', formatter: val => val }, total: { show: true, label: 'Total', color: '#94a3b8', formatter: w => (w.globals.series || []).reduce((a, b) => a + b, 0).toLocaleString(APP_LOCALE) } } } };
         } else if (normalizedType === 'donut') {
-            baseOptions.plotOptions = { pie: { donut: { labels: { show: true, name: { show: true, fontSize: '13px', color: '#94a3b8' }, value: { show: true, fontSize: '16px', color: '#f8fafc', formatter: val => val }, total: { show: true, label: 'Total', color: '#94a3b8', formatter: w => (w.globals.series || []).reduce((a, b) => a + b, 0).toLocaleString('en-IN') } } } } };
+            baseOptions.plotOptions = { pie: { donut: { labels: { show: true, name: { show: true, fontSize: '13px', color: '#94a3b8' }, value: { show: true, fontSize: '16px', color: '#f8fafc', formatter: val => val }, total: { show: true, label: 'Total', color: '#94a3b8', formatter: w => (w.globals.series || []).reduce((a, b) => a + b, 0).toLocaleString(APP_LOCALE) } } } } };
         }
     } else {
         baseOptions.xaxis = { categories: chartData.labels || [], labels: { style: { colors: '#94a3b8' } }, axisBorder: { show: false }, axisTicks: { show: false } };

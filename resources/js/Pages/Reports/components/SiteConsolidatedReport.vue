@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -9,7 +10,7 @@ const props = defineProps({
 });
 
 const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
         minimumFractionDigits: 2
@@ -17,7 +18,7 @@ const formatCurrency = (val) => {
 };
 
 const formatQuantity = (val) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(val || 0);

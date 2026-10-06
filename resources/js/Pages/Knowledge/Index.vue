@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -159,7 +160,7 @@ const deleteDoc = (doc: Document) => {
 
 const formatDate = (value: string): string => {
     if (!value) return 'N/A';
-    return entityLocaleDateTime(value, 'en-IN', {
+    return entityLocaleDateTime(value, APP_LOCALE, {
         day: '2-digit',
         month: 'short',
         year: 'numeric',

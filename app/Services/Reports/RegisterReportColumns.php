@@ -12,6 +12,15 @@ class RegisterReportColumns
             : ($row[$key] ?? '');
     }
 
+    /** Excel keeps only the primary document number supplied by the register format. */
+    public static function forExcel(array $columns): array
+    {
+        $numberKey = in_array('invoice_no', array_column($columns, 'key'), true) ? 'invoice_no' : 'bill_no';
+        return array_values(array_filter($columns, fn ($column) =>
+            !in_array($column['key'], ['invoice_no', 'bill_no', 'po_number'], true) || $column['key'] === $numberKey
+        ));
+    }
+
     /** One column contract for the screen, Excel and PDF. */
     public static function for(string $type, string $view, array $taxColumns): array
     {
@@ -95,7 +104,7 @@ class RegisterReportColumns
         return $columns;
     }
 
-    /** Address columns are Excel-only; preserve the standard view and GST columns. */
+    /** Arrange standard sales Excel by party, document, delivery, then tax amounts. */
     public static function standardSalesExcel(array $columns): array
     {
         $existingKeys = array_column($columns, 'key');
@@ -142,6 +151,32 @@ class RegisterReportColumns
                 array_push($result, ...$addressDetails);
             }
         }
-        return $result;
+        $byKey = array_column(self::forExcel($result), null, 'key');
+        foreach (array_keys($byKey) as $key) {
+            if ($key === 'tcs' || str_starts_with($key, 'taxes.TCS_')) unset($byKey[$key]);
+        }
+        foreach (['customer_name' => 'Customer', 'rate' => 'Rate', 'taxable_amount' => 'Taxable Amount', 'net_amount' => 'Net Amount'] as $key => $label) {
+            if (isset($byKey[$key])) $byKey[$key]['label'] = $label;
+        }
+
+        $result = [];
+        foreach ([
+            'invoice_date', 'customer_name', 'address_1', 'address_2', 'city', 'zipcode',
+            'shipping_address_1', 'shipping_address_2', 'shipping_zipcode', 'gst_number', 'payment_mode', 'invoice_no',
+            'product_name', 'truck', 'hsn_code', 'qty', 'unit', 'rate', 'unloading', 'party_type', 'description',
+            'irn', 'einvoice_status', 'ack_date', 'cancel_at', 'created_by', 'discount', 'tax_name', 'taxable_amount',
+        ] as $key) {
+            if (!isset($byKey[$key])) continue;
+            $result[] = $byKey[$key];
+            unset($byKey[$key]);
+        }
+        $ending = [];
+        foreach (['tax_amount', 'roundoff', 'net_amount'] as $key) {
+            if (!isset($byKey[$key])) continue;
+            $ending[] = $byKey[$key];
+            unset($byKey[$key]);
+        }
+        // The remaining rate columns keep their paired GST order, including additional recorded rates.
+        return array_merge($result, array_values($byKey), $ending);
     }
 }

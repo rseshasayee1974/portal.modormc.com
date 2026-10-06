@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed } from 'vue';
 import {
     UsersIcon,
@@ -22,7 +23,7 @@ const props = defineProps({
 const searchQuery = ref('');
 
 const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
         maximumFractionDigits: 2

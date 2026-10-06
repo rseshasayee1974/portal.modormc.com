@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate, entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { ref, computed, reactive, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -337,21 +338,21 @@ watch(() => page.props.flash, (flash: any) => {
                     <Column header="Date">
                         <template #body="slotProps">
                             <span class="text-sm font-medium text-gray-700 dark:text-slate-300">
-                                {{ entityLocaleDate(slotProps.data.date, 'en-IN') }}
+                                {{ entityLocaleDate(slotProps.data.date, APP_LOCALE) }}
                             </span>
                         </template>
                     </Column>
                     <Column header="Opening" align="right">
                         <template #body="slotProps">
                             <span class="font-mono font-black text-green-600 dark:text-green-400">
-                                ₹ {{ Number(slotProps.data.opening_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                ₹ {{ Number(slotProps.data.opening_balance).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                             </span>
                         </template>
                     </Column>
                     <Column header="Closing" align="right">
                         <template #body="slotProps">
                             <span class="font-mono font-black text-blue-600 dark:text-blue-400">
-                                ₹ {{ Number(slotProps.data.closing_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                ₹ {{ Number(slotProps.data.closing_balance).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                             </span>
                         </template>
                     </Column>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityDaysAgo, entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
@@ -732,7 +733,7 @@ const taxOptions = computed(() => props.taxes);
                                          <Tag v-for="item in po.items" :key="item.id" :value="`${item.product_quantity || item.quantity || 0} ${item.uom?.unit_code || item.uom?.unit_name || ''}`" class="!text-[7px] !px-1" severity="secondary" />
                                      </div>
                                      <div class="mt-2 text-right">
-                                         <span class="text-xs font-black text-slate-700">₹ {{ getPOTotal(po).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                         <span class="text-xs font-black text-slate-700">₹ {{ getPOTotal(po).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                      </div>
                                 </div>
                             </div>
@@ -829,12 +830,12 @@ const taxOptions = computed(() => props.taxes);
                                                     <BaseInputNumber v-model="item.discount" size="small" class="flex-grow" />
                                                 </div>
                                                 <div v-if="item.discount > 0" class="text-[10px] text-right text-rose-500 font-bold px-1">
-                                                    -{{ (item.discount_type === '₹' ? item.discount : (item.quantity * item.price_unit * (item.discount / 100))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                                    -{{ (item.discount_type === '₹' ? item.discount : (item.quantity * item.price_unit * (item.discount / 100))).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                                 </div>
                                             </div>
                                         </td>
                                         <td class="p-2 text-sm text-right font-black text-slate-700">
-                                            {{ item.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                            {{ item.subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                         </td>
                                         <td class="p-2 text-center text-red-400">
                                             <button v-if="form.items.length > 1" type="button" @click="removeItem(index)" class="hover:text-rose-500 transition-colors">
@@ -863,11 +864,11 @@ const taxOptions = computed(() => props.taxes);
                             <div class="space-y-4">
                                 <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
                                     <span>Subtotal (Untaxed)</span>
-                                    <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                    <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
                                     <span>Tax Amount (+)</span>
-                                    <span class="text-slate-900">{{ form.amount_tax.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                    <span class="text-slate-900">{{ form.amount_tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
                                     <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Global Discount (-)</span>
@@ -894,7 +895,7 @@ const taxOptions = computed(() => props.taxes);
                                     <div class="text-right flex items-baseline gap-1">
                                         <span class="text-xs text-indigo-700 font-black">₹</span>
                                         <span class="text-3xl font-black text-slate-800 tracking-tight">
-                                             {{ form.amount_total.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                             {{ form.amount_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                         </span>
                                     </div>
                                 </div>

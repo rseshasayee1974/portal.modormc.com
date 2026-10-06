@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, onMounted, computed } from 'vue';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
@@ -465,13 +466,13 @@ const isPdf = computed(() => {
                             <div class="p-3 text-center">
                                 <span class="block text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Set Weight</span>
                                 <span class="text-sm font-extrabold text-gray-800 font-mono">
-                                    {{ totalTargetWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }} kg
+                                    {{ totalTargetWeight.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }} kg
                                 </span>
                             </div>
                             <div class="p-3 text-center">
                                 <span class="block text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Actual Weight</span>
                                 <span class="text-sm font-extrabold text-gray-800 font-mono">
-                                    {{ totalActualWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }} kg
+                                    {{ totalActualWeight.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }} kg
                                 </span>
                             </div>
                             <div class="p-3 text-center">
@@ -536,10 +537,10 @@ const isPdf = computed(() => {
                                             Total Batch Mass
                                         </td>
                                         <td class="px-4 py-3 text-right text-xs font-mono font-bold">
-                                            {{ totalTargetWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                            {{ totalTargetWeight.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                         </td>
                                         <td class="px-4 py-3 text-right text-xs font-mono font-bold">
-                                            {{ totalActualWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                            {{ totalActualWeight.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                         </td>
                                         <td class="px-4 py-3 text-right text-xs font-mono font-extrabold" :class="isToleranceValid ? 'text-emerald-700' : 'text-amber-700'">
                                             {{ netVarianceKg >= 0 ? '+' : '' }}{{ netVarianceKg.toFixed(2) }}

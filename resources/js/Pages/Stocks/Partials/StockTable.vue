@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
@@ -87,14 +88,14 @@ const filteredStocks = computed(() => props.stocks);
             </Column>
 
             <!-- Site/Plant Column -->
-            <Column field="plant.name" header="Site / Plant" sortable>
+            <!-- <Column field="plant.name" header="Site / Plant" sortable>
                 <template #body="{ data }">
                     <div class="flex items-center gap-2">
                         <MapPinIcon class="w-3.5 h-3.5 text-slate-400" />
                         <span class="text-xs font-bold text-slate-700 uppercase tracking-tight">{{ data.plant?.name || '---' }}</span>
                     </div>
                 </template>
-            </Column>
+            </Column> -->
 
             <!-- Product Column -->
             <Column field="product.title" header="Product / Material" sortable>
@@ -110,7 +111,7 @@ const filteredStocks = computed(() => props.stocks);
             <Column field="opening_quantity" header="Opening Qty" sortable class="text-right">
                 <template #body="{ data }">
                     <span class="text-xs font-bold text-slate-500 font-mono">
-                        {{ Number(data.opening_quantity).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                        {{ Number(data.opening_quantity).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                     </span>
                 </template>
             </Column>
@@ -120,7 +121,7 @@ const filteredStocks = computed(() => props.stocks);
                 <template #body="{ data }">
                     <div class="flex flex-col items-end">
                         <span class="text-sm font-black text-indigo-600 font-mono">
-                            {{ Number(data.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                            {{ Number(data.quantity).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                         </span>
                         <span class="text-[10px] font-bold text-slate-400 uppercase">{{ data.uom?.unit_code || 'UNT' }}</span>
                     </div>

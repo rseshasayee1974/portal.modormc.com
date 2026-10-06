@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref } from 'vue';
 import axios from 'axios';
@@ -486,7 +487,7 @@ const quotationOptions = computed(() => {
         ...list.map((q) => {
             const patronName = props.patrons.find((p) => Number(p.id) === Number(q.patron_id))?.legal_name || 'Unknown';
             return {
-                label: q.reference ? `${q.reference} - ${patronName} (₹${Number(q.amount_total || 0).toLocaleString('en-IN')})` : `Draft - ${patronName}`,
+                label: q.reference ? `${q.reference} - ${patronName} (₹${Number(q.amount_total || 0).toLocaleString(APP_LOCALE)})` : `Draft - ${patronName}`,
                 value: q.id,
             };
         }),
@@ -810,7 +811,7 @@ const performSubmit = (customerPOId: any) => {
                                     </td>
                                  
                                     <td class="p-3 text-right font-bold text-slate-800 text-sm">
-                                        <span>₹ {{ getItemTotals(item).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                        <span>₹ {{ getItemTotals(item).amountTotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                     </td>
                                     <td class="p-3 text-center">
                                         <button
@@ -976,7 +977,7 @@ const performSubmit = (customerPOId: any) => {
                                         {{ mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.title || mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.design_name || '-' }}
                                     </td>
                                     <td class="p-2 text-right font-mono">{{ Number(item.quantity).toFixed(3) }} m³</td>
-                                    <td class="p-2 text-right font-mono">₹{{ Number(item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                                    <td class="p-2 text-right font-mono">₹{{ Number(item.rate).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</td>
                                     <td class="p-2 text-center font-mono">
                                         {{ props.taxes?.find(t => Number(t.id) === Number(item.tax_id)) ? `${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_name} (${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_rate}%)` : '-' }}
                                     </td>
@@ -984,13 +985,13 @@ const performSubmit = (customerPOId: any) => {
                                         {{ (props.pumpTypeOptions || [])?.find(opt => String(opt.value).toLowerCase() === String(item.concrete_pump || '').toLowerCase())?.label || (item.concrete_pump ? String(item.concrete_pump).charAt(0).toUpperCase() + String(item.concrete_pump).slice(1) : '-') }}
                                     </td>
                                     <td class="p-2 text-right font-mono">
-                                        {{ item.pump_rate ? `₹${Number(item.pump_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-' }}
+                                        {{ item.pump_rate ? `₹${Number(item.pump_rate).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 })}` : '-' }}
                                     </td>
                                     <td class="p-2 text-right font-mono">
-                                        ₹{{ getItemTotals(item).taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        ₹{{ getItemTotals(item).taxAmount.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                     </td>
                                     <td class="p-2 text-right font-mono font-bold text-indigo-900">
-                                        ₹{{ getItemTotals(item).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        ₹{{ getItemTotals(item).amountTotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -1087,16 +1088,16 @@ const performSubmit = (customerPOId: any) => {
                 <div class="w-full md:w-96 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-4 space-y-3 shadow-sm">
                     <div class="flex justify-between items-center text-[12px] font-medium text-slate-600 dark:text-slate-400">
                         <span>Subtotal (Untaxed)</span>
-                        <span class="font-bold">₹ {{ calculatedTotals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                        <span class="font-bold">₹ {{ calculatedTotals.subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                     </div>
                     <div class="flex justify-between items-center text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-2">
                         <span>Total Taxes (+)</span>
-                        <span class="font-bold">₹ {{ calculatedTotals.tax.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                        <span class="font-bold">₹ {{ calculatedTotals.tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                     </div>
                     <div class="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-3">
                         <span class="text-[13px] font-semibold text-indigo-600 dark:text-indigo-400 tracking-[0.15em]">Grand Total</span>
                         <span class="text-lg font-black text-slate-900 dark:text-white tracking-tighter">
-                            ₹ {{ calculatedTotals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                            ₹ {{ calculatedTotals.total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                         </span>
                     </div>
                 </div>

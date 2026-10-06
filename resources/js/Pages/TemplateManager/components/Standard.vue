@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { computed } from 'vue';
 
 const props = defineProps<{
@@ -124,8 +125,8 @@ const meta = computed(() => props.dummyData?.meta || {});
                     <td v-if="pdfSettings.description !== false" class="col-desc item-desc">{{ item.description || '-' }}</td>
                     <td class="col-qty text-right">{{ Number(item.qty || 0).toFixed(2) }}</td>
                     <td v-if="pdfSettings.unit !== false" class="col-unit text-right">{{ item.unit || 'm³' }}</td>
-                    <td class="col-rate text-right">₹{{ Number(item.unit_price || item.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
-                    <td v-if="pdfSettings.amount !== false" class="col-amt text-right">₹{{ Number(item.total || item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="col-rate text-right">₹{{ Number(item.unit_price || item.rate || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</td>
+                    <td v-if="pdfSettings.amount !== false" class="col-amt text-right">₹{{ Number(item.total || item.amount || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</td>
                 </tr>
             </tbody>
         </table>
@@ -147,25 +148,25 @@ const meta = computed(() => props.dummyData?.meta || {});
                     <tbody>
                         <tr>
                             <td class="total-label">Sub Total</td>
-                            <td class="total-value">₹{{ Number(totals.sub_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                            <td class="total-value">₹{{ Number(totals.sub_total || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</td>
                         </tr>
                         <tr v-if="pdfSettings.discount !== false && totals.discount">
                             <td class="total-label">Discount</td>
-                            <td class="total-value">(-) ₹{{ Number(totals.discount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                            <td class="total-value">(-) ₹{{ Number(totals.discount || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</td>
                         </tr>
                         <template v-if="totals.tax_lines && totals.tax_lines.length">
                             <tr v-for="tLine in totals.tax_lines" :key="tLine.label">
                                 <td class="total-label">{{ tLine.label }}</td>
-                                <td class="total-value">₹{{ Number(tLine.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                                <td class="total-value">₹{{ Number(tLine.amount || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</td>
                             </tr>
                         </template>
                         <tr v-if="pdfSettings.shipping !== false && totals.shipping">
                             <td class="total-label">Shipping Charges</td>
-                            <td class="total-value">₹{{ Number(totals.shipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                            <td class="total-value">₹{{ Number(totals.shipping || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</td>
                         </tr>
                         <tr class="total-row-bold">
                             <td class="total-label">Grand Total</td>
-                            <td class="total-value bold">₹{{ Number(totals.grand_total || dummyData.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                            <td class="total-value bold">₹{{ Number(totals.grand_total || dummyData.total || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</td>
                         </tr>
                     </tbody>
                 </table>

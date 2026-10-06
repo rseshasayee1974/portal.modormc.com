@@ -1,4 +1,6 @@
 // Keep instants (ISO timestamps) separate from business calendar values.
+import { APP_LOCALE } from './locale.js';
+
 let timezoneResolver = () => 'Asia/Kolkata';
 
 export function configureEntityTimezone(resolver) {
@@ -8,7 +10,7 @@ export function configureEntityTimezone(resolver) {
 export function entityTimezone() {
     const zone = timezoneResolver() || 'Asia/Kolkata';
     try {
-        new Intl.DateTimeFormat('en', { timeZone: zone });
+        new Intl.DateTimeFormat(APP_LOCALE, { timeZone: zone });
         return zone;
     } catch {
         return 'Asia/Kolkata';
@@ -23,7 +25,7 @@ export function entityDateTime(value = new Date()) {
     }
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '';
-    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat(APP_LOCALE, {
         timeZone: entityTimezone(), year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
     }).formatToParts(date).map(({ type, value }) => [type, value]));
@@ -58,17 +60,17 @@ export function entityDaysAgo(days) {
     return calendarDateString(date);
 }
 
-export function entityLocaleDate(value, locale = 'en-GB', options = {}) {
+export function entityLocaleDate(value, locale = APP_LOCALE, options = {}) {
     const date = displayDate(value);
     return date ? date.toLocaleDateString(locale, { ...options, timeZone: 'UTC' }) : '—';
 }
 
-export function entityLocaleTime(value, locale = 'en-GB', options = {}) {
+export function entityLocaleTime(value, locale = APP_LOCALE, options = {}) {
     const date = displayDate(value);
     return date ? date.toLocaleTimeString(locale, { ...options, timeZone: 'UTC' }) : '—';
 }
 
-export function entityLocaleDateTime(value, locale = 'en-GB', options = {}) {
+export function entityLocaleDateTime(value, locale = APP_LOCALE, options = {}) {
     const date = displayDate(value);
     return date ? date.toLocaleString(locale, { ...options, timeZone: 'UTC' }) : '—';
 }

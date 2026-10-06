@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { computed, watch, reactive } from 'vue';
 import { useForm } from '@inertiajs/vue3';
@@ -374,7 +375,7 @@ const submitForm = () => {
                                             @change="onProductChange(index)"
                                         />
                                         <span v-if="line.stock_qty !== null && line.stock_qty !== undefined" class="text-[10px] text-emerald-600 font-bold block mt-1">
-                                            Stock: {{ Number(line.stock_qty).toLocaleString() }} {{ line.unit_code || '' }}
+                                            Stock: {{ Number(line.stock_qty).toLocaleString(APP_LOCALE) }} {{ line.unit_code || '' }}
                                         </span>
                                         <span v-if="localErrors.lineErrors[index]?.product_id" class="text-[9px] text-red-500 font-bold block mt-1">
                                             {{ localErrors.lineErrors[index].product_id }}

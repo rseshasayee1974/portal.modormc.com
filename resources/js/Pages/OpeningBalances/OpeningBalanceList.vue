@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { computed, nextTick, ref, watch } from 'vue';
 import { FilterMatchMode } from '@primevue/core/api';
 import Column from 'primevue/column';
@@ -27,7 +28,7 @@ const filters = ref({ global: { value: null, matchMode: FilterMatchMode.CONTAINS
 const name = (id, list, field) => list.find(item => Number(item.id) === Number(id))?.[field] || '#' + id;
 const ledgerName = id => name(id, props.ledgers, 'title');
 const patronName = id => name(id, props.patrons, 'legal_name');
-const money = value => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = value => Number(value || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const totalPatronsCount = computed(() => props.records.filter(record => !!record.patron_id).length);
 const totalLedgersCount = computed(() => props.records.filter(record => !record.patron_id).length);
 

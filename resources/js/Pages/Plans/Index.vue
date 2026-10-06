@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { ref, onMounted } from 'vue';
@@ -207,7 +208,7 @@ const removeFeature = (index: number) => {
                 
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-semibold uppercase text-gray-500">Monthly Price</label>
-                    <BaseInputNumber v-model="modalForm.price_monthly" mode="currency" currency="USD" locale="en-US" :disabled="modalMode === 'view'" fluid />
+                    <BaseInputNumber v-model="modalForm.price_monthly" mode="currency" currency="USD" :locale="APP_LOCALE" :disabled="modalMode === 'view'" fluid />
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-semibold uppercase text-gray-500">Monthly Desc</label>
@@ -216,7 +217,7 @@ const removeFeature = (index: number) => {
 
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-semibold uppercase text-gray-500">Yearly Price</label>
-                    <BaseInputNumber v-model="modalForm.price_yearly" mode="currency" currency="USD" locale="en-US" :disabled="modalMode === 'view'" fluid />
+                    <BaseInputNumber v-model="modalForm.price_yearly" mode="currency" currency="USD" :locale="APP_LOCALE" :disabled="modalMode === 'view'" fluid />
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-semibold uppercase text-gray-500">Yearly Desc</label>

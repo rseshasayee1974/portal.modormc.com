@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate, entityLocaleTime } from '@/Utils/entityDateTime';
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
@@ -104,7 +105,7 @@ const formatAmount = (val: any) => {
     if (val === null || val === undefined || val === '') return null;
     const num = Number(val);
     if (isNaN(num) || num <= 0) return null;
-    return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '₹' + num.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 
@@ -850,13 +851,13 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                             <template #body="slotProps">
                                 <div v-if="slotProps.data.start_time" class="flex flex-col">
                                     <span class="text-xs font-bold text-slate-700">
-                                        {{ entityLocaleDate(slotProps.data.start_time, 'en-IN', {
+                                        {{ entityLocaleDate(slotProps.data.start_time, APP_LOCALE, {
                                             day:
                                                 '2-digit', month: '2-digit', year: 'numeric'
                                         }).replace(/\//g, '-') }}
                                     </span>
                                     <span class="text-[10px] text-slate-400 font-medium uppercase">
-                                        {{ entityLocaleTime(slotProps.data.start_time, 'en-IN', {
+                                        {{ entityLocaleTime(slotProps.data.start_time, APP_LOCALE, {
                                             hour:
                                                 '2-digit', minute: '2-digit'
                                         }) }}

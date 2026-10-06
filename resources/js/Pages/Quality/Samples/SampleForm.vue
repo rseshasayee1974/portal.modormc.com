@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
@@ -100,7 +101,7 @@ const batchOptions = computed(() => {
         const truck = dispatch?.truck?.registration || '';
 
         const date = b.start_time
-            ? entityLocaleDate(b.start_time, 'en-IN', { day: '2-digit', month: 'short', year: '2-digit' })
+            ? entityLocaleDate(b.start_time, APP_LOCALE, { day: '2-digit', month: 'short', year: '2-digit' })
             : '';
 
         const batchNum = b.batch_no
@@ -285,8 +286,8 @@ const testSchedulePreview = computed(() => {
         const res = new Date(d);
         res.setDate(res.getDate() + days);
         return {
-            formatted: res.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-            dayOfWeek: res.toLocaleDateString('en-IN', { weekday: 'short' }),
+            formatted: res.toLocaleDateString(APP_LOCALE, { day: '2-digit', month: 'short', year: 'numeric' }),
+            dayOfWeek: res.toLocaleDateString(APP_LOCALE, { weekday: 'short' }),
         };
     };
 

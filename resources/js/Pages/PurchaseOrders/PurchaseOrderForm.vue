@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
@@ -414,7 +415,7 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                                             </div>
                                         </td>
                                         <td class="p-2 text-sm text-right font-semibold text-slate-700">
-                                            {{ item.price_total.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                            {{ item.price_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                         </td>
                                         <td class="p-2 text-center">
                                             <button type="button" @click="removeItem(index)" class="text-red-400 hover:text-rose-500 transition-colors">
@@ -439,11 +440,11 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                             <div class="space-y-3">
                                 <div class="flex justify-between items-center text-[11px] font-semibold text-slate-700 uppercase tracking-widest">
                                     <span>Untaxed Amount</span>
-                                    <span class="text-slate-700">{{ form.amount_untaxed.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                    <span class="text-slate-700">{{ form.amount_untaxed.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-[11px] font-black text-indigo-500 uppercase tracking-widest">
                                     <span>Taxes & Duties (+)</span>
-                                    <span>{{ form.amount_tax.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                    <span>{{ form.amount_tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                 </div>
                                 
                                 <div class="flex justify-between items-center gap-4">
@@ -474,7 +475,7 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                                     <div class="text-right">
                                         <span class="text-xs text-indigo-700 font-semibold mr-1">₹</span>
                                         <span class="text-lg font-black text-slate-800 tracking-tighter">
-                                             {{ form.amount_total.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                             {{ form.amount_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                         </span>
                                     </div>
                                 </div>

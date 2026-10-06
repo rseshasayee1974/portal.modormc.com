@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -271,7 +272,7 @@ const deletePayslip = (id: number) => {
 const formatDate = (val: string | null | undefined) => {
     if (!val) return '-';
     const d = new Date(val);
-    return isNaN(d.getTime()) ? val : entityLocaleDate(val, 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return isNaN(d.getTime()) ? val : entityLocaleDate(val, APP_LOCALE, { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const getStatusSeverity = (status: string) => {
@@ -441,15 +442,15 @@ const getStatusSeverity = (status: string) => {
                                         <Column header="Earnings / Deductions">
                                             <template #body="slotProps">
                                                 <div class="flex flex-col text-[11px]">
-                                                    <span>Gross: {{ Number(slotProps.data.gross_salary).toLocaleString('en-IN', {style: 'currency', currency: 'INR'}) }}</span>
-                                                    <span class="text-red-500">Ded: {{ Number(slotProps.data.total_deductions).toLocaleString('en-IN', {style: 'currency', currency: 'INR'}) }}</span>
+                                                    <span>Gross: {{ Number(slotProps.data.gross_salary).toLocaleString(APP_LOCALE, {style: 'currency', currency: 'INR'}) }}</span>
+                                                    <span class="text-red-500">Ded: {{ Number(slotProps.data.total_deductions).toLocaleString(APP_LOCALE, {style: 'currency', currency: 'INR'}) }}</span>
                                                 </div>
                                             </template>
                                         </Column>
                                         <Column header="Net Salary">
                                             <template #body="slotProps">
                                                 <span class="font-extrabold text-emerald-600 dark:text-emerald-400">
-                                                    {{ Number(slotProps.data.net_salary).toLocaleString('en-IN', {style: 'currency', currency: 'INR'}) }}
+                                                    {{ Number(slotProps.data.net_salary).toLocaleString(APP_LOCALE, {style: 'currency', currency: 'INR'}) }}
                                                 </span>
                                             </template>
                                         </Column>
@@ -595,7 +596,7 @@ const getStatusSeverity = (status: string) => {
                                         </Column>
                                         <Column header="Default amount">
                                             <template #body="slotProps">
-                                                <span>{{ Number(slotProps.data.default_value).toLocaleString('en-IN', {style: 'currency', currency: 'INR'}) }}</span>
+                                                <span>{{ Number(slotProps.data.default_value).toLocaleString(APP_LOCALE, {style: 'currency', currency: 'INR'}) }}</span>
                                             </template>
                                         </Column>
                                         <Column header="Taxable">

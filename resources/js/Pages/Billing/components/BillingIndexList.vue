@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref } from 'vue';
 import axios from 'axios';
@@ -149,7 +150,7 @@ const printInvoice = (data: any) => {
                                 class="!text-[8px] !font-black !uppercase !tracking-widest !rounded !px-1.5"
                             />
                             <span v-if="slotProps.data.document_source" class="text-[9px] text-slate-400">{{ slotProps.data.document_source }}</span>
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ entityLocaleDate(slotProps.data.invoice_date, 'en-GB') }}</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ entityLocaleDate(slotProps.data.invoice_date, APP_LOCALE) }}</span>
                             <span v-if="slotProps.data.period" class="text-[9px] font-bold text-slate-300 ml-1">({{ slotProps.data.period }})</span>
                         </div>
                     </div>
@@ -172,11 +173,11 @@ const printInvoice = (data: any) => {
             <Column field="total_amount" header="Total Amount" sortable class="text-right font-black">
                 <template #body="slotProps">
                     <div class="flex flex-col items-end">
-                        <span class="text-sm text-slate-800">₹ {{ Number(slotProps.data.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                        <span class="text-sm text-slate-800">₹ {{ Number(slotProps.data.total_amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                         <div class="flex gap-1 mt-1">
                              <Tag 
                                 v-if="Number(slotProps.data.shipping_charges) > 0"
-                                :value="`Ship: ₹ ${Number(slotProps.data.shipping_charges).toLocaleString('en-IN')}`" 
+                                :value="`Ship: ₹ ${Number(slotProps.data.shipping_charges).toLocaleString(APP_LOCALE)}`"
                                 class="!bg-slate-50 !text-slate-500 !text-[8px] font-black"
                             />
                             <Tag 

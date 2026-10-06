@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed } from 'vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
@@ -151,7 +152,7 @@ const getDeleteTooltip = (mixDesign) => {
             <!-- <Column header="Rate / m³" sortable field="rate_per_qty" style="width: 150px">
                 <template #body="slotProps">
                     <span class="font-black text-indigo-600 font-mono text-sm">
-                        ₹{{ Number(slotProps.data.rate_per_qty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                        ₹{{ Number(slotProps.data.rate_per_qty || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                     </span>
                 </template>
             </Column> -->

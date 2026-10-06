@@ -186,6 +186,7 @@
 </template>
 
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref, nextTick, onMounted } from 'vue';
 import axios from 'axios';
@@ -308,7 +309,7 @@ const formatMarkdown = (text: string): string => {
 };
 
 const formatDate = (dateStr: string): string => {
-  return entityLocaleDate(dateStr, 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  return entityLocaleDate(dateStr, APP_LOCALE, { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 const scrollToBottom = () => {

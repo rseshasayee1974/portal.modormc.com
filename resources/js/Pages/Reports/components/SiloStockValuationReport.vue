@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref } from 'vue';
 import { CubeIcon, BanknotesIcon } from '@heroicons/vue/24/outline';
 
@@ -20,7 +21,7 @@ const toggleProductExpand = (id) => {
 
 const formatCurrency = (val) => {
     if (val === null || val === undefined || isNaN(val)) return '₹ 0.00';
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
     }).format(val);
@@ -82,13 +83,13 @@ const formatCurrency = (val) => {
                             <td class="py-3 px-4 font-bold text-slate-800">{{ row.product_name }}</td>
                             <td class="py-3 px-4 text-slate-600">{{ row.category }}</td>
                             <td class="py-3 px-4 text-center text-slate-500">{{ row.uom }}</td>
-                            <td class="py-3 px-4 text-right">{{ row.opening_qty.toLocaleString() }}</td>
+                            <td class="py-3 px-4 text-right">{{ row.opening_qty.toLocaleString(APP_LOCALE) }}</td>
                             <td class="py-3 px-4 text-right text-slate-500">{{ row.opening_value_formatted }}</td>
-                            <td class="py-3 px-4 text-right">{{ row.inward_qty.toLocaleString() }}</td>
+                            <td class="py-3 px-4 text-right">{{ row.inward_qty.toLocaleString(APP_LOCALE) }}</td>
                             <td class="py-3 px-4 text-right text-slate-500">{{ row.inward_value_formatted }}</td>
-                            <td class="py-3 px-4 text-right text-red-650">{{ row.consumed_qty.toLocaleString() }}</td>
+                            <td class="py-3 px-4 text-right text-red-650">{{ row.consumed_qty.toLocaleString(APP_LOCALE) }}</td>
                             <td class="py-3 px-4 text-right text-red-650">{{ row.consumed_value_formatted }}</td>
-                            <td class="py-3 px-4 text-right font-black text-slate-800">{{ row.ending_qty.toLocaleString() }}</td>
+                            <td class="py-3 px-4 text-right font-black text-slate-800">{{ row.ending_qty.toLocaleString(APP_LOCALE) }}</td>
                             <td class="py-3 px-4 text-right font-black text-[#0064d2]">{{ row.ending_value_formatted }}</td>
                             <td class="py-3 px-4 text-right font-bold text-slate-600">{{ row.avg_unit_cost_formatted }}</td>
                             <td class="py-3 px-4 text-center">
@@ -134,11 +135,11 @@ const formatCurrency = (val) => {
                                                         </span>
                                                     </td>
                                                     <td class="py-2 px-3 italic">{{ evt.ref }}</td>
-                                                    <td class="py-2 px-3 text-right font-semibold text-slate-800">{{ evt.type === 'inward' ? evt.qty.toLocaleString() : '-' }}</td>
-                                                    <td class="py-2 px-3 text-right font-semibold text-red-600">{{ evt.type === 'consumption' ? evt.qty.toLocaleString() : '-' }}</td>
+                                                    <td class="py-2 px-3 text-right font-semibold text-slate-800">{{ evt.type === 'inward' ? evt.qty.toLocaleString(APP_LOCALE) : '-' }}</td>
+                                                    <td class="py-2 px-3 text-right font-semibold text-red-600">{{ evt.type === 'consumption' ? evt.qty.toLocaleString(APP_LOCALE) : '-' }}</td>
                                                     <td class="py-2 px-3 text-right">{{ formatCurrency(evt.price) }}</td>
                                                     <td class="py-2 px-3 text-right font-semibold" :class="evt.type === 'consumption' ? 'text-red-650' : 'text-emerald-750'">{{ formatCurrency(evt.value) }}</td>
-                                                    <td class="py-2 px-3 text-right font-bold text-slate-800 bg-slate-50/20">{{ evt.running_qty.toLocaleString() }}</td>
+                                                    <td class="py-2 px-3 text-right font-bold text-slate-800 bg-slate-50/20">{{ evt.running_qty.toLocaleString(APP_LOCALE) }}</td>
                                                     <td class="py-2 px-3 text-right font-bold text-slate-800 bg-slate-50/20">{{ formatCurrency(evt.running_val) }}</td>
                                                 </tr>
                                             </tbody>

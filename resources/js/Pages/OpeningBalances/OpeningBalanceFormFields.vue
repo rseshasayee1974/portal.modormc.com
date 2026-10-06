@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { computed } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -15,7 +16,7 @@ const emit = defineEmits(['select-target']);
 const form = props.form;
 const selectTarget = id => emit('select-target', id);
 const ledgerName = id => props.ledgers.find(ledger => Number(ledger.id) === Number(id))?.title || '—';
-const money = value => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = value => Number(value || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const patrons = computed(() => (props.patrons || []).map(x => ({
     label: `${x.code ? `[${x.code}] ` : ''}${x.legal_name}`,

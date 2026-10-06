@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import axios from 'axios';
 import Button from 'primevue/button';
@@ -98,8 +99,8 @@ const totals = computed(() => {
 });
 
 const kpiCards = computed(() => [
-    { label: 'AI/API Requests', value: totals.value.requests.toLocaleString(), helper: 'This month', icon: 'pi-bolt', tone: 'indigo' },
-    { label: 'Tokens Used', value: totals.value.tokens.toLocaleString(), helper: `${totals.value.usagePercent}% of plan`, icon: 'pi-sparkles', tone: 'teal' },
+    { label: 'AI/API Requests', value: totals.value.requests.toLocaleString(APP_LOCALE), helper: 'This month', icon: 'pi-bolt', tone: 'indigo' },
+    { label: 'Tokens Used', value: totals.value.tokens.toLocaleString(APP_LOCALE), helper: `${totals.value.usagePercent}% of plan`, icon: 'pi-sparkles', tone: 'teal' },
     { label: 'Estimated Cost', value: `$${totals.value.cost.toFixed(2)}`, helper: props.plan || 'growth', icon: 'pi-dollar', tone: 'emerald' },
     { label: 'Plant Health', value: '94%', helper: 'Stable operations', icon: 'pi-shield', tone: 'amber' },
 ]);
@@ -229,7 +230,7 @@ onMounted(loadDashboard);
                     <ProgressBar :value="totals.usagePercent" :showValue="false" class="h-2 overflow-hidden rounded-full" />
                     <div class="mt-4 flex items-center justify-between text-xs text-slate-400">
                         <span>Current plan: {{ plan }}</span>
-                        <span>{{ totals.tokens.toLocaleString() }} tokens</span>
+                        <span>{{ totals.tokens.toLocaleString(APP_LOCALE) }} tokens</span>
                     </div>
                 </div>
             </div>

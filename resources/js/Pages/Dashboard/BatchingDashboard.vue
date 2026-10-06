@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityDaysAgo, entityLocaleTime, entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
@@ -122,17 +123,17 @@ onMounted(() => {
 
 // Formatting helpers
 const formatVolume = (val) => {
-    return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 }).format(Number(val || 0)) + ' m³';
+    return new Intl.NumberFormat(APP_LOCALE, { maximumFractionDigits: 1 }).format(Number(val || 0)) + ' m³';
 };
 
 const formatNumber = (val) => {
-    return new Intl.NumberFormat('en-IN').format(Number(val || 0));
+    return new Intl.NumberFormat(APP_LOCALE).format(Number(val || 0));
 };
 
 const formatTime = (isoString) => {
     if (!isoString) return 'Pending';
     const date = new Date(isoString);
-    return entityLocaleTime(isoString, 'en-IN', { hour: '2-digit', minute: '2-digit' }) + ' | ' + entityLocaleDate(isoString, 'en-IN', { day: '2-digit', month: 'short' });
+    return entityLocaleTime(isoString, APP_LOCALE, { hour: '2-digit', minute: '2-digit' }) + ' | ' + entityLocaleDate(isoString, APP_LOCALE, { day: '2-digit', month: 'short' });
 };
 
 // Filtered Ledger computation
@@ -831,7 +832,7 @@ const donutChartOptions = computed(() => ({
                                                     <div class="text-[10px] text-slate-400 font-mono mt-0.5">{{ mix.code }}</div>
                                                 </td>
                                                 <td class="px-4 py-2.5 text-right font-semibold text-slate-850">{{ formatVolume(mix.total_qty) }}</td>
-                                                <td class="px-4 py-2.5 text-right font-bold text-slate-900">{{ new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(mix.total_amount) }}</td>
+                                                <td class="px-4 py-2.5 text-right font-bold text-slate-900">{{ new Intl.NumberFormat(APP_LOCALE, { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(mix.total_amount) }}</td>
                                             </tr>
                                             <tr v-if="!dashboardData.quotations.top_selling || dashboardData.quotations.top_selling.length === 0">
                                                 <td colspan="3" class="px-4 py-8 text-center text-slate-400 font-bold uppercase tracking-wider">No mixes quoted in this period.</td>
@@ -872,7 +873,7 @@ const donutChartOptions = computed(() => ({
                                 <div class="p-3 bg-amber-50 text-amber-600 rounded-lg"><i class="pi pi-wallet text-xl"></i></div>
                                 <div>
                                     <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total PO Value</div>
-                                    <div class="text-xl font-bold text-slate-800 mt-0.5">{{ new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(dashboardData.customer_pos.total_value) }}</div>
+                                    <div class="text-xl font-bold text-slate-800 mt-0.5">{{ new Intl.NumberFormat(APP_LOCALE, { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(dashboardData.customer_pos.total_value) }}</div>
                                 </div>
                             </div>
                         </div>
@@ -902,7 +903,7 @@ const donutChartOptions = computed(() => ({
                                             <td class="px-6 py-3.5 font-medium text-slate-700">{{ po.customer }}</td>
                                             <td class="px-6 py-3.5 text-slate-500 font-medium">{{ po.site }}</td>
                                             <td class="px-6 py-3.5 font-mono text-[10px] text-[#3f83f8]">{{ po.quote }}</td>
-                                            <td class="px-6 py-3.5 text-right font-bold text-slate-900">{{ new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(po.amount) }}</td>
+                                            <td class="px-6 py-3.5 text-right font-bold text-slate-900">{{ new Intl.NumberFormat(APP_LOCALE, { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(po.amount) }}</td>
                                             <td class="px-6 py-3.5 text-center">
                                                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold"
                                                     :class="po.status === 'Confirmed' ? 'text-emerald-700 bg-emerald-50 border border-emerald-100' : 'text-slate-600 bg-slate-100 border border-slate-200'"

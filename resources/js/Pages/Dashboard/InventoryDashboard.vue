@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed, defineAsyncComponent } from 'vue';
@@ -47,7 +48,7 @@ const filterPlant = (options = {}) => {
 
 // Formatting helpers
 const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
         maximumFractionDigits: 0
@@ -55,7 +56,7 @@ const formatCurrency = (val) => {
 };
 
 const formatNumber = (val) => {
-    return new Intl.NumberFormat('en-IN').format(Number(val || 0));
+    return new Intl.NumberFormat(APP_LOCALE).format(Number(val || 0));
 };
 
 const formatRelativeTime = (isoString) => {
@@ -67,7 +68,7 @@ const formatRelativeTime = (isoString) => {
     if (diffMins < 60) return `${diffMins}m ago`;
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours}h ago`;
-    return entityLocaleDate(date, 'en-IN', { day: '2-digit', month: 'short' });
+    return entityLocaleDate(date, APP_LOCALE, { day: '2-digit', month: 'short' });
 };
 
 // State for filtering & search

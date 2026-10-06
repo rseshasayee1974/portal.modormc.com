@@ -47,8 +47,8 @@ class MachineTrackerController extends Controller
             'odometer_end' => 'nullable|numeric',
             'hourmeter_start' => 'nullable|numeric',
             'hourmeter_end' => 'nullable|numeric',
-            'eb_start' => 'required|numeric',
-            'eb_close' => 'required|numeric',
+            'eb_start' => 'nullable|numeric',
+            'eb_close' => 'nullable|numeric',
             'opening_hsd' => 'nullable|numeric',
             'closing_hsd' => 'nullable|numeric',
             'notes' => 'nullable|string',
@@ -63,6 +63,9 @@ class MachineTrackerController extends Controller
         ]);
 
         $validated['plant_id'] = session('active_plant_id');
+        // Empty readings use zero to match the existing non-null numeric columns.
+        $validated['eb_start'] = $validated['eb_start'] ?? 0;
+        $validated['eb_close'] = $validated['eb_close'] ?? 0;
 
         MachineTracker::create($validated);
 
@@ -84,8 +87,8 @@ class MachineTrackerController extends Controller
             'odometer_end' => 'nullable|numeric',
             'hourmeter_start' => 'nullable|numeric',
             'hourmeter_end' => 'nullable|numeric',
-            'eb_start' => 'required|numeric',
-            'eb_close' => 'required|numeric',
+            'eb_start' => 'nullable|numeric',
+            'eb_close' => 'nullable|numeric',
             'opening_hsd' => 'nullable|numeric',
             'closing_hsd' => 'nullable|numeric',
             'notes' => 'nullable|string',
@@ -98,6 +101,12 @@ class MachineTrackerController extends Controller
             'amount' => 'nullable|numeric',
             'shift' => 'required|integer',
         ]);
+
+        foreach (['eb_start', 'eb_close'] as $field) {
+            if (array_key_exists($field, $validated) && $validated[$field] === null) {
+                $validated[$field] = 0;
+            }
+        }
 
         $machineTracker->update($validated);
 

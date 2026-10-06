@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
@@ -35,11 +36,11 @@ const getStatusSeverity = (state) => {
 
 const formatDate = (date) => {
     if (!date) return '--';
-    return entityLocaleDate(date, 'en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return entityLocaleDate(date, APP_LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
     }).format(value);

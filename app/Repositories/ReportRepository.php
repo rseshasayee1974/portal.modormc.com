@@ -189,9 +189,9 @@ class ReportRepository
                 'register_customer.gstin as register_customer_gstin',
                 'register_customer.patron_type as register_party_type',
             ])
-            ->whereNull('mm_invoices.deleted_at')
+            ->whereNull('mm_invoices.deleted_at')->where('mm_invoices.is_active',1)
+            ->orderBy('mm_invoices.invoice_number', 'asc')
             ->orderBy('mm_invoices.invoice_date', 'asc')
-            ->orderBy('mm_invoices.id', 'asc')
             ->orderBy('mm_invoice_items.id', 'asc');
 
         return $query;

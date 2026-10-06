@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -216,7 +217,7 @@ watch(() => page.props.flash, (flash: any) => {
                     </Column> -->
                     <Column field="rate" header="Rate" align="right">
                         <template #body="slotProps">
-                            <span class="font-black text-blue-600 dark:text-blue-400 font-mono">₹{{ Number(slotProps.data.rate).toLocaleString('en-IN') }}</span>
+                            <span class="font-black text-blue-600 dark:text-blue-400 font-mono">₹{{ Number(slotProps.data.rate).toLocaleString(APP_LOCALE) }}</span>
                         </template>
                     </Column>
                     <Column header="Status" align="center">

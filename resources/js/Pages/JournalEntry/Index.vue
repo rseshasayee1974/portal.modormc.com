@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityCalendarDate, calendarDateString } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
@@ -309,7 +310,7 @@ const filteredEntries = computed(() => {
 
 const formatCurrency = (amount: number | string | null | undefined) => {
     const num = Number(amount) || 0;
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
         minimumFractionDigits: 2,
@@ -694,14 +695,14 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                             <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 min-w-[150px]">
                                 <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Debit</span>
                                 <div class="text-lg font-black font-mono text-indigo-700 dark:text-indigo-400">
-                                    ₹ {{ totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                    ₹ {{ totalDebit.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </div>
                             </div>
 
                             <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 min-w-[150px]">
                                 <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Credit</span>
                                 <div class="text-lg font-black font-mono text-purple-700 dark:text-purple-300">
-                                    ₹ {{ totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                    ₹ {{ totalCredit.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </div>
                             </div>
 

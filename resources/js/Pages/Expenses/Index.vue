@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed } from 'vue';
@@ -33,7 +34,7 @@ const filters = ref({
 });
 
 const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
+    return new Intl.NumberFormat(APP_LOCALE, { style: 'currency', currency: 'INR' }).format(val);
 };
 
 </script>
@@ -73,7 +74,7 @@ const formatCurrency = (val: number) => {
                             
                             <Column field="date" header="Date" sortable>
                                 <template #body="slotProps">
-                                    <span class="text-xs font-bold text-slate-600">{{ entityLocaleDate(slotProps.data.date, 'en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
+                                    <span class="text-xs font-bold text-slate-600">{{ entityLocaleDate(slotProps.data.date, APP_LOCALE, { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
                                 </template>
                             </Column>
 

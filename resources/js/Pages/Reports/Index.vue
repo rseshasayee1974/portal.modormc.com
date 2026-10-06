@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
@@ -223,7 +224,10 @@ const isFiltersCollapsed = ref(false);
 const loading = ref(false);
 const reportData = ref(null);
 
-const registerView = ref(initialSelection.registerView === 'detail' || (reportType.value === 'sales_register' && !hasReportPermission('sales_register')) ? 'detail' : 'summary');
+const defaultRegisterView = (type) => type === 'sales_register' && !hasReportPermission(type, 'view', 'detail') ? 'summary' : 'detail';
+const registerView = ref(['summary', 'detail'].includes(initialSelection.registerView)
+    && hasReportPermission(reportType.value, 'view', initialSelection.registerView)
+    ? initialSelection.registerView : defaultRegisterView(reportType.value));
 const canExportReport = computed(() => hasReportPermission(reportType.value, 'export', registerView.value));
 const canShareReport = computed(() => hasReportPermission(reportType.value, 'share', registerView.value));
 const canScheduleReport = computed(() => hasReportPermission(reportType.value, 'schedule', registerView.value));
@@ -236,9 +240,8 @@ const registerExcelFormatOptions = computed(() => [
 watch([reportType, registerView], () => { registerExcelFormat.value = 'standard'; });
 const registerStatus = ref('active');
 const registerViewOptions = computed(() => [
-   
     { label: reportType.value === 'sales_register' ? 'Detailed (product, GST and dispatch)' : 'Detailed (item wise)', value: 'detail' },
-     { label: 'Summary (invoice / bill)', value: 'summary' },
+    { label: 'Summary (invoice / bill)', value: 'summary' },
 ].filter(option => reportType.value !== 'sales_register' || hasReportPermission('sales_register', 'view', option.value)));
 const registerStatusOptions = [{ label: 'Active documents', value: 'active' }, { label: 'All documents', value: 'all' }, { label: 'Cancelled only', value: 'cancelled' }];
 const gstType = ref(null);
@@ -583,7 +586,7 @@ const monthOptions = computed(() => {
         const monthKey = `${year}-${monthNum}`;
 
         if (!options.some(o => o.value === monthKey)) {
-            const monthName = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+            const monthName = d.toLocaleString(APP_LOCALE, { month: 'long', year: 'numeric' });
             const lastDay = new Date(year, d.getMonth() + 1, 0).getDate();
             options.push({
                 label: monthName,
@@ -635,8 +638,8 @@ watch(selectedModuleId, (newModuleId) => {
 
 watch(reportType, () => {
     if (isNavigatingToStatement.value) return;
-    if (reportType.value === 'sales_register' && !hasReportPermission('sales_register', 'view', registerView.value)) {
-        registerView.value = hasReportPermission('sales_register') ? 'summary' : 'detail';
+    if (['sales_register', 'purchase_register'].includes(reportType.value)) {
+        registerView.value = defaultRegisterView(reportType.value);
     }
     reportData.value = null;
     selectedId.value = null;
@@ -1526,7 +1529,7 @@ const shareEmail = () => {
                                                 {{ sch.email_recipients }}
                                             </td>
                                             <td class="px-4 py-3 text-slate-400">
-                                                {{ sch.last_run_at ? entityLocaleDateTime(sch.last_run_at, 'en-IN') : 'Never' }}
+                                                {{ sch.last_run_at ? entityLocaleDateTime(sch.last_run_at, APP_LOCALE) : 'Never' }}
                                             </td>
                                             <td class="px-4 py-3 text-right">
                                                 <button @click="deleteSchedule(sch.id)" class="text-rose-600 hover:text-rose-800 font-bold hover:underline">

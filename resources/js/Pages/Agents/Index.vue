@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate, entityLocaleTime } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
@@ -285,8 +286,8 @@ const viewHistorySession = async (id: number) => {
 const formatHistoryDate = (ts: string) => {
     if (!ts) return '';
     const d = new Date(ts);
-    return entityLocaleDate(ts, 'en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-        + ' ' + entityLocaleTime(ts, 'en-IN', { hour: '2-digit', minute: '2-digit' });
+    return entityLocaleDate(ts, APP_LOCALE, { day: '2-digit', month: 'short', year: 'numeric' })
+        + ' ' + entityLocaleTime(ts, APP_LOCALE, { hour: '2-digit', minute: '2-digit' });
 };
 
 
@@ -818,7 +819,7 @@ const getChartOptions = (chartData: any, type: string) => {
                             formatter: function (w: any) {
                                 const series = w.globals.series || [];
                                 const total = series.reduce((a: number, b: number) => a + b, 0);
-                                return total.toLocaleString('en-IN');
+                                return total.toLocaleString(APP_LOCALE);
                             }
                         }
                     }
@@ -838,7 +839,7 @@ const getChartOptions = (chartData: any, type: string) => {
                                 show: true,
                                 color: '#f8fafc',
                                 formatter: function (val: any) {
-                                    return Number(val).toLocaleString('en-IN');
+                                    return Number(val).toLocaleString(APP_LOCALE);
                                 }
                             },
                             total: {
@@ -847,7 +848,7 @@ const getChartOptions = (chartData: any, type: string) => {
                                 formatter: function (w: any) {
                                     const series = w.globals.series || [];
                                     const total = series.reduce((a: number, b: number) => a + b, 0);
-                                    return total.toLocaleString('en-IN');
+                                    return total.toLocaleString(APP_LOCALE);
                                 }
                             }
                         }
@@ -873,7 +874,7 @@ const getChartOptions = (chartData: any, type: string) => {
                     fontSize: '10px'
                 },
                 formatter: function (val: any) {
-                    return Number(val).toLocaleString('en-IN');
+                    return Number(val).toLocaleString(APP_LOCALE);
                 }
             }
         };

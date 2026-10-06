@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, watch, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
@@ -228,7 +229,7 @@ const formatStateLabel = (state) => {
                                         <span class="text-xs text-slate-400 mr-1">{{
                                             slotProps.data.currency?.currency_code }}</span>
                                         <span class="text-sm" v-if="slotProps.data.amount_total > 0"> {{
-                                            Number(slotProps.data.amount_total).toLocaleString('en-IN', {
+                                            Number(slotProps.data.amount_total).toLocaleString(APP_LOCALE, {
                                                 minimumFractionDigits: 2
                                             }) }}</span>
 

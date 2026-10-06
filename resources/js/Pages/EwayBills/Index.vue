@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
@@ -125,7 +126,7 @@ const formatDate = (val: string | null) => {
     if (!val) return '—';
     try {
         const d = new Date(val);
-        return isNaN(d.getTime()) ? val : d.toLocaleString('en-IN', {
+        return isNaN(d.getTime()) ? val : d.toLocaleString(APP_LOCALE, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
@@ -297,7 +298,7 @@ const isExpired = (validUpto: string | null) => {
                                         {{ (data.invoice.prefix || '') + (data.invoice.invoice_number || '') }}
                                     </span>
                                     <span v-if="data.invoice.total_amount" class="text-[10px] text-slate-400 block">
-                                        ₹{{ Number(data.invoice.total_amount).toLocaleString('en-IN') }}
+                                        ₹{{ Number(data.invoice.total_amount).toLocaleString(APP_LOCALE) }}
                                     </span>
                                 </div>
                                 <div v-else>

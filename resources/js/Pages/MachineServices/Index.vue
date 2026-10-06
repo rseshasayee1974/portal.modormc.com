@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -270,8 +271,8 @@ watch(() => page.props.flash, (flash: any) => {
                         <Column header="Last / Next Km">
                             <template #body="slotProps">
                                 <div class="flex flex-col text-xs font-mono font-medium">
-                                    <span class="text-slate-600 dark:text-slate-300">Last: {{ Number(slotProps.data.last_service_km).toLocaleString() }} Km</span>
-                                    <span class="text-indigo-600 font-bold">Next: {{ Number(slotProps.data.next_service_km).toLocaleString() }} Km</span>
+                                    <span class="text-slate-600 dark:text-slate-300">Last: {{ Number(slotProps.data.last_service_km).toLocaleString(APP_LOCALE) }} Km</span>
+                                    <span class="text-indigo-600 font-bold">Next: {{ Number(slotProps.data.next_service_km).toLocaleString(APP_LOCALE) }} Km</span>
                                 </div>
                             </template>
                         </Column>
@@ -280,7 +281,7 @@ watch(() => page.props.flash, (flash: any) => {
                         <Column header="Current Running Km">
                             <template #body="slotProps">
                                 <span class="text-xs font-mono text-slate-600 dark:text-slate-300">
-                                    {{ Number(slotProps.data.current_running_km).toLocaleString() }} Km
+                                    {{ Number(slotProps.data.current_running_km).toLocaleString(APP_LOCALE) }} Km
                                 </span>
                             </template>
                         </Column>

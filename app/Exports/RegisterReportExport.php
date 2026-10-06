@@ -23,7 +23,7 @@ class RegisterReportExport
     {
         $book = new Spreadsheet;
         $sheet = $book->getActiveSheet()->setTitle($title);
-        $columns = $report['columns'];
+        $columns = RegisterReportColumns::forExcel($report['columns']);
         $addressGst = ($report['excel_format'] ?? '') === \App\Services\Reports\RegisterAddressGstFormat::KEY;
         $hasAddresses = in_array('address_1', array_column($columns, 'key'), true);
         $last = Coordinate::stringFromColumnIndex(count($columns));

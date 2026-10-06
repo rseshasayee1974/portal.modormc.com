@@ -4,12 +4,15 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\PurchaseOrderInwardController;
 use App\Models\PurchaseOrderHistory;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class InwardEditPageTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_create_navigation_matches_the_create_route(): void
     {
         foreach (['/inventory/inwards/create', '/inventory/inwards/create/12'] as $url) {
@@ -18,11 +21,11 @@ class InwardEditPageTest extends TestCase
         }
     }
 
-    private function authorizedController(): PurchaseOrderInwardController
+    private function authorizedController(bool $withBilling = false): PurchaseOrderInwardController
     {
         $controller = $this->getMockBuilder(PurchaseOrderInwardController::class)
             ->onlyMethods(['authorizeModule'])->getMock();
-        $controller->expects($this->once())->method('authorizeModule')->with('edit');
+        $controller->expects($this->exactly($withBilling ? 2 : 1))->method('authorizeModule')->with('edit');
 
         return $controller;
     }
@@ -37,11 +40,13 @@ class InwardEditPageTest extends TestCase
 
         $request = Request::create('/inventory/inwards/11/edit', 'GET');
         $request->headers->set('X-Inertia', 'true');
-        $response = $this->authorizedController()->edit($inward)->toResponse($request);
+        $response = $this->authorizedController(true)->edit($inward)->toResponse($request);
         $page = $response->getData(true);
 
         $this->assertSame('PurchaseOrders/Inwards/Edit', $page['component']);
         $this->assertSame(11, $page['props']['inward']['id']);
+        $this->assertTrue($page['props']['canGenerateBill']);
+        $this->assertSame([], $page['props']['accounts']);
         $this->assertSame('/inventory/inwards/11/edit', route('inwards.edit', 11, false));
     }
 
