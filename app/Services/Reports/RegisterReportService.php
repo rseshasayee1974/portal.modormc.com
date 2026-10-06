@@ -153,7 +153,7 @@ abstract class RegisterReportService implements ReportServiceInterface
             'register_view' => $filters['register_view'], 'data' => $rows, 'totals' => $totals,
             'tax_columns' => $taxColumns,
             'columns' => RegisterReportColumns::for($this->reportType(), $filters['register_view'], $taxColumns),
-            'note' => ($sampleDetail ? 'Gross is the stored item total including tax; Sales GST is the taxable item value. ' : '')
+            'note' => ($sampleDetail ? 'Net Amount is the stored item total including tax; Sales GST is the taxable item value. ' : '')
                 .'Amounts are based on matching invoice or bill items. Document-level charges, discounts and rounding are excluded from item amounts.'
                 .($this->reportType() === 'sales_register' ? ' Round Off is shown separately once per invoice, on its first matching item.' : ''),
             'pagination' => ['total' => $count, 'per_page' => $perPage, 'current_page' => $page,

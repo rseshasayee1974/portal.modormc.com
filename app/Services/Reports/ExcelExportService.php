@@ -570,7 +570,7 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'machine_tracker') {
-                $headersList = ['Date', 'Machine / Vehicle', 'Vehicle Model', 'Shift', 'Operator', 'Odometer Start', 'Odometer End', 'KM Run', 'Odo Mileage (KM/L)', 'Hourmeter Start', 'Hourmeter End', 'Hours Run', 'HM Efficiency (Hrs/L)', 'EB Start', 'EB Close', 'EB Units', 'Fuel (Ltrs)', 'Fuel Amount (₹)', 'Pump Name', 'Notes'];
+                $headersList = ['Date', 'Machine / Vehicle', 'Vehicle Model', 'Shift', 'Operator', 'Odometer Start', 'Odometer End', 'KM Run', 'Odometer Mileage (KM/L)', 'Hourmeter Start', 'Hourmeter End', 'Hours Run', 'Hourmeter Mileage (Hrs/L)', 'EB Start', 'EB Close', 'EB Units', 'Fuel (Ltrs)', 'Fuel Amount (₹)', 'Pump Name', 'Notes'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
                         $row['date'] ?? '',

@@ -83,7 +83,6 @@ class RegisterReportColumns
         $add('rate', 'Product Rate', 'number');
         $add('unit', 'Unit');
         $add('discount', 'Discount', 'number', 'discount');
-        $add('net_amount', 'Gross', 'number', 'grand_total');
         $add('tax_name', 'Tax Name');
         $add('taxable_amount', 'Sales GST (Taxable)', 'number', 'taxable');
         foreach ($taxColumns as $column) {
@@ -92,15 +91,15 @@ class RegisterReportColumns
         $add('tcs', 'TCS', 'number', 'tcs');
         $add('unloading', 'Unloading');
         $add('truck', 'Truck');
+        $add('tax_amount', 'Total Tax', 'number', 'gst');
+        $add('roundoff', 'Round Off', 'number', 'roundoff');
+        $add('net_amount', 'Net Amount', 'number', 'grand_total');
         $add('description', 'Description');
         $add('irn', 'IRN');
         $add('einvoice_status', 'E-Invoice Status');
-        $add('cancel_at', 'Cancel At');
         $add('ack_date', 'ACK Date');
-        $add('party_type', 'Party Type');
+        $add('cancel_at', 'Cancel At');
         $add('created_by', 'Created By');
-        $add('tax_amount', 'Total Tax', 'number', 'gst');
-        $add('roundoff', 'Round Off', 'number', 'roundoff');
         return $columns;
     }
 
@@ -153,7 +152,7 @@ class RegisterReportColumns
         }
         $byKey = array_column(self::forExcel($result), null, 'key');
         foreach (array_keys($byKey) as $key) {
-            if ($key === 'tcs' || str_starts_with($key, 'taxes.TCS_')) unset($byKey[$key]);
+            if (in_array($key, ['tcs', 'party_type'], true) || str_starts_with($key, 'taxes.TCS_')) unset($byKey[$key]);
         }
         foreach (['customer_name' => 'Customer', 'rate' => 'Rate', 'taxable_amount' => 'Taxable Amount', 'net_amount' => 'Net Amount'] as $key => $label) {
             if (isset($byKey[$key])) $byKey[$key]['label'] = $label;
@@ -163,15 +162,15 @@ class RegisterReportColumns
         foreach ([
             'invoice_date', 'customer_name', 'address_1', 'address_2', 'city', 'zipcode',
             'shipping_address_1', 'shipping_address_2', 'shipping_zipcode', 'gst_number', 'payment_mode', 'invoice_no',
-            'product_name', 'truck', 'hsn_code', 'qty', 'unit', 'rate', 'unloading', 'party_type', 'description',
-            'irn', 'einvoice_status', 'ack_date', 'cancel_at', 'created_by', 'discount', 'tax_name', 'taxable_amount',
+            'product_name', 'truck', 'hsn_code', 'qty', 'unit', 'rate', 'unloading',
+            'discount', 'tax_name', 'taxable_amount',
         ] as $key) {
             if (!isset($byKey[$key])) continue;
             $result[] = $byKey[$key];
             unset($byKey[$key]);
         }
         $ending = [];
-        foreach (['tax_amount', 'roundoff', 'net_amount'] as $key) {
+        foreach (['tax_amount', 'roundoff', 'net_amount', 'description', 'irn', 'einvoice_status', 'ack_date', 'cancel_at', 'created_by'] as $key) {
             if (!isset($byKey[$key])) continue;
             $ending[] = $byKey[$key];
             unset($byKey[$key]);
