@@ -117,22 +117,8 @@ class ConcreteGradeController extends Controller
                 'updated_by' => Auth::id(),
             ]);
 
-            // Check removed ingredients before replacing this grade's item rows.
-            $newProductIds = collect($validated['items'])->pluck('product_id')->toArray();
-
-            // Find existing items that are not in the new payload (about to be removed)
-            $itemsToRemove = $concretegrade->items()->whereNotIn('product_id', $newProductIds)->get();
-
-            foreach ($itemsToRemove as $item) {
-                if ($item->is_in_use) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'items' => ["Cannot remove ingredient '" . ($item->product->title ?? 'Unknown') . "' because it is currently in use by active mix designs or batches."]
-                    ]);
-                }
-            }
-
             // The unique grade/product key also covers soft-deleted rows. Replace
-            // all rows for this grade so each save creates fresh item IDs.
+            // only this grade's template rows; existing mix designs keep their own items.
             $concretegrade->items()->withTrashed()->forceDelete();
 
             foreach ($validated['items'] as $item) {

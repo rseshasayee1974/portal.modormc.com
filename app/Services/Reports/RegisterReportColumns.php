@@ -89,12 +89,11 @@ class RegisterReportColumns
             $add('taxes.'.$column['key'], $column['label'], 'number', 'taxes.'.$column['key']);
         }
         $add('tcs', 'TCS', 'number', 'tcs');
-        $add('unloading', 'Unloading');
         $add('truck', 'Truck');
         $add('tax_amount', 'Total Tax', 'number', 'gst');
         $add('roundoff', 'Round Off', 'number', 'roundoff');
         $add('net_amount', 'Net Amount', 'number', 'grand_total');
-        $add('description', 'Description');
+        $add('unloading', 'Unloading Point');
         $add('irn', 'IRN');
         $add('einvoice_status', 'E-Invoice Status');
         $add('ack_date', 'ACK Date');
@@ -152,7 +151,7 @@ class RegisterReportColumns
         }
         $byKey = array_column(self::forExcel($result), null, 'key');
         foreach (array_keys($byKey) as $key) {
-            if (in_array($key, ['tcs', 'party_type'], true) || str_starts_with($key, 'taxes.TCS_')) unset($byKey[$key]);
+            if (in_array($key, ['tcs', 'party_type', 'description'], true) || str_starts_with($key, 'taxes.TCS_')) unset($byKey[$key]);
         }
         foreach (['customer_name' => 'Customer', 'rate' => 'Rate', 'taxable_amount' => 'Taxable Amount', 'net_amount' => 'Net Amount'] as $key => $label) {
             if (isset($byKey[$key])) $byKey[$key]['label'] = $label;
@@ -162,7 +161,7 @@ class RegisterReportColumns
         foreach ([
             'invoice_date', 'customer_name', 'address_1', 'address_2', 'city', 'zipcode',
             'shipping_address_1', 'shipping_address_2', 'shipping_zipcode', 'gst_number', 'payment_mode', 'invoice_no',
-            'product_name', 'truck', 'hsn_code', 'qty', 'unit', 'rate', 'unloading',
+            'product_name', 'truck', 'hsn_code', 'qty', 'unit', 'rate',
             'discount', 'tax_name', 'taxable_amount',
         ] as $key) {
             if (!isset($byKey[$key])) continue;
@@ -170,7 +169,7 @@ class RegisterReportColumns
             unset($byKey[$key]);
         }
         $ending = [];
-        foreach (['tax_amount', 'roundoff', 'net_amount', 'description', 'irn', 'einvoice_status', 'ack_date', 'cancel_at', 'created_by'] as $key) {
+        foreach (['tax_amount', 'roundoff', 'net_amount', 'unloading', 'irn', 'einvoice_status', 'ack_date', 'cancel_at', 'created_by'] as $key) {
             if (!isset($byKey[$key])) continue;
             $ending[] = $byKey[$key];
             unset($byKey[$key]);
