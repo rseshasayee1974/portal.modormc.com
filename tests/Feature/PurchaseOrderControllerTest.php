@@ -256,7 +256,7 @@ class PurchaseOrderControllerTest extends TestCase
         $response = $this->delete(route('purchaseorder.destroy', $po->id));
         
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'Purchase Order cannot be deleted as items have already been received.');
+        $response->assertSessionHas('error', 'Purchase Order cannot be deleted as items have already been received or inwarded.');
         $this->assertDatabaseHas('mm_purchase_orders', ['id' => $po->id, 'deleted_at' => null]);
     }
 
@@ -302,7 +302,7 @@ class PurchaseOrderControllerTest extends TestCase
         // Assert Invoice was created in database
         $this->assertDatabaseHas('mm_invoices', [
             'id' => $po->billing_id,
-            'invoice_type' => 'bill',
+            'invoice_type' => 'Bill',
             'partner_id' => $this->vendor->id,
         ]);
 

@@ -181,10 +181,33 @@ class PurchaseOrderInwardController extends Controller
                 if ($convertVolume !== null) {
                     $convQty = round($acceptedQty / (float) $convertVolume, 4);
                 } elseif (($convQty === null || $convQty == 0) && $itemProduct && (float)$itemProduct->conversion_quantity > 0) {
-                    $itemUom = $item->uom;
-                    $isUnt = $itemUom && (in_array(strtoupper($itemUom->unit_code), ['UNT', 'UNT/UNT', 'UNIT']) || in_array(strtoupper($itemUom->unit_name), ['UNT', 'UNT/UNT', 'UNIT']));
-                    if (!$isUnt) {
-                        $convQty = $acceptedQty / (float)$itemProduct->conversion_quantity;
+                    $receivedUomId = !empty($itemData['uom_id']) ? (int)$itemData['uom_id'] : $item->product_uom;
+                    $itemUom = \App\Models\ProductUnit::find($receivedUomId);
+                    $matchValue = $itemUom ? strtoupper($itemUom->unit_code) : '';
+                    if (empty($matchValue)) {
+                        $matchValue = $itemUom ? strtoupper($itemUom->unit_name) : '';
+                    }
+                    
+                    switch ($matchValue) {
+                        case 'MTS':
+                        case 'TON':
+                        case 'MT':
+                        case 'METRIC TONS':
+                        case 'TONNES':
+                        case 'METRIC TON':
+                        case 'TONS':
+                            $convQty = $acceptedQty;
+                            if (!$convUomId) {
+                                $convUomId = $receivedUomId;
+                            }
+                            break;
+                            
+                        case 'UNT':
+                        case 'UNT/UNT':
+                        case 'UNIT':
+                        default:
+                            $convQty = $acceptedQty / (float)$itemProduct->conversion_quantity;
+                            break;
                     }
                 }
                 if (!$convUomId && $itemProduct) {
@@ -389,7 +412,34 @@ class PurchaseOrderInwardController extends Controller
             } elseif (array_key_exists('conversion_quantity', $validated) && $validated['conversion_quantity'] !== null) {
                 $inward->conversion_quantity = (float)$validated['conversion_quantity'];
             } elseif ($diff != 0 && $inward->product && (float)$inward->product->conversion_quantity > 0) {
-                $inward->conversion_quantity = $newReceivedQty / (float)$inward->product->conversion_quantity;
+                $itemUom = \App\Models\ProductUnit::find($newUomId);
+                
+                $matchValue = $itemUom ? strtoupper($itemUom->unit_code) : '';
+                if (empty($matchValue)) {
+                    $matchValue = $itemUom ? strtoupper($itemUom->unit_name) : '';
+                }
+
+                switch ($matchValue) {
+                    case 'MTS':
+                    case 'TON':
+                    case 'MT':
+                    case 'METRIC TONS':
+                    case 'TONNES':
+                    case 'METRIC TON':
+                    case 'TONS':
+                        $inward->conversion_quantity = $newReceivedQty;
+                        if (!array_key_exists('conversion_uom_id', $validated)) {
+                            $inward->conversion_uom_id = $newUomId;
+                        }
+                        break;
+                        
+                    case 'UNT':
+                    case 'UNT/UNT':
+                    case 'UNIT':
+                    default:
+                        $inward->conversion_quantity = $newReceivedQty / (float)$inward->product->conversion_quantity;
+                        break;
+                }
             }
             if (array_key_exists('conversion_uom_id', $validated)) {
                 $inward->conversion_uom_id = $validated['conversion_uom_id'];

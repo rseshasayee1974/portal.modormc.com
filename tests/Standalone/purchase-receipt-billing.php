@@ -26,9 +26,7 @@ $order->setRelation('items', new \Illuminate\Database\Eloquent\Collection([$item
 $order->setRelation('bills', new \Illuminate\Database\Eloquent\Collection);
 $order->setRelation('billingHistory', new \Illuminate\Database\Eloquent\Collection);
 $method = new ReflectionMethod(PurchaseOrderController::class, 'receivedBillData');
-$controller = new class extends PurchaseOrderController {
-    protected function conversionBillingEnabled(PurchaseOrder $order): bool { return false; }
-};
+$controller = new PurchaseOrderController();
 $request = Request::create('/', 'POST', ['invoice_date' => '2026-09-26']);
 $check = function ($expected, $actual, $label) {
     if (abs($expected - $actual) > 0.00001) throw new RuntimeException("$label: expected $expected, got $actual");

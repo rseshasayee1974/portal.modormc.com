@@ -272,27 +272,16 @@ const saveInwardDetails = () => {
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
                 <BaseSelect v-model="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required :disabled="isBilled || detailsSaving" :error="detailsErrors.uom_id" />
-                <div class="space-y-1">
-                    <label :for="'inward-stock-' + data.id" class="text-xs font-semibold">Received quantity (stock)</label>
-                    <input :id="'inward-stock-' + data.id" v-model.number="data.received_qty" @input="recalculateConversion" type="number" min="0" step="0.01" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
-                    <p v-if="detailsErrors.received_qty" class="text-xs text-red-600">{{ detailsErrors.received_qty }}</p>
-                </div>
                 <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
                 <div class="space-y-1">
-                    <label :for="'inward-volume-' + data.id" class="text-xs font-semibold">Convert Volume</label>
-                    <input :id="'inward-volume-' + data.id" v-model.number="data.convert_volume" @input="recalculateConversion" type="number" min="0.000001" step="0.000001" placeholder="Factor, e.g. 4.5" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
-                    <p class="text-xs text-slate-500">Optional: leave blank to use Conversion Qty. Enter a factor to calculate received quantity ÷ Convert Volume.</p>
-                    <p v-if="detailsErrors.convert_volume" class="text-xs text-red-600">{{ detailsErrors.convert_volume }}</p>
-                </div>
-                <div class="space-y-1">
                     <label :for="'inward-conversion-' + data.id" class="text-xs font-medium text-slate-600">Converted quantity</label>
-                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number" min="0" step="0.0001" :disabled="isBilled || detailsSaving || Number(data.convert_volume) > 0" class="w-full border border-slate-300 rounded-md text-sm" />
+                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number" min="0" step="0.0001" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
                     <p v-if="detailsErrors.conversion_quantity" class="text-xs text-red-600">{{ detailsErrors.conversion_quantity }}</p>
                 </div>
             </div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <p class="text-xs text-slate-500">{{ isBilled ? 'This inward is billed. Void its bill before changing quantities or units.' : 'This inward is unbilled and can be updated. Received quantity / UOM updates stock; conversion quantity / UOM is used for billing. Changing the stock UOM does not convert the quantity automatically.' }}</p>
-                <button type="button" @click="saveInwardDetails" :disabled="detailsSaving" class="shrink-0 px-3 py-2 rounded-md bg-indigo-600 text-white text-xs font-bold disabled:opacity-50">{{ detailsSaving ? 'Saving…' : 'Update inward' }}</button>
+                <p class="text-xs text-slate-500">{{ isBilled ? 'Void the linked bills before changing receipt quantities or units.' : 'Received UOM changes move the receipt quantity to the selected stock unit. Quantities are not converted automatically.' }}</p>
+                <button type="button" @click="saveInwardDetails" :disabled="detailsSaving" class="shrink-0 px-3 py-2 rounded-md bg-indigo-600 text-white text-xs font-bold disabled:opacity-50">{{ detailsSaving ? 'Saving…' : 'Save truck & units' }}</button>
             </div>
             <p v-if="detailsErrors.inward" class="text-xs text-red-600">{{ detailsErrors.inward }}</p>
         </div>
@@ -310,9 +299,9 @@ const saveInwardDetails = () => {
                             <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                             1. Gross (Loaded)
                         </span>
-                        <span
+                        <!-- <span
                             class="text-[9px] font-mono text-slate-400 font-extrabold uppercase bg-slate-100 px-1.5 py-0.5 rounded">{{
-                                data.uom?.unit_code }}</span>
+                                data.uom?.unit_code }}</span> -->
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -356,9 +345,9 @@ const saveInwardDetails = () => {
                             <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                             2. Tare (Empty)
                         </span>
-                        <span
+                        <!-- <span
                             class="text-[9px] font-mono text-amber-600 font-extrabold uppercase bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">{{
-                                data.uom?.unit_code }}</span>
+                                data.uom?.unit_code }}</span> -->
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -408,8 +397,8 @@ const saveInwardDetails = () => {
                             {{ Math.max(0, Number(data.truck_loaded || 0) - Number(data.truck_empty ||
                                 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                         </span>
-                        <span class="text-[9px] font-extrabold text-emerald-600 uppercase">{{ data.uom?.unit_code
-                            }}</span>
+                        <!-- <span class="text-[9px] font-extrabold text-emerald-600 uppercase">{{ data.uom?.unit_code
+                        }}</span> -->
                     </div>
                     <span class="text-[8px] text-emerald-700 font-extrabold uppercase">Gross - Tare</span>
                 </div>

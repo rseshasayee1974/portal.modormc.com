@@ -284,19 +284,19 @@ const remainingToReceive = (item: any) => {
                             <thead>
                                 <tr class="bg-slate-100/90 border-b border-slate-300">
                                     <th
-                                        class="px-3.5 py-2.5 text-left text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[26%]">
+                                        class="px-3.5 py-2.5 text-left text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[22%]">
                                         Product Details</th>
                                     <th
-                                        class="px-3 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[18%]">
+                                        class="px-3 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[16%]">
                                         Procurement Status</th>
                                     <th
-                                        class="px-3 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[18%]">
+                                        class="px-3 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[16%]">
                                         Truck</th>
                                     <th
-                                        class="px-3 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[18%]">
+                                        class="px-3 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider border-r border-slate-200/90 w-[30%]">
                                         Conversion Qty & UOM</th>
                                     <th
-                                        class="px-3.5 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider w-[20%]">
+                                        class="px-3.5 py-2.5 text-center text-[11px] font-black text-slate-700 uppercase tracking-wider w-[16%]">
                                         Full Weight with Snap</th>
                                 </tr>
                             </thead>
@@ -358,20 +358,25 @@ const remainingToReceive = (item: any) => {
 
                                     <!-- Col 4: Conversion Qty & UOM -->
                                     <td class="px-3 py-2.5 align-middle border-r border-slate-200/80 bg-white">
-                                        <div class="flex items-center gap-1.5 w-full">
-                                            <BaseInputNumber v-model="item.convert_volume" label="Convert Volume" placeholder="Factor, e.g. 4.5"
-                                                :min="0.000001" :maxFractionDigits="6" @update:modelValue="recalcVolumeConversion(item)"
-                                                class="w-32 shrink-0" :error="form.errors[`items.${idx}.convert_volume`]" />
+                                        <div class="grid grid-cols-3 gap-1.5 w-full">
+                                            <BaseInputNumber v-model="item.convert_volume"
+                                                placeholder="Factor (e.g. 4.5)" :min="0.000001" :maxFractionDigits="6"
+                                                @update:modelValue="recalcVolumeConversion(item)"
+                                                class="w-full !rounded-md overflow-hidden border border-slate-300"
+                                                inputClass="!text-right !h-9 text-xs w-full"
+                                                :error="form.errors[`items.${idx}.convert_volume`]" />
                                             <BaseInputNumber v-model="item.conversion_quantity" placeholder="Conv Qty"
-                                                :disabled="Number(item.convert_volume) > 0"
-                                                :minFractionDigits="2" :maxFractionDigits="4"
-                                                class="flex-1 min-w-0 !rounded-md overflow-hidden border border-slate-300"
-                                                inputClass="!text-right font-bold !h-9 !bg-slate-50/70 text-xs font-mono" />
+                                                :disabled="Number(item.convert_volume) > 0" :minFractionDigits="2"
+                                                :maxFractionDigits="4"
+                                                class="w-full !rounded-md overflow-hidden border border-slate-300"
+                                                inputClass="!text-right font-bold !h-9 !bg-slate-50/70 text-xs font-mono w-full" />
                                             <BaseSelect v-model="item.conversion_uom_id" :options="units || []"
                                                 placeholder="UOM" optionLabel="label" optionValue="value" filter
-                                                class="w-24 shrink-0 !rounded-md !h-9 !bg-white text-xs border border-slate-300" />
+                                                class="w-full !rounded-md !h-9 !bg-white text-xs border border-slate-300" />
                                         </div>
-                                        <p class="mt-1 text-[10px] text-slate-500">Optional: leave blank to use Conversion Qty. Enter a factor to calculate received quantity ÷ Convert Volume.</p>
+                                        <p class="mt-1 text-[10px] text-slate-500">Optional: leave blank to use
+                                            Conversion Qty. Enter a factor to calculate received quantity ÷ Convert
+                                            Volume.</p>
                                     </td>
 
                                     <!-- Col 5: Full Weight with Snap -->

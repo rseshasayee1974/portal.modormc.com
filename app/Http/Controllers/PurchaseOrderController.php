@@ -224,7 +224,7 @@ class PurchaseOrderController extends Controller
         $discountSum = 0;
         $receiptOrderValue = 0;
         $billRates = collect($request->input('items', []))->keyBy('order_item_id');
-        $converted = $this->conversionBillingEnabled($purchase_order);
+        $converted = false;
         $purchase_order->loadMissing(['items.history', 'bills.items']);
         $quantities = new \App\Services\PurchaseReceiptBilling;
         $receivedQuantities = [];
@@ -384,25 +384,18 @@ class PurchaseOrderController extends Controller
 
     }
 
-    protected function conversionBillingEnabled(PurchaseOrder $order): bool
-    {
-        return filter_var(CustomSetting::getForModule($order->plant_id, 'batching')['purchase_bill_conversion'] ?? false, FILTER_VALIDATE_BOOLEAN);
-    }
-
     private function prepareBillingPreview(PurchaseOrder $order): void
     {
-        $converted = $this->conversionBillingEnabled($order);
-        $order->setAttribute('conversion_billing_enabled', $converted);
+        $order->setAttribute('conversion_billing_enabled', false);
         $order->loadMissing(['items.history.conversionUom', 'bills.items']);
         $quantities = new \App\Services\PurchaseReceiptBilling;
         foreach ($order->items as $item) {
             $inwards = [];
             foreach ($item->history as $receipt) {
-                $basePreview = $quantities->quantity($order, $item, false, $receipt->id);
-                if ($basePreview['received_quantity'] <= 0) continue;
                 try {
-                    $preview = $quantities->quantity($order, $item, $converted, $receipt->id);
-                    $preview['converted_uom'] = $converted ? $receipt->conversionUom?->unit_code : $item->uom?->unit_code;
+                    $preview = $quantities->quantity($order, $item, false, $receipt->id);
+                    if ($preview['received_quantity'] <= 0) continue;
+                    $preview['converted_uom'] = $item->uom?->unit_code;
                 } catch (\Illuminate\Validation\ValidationException $e) {
                     $preview = ['error' => $e->validator->errors()->first()];
                 }
@@ -415,10 +408,8 @@ class PurchaseOrderController extends Controller
                 'converted_uom' => $receipts->first()->conversionUom?->unit_code,
             ])->values());
             try {
-                $preview = $quantities->quantity($order, $item, $converted);
-                $preview['converted_uom'] = $converted
-                    ? $item->history->firstWhere('conversion_uom_id', $preview['uom_id'])?->conversionUom?->unit_code
-                    : $item->uom?->unit_code;
+                $preview = $quantities->quantity($order, $item, false);
+                $preview['converted_uom'] = $item->uom?->unit_code;
                 $item->setAttribute('billing_preview', $preview);
             } catch (\Illuminate\Validation\ValidationException $e) {
                 $item->setAttribute('billing_preview', ['error' => $e->validator->errors()->first()]);
