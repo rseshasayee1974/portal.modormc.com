@@ -15,7 +15,7 @@ import { useEInvoiceGeneration } from '@/Composables/useEInvoiceGeneration';
  *  - downloadInvoiceDirect  : Open invoice download link in a new tab
  *  - printEInvoiceDirect    : Open e-invoice view in a new tab
  *  - deleteInvoiceDirect    : Confirm + DELETE invoice and reset dispatch billing
- *  - sendWhatsAppDirect     : Fetch WhatsApp URL and open it
+ *  - sendWhatsAppDirect     : Submit dispatch details through Tendigit
  */
 export function useInvoiceActions(
     props: { sales_ledgers: { label: string; value: any }[] },
@@ -197,24 +197,21 @@ export function useInvoiceActions(
         if (!dispatch || !dispatch.id) return;
         try {
             Swal.fire({
-                title: 'Preparing WhatsApp message...',
+                title: 'Sending dispatch details...',
                 allowOutsideClick: false,
                 didOpen: () => { Swal.showLoading(); },
             });
 
-            const response = await axios.get(route('dispatches.whatsapp-url', dispatch.id));
+            const response = await axios.post(route('dispatches.whatsapp-send', dispatch.id));
             Swal.close();
 
-            if (response.data.url) {
-                window.open(response.data.url, '_blank');
-            } else {
-                Swal.fire('Error', 'Could not generate WhatsApp URL.', 'error');
-            }
+            Swal.fire('WhatsApp', response.data.message || 'Dispatch details submitted to WhatsApp.', 'success');
         } catch (error: any) {
             Swal.close();
             const msg =
-                error.response?.data?.error ||
-                'Failed to generate WhatsApp URL. Please check if customer mobile number exists.';
+                error.response?.data?.errors?.whatsapp?.[0] ||
+                error.response?.data?.message ||
+                'Could not submit dispatch details to WhatsApp.';
             Swal.fire('Error', msg, 'error');
         }
     };

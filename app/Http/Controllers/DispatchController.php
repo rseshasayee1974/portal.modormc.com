@@ -431,6 +431,15 @@ class DispatchController extends Controller
         });
     }
 
+    public function sendWhatsApp(Dispatch $dispatch, \App\Services\DispatchWhatsAppService $service)
+    {
+        $this->authorizeModule('whatsapp');
+        abort_unless((int) $dispatch->plant_id === (int) session('active_plant_id'), 403);
+        $service->send($dispatch);
+
+        return response()->json(['message' => 'Dispatch details submitted to WhatsApp.']);
+    }
+
     public function whatsappUrl(Dispatch $dispatch)
     {
         $this->authorizeModule('view');

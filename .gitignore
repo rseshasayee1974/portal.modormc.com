@@ -3,6 +3,7 @@
 database_dump.sql
 .DS_Store
 .env
+.env.example
 .env.backup
 .env.production
 .phpactor.json
@@ -41,6 +42,7 @@ package.json
 !/tests/Standalone/batching-schedule-report.php
 !/tests/Standalone/purchase-receipt-billing.php
 !/tests/Standalone/purchase-conversion-billing.php
+!/tests/Standalone/dispatch-whatsapp.php
 !/tests/Standalone/bulk-document-pdf.php
 !/tests/Standalone/bulk-document-zip.php
 Homestead.json

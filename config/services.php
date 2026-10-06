@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'tendigit' => [
+        'license_number' => env('TENDIGIT_LICENSE_NUMBER'),
+        'api_key' => env('TENDIGIT_API_KEY'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

@@ -22,7 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnforceBrowserSession::class,
             \App\Http\Middleware\SetEntityContext::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            // Keep asset hints below Apache/FastCGI response header limits on full page loads.
+            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::using(10),
             \App\Http\Middleware\SetEntityTimezone::class,
             \App\Http\Middleware\RequireOtpVerification::class,
         ]);
