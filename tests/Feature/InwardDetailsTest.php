@@ -124,6 +124,46 @@ class InwardDetailsTest extends TestCase
         $this->assertNull($this->inward->fresh()->conversion_uom_id);
     }
 
+    public function test_convert_volume_is_saved_and_only_recalculates_billing_quantity(): void
+    {
+        $this->updateDetails(['convert_volume' => 4.5, 'conversion_quantity' => 999])->assertSessionHasNoErrors();
+        $this->assertEquals(4.5, $this->inward->fresh()->convert_volume);
+        $this->assertEquals(2.2222, $this->inward->fresh()->conversion_quantity);
+        $this->assertEquals(10, $this->stock->fresh()->quantity);
+        $this->updateDetails(['received_qty' => 18])->assertSessionHasNoErrors();
+        $this->assertEquals(4, $this->inward->fresh()->conversion_quantity);
+        $this->assertEquals(18, $this->stock->fresh()->quantity);
+        $this->updateDetails(['convert_volume' => 0])->assertSessionHasErrors('convert_volume');
+        $this->updateDetails(['convert_volume' => -1])->assertSessionHasErrors('convert_volume');
+        $this->item->update(['invoiced_quantity' => 18]);
+        $this->updateDetails(['convert_volume' => 2])->assertSessionHasErrors('inward');
+    }
+
+    public function test_direct_stock_quantity_update_preserves_weights_and_explicit_billing_conversion(): void
+    {
+        $this->updateDetails(['received_qty' => 15, 'conversion_quantity' => 3])->assertSessionHasNoErrors();
+        $this->assertEquals(15, $this->inward->fresh()->received_qty);
+        $this->assertEquals(15, $this->item->fresh()->received_quantity);
+        $this->assertEquals(15, $this->stock->fresh()->quantity);
+        $this->assertEquals(3, $this->inward->fresh()->conversion_quantity);
+        $this->assertEquals(100, $this->inward->fresh()->truck_loaded);
+        $this->assertEquals(20, $this->inward->fresh()->truck_empty);
+    }
+
+    public function test_unbilled_inward_can_change_when_an_earlier_inward_is_billed(): void
+    {
+        $later = $this->inward->replicate();
+        $later->inward_no = 'INW-LATER';
+        $later->save();
+        $this->item->update(['received_quantity' => 20, 'invoiced_quantity' => 10]);
+        $this->stock->update(['quantity' => 20]);
+        $this->post(route('inwards.update-weight', $later), ['received_qty' => 15, 'conversion_quantity' => 3])->assertSessionHasNoErrors();
+        $this->assertEquals(15, $later->fresh()->received_qty);
+        $this->assertEquals(25, $this->stock->fresh()->quantity);
+        $this->assertEquals(10, $this->item->fresh()->invoiced_quantity);
+        $this->updateDetails(['received_qty' => 5])->assertSessionHasErrors('inward');
+    }
+
     public function test_foreign_plant_truck_and_receipt_are_rejected(): void
     {
         $foreign = Plant::factory()->create();

@@ -16,6 +16,7 @@ class PurchaseOrderHistory extends Model
         'plant_id', 'order_id', 'order_item_id', 'received_date',
         'product_id', 'uom_id', 'used_quantity', 'received_qty',
         'conversion_quantity', 'conversion_uom_id',
+        'convert_volume',
         'unit_price', 'count_quantity', 'inward_no', 'status',
         'truck_id', 'truck_loaded', 'truck_empty',
         'created_by', 'updated_by', 'deleted_by'
@@ -23,6 +24,7 @@ class PurchaseOrderHistory extends Model
 
     protected $casts = [
         'conversion_quantity' => 'decimal:4',
+        'convert_volume' => 'decimal:6',
     ];
 
     public function truck()

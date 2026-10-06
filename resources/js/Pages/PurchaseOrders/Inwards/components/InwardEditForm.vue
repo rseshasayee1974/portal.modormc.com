@@ -23,7 +23,12 @@ const truckOptions = computed(() => [
 ]);
 const detailsSaving = ref(false);
 const detailsErrors = ref<Record<string, string>>({});
-const isBilled = computed(() => Number(data.value.item?.invoiced_quantity || 0) > 0);
+const isBilled = computed(() => Boolean(data.value.is_billed));
+const recalculateConversion = () => {
+    if (Number(data.value.convert_volume) > 0) {
+        data.value.conversion_quantity = Number((Number(data.value.received_qty || 0) / Number(data.value.convert_volume)).toFixed(4));
+    }
+};
 const truckLabel = computed(() => truckOptions.value.find(vehicle => Number(vehicle.value) === Number(data.value.truck_id))?.label || (data.value.truck_id ? data.value.truck?.registration : 'External Vehicle'));
 watch(() => props.inward, (inward) => { data.value = { ...inward }; });
 const page = usePage();
@@ -76,6 +81,7 @@ const getTarePhotoUrl = (inward: any) => {
 };
 
 const saveGrossWeight = (inward: any, newWeight?: any, photo?: string | null) => {
+    if (isBilled.value) return;
     const payload: any = {};
     if (newWeight !== undefined && newWeight !== null && newWeight !== '') {
         payload.truck_loaded = Number(newWeight);
@@ -101,6 +107,7 @@ const saveGrossWeight = (inward: any, newWeight?: any, photo?: string | null) =>
 };
 
 const saveEmptyWeight = (inward: any, newWeight?: any, photo?: string | null) => {
+    if (isBilled.value) return;
     const payload: any = {};
     if (newWeight !== undefined && newWeight !== null && newWeight !== '') {
         payload.truck_empty = Number(newWeight);
@@ -126,6 +133,7 @@ const saveEmptyWeight = (inward: any, newWeight?: any, photo?: string | null) =>
 };
 
 const captureTareWeight = async (inward: any) => {
+    if (isBilled.value) return;
     await captureWeight(async (w: number) => {
         inward.truck_empty = w;
 
@@ -154,6 +162,7 @@ const captureTareWeight = async (inward: any) => {
 };
 
 const captureGrossWeight = async (inward: any) => {
+    if (isBilled.value) return;
     await captureWeight(async (w: number) => {
         inward.truck_loaded = w;
 
@@ -181,50 +190,24 @@ const captureGrossWeight = async (inward: any) => {
     });
 };
 
-const saveInwardWeights = (inward: any) => {
-    const payload: any = {
-        truck_loaded: Number(inward.truck_loaded || 0),
-        truck_empty: Number(inward.truck_empty || 0),
-    };
-    if (inward.conversion_quantity !== undefined) {
-        payload.conversion_quantity = Number(inward.conversion_quantity);
-    }
-    if (inward.conversion_uom_id !== undefined) {
-        payload.conversion_uom_id = inward.conversion_uom_id;
-    }
-    if (inward._loaded_snap) payload.loaded_weight_photo = inward._loaded_snap;
-    if (inward._empty_snap) payload.empty_weight_photo = inward._empty_snap;
-
-    router.post(route('inwards.update-weight', inward.id), payload, {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => {
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Inward details saved successfully', showConfirmButton: false, timer: 1500 });
-        },
-        onError: (errs: any) => {
-            console.error('Update inward weights error:', errs);
-            const msg = typeof errs === 'object' ? Object.values(errs).flat().join(', ') : 'Failed to save inward weights.';
-            Swal.fire('Error', msg, 'error');
-        }
-    });
-};
-
 const saveInwardDetails = () => {
     const payload: Record<string, any> = {};
-    for (const field of ['truck_id', 'uom_id', 'conversion_uom_id', 'conversion_quantity']) {
+    for (const field of ['truck_id', 'received_qty', 'uom_id', 'convert_volume', 'conversion_uom_id', 'conversion_quantity', 'truck_loaded', 'truck_empty']) {
         const value = data.value[field] ?? null;
         const original = props.inward[field] ?? null;
         if (value !== original && (value === null || original === null || Number(value) !== Number(original))) {
             payload[field] = value;
         }
     }
+    if (data.value._loaded_snap) payload.loaded_weight_photo = data.value._loaded_snap;
+    if (data.value._empty_snap) payload.empty_weight_photo = data.value._empty_snap;
     if (!Object.keys(payload).length || detailsSaving.value) return;
     detailsErrors.value = {};
     detailsSaving.value = true;
     router.post(route('inwards.update-weight', data.value.id), payload, {
         preserveScroll: true,
         preserveState: true,
-        onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Truck and units saved', showConfirmButton: false, timer: 1500 }),
+        onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Inward details saved', showConfirmButton: false, timer: 1500 }),
         onError: (errors) => { detailsErrors.value = errors; },
         onFinish: () => { detailsSaving.value = false; },
     });
@@ -275,7 +258,7 @@ const saveInwardDetails = () => {
                     <span>PDF</span>
                 </a> -->
 
-                <button @click.stop="saveInwardWeights(data)" type="button"
+                <button @click.stop="saveInwardDetails()" type="button" :disabled="isBilled"
                     class="px-3.5 py-1.5 rounded-md font-black text-sm uppercase flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer border-0"
                     title="Save Changes">
                     <CheckCircleIcon class="w-3.5 h-3.5" />
@@ -289,16 +272,27 @@ const saveInwardDetails = () => {
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
                 <BaseSelect v-model="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required :disabled="isBilled || detailsSaving" :error="detailsErrors.uom_id" />
+                <div class="space-y-1">
+                    <label :for="'inward-stock-' + data.id" class="text-xs font-semibold">Received quantity (stock)</label>
+                    <input :id="'inward-stock-' + data.id" v-model.number="data.received_qty" @input="recalculateConversion" type="number" min="0" step="0.01" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
+                    <p v-if="detailsErrors.received_qty" class="text-xs text-red-600">{{ detailsErrors.received_qty }}</p>
+                </div>
                 <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
                 <div class="space-y-1">
+                    <label :for="'inward-volume-' + data.id" class="text-xs font-semibold">Convert Volume</label>
+                    <input :id="'inward-volume-' + data.id" v-model.number="data.convert_volume" @input="recalculateConversion" type="number" min="0.000001" step="0.000001" placeholder="Factor, e.g. 4.5" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
+                    <p class="text-xs text-slate-500">Billing quantity = received quantity ÷ Convert Volume</p>
+                    <p v-if="detailsErrors.convert_volume" class="text-xs text-red-600">{{ detailsErrors.convert_volume }}</p>
+                </div>
+                <div class="space-y-1">
                     <label :for="'inward-conversion-' + data.id" class="text-xs font-medium text-slate-600">Converted quantity</label>
-                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number" min="0" step="0.0001" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
+                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number" min="0" step="0.0001" :disabled="isBilled || detailsSaving || Number(data.convert_volume) > 0" class="w-full border border-slate-300 rounded-md text-sm" />
                     <p v-if="detailsErrors.conversion_quantity" class="text-xs text-red-600">{{ detailsErrors.conversion_quantity }}</p>
                 </div>
             </div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <p class="text-xs text-slate-500">{{ isBilled ? 'Void the linked bills before changing receipt quantities or units.' : 'Received UOM changes move the receipt quantity to the selected stock unit. Quantities are not converted automatically.' }}</p>
-                <button type="button" @click="saveInwardDetails" :disabled="detailsSaving" class="shrink-0 px-3 py-2 rounded-md bg-indigo-600 text-white text-xs font-bold disabled:opacity-50">{{ detailsSaving ? 'Saving…' : 'Save truck & units' }}</button>
+                <p class="text-xs text-slate-500">{{ isBilled ? 'This inward is billed. Void its bill before changing quantities or units.' : 'This inward is unbilled and can be updated. Received quantity / UOM updates stock; conversion quantity / UOM is used for billing. Changing the stock UOM does not convert the quantity automatically.' }}</p>
+                <button type="button" @click="saveInwardDetails" :disabled="detailsSaving" class="shrink-0 px-3 py-2 rounded-md bg-indigo-600 text-white text-xs font-bold disabled:opacity-50">{{ detailsSaving ? 'Saving…' : 'Update inward' }}</button>
             </div>
             <p v-if="detailsErrors.inward" class="text-xs text-red-600">{{ detailsErrors.inward }}</p>
         </div>
@@ -369,12 +363,12 @@ const saveInwardDetails = () => {
 
                     <div class="flex items-center gap-2">
                         <input step="any" type="number" v-model="data.truck_empty"
-                            :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
+                            :disabled="isBilled || page.props.custom_settings?.batching?.manual_weight == 0"
                             class="w-full bg-slate-50 border border-amber-300 rounded-md px-2.5 py-1.5 text-sm font-black text-amber-900 font-mono focus:bg-white focus:ring-1 focus:ring-amber-500"
                             placeholder="0.00" @keyup.enter="saveEmptyWeight(data, data.truck_empty)" />
 
                         <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
-                            @click.stop="captureTareWeight(data)" type="button" :class="[
+                            @click.stop="captureTareWeight(data)" type="button" :disabled="isBilled" :class="[
                                 'relative px-2.5 py-1.5 rounded-md font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs border cursor-pointer shrink-0 h-9',
                                 isScaleConnected
                                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'

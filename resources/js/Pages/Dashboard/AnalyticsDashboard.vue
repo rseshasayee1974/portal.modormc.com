@@ -463,7 +463,10 @@ onUnmounted(() => {
 
 function normalizeDate(value) {
     if (!value) return null;
-    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    if (value instanceof Date) {
+        const pad = (part) => String(part).padStart(2, '0');
+        return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+    }
     return value;
 }
 
@@ -526,8 +529,8 @@ function formatDateTime(value) {
 
                     <!-- Date & Patron Filters -->
                     <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200/80 flex flex-wrap items-center gap-3">
-                        <BaseDatePicker v-model="filterForm.start_date" label="From" class="w-36" size="small" />
-                        <BaseDatePicker v-model="filterForm.end_date" label="To" class="w-36" size="small" />
+                        <BaseDatePicker v-model="filterForm.start_date" label="Start Date & Time" :showTime="true" hourFormat="12" placeholder="Select start date & time" class="w-56" size="small" />
+                        <BaseDatePicker v-model="filterForm.end_date" label="End Date & Time" :showTime="true" hourFormat="12" placeholder="Select end date & time" class="w-56" size="small" />
                         <BaseSelect
                             v-model="filterForm.patron_id"
                             :options="patrons"

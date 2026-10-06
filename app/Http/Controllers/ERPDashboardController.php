@@ -50,8 +50,8 @@ class ERPDashboardController extends Controller
         return Inertia::render('Dashboard/Dashboard', [
             'patrons' => $patrons,
             'filters' => [
-                'start_date' => $start->toDateString(),
-                'end_date' => $end->toDateString(),
+                'start_date' => $start->toDateTimeString(),
+                'end_date' => $end->toDateTimeString(),
                 'patron_id' => $patronId,
             ],
             'initialData' => $initialData,
@@ -87,8 +87,8 @@ class ERPDashboardController extends Controller
         return Inertia::render('Dashboard/AnalyticsDashboard', [
             'patrons' => $patrons,
             'filters' => [
-                'start_date' => $start->toDateString(),
-                'end_date' => $end->toDateString(),
+                'start_date' => $start->toDateTimeString(),
+                'end_date' => $end->toDateTimeString(),
                 'patron_id' => $patronId,
             ],
             'initialData' => $initialData,
@@ -370,11 +370,24 @@ class ERPDashboardController extends Controller
 
     private function resolveDateRange(?string $startDate, ?string $endDate): array
     {
-        $start = $startDate ? Carbon::parse($startDate)->startOfDay() : now()->subDays(29)->startOfDay();
-        $end = $endDate ? Carbon::parse($endDate)->endOfDay() : now()->endOfDay();
+        $startDate = filled($startDate) ? trim($startDate) : null;
+        $endDate = filled($endDate) ? trim($endDate) : null;
+        \Illuminate\Support\Facades\Validator::make(['start_date' => $startDate, 'end_date' => $endDate], [
+            'start_date' => 'nullable|date', 'end_date' => 'nullable|date',
+        ])->validate();
+        $startDateOnly = !$startDate || preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate);
+        $endDateOnly = !$endDate || preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate);
+        $start = $startDate ? Carbon::parse($startDate)->setTimezone(config('app.timezone')) : now()->subDays(30)->startOfDay();
+        $end = $endDate ? Carbon::parse($endDate)->setTimezone(config('app.timezone')) : now()->endOfDay();
+        if ($startDateOnly) $start->startOfDay();
+        if ($endDateOnly) $end->endOfDay();
 
         if ($start->gt($end)) {
-            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+            [$start, $end] = [$end, $start];
+            if ($startDateOnly && $endDateOnly) {
+                $start->startOfDay();
+                $end->endOfDay();
+            }
         }
 
         return [$start, $end];
@@ -773,7 +786,7 @@ class ERPDashboardController extends Controller
             'patron_id' => $request->input('patron_id'),
         ];
         return sprintf(
-            'erp.dashboard.%s.%d.%d.%s',
+            'erp.dashboard.datetime.v2.%s.%d.%d.%s',
             $endpoint,
             auth()->id(),
             $plantId,

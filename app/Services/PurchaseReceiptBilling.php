@@ -8,6 +8,18 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseReceiptBilling
 {
+    public function isReceiptBilled(PurchaseOrder $order, PurchaseOrderItem $item, int $receiptId): bool
+    {
+        $order->loadMissing('billingHistory.items');
+        foreach ($order->billingHistory as $bill) {
+            if (!$bill->trashed() && $bill->items->contains(fn ($line) => (int) $line->purchase_order_history_id === $receiptId)) return true;
+        }
+        $receipt = $item->history->firstWhere('id', $receiptId);
+        if (!$receipt) return false;
+        $available = $this->quantity($order, $item, false, $receiptId)['received_quantity'];
+        return (float) $receipt->received_qty - $available > 0.00001;
+    }
+
     /** Derive consumed original quantities from existing receipts and invoice quantity/UOM. */
     private function allocations(PurchaseOrder $order, PurchaseOrderItem $item): array
     {

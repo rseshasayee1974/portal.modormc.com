@@ -236,8 +236,9 @@ const registerExcelFormatOptions = computed(() => [
 watch([reportType, registerView], () => { registerExcelFormat.value = 'standard'; });
 const registerStatus = ref('active');
 const registerViewOptions = computed(() => [
-    { label: 'Summary (invoice / bill)', value: 'summary' },
+   
     { label: reportType.value === 'sales_register' ? 'Detailed (product, GST and dispatch)' : 'Detailed (item wise)', value: 'detail' },
+     { label: 'Summary (invoice / bill)', value: 'summary' },
 ].filter(option => reportType.value !== 'sales_register' || hasReportPermission('sales_register', 'view', option.value)));
 const registerStatusOptions = [{ label: 'Active documents', value: 'active' }, { label: 'All documents', value: 'all' }, { label: 'Cancelled only', value: 'cancelled' }];
 const gstType = ref(null);
@@ -1377,13 +1378,13 @@ const shareEmail = () => {
                                     <!-- Date & Time Range -->
                                     <div class="lg:col-span-2 grid grid-cols-2 gap-4">
                                         <div>
-                                            <span class="text-[11px] font-bold text-slate-500 block mb-1">From Date &
+                                            <span class="text-[11px] font-bold text-slate-500 block mb-1">Start Date &
                                                 Time</span>
                                             <BaseDatePicker v-model="startDate" :showTime="true" hourFormat="12" fluid
                                                 placeholder="Select start date & time" />
                                         </div>
                                         <div>
-                                            <span class="text-[11px] font-bold text-slate-500 block mb-1">To Date &
+                                            <span class="text-[11px] font-bold text-slate-500 block mb-1">End Date &
                                                 Time</span>
                                             <BaseDatePicker v-model="endDate" :showTime="true" hourFormat="12" fluid
                                                 placeholder="Select end date & time" />

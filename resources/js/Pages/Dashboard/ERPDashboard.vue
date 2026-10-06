@@ -111,8 +111,8 @@ watch(filterForm, () => {
                     </div>
 
                     <div class="bg-white p-2 rounded-md shadow-sm border border-slate-200 flex flex-wrap items-center gap-3">
-                        <BaseDatePicker v-model="filterForm.start_date" label="From" class="w-40" size="small" />
-                        <BaseDatePicker v-model="filterForm.end_date" label="To" class="w-40" size="small" />
+                        <BaseDatePicker v-model="filterForm.start_date" label="Start Date & Time" :showTime="true" hourFormat="12" placeholder="Select start date & time" class="w-56" size="small" />
+                        <BaseDatePicker v-model="filterForm.end_date" label="End Date & Time" :showTime="true" hourFormat="12" placeholder="Select end date & time" class="w-56" size="small" />
                         <BaseSelect 
                             v-model="filterForm.patron_id" 
                             :options="patrons" 

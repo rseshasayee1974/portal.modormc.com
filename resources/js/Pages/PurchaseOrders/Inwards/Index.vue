@@ -158,6 +158,12 @@ const deleteInward = (inward: any) => {
                                 </template>
                             </Column>
 
+                            <Column header="Convert Volume" sortable field="convert_volume" style="min-width: 130px">
+                                <template #body="{ data }">
+                                    <span class="text-sm font-semibold">{{ data.convert_volume == null ? '—' : Number(data.convert_volume).toLocaleString('en-IN', { maximumFractionDigits: 6 }) }}</span>
+                                </template>
+                            </Column>
+
                             <Column header="Truck" sortable field="truck.registration" style="min-width: 150px">
                                 <template #body="slotProps">
                                     <div class="flex flex-col gap-1.5 px-1">

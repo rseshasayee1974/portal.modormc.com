@@ -103,6 +103,7 @@ const setupItems = (po: any) => {
             uom_id: item.uom_id || item.product_uom,
             received_qty: 0,
             conversion_quantity: 0,
+            convert_volume: prodConvRate > 0 ? prodConvRate : null,
             conversion_uom_id: convUomId,
             prodConvRate: prodConvRate,
             truck_id: null,
@@ -126,6 +127,10 @@ watch(() => props.units, (newUnits) => {
 
 const recalcReceivedQty = (item: any) => {
     item.received_qty = Math.max(0, Number(item.truck_loaded) || 0);
+    if (Number(item.convert_volume) > 0) {
+        item.conversion_quantity = Number((item.received_qty / Number(item.convert_volume)).toFixed(4));
+        return;
+    }
 
     const uomStr = String(item.uom || '').toUpperCase();
     if (uomStr === 'UNT' || uomStr === 'UNT/UNT' || uomStr === 'UNIT') {
@@ -348,7 +353,11 @@ const remainingToReceive = (item: any) => {
                                     <!-- Col 4: Conversion Qty & UOM -->
                                     <td class="px-3 py-2.5 align-middle border-r border-slate-200/80 bg-white">
                                         <div class="flex items-center gap-1.5 w-full">
+                                            <BaseInputNumber v-model="item.convert_volume" label="Convert Volume" placeholder="Factor, e.g. 4.5"
+                                                :min="0.000001" :maxFractionDigits="6" @update:modelValue="recalcReceivedQty(item)"
+                                                class="w-32 shrink-0" :error="form.errors[`items.${idx}.convert_volume`]" />
                                             <BaseInputNumber v-model="item.conversion_quantity" placeholder="Conv Qty"
+                                                :disabled="Number(item.convert_volume) > 0"
                                                 :minFractionDigits="2" :maxFractionDigits="4"
                                                 class="flex-1 min-w-0 !rounded-md overflow-hidden border border-slate-300"
                                                 inputClass="!text-right font-bold !h-9 !bg-slate-50/70 text-xs font-mono" />
@@ -356,6 +365,7 @@ const remainingToReceive = (item: any) => {
                                                 placeholder="UOM" optionLabel="label" optionValue="value" filter
                                                 class="w-24 shrink-0 !rounded-md !h-9 !bg-white text-xs border border-slate-300" />
                                         </div>
+                                        <p class="mt-1 text-[10px] text-slate-500">Billing quantity = received quantity ÷ Convert Volume</p>
                                     </td>
 
                                     <!-- Col 5: Full Weight with Snap -->

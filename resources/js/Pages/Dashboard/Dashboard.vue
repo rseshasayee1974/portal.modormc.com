@@ -533,7 +533,10 @@ onUnmounted(() => {
 
 function normalizeDate(value) {
     if (!value) return null;
-    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    if (value instanceof Date) {
+        const pad = (part) => String(part).padStart(2, '0');
+        return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+    }
     return value;
 }
 
@@ -634,8 +637,8 @@ function toneClasses(tone) {
                     </div>
 
                     <div class="grid gap-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 p-4 border border-slate-200 dark:border-slate-700 sm:grid-cols-2 xl:min-w-[520px]">
-                        <BaseDatePicker v-model="filterForm.start_date" label="From" />
-                        <BaseDatePicker v-model="filterForm.end_date" label="To" />
+                        <BaseDatePicker v-model="filterForm.start_date" label="Start Date & Time" :showTime="true" hourFormat="12" placeholder="Select start date & time" />
+                        <BaseDatePicker v-model="filterForm.end_date" label="End Date & Time" :showTime="true" hourFormat="12" placeholder="Select end date & time" />
                         <BaseSelect
                             v-model="filterForm.patron_id"
                             :options="patrons"

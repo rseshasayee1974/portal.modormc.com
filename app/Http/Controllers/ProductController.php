@@ -127,7 +127,6 @@ public function update(Request $request, Product $product)
         
         // Define fields that CANNOT be changed by non-admins when restricted
         $restrictedFields = [
-            'title', 
             'status', 
             'tax_mode', 
             'sale_tax_id',
@@ -167,12 +166,12 @@ public function update(Request $request, Product $product)
             // Block non-system admin users
             if (!$isSystemAdmin) {
                 throw ValidationException::withMessages([
-                    'product' => ['Title, Status, and Tax configurations cannot be modified because this product is used in an active mix design or batch.'],
+                    'product' => ['Status and Tax configurations cannot be modified because this product is used in an active mix design or batch.'],
                 ]);
             }
 
             // Provide a warning to system admins
-            $warning = 'Warning: You modified restricted fields (title/status/tax) on a product linked to an active mix design or batch. This may affect production records.';
+            $warning = 'Warning: You modified restricted fields (status/tax) on a product linked to an active mix design or batch. This may affect production records.';
         }
     }
 

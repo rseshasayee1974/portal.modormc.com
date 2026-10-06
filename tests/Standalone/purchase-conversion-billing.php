@@ -133,6 +133,8 @@ $selectedBill->setRelation('items', new Collection([$selectedLine]));
 $order->setRelation('billingHistory', new Collection([$selectedBill]));
 $item->invoiced_quantity = 200;
 $check(2.1234, $service->quantity($order, $item, true, 1)['quantity'], 'Earlier inward remains unbilled');
+if ($service->isReceiptBilled($order, $item, 1)) throw new RuntimeException('Unbilled inward must remain editable when another inward is billed');
+if (!$service->isReceiptBilled($order, $item, 2)) throw new RuntimeException('Billed inward must be locked');
 $check(0, $service->quantity($order, $item, true, 2)['quantity'], 'Selected inward no longer billable');
 try { $method->invoke($controller, $selection, $order); throw new RuntimeException('Duplicate selected inward accepted'); }
 catch (ValidationException $e) {}
@@ -140,6 +142,7 @@ $selectedBill->deleted_at = '2026-10-05 11:00:00';
 $check(200, $service->originalQuantity($order, $item, $selectedBill, $selectedLine), 'Void selected inward original quantity');
 $item->invoiced_quantity = 0;
 $check(5, $service->quantity($order, $item, true, 2)['quantity'], 'Voided inward is billable again');
+if ($service->isReceiptBilled($order, $item, 2)) throw new RuntimeException('Voided inward must become editable');
 
 $selection->merge(['inward_ids' => [1, 2], 'items' => []]);
 $combined = $method->invoke($controller, $selection, $order);

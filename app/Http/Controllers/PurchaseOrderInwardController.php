@@ -50,6 +50,9 @@ class PurchaseOrderInwardController extends Controller
             ])
             ->latest()
             ->get();
+        foreach ($inwards as $inward) {
+            $inward->setAttribute('is_billed', $this->isInwardBilled($inward));
+        }
             
         $purchaseOrders = PurchaseOrder::where('plant_id', $allowedPlantId)
             ->where('receipt_status', '<', 2)
@@ -77,6 +80,7 @@ class PurchaseOrderInwardController extends Controller
             'product', 'uom', 'conversionUom', 'item', 'truck', 'loadedWeightImage', 'emptyWeightImage',
         ]);
 
+        $inward->setAttribute('is_billed', $this->isInwardBilled($inward));
         return Inertia::render('PurchaseOrders/Inwards/Edit', [
             'inward' => $inward,
             'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
@@ -123,6 +127,7 @@ class PurchaseOrderInwardController extends Controller
             'items.*.order_item_id' => 'required|exists:mm_purchase_order_items,id',
             'items.*.received_qty' => 'required|numeric|min:0',
             'items.*.conversion_quantity' => 'nullable|numeric|min:0',
+            'items.*.convert_volume' => 'nullable|numeric|min:0.000001|max:99999999999.999999|decimal:0,6',
             'items.*.conversion_uom_id' => 'nullable|exists:mm_product_units,id',
             'items.*.truck_id' => 'nullable|exists:mm_machines,id',
             'items.*.truck_loaded' => 'nullable|numeric|min:0',
@@ -172,7 +177,10 @@ class PurchaseOrderInwardController extends Controller
                     : null;
                 $convUomId = !empty($itemData['conversion_uom_id']) ? (int)$itemData['conversion_uom_id'] : null;
 
-                if (($convQty === null || $convQty == 0) && $itemProduct && (float)$itemProduct->conversion_quantity > 0) {
+                $convertVolume = $itemData['convert_volume'] ?? null;
+                if ($convertVolume !== null) {
+                    $convQty = round($acceptedQty / (float) $convertVolume, 4);
+                } elseif (($convQty === null || $convQty == 0) && $itemProduct && (float)$itemProduct->conversion_quantity > 0) {
                     $itemUom = $item->uom;
                     $isUnt = $itemUom && (in_array(strtoupper($itemUom->unit_code), ['UNT', 'UNT/UNT', 'UNIT']) || in_array(strtoupper($itemUom->unit_name), ['UNT', 'UNT/UNT', 'UNIT']));
                     if (!$isUnt) {
@@ -193,6 +201,7 @@ class PurchaseOrderInwardController extends Controller
                     'used_quantity' => $newReceivedQty,
                     'received_qty' => $acceptedQty,
                     'conversion_quantity' => $convQty ?? 0,
+                    'convert_volume' => $convertVolume,
                     'conversion_uom_id' => $convUomId,
                     'unit_price' => $item->unit_price,
                     'inward_no' => $validated['inward_no'] ?: PurchaseOrderHistory::generateNextInwardNo($order->plant_id, $entryDate),
@@ -252,8 +261,8 @@ class PurchaseOrderInwardController extends Controller
 
         abort_unless((int)$inward->plant_id === (int)session('active_plant_id'), 404);
         $order = $inward->order;
-        if ((float)$inward->item?->invoiced_quantity > 0) {
-            return redirect()->back()->with('error', 'Inward record cannot be deleted because the Purchase Order has already been billed.');
+        if ($this->isInwardBilled($inward)) {
+            return redirect()->back()->with('error', 'Void the bill for this inward number before deleting it.');
         }
 
         $stock = Quantity::query()->where([
@@ -269,7 +278,7 @@ class PurchaseOrderInwardController extends Controller
         DB::transaction(function () use ($inward) {
             PurchaseOrder::whereKey($inward->order_id)->lockForUpdate()->firstOrFail();
             $inward->refresh();
-            abort_if((float)$inward->item?->invoiced_quantity > 0, 422, 'Void the bills for this item before deleting its receipts.');
+            abort_if($this->isInwardBilled($inward), 422, 'Void the bill for this inward number before deleting it.');
             $userId = Auth::id();
             $item = $inward->item;
             
@@ -315,20 +324,22 @@ class PurchaseOrderInwardController extends Controller
         $validated = $request->validate([
             'truck_id' => ['sometimes', 'nullable', \Illuminate\Validation\Rule::exists('mm_machines', 'id')->where('plant_id', $inward->plant_id)->whereNull('deleted_at')],
             'uom_id' => 'sometimes|required|exists:mm_product_units,id',
+            'received_qty' => 'sometimes|required|numeric|min:0',
             'truck_empty' => 'nullable|numeric|min:0',
             'truck_loaded' => 'nullable|numeric|min:0',
             'conversion_quantity' => 'nullable|numeric|min:0',
+            'convert_volume' => 'nullable|numeric|min:0.000001|max:99999999999.999999|decimal:0,6',
             'conversion_uom_id' => 'nullable|exists:mm_product_units,id',
             'empty_weight_photo' => ['nullable', 'string', new Base64Image],
             'loaded_weight_photo' => ['nullable', 'string', new Base64Image],
         ]);
 
-        $changesReceipt = count(array_intersect(array_keys($validated), ['truck_empty', 'truck_loaded', 'uom_id', 'conversion_quantity', 'conversion_uom_id'])) > 0;
+        $changesReceipt = count(array_intersect(array_keys($validated), ['received_qty', 'truck_empty', 'truck_loaded', 'uom_id', 'convert_volume', 'conversion_quantity', 'conversion_uom_id'])) > 0;
         DB::transaction(function () use ($validated, $inward, $changesReceipt) {
             PurchaseOrder::whereKey($inward->order_id)->lockForUpdate()->firstOrFail();
             $inward->refresh();
-            if ($changesReceipt && (float)$inward->item?->invoiced_quantity > 0) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['inward' => 'Void the bills for this item before changing receipt quantities or units.']);
+            if ($changesReceipt && $this->isInwardBilled($inward)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['inward' => 'Void the bill for this inward number before changing its quantities or units.']);
             }
             $userId = Auth::id();
             $oldReceivedQty = (float)$inward->received_qty;
@@ -343,7 +354,9 @@ class PurchaseOrderInwardController extends Controller
                 ? (float)$validated['truck_empty']
                 : (float)($inward->truck_empty ?? 0);
 
-            if (!array_key_exists('truck_loaded', $validated) && !array_key_exists('truck_empty', $validated)) {
+            if (array_key_exists('received_qty', $validated)) {
+                $newReceivedQty = (float) $validated['received_qty'];
+            } elseif (!array_key_exists('truck_loaded', $validated) && !array_key_exists('truck_empty', $validated)) {
                 $newReceivedQty = $oldReceivedQty;
             } elseif ($emptyWeight > 0 && $loadedWeight > 0) {
                 $newReceivedQty = max(0, $loadedWeight - $emptyWeight);
@@ -368,7 +381,12 @@ class PurchaseOrderInwardController extends Controller
             }
             $inward->received_qty = $newReceivedQty;
 
-            if (array_key_exists('conversion_quantity', $validated) && $validated['conversion_quantity'] !== null) {
+            if (array_key_exists('convert_volume', $validated)) {
+                $inward->convert_volume = $validated['convert_volume'];
+            }
+            if ((float) $inward->convert_volume > 0 && ($diff != 0 || array_key_exists('convert_volume', $validated) || array_key_exists('conversion_quantity', $validated))) {
+                $inward->conversion_quantity = round($newReceivedQty / (float) $inward->convert_volume, 4);
+            } elseif (array_key_exists('conversion_quantity', $validated) && $validated['conversion_quantity'] !== null) {
                 $inward->conversion_quantity = (float)$validated['conversion_quantity'];
             } elseif ($diff != 0 && $inward->product && (float)$inward->product->conversion_quantity > 0) {
                 $inward->conversion_quantity = $newReceivedQty / (float)$inward->product->conversion_quantity;
@@ -444,6 +462,15 @@ class PurchaseOrderInwardController extends Controller
         });
 
         return redirect()->back()->with('success', 'Inward details and stock balance updated successfully.');
+    }
+
+    private function isInwardBilled(PurchaseOrderHistory $inward): bool
+    {
+        $order = $inward->order;
+        if (!$order) return false;
+        $order->loadMissing(['items.history', 'billingHistory.items']);
+        $item = $order->items->firstWhere('id', $inward->order_item_id);
+        return $item && (new \App\Services\PurchaseReceiptBilling)->isReceiptBilled($order, $item, (int) $inward->id);
     }
 
     private function storeInwardImage(PurchaseOrderHistory $inward, ?string $base64Data, string $type): void

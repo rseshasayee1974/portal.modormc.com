@@ -1,5 +1,6 @@
 *.log
 *.sql
+!/database/sql/2026_10_06_whatsapp_messages.sql
 database_dump.sql
 .DS_Store
 .env
@@ -43,6 +44,7 @@ package.json
 !/tests/Standalone/purchase-receipt-billing.php
 !/tests/Standalone/purchase-conversion-billing.php
 !/tests/Standalone/dispatch-whatsapp.php
+!/tests/Standalone/dashboard-date-range.php
 !/tests/Standalone/bulk-document-pdf.php
 !/tests/Standalone/bulk-document-zip.php
 Homestead.json

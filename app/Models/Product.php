@@ -39,7 +39,7 @@ class Product extends Model
 
             if ($product->isRestrictedFromModification() && !$isSystemAdmin) {
                 $dirtyFields = array_keys($product->getDirty());
-                $exemptedFields = ['category_id', 'hsn_code', 'material_code', 'updated_at', 'updated_by'];
+                $exemptedFields = ['title', 'category_id', 'hsn_code', 'material_code', 'updated_at', 'updated_by'];
                 
                 $restrictedChanges = [];
                 foreach ($dirtyFields as $field) {
