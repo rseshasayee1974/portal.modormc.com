@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { computed, ref, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -277,7 +278,7 @@ const formatDate = (date: string | null) => {
     if (!date) return '--';
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) return '--';
-    return parsed.toLocaleString('en-IN', {
+    return parsed.toLocaleString(APP_LOCALE, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -571,7 +572,7 @@ const sendEmail = () => {
                             </td>
                            
                             <td class="p-2 text-right font-bold text-slate-800 text-sm">
-                                <span>₹ {{ Number(item.amount_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                <span>₹ {{ Number(item.amount_total || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                             </td>
                             <td class="p-2 text-center" v-if="!isLocked">
                                 <button type="button" class="text-slate-300 hover:text-rose-500 transition-colors" @click="removeItem(index)">
@@ -654,11 +655,11 @@ const sendEmail = () => {
                 <div class="w-full md:w-96 bg-white border border-slate-100 rounded-md p-4 space-y-3 ml-auto">
                       <div class="flex justify-between items-center text-[12px] font-medium text-slate-600">
                                     <span>Subtotal (Untaxed)</span>
-                                    <span class="font-bold">₹ {{ Number(form.amount_untaxed).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                    <span class="font-bold">₹ {{ Number(form.amount_untaxed).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                 </div>
                     <div class="flex justify-between items-center text-[12px] font-medium text-slate-600 mb-2">
                         <span>Total Taxes (+)</span>
-                        <span class="font-bold">₹ {{ Number(form.amount_tax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                        <span class="font-bold">₹ {{ Number(form.amount_tax || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                     </div>
 
                     <div class="flex justify-between items-center gap-3">
@@ -670,7 +671,7 @@ const sendEmail = () => {
                     <div class="flex justify-between items-between">
                                         <span class="text-[13px] font-semibold text-indigo-600  tracking-[0.15em]">Grand Total</span>
                                         <span class="text-lg font-black text-slate-900 tracking-tighter">
-                                            ₹ {{ Number(form.amount_total).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                            ₹ {{ Number(form.amount_total).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                         </span>
                                    
                                 </div>

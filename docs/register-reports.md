@@ -2,6 +2,8 @@
 
 Open **Report > Sales Register** or **Report > Purchase Register**. Both also appear in the Accounting & Finance report catalog, with their existing Production/Inventory entries retained.
 
+Excel exports use **Invoice No** as the only document-number column in Sales Register and **Bill No** in Purchase Register. This applies to Standard (Summary and Detailed) and Address & GST formats, including scheduled and legacy Excel exports.
+
 **Report > Detailed Sales Register** opens the item layout based on `Sales_Register20260923 (1).xlsx`. It adds payment type, product rate, gross, tax name, taxable sales, TCS, unloading site, truck, description, e-invoice status, cancellation/acknowledgement dates, party type and creator. The two `TYPE` headings in the sample are named **Payment Type** and **Party Type**.
 
 All sales/purchase summary and detail layouts show paired CGST/SGST columns at 2.5%, 6%, 9% and 14% (GST 5%, 12%, 18% and 28%), followed by IGST 5%, 12%, 18% and 28%. These twelve columns remain visible even when zero; every additional recorded rate is also included. The separate CGST Total, SGST Total, UTGST Total and IGST Total columns are omitted from the screen, Excel and PDF. Rate-column footer totals and Total Tax remain available.
@@ -17,6 +19,8 @@ Excel and PDF exports include every matching record and preserve the selected vi
 ### Standard Sales Register Excel addresses
 
 With **Excel Format > Standard register**, both Summary and Detailed sales exports include Address_1, Address_2, City, Zipcode, Shipping Address_1, Shipping Address_2, Shipping Zipcode and Truck. Billing details follow the primary contact/linked party address selection below; shipping lines and ZIP code come from the dispatch unloading site. Missing values remain blank. ZIP codes stay as text, long addresses wrap, and Date/Party remain frozen while scrolling. Existing invoice grouping, item rows, GST rate splits and totals are preserved. These address columns also apply to scheduled and legacy Sales Register Excel exports; screen/PDF layouts and the standard Purchase Register are unchanged.
+
+The standard sales Excel order is Date, Customer, billing/shipping addresses, GSTIN, Type, Invoice No, product/delivery details, discounts and taxable value, GST rate splits, then **Total Tax > Round Off > Net Amount**. Detailed exports place **Truck immediately after Product** and retain the other existing detail/audit fields before the tax amounts. Summary exports retain one row per invoice, with Truck after Invoice No. TCS component and rate columns are omitted from this format; Total Tax retains every recorded tax amount. Sales continues to export only Invoice No.
 
 ### Address & GST Excel format
 

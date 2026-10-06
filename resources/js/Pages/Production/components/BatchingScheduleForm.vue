@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityDateTime } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
 import axios from 'axios';
@@ -365,7 +366,7 @@ const submitForm = async () => {
                             <span class="block text-[9px] font-black uppercase tracking-wider text-slate-400">Total
                                 Order</span>
                             <span class="text-xs font-black text-slate-800 dark:text-slate-100">{{
-                                Number(selectedSalesOrder.total_qty).toLocaleString() }} m³</span>
+                                Number(selectedSalesOrder.total_qty).toLocaleString(APP_LOCALE) }} m³</span>
                         </div>
 
                         <div v-if="selectedSalesOrder.remaining_qty !== undefined"
@@ -374,7 +375,7 @@ const submitForm = async () => {
                                 class="block text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Balance
                                 Qty</span>
                             <span class="text-xs font-black text-emerald-700 dark:text-emerald-300">{{
-                                Number(selectedSalesOrder.remaining_qty).toLocaleString() }} m³</span>
+                                Number(selectedSalesOrder.remaining_qty).toLocaleString(APP_LOCALE) }} m³</span>
                         </div>
                     </div>
                 </div>

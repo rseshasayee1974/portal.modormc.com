@@ -1,6 +1,7 @@
 /**
  * Utility functions for formatting dates, currency, and quantities across reports.
  */
+import { APP_LOCALE } from './locale.js';
 import { entityToday } from './entityDateTime';
 
 /**
@@ -27,7 +28,7 @@ export const formatDate = (val, fallback = '---') => {
  */
 export const formatCurrency = (val) => {
     if (val === null || val === undefined || isNaN(val)) return '₹ 0.00';
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
     }).format(val);

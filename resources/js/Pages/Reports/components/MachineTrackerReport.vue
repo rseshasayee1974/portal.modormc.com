@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed, watch } from 'vue';
 import { TruckIcon, WrenchScrewdriverIcon, FireIcon, CurrencyRupeeIcon, BoltIcon, ClockIcon } from '@heroicons/vue/24/outline';
 import { formatCurrency } from '@/Utils/formatters';
@@ -35,7 +36,7 @@ watch(trackerList, () => {
 const formatNum = (val) => {
     if (val === null || val === undefined || val === '') return '0';
     const num = Number(val);
-    return isNaN(num) ? '0' : num.toLocaleString('en-IN');
+    return isNaN(num) ? '0' : num.toLocaleString(APP_LOCALE);
 };
 </script>
 

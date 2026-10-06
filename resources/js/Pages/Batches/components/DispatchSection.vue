@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityCalendarDate } from '@/Utils/entityDateTime';
 import { ref, onMounted, watch, onUnmounted, onUpdated } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
@@ -869,7 +870,7 @@ const handleDeleteInvoice = () => {
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Gross Amount</span>
                                         <span v-if="form.status?.is_tax_inclusive" class="text-[9px] font-bold text-emerald-600 uppercase bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">Inc.</span>
                                     </div>
-                                    <span class="text-xs font-black text-slate-700">₹ {{ form.financials.load_untax_amount.toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
+                                    <span class="text-xs font-black text-slate-700">₹ {{ form.financials.load_untax_amount.toLocaleString(APP_LOCALE, {minimumFractionDigits: 2}) }}</span>
                                 </div>
 
                                 <div class="flex items-center justify-between">
@@ -901,7 +902,7 @@ const handleDeleteInvoice = () => {
                                             Pump Charge
                                             <span class="normal-case font-normal text-amber-400 ml-1">({{ addPumpToTotal ? 'flat' : 'per m³' }})</span>
                                         </span>
-                                        <span class="text-xs font-bold text-amber-600">₹ {{ Number(form.financials.pump_charges || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
+                                        <span class="text-xs font-bold text-amber-600">₹ {{ Number(form.financials.pump_charges || 0).toLocaleString(APP_LOCALE, {minimumFractionDigits: 2}) }}</span>
                                     </div> -->
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.pass_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pass Amount</span>

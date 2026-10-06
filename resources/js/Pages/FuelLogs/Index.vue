@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDateTime, entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -106,12 +107,12 @@ const editForm = useForm(getInitialForm());
 // Auto calculated totals
 const createCalculatedTotal = computed(() => {
     const total = (Number(createForm.quantity) || 0) * (Number(createForm.rate_per_liter) || 0);
-    return total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 });
 
 const editCalculatedTotal = computed(() => {
     const total = (Number(editForm.quantity) || 0) * (Number(editForm.rate_per_liter) || 0);
-    return total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 });
 
 const handleFileChange = (file: File) => {
@@ -264,7 +265,7 @@ const calculateOdoDiff = (currentLog: FuelLog) => {
         const prevOdo = Number(machineLogs[0].odometer_reading);
         const currOdo = Number(currentLog.odometer_reading);
         const diff = currOdo - prevOdo;
-        return diff > 0 ? `+${diff.toLocaleString()} km` : `${diff.toLocaleString()} km`;
+        return diff > 0 ? `+${diff.toLocaleString(APP_LOCALE)} km` : `${diff.toLocaleString(APP_LOCALE)} km`;
     }
     return 'First log';
 };
@@ -355,7 +356,7 @@ watch(() => page.props.flash, (flash: any) => {
                             <Column header="Fuel Filled">
                                 <template #body="slotProps">
                                     <span class="text-xs font-mono font-bold text-slate-800 dark:text-slate-100">
-                                        {{ Number(slotProps.data.quantity).toLocaleString() }} L
+                                        {{ Number(slotProps.data.quantity).toLocaleString(APP_LOCALE) }} L
                                     </span>
                                 </template>
                             </Column>
@@ -365,7 +366,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 <template #body="slotProps">
                                     <div class="flex flex-col text-xs font-mono">
                                         <span class="text-slate-500">Rate: ₹{{ Number(slotProps.data.rate_per_liter).toFixed(2) }}/L</span>
-                                        <span class="text-indigo-650 font-bold">Total: ₹{{ Number(slotProps.data.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
+                                        <span class="text-indigo-650 font-bold">Total: ₹{{ Number(slotProps.data.total_amount).toLocaleString(APP_LOCALE, {minimumFractionDigits: 2}) }}</span>
                                     </div>
                                 </template>
                             </Column>
@@ -374,7 +375,7 @@ watch(() => page.props.flash, (flash: any) => {
                             <Column header="Odometer">
                                 <template #body="slotProps">
                                     <div class="flex flex-col text-xs font-mono">
-                                        <span class="text-slate-700 dark:text-slate-200">{{ Number(slotProps.data.odometer_reading).toLocaleString() }} Km</span>
+                                        <span class="text-slate-700 dark:text-slate-200">{{ Number(slotProps.data.odometer_reading).toLocaleString(APP_LOCALE) }} Km</span>
                                         <span class="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
                                             {{ calculateOdoDiff(slotProps.data) }}
                                         </span>

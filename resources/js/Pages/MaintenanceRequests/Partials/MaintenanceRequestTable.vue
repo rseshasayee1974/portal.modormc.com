@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref } from 'vue';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
@@ -161,19 +162,19 @@ const filters = ref({
                         <Column field="uom.unit_code" header="UOM" />
                         <Column header="Unit Price">
                             <template #body="subProps">
-                                ₹{{ Number(subProps.data.price_unit || 0).toLocaleString('en-IN',
+                                ₹{{ Number(subProps.data.price_unit || 0).toLocaleString(APP_LOCALE,
                                     { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                             </template>
                         </Column>
                         <Column header="Subtotal">
                             <template #body="subProps">
-                                ₹{{ Number(subProps.data.price_subtotal || 0).toLocaleString('en-IN',
+                                ₹{{ Number(subProps.data.price_subtotal || 0).toLocaleString(APP_LOCALE,
                                     { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                             </template>
                         </Column>
                         <Column header="Tax">
                             <template #body="subProps">
-                                ₹{{ Number(subProps.data.price_tax || 0).toLocaleString('en-IN', {
+                                ₹{{ Number(subProps.data.price_tax || 0).toLocaleString(APP_LOCALE, {
                                     minimumFractionDigits:
                                         2, maximumFractionDigits: 2
                                 }) }}
@@ -182,7 +183,7 @@ const filters = ref({
                         <Column header="Total Price">
                             <template #body="subProps">
                                 <span class="font-bold text-slate-700 dark:text-slate-200">
-                                    ₹{{ Number(subProps.data.price_total || 0).toLocaleString('en-IN',
+                                    ₹{{ Number(subProps.data.price_total || 0).toLocaleString(APP_LOCALE,
                                         { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </span>
                             </template>

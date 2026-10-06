@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -192,7 +193,7 @@ import { router } from '@inertiajs/vue3';
                         <Column field="amount" header="Amount" sortable textAlign="right">
                             <template #body="slotProps">
                                 <div :class="`font-mono font-black text-sm ${slotProps.data.transaction_type === 'receipt' ? 'text-emerald-600' : 'text-slate-800 dark:text-gray-100'}`">
-                                    ₹ {{ Number(slotProps.data.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                    ₹ {{ Number(slotProps.data.amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                 </div>
                             </template>
                         </Column>

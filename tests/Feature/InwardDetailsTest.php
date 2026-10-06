@@ -55,7 +55,7 @@ class InwardDetailsTest extends TestCase
     {
         $this->item->update(['invoiced_quantity' => 10]);
         $truck = Machine::factory()->create(['plant_id' => $this->plant->id]);
-        $this->updateDetails(['truck_id' => $truck->id])->assertSessionHasNoErrors();
+        $this->updateDetails(['truck_id' => $truck->id, 'uom_id' => $this->inward->uom_id])->assertSessionHasNoErrors();
         $this->assertEquals($truck->id, $this->inward->fresh()->truck_id);
         $this->assertEquals(10, $this->inward->fresh()->received_qty);
         $this->assertEquals(10, $this->item->fresh()->received_quantity);
@@ -64,21 +64,22 @@ class InwardDetailsTest extends TestCase
         $this->assertNull($this->inward->fresh()->truck_id);
     }
 
-    public function test_received_unit_correction_moves_stock_into_existing_destination(): void
+    public function test_received_unit_is_locked_and_stock_cannot_move_to_another_unit(): void
     {
         $unit = ProductUnit::factory()->create();
         $destination = Quantity::create([
             'plant_id' => $this->plant->id, 'product_id' => $this->inward->product_id,
             'uom_id' => $unit->id, 'quantity' => 5, 'opening_quantity' => 0, 'status' => 1,
         ]);
-        $this->updateDetails(['uom_id' => $unit->id])->assertSessionHasNoErrors();
-        $this->assertEquals($unit->id, $this->inward->fresh()->uom_id);
-        $this->assertEquals(0, $this->stock->fresh()->quantity);
-        $this->assertEquals(15, $destination->fresh()->quantity);
+        $this->updateDetails(['uom_id' => $unit->id])->assertSessionHasErrors('uom_id');
+        $this->updateDetails(['uom_id' => null])->assertSessionHasErrors('uom_id');
+        $this->assertEquals($this->stock->uom_id, $this->inward->fresh()->uom_id);
+        $this->assertEquals(10, $this->stock->fresh()->quantity);
+        $this->assertEquals(5, $destination->fresh()->quantity);
         $this->assertEquals(10, $this->item->fresh()->received_quantity);
     }
 
-    public function test_insufficient_original_stock_rolls_back_all_details(): void
+    public function test_received_unit_change_rejects_the_entire_update(): void
     {
         $this->stock->update(['quantity' => 3]);
         $unit = ProductUnit::factory()->create();
@@ -91,23 +92,24 @@ class InwardDetailsTest extends TestCase
         $this->assertDatabaseMissing('mm_quantity', ['product_id' => $this->inward->product_id, 'uom_id' => $unit->id]);
     }
 
-    public function test_combined_unit_and_weight_edit_creates_stock_with_new_quantity(): void
+    public function test_weight_edit_keeps_stock_in_the_original_received_unit(): void
     {
-        $unit = ProductUnit::factory()->create();
-        $this->updateDetails(['uom_id' => $unit->id, 'truck_empty' => 30])->assertSessionHasNoErrors();
-        $this->assertEquals(0, $this->stock->fresh()->quantity);
+        $unitId = $this->inward->uom_id;
+        $this->updateDetails(['uom_id' => $unitId, 'truck_empty' => 30])->assertSessionHasNoErrors();
+        $this->assertEquals($unitId, $this->inward->fresh()->uom_id);
+        $this->assertEquals(70, $this->stock->fresh()->quantity);
         $this->assertEquals(70, $this->inward->fresh()->received_qty);
         $this->assertEquals(70, $this->item->fresh()->received_quantity);
         $this->assertDatabaseHas('mm_quantity', [
             'plant_id' => $this->plant->id, 'product_id' => $this->inward->product_id,
-            'uom_id' => $unit->id, 'quantity' => 70,
+            'uom_id' => $unitId, 'quantity' => 70,
         ]);
     }
 
     public function test_billed_receipt_cannot_change_units(): void
     {
         $this->item->update(['invoiced_quantity' => 10]);
-        $this->updateDetails(['uom_id' => ProductUnit::factory()->create()->id])->assertSessionHasErrors('inward');
+        $this->updateDetails(['uom_id' => ProductUnit::factory()->create()->id])->assertSessionHasErrors('uom_id');
         $this->assertEquals($this->stock->uom_id, $this->inward->fresh()->uom_id);
         $this->assertEquals(10, $this->stock->fresh()->quantity);
     }
@@ -177,5 +179,28 @@ class InwardDetailsTest extends TestCase
         $this->updateDetails(['truck_id' => $truck->id])->assertSessionHasErrors('truck_id');
         $this->withSession(['active_plant_id' => $foreign->id]);
         $this->updateDetails(['truck_id' => null])->assertNotFound();
+    }
+
+    public function test_saving_an_inward_does_not_grant_purchase_bill_permission(): void
+    {
+        $user = auth()->user();
+        $user->syncRoles([]);
+        $this->plant->update(['is_active' => 1]);
+        \App\Models\Entity::whereKey($this->plant->entity_id)->update(['is_suspended' => 0]);
+        $role = Role::firstOrCreate(['name' => 'Inward Editor', 'guard_name' => 'web'], ['code' => 'INWARD_EDITOR']);
+        \App\Models\EntityUser::create([
+            'user_id' => $user->id, 'entity_id' => $this->plant->entity_id,
+            'plant_id' => $this->plant->id, 'role_id' => $role->id,
+        ]);
+        $permission = \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'INWARD.UPDATE', 'guard_name' => 'web']);
+        $user->syncPermissions([$permission]);
+        $this->updateDetails(['truck_id' => null])->assertRedirect()->assertSessionHasNoErrors();
+        $this->updateDetails([
+            'truck_empty' => 30,
+            'generate_bill' => true,
+            'bill' => ['invoice_date' => '2026-10-06', 'unit_price' => 100],
+        ])->assertForbidden();
+        $this->assertEquals(20, $this->inward->fresh()->truck_empty);
+        $this->assertEquals(10, $this->stock->fresh()->quantity);
     }
 }

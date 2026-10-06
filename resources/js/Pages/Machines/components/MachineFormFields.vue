@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -198,11 +199,11 @@ defineExpose({ activeTab });
                     <div class="grid grid-cols-12 gap-5">
                         <div class="col-span-12 md:col-span-2 field-group">
                             <label class="field-label">Principal Amount</label>
-                            <BaseInputNumber v-model="loan.loan_amount" mode="currency" currency="INR" locale="en-IN" class="!w-full h-10" />
+                            <BaseInputNumber v-model="loan.loan_amount" mode="currency" currency="INR" :locale="APP_LOCALE" class="!w-full h-10" />
                         </div>
                         <div class="col-span-12 md:col-span-2 field-group">
                             <label class="field-label">Monthly EMI</label>
-                            <BaseInputNumber v-model="loan.emi_amount" mode="currency" currency="INR" locale="en-IN" class="!w-full h-10" />
+                            <BaseInputNumber v-model="loan.emi_amount" mode="currency" currency="INR" :locale="APP_LOCALE" class="!w-full h-10" />
                         </div>
                         <div class="col-span-12 md:col-span-2 field-group">
                             <label class="field-label">Tenure (Months)</label>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { computed, ref, type PropType } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -61,7 +62,7 @@ const rows = computed(() =>
 );
 
 const money = (value: string | number) =>
-    Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    Number(value || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // KPI Metric Computations
 const totalCount = computed(() => props.discounts.length);

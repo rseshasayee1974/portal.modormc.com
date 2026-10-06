@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate, entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -267,7 +268,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 <Column field="units" header="Units" />
                                 <Column header="Changed Km">
                                     <template #body="subProps">
-                                        {{ Number(subProps.data.changed_km).toLocaleString() }} Km
+                                        {{ Number(subProps.data.changed_km).toLocaleString(APP_LOCALE) }} Km
                                     </template>
                                 </Column>
                                 <Column header="Issue Date">

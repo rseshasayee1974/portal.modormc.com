@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
@@ -329,7 +330,7 @@ const handleCreate = () => {
                     <div>
                         <h4 class="text-xs font-black text-indigo-800 dark:text-indigo-200 uppercase tracking-wider">Available Patron Advance Balance</h4>
                         <p class="text-sm font-black text-indigo-700 dark:text-indigo-300 font-mono mt-0.5">
-                            ₹ {{ patronAdvanceBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                            ₹ {{ patronAdvanceBalance.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                         </p>
                     </div>
                 </div>
@@ -355,7 +356,7 @@ const handleCreate = () => {
                     <div>
                         <h4 class="text-xs font-black text-amber-800 dark:text-amber-200 uppercase tracking-wider">Unallocated Excess Amount</h4>
                         <p class="text-xs text-amber-600 dark:text-amber-400 font-bold font-mono">
-                            ₹ {{ (createForm.amount - totalAllocated).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                            ₹ {{ (createForm.amount - totalAllocated).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                         </p>
                     </div>
                 </div>
@@ -373,7 +374,7 @@ const handleCreate = () => {
                     <div>
                         <h4 class="text-xs font-black text-indigo-800 dark:text-indigo-200 uppercase tracking-wider">Advance Balance Applied</h4>
                         <p class="text-xs text-indigo-600 dark:text-indigo-400 font-bold font-mono">
-                            ₹ {{ (totalAllocated - createForm.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                            ₹ {{ (totalAllocated - createForm.amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                         </p>
                     </div>
                 </div>
@@ -423,13 +424,13 @@ const handleCreate = () => {
                                     </span>
                                 </td>
                                 <td class="px-4 py-2 text-slate-500 dark:text-slate-400">
-                                    {{ entityLocaleDate(inv.invoice_date, 'en-CA') }}
+                                    {{ entityLocaleDate(inv.invoice_date, APP_LOCALE) }}
                                 </td>
                                 <td class="px-4 py-2 text-right text-slate-500 dark:text-slate-400 font-mono text-xs">
-                                    {{ Number(inv.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                    {{ Number(inv.total_amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </td>
                                 <td class="px-4 py-2 text-right font-medium text-slate-700 dark:text-slate-300 font-mono text-xs">
-                                    {{ Number(inv.balance_amount || inv.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                    {{ Number(inv.balance_amount || inv.total_amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </td>
                                 <td class="px-4 py-2 text-right">
                                     <div class="flex items-center justify-end gap-1">
@@ -480,7 +481,7 @@ const handleCreate = () => {
                                     Total Allocated
                                 </td>
                                 <td class="px-4 py-3 text-right font-bold text-indigo-600 dark:text-indigo-400 font-mono text-sm border-l border-slate-200 dark:border-slate-700">
-                                    {{ totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                    {{ totalAllocated.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </td>
                             </tr>
                             <tr v-if="totalAvailableFunding !== totalAllocated">
@@ -488,7 +489,7 @@ const handleCreate = () => {
                                     {{ totalAvailableFunding > totalAllocated ? 'Unallocated (Advance)' : 'Over-allocated (Invalid)' }}
                                 </td>
                                 <td :class="`px-4 py-2 text-right font-bold font-mono text-sm border-l border-slate-200 dark:border-slate-700 ${totalAvailableFunding > totalAllocated ? 'text-amber-600 dark:text-amber-500' : 'text-red-600 dark:text-red-500'}`">
-                                    {{ (totalAvailableFunding - totalAllocated).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                    {{ (totalAvailableFunding - totalAllocated).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </td>
                             </tr>
                         </tfoot>

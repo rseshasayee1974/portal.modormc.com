@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleTime } from '@/Utils/entityDateTime';
 import { computed } from 'vue';
 
@@ -32,7 +33,7 @@ const statusColorClass = computed(() => {
 
 const formatTime = (timeStr: string) => {
     try {
-        return entityLocaleTime(timeStr, 'en-IN', { hour12: false });
+        return entityLocaleTime(timeStr, APP_LOCALE, { hour12: false });
     } catch (e) {
         return '';
     }

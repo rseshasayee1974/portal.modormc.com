@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
 import { useForm, router, usePage } from '@inertiajs/vue3';
@@ -187,7 +188,7 @@ watch(selectedPoId, (newId) => {
 
 const formatDate = (date: string) => {
     if (!date) return '--';
-    return entityLocaleDate(date, 'en-IN', { day: '2-digit', month: 'short' });
+    return entityLocaleDate(date, APP_LOCALE, { day: '2-digit', month: 'short' });
 };
 
 const submit = () => {
@@ -337,7 +338,7 @@ const remainingToReceive = (item: any) => {
                                                 <span
                                                     class="text-slate-400 uppercase tracking-wider text-[9px]">Pending</span>
                                                 <span class="text-amber-700 font-mono font-extrabold">
-                                                    {{ Number(remainingToReceive(item).toFixed(2)).toLocaleString() }}
+                                                    {{ Number(remainingToReceive(item).toFixed(2)).toLocaleString(APP_LOCALE) }}
                                                     {{ item.uom }}
                                                 </span>
                                             </div>

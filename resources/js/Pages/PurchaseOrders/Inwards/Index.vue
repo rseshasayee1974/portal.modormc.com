@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed } from 'vue';
@@ -16,7 +17,7 @@ import InwardCreateForm from './components/InwardCreateForm.vue';
 import { ArchiveBoxIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline';
 import PurchaseOrderPreviewDialog from '../components/PurchaseOrderPreviewDialog.vue';
 
-const props = defineProps<{ inwards: any[]; purchaseOrders: any[]; vehicles: any[]; units?: any[] }>();
+const props = defineProps<{ inwards: any[]; purchaseOrders: any[]; vehicles: any[]; units?: any[]; accounts?: any[]; canGenerateBill?: boolean }>();
 // --- List Logic ---
 const entriesPerPage = ref(30);
 const expandedRows = ref<Record<string, boolean>>({});
@@ -47,7 +48,7 @@ const filteredInwards = computed(() => {
 
 const formatDate = (date: string) => {
     if (!date) return '--';
-    return entityLocaleDate(date, 'en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    return entityLocaleDate(date, APP_LOCALE, { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const previewVisible = ref(false);
@@ -158,11 +159,11 @@ const deleteInward = (inward: any) => {
                                 </template>
                             </Column>
 
-                            <Column header="Convert Volume" sortable field="convert_volume" style="min-width: 130px">
+                            <!-- <Column header="Convert Volume" sortable field="convert_volume" style="min-width: 130px">
                                 <template #body="{ data }">
-                                    <span class="text-sm font-semibold">{{ data.convert_volume == null ? '—' : Number(data.convert_volume).toLocaleString('en-IN', { maximumFractionDigits: 6 }) }}</span>
+                                    <span class="text-sm font-semibold">{{ data.convert_volume == null ? '—' : Number(data.convert_volume).toLocaleString(APP_LOCALE, { maximumFractionDigits: 6 }) }}</span>
                                 </template>
-                            </Column>
+                            </Column> -->
 
                             <Column header="Truck" sortable field="truck.registration" style="min-width: 150px">
                                 <template #body="slotProps">
@@ -230,7 +231,7 @@ const deleteInward = (inward: any) => {
                             </Column>
 
                             <template #expansion="{ data }">
-                                <InwardEditForm :key="data.id" :inward="data" :vehicles="vehicles" :units="units" />
+                                <InwardEditForm :key="data.id" :inward="data" :vehicles="vehicles" :units="units" :accounts="accounts" :can-generate-bill="canGenerateBill" />
                             </template>
 
                             <template #empty>

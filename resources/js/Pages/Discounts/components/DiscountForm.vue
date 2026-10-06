@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { computed, watch, type PropType } from 'vue';
 import { useForm } from '@inertiajs/vue3';
@@ -77,7 +78,7 @@ const getVoucherAmount = (j?: { total_debit?: string | number | null; total_cred
 };
 
 const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(val);

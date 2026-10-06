@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import InputNumber from 'primevue/inputnumber';
 import BaseField from './BaseField.vue';
+import { APP_LOCALE } from '@/Utils/locale';
 
 type ErrorValue = string | string[] | null | undefined;
 
@@ -23,6 +24,7 @@ const props = withDefaults(
         suffix?: string;
         mode?: 'decimal' | 'currency';
         currency?: string;
+        locale?: string;
         useGrouping?: boolean;
         size?: 'small' | 'large';
         fluid?: boolean;
@@ -35,6 +37,7 @@ const props = withDefaults(
         readonly: false,
         size: 'small',
         fluid: true,
+        locale: APP_LOCALE,
     }
 );
 
@@ -83,6 +86,7 @@ const emit = defineEmits<{
                 :suffix="suffix"
                 :mode="mode"
                 :currency="currency"
+                :locale="locale"
                 :useGrouping="useGrouping"
                 :size="size"
                 :fluid="fluid"

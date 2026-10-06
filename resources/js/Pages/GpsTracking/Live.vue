@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -171,7 +172,7 @@ const renderVehicles = () => {
                     <div class="text-xs text-slate-600">Model: <b>${v.vehicle_model}</b></div>
                     <div class="text-xs text-slate-600">Speed: <b>${v.speed} km/h</b></div>
                     <div class="text-xs text-slate-600">Ignition: <b class="${v.ignition ? 'text-emerald-600' : 'text-rose-500'}">${v.ignition ? 'ON' : 'OFF'}</b></div>
-                    <div class="text-xs text-slate-600">Odometer: <b>${v.odometer.toLocaleString()} km</b></div>
+                    <div class="text-xs text-slate-600">Odometer: <b>${v.odometer.toLocaleString(APP_LOCALE)} km</b></div>
                     <div class="text-[10px] text-slate-400 mt-2 pt-1 border-t">Last Update: ${v.last_ping}</div>
                 </div>
             `);

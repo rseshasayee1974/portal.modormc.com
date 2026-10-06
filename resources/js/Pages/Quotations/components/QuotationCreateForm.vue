@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { computed, ref, watch } from 'vue';
 import { useForm, router, usePage } from '@inertiajs/vue3';
@@ -722,7 +723,7 @@ const submit = () => {
                                         </td>
                                      
                                         <td class="p-3 text-right font-bold text-slate-800 text-sm w-30">
-                                            <span class="">₹ {{ Number(item.amount_total).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                            <span class="">₹ {{ Number(item.amount_total).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                         </td>
                                         <td class="p-3 text-center">
                                             <button @click="removeItem(index)" class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all">
@@ -804,11 +805,11 @@ const submit = () => {
                             <div class="space-y-4">
                                 <div class="flex justify-between items-center text-[12px] font-medium text-slate-600">
                                     <span>Subtotal (Untaxed)</span>
-                                    <span class="font-bold">₹ {{ Number(form.amount_untaxed).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                    <span class="font-bold">₹ {{ Number(form.amount_untaxed).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-[12px] font-medium text-emerald-600">
                                     <span>Total Taxes (+)</span>
-                                    <span class="font-bold">₹ {{ Number(form.amount_tax).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                    <span class="font-bold">₹ {{ Number(form.amount_tax).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center gap-6">
                                     <span class="text-[12px] font-medium text-slate-600">Adjustment (+)</span>
@@ -818,7 +819,7 @@ const submit = () => {
                                 <div class="flex justify-between items-between">
                                         <span class="text-[13px] font-semibold text-indigo-600  tracking-[0.15em]">Grand Total</span>
                                         <span class="text-lg font-black text-slate-900 tracking-tighter">
-                                            ₹ {{ Number(form.amount_total).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                            ₹ {{ Number(form.amount_total).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                         </span>
                                    
                                 </div>

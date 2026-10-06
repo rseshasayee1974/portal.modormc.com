@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { computed } from 'vue';
 import { formatCurrency } from '@/Utils/formatters';
 
@@ -14,11 +15,11 @@ const pagination = computed(() => props.reportData.pagination || {});
 const value = (row, key) => key.startsWith('taxes.') ? (row.taxes?.[key.slice(6)] ?? 0) : (row[key] ?? '');
 const display = (row, column) => {
     const cell = value(row, column.key);
-    if (column.format === 'number') return Number(cell || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (column.format === 'number') return Number(cell || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (column.format === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(cell)) return cell.split('-').reverse().join('/');
     return cell === '' ? '—' : cell;
 };
-const total = (column) => column.total ? Number(value(props.reportData.totals || {}, column.total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+const total = (column) => column.total ? Number(value(props.reportData.totals || {}, column.total) || 0).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 </script>
 
 <template>

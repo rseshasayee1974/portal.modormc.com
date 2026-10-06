@@ -433,4 +433,97 @@ class PurchaseOrderControllerTest extends TestCase
         $this->assertEquals(1, $po->bills()->count());
         $this->assertEquals(1, $po->fresh()->invoice_status);
     }
+
+    private function inwardForBilling(): \App\Models\PurchaseOrderHistory
+    {
+        $po = PurchaseOrder::factory()->create([
+            'plant_id' => $this->plant->id, 'vendor_id' => $this->vendor->id,
+            'state' => 'approved', 'receipt_status' => 1,
+            'discount_amount' => 0, 'shipping_charges' => 0, 'adjustment' => 0,
+        ]);
+        $item = PurchaseOrderItem::factory()->create([
+            'order_id' => $po->id, 'plant_id' => $this->plant->id,
+            'product_id' => $this->product->id, 'product_uom' => $this->unit->id,
+            'product_quantity' => 100, 'received_quantity' => 10, 'invoiced_quantity' => 0,
+            'unit_price' => 100, 'discount_type' => '%', 'discount_amount' => 0, 'tax_id' => null,
+        ]);
+        \App\Models\Quantity::create([
+            'plant_id' => $this->plant->id, 'product_id' => $this->product->id,
+            'uom_id' => $this->unit->id, 'quantity' => 10, 'opening_quantity' => 0, 'status' => 1,
+        ]);
+
+        return \App\Models\PurchaseOrderHistory::create([
+            'plant_id' => $this->plant->id, 'order_id' => $po->id, 'order_item_id' => $item->id,
+            'product_id' => $this->product->id, 'uom_id' => $this->unit->id,
+            'received_date' => '2026-10-06', 'inward_no' => 'INW-BILL',
+            'received_qty' => 10, 'truck_loaded' => 10, 'truck_empty' => 0, 'status' => 1,
+        ]);
+    }
+
+    private function inwardBillPayload(): array
+    {
+        return ['generate_bill' => true, 'bill' => [
+            'account_id' => $this->purchaseLedger->id, 'invoice_date' => '2026-10-06', 'unit_price' => 125,
+        ]];
+    }
+
+    public function test_inward_save_bills_updated_quantity_and_prevents_a_second_bill(): void
+    {
+        $inward = $this->inwardForBilling();
+        $payload = $this->inwardBillPayload() + ['truck_empty' => 3, 'conversion_quantity' => 2];
+        $this->post(route('inwards.update-weight', $inward), $payload)->assertSessionHasNoErrors()->assertSessionHas('success');
+        $inward->refresh();
+        $bill = $inward->order->bills()->firstOrFail();
+        $line = $bill->items()->firstOrFail();
+        $this->assertEquals(7, $inward->received_qty);
+        $this->assertEquals(7, $inward->item->invoiced_quantity);
+        $this->assertEquals(7, $line->quantity);
+        $this->assertEquals(125, $line->price_unit);
+        $this->assertEquals(875, $bill->total_amount);
+        $this->assertEquals($inward->id, $line->purchase_order_history_id);
+        $this->assertDatabaseHas('mm_quantity', ['product_id' => $this->product->id, 'quantity' => 7]);
+        $this->post(route('inwards.update-weight', $inward), $this->inwardBillPayload())->assertSessionHasErrors('bill.inward_ids');
+        $this->assertEquals(1, $inward->order->bills()->count());
+    }
+
+    public function test_invalid_inward_bill_rolls_back_weight_stock_and_units(): void
+    {
+        $inward = $this->inwardForBilling();
+        $payload = $this->inwardBillPayload() + ['truck_empty' => 3, 'conversion_quantity' => 2];
+        $payload['bill']['account_id'] = null;
+        $this->post(route('inwards.update-weight', $inward), $payload)->assertSessionHasErrors('bill.account_id');
+        $this->assertEquals(0, $inward->fresh()->truck_empty);
+        $this->assertEquals(10, $inward->fresh()->received_qty);
+        $this->assertEquals(10, $inward->item->fresh()->received_quantity);
+        $this->assertDatabaseHas('mm_quantity', ['product_id' => $this->product->id, 'quantity' => 10]);
+        $this->assertEquals(0, $inward->order->bills()->count());
+    }
+
+    public function test_inward_bill_requires_loaded_weight_and_valid_rate(): void
+    {
+        $inward = $this->inwardForBilling();
+        $inward->update(['truck_loaded' => 0]);
+        $this->post(route('inwards.update-weight', $inward), $this->inwardBillPayload())->assertSessionHasErrors('bill');
+        $inward->update(['truck_loaded' => 10]);
+        $payload = $this->inwardBillPayload();
+        $payload['bill']['unit_price'] = -1;
+        $this->post(route('inwards.update-weight', $inward), $payload)->assertSessionHasErrors('bill.unit_price');
+        $this->assertEquals(0, $inward->order->bills()->count());
+    }
+
+    public function test_inward_bill_cannot_select_another_receipt(): void
+    {
+        $inward = $this->inwardForBilling();
+        $other = $inward->replicate();
+        $other->inward_no = 'INW-OTHER';
+        $other->save();
+        $inward->item->update(['received_quantity' => 20]);
+        $payload = $this->inwardBillPayload();
+        $payload['bill']['inward_ids'] = [$other->id];
+        $this->post(route('inwards.update-weight', $inward), $payload)->assertSessionHasNoErrors()->assertSessionHas('success');
+        $bill = $inward->order->bills()->firstOrFail();
+        $this->assertCount(1, $bill->items);
+        $this->assertEquals($inward->id, $bill->items->first()->purchase_order_history_id);
+        $this->assertEquals(10, $bill->items->first()->quantity);
+    }
 }

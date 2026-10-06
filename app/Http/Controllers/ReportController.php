@@ -33,8 +33,13 @@ class ReportController extends Controller
         if (!$request->filled('type')) {
             $first = array_key_first(array_filter($reportPermissions, fn ($actions) => $actions['view']));
             abort_unless($first, 403, 'No reports have been assigned to your role.');
-            $request->merge(['type' => $first === 'detailed_sales_register' ? 'sales_register' : $first,
-                'register_view' => $first === 'detailed_sales_register' ? 'detail' : 'summary']);
+            $request->merge(['type' => $first === 'detailed_sales_register' ? 'sales_register' : $first]);
+        }
+        if (!$request->filled('register_view')) {
+            $defaultView = $request->input('type') === 'purchase_register'
+                || ($request->input('type') === 'sales_register' && ($reportPermissions['detailed_sales_register']['view'] ?? false))
+                ? 'detail' : 'summary';
+            $request->merge(['register_view' => $defaultView]);
         }
         $this->authorizeReport($request->input('type'), 'view', $request->all() + ['register_view' => 'summary']);
         $plantId = session('active_plant_id');

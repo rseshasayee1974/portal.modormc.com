@@ -66,6 +66,7 @@ class PurchaseOrderInwardController extends Controller
             'purchaseOrders' => $purchaseOrders,
             'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
             'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
+            ...$this->billingOptions(),
         ]);
     }
 
@@ -85,6 +86,7 @@ class PurchaseOrderInwardController extends Controller
             'inward' => $inward,
             'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
             'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
+            ...$this->billingOptions(),
         ]);
     }
 
@@ -340,13 +342,12 @@ class PurchaseOrderInwardController extends Controller
 
     public function updateWeight(Request $request, PurchaseOrderHistory $inward)
     {
-        // dd($request->all());
         $this->authorizeModule('edit'); 
 
         abort_unless((int)$inward->plant_id === (int)session('active_plant_id'), 404);
         $validated = $request->validate([
             'truck_id' => ['sometimes', 'nullable', \Illuminate\Validation\Rule::exists('mm_machines', 'id')->where('plant_id', $inward->plant_id)->whereNull('deleted_at')],
-            'uom_id' => 'sometimes|required|exists:mm_product_units,id',
+            'uom_id' => 'sometimes|required|integer',
             'received_qty' => 'sometimes|required|numeric|min:0',
             'truck_empty' => 'nullable|numeric|min:0',
             'truck_loaded' => 'nullable|numeric|min:0',
@@ -355,19 +356,27 @@ class PurchaseOrderInwardController extends Controller
             'conversion_uom_id' => 'nullable|exists:mm_product_units,id',
             'empty_weight_photo' => ['nullable', 'string', new Base64Image],
             'loaded_weight_photo' => ['nullable', 'string', new Base64Image],
+            'generate_bill' => ['sometimes', 'boolean'],
+            'bill' => ['required_if:generate_bill,true', 'array'],
         ]);
 
-        $changesReceipt = count(array_intersect(array_keys($validated), ['received_qty', 'truck_empty', 'truck_loaded', 'uom_id', 'convert_volume', 'conversion_quantity', 'conversion_uom_id'])) > 0;
-        DB::transaction(function () use ($validated, $inward, $changesReceipt) {
+        $generateBill = $request->boolean('generate_bill');
+        if ($generateBill) {
+            $this->authorizeModule('edit', 'purchase_orders');
+        }
+        $changesReceipt = count(array_intersect(array_keys($validated), ['received_qty', 'truck_empty', 'truck_loaded', 'convert_volume', 'conversion_quantity', 'conversion_uom_id'])) > 0;
+        $invoice = DB::transaction(function () use ($validated, $inward, $changesReceipt, $generateBill) {
             PurchaseOrder::whereKey($inward->order_id)->lockForUpdate()->firstOrFail();
             $inward->refresh();
+            if (array_key_exists('uom_id', $validated) && (int) $validated['uom_id'] !== (int) $inward->uom_id) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['uom_id' => 'Received UOM cannot be changed after the inward is created.']);
+            }
             if ($changesReceipt && $this->isInwardBilled($inward)) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['inward' => 'Void the bill for this inward number before changing its quantities or units.']);
             }
             $userId = Auth::id();
             $oldReceivedQty = (float)$inward->received_qty;
-            $oldUomId = $inward->uom_id;
-            $newUomId = $validated['uom_id'] ?? $oldUomId;
+            $receivedUomId = $inward->uom_id;
 
             $loadedWeight = array_key_exists('truck_loaded', $validated) && $validated['truck_loaded'] !== null
                 ? (float)$validated['truck_loaded']
@@ -395,7 +404,6 @@ class PurchaseOrderInwardController extends Controller
             if (array_key_exists('truck_id', $validated)) {
                 $inward->truck_id = $validated['truck_id'];
             }
-            $inward->uom_id = $newUomId;
             if (array_key_exists('truck_loaded', $validated) && $validated['truck_loaded'] !== null) {
                 $inward->truck_loaded = $validated['truck_loaded'];
             }
@@ -412,7 +420,7 @@ class PurchaseOrderInwardController extends Controller
             } elseif (array_key_exists('conversion_quantity', $validated) && $validated['conversion_quantity'] !== null) {
                 $inward->conversion_quantity = (float)$validated['conversion_quantity'];
             } elseif ($diff != 0 && $inward->product && (float)$inward->product->conversion_quantity > 0) {
-                $itemUom = \App\Models\ProductUnit::find($newUomId);
+                $itemUom = \App\Models\ProductUnit::find($receivedUomId);
                 
                 $matchValue = $itemUom ? strtoupper($itemUom->unit_code) : '';
                 if (empty($matchValue)) {
@@ -429,7 +437,7 @@ class PurchaseOrderInwardController extends Controller
                     case 'TONS':
                         $inward->conversion_quantity = $newReceivedQty;
                         if (!array_key_exists('conversion_uom_id', $validated)) {
-                            $inward->conversion_uom_id = $newUomId;
+                            $inward->conversion_uom_id = $receivedUomId;
                         }
                         break;
                         
@@ -465,28 +473,13 @@ class PurchaseOrderInwardController extends Controller
             }
 
             // Update Stock Balance
-            $uomChanged = (int)$oldUomId !== (int)$newUomId;
-            if ($uomChanged && $oldReceivedQty > 0) {
-                $oldStock = Quantity::where([
-                    'plant_id' => $inward->plant_id,
-                    'product_id' => $inward->product_id,
-                    'uom_id' => $oldUomId,
-                ])->lockForUpdate()->first();
-                if (!$oldStock || (float)$oldStock->quantity < $oldReceivedQty) {
-                    throw \Illuminate\Validation\ValidationException::withMessages(['uom_id' => 'This receipt cannot change units because its original stock is no longer available.']);
-                }
-                $oldStock->quantity = (float)$oldStock->quantity - $oldReceivedQty;
-                $oldStock->updated_by = $userId;
-                $oldStock->save();
-            }
-            if ($diff != 0 || ($uomChanged && $newReceivedQty > 0)) {
+            if ($diff != 0) {
                 $stockKey = [
                     'plant_id' => $inward->plant_id,
                     'product_id' => $inward->product_id,
                     'uom_id' => $inward->uom_id
                 ];
                 $quantityRecord = Quantity::where($stockKey)->lockForUpdate()->first() ?? new Quantity($stockKey);
-                $stockDiff = $uomChanged ? $newReceivedQty : $diff;
 
                 if (!$quantityRecord->exists) {
                     $quantityRecord->opening_quantity = 0;
@@ -494,11 +487,11 @@ class PurchaseOrderInwardController extends Controller
                     $quantityRecord->status = 1;
                 }
 
-                if ($stockDiff < 0 && ((float)$quantityRecord->quantity + $stockDiff < 0)) {
+                if ($diff < 0 && ((float)$quantityRecord->quantity + $diff < 0)) {
                     throw new \InvalidArgumentException('Stock cannot be reduced below zero.');
                 }
 
-                $quantityRecord->quantity = max(0, (float)$quantityRecord->quantity + $stockDiff);
+                $quantityRecord->quantity = max(0, (float)$quantityRecord->quantity + $diff);
                 $quantityRecord->updated_by = $userId;
                 $quantityRecord->save();
             }
@@ -509,9 +502,62 @@ class PurchaseOrderInwardController extends Controller
                 $order->recalculateTotals();
                 $this->refreshOrderReceiptStatus($order);
             }
+
+            if ($generateBill) {
+                if ((float) $inward->truck_loaded <= 0 || (float) $inward->received_qty <= 0) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['bill' => 'Receive a loaded truck with a positive quantity before generating its bill.']);
+                }
+                if (!$order || (int) $order->plant_id !== (int) $inward->plant_id
+                    || !in_array(strtolower($order->state), ['approved', 'billed', 'received'])) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['bill' => 'Only an approved purchase order in the active plant can be billed.']);
+                }
+                // Only this inward is billed, using the quantities saved in this transaction.
+                $billRequest = Request::create('/', 'POST', [
+                    'account_id' => $validated['bill']['account_id'] ?? null,
+                    'invoice_date' => $validated['bill']['invoice_date'] ?? null,
+                    'due_date' => $validated['bill']['due_date'] ?? null,
+                    'inward_ids' => [$inward->id],
+                    'items' => [[
+                        'inward_id' => $inward->id,
+                        'order_item_id' => $inward->order_item_id,
+                        'unit_price' => $validated['bill']['unit_price'] ?? null,
+                    ]],
+                ]);
+                try {
+                    $invoice = app(\App\Services\PurchaseBillGenerator::class)->generate($billRequest, $order);
+                    if (!$invoice) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['bill' => 'This inward has already been billed.']);
+                    }
+                    return $invoice;
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    $errors = [];
+                    foreach ($e->errors() as $key => $messages) {
+                        $errors[$key === 'items.0.unit_price' ? 'bill.unit_price' : 'bill.' . $key] = $messages;
+                    }
+                    throw \Illuminate\Validation\ValidationException::withMessages($errors);
+                } catch (\Exception $e) {
+                    report($e);
+                    throw \Illuminate\Validation\ValidationException::withMessages(['bill' => 'The purchase bill could not be generated. No inward changes were saved. Check the accounting setup and try again.']);
+                }
+            }
+            return null;
         });
 
-        return redirect()->back()->with('success', 'Inward details and stock balance updated successfully.');
+        return redirect()->back()->with('success', $invoice
+            ? 'Inward saved and purchase bill generated: ' . $invoice->invoice_number
+            : 'Inward details and stock balance updated successfully.');
+    }
+
+    private function billingOptions(): array
+    {
+        try {
+            $this->authorizeModule('edit', 'purchase_orders');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            if (!in_array($e->getStatusCode(), [401, 403])) throw $e;
+            return ['canGenerateBill' => false, 'accounts' => []];
+        }
+
+        return ['canGenerateBill' => true, 'accounts' => toSelectOptions(LedgersDropdown('EXPENSE'), 'title')];
     }
 
     private function isInwardBilled(PurchaseOrderHistory $inward): bool

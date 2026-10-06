@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { useSlots, ref, computed } from 'vue';
 import DataTable from 'primevue/datatable';
@@ -267,7 +268,7 @@ const toggleFilterPopover = (event: any) => {
             <div class="flex justify-between items-end border-b-2 border-slate-900 pb-4 mb-6">
                 <div>
                     <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter">{{ heading || 'Data Report' }}</h1>
-                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Generated: {{ entityLocaleDateTime(undefined, 'en-IN') }}</p>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Generated: {{ entityLocaleDateTime(undefined, APP_LOCALE) }}</p>
                 </div>
                 <div class="text-right">
                     <h2 class="text-xl font-black text-indigo-600 tracking-tighter">MODOR RMC</h2>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -243,7 +244,7 @@ const submit = () => {
                                         <BaseInputNumber v-model="item.rate" :minFractionDigits="2" placeholder="0.00" fluid :inputClass="'text-right'" />
                                     </td>
                                     <td class="text-right font-mono font-bold text-slate-600 text-xs px-2">
-                                        ₹{{ ((item.cross_quantity || 0) * (item.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                        ₹{{ ((item.cross_quantity || 0) * (item.rate || 0)).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                     </td> -->
                                     <td>
                                         <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" class="!text-red-400 hover:!text-red-600" />
@@ -256,7 +257,7 @@ const submit = () => {
                                         Total Qty:
                                     </td>
                                     <td class="text-right font-black font-mono text-indigo-600 text-xs px-2 py-2.5">
-                                        {{ totalGrossQty.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }}
+                                        {{ totalGrossQty.toLocaleString(APP_LOCALE, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }}
                                     </td>
                                     <td></td>
                                 </tr>

@@ -258,6 +258,7 @@
 </template>
 
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
@@ -339,7 +340,7 @@ const getChannelClass = (channel: string) => {
 
 const formatDate = (val: string) => {
   if (!val) return 'N/A';
-  return entityLocaleDateTime(val, 'en-IN', {
+  return entityLocaleDateTime(val, APP_LOCALE, {
     day: '2-digit',
     month: 'short',
     hour: '2-digit',

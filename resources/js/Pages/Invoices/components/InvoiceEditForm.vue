@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import EwayBillRoutePreview from '@/Components/EwayBillRoutePreview.vue';
 import { entityToday, entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -428,9 +429,9 @@ const setupDemoCompliance = () => {
                                         </div>
                                     </td>
                                     <td class="p-2 text-sm text-right font-black text-slate-700">
-                                        <div>{{ (form.is_tax_inclusive ? item.total : item.subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</div>
+                                        <div>{{ (form.is_tax_inclusive ? item.total : item.subtotal).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</div>
                                         <div v-if="form.is_tax_inclusive && item.tax_amount > 0" class="text-[9px] font-normal text-slate-400">
-                                            Taxable: {{ item.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }} | Tax: {{ item.tax_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                            Taxable: {{ item.subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }} | Tax: {{ item.tax_amount.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                         </div>
                                     </td>
                                     <td class="p-2 text-center text-red-400">
@@ -464,7 +465,7 @@ const setupDemoCompliance = () => {
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Created On</span>
                                 <span class="text-[11px] font-bold text-slate-700 uppercase tracking-tight mt-0.5">
-                                    {{ entityLocaleDateTime(invoice.created_at, 'en-IN', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                                    {{ entityLocaleDateTime(invoice.created_at, APP_LOCALE, { dateStyle: 'medium', timeStyle: 'short' }) }}
                                 </span>
                             </div>
                         </div>
@@ -478,11 +479,11 @@ const setupDemoCompliance = () => {
                             </div>
                             <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
                                 <span>Subtotal (Untaxed Base)</span>
-                                <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                             </div>
                             <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
                                 <span>Tax Amount ({{ form.is_tax_inclusive ? 'Extracted' : '+' }})</span>
-                                <span class="text-slate-900">{{ form.amount_tax.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                <span class="text-slate-900">{{ form.amount_tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                             </div>
                             <div class="flex justify-between items-center gap-4">
                                 <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Global Discount (-)</span>
@@ -507,7 +508,7 @@ const setupDemoCompliance = () => {
                                 <div class="text-right flex items-baseline gap-1">
                                     <span class="text-xs text-indigo-700 font-black">₹</span>
                                     <span class="text-3xl font-black text-slate-800 tracking-tight">
-                                        {{ form.amount_total.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        {{ form.amount_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                     </span>
                                 </div>
                             </div>
@@ -645,7 +646,7 @@ const setupDemoCompliance = () => {
                                 </div>
                                 <div class="flex flex-col gap-1 p-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg">
                                     <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Acknowledgement Date</span>
-                                    <span class="font-bold text-slate-700 dark:text-slate-200">{{ entityLocaleDateTime(invoice.einvoice_ack_date, 'en-IN') }}</span>
+                                    <span class="font-bold text-slate-700 dark:text-slate-200">{{ entityLocaleDateTime(invoice.einvoice_ack_date, APP_LOCALE) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -679,11 +680,11 @@ const setupDemoCompliance = () => {
                             </div>
                             <div class="flex flex-col gap-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg">
                                 <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Generated Date</span>
-                                <span class="font-bold text-slate-700 dark:text-slate-200">{{ entityLocaleDateTime(invoice.eway_bill_date, 'en-IN') }}</span>
+                                <span class="font-bold text-slate-700 dark:text-slate-200">{{ entityLocaleDateTime(invoice.eway_bill_date, APP_LOCALE) }}</span>
                             </div>
                             <div class="flex flex-col gap-1 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg">
                                 <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Valid Until</span>
-                                <span class="font-bold text-slate-700 dark:text-slate-200">{{ entityLocaleDateTime(invoice.eway_bill_valid_until, 'en-IN') }}</span>
+                                <span class="font-bold text-slate-700 dark:text-slate-200">{{ entityLocaleDateTime(invoice.eway_bill_valid_until, APP_LOCALE) }}</span>
                             </div>
                         </div>
 

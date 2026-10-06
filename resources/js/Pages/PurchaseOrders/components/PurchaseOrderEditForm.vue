@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -284,7 +285,7 @@ const handleDeleteBill = (billId: number) => {
                                                     {{
                                                         (
                                                             Number(item.received_quantity) || 0
-                                                        ).toLocaleString("en-IN", {
+                                                        ).toLocaleString(APP_LOCALE, {
                                                             minimumFractionDigits: 2
                                                         })
                                                     }}
@@ -326,7 +327,7 @@ const handleDeleteBill = (billId: number) => {
                                             </div>
                                         </td>
                                         <td class=" text-right font-mono w-28 font-semibold text-slate-800">
-                                            {{ (Number(item.price_total) || 0).toLocaleString('en-IN', {
+                                            {{ (Number(item.price_total) || 0).toLocaleString(APP_LOCALE, {
                                                 minimumFractionDigits: 2
                                             }) }}
                                         </td>
@@ -359,14 +360,14 @@ const handleDeleteBill = (billId: number) => {
                             class="flex justify-between items-center text-[12px] font-semibold text-slate-700 uppercase tracking-widest">
                             <span>Subtotal</span>
                             <span class="text-slate-700 font-mono">{{ Number(form.amount_untaxed ||
-                                0).toLocaleString('en-IN', {
+                                0).toLocaleString(APP_LOCALE, {
                                     minimumFractionDigits: 2
                                 }) }}</span>
                         </div>
                         <div
                             class="flex justify-between items-center text-[12px] font-semibold text-amber-500 uppercase tracking-widest">
                             <span>Tax (+)</span>
-                            <span class="font-mono">{{ Number(form.amount_tax || 0).toLocaleString('en-IN', {
+                            <span class="font-mono">{{ Number(form.amount_tax || 0).toLocaleString(APP_LOCALE, {
                                 minimumFractionDigits: 2
                             }) }}</span>
                         </div>
@@ -401,7 +402,7 @@ const handleDeleteBill = (billId: number) => {
                             <div class="text-right">
                                 <span class="text-xs text-slate-400 font-semibold mr-1">₹</span>
                                 <span class="text-lg font-semibold text-slate-900 tracking-tighter">
-                                    {{ Number(form.amount_total || 0).toLocaleString('en-IN', {
+                                    {{ Number(form.amount_total || 0).toLocaleString(APP_LOCALE, {
                                         minimumFractionDigits: 2
                                     }) }}
                                 </span>

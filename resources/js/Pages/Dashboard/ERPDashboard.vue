@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, onMounted, watch, defineAsyncComponent } from 'vue';
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
@@ -57,7 +58,7 @@ const fetchDashboardData = async () => {
 };
 
 const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
         maximumFractionDigits: 0

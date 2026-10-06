@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
@@ -666,17 +667,17 @@ const handleMixCreated = () => {
                     <div class="space-y-2 text-xs">
                         <div class="flex justify-between text-slate-500 dark:text-slate-400">
                             <span>Subtotal</span>
-                            <span class="font-semibold text-slate-700 dark:text-slate-200">₹ {{ subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                            <span class="font-semibold text-slate-700 dark:text-slate-200">₹ {{ subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                         </div>
 
                         <div class="flex justify-between text-slate-500 dark:text-slate-400">
                             <span>Tax Amount {{ selectedTaxRate ? `(${selectedTaxRate}%)` : '' }}</span>
-                            <span class="font-semibold text-slate-700 dark:text-slate-200">₹ {{ taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                            <span class="font-semibold text-slate-700 dark:text-slate-200">₹ {{ taxAmount.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                         </div>
 
                         <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-baseline">
                             <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">Estimated Total</span>
-                            <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400">₹ {{ estimatedTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                            <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400">₹ {{ estimatedTotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                         </div>
                     </div>
 

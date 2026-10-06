@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
@@ -541,7 +542,7 @@ function normalizeDate(value) {
 }
 
 function formatCurrency(value) {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         style: 'currency',
         currency: 'INR',
         maximumFractionDigits: 0,
@@ -549,14 +550,14 @@ function formatCurrency(value) {
 }
 
 function compactCurrency(value) {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         notation: 'compact',
         maximumFractionDigits: 1,
     }).format(Number(value || 0));
 }
 
 function formatNumber(value, digits = 0) {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(APP_LOCALE, {
         maximumFractionDigits: digits,
         minimumFractionDigits: digits,
     }).format(Number(value || 0));
@@ -566,7 +567,7 @@ function formatDateTime(value) {
     if (!value) return 'Just now';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return entityLocaleDateTime(value, 'en-IN', {
+    return entityLocaleDateTime(value, APP_LOCALE, {
         day: '2-digit',
         month: 'short',
         hour: '2-digit',

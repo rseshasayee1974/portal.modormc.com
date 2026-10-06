@@ -1,4 +1,5 @@
 <script setup>
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityLocaleTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -716,7 +717,7 @@ const getStatusBadge = (status) => {
                                     headerClass="text-right">
                                     <template #body="{ data }">
                                         <div class="font-bold text-gray-900 dark:text-gray-100 text-xs">
-                                            {{ Number(data.planned_qty_m3 || 0).toLocaleString(undefined, {
+                                            {{ Number(data.planned_qty_m3 || 0).toLocaleString(APP_LOCALE, {
                                                 minimumFractionDigits: 0, maximumFractionDigits: 2
                                             }) }} <span class="text-[9px] font-normal text-gray-500">m³</span>
                                         </div>

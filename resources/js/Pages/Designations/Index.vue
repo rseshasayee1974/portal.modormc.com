@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -187,12 +188,12 @@ watch(
                             </Column>
                             <Column header="Min Salary">
                                 <template #body="slotProps">
-                                    <span>{{ slotProps.data.min_salary ? Number(slotProps.data.min_salary).toLocaleString('en-IN', {style: 'currency', currency: 'INR'}) : '-' }}</span>
+                                    <span>{{ slotProps.data.min_salary ? Number(slotProps.data.min_salary).toLocaleString(APP_LOCALE, {style: 'currency', currency: 'INR'}) : '-' }}</span>
                                 </template>
                             </Column>
                             <Column header="Max Salary">
                                 <template #body="slotProps">
-                                    <span>{{ slotProps.data.max_salary ? Number(slotProps.data.max_salary).toLocaleString('en-IN', {style: 'currency', currency: 'INR'}) : '-' }}</span>
+                                    <span>{{ slotProps.data.max_salary ? Number(slotProps.data.max_salary).toLocaleString(APP_LOCALE, {style: 'currency', currency: 'INR'}) : '-' }}</span>
                                 </template>
                             </Column>
                             <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>

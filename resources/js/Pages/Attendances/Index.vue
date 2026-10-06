@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleTime, entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -424,7 +425,7 @@ const getStatusSeverity = (status: string) => {
 
 const formatDate = (date: string | Date) => {
     if (!date) return '-';
-    return entityLocaleDate(date, 'en-GB', {
+    return entityLocaleDate(date, APP_LOCALE, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

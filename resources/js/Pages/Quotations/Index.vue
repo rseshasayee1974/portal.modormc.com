@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -58,13 +59,13 @@ const first = ref(0);
 const rows = ref(entriesOptions[0].value);
 
 const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(value || 0));
+    new Intl.NumberFormat(APP_LOCALE, { style: 'currency', currency: 'INR' }).format(Number(value || 0));
 
 const formatDate = (date: string | null) => {
     if (!date) return '--';
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) return '--';
-    return entityLocaleDate(date, 'en-IN');
+    return entityLocaleDate(date, APP_LOCALE);
 };
 
 const getStatusLabel = (status: number) => {

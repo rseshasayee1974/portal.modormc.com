@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
@@ -274,7 +275,7 @@ const invoiceTypeOptions = [
                                     </div>
                                 </td>
                                 <td class="p-2 text-sm text-right font-black text-slate-700">
-                                    {{ item.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                    {{ item.subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                 </td>
                                 <!-- <td class="p-2 text-center text-red-400">
                                     <button v-if="form.items.length > 1" type="button" @click="removeItem(index)" class="hover:text-rose-500 transition-colors">
@@ -310,7 +311,7 @@ const invoiceTypeOptions = [
                     <div class="flex flex-col">
                         <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Created On</span>
                         <span class="text-[11px] font-bold text-slate-700 uppercase tracking-tight mt-0.5">
-                            {{ entityLocaleDateTime(invoice.created_at, 'en-IN', { dateStyle: 'medium', timeStyle: 'short' }) }}
+                            {{ entityLocaleDateTime(invoice.created_at, APP_LOCALE, { dateStyle: 'medium', timeStyle: 'short' }) }}
                         </span>
                     </div>
                 </div>
@@ -320,11 +321,11 @@ const invoiceTypeOptions = [
                     <div class="space-y-4">
                         <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
                             <span>Subtotal (Untaxed)</span>
-                            <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                            <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                         </div>
                         <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
                             <span>Tax Amount (+)</span>
-                            <span class="text-slate-900">{{ form.amount_tax.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                            <span class="text-slate-900">{{ form.amount_tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                         </div>
                         <div class="flex justify-between items-center gap-4">
                             <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Global Discount (-)</span>
@@ -349,7 +350,7 @@ const invoiceTypeOptions = [
                         </div>
                         <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
                             <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off</span>
-                            <span class="text-slate-900 font-bold">{{ form.round_off > 0 ? '+' : '' }}{{ form.round_off.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                            <span class="text-slate-900 font-bold">{{ form.round_off > 0 ? '+' : '' }}{{ form.round_off.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                             </div>
 
                         <div class="flex justify-between items-center border-t border-slate-200 pt-6 mt-6">
@@ -360,7 +361,7 @@ const invoiceTypeOptions = [
                             <div class="text-right flex items-baseline gap-1">
                                 <span class="text-xs text-indigo-700 font-black">₹</span>
                                 <span class="text-3xl font-black text-slate-800 tracking-tight">
-                                     {{ form.amount_total.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                     {{ form.amount_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                 </span>
                             </div>
                         </div>

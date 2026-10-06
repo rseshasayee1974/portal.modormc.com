@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref } from 'vue';
 import axios from 'axios';
@@ -119,7 +120,7 @@ const copyToClipboard = (text: string) => {
                             class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500 bg-slate-50/50 p-3 font-semibold text-slate-700"
                         >
                             <option v-for="inv in invoices" :key="inv.id" :value="inv.id">
-                                {{ inv.number }} - {{ inv.customer }} (₹{{ inv.amount.toLocaleString() }}) [{{ inv.status }}]
+                                {{ inv.number }} - {{ inv.customer }} (₹{{ inv.amount.toLocaleString(APP_LOCALE) }}) [{{ inv.status }}]
                             </option>
                         </select>
                     </div>

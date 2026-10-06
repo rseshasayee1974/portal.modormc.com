@@ -83,16 +83,6 @@ const submitCreate = () => {
         hasError = true;
     }
 
-    if (createForm.eb_start === null || createForm.eb_start === undefined || createForm.eb_start === 0) {
-        createForm.setError('eb_start', 'The EB start reading is required.');
-        hasError = true;
-    }
-
-    if (createForm.eb_close === null || createForm.eb_close === undefined || createForm.eb_close === 0) {
-        createForm.setError('eb_close', 'The EB close reading is required.');
-        hasError = true;
-    }
-
     if (createForm.last_fuel_filled_km === null || createForm.last_fuel_filled_km === undefined || createForm.last_fuel_filled_km === 0) {
         createForm.setError('last_fuel_filled_km', 'The last fuel filled km is required.');
         hasError = true;
@@ -159,16 +149,6 @@ const submitEdit = () => {
 
     if (editForm.shift === null || editForm.shift === undefined || editForm.shift === '') {
         editForm.setError('shift', 'The shift field is required.');
-        hasError = true;
-    }
-
-    if (editForm.eb_start === null || editForm.eb_start === undefined || editForm.eb_start === 0) {
-        editForm.setError('eb_start', 'The EB start reading is required.');
-        hasError = true;
-    }
-
-    if (editForm.eb_close === null || editForm.eb_close === undefined || editForm.eb_close === 0) {
-        editForm.setError('eb_close', 'The EB close reading is required.');
         hasError = true;
     }
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { APP_LOCALE } from '@/Utils/locale';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
@@ -70,11 +71,11 @@ defineProps<{
                         :error="form.errors?.hourmeter_end" />
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.eb_start" required label="EB Start" placeholder="0.00"
+                    <BaseInputNumber v-model="form.eb_start" label="EB Start" placeholder="0.00"
                         :error="form.errors?.eb_start" />
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.eb_close" required label="EB Close" placeholder="0.00"
+                    <BaseInputNumber v-model="form.eb_close" label="EB Close" placeholder="0.00"
                         :error="form.errors?.eb_close" />
                 </div>
                 <div>
@@ -104,7 +105,7 @@ defineProps<{
                 </div>
                 <div>
                     <BaseInputNumber v-model="form.amount" label="Fuel Cost Amount" mode="currency" currency="INR"
-                        locale="en-IN" placeholder="₹0.00" :error="form.errors?.amount" />
+                        :locale="APP_LOCALE" placeholder="₹0.00" :error="form.errors?.amount" />
                 </div>
                 <div>
                     <BaseInputNumber v-model="form.last_fuel_filled_km" label="Last Fuel KM" required placeholder="0.00"
