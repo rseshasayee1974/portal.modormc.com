@@ -228,7 +228,7 @@ const saveInwardDetails = () => {
                     <div class="flex items-center gap-2 flex-wrap">
                         <h3 class="text-xs font-black text-slate-800 uppercase tracking-tight">Weighment Station</h3>
                         <span class="text-[10px] font-mono text-slate-500 font-bold">GRN: {{ data.inward_no
-                            }}</span>
+                        }}</span>
                         <span class="text-[10px] text-slate-500 font-bold">• Truck: {{ truckLabel }}</span>
                         <span v-if="Number(data.truck_loaded || 0) > 0 && Number(data.truck_empty || 0) > 0"
                             class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">
@@ -270,18 +270,31 @@ const saveInwardDetails = () => {
         <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
             <h4 class="text-xs font-bold text-slate-700">Edit vehicle and units</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
-                <BaseSelect v-model="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required :disabled="isBilled || detailsSaving" :error="detailsErrors.uom_id" />
-                <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
+                <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck"
+                    placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id"
+                    @created="createdTrucks.push($event)" />
+                <BaseSelect v-model="data.uom_id" :options="units" label="Received UOM" optionLabel="label"
+                    optionValue="value" required :disabled="isBilled || detailsSaving" :error="detailsErrors.uom_id" />
+                <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label"
+                    optionValue="value" showClear :disabled="isBilled || detailsSaving"
+                    :error="detailsErrors.conversion_uom_id" />
                 <div class="space-y-1">
-                    <label :for="'inward-conversion-' + data.id" class="text-xs font-medium text-slate-600">Converted quantity</label>
-                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number" min="0" step="0.0001" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
-                    <p v-if="detailsErrors.conversion_quantity" class="text-xs text-red-600">{{ detailsErrors.conversion_quantity }}</p>
+                    <label :for="'inward-conversion-' + data.id" class="text-xs font-medium text-slate-600">Converted
+                        quantity</label>
+                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number"
+                        min="0" step="0.0001" :disabled="isBilled || detailsSaving"
+                        class="w-full border border-slate-300 rounded-md text-sm" />
+                    <p v-if="detailsErrors.conversion_quantity" class="text-xs text-red-600">{{
+                        detailsErrors.conversion_quantity }}</p>
                 </div>
             </div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <p class="text-xs text-slate-500">{{ isBilled ? 'Void the linked bills before changing receipt quantities or units.' : 'Received UOM changes move the receipt quantity to the selected stock unit. Quantities are not converted automatically.' }}</p>
-                <button type="button" @click="saveInwardDetails" :disabled="detailsSaving" class="shrink-0 px-3 py-2 rounded-md bg-indigo-600 text-white text-xs font-bold disabled:opacity-50">{{ detailsSaving ? 'Saving…' : 'Save truck & units' }}</button>
+                <p class="text-xs text-slate-500">{{ isBilled ? `Void the linked bills before changing receipt
+                    quantities or units.` : `Received UOM changes move the receipt quantity to the selected stock unit.
+                    Quantities are not converted automatically.` }}</p>
+                <button type="button" @click="saveInwardDetails" :disabled="detailsSaving"
+                    class="shrink-0 px-3 py-2 rounded-md bg-indigo-600 text-white text-xs font-bold disabled:opacity-50">{{
+                        detailsSaving ? 'Saving…' : 'Save truck & units' }}</button>
             </div>
             <p v-if="detailsErrors.inward" class="text-xs text-red-600">{{ detailsErrors.inward }}</p>
         </div>
@@ -289,162 +302,141 @@ const saveInwardDetails = () => {
         <!-- Main Body Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
 
-            <!-- Panel 1: Gross & Tare Inputs (7 Cols) -->
-            <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <!-- Panel 1: Gross & Tare Inputs (9 Cols) -->
+            <div class="lg:col-span-9 flex flex-col md:flex-row gap-3">
                 <!-- Gross (Loaded) Card -->
-                <div class="flex flex-col gap-2 bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
-                    <div class="flex items-center justify-between">
-                        <span
-                            class="text-[10px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                            1. Gross (Loaded)
-                        </span>
-                        <!-- <span
-                            class="text-[9px] font-mono text-slate-400 font-extrabold uppercase bg-slate-100 px-1.5 py-0.5 rounded">{{
-                                data.uom?.unit_code }}</span> -->
+                <div class="w-full flex flex-col gap-2.5 bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                        <label for="gross-input"
+                            class="text-[10px] font-black uppercase tracking-wider text-slate-600">1. Gross
+                            (Loaded)</label>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <input step="any" type="number" v-model="data.truck_loaded" disabled
-                            class="w-full bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-sm font-black text-slate-800 font-mono focus:bg-white focus:ring-1 focus:ring-indigo-500"
-                            placeholder="0.00" @keyup.enter="saveGrossWeight(data, data.truck_loaded)" />
+                    <div class="flex flex-row items-center justify-between gap-4 h-full w-full">
+                        <!-- Input Wrapper -->
+                        <div class="flex-1 flex items-center gap-2">
+                            <input id="gross-input" step="any" type="number" v-model="data.truck_loaded" disabled
+                                class="w-full bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-sm font-black text-slate-800 font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                placeholder="0.00" @keyup.enter="saveGrossWeight(data, data.truck_loaded)" />
+                        </div>
 
-                        <!-- <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
-                            @click.stop="captureGrossWeight(data)" type="button" :class="[
-                                'relative px-2.5 py-1.5 rounded-md font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs border cursor-pointer shrink-0 h-9',
-                                isScaleConnected
-                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
-                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600'
-                            ]" :title="isScaleConnected ? 'Capture Gross Weight from Scale' : 'Connect Weighbridge'">
-                        <span v-if="!data.truck_loaded || Number(data.truck_loaded) === 0"
-                            class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                        <!-- Photo Thumbnail -->
+                        <div v-if="getGrossPhotoUrl(data)"
+                            class="flex items-center gap-2 shrink-0 border-l border-slate-200 pl-4 py-1">
+                            <img :src="getGrossPhotoUrl(data)"
+                                @click="openImageModal(getGrossPhotoUrl(data), 'Gross Weight Snap — ' + data.inward_no)"
+                                class="w-24 h-12 object-cover rounded-md border border-slate-300 shadow-sm cursor-pointer hover:opacity-90 transition-opacity shrink-0"
+                                alt="Gross Snap" />
                             <span
-                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-300 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-400"></span>
-                        </span>
-                        <ArrowDownTrayIcon class="w-3.5 h-3.5 text-white animate-bounce" />
-                        <span>Get Gross</span>
-                        </button> -->
-                    </div>
-
-                    <!-- Photo Thumbnail -->
-                    <div v-if="getGrossPhotoUrl(data)" class="flex items-center gap-2 pt-1.5 border-t border-slate-100">
-                        <img :src="getGrossPhotoUrl(data)"
-                            @click="openImageModal(getGrossPhotoUrl(data), 'Gross Weight Snap — ' + data.inward_no)"
-                            class="w-12 h-9 object-cover rounded-md border border-slate-300 cursor-pointer hover:opacity-90 transition-opacity shrink-0"
-                            alt="Gross Snap" />
-                        <span class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Gross Snap</span>
+                                class="text-[9px] text-slate-500 font-bold uppercase tracking-wider leading-tight w-8">Gross
+                                Snap</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Tare (Empty) Card -->
-                <div class="flex flex-col gap-2 bg-white p-3 rounded-lg border border-amber-200 shadow-2xs">
-                    <div class="flex items-center justify-between">
-                        <span
-                            class="text-[10px] font-black uppercase tracking-wider text-amber-700 flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                            2. Tare (Empty)
-                        </span>
-                        <!-- <span
-                            class="text-[9px] font-mono text-amber-600 font-extrabold uppercase bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">{{
-                                data.uom?.unit_code }}</span> -->
+                <div class="w-full flex flex-col gap-2.5 bg-white p-3.5 rounded-lg border border-amber-200 shadow-2xs">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <label for="tare-input"
+                            class="text-[10px] font-black uppercase tracking-wider text-amber-700">2. Tare
+                            (Empty)</label>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <input step="any" type="number" v-model="data.truck_empty"
-                            :disabled="isBilled || page.props.custom_settings?.batching?.manual_weight == 0"
-                            class="w-full bg-slate-50 border border-amber-300 rounded-md px-2.5 py-1.5 text-sm font-black text-amber-900 font-mono focus:bg-white focus:ring-1 focus:ring-amber-500"
-                            placeholder="0.00" @keyup.enter="saveEmptyWeight(data, data.truck_empty)" />
+                    <div class="flex flex-row items-center justify-between gap-4 h-full w-full">
+                        <!-- Input Wrapper -->
+                        <div class="flex-1 flex items-center gap-2">
+                            <input id="tare-input" step="any" type="number" v-model="data.truck_empty"
+                                :disabled="isBilled || page.props.custom_settings?.batching?.manual_weight == 0"
+                                class="w-full bg-slate-50 border border-amber-300 rounded-md px-2.5 py-1.5 text-sm font-black text-amber-900 font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                placeholder="0.00" @keyup.enter="saveEmptyWeight(data, data.truck_empty)" />
 
-                        <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
-                            @click.stop="captureTareWeight(data)" type="button" :disabled="isBilled" :class="[
-                                'relative px-2.5 py-1.5 rounded-md font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs border cursor-pointer shrink-0 h-9',
-                                isScaleConnected
-                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
-                                    : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
-                            ]" :title="isScaleConnected ? 'Capture Tare Weight from Scale' : 'Connect Weighbridge'">
-                            <!-- Pulsing Indicator Dot -->
-                            <span v-if="!data.truck_empty || Number(data.truck_empty) === 0"
-                                class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                <span
-                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
-                            </span>
-                            <ArrowDownTrayIcon class="w-3.5 h-3.5 text-white animate-bounce" />
-                            <span>Get Tare</span>
-                        </button>
-                    </div>
+                            <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
+                                @click.stop="captureTareWeight(data)" type="button" :disabled="isBilled" :class="[
+                                    'relative px-3 py-1.5 rounded-md font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs border cursor-pointer shrink-0 h-[38px]',
+                                    isScaleConnected
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
+                                        : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
+                                ]"
+                                :title="isScaleConnected ? 'Capture Tare Weight from Scale' : 'Connect Weighbridge'">
+                                <!-- Pulsing Indicator Dot -->
+                                <span v-if="!data.truck_empty || Number(data.truck_empty) === 0"
+                                    class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                    <span
+                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
+                                </span>
+                                <ArrowDownTrayIcon class="w-4 h-4 text-white animate-bounce" />
+                                <span>Get Tare</span>
+                            </button>
+                        </div>
 
-                    <!-- Photo Thumbnail -->
-                    <div v-if="getTarePhotoUrl(data)" class="flex items-center gap-2 pt-1.5 border-t border-amber-100">
-                        <img :src="getTarePhotoUrl(data)"
-                            @click="openImageModal(getTarePhotoUrl(data), 'Tare Weight Snap — ' + data.inward_no)"
-                            class="w-12 h-9 object-cover rounded-md border border-amber-300 cursor-pointer hover:opacity-90 transition-opacity shrink-0"
-                            alt="Tare Snap" />
-                        <span class="text-[9px] text-amber-700 font-bold uppercase tracking-wider">Tare Snap</span>
+                        <!-- Photo Thumbnail -->
+                        <div v-if="getTarePhotoUrl(data)"
+                            class="flex items-center gap-2 shrink-0 border-l border-amber-200 pl-4 py-1">
+                            <img :src="getTarePhotoUrl(data)"
+                                @click="openImageModal(getTarePhotoUrl(data), 'Tare Weight Snap — ' + data.inward_no)"
+                                class="w-24 h-12 object-cover rounded-md border border-amber-300 shadow-sm cursor-pointer hover:opacity-90 transition-opacity shrink-0"
+                                alt="Tare Snap" />
+                            <span
+                                class="text-[9px] text-amber-700 font-bold uppercase tracking-wider leading-tight w-8">Tare
+                                Snap</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Panel 2: Quantities Summary Stats (5 Cols) -->
-            <div class="lg:col-span-5 grid grid-cols-3 gap-2">
+            <!-- Panel 2: Quantities Summary Stats (3 Cols) -->
+            <div class="lg:col-span-3 flex flex-col gap-3 justify-start">
                 <!-- Calculated Net -->
                 <div
-                    class="bg-emerald-50/80 p-2.5 rounded-lg border border-emerald-200/90 flex flex-col justify-between shadow-2xs">
-                    <span class="text-[9px] font-black uppercase tracking-wider text-emerald-800">Net Weight</span>
-                    <div class="my-1 flex items-baseline gap-1">
-                        <span class="text-base font-black text-emerald-700 font-mono">
+                    class="bg-emerald-50/80 p-3.5 rounded-lg border border-emerald-200/90 flex items-center justify-between shadow-2xs">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-emerald-800">Net Weight</span>
+                        <span class="text-[9px] text-emerald-600/70 font-bold uppercase mt-0.5">Gross - Tare</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl font-black text-emerald-700 font-mono">
                             {{ Math.max(0, Number(data.truck_loaded || 0) - Number(data.truck_empty ||
                                 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                         </span>
-                        <!-- <span class="text-[9px] font-extrabold text-emerald-600 uppercase">{{ data.uom?.unit_code
-                        }}</span> -->
-                    </div>
-                    <span class="text-[8px] text-emerald-700 font-extrabold uppercase">Gross - Tare</span>
-                </div>
-
-                <!-- Accepted Qty -->
-                <div class="bg-white p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between shadow-2xs">
-                    <span class="text-[9px] font-black uppercase tracking-wider text-slate-600">Accepted Qty</span>
-                    <div class="my-1 flex items-baseline gap-1">
-                        <span class="text-base font-black text-slate-800 font-mono">
-                            {{ Number(data.received_qty || 0).toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                            }) }}
-                        </span>
-                        <span class="text-[9px] font-extrabold text-slate-400 uppercase">{{ data.uom?.unit_code
+                        <span class="text-[10px] font-extrabold text-emerald-600 uppercase">{{ data.uom?.unit_code
                             }}</span>
                     </div>
-                    <span class="text-[8px] text-slate-400 font-extrabold uppercase">In Stock</span>
                 </div>
 
                 <!-- Converted Qty -->
-                <div
-                    class="bg-indigo-50/80 p-2.5 rounded-lg border border-indigo-200/90 flex flex-col justify-between shadow-2xs">
-                    <span class="text-[9px] font-black uppercase tracking-wider text-indigo-800">Converted Qty</span>
-                    <div class="my-1 flex items-baseline gap-1">
-                        <span class="text-base font-black text-indigo-800 font-mono">
+                <div v-show="Number(data.conversion_quantity || 0) > 0"
+                    class="bg-indigo-50/80 p-3.5 rounded-lg border border-indigo-200/90 flex items-center justify-between shadow-2xs">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-indigo-800">Converted
+                            Qty</span>
+                        <span class="text-[9px] text-indigo-600/70 font-bold uppercase mt-0.5">In Stock Unit</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl font-black text-indigo-800 font-mono">
                             {{ Number(data.conversion_quantity || 0).toLocaleString(undefined, {
-                                minimumFractionDigits: 2, maximumFractionDigits: 4
+                                minimumFractionDigits:
+                                    2, maximumFractionDigits: 4
                             }) }}
                         </span>
-                        <span class="text-[9px] font-extrabold text-indigo-600 uppercase">{{
-                            data.conversion_uom?.unit_code
-                            || data.conversionUom?.unit_code || data.uom?.unit_code }}</span>
+                        <span class="text-[10px] font-extrabold text-indigo-600 uppercase">{{
+                            data.conversion_uom?.unit_code || data.conversionUom?.unit_code || data.uom?.unit_code
+                            }}</span>
                     </div>
-                    <span class="text-[8px] text-indigo-700 font-extrabold uppercase">Converted</span>
                 </div>
             </div>
 
         </div>
-    </div>
 
-    <Dialog v-model:visible="imageModalVisible" modal :header="imageModalTitle"
-        :style="{ width: '750px', maxWidth: '95vw' }" class="p-fluid rounded-2xl overflow-hidden shadow-2xl border-0">
-        <div class="p-4 flex flex-col items-center justify-center bg-slate-950 rounded-xl">
-            <img :src="imageModalSrc" class="w-full max-h-[75vh] object-contain rounded shadow-lg"
-                alt="Weight Snapshot" />
-        </div>
-    </Dialog>
+        <Dialog v-model:visible="imageModalVisible" modal :header="imageModalTitle"
+            :style="{ width: '750px', maxWidth: '95vw' }"
+            class="p-fluid rounded-2xl overflow-hidden shadow-2xl border-0">
+            <div class="p-4 flex flex-col items-center justify-center bg-slate-950 rounded-xl">
+                <img :src="imageModalSrc" class="w-full max-h-[75vh] object-contain rounded shadow-lg"
+                    alt="Weight Snapshot" />
+            </div>
+        </Dialog>
+    </div>
 </template>
