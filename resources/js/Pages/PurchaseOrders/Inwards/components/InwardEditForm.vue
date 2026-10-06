@@ -180,7 +180,7 @@ const saveInwardDetails = () => {
                     <div class="flex items-center gap-2 flex-wrap">
                         <h3 class="text-xs font-black text-slate-800 uppercase tracking-tight">Weighment Station</h3>
                         <span class="text-[10px] font-mono text-slate-500 font-bold">GRN: {{ data.inward_no
-                            }}</span>
+                        }}</span>
                         <span class="text-[10px] text-slate-500 font-bold">• Truck: {{ truckLabel }}</span>
                         <span v-if="Number(data.truck_loaded || 0) > 0 && Number(data.truck_empty || 0) > 0"
                             class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">
@@ -259,19 +259,15 @@ const saveInwardDetails = () => {
         <!-- Main Body Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
 
-            <!-- Panel 1: Gross & Tare Inputs (7 Cols) -->
-            <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <!-- Panel 1: Gross & Tare Inputs (9 Cols) -->
+            <div class="lg:col-span-9 flex flex-col md:flex-row gap-3">
                 <!-- Gross (Loaded) Card -->
-                <div class="flex flex-col gap-2 bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
-                    <div class="flex items-center justify-between">
-                        <span
-                            class="text-[10px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                            1. Gross (Loaded)
-                        </span>
-                        <!-- <span
-                            class="text-[9px] font-mono text-slate-400 font-extrabold uppercase bg-slate-100 px-1.5 py-0.5 rounded">{{
-                                data.uom?.unit_code }}</span> -->
+                <div class="w-full flex flex-col gap-2.5 bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                        <label for="gross-input"
+                            class="text-[10px] font-black uppercase tracking-wider text-slate-600">1. Gross
+                            (Loaded)</label>
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -297,27 +293,27 @@ const saveInwardDetails = () => {
                         </button> -->
                     </div>
 
-                    <!-- Photo Thumbnail -->
-                    <div v-if="getGrossPhotoUrl(data)" class="flex items-center gap-2 pt-1.5 border-t border-slate-100">
-                        <img :src="getGrossPhotoUrl(data)"
-                            @click="openImageModal(getGrossPhotoUrl(data), 'Gross Weight Snap — ' + data.inward_no)"
-                            class="w-12 h-9 object-cover rounded-md border border-slate-300 cursor-pointer hover:opacity-90 transition-opacity shrink-0"
-                            alt="Gross Snap" />
-                        <span class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Gross Snap</span>
+                        <!-- Photo Thumbnail -->
+                        <div v-if="getGrossPhotoUrl(data)"
+                            class="flex items-center gap-2 shrink-0 border-l border-slate-200 pl-4 py-1">
+                            <img :src="getGrossPhotoUrl(data)"
+                                @click="openImageModal(getGrossPhotoUrl(data), 'Gross Weight Snap — ' + data.inward_no)"
+                                class="w-24 h-12 object-cover rounded-md border border-slate-300 shadow-sm cursor-pointer hover:opacity-90 transition-opacity shrink-0"
+                                alt="Gross Snap" />
+                            <span
+                                class="text-[9px] text-slate-500 font-bold uppercase tracking-wider leading-tight w-8">Gross
+                                Snap</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Tare (Empty) Card -->
-                <div class="flex flex-col gap-2 bg-white p-3 rounded-lg border border-amber-200 shadow-2xs">
-                    <div class="flex items-center justify-between">
-                        <span
-                            class="text-[10px] font-black uppercase tracking-wider text-amber-700 flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                            2. Tare (Empty)
-                        </span>
-                        <!-- <span
-                            class="text-[9px] font-mono text-amber-600 font-extrabold uppercase bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">{{
-                                data.uom?.unit_code }}</span> -->
+                <div class="w-full flex flex-col gap-2.5 bg-white p-3.5 rounded-lg border border-amber-200 shadow-2xs">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <label for="tare-input"
+                            class="text-[10px] font-black uppercase tracking-wider text-amber-700">2. Tare
+                            (Empty)</label>
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -345,25 +341,32 @@ const saveInwardDetails = () => {
                         </button>
                     </div>
 
-                    <!-- Photo Thumbnail -->
-                    <div v-if="getTarePhotoUrl(data)" class="flex items-center gap-2 pt-1.5 border-t border-amber-100">
-                        <img :src="getTarePhotoUrl(data)"
-                            @click="openImageModal(getTarePhotoUrl(data), 'Tare Weight Snap — ' + data.inward_no)"
-                            class="w-12 h-9 object-cover rounded-md border border-amber-300 cursor-pointer hover:opacity-90 transition-opacity shrink-0"
-                            alt="Tare Snap" />
-                        <span class="text-[9px] text-amber-700 font-bold uppercase tracking-wider">Tare Snap</span>
+                        <!-- Photo Thumbnail -->
+                        <div v-if="getTarePhotoUrl(data)"
+                            class="flex items-center gap-2 shrink-0 border-l border-amber-200 pl-4 py-1">
+                            <img :src="getTarePhotoUrl(data)"
+                                @click="openImageModal(getTarePhotoUrl(data), 'Tare Weight Snap — ' + data.inward_no)"
+                                class="w-24 h-12 object-cover rounded-md border border-amber-300 shadow-sm cursor-pointer hover:opacity-90 transition-opacity shrink-0"
+                                alt="Tare Snap" />
+                            <span
+                                class="text-[9px] text-amber-700 font-bold uppercase tracking-wider leading-tight w-8">Tare
+                                Snap</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Panel 2: Quantities Summary Stats (5 Cols) -->
-            <div class="lg:col-span-5 grid grid-cols-3 gap-2">
+            <!-- Panel 2: Quantities Summary Stats (3 Cols) -->
+            <div class="lg:col-span-3 flex flex-col gap-3 justify-start">
                 <!-- Calculated Net -->
                 <div
-                    class="bg-emerald-50/80 p-2.5 rounded-lg border border-emerald-200/90 flex flex-col justify-between shadow-2xs">
-                    <span class="text-[9px] font-black uppercase tracking-wider text-emerald-800">Net Weight</span>
-                    <div class="my-1 flex items-baseline gap-1">
-                        <span class="text-base font-black text-emerald-700 font-mono">
+                    class="bg-emerald-50/80 p-3.5 rounded-lg border border-emerald-200/90 flex items-center justify-between shadow-2xs">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-emerald-800">Net Weight</span>
+                        <span class="text-[9px] text-emerald-600/70 font-bold uppercase mt-0.5">Gross - Tare</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl font-black text-emerald-700 font-mono">
                             {{ Math.max(0, Number(data.truck_loaded || 0) - Number(data.truck_empty ||
                                 0)).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                         </span>
@@ -398,11 +401,10 @@ const saveInwardDetails = () => {
                                 minimumFractionDigits: 2, maximumFractionDigits: 4
                             }) }}
                         </span>
-                        <span class="text-[9px] font-extrabold text-indigo-600 uppercase">{{
-                            data.conversion_uom?.unit_code
-                            || data.conversionUom?.unit_code || data.uom?.unit_code }}</span>
+                        <span class="text-[10px] font-extrabold text-indigo-600 uppercase">{{
+                            data.conversion_uom?.unit_code || data.conversionUom?.unit_code || data.uom?.unit_code
+                            }}</span>
                     </div>
-                    <span class="text-[8px] text-indigo-700 font-extrabold uppercase">Converted</span>
                 </div>
             </div>
 
