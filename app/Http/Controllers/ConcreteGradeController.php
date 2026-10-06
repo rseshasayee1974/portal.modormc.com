@@ -88,6 +88,7 @@ class ConcreteGradeController extends Controller
     {
         $this->authorizeModule('edit');
         $plantId = session('active_plant_id');
+        abort_unless((int) $concretegrade->plant_id === (int) $plantId, 403);
 
         $validated = $request->validate([
             'name' => 'required|string|max:100|unique:mm_concrete_grades,name,' . $concretegrade->id . ',id,plant_id,' . $plantId,
@@ -99,7 +100,7 @@ class ConcreteGradeController extends Controller
             'aggregate_ratio' => 'nullable|numeric',
             'status' => 'boolean',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:mm_products,id',
+            'items.*.product_id' => 'required|distinct|exists:mm_products,id',
             'items.*.quantity' => 'required|numeric',
         ]);
 
@@ -116,7 +117,7 @@ class ConcreteGradeController extends Controller
                 'updated_by' => Auth::id(),
             ]);
 
-            // Sync items safely instead of delete-all-and-recreate
+            // Check removed ingredients before replacing this grade's item rows.
             $newProductIds = collect($validated['items'])->pluck('product_id')->toArray();
 
             // Find existing items that are not in the new payload (about to be removed)
@@ -128,37 +129,21 @@ class ConcreteGradeController extends Controller
                         'items' => ["Cannot remove ingredient '" . ($item->product->title ?? 'Unknown') . "' because it is currently in use by active mix designs or batches."]
                     ]);
                 }
-                $item->deleted_by = Auth::id();
-                $item->save();
-                $item->delete();
             }
 
-            // Upsert the remaining and new items
+            // The unique grade/product key also covers soft-deleted rows. Replace
+            // all rows for this grade so each save creates fresh item IDs.
+            $concretegrade->items()->withTrashed()->forceDelete();
+
             foreach ($validated['items'] as $item) {
-                $existing = ConcreteGradeItem::withTrashed()->where([
+                ConcreteGradeItem::create([
                     'plant_id' => $plantId,
                     'concrete_grade_id' => $concretegrade->id,
                     'product_id' => $item['product_id'],
-                ])->first();
-
-                if ($existing) {
-                    if ($existing->trashed()) {
-                        $existing->restore();
-                    }
-                    $existing->update([
-                        'quantity' => $item['quantity'],
-                        'updated_by' => Auth::id(),
-                    ]);
-                } else {
-                    ConcreteGradeItem::create([
-                        'plant_id' => $plantId,
-                        'concrete_grade_id' => $concretegrade->id,
-                        'product_id' => $item['product_id'],
-                        'quantity' => $item['quantity'],
-                        'created_by' => Auth::id(),
-                        'updated_by' => Auth::id(),
-                    ]);
-                }
+                    'quantity' => $item['quantity'],
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
+                ]);
             }
         });
 
