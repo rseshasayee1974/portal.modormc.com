@@ -452,7 +452,7 @@ const deleteBalance = (id: number) => {
                                                     class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">
                                                     Year <span class="text-red-500">*</span>
                                                 </label>
-                                                <BaseInput type="number" v-model="balanceForm.year"
+                                                <BaseInput step="1" type="number" v-model="balanceForm.year"
                                                     placeholder="e.g. 2026" />
                                                 <small v-if="balanceForm.errors.year" class="p-error text-[10px]">{{
                                                     balanceForm.errors.year }}</small>

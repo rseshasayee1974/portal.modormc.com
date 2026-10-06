@@ -1062,7 +1062,7 @@ console.log('test');
                                 <div v-if="canEditBatchNo" class="mt-0.5">
                                     <div class="flex items-center gap-1">
                                         <span class="text-xs font-bold text-slate-400">#</span>
-                                        <input type="number" v-model.number="form.batch_no" min="1"
+                                        <input step="1" type="number" v-model.number="form.batch_no" min="1"
                                             class="w-24 px-2 py-0.5 text-xs font-bold border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white"
                                             :class="duplicateBatchWarning || form.errors.batch_no ? '!border-rose-500 !text-rose-600 bg-rose-50/30' : 'border-slate-300 text-slate-800'" />
                                     </div>

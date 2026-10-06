@@ -526,7 +526,7 @@ const hasActiveFilters = computed(() => {
                         placeholder="All Modules"
                         :show-clear="true"
                     />
-                    <BaseInput
+                    <BaseInput step="1"
                         v-model="filterForm.reference_id"
                         label="Reference ID"
                         placeholder="e.g. 25"

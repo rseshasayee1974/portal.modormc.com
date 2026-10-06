@@ -698,7 +698,7 @@ const submit = () => {
 
                     <!-- Count -->
                     <div>
-                        <BaseInput
+                        <BaseInput step="1"
                             v-model="form.specimen_count"
                             type="number"
                             label="Specimens Cast *"

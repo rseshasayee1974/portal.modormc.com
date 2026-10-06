@@ -105,7 +105,7 @@ const submit = async () => {
                     <div class="grid grid-cols-2 gap-3">
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-bold uppercase text-gray-400">Hierarchy Lvl</label>
-                            <BaseInput v-model="form.level" type="number" fluid  />
+                            <BaseInput step="1" v-model="form.level" type="number" fluid  />
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-bold uppercase text-gray-400">Guard</label>

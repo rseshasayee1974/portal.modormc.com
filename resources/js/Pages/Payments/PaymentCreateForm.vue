@@ -448,7 +448,7 @@ const handleCreate = () => {
                                             Full
                                         </button>
                                         <div class="relative w-32">
-                                            <input 
+                                            <input step="any"
                                                 type="number" 
                                                 :value="createForm.allocations.find(a => a.invoice_id === inv.id)?.amount || ''" 
                                                 @input="(e) => {

@@ -596,7 +596,7 @@ const submit = () => {
 
                             <div v-if="isManualBatchNo" class="flex items-center gap-1 pl-2 border-l border-slate-200">
                                 <span class="text-xs font-bold text-slate-400">#</span>
-                                <input type="number" v-model.number="form.batch_no" min="1" placeholder="Batch #"
+                                <input step="1" type="number" v-model.number="form.batch_no" min="1" placeholder="Batch #"
                                     class="w-24 px-2 py-1 text-xs font-bold border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                                     :class="duplicateBatchWarning || form.errors.batch_no ? '!border-rose-500 !text-rose-600 bg-rose-50/30' : 'border-indigo-200 text-slate-900'" />
                             </div>

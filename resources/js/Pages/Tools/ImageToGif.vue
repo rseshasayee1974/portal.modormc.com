@@ -42,7 +42,7 @@
                                 <div class="grid grid-cols-2 gap-4">
                                     <div class="space-y-2">
                                         <label class="text-[10px] font-bold uppercase text-slate-400">Frames</label>
-                                        <input type="number" v-model="settings.frames" min="5" max="30" class="w-full rounded-lg border-slate-200 text-sm">
+                                        <input step="1" type="number" v-model="settings.frames" min="5" max="30" class="w-full rounded-lg border-slate-200 text-sm">
                                     </div>
                                     <div class="space-y-2">
                                         <label class="text-[10px] font-bold uppercase text-slate-400">Duration (ms)</label>

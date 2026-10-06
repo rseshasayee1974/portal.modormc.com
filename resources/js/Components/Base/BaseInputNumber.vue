@@ -39,13 +39,11 @@ const props = withDefaults(
 );
 
 const effectiveMinFractionDigits = computed(() => {
-    if (props.minFractionDigits !== undefined && props.maxFractionDigits !== undefined) {
-        return Math.min(props.minFractionDigits, props.maxFractionDigits);
+    const minFractionDigits = props.minFractionDigits ?? 2;
+    if (props.maxFractionDigits !== undefined) {
+        return Math.min(minFractionDigits, props.maxFractionDigits);
     }
-    if (props.minFractionDigits !== undefined) {
-        return props.minFractionDigits;
-    }
-    return undefined;
+    return minFractionDigits;
 });
 
 const effectiveMaxFractionDigits = computed(() => {

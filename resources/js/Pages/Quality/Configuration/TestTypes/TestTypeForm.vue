@@ -1067,7 +1067,7 @@ const submit = () => {
                 <!-- Specimen Configuration Row (Dynamic ERP Architecture) -->
                 <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                        <BaseInput
+                        <BaseInput step="1"
                             v-model.number="form.specimen_count"
                             type="number"
                             label="Specimen Count (Trials)"

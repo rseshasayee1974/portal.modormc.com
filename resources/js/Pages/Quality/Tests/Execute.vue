@@ -1106,7 +1106,7 @@ const printCertificate = () => {
                                                 v-model.number="spec.load_kn"
                                                 @input="recalculateSpecimen(spec)"
                                                 type="number"
-                                                step="0.1"
+                                                step="any"
                                                 placeholder="e.g. 510.0"
                                                 class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border-2 border-indigo-300 dark:border-indigo-700/60 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 rounded-xl text-xs font-mono font-black text-indigo-700 dark:text-indigo-300 transition-colors"
                                             />
@@ -1342,13 +1342,13 @@ const printCertificate = () => {
                                             />
                                         </td>
                                         <td class="py-2 px-3">
-                                            <input v-model.number="r.total_weight" type="number" step="0.1" placeholder="0" class="w-24 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-right font-bold text-xs" />
+                                            <input v-model.number="r.total_weight" type="number" step="any" placeholder="0" class="w-24 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-right font-bold text-xs" />
                                         </td>
                                         <td class="py-2 px-3">
-                                            <input v-model.number="r.passing_flakiness_weight" type="number" step="0.1" placeholder="0" class="w-24 px-2 py-1 bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg text-right font-bold text-indigo-700 dark:text-indigo-300 text-xs" />
+                                            <input v-model.number="r.passing_flakiness_weight" type="number" step="any" placeholder="0" class="w-24 px-2 py-1 bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg text-right font-bold text-indigo-700 dark:text-indigo-300 text-xs" />
                                         </td>
                                         <td class="py-2 px-3">
-                                            <input v-model.number="r.passing_elongation_weight" type="number" step="0.1" placeholder="0" class="w-24 px-2 py-1 bg-purple-50/50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg text-right font-bold text-purple-700 dark:text-purple-300 text-xs" />
+                                            <input v-model.number="r.passing_elongation_weight" type="number" step="any" placeholder="0" class="w-24 px-2 py-1 bg-purple-50/50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg text-right font-bold text-purple-700 dark:text-purple-300 text-xs" />
                                         </td>
                                         <td class="py-2 px-2 text-center">
                                             <button
@@ -1448,7 +1448,7 @@ const printCertificate = () => {
                                             />
                                         </td>
                                         <td class="py-2 px-3">
-                                            <input @input="calculateSieveTable" v-model.number="r.weight_retained_gms" type="number" step="0.1" placeholder="0" class="w-24 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-right font-bold text-xs" />
+                                            <input @input="calculateSieveTable" v-model.number="r.weight_retained_gms" type="number" step="any" placeholder="0" class="w-24 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-right font-bold text-xs" />
                                         </td>
                                         <td class="py-2 px-3 text-slate-600 dark:text-slate-400">{{ r.pct_retained.toFixed(1) }}%</td>
                                         <td class="py-2 px-3 text-slate-600 dark:text-slate-400">{{ r.cum_pct_retained.toFixed(1) }}%</td>
@@ -1500,7 +1500,7 @@ const printCertificate = () => {
                             </div>
                             <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
                                 <label class="text-[10px] font-bold text-slate-400 uppercase">Consistency (%)</label>
-                                <input v-model.number="timedData.consistency_pct" type="number" step="0.1" placeholder="28.5" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
+                                <input v-model.number="timedData.consistency_pct" type="number" step="any" placeholder="28.5" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
                             </div>
                             <div class="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70 space-y-1">
                                 <label class="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase">Initial Setting (min)</label>
@@ -1533,10 +1533,10 @@ const printCertificate = () => {
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
                                     <tr v-for="(obs, oIdx) in timedData.observations" :key="oIdx" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                         <td class="py-1.5 px-3">
-                                            <input v-model.number="obs.elapsed_mins" type="number" class="w-20 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs font-bold text-right" />
+                                            <input step="any" v-model.number="obs.elapsed_mins" type="number" class="w-20 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs font-bold text-right" />
                                         </td>
                                         <td class="py-1.5 px-3">
-                                            <input v-model.number="obs.penetration_mm" type="number" step="0.5" class="w-20 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs font-bold text-right text-indigo-600 dark:text-indigo-400" />
+                                            <input v-model.number="obs.penetration_mm" type="number" step="any" class="w-20 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs font-bold text-right text-indigo-600 dark:text-indigo-400" />
                                         </td>
                                         <td class="py-1.5 px-3 font-sans">
                                             <input v-model="obs.needle_type" type="text" class="w-full px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-xs" />
@@ -1625,15 +1625,15 @@ const printCertificate = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
                                 <label class="text-[10px] font-bold text-slate-400 uppercase">Container Tare (g)</label>
-                                <input v-model.number="densityData.container_tare_g" type="number" step="0.1" placeholder="e.g. 1250" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
+                                <input v-model.number="densityData.container_tare_g" type="number" step="any" placeholder="e.g. 1250" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
                             </div>
                             <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
                                 <label class="text-[10px] font-bold text-slate-400 uppercase">Gross Weight (g)</label>
-                                <input v-model.number="densityData.gross_mass_g" type="number" step="0.1" placeholder="e.g. 6150" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
+                                <input v-model.number="densityData.gross_mass_g" type="number" step="any" placeholder="e.g. 6150" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
                             </div>
                             <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
                                 <label class="text-[10px] font-bold text-slate-400 uppercase">Cylinder Volume (cc)</label>
-                                <input v-model.number="densityData.cylinder_volume_cc" type="number" step="10" placeholder="3000" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
+                                <input v-model.number="densityData.cylinder_volume_cc" type="number" step="any" placeholder="3000" class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
                             </div>
                             <div class="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70 space-y-1">
                                 <label class="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase">Bulk Density (kg/m³)</label>

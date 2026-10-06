@@ -322,7 +322,7 @@ const saveInwardDetails = () => {
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <input type="number" v-model="data.truck_loaded" disabled
+                        <input step="any" type="number" v-model="data.truck_loaded" disabled
                             class="w-full bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-sm font-black text-slate-800 font-mono focus:bg-white focus:ring-1 focus:ring-indigo-500"
                             placeholder="0.00" @keyup.enter="saveGrossWeight(data, data.truck_loaded)" />
 
@@ -368,7 +368,7 @@ const saveInwardDetails = () => {
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <input type="number" v-model="data.truck_empty"
+                        <input step="any" type="number" v-model="data.truck_empty"
                             :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
                             class="w-full bg-slate-50 border border-amber-300 rounded-md px-2.5 py-1.5 text-sm font-black text-amber-900 font-mono focus:bg-white focus:ring-1 focus:ring-amber-500"
                             placeholder="0.00" @keyup.enter="saveEmptyWeight(data, data.truck_empty)" />

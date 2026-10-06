@@ -478,7 +478,7 @@ const deleteModule = (id: number) => {
                                     creating or editing a quotation, the validity date will be automatically set to
                                     Quote Date +
                                     this number of days.</p>
-                                <InputText v-model="form.settings.quote_validity" type="number" placeholder="e.g. 15"
+                                <InputText step="1" v-model="form.settings.quote_validity" type="number" placeholder="e.g. 15"
                                     class="w-full text-sm max-w-xs" min="1" />
                             </div>
 

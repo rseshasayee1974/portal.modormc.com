@@ -291,7 +291,7 @@ const submit = () => {
 
                     <!-- Display Order -->
                     <div class="sm:col-span-2">
-                        <BaseInput
+                        <BaseInput step="1"
                             v-model.number="form.display_order"
                             type="number"
                             label="Display #"
