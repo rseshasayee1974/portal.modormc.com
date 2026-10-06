@@ -281,7 +281,7 @@ const saveInwardDetails = () => {
                 <div class="space-y-1">
                     <label :for="'inward-volume-' + data.id" class="text-xs font-semibold">Convert Volume</label>
                     <input :id="'inward-volume-' + data.id" v-model.number="data.convert_volume" @input="recalculateConversion" type="number" min="0.000001" step="0.000001" placeholder="Factor, e.g. 4.5" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
-                    <p class="text-xs text-slate-500">Billing quantity = received quantity ÷ Convert Volume</p>
+                    <p class="text-xs text-slate-500">Optional: leave blank to use Conversion Qty. Enter a factor to calculate received quantity ÷ Convert Volume.</p>
                     <p v-if="detailsErrors.convert_volume" class="text-xs text-red-600">{{ detailsErrors.convert_volume }}</p>
                 </div>
                 <div class="space-y-1">

@@ -133,6 +133,12 @@ class InwardDetailsTest extends TestCase
         $this->updateDetails(['received_qty' => 18])->assertSessionHasNoErrors();
         $this->assertEquals(4, $this->inward->fresh()->conversion_quantity);
         $this->assertEquals(18, $this->stock->fresh()->quantity);
+        $this->updateDetails(['convert_volume' => null])->assertSessionHasNoErrors();
+        $this->assertNull($this->inward->fresh()->convert_volume);
+        $this->assertEquals(4, $this->inward->fresh()->conversion_quantity);
+        $this->updateDetails(['convert_volume' => null, 'conversion_quantity' => 6])->assertSessionHasNoErrors();
+        $this->assertEquals(6, $this->inward->fresh()->conversion_quantity);
+        $this->assertEquals(18, $this->stock->fresh()->quantity);
         $this->updateDetails(['convert_volume' => 0])->assertSessionHasErrors('convert_volume');
         $this->updateDetails(['convert_volume' => -1])->assertSessionHasErrors('convert_volume');
         $this->item->update(['invoiced_quantity' => 18]);
