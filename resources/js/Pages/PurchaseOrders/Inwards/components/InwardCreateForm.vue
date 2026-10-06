@@ -374,9 +374,9 @@ const remainingToReceive = (item: any) => {
                                                 placeholder="UOM" optionLabel="label" optionValue="value" filter
                                                 class="w-full !rounded-md !h-9 !bg-white text-xs border border-slate-300" />
                                         </div>
-                                        <p class="mt-1 text-[10px] text-slate-500">Optional: leave blank to use
+                                        <!-- <p class="mt-1 text-[10px] text-slate-500">Optional: leave blank to use
                                             Conversion Qty. Enter a factor to calculate received quantity ÷ Convert
-                                            Volume.</p>
+                                            Volume.</p> -->
                                     </td>
 
                                     <!-- Col 5: Full Weight with Snap -->
