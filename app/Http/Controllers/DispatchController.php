@@ -144,6 +144,7 @@ class DispatchController extends Controller
                     //         ->notify(new \App\Notifications\DispatchCreated($dispatch));
                     // }
                 }
+                app(BatchController::class)->markBatchDispatched($dispatch);
                 return redirect()->back()->with('success', 'Dispatch processed successfully.');
         });
     }
@@ -268,6 +269,7 @@ class DispatchController extends Controller
             }
 
 
+            app(BatchController::class)->markBatchDispatched($dispatch);
             return redirect()->back()->with('success', 'Dispatch updated successfully.');
             
         });
@@ -283,6 +285,11 @@ class DispatchController extends Controller
     public function generateInvoice(\Illuminate\Http\Request $request, Dispatch $dispatch)
     {
         $this->authorizeModule('edit');
+        if ($dispatch->batch_id && (int) $dispatch->batch()->value('status') !== Batch::STATUS_DISPATCHED) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'batch_id' => 'Save Dispatch first. The batch must be dispatched before generating an invoice.',
+            ]);
+        }
 
         $validated = $request->validate([
             'ledger_id'      => 'required|exists:mm_ledgers,id',

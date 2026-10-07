@@ -162,13 +162,12 @@ class PurchaseOrderInwardController extends Controller
 
                 $item = $order->items()->lockForUpdate()->findOrFail($itemData['order_item_id']);
                 
-                $remaining = max(0, (float) $item->product_quantity - (float) $item->received_quantity);
-                
                 $calcQty = (float)$itemData['received_qty'];
                 if ($itemTruckLoaded !== null && $itemTruckEmpty !== null && (float)$itemTruckEmpty > 0) {
                     $calcQty = max(0, (float)$itemTruckLoaded - (float)$itemTruckEmpty);
                 }
-                $acceptedQty = min($calcQty, $remaining);
+                // The initial loaded-truck entry may exceed the order quantity.
+                $acceptedQty = $calcQty;
 
                 $entryDate = \Carbon\Carbon::parse($validated['received_date'])->toDateString();
                 $newReceivedQty = (float) $item->received_quantity + $acceptedQty;
@@ -398,6 +397,16 @@ class PurchaseOrderInwardController extends Controller
                 $newReceivedQty = $oldReceivedQty;
             }
             
+            $item = $inward->item;
+            if ($changesReceipt && $loadedWeight > 0 && $item) {
+                $otherReceivedQty = max(0, (float) $item->received_quantity - $oldReceivedQty);
+                if (round($otherReceivedQty + $newReceivedQty, 4) > round((float) $item->product_quantity, 4)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'received_qty' => 'Received quantity exceeds the remaining ordered quantity. Record the empty truck weight or correct the received quantity.',
+                    ]);
+                }
+            }
+
             $diff = $newReceivedQty - $oldReceivedQty;
 
             // Update history record

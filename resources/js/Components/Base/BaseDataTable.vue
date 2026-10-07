@@ -145,6 +145,22 @@ const emit = defineEmits<{
 
 const slots = useSlots();
 
+const getExpandedRowClass = (row: any) => {
+    const key = props.dataKey || 'id';
+    const rowId = key.split('.').reduce((value, field) => value?.[field], row);
+    const expanded = Array.isArray(props.expandedRows)
+        ? props.expandedRows.some((entry: any) => {
+            if (entry === row) return true;
+            const entryId = typeof entry === 'object' && entry !== null
+                ? key.split('.').reduce((value, field) => value?.[field], entry)
+                : entry;
+            return rowId !== undefined && rowId !== null && entryId === rowId;
+        })
+        : rowId !== undefined && rowId !== null && Boolean(props.expandedRows?.[rowId]);
+
+    return [props.rowClass?.(row), { 'base-datatable-expanded-row': expanded }];
+};
+
 const getRowSerial = (index: number) => {
     return (props.first || 0) + index + 1;
 };
@@ -356,7 +372,7 @@ const toggleFilterPopover = (event: any) => {
             :responsiveLayout="responsiveLayout"
             :expandedRows="expandedRows"
             :exportFilename="exportFilename"
-            :rowClass="rowClass"
+            :rowClass="getExpandedRowClass"
             :selection="selection"
             :selectionMode="selectionMode"
             :scrollable="scrollable"
@@ -562,6 +578,16 @@ const toggleFilterPopover = (event: any) => {
 }
 
 /* Row expansion cell */
+:deep(.p-datatable .p-datatable-tbody > tr.base-datatable-expanded-row > td),
+:deep(.p-datatable.p-datatable-striped .p-datatable-tbody > tr.base-datatable-expanded-row > td) {
+    background: #e0e7ff !important;
+    border-color: #c7d2fe !important;
+}
+
+:deep(.p-datatable .p-datatable-tbody > tr.base-datatable-expanded-row > td:first-child) {
+    box-shadow: inset 3px 0 0 #6366f1;
+}
+
 :deep(.p-datatable .p-datatable-row-expansion > td) {
     padding: 0 !important;
     border-top: 2px solid #c7d2fe !important;

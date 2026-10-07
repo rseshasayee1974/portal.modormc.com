@@ -58,6 +58,20 @@ class PatronStatementBillTest extends TestCase
         );
     }
 
+    public function test_manual_invoice_and_bill_print_amounts_exclude_tax(): void
+    {
+        \App\Models\InvoiceItem::withoutEvents(fn () => \App\Models\InvoiceItem::factory()->create([
+            'invoice_id' => $this->bill->id, 'subtotal' => 1000, 'line_tax_amount' => 180, 'line_total' => 1180,
+        ]));
+        foreach (['Invoice', 'Bill'] as $type) {
+            $this->bill->updateQuietly(['invoice_type' => $type, 'invoice_label' => 'Manual', 'subtotal' => 1000, 'tax_amount' => 180, 'total_amount' => 1180]);
+            $data = \App\Services\PrintDataFormatter::fromInvoice($this->bill->fresh());
+            $this->assertEquals(1000, $data['items'][0]['total']);
+            $this->assertEquals(180, $data['items'][0]['tax_amount']);
+            $this->assertEquals(1180, $this->bill->fresh()->total_amount);
+        }
+    }
+
     public function test_inclusive_gst_components_and_round_off_reconcile_to_selling_value(): void
     {
         $tax = \App\Models\Tax::factory()->create(['plant_id' => $this->plant->id, 'tax_group' => 'GST', 'tax_rate' => 18, 'account_id' => $this->ledger->id]);

@@ -366,6 +366,14 @@ class BatchController extends Controller
                 }
             }
             $payload['status'] = $payload['status'] ?? Batch::STATUS_PLANNED;
+            if ((int) $payload['status'] === Batch::STATUS_DISPATCHED) {
+                $payload['status'] = Batch::STATUS_PLANNED;
+            }
+            if ((int) $payload['status'] === Batch::STATUS_PLANNED
+                && ((float) ($payload['loaded_weight_truck'] ?? 0) > 0
+                    || collect($materialsData)->contains(fn($material) => (float) ($material['actual_qty'] ?? 0) > 0))) {
+                $payload['status'] = Batch::STATUS_LOADING;
+            }
             $payload['plant_id'] = $activePlantId; // ensure plant_id is set
 
                 unset($payload['materials']);
@@ -1221,11 +1229,19 @@ class BatchController extends Controller
                 unset($payload['materials']);
 
                 $newStatus = $payload['status'] ?? $batch->status;
-                $hasActual = collect($materials)->contains(fn($m) => (float)($m['actual_qty'] ?? 0) > 0);
-                if ($hasActual && $newStatus == Batch::STATUS_PLANNED) {
-                    $newStatus = Batch::STATUS_DISPATCHED;
+                if ((int) $newStatus === Batch::STATUS_DISPATCHED && (int) $oldStatus !== Batch::STATUS_DISPATCHED) {
+                    $newStatus = $oldStatus;
                     $payload['status'] = $newStatus;
                 }
+                if ((int) $oldStatus === Batch::STATUS_LOADING && (int) $newStatus === Batch::STATUS_PLANNED) {
+                    $newStatus = Batch::STATUS_LOADING;
+                }
+                if ((int) $newStatus === Batch::STATUS_PLANNED
+                    && ((float) ($payload['loaded_weight_truck'] ?? 0) > 0
+                        || collect($materials)->contains(fn($material) => (float) ($material['actual_qty'] ?? 0) > 0))) {
+                    $newStatus = Batch::STATUS_LOADING;
+                }
+                $payload['status'] = $newStatus;
 
                 $batchingSettings = \App\Models\CustomSetting::getForModule($batch->plant_id, 'batching');
                 $withStock = filter_var($batchingSettings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN);
@@ -1242,12 +1258,6 @@ class BatchController extends Controller
 
             $batch->fill($payload);
             
-            // Auto-update status to dispatched if any material has actual quantity > 0
-            $hasActual = collect($materials)->contains(fn($m) => (float)($m['actual_qty'] ?? 0) > 0);
-            if ($hasActual && $batch->status == Batch::STATUS_PLANNED) {
-                $batch->status = Batch::STATUS_DISPATCHED;
-            }
-
             $batch->updated_by = auth()->id();
             $batch->updated_at = now();
             $batch->save();
@@ -1861,6 +1871,35 @@ class BatchController extends Controller
                 'uom_id' => $item['uom_id'],
             ]);
         }
+    }
+
+    public function markBatchDispatched(Dispatch $dispatch): void
+    {
+        if (!$dispatch->batch_id) return;
+
+        $batch = Batch::whereKey($dispatch->batch_id)->lockForUpdate()->firstOrFail();
+        abort_unless((int) $batch->plant_id === (int) session('active_plant_id'), 404);
+        if ((int) $batch->status === Batch::STATUS_CANCELLED) {
+            throw ValidationException::withMessages(['batch_id' => 'A cancelled batch cannot be dispatched.']);
+        }
+        if ((float) $dispatch->loaded_weight_truck <= (float) $dispatch->empty_weight_truck
+            || $dispatch->empty_weight_truck === null || (float) $dispatch->empty_weight_truck < 0) {
+            throw ValidationException::withMessages(['weights.loaded_weight_truck' => 'Full Weight must be greater than Empty Weight.']);
+        }
+        if (!in_array((int) $batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED], true)) {
+            $materials = $batch->materials()->get()->toArray();
+            $settings = \App\Models\CustomSetting::getForModule($batch->plant_id, 'batching');
+            if (filter_var($settings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN)) {
+                $this->checkStock($batch, $materials);
+                $this->adjustStock($batch, $materials);
+            }
+            $batch->update(['status' => Batch::STATUS_DISPATCHED, 'updated_by' => auth()->id()]);
+            $batch->salesOrder?->refreshProduction();
+            session()->flash('dispatched_batch_id', $batch->id);
+        }
+        // Save again after the batch transition so its load-time rule sees the final status.
+        $dispatch->save();
+        $this->broadcastBatchChange('BatchUpdated', $batch);
     }
 
     private function checkStock(Batch $batch, array $newMaterials, array $oldMaterials = [], bool $wasDeducted = false): void

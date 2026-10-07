@@ -139,7 +139,7 @@ class PurchaseOrderInwardControllerTest extends TestCase
         ]);
     }
 
-    public function test_store_caps_received_qty_at_remaining_ordered_qty(): void
+    public function test_store_preserves_initial_received_qty_above_ordered_qty(): void
     {
         // Ordering 100, received 0. Remaining is 100.
         // We try to receive 150.
@@ -157,9 +157,9 @@ class PurchaseOrderInwardControllerTest extends TestCase
 
         $response->assertRedirect(route('inwards.index'));
 
-        // Assert quantity is capped at 100
+        // Initial receipt is preserved without silently capping the quantity.
         $this->item->refresh();
-        $this->assertEquals(100, $this->item->received_quantity);
+        $this->assertEquals(150, $this->item->received_quantity);
 
         // Assert purchase order receipt_status is 2 (fully received)
         $this->po->refresh();
@@ -168,12 +168,12 @@ class PurchaseOrderInwardControllerTest extends TestCase
         $this->assertDatabaseHas('mm_quantity', [
             'plant_id' => $this->plant->id,
             'product_id' => $this->product->id,
-            'quantity' => 100,
+            'quantity' => 150,
         ]);
 
         $this->assertDatabaseHas('mm_purchase_order_history', [
             'order_id' => $this->po->id,
-            'received_qty' => 100,
+            'received_qty' => 150,
         ]);
     }
 
@@ -269,6 +269,7 @@ class PurchaseOrderInwardControllerTest extends TestCase
 
     public function test_update_weight_recalculates_net_weight_and_updates_stock(): void
     {
+        $this->item->update(['product_quantity' => 5000]);
         // Create inward from loaded truck (truck_loaded = 5000, received_qty = 5000 initially)
         $inward = PurchaseOrderHistory::create([
             'plant_id' => $this->plant->id,
@@ -321,6 +322,7 @@ class PurchaseOrderInwardControllerTest extends TestCase
 
     public function test_update_weight_fails_if_reduces_stock_below_zero(): void
     {
+        $this->item->update(['product_quantity' => 5000]);
         // Truck loaded = 5000, received_qty = 5000 initially
         $inward = PurchaseOrderHistory::create([
             'plant_id' => $this->plant->id,

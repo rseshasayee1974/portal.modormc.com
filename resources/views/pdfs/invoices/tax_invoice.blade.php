@@ -878,7 +878,7 @@
                             @endif
                         </td>
                         <td class="text-right font-bold">
-                            {{ number_format($lineTotal, 2) }}
+                            {{ number_format(strtolower(trim((string) $inv?->invoice_label)) === 'manual' ? $taxable : $lineTotal, 2) }}
                         </td>
                     </tr>
                 @empty

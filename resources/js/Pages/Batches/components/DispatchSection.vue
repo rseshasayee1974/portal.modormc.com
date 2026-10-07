@@ -348,6 +348,7 @@ const showInvoiceSection = computed(() => {
     if (!props.dispatch || !props.dispatch.id) return false;
     // Always show if invoice is already linked/generated
     if (props.dispatch.status?.invoice_status === 1) return true;
+    if (Number(props.batch?.status) !== 3) return false;
     
     // Otherwise, show only if pricing and quantities have data and are saved in the db
     return (Number(props.dispatch.load_rate) > 0) && 
@@ -577,6 +578,10 @@ const submit = () => {
 };
 
 const handleGenerateInvoice = (payload?: any) => {
+    if (Number(props.batch?.status) !== 3) {
+        Swal.fire('Save Dispatch first', 'The batch must be dispatched before generating an invoice.', 'warning');
+        return;
+    }
     if (!form.id) {
         Swal.fire({
             icon: 'warning',

@@ -51,6 +51,47 @@ class InwardDetailsTest extends TestCase
         return $this->post(route('inwards.update-weight', $this->inward), $payload);
     }
 
+    public function test_loaded_truck_creation_can_exceed_order_then_net_quantity_is_validated(): void
+    {
+        $this->post(route('inwards.store'), [
+            'order_id' => $this->item->order_id,
+            'received_date' => '2026-10-07',
+            'inward_no' => 'INW-LOADED',
+            'items' => [[
+                'order_item_id' => $this->item->id,
+                'received_qty' => 150,
+                'truck_loaded' => 150,
+            ]],
+        ])->assertRedirect(route('inwards.index'))->assertSessionHasNoErrors();
+
+        $loaded = PurchaseOrderHistory::where('inward_no', 'INW-LOADED')->firstOrFail();
+        $this->assertEquals(150, $loaded->received_qty);
+        $this->assertEquals(160, $this->item->fresh()->received_quantity);
+        $this->assertEquals(160, $this->stock->fresh()->quantity);
+
+        // Net 100 plus the earlier receipt of 10 exceeds the order of 100.
+        $this->post(route('inwards.update-weight', $loaded), ['truck_empty' => 50])
+            ->assertSessionHasErrors('received_qty');
+        $this->assertEquals(150, $loaded->fresh()->received_qty);
+        $this->assertNull($loaded->fresh()->truck_empty);
+        $this->assertEquals(160, $this->stock->fresh()->quantity);
+
+        // Net 90 plus the earlier receipt of 10 exactly fulfils the order.
+        $this->post(route('inwards.update-weight', $loaded), ['truck_empty' => 60])
+            ->assertSessionHasNoErrors();
+        $this->assertEquals(90, $loaded->fresh()->received_qty);
+        $this->assertEquals(100, $this->item->fresh()->received_quantity);
+        $this->assertEquals(100, $this->stock->fresh()->quantity);
+    }
+
+    public function test_received_quantity_above_order_is_rejected_after_loaded_entry(): void
+    {
+        $this->updateDetails(['received_qty' => 101])->assertSessionHasErrors('received_qty');
+        $this->assertEquals(10, $this->inward->fresh()->received_qty);
+        $this->assertEquals(10, $this->item->fresh()->received_quantity);
+        $this->assertEquals(10, $this->stock->fresh()->quantity);
+    }
+
     public function test_truck_only_edit_preserves_accepted_quantity_and_stock_even_after_billing(): void
     {
         $this->item->update(['invoiced_quantity' => 10]);

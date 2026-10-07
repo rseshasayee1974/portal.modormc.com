@@ -375,12 +375,14 @@ const isBatchCancelled = (data: any): boolean => {
 };
 
 const canAccessDispatchTab = (batch: any, detailedBatch?: any): boolean => {
-    const s1 = Number(batch?.status);
-    const s2 = Number(detailedBatch?.status);
-    if ([3, 4, 5].includes(s1) || [3, 4, 5].includes(s2)) return true;
-    if (isBatchCancelled(batch) || isBatchCancelled(detailedBatch)) return true;
-    if (batch?.dispatches?.length || detailedBatch?.dispatches?.length || batch?.dispatch || detailedBatch?.dispatch) return true;
-    return false;
+    const detailedDispatch = detailedBatch?.dispatches?.[0] || detailedBatch?.dispatch;
+    const dispatch = batch?.dispatches?.[0] || batch?.dispatch;
+    const fullWeight = Number(detailedDispatch?.loaded_weight_truck
+        ?? detailedBatch?.loaded_weight_truck ?? dispatch?.loaded_weight_truck ?? batch?.loaded_weight_truck);
+    const emptyWeight = Number(detailedDispatch?.empty_weight_truck
+        ?? detailedBatch?.empty_weight_truck ?? dispatch?.empty_weight_truck ?? batch?.empty_weight_truck);
+    return Number.isFinite(fullWeight) && Number.isFinite(emptyWeight)
+        && emptyWeight >= 0 && fullWeight > emptyWeight;
 };
 
 const getRowClass = (data: any) => {
@@ -1136,7 +1138,7 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
 
                                             <div v-if="slotProps.data.dispatches?.[0]" class="py-1 text-left">
                                                 <button
-                                                    v-if="slotProps.data.status >= 3 && Number(slotProps.data.dispatches[0].load_rate) > 0 && Number(slotProps.data.dispatches[0].delivered_qty || slotProps.data.dispatches[0].load_units || 0) > 0 && slotProps.data.dispatches[0].uom_id && (!slotProps.data.dispatches[0].status || slotProps.data.dispatches[0].status.invoice_status !== 1) && !isBatchCancelled(slotProps.data) && can('DISPATCH.GENERATE_INVOICE')"
+                                                    v-if="Number(slotProps.data.status) === 3 && Number(slotProps.data.dispatches[0].load_rate) > 0 && Number(slotProps.data.dispatches[0].delivered_qty || slotProps.data.dispatches[0].load_units || 0) > 0 && slotProps.data.dispatches[0].uom_id && (!slotProps.data.dispatches[0].status || slotProps.data.dispatches[0].status.invoice_status !== 1) && !isBatchCancelled(slotProps.data) && can('DISPATCH.GENERATE_INVOICE')"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors"
                                                     @click="generateInvoiceDirect(slotProps.data.dispatches[0]); activeMenuId = null;">
                                                     <i class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"></i>
@@ -1283,7 +1285,7 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                                     @deleteInvoice="handleInvoiceGenerated"
                                                     @cancel="collapseExpandedRows()" />
                                                 <div v-else class="text-center py-8 text-slate-400 font-medium">
-                                                    Dispatch details will be available once the batch is dispatched.
+                                                    Save a full truck weight greater than the empty weight to enable Dispatch &amp; Invoicing.
                                                 </div>
                                             </div>
                                         </TabPanel>
@@ -1443,7 +1445,7 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                         class="py-1">
                         <!-- If Invoice not yet generated -->
                         <button
-                            v-if="!activeBatch.has_invoice && !activeBatch.invoice_id && activeBatch.status >= 3 && activeBatch.dispatches?.[0] && can('DISPATCH.GENERATE_INVOICE')"
+                            v-if="!activeBatch.has_invoice && !activeBatch.invoice_id && Number(activeBatch.status) === 3 && activeBatch.dispatches?.[0] && can('DISPATCH.GENERATE_INVOICE')"
                             class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors cursor-pointer"
                             @click="generateInvoiceDirect(activeBatch.dispatches[0]); closeAllMenus();">
                             <i class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"></i>

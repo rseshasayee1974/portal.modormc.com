@@ -206,12 +206,6 @@ const submit = () => {
         return;
     }
 
-    const exceeding = form.items.find(i => (i.received_qty_previously + i.received_qty) > i.ordered_qty);
-    if (exceeding) {
-        Swal.fire('Error', `Received quantity for ${exceeding.product_title} exceeds ordered quantity.`, 'error');
-        return;
-    }
-
     form.transform((data) => ({
         ...data,
         received_date: data.received_date ? new Date(data.received_date).toISOString().split('T')[0] : null

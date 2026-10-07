@@ -1068,6 +1068,7 @@ class PrintDataFormatter
     public static function fromInvoice($invoice): array
     {
         $isPurchaseBill = in_array(strtolower((string) $invoice->invoice_type), ['bill', 'purchase'], true);
+        $isManualDocument = strtolower(trim((string) $invoice->invoice_label)) === 'manual';
         $invoice->loadMissing([
             'plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses',
             'items.tax', 'items.uom', 'items.itemTaxes', 'orderTaxes'
@@ -1159,7 +1160,7 @@ class PrintDataFormatter
         $printItemNameFormat = self::getPrintItemNameFormat($data['settings'], $invoice->plant_id);
 
         $data['items'] = $invoice->items->map(function ($item, $idx) use (
-            $isPurchaseBill, $isIntra, $showPumpCharges, $dispatch, $dispatchPumpCharge, $mixDesignObj, $printItemNameFormat, &$pumpChargesTotal
+            $isPurchaseBill, $isManualDocument, $isIntra, $showPumpCharges, $dispatch, $dispatchPumpCharge, $mixDesignObj, $printItemNameFormat, &$pumpChargesTotal
         ) {
             $taxModel     = $item->tax;
             $lineTaxAmount = (float) $item->line_tax_amount;
@@ -1210,7 +1211,7 @@ class PrintDataFormatter
                 'tax_rate'         => $taxDetails['rate'],
                 'tax_group'        => $taxDetails['group'],
                 'tax_amount'       => $lineTaxAmount,
-                'total'            => $itemTotal,
+                'total'            => $isManualDocument ? $itemSubtotal : $itemTotal,
                 'recipe_materials' => $isPurchaseBill ? [] : self::resolveRecipeMaterials($item->mixDesign ?? $mixDesignObj),
             ];
         })->toArray();

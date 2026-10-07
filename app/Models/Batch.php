@@ -99,7 +99,7 @@ class Batch extends Model
     {
         return [
             ['label' => 'Planned', 'value' => self::STATUS_PLANNED],
-            ['label' => 'Loading', 'value' => self::STATUS_LOADING],
+            ['label' => 'Batched', 'value' => self::STATUS_LOADING],
             ['label' => 'Dispatched', 'value' => self::STATUS_DISPATCHED],
             ['label' => 'Completed', 'value' => self::STATUS_COMPLETED],
             ['label' => 'Cancelled', 'value' => self::STATUS_CANCELLED],
