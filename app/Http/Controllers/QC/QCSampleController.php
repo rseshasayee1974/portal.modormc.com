@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\QC;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\QC\QcSample;
 use App\Models\QC\QcTest;
 use App\Models\QC\QcTestType;
@@ -20,8 +21,13 @@ use Illuminate\Support\Facades\DB;
 
 class QCSampleController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'q_c_sample';
+
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -264,6 +270,8 @@ class QCSampleController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId() ?: session('active_plant_id', 1);
 
@@ -494,6 +502,8 @@ class QCSampleController extends Controller
 
     public function update(Request $request, QcSample $sample)
     {
+        $this->authorizeModule('edit');
+
         $validated = $request->validate([
             'sample_date' => 'required|date',
             'tested_by' => 'nullable|integer',
@@ -524,6 +534,8 @@ class QCSampleController extends Controller
 
     public function destroy(QcSample $sample)
     {
+        $this->authorizeModule('delete');
+
         $sample->deleted_by = auth()->id();
         $sample->save();
         $sample->delete();

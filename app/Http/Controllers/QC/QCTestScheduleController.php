@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\QC;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\QC\QcTestType;
 use App\Models\QC\QcTestSchedule;
 use App\Models\Product;
@@ -12,8 +13,13 @@ use Inertia\Inertia;
 
 class QCTestScheduleController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'q_c_test_schedule';
+
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -139,6 +145,8 @@ class QCTestScheduleController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId() ?: 1;
 
@@ -168,6 +176,8 @@ class QCTestScheduleController extends Controller
 
     public function update(Request $request, QcTestSchedule $schedule)
     {
+        $this->authorizeModule('edit');
+
         if ($request->has('frequency_type')) {
             $request->merge([
                 'frequency_type' => strtoupper(trim($request->frequency_type))
@@ -192,6 +202,8 @@ class QCTestScheduleController extends Controller
 
     public function destroy(QcTestSchedule $schedule)
     {
+        $this->authorizeModule('delete');
+
         $schedule->deleted_by = auth()->id();
         $schedule->save();
         $schedule->delete();

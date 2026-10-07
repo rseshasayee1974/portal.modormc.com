@@ -48,8 +48,7 @@ class StoreInvoiceRequest extends FormRequest
             // 'journal_id'       => 'nullable|exists:mm_journal_entries,id',
             'invoice_type'     => 'required|in:Invoice,Bill,credit_note,debit_note',
             'invoice_label'    => 'nullable|string|max:100',
-            'document_type'    => 'nullable|in:INVOICE,BILL',
-            'document_source'  => 'nullable|in:DISPATCH,PURCHASE_STOCKIN,MANUAL',
+            // document_type and document_source are validated by ValidatesInvoiceClassification
             'ref_id'           => 'nullable|integer',
             'ref_title'        => 'nullable|string|max:255',
             // 'truck_id'         => 'nullable|exists:mm_machines,id',
@@ -124,6 +123,7 @@ class StoreInvoiceRequest extends FormRequest
             'adjustment'       => 'nullable|numeric',
             'shipping_charges' => 'nullable|numeric',
             'shipping_tax_id'  => 'nullable|exists:mm_taxes,id',
+            'round_off'        => 'nullable|numeric',
             'items'            => 'required|array|min:1',
             'items.*.item_id'      => 'nullable', // Validated differently for sales vs purchase
             'items.*.uom_id'       => 'nullable|exists:mm_product_units,id',

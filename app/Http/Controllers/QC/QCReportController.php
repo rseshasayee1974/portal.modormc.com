@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\QC;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\QC\QcSample;
 use App\Models\QC\QcTest;
 use App\Models\QC\QcTestResult;
@@ -17,8 +18,13 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class QCReportController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'q_c_report';
+
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -75,6 +81,8 @@ class QCReportController extends Controller
 
     public function downloadPdf(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -96,6 +104,8 @@ class QCReportController extends Controller
 
     public function downloadCubeReportPdf(Request $request, QcTest $test)
     {
+        $this->authorizeModule('menu');
+
         $test->loadMissing([
             'plant.entity',
             'plant.addresses',

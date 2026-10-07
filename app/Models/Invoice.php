@@ -404,15 +404,16 @@ class Invoice extends Model implements Postable
         
         // Add shipping charges to total
         $rawTotal       = $subtotal + $taxAmount - $globalDiscount + $this->adjustment + ($this->shipping_charges ?? 0);
-        $roundOff       = 0.0;
+        $roundOff       = $this->round_off ?? 0.0;
+        $finalTotal     = $rawTotal + $roundOff;
 
         $this->updateQuietly([
             'subtotal'       => $subtotal,
             'discount_total' => $discountTotal,
             'tax_amount'     => $taxAmount,
-            'total_amount'   => $rawTotal,
+            'total_amount'   => $finalTotal,
             'round_off'      => $roundOff,
-            'balance_amount' =>  $rawTotal - (float)($this->paid_amount ?? 0),
+            'balance_amount' => $finalTotal - (float)($this->paid_amount ?? 0),
         ]);
     }
 

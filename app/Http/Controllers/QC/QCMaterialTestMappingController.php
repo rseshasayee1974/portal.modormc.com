@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\QC;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\QC\QcTestType;
 use App\Models\QC\QcMaterialTest;
 use App\Models\Product;
@@ -12,8 +13,13 @@ use Inertia\Inertia;
 
 class QCMaterialTestMappingController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'q_c_material_test_mapping';
+
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -50,6 +56,8 @@ class QCMaterialTestMappingController extends Controller
 
     public function save(Request $request)
     {
+        $this->authorizeModule('create');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 

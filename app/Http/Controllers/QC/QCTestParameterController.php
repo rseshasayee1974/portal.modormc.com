@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\QC;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\QC\QcTestType;
 use App\Models\QC\QcTestParameter;
 use App\Services\PlantContextService;
@@ -12,8 +13,13 @@ use Inertia\Inertia;
 
 class QCTestParameterController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'q_c_test_parameter';
+
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -74,6 +80,8 @@ class QCTestParameterController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
+
 
         // dd( $request->all());
         if ($request->has('data_type')) {
@@ -154,6 +162,8 @@ class QCTestParameterController extends Controller
 
     public function update(Request $request, QcTestParameter $test_parameter)
     {
+        $this->authorizeModule('edit');
+
         if ($request->has('data_type')) {
             $request->merge([
                 'data_type' => trim($request->data_type)
@@ -207,6 +217,8 @@ class QCTestParameterController extends Controller
 
     public function destroy(QcTestParameter $test_parameter)
     {
+        $this->authorizeModule('delete');
+
         $test_parameter->updateQuietly([
             'deleted_by' => auth()->id() ?: 1,
         ]);
