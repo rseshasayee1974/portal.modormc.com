@@ -6,11 +6,9 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateInvoiceRequest extends FormRequest
 {
-    use Concerns\ValidatesInvoiceClassification;
-
     protected function prepareForValidation(): void
     {
-        $this->prepareDocumentClassification();
+        $this->merge(['invoice_type' => \App\Support\InvoiceClassification::normalizeInvoiceType($this->input('invoice_type'))]);
     }
 
     public function authorize(): bool
@@ -26,8 +24,6 @@ class UpdateInvoiceRequest extends FormRequest
             'journal_id'       => 'nullable|exists:mm_journal_entries,id',
             'invoice_type'     => 'required|in:Invoice,Bill,credit_note,debit_note',
             'invoice_label'    => 'nullable|string|max:100',
-            'document_type'    => 'nullable|in:INVOICE,BILL',
-            'document_source'  => 'nullable|in:DISPATCH,PURCHASE_STOCKIN,MANUAL',
             'ref_id'           => 'nullable|integer',
             'ref_title'        => 'nullable|string|max:255',
             'truck_id'         => 'nullable|exists:mm_machines,id',
@@ -41,6 +37,7 @@ class UpdateInvoiceRequest extends FormRequest
             'global_discount_type' => 'nullable|in:%,₹',
             'global_discount'  => 'nullable|numeric|min:0',
             'adjustment'       => 'nullable|numeric',
+            'round_off'        => 'nullable|numeric',
             'shipping_charges' => 'nullable|numeric',
             'shipping_tax_id'  => 'nullable|exists:mm_taxes,id',
             'status'           => 'nullable|in:draft,approved,paid,cancelled',

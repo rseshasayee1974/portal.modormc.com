@@ -80,7 +80,7 @@ class SalesRegisterService extends RegisterReportService
             'truck'          => $item->register_truck_number ?? '',
             'description'    => implode(',', [$invoiceNo, $item->item_name ?? '', $quantity.$unit]),
             'party_type'     => is_array($partyTypes) ? implode(', ', $partyTypes) : (string) $partyTypes,
-            'tax_amount'     => (float) $item->line_tax_amount,
+            'tax_amount'     => $taxes ? round(array_sum($taxes), 2) : (float) $item->line_tax_amount,
             'created_by'     => $invoice?->creator?->email ?? $invoice?->creator?->username ?? '',
             'irn'            => $invoice?->einvoiceRelation?->einv_irn ?? '',
             'einvoice_status'=> $invoice?->einvoiceRelation?->einv_status ?? '',

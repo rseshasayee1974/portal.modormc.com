@@ -41,7 +41,7 @@ class PurchaseReportService implements ReportServiceInterface
 
         $bills = $orders->map(fn($po) => [
             'date'           => $po->billed_date ? \Carbon\Carbon::parse($po->billed_date)->toDateString() : ($po->date_order ? \Carbon\Carbon::parse($po->date_order)->toDateString() : ($po->created_at ? $po->created_at->toDateString() : now()->toDateString())),
-            'voucher_type'   => 'PURCHASE',
+            'voucher_type'   => 'BILL',
             'voucher_no'     => $po->bill_number ?: $po->po_number,
             'po_number'      => $po->po_number,
             'vendor_name'    => $po->vendor?->legal_name ?? 'N/A',

@@ -444,9 +444,9 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $startDateOnly = $start ? substr($start, 0, 10) : null;
         $endDateOnly   = $end ? substr($end, 0, 10) : null;
 
-        // 1. Sales Invoices Query
+        // 1. Sales invoices and purchase bills share the commercial document table.
         $invQuery = Invoice::query()
-            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
+            ->whereIn('invoice_type', array_merge(\App\Support\InvoiceClassification::aliases('Invoice'), \App\Support\InvoiceClassification::aliases('Bill')))
             ->where('partner_id', $patronId)
             ->whereNull('deleted_at')
             ->where(function ($q) {
@@ -483,7 +483,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                   ->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))
                   ->where(function ($sq) {
                       $sq->whereNull('ref_module')
-                         ->orWhereNotIn('ref_module', ['invoice', 'payment', 'discount']);
+                         ->orWhereNotIn('ref_module', ['invoice', 'bill', 'payment', 'discount']);
                   });
             });
 
@@ -497,7 +497,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         if ($startDateOnly) {
             $openingInvoiced = (clone $invQuery)
                 ->where('invoice_date', '<', $startDateOnly)
-                ->sum('total_amount') ?: 0;
+                ->get()->sum(fn ($invoice) => (in_array($invoice->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true) ? -1 : 1) * (float) $invoice->total_amount);
 
             $openingReceipts = (clone $pmtQuery)
                 ->where('transaction_date', '<', $startDateOnly)
@@ -591,6 +591,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $salesDiscount       = 0.0;
 
         foreach ($periodInvoices as $inv) {
+            if (in_array($inv->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true)) continue;
             $invTotal = (float)($inv->total_amount ?? 0);
             if ((float)($inv->tax_amount ?? 0) > 0) {
                 $invoicedTaxTotal += $invTotal;
@@ -615,12 +616,9 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $amountPaid     = round((float)$paymentsList->sum('amount'), 2);
 
         // Purchases (if customer also acts as vendor)
-        $purchased = round((float)PurchaseOrder::where('vendor_id', $patronId)
-            ->when($plantId, fn($q) => $q->where('plant_id', $plantId))
-            ->whereNull('deleted_at')
-            ->when($startDateOnly, fn($q) => $q->where('date_order', '>=', $startDateOnly))
-            ->when($endDateOnly, fn($q) => $q->where('date_order', '<=', $endDateOnly))
-            ->sum('amount_total'), 2);
+        $purchased = round((float) $periodInvoices
+            ->filter(fn ($invoice) => in_array($invoice->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true))
+            ->sum('total_amount'), 2);
 
         $credits = round((float)$periodJel->sum('credit_amount'), 2);
 
@@ -629,6 +627,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
         foreach ($periodInvoices as $inv) {
             $invTotal = round((float)($inv->total_amount ?? 0), 2);
+            $isBill = in_array($inv->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true);
             $invNum   = $inv->full_number ?: ('INV-' . $inv->id);
             $details  = $invNum;
             if (!empty($inv->remarks)) {
@@ -641,15 +640,15 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'date'         => $inv->invoice_date ? Carbon::parse($inv->invoice_date)->format('d-m-Y') : '-',
                 'sort_order'   => 1,
                 'id'           => $inv->id,
-                'transactions' => 'Sales Invoice',
-                'narration'    => 'Invoice ' . $invNum,
+                'transactions' => $isBill ? 'Bill' : 'Sales Invoice',
+                'narration'    => ($isBill ? 'Bill ' : 'Invoice ') . $invNum,
                 'details'      => $details,
-                'type'         => 'INV',
-                'voucher_type' => 'SALES',
+                'type'         => $isBill ? 'BILL' : 'INV',
+                'voucher_type' => $isBill ? 'BILL' : 'INVOICE',
                 'voucher_no'   => $invNum,
-                'debit'        => $invTotal,
-                'credit'       => 0.0,
-                'discount'     => (float)($inv->discount_amount ?? 0),
+                'debit'        => $isBill ? 0.0 : $invTotal,
+                'credit'       => $isBill ? $invTotal : 0.0,
+                'discount'     => (float)($inv->discount_total ?? $inv->discount_amount ?? 0),
             ]);
         }
 
@@ -776,7 +775,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $items->push([
                 'timestamp' => $date->timestamp, 'raw_date' => $date->format('Y-m-d'),
                 'date' => $date->format('d-m-Y'), 'sort_order' => 4, 'id' => $discount->id,
-                'transactions' => 'Sales Discount', 'narration' => 'Discount '.$number,
+                'transactions' => 'Discount', 'narration' => 'Discount '.$number,
                 'details' => $number.($discount->note ? "\n".$discount->note : ''),
                 'type' => 'DISCOUNT', 'voucher_type' => 'DISCOUNT', 'voucher_no' => $number,
                 'debit' => 0.0, 'credit' => 0.0, 'discount' => abs((float)$discount->amount),
@@ -812,8 +811,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'type'                    => '-',
             'voucher_type'            => 'OPENING',
             'voucher_no'              => '---',
-            'invoice_bill_display'    => $openingDr > 0 ? '₹ ' . number_format($openingDr, 2) : '-',
-            'receipt_payment_display' => $openingCr > 0 ? '₹ ' . number_format($openingCr, 2) : '-',
+            'invoice_bill_display'    => '-',
+            'receipt_payment_display' => '-',
             'discount_display'        => '-',
             'balance_display'         => ($openingBalance != 0 ? ($openingBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($openingBalance), 2),
             'balance_type'            => $openingBalance >= 0 ? 'Dr' : 'Cr',
@@ -832,7 +831,9 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
             // Invoice totals already include their own discounts. Only standalone
             // discount rows cause an additional subtraction from outstanding.
-            $balanceDiscount = $it['transactions'] === 'Sales Invoice' ? 0.0 : abs($disc);
+            $isDocument = in_array($it['transactions'], ['Sales Invoice', 'Bill'], true);
+            $isPayment = in_array($it['transactions'], ['Payment Received', 'Payment Made'], true);
+            $balanceDiscount = $isDocument ? 0.0 : abs($disc);
             $runningBalance = round($runningBalance + $debit - $credit - $balanceDiscount, 2);
             $salesDiscount  += $disc;
 
@@ -847,8 +848,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'type'                    => $it['type'],
                 'voucher_type'            => $it['voucher_type'],
                 'voucher_no'              => $it['voucher_no'],
-                'invoice_bill_display'    => $debit > 0 ? '₹ ' . number_format($debit, 2) : '-',
-                'receipt_payment_display' => $credit > 0 ? '₹ ' . number_format($credit, 2) : '-',
+                'invoice_bill_display'    => ($isDocument || (!$isPayment && $debit > 0)) ? '₹ ' . number_format($debit + $credit, 2) : '-',
+                'receipt_payment_display' => ($isPayment || (!$isDocument && $credit > 0)) ? '₹ ' . number_format($debit + $credit, 2) : '-',
                 'discount_display'        => $disc > 0 ? '₹ ' . number_format($disc, 2) : '-',
                 'balance_display'         => ($runningBalance != 0 ? ($runningBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($runningBalance), 2),
                 'balance_type'            => $runningBalance >= 0 ? 'Dr' : 'Cr',

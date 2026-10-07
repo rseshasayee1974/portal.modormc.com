@@ -146,10 +146,9 @@ const printInvoice = (data: any) => {
                         <div class="flex items-center gap-1.5 mt-1">
                              <Tag 
                                 :severity="getTypeSeverity(slotProps.data.invoice_type)" 
-                                :value="slotProps.data.document_type || slotProps.data.invoice_type"
+                                :value="slotProps.data.invoice_type"
                                 class="!text-[8px] !font-black !uppercase !tracking-widest !rounded !px-1.5"
                             />
-                            <span v-if="slotProps.data.document_source" class="text-[9px] text-slate-400">{{ slotProps.data.document_source }}</span>
                             <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ entityLocaleDate(slotProps.data.invoice_date, APP_LOCALE) }}</span>
                             <span v-if="slotProps.data.period" class="text-[9px] font-bold text-slate-300 ml-1">({{ slotProps.data.period }})</span>
                         </div>

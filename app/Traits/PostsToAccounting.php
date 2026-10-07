@@ -24,11 +24,11 @@ trait PostsToAccounting
 
     /** Doc-type => voucher type used on the JournalEntry header. */
     protected static array $voucherTypeMap = [
-        'sales'               => 'SALES',
-        'invoice'             => 'SALES',
-        'purchase'            => 'PURCHASE',
-        'bill'                => 'PURCHASE',
-        'dispatch'            => 'SALES',
+        'sales'               => 'INVOICE',
+        'invoice'             => 'INVOICE',
+        'purchase'            => 'BILL',
+        'bill'                => 'BILL',
+        'dispatch'            => 'INVOICE',
         'expense'             => 'JOURNAL',
         'entries'             => 'JOURNAL',
         'stockin'             => 'JOURNAL',
@@ -119,7 +119,7 @@ trait PostsToAccounting
         return [
             'docType'     => $docType,
             'isSales'     => $isSales,
-            'voucherType' => static::$voucherTypeMap[$docType] ?? ($isSales ? 'SALES' : 'PURCHASE'),
+            'voucherType' => static::$voucherTypeMap[$docType] ?? ($isSales ? 'INVOICE' : 'BILL'),
             'module'      => static::$moduleMap[$docType] ?? ucfirst($docType),
             'invoiceNo'   => $this->full_number ?? $this->invoice_number ?? $this->po_number ?? $this->ref_no ?? '---',
             'invoiceDate' => $this->invoice_date ?? $this->date_order ?? now(),
@@ -134,7 +134,7 @@ trait PostsToAccounting
             'partner'     => $partner,
             'partnerId'   => $this->partner_id ?? $this->vendor_id ?? $this->customer_id
                 ?? $this->transport_id ?? $this->transporter_id,
-            'narrationLabel' => JournalEntry::resolveNarrationLabel($hasPoNumber ? 'purchase_order' : $docType, static::$voucherTypeMap[$docType] ?? ($isSales ? 'SALES' : 'PURCHASE')),
+            'narrationLabel' => JournalEntry::resolveNarrationLabel($hasPoNumber ? 'purchase_order' : $docType, static::$voucherTypeMap[$docType] ?? ($isSales ? 'INVOICE' : 'BILL')),
         ];
     }
 

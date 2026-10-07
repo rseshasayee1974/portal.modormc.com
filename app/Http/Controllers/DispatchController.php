@@ -366,8 +366,6 @@ class DispatchController extends Controller
                     'partner_id'       => $partnerId,
                     'plant_id'         => $dispatch->plant_id,
                     'invoice_label'    => 'Dispatch',
-                    'document_type'    => 'INVOICE',
-                    'document_source'  => 'DISPATCH',
                     'is_tax_inclusive' => (bool)$dispatch->is_tax_inclusive,
                 ]);
                 $dispatch->invoice($invoice);

@@ -48,12 +48,17 @@ class RegisterReportColumns
         }
         $add('discount', 'Discount', 'number', 'discount');
         $add('taxable_amount', 'Taxable Amount', 'number', 'taxable');
+        if ($sales) {
+            $add('net_amount', 'Net Amount', 'number', 'grand_total');
+        }
         foreach ($taxColumns as $column) {
             $add('taxes.'.$column['key'], $column['label'], 'number', 'taxes.'.$column['key']);
         }
         $add('tax_amount', 'Total Tax', 'number', 'gst');
         $add('roundoff', 'Round Off', 'number', 'roundoff');
-        $add('net_amount', 'Net Amount', 'number', 'grand_total');
+        if (!$sales) {
+            $add('net_amount', 'Net Amount', 'number', 'grand_total');
+        }
         if ($view === 'detail') {
             if ($sales) {
                 $add('irn', 'IRN');
@@ -85,6 +90,7 @@ class RegisterReportColumns
         $add('discount', 'Discount', 'number', 'discount');
         $add('tax_name', 'Tax Name');
         $add('taxable_amount', 'Sales GST (Taxable)', 'number', 'taxable');
+        $add('net_amount', 'Net Amount', 'number', 'grand_total');
         foreach ($taxColumns as $column) {
             $add('taxes.'.$column['key'], $column['label'], 'number', 'taxes.'.$column['key']);
         }
@@ -92,7 +98,6 @@ class RegisterReportColumns
         $add('truck', 'Truck');
         $add('tax_amount', 'Total Tax', 'number', 'gst');
         $add('roundoff', 'Round Off', 'number', 'roundoff');
-        $add('net_amount', 'Net Amount', 'number', 'grand_total');
         $add('unloading', 'Unloading Point');
         $add('irn', 'IRN');
         $add('einvoice_status', 'E-Invoice Status');
@@ -162,14 +167,14 @@ class RegisterReportColumns
             'invoice_date', 'customer_name', 'address_1', 'address_2', 'city', 'zipcode',
             'shipping_address_1', 'shipping_address_2', 'shipping_zipcode', 'gst_number', 'payment_mode', 'invoice_no',
             'product_name', 'truck', 'hsn_code', 'qty', 'unit', 'rate',
-            'discount', 'tax_name', 'taxable_amount',
+            'discount', 'tax_name', 'taxable_amount', 'net_amount',
         ] as $key) {
             if (!isset($byKey[$key])) continue;
             $result[] = $byKey[$key];
             unset($byKey[$key]);
         }
         $ending = [];
-        foreach (['tax_amount', 'roundoff', 'net_amount', 'unloading', 'irn', 'einvoice_status', 'ack_date', 'cancel_at', 'created_by'] as $key) {
+        foreach (['tax_amount', 'roundoff', 'unloading', 'irn', 'einvoice_status', 'ack_date', 'cancel_at', 'created_by'] as $key) {
             if (!isset($byKey[$key])) continue;
             $ending[] = $byKey[$key];
             unset($byKey[$key]);

@@ -69,7 +69,11 @@ class LedgerReportService implements ReportServiceInterface
             if ($voucherTypeFilter === 'PAYMENT_RECEIPT' || $voucherTypeFilter === 'PAYMENT_AND_RECEIPT') {
                 $query->whereHas('entry', fn($q) => $q->whereIn('voucher_type', ['PAYMENT', 'RECEIPT']));
             } else {
-                $query->whereHas('entry', fn($q) => $q->where('voucher_type', $voucherTypeFilter));
+                $query->whereHas('entry', fn($q) => $q->whereIn('voucher_type', match ($voucherTypeFilter) {
+                    'INVOICE', 'SALES' => ['INVOICE', 'SALES'],
+                    'BILL', 'PURCHASE' => ['BILL', 'PURCHASE'],
+                    default => [$voucherTypeFilter],
+                }));
             }
         }
 
@@ -140,9 +144,9 @@ class LedgerReportService implements ReportServiceInterface
                 
                 if ($oppositeParty) {
                     $oppTitle = $oppositeParty;
-                } elseif ($vType === 'SALES' || $refModule === 'invoice') {
+                } elseif (in_array($vType, ['INVOICE', 'SALES'], true) || $refModule === 'invoice') {
                     $oppTitle = $coreOppLedger ?: 'Sales Account';
-                } elseif ($vType === 'PURCHASE' || $refModule === 'purchase') {
+                } elseif (in_array($vType, ['BILL', 'PURCHASE'], true) || in_array($refModule, ['bill', 'purchase'], true)) {
                     $oppTitle = $coreOppLedger ?: 'Purchase Account';
                 } else {
                     $oppTitle = $coreOppLedger ?: ($firstOppLedger ?: 'General Account');

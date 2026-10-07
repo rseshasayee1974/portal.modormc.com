@@ -6,8 +6,6 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreInvoiceRequest extends FormRequest
 {
-    use Concerns\ValidatesInvoiceClassification;
-
     public function authorize(): bool
     {
         return true;
@@ -15,7 +13,7 @@ class StoreInvoiceRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->prepareDocumentClassification();
+        $this->merge(['invoice_type' => \App\Support\InvoiceClassification::normalizeInvoiceType($this->input('invoice_type'))]);
         $plantId = (int)session('active_plant_id');
         $accountId = $this->input('account_id');
         $gen = \App\Models\Invoice::generateNumber(
@@ -48,8 +46,6 @@ class StoreInvoiceRequest extends FormRequest
             // 'journal_id'       => 'nullable|exists:mm_journal_entries,id',
             'invoice_type'     => 'required|in:Invoice,Bill,credit_note,debit_note',
             'invoice_label'    => 'nullable|string|max:100',
-            'document_type'    => 'nullable|in:INVOICE,BILL',
-            'document_source'  => 'nullable|in:DISPATCH,PURCHASE_STOCKIN,MANUAL',
             'ref_id'           => 'nullable|integer',
             'ref_title'        => 'nullable|string|max:255',
             // 'truck_id'         => 'nullable|exists:mm_machines,id',
@@ -122,6 +118,7 @@ class StoreInvoiceRequest extends FormRequest
             'global_discount_type' => 'nullable|in:%,₹',
             'global_discount'  => 'nullable|numeric|min:0',
             'adjustment'       => 'nullable|numeric',
+            'round_off'        => 'nullable|numeric',
             'shipping_charges' => 'nullable|numeric',
             'shipping_tax_id'  => 'nullable|exists:mm_taxes,id',
             'items'            => 'required|array|min:1',

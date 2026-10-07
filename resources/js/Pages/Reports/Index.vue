@@ -260,8 +260,8 @@ const ledgerVoucherFilterOptions = [
     { label: 'Payments & Receipts', value: 'PAYMENT_RECEIPT' },
     { label: 'Payments Only', value: 'PAYMENT' },
     { label: 'Receipts Only', value: 'RECEIPT' },
-    { label: 'Sales Invoices Only', value: 'SALES' },
-    { label: 'Purchase Bills Only', value: 'PURCHASE' },
+    { label: 'Sales Invoices Only', value: 'INVOICE' },
+    { label: 'Purchase Bills Only', value: 'BILL' },
 ];
 
 const getReportComponent = (type) => {

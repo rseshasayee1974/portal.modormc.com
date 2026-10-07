@@ -207,8 +207,6 @@ class PurchaseBillGenerator
             'account_id'       => $request->input('account_id'),
             'invoice_type'     => 'Bill',
             'invoice_label'    => 'purchase',
-            'document_type'    => 'BILL',
-            'document_source'  => 'PURCHASE_STOCKIN',
             'is_tax_inclusive' => (bool) $purchase_order->tax_inclusive,
             'ref_id'           => $purchase_order->id,
             'ref_title'        => $purchase_order->po_number ?? $purchase_order->ref_no,

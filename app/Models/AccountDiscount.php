@@ -92,9 +92,9 @@ class AccountDiscount extends Model
                         $refMod = strtolower($journal->ref_module ?? '');
                         $refId = property_exists($journal, 'ref_id') ? $journal->ref_id : null;
                         $hasInvoices = \Illuminate\Support\Facades\Schema::hasTable('mm_invoices');
-                        if ($model->primary_type === 'Sales' || $vType === 'SALES' || $refMod === 'invoice') {
+                        if ($model->primary_type === 'Sales' || in_array($vType, ['INVOICE', 'SALES'], true) || $refMod === 'invoice') {
                             $model->invoice_id = $refId ?: ($hasInvoices ? \Illuminate\Support\Facades\DB::table('mm_invoices')->where('journal_id', $model->journal_id)->value('id') : null);
-                        } elseif ($model->primary_type === 'Purchase' || $vType === 'PURCHASE' || $refMod === 'bill') {
+                        } elseif ($model->primary_type === 'Purchase' || in_array($vType, ['BILL', 'PURCHASE'], true) || $refMod === 'bill') {
                             $model->billing_id = $refId ?: ($hasInvoices ? \Illuminate\Support\Facades\DB::table('mm_invoices')->where('journal_id', $model->journal_id)->value('id') : null);
                         } elseif (in_array($vType, ['PAYMENT', 'RECEIPT']) || $refMod === 'payment') {
                             $model->payment_id = $refId;

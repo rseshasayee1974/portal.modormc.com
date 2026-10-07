@@ -41,6 +41,7 @@ class InvoiceController extends Controller
                 'label' => $t->tax_name,
                 'value' => $t->id,
                 'rate'  => $t->tax_rate,
+                'component_rates' => $t->children->pluck('tax_rate')->map(fn($rate) => (float) $rate)->all(),
             ]),
             'accounts' => toSelectOptions(LedgersDropdown('REVENUE'), 'title'),
             'mixdesign' => MixDesignsOptions(),
@@ -62,8 +63,6 @@ class InvoiceController extends Controller
             $fromDispatch = !empty($validated['dispatch_ids']);
             $validated['invoice_type'] = 'Invoice';
             $validated['invoice_label'] = $fromDispatch ? 'Dispatch' : 'Manual';
-            $validated['document_type'] = 'INVOICE';
-            $validated['document_source'] = $fromDispatch ? 'DISPATCH' : 'MANUAL';
             
             // Strictly enforce prefix from verified ledger configuration, preventing any client-side tampering
             $details = Invoice::generateNumber($plantId, $validated['invoice_type'] ?? 'Invoice', $validated['account_id'] ?? null);
@@ -151,7 +150,7 @@ class InvoiceController extends Controller
 
         $rawNumber = trim((string)$request->query('invoice_number', ''));
         $accountId = $request->query('account_id');
-        $type = $request->query('document_type', $request->query('invoice_type', 'Invoice'));
+        $type = $request->query('invoice_type', 'Invoice');
         $excludeId = $request->query('exclude_id');
 
         // Always strictly determine prefix from the ledger and plant configuration, never trust client input
@@ -232,7 +231,7 @@ class InvoiceController extends Controller
         $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
         $accountId = $request->query('account_id');
-        $type = $request->query('document_type', $request->query('invoice_type', 'Invoice'));
+        $type = $request->query('invoice_type', 'Invoice');
 
         $details = Invoice::generateNumber($plantId, $type, $accountId ? (int)$accountId : null);
 
@@ -278,14 +277,6 @@ class InvoiceController extends Controller
     public function outstanding(Request $request)
     {
         $this->authorizeModule('menu');
-        $classification = [];
-        if ($request->exists('document_type')) {
-            $classification['document_type'] = \App\Support\InvoiceClassification::normalizeType($request->input('document_type'));
-        }
-        if ($request->exists('document_source')) {
-            $classification['document_source'] = \App\Support\InvoiceClassification::normalizeSource($request->input('document_source'));
-        }
-        $request->merge($classification);
         $plantId = session('active_plant_id');
 // dd($request->all());
         $query = Invoice::where('plant_id', $plantId)
@@ -296,16 +287,9 @@ class InvoiceController extends Controller
             $query->where('partner_id', $request->partner_id);
         }
 
-        if ($request->filled('document_type')) {
-            $request->validate(['document_type' => 'required|in:INVOICE,BILL']);
-            $query->where('document_type', $request->document_type);
-        } elseif ($request->has('type')) {
+        if ($request->has('type') || $request->has('invoice_type')) {
             // 'sales' or 'bill'
-            $query->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases($request->type));
-        }
-        if ($request->filled('document_source')) {
-            $request->validate(['document_source' => 'required|in:DISPATCH,PURCHASE_STOCKIN,MANUAL']);
-            $query->where('document_source', $request->document_source);
+            $query->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases($request->input('invoice_type', $request->type)));
         }
 // dd($query->latest()->get());
         return response()->json($query->latest()->get());

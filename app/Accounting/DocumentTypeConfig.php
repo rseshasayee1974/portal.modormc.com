@@ -20,7 +20,7 @@ class DocumentTypeConfig
 {
     private const CONFIG = [
         'invoice' => [
-            'voucher_type'    => 'SALES',
+            'voucher_type'    => 'INVOICE',
             'partner_side'    => 'debit',    // AR: customer owes us
             'base_side'       => 'credit',   // Revenue credited
             'tax_side'        => 'credit',   // Output GST credited
@@ -29,7 +29,7 @@ class DocumentTypeConfig
             'module'          => 'Invoice',
         ],
         'bill' => [
-            'voucher_type'    => 'PURCHASE',
+            'voucher_type'    => 'BILL',
             'partner_side'    => 'credit',   // AP: we owe vendor
             'base_side'       => 'debit',    // Expense debited
             'tax_side'        => 'debit',    // Input GST debited

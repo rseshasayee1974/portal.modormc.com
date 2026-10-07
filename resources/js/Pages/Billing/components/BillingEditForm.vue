@@ -43,6 +43,7 @@ const form = useForm({
     invoice_date: props.invoice.invoice_date ? new Date(props.invoice.invoice_date) : null,
     due_date: props.invoice.due_date ? new Date(props.invoice.due_date) : null,
     period: props.invoice.period,
+    is_tax_inclusive: Boolean(props.invoice.is_tax_inclusive),
     global_discount_type: props.invoice.global_discount_type || '₹',
     global_discount: Number(props.invoice.global_discount) || 0,
     adjustment: Number(props.invoice.adjustment) || 0,
@@ -64,7 +65,8 @@ const form = useForm({
         discount_type: it.discount_type || '%',
         discount: Number(it.discount),
         subtotal: 0,
-        tax_amount: 0
+        tax_amount: 0,
+        total: 0
     }))
 });
 console.log('items',props.invoice);
@@ -80,7 +82,8 @@ function createNewItem() {
         discount_type: '%',
         discount: 0,
         subtotal: 0,
-        tax_amount: 0
+        tax_amount: 0,
+        total: 0
     };
 }
 
@@ -95,9 +98,14 @@ const removeItem = (index: number) => {
     }
 };
 
+const roundOffManuallySet = ref(false);
+let roundOffInitialized = false;
+
 const calculateTotals = () => {
     let untaxed = 0;
     let taxTotal = 0;
+
+    const isInclusive = Boolean(form.is_tax_inclusive);
 
     form.items.forEach(item => {
         const gross = (Number(item.quantity) || 0) * (Number(item.price_unit) || 0);
@@ -105,19 +113,31 @@ const calculateTotals = () => {
             ? (Number(item.discount) || 0) 
             : gross * ((Number(item.discount) || 0) / 100);
         
-        item.subtotal = gross - discount;
+        const net = gross - discount;
         
         // Calculate tax for this line
         const tax = props.taxes.find(t => t.value === item.tax_id);
         const rate = tax ? Number(tax.rate) : 0;
-        item.tax_amount = item.subtotal * (rate / 100);
+        const componentRates = tax?.component_rates?.length ? tax.component_rates : [rate];
+        const componentTax = (base: number) => Number(componentRates.reduce((sum: number, componentRate: number) => sum + Number((base * Number(componentRate) / 100).toFixed(2)), 0).toFixed(2));
+
+        if (isInclusive && rate > 0) {
+            const taxable = Number((net / (1 + (rate / 100))).toFixed(2));
+            item.tax_amount = componentTax(taxable);
+            item.subtotal = taxable;
+            item.total = Number(net.toFixed(2));
+        } else {
+            item.tax_amount = componentTax(Number(net.toFixed(2)));
+            item.subtotal = Number(net.toFixed(2));
+            item.total = Number((net + item.tax_amount).toFixed(2));
+        }
         
         untaxed += item.subtotal;
         taxTotal += item.tax_amount;
     });
 
-    form.amount_untaxed = untaxed;
-    form.amount_tax = taxTotal;
+    form.amount_untaxed = Number(untaxed.toFixed(2));
+    form.amount_tax = Number(taxTotal.toFixed(2));
     
     // Calculate global discount
     const globalDiscount = form.global_discount_type === '₹' 
@@ -133,8 +153,14 @@ const calculateTotals = () => {
     }
 
     const rawTotal = untaxed + form.amount_tax - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
-    form.amount_total = Math.round(rawTotal);
-    form.round_off = Number((form.amount_total - rawTotal).toFixed(2));
+    const inclusiveTotal = form.items.reduce((sum, item) => sum + item.total, 0) - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0) + (form.amount_tax - taxTotal);
+    const automaticRoundOff = Number(((isInclusive ? inclusiveTotal : Math.round(rawTotal)) - rawTotal).toFixed(2));
+    if (!roundOffInitialized) {
+        roundOffManuallySet.value = form.round_off !== 0 && form.round_off !== automaticRoundOff;
+        roundOffInitialized = true;
+    }
+    if (!roundOffManuallySet.value) form.round_off = automaticRoundOff;
+    form.amount_total = Number((rawTotal + (Number(form.round_off) || 0)).toFixed(2));
 };
 
 const onProductChange = (index: number) => {
@@ -150,7 +176,7 @@ const onProductChange = (index: number) => {
 };
 
 
-watch(() => [form.items, form.adjustment, form.shipping_charges, form.global_discount, form.global_discount_type, form.shipping_tax_id], calculateTotals, { deep: true, immediate: true });
+watch(() => [form.items, form.adjustment, form.shipping_charges, form.global_discount, form.global_discount_type, form.shipping_tax_id, form.is_tax_inclusive], calculateTotals, { deep: true, immediate: true });
 
 const submit = () => {
     form.put(route('billings.update', props.invoice.id), {
@@ -201,6 +227,12 @@ const invoiceTypeOptions = [
                 <!-- <BaseInput v-model="form.prefix" label="Prefix" /> -->
             </div>
 
+            <div class="flex items-center justify-end gap-3 py-3">
+                <button type="button" role="switch" :aria-checked="form.is_tax_inclusive" @click="form.is_tax_inclusive = !form.is_tax_inclusive" :class="form.is_tax_inclusive ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700'" class="rounded-lg border px-3 py-2 text-xs font-semibold">
+                    Tax Inclusive
+                </button>
+                <span v-if="form.is_tax_inclusive" class="text-xs text-emerald-700">Rates include GST</span>
+            </div>
             <!-- Items Table Area -->
             <div class="mt-6 border border-slate-100 rounded-sm shadow-sm overflow-hidden bg-white">
                 <div class="overflow-x-auto">
@@ -275,7 +307,7 @@ const invoiceTypeOptions = [
                                     </div>
                                 </td>
                                 <td class="p-2 text-sm text-right font-black text-slate-700">
-                                    {{ item.subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
+                                    {{ (form.is_tax_inclusive ? item.total : item.subtotal).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                 </td>
                                 <!-- <td class="p-2 text-center text-red-400">
                                     <button v-if="form.items.length > 1" type="button" @click="removeItem(index)" class="hover:text-rose-500 transition-colors">
@@ -324,7 +356,7 @@ const invoiceTypeOptions = [
                             <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                         </div>
                         <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
-                            <span>Tax Amount (+)</span>
+                            <span>Tax Amount ({{ form.is_tax_inclusive ? 'Extracted' : '+' }})</span>
                             <span class="text-slate-900">{{ form.amount_tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
                         </div>
                         <div class="flex justify-between items-center gap-4">
@@ -349,8 +381,8 @@ const invoiceTypeOptions = [
                             <BaseInputNumber v-model="form.adjustment" size="small" class="w-28" />
                         </div>
                         <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
-                            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off</span>
-                            <span class="text-slate-900 font-bold">{{ form.round_off > 0 ? '+' : '' }}{{ form.round_off.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off (+/-)</span>
+                            <BaseInputNumber v-model="form.round_off" @input="roundOffManuallySet = true; form.round_off = $event.value; calculateTotals()" @update:modelValue="roundOffManuallySet = true; calculateTotals()" :error="form.errors.round_off" size="small" class="w-28" :minFractionDigits="2" :maxFractionDigits="2" />
                             </div>
 
                         <div class="flex justify-between items-center border-t border-slate-200 pt-6 mt-6">

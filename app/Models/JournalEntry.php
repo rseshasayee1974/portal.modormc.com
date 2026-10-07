@@ -77,6 +77,15 @@ class JournalEntry extends Model
         });
     }
 
+    public function setVoucherTypeAttribute(?string $value): void
+    {
+        $this->attributes['voucher_type'] = match (strtoupper(trim($value ?? ''))) {
+            'SALES', 'INVOICE' => 'INVOICE',
+            'PURCHASE', 'BILL' => 'BILL',
+            default => $value,
+        };
+    }
+
     public function lines()
     {
         return $this->hasMany(JournalEntryLine::class, 'journal_entry_id');
@@ -120,8 +129,8 @@ class JournalEntry extends Model
             'stockout'                   => 'StockOut',
             'bank_reconciliation', 'brs' => 'Bank Reconciliation',
             default                      => match ($vType) {
-                'SALES'         => 'Sales',
-                'PURCHASE'      => 'Purchase',
+                'SALES', 'INVOICE' => 'Invoice',
+                'PURCHASE', 'BILL' => 'Purchase Bill',
                 'PAYMENT'       => 'Payment',
                 'RECEIPT'       => 'Receipt',
                 'JOURNAL', 'JV' => 'Manual Journal',

@@ -110,8 +110,8 @@ const selectedPartner = computed(() => {
 const journalOptions = computed(() => {
     const isSales = form.primary_type === 'Sales';
 
-    // Sales Discount: only show invoice numbers ('SALES' / ref_module 'invoice') and receipts ('RECEIPT')
-    // Purchase Discount: only show billing ('PURCHASE' / ref_module 'bill') and payments ('PAYMENT')
+    // Sales Discount: only show invoice numbers ('INVOICE' / ref_module 'invoice') and receipts ('RECEIPT')
+    // Purchase Discount: only show billing ('BILL' / ref_module 'bill') and payments ('PAYMENT')
     const filtered = props.journals.filter(j => {
         if (props.discount && j.id === props.discount.journal_id) {
             return true;
@@ -126,8 +126,8 @@ const journalOptions = computed(() => {
         const refMod = (j.ref_module || '').toLowerCase();
 
         const matchesType = isSales
-            ? (vType === 'SALES' || vType === 'RECEIPT' || refMod === 'invoice' || refMod === 'sales')
-            : (vType === 'PURCHASE' || vType === 'PAYMENT' || refMod === 'bill' || refMod === 'purchase');
+            ? (['INVOICE', 'SALES'].includes(vType) || vType === 'RECEIPT' || refMod === 'invoice' || refMod === 'sales')
+            : (['BILL', 'PURCHASE'].includes(vType) || vType === 'PAYMENT' || refMod === 'bill' || refMod === 'purchase');
 
         if (!matchesType) return false;
 
@@ -144,9 +144,9 @@ const journalOptions = computed(() => {
         const refMod = (j.ref_module || '').toLowerCase();
 
         let typeBadge = j.voucher_type;
-        if (vType === 'SALES' || refMod === 'invoice') typeBadge = 'Invoice';
+        if (['INVOICE', 'SALES'].includes(vType) || refMod === 'invoice') typeBadge = 'Invoice';
         else if (vType === 'RECEIPT') typeBadge = 'Receipt';
-        else if (vType === 'PURCHASE' || refMod === 'bill') typeBadge = 'Bill';
+        else if (['BILL', 'PURCHASE'].includes(vType) || refMod === 'bill') typeBadge = 'Bill';
         else if (vType === 'PAYMENT') typeBadge = 'Payment';
 
         const amount = getVoucherAmount(j);
@@ -190,11 +190,11 @@ watch(
 
             form.move_id = found?.id || newJournalId;
 
-            if (form.primary_type === 'Sales' || vType === 'SALES' || refMod === 'invoice') {
+            if (form.primary_type === 'Sales' || ['INVOICE', 'SALES'].includes(vType) || refMod === 'invoice') {
                 form.invoice_id = docId;
                 form.billing_id = null;
                 form.payment_id = null;
-            } else if (form.primary_type === 'Purchase' || vType === 'PURCHASE' || refMod === 'bill') {
+            } else if (form.primary_type === 'Purchase' || ['BILL', 'PURCHASE'].includes(vType) || refMod === 'bill') {
                 form.billing_id = docId;
                 form.invoice_id = null;
                 form.payment_id = null;

@@ -27,7 +27,7 @@ class Invoice extends Model implements Postable
 
     protected $fillable = [
         'plant_id', 'partner_id', 'account_id', 
-        'invoice_type', 'invoice_label', 'document_type', 'document_source', 'ref_id', 'ref_title',
+        'invoice_type', 'invoice_label', 'ref_id', 'ref_title',
         'invoice_number', 'prefix', 'invoice_date', 'due_date', 'period',
         'subtotal', 'global_discount_type', 'global_discount', 'discount_total', 'tax_amount', 'adjustment',
         'shipping_charges', 'shipping_tax_id',
@@ -169,7 +169,9 @@ class Invoice extends Model implements Postable
         });
 
         static::saving(function ($m) {
-            $m->normalizeDocumentClassification();
+            $m->invoice_type = \App\Support\InvoiceClassification::normalizeInvoiceType($m->invoice_type);
+            $m->document_type = null;
+            $m->document_source = null;
 
             if (empty($m->prefix)) {
                 $plantId = (int)($m->plant_id ?: session('active_plant_id') ?: 1);
@@ -262,39 +264,6 @@ class Invoice extends Model implements Postable
                 $dispatch->resetInvoice();
             }
         });
-    }
-
-    /** Keep legacy accounting/reporting fields in sync with the commercial classification. */
-    public function normalizeDocumentClassification(): void
-    {
-        $legacy = \App\Support\InvoiceClassification::fromLegacy($this->invoice_type, $this->invoice_label);
-        $type = ($this->isDirty('document_type') || !$this->isDirty('invoice_type')) && $this->document_type !== null
-            ? $this->document_type : $legacy['document_type'];
-        $source = ($this->isDirty('document_source') || (!$this->isDirty('invoice_label') && !$this->isDirty('invoice_type'))) && $this->document_source !== null
-            ? $this->document_source : $legacy['document_source'];
-        $type = \App\Support\InvoiceClassification::normalizeType($type);
-        $source = \App\Support\InvoiceClassification::normalizeSource($source);
-        if ($type !== null && $source === null) $source = 'MANUAL';
-        \App\Support\InvoiceClassification::validate($type, $source);
-
-        // Do not silently turn credit/debit notes into ordinary invoices or bills.
-        if ($type !== null && $legacy['document_type'] === null && !empty($this->invoice_type)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'document_type' => 'Credit/debit notes cannot be classified as an invoice or bill.',
-            ]);
-        }
-        if ($type !== null) {
-            $this->invoice_type = $type === 'BILL' ? 'Bill' : 'Invoice';
-            if ($source !== 'MANUAL' || $legacy['document_source'] !== $source || empty($this->invoice_label)) {
-                $this->invoice_label = match ($source) {
-                    'DISPATCH' => 'Dispatch',
-                    'PURCHASE_STOCKIN' => 'purchase',
-                    default => 'Manual',
-                };
-            }
-        }
-        $this->document_type = $type;
-        $this->document_source = $source;
     }
 
     // ------------------------------------------------------------------ business logic
@@ -404,15 +373,16 @@ class Invoice extends Model implements Postable
         
         // Add shipping charges to total
         $rawTotal       = $subtotal + $taxAmount - $globalDiscount + $this->adjustment + ($this->shipping_charges ?? 0);
-        $roundOff       = 0.0;
+        $roundOff       = round((float) ($this->round_off ?? 0), 2);
+        $totalAmount    = round($rawTotal + $roundOff, 2);
 
         $this->updateQuietly([
             'subtotal'       => $subtotal,
             'discount_total' => $discountTotal,
             'tax_amount'     => $taxAmount,
-            'total_amount'   => $rawTotal,
+            'total_amount'   => $totalAmount,
             'round_off'      => $roundOff,
-            'balance_amount' =>  $rawTotal - (float)($this->paid_amount ?? 0),
+            'balance_amount' => $totalAmount - (float)($this->paid_amount ?? 0),
         ]);
     }
 
@@ -633,6 +603,28 @@ class Invoice extends Model implements Postable
         } else {
             $this->orderTaxes()->forceDelete();
         }
+
+        // Component amounts are rounded independently. Keep line/header tax and
+        // round off consistent with those amounts while preserving the agreed total.
+        $items = $this->items()->get();
+        foreach ($items as $item) {
+            $splits = $this->orderTaxes()->where('order_items_id', $item->id)->get();
+            if ($splits->isNotEmpty()) {
+                $item->updateQuietly(['line_tax_amount' => round((float) $splits->sum('amount'), 2)]);
+            }
+        }
+        if ($items->isNotEmpty()) {
+            $taxAmount = round((float) $items->sum('line_tax_amount'), 2);
+            $globalDiscount = $this->global_discount_type === '%'
+                ? (float) $this->subtotal * ((float) $this->global_discount / 100)
+                : (float) $this->global_discount;
+            $beforeRound = (float) $this->subtotal + $taxAmount - $globalDiscount
+                + (float) $this->adjustment + (float) $this->shipping_charges;
+            $this->updateQuietly([
+                'tax_amount' => $taxAmount,
+                'round_off' => round((float) $this->total_amount - $beforeRound, 2),
+            ]);
+        }
     }
 
     /**
@@ -761,8 +753,6 @@ class Invoice extends Model implements Postable
                 'account_id'       => $params['account_id'] ?? null,
                 'invoice_type'     => $type,
                 'invoice_label'    => $params['invoice_label'] ?? ($type === 'Bill' ? 'Purchase' : 'Dispatch'),
-                'document_type'    => $type === 'Bill' ? 'BILL' : 'INVOICE',
-                'document_source'  => $type === 'Bill' ? 'PURCHASE_STOCKIN' : 'DISPATCH',
                 'is_tax_inclusive' => $isTaxInclusive,
                 'ref_id'           => $source->id,
                 'ref_title'        => null,
@@ -810,6 +800,12 @@ class Invoice extends Model implements Postable
 
             // Refresh the invoice model to load the recalculated totals from DB
             $invoice->refresh();
+
+            // Item save events must not replace the source document's agreed total.
+            $invoice->updateQuietly([
+                'total_amount' => $totalAmount,
+                'balance_amount' => round($totalAmount - (float) $invoice->paid_amount, 2),
+            ]);
 
             // 3. Tax Splits and Automated Accounting Posting
             if ($invoice->status === self::STATUS_APPROVED || $invoice->status === self::STATUS_PAID) {

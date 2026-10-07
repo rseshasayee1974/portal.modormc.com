@@ -205,7 +205,7 @@ class SalesReportService implements ReportServiceInterface
                 'dispatch_time'        => $dispatchDate->format('H:i:s'),
                 'dispatch_no'          => $dispatchNo,
                 'dispatch_reference'   => $row->dispatch_reference ?: '-',
-                'voucher_type'         => 'SALES',
+                'voucher_type'         => 'INVOICE',
                 'voucher_no'           => $invNum ?: $dispatchNo,
                 
                 // Invoiced details
