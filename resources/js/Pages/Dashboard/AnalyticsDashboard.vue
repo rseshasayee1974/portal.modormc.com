@@ -4,7 +4,7 @@ import { entityLocaleDateTime } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import { computed, onMounted, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
+import { computed, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
 import axios from 'axios';
 import { usePage } from '@inertiajs/vue3';
@@ -59,9 +59,8 @@ const loading = computed(() => {
 
 const errorMessage = ref('');
 const lastUpdated = ref(props.initialData?.generated_at || '');
-const pollIntervalMs = 30000;
-let pollTimer = null;
-let filterTimer = null;
+const filtersChanged = ref(false);
+let refreshController = null;
 
 const filterForm = ref({
     start_date: props.filters.start_date,
@@ -341,125 +340,56 @@ function applyDashboardPayload(data = {}) {
     customerLeaderboard.value = data.customer_leaderboard || [];
     stockSnapshot.value = data.stock_snapshot || [];
     recentTransactions.value = data.recent_transactions || [];
-    lastUpdated.value = data.generated_at || new Date().toISOString();
+    lastUpdated.value = data.generated_at || '';
 }
 
-const fetchDashboardData = async ({ silent = false, refresh = false } = {}) => {
+const fetchDashboardData = async () => {
+    if (loading.value || !activePlant.value) return;
     errorMessage.value = '';
+    const params = { ...queryParams.value, refresh: true };
+    const requestedFilters = JSON.stringify(queryParams.value);
+    const controller = new AbortController();
+    refreshController = controller;
+    const sectionLoading = [metricsLoading, financeLoading, dispatchLoading, leaderboardLoading, stockLoading, activityLoading];
+    sectionLoading.forEach((state) => { state.value = true; });
 
-    const params = { ...queryParams.value };
-    if (refresh) {
-        params.refresh = true;
-    }
-
-    const handleError = (error) => {
+    try {
+        const { data } = await axios.get(route('dashboard.data'), {
+            params,
+            signal: controller.signal,
+            timeout: 120000,
+        });
+        if (controller.signal.aborted) return;
+        // A changed filter must not receive results for the previous selection.
+        if (requestedFilters !== JSON.stringify(queryParams.value)) return;
+        applyDashboardPayload(data);
+        filtersChanged.value = false;
+    } catch (error) {
+        if (axios.isCancel(error)) return;
         if (error?.response?.status === 401 || error?.response?.status === 419) {
-            if (pollTimer) clearInterval(pollTimer);
             window.location.href = '/login';
+            return;
         }
-        console.error('Failed to fetch dashboard component data', error);
-        errorMessage.value = 'Unable to refresh some live dashboard data right now.';
-    };
-
-    const loadMetrics = async () => {
-        if (!silent) metricsLoading.value = true;
-        try {
-            const { data } = await axios.get(route('dashboard.data.metrics'), { params });
-            metrics.value = data.metrics;
-        } catch (error) {
-            handleError(error);
-        } finally {
-            metricsLoading.value = false;
-        }
-    };
-
-    const loadFinanceTrend = async () => {
-        if (!silent) financeLoading.value = true;
-        try {
-            const { data } = await axios.get(route('dashboard.data.finance-trend'), { params });
-            financeTrend.value = data.finance_trend;
-        } catch (error) {
-            handleError(error);
-        } finally {
-            financeLoading.value = false;
-        }
-    };
-
-    const loadDispatchStatus = async () => {
-        if (!silent) dispatchLoading.value = true;
-        try {
-            const { data } = await axios.get(route('dashboard.data.dispatch-status'), { params });
-            dispatchStatus.value = data.dispatch_status;
-        } catch (error) {
-            handleError(error);
-        } finally {
-            dispatchLoading.value = false;
-        }
-    };
-
-    const loadCustomerLeaderboard = async () => {
-        if (!silent) leaderboardLoading.value = true;
-        try {
-            const { data } = await axios.get(route('dashboard.data.customer-leaderboard'), { params });
-            customerLeaderboard.value = data.customer_leaderboard;
-        } catch (error) {
-            handleError(error);
-        } finally {
-            leaderboardLoading.value = false;
-        }
-    };
-
-    const loadStock = async () => {
-        if (!silent) stockLoading.value = true;
-        try {
-            const { data } = await axios.get(route('dashboard.data.stock'), { params });
-            stockSnapshot.value = data.stock_snapshot;
-        } catch (error) {
-            handleError(error);
-        } finally {
-            stockLoading.value = false;
-        }
-    };
-
-    const loadRecentActivity = async () => {
-        if (!silent) activityLoading.value = true;
-        try {
-            const { data } = await axios.get(route('dashboard.data.recent-activity'), { params });
-            recentTransactions.value = data.recent_transactions;
-        } catch (error) {
-            handleError(error);
-        } finally {
-            activityLoading.value = false;
-        }
-    };
-
-    await Promise.all([
-        loadMetrics(),
-        loadFinanceTrend(),
-        loadDispatchStatus(),
-        loadCustomerLeaderboard(),
-        loadStock(),
-        loadRecentActivity(),
-    ]);
-    lastUpdated.value = new Date().toISOString();
+        errorMessage.value = error?.response?.status === 422
+            ? 'Check the selected date range, then click Refresh data again.'
+            : 'Unable to refresh dashboard data. Please try again.';
+    } finally {
+        sectionLoading.forEach((state) => { state.value = false; });
+        if (refreshController === controller) refreshController = null;
+    }
 };
 
 watch(
     () => [filterForm.value.start_date, filterForm.value.end_date, filterForm.value.patron_id],
     () => {
-        if (filterTimer) clearTimeout(filterTimer);
-        filterTimer = setTimeout(() => fetchDashboardData(), 250);
+        filtersChanged.value = true;
+        refreshController?.abort();
+        applyDashboardPayload();
     }
 );
 
-onMounted(() => {
-    fetchDashboardData({ silent: true });
-    pollTimer = setInterval(() => fetchDashboardData({ silent: true }), pollIntervalMs);
-});
-
 onUnmounted(() => {
-    if (pollTimer) clearInterval(pollTimer);
-    if (filterTimer) clearTimeout(filterTimer);
+    refreshController?.abort();
 });
 
 function normalizeDate(value) {
@@ -494,7 +424,7 @@ function formatNumber(value, digits = 0) {
 }
 
 function formatDateTime(value) {
-    if (!value) return 'Just now';
+    if (!value) return 'Not loaded';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return entityLocaleDateTime(value, APP_LOCALE, {
@@ -547,17 +477,28 @@ function formatDateTime(value) {
                         <button
                             type="button"
                             class="inline-flex items-center justify-center p-2.5 rounded-xl bg-slate-950 text-white hover:bg-slate-800 transition shadow-md"
-                            @click="fetchDashboardData({ refresh: true })"
+                            :disabled="loading || !activePlant"
+                            @click="fetchDashboardData"
                         >
                             <ArrowPathIcon class="size-4" :class="loading ? 'animate-spin' : ''" />
+                            {{ loading ? 'Refreshing...' : 'Refresh data' }}
                         </button>
                     </div>
                 </header>
+
+                <p class="mb-4 text-sm text-slate-500" role="status">
+                    <template v-if="!activePlant">Select a plant to load dashboard data.</template>
+                    <template v-else-if="loading">Refreshing dashboard data. You can continue using the portal.</template>
+                    <template v-else-if="filtersChanged">Filters changed. Click Refresh data to load this selection.</template>
+                    <template v-else-if="!lastUpdated">Click Refresh data to load the dashboard. Data updates only when you refresh.</template>
+                    <template v-else>Showing cached data from {{ formatDateTime(lastUpdated) }}. Click Refresh data for the latest figures.</template>
+                </p>
 
                 <div v-if="errorMessage" class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
                     {{ errorMessage }}
                 </div>
 
+                <template v-if="lastUpdated || loading">
                 <!-- SECTION 1: Top Soft-Colored KPI Cards (Screenshot 1 top row) -->
                 <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <template v-if="metricsLoading">
@@ -1023,6 +964,7 @@ function formatDateTime(value) {
                     </div>
                 </section>
 
+                </template>
             </div>
         </div>
     </AppLayout>

@@ -580,7 +580,7 @@ const toggleFilterPopover = (event: any) => {
 /* Row expansion cell */
 :deep(.p-datatable .p-datatable-tbody > tr.base-datatable-expanded-row > td),
 :deep(.p-datatable.p-datatable-striped .p-datatable-tbody > tr.base-datatable-expanded-row > td) {
-    background: #e0e7ff !important;
+    background: #e0ecff !important;
     border-color: #c7d2fe !important;
 }
 

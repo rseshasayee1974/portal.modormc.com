@@ -46,6 +46,7 @@ package.json
 !/tests/Standalone/purchase-conversion-billing.php
 !/tests/Standalone/dispatch-whatsapp.php
 !/tests/Standalone/dashboard-date-range.php
+!/tests/Standalone/dashboard-manual-refresh.php
 !/tests/Standalone/bulk-document-pdf.php
 !/tests/Standalone/bulk-document-zip.php
 Homestead.json

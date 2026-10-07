@@ -59,15 +59,7 @@ class SalesReportService implements ReportServiceInterface
                   ->orWhere('d.dispatch_status', '!=', 'Cancelled');
             });
 
-        // Date filter matching dispatch_time or invoice_date or fallback to created_at
-        $query->where(function ($q) use ($start, $end) {
-            $q->whereBetween('d.dispatch_time', [$start, $end])
-              ->orWhereBetween('inv.invoice_date', [$start, $end])
-              ->orWhere(function ($sq) use ($start, $end) {
-                  $sq->whereNull('d.dispatch_time')
-                     ->whereBetween('d.created_at', [$start, $end]);
-              });
-        });
+        $query->whereBetween('d.dispatch_time', [$start, $end]);
 
         // Filter by customer/party if requested
         if ($patronId) {
@@ -157,7 +149,8 @@ class SalesReportService implements ReportServiceInterface
             'einv_rel.einv_irn',
             'einv_rel.einv_status',
         ])
-        ->orderByRaw('COALESCE(d.dispatch_time, d.created_at) ASC')
+        ->orderBy('d.dispatch_time', 'ASC')
+        ->orderBy('b.batch_no', 'ASC')
         ->orderBy('d.id', 'ASC')
         ->get();
 
@@ -170,9 +163,7 @@ class SalesReportService implements ReportServiceInterface
             $invDate = $row->invoice_date ?? $row->status_invoice_date;
             $formattedInvDate = $invDate ? Carbon::parse($invDate)->format('d-M-Y') : null;
 
-            $dispatchDate = $row->dispatch_time 
-                ? Carbon::parse($row->dispatch_time) 
-                : ($row->dispatch_updated_at ? Carbon::parse($row->dispatch_updated_at) : now());
+            $dispatchDate = Carbon::parse($row->dispatch_time);
 
             $createdAt = $row->dispatch_created_at ? Carbon::parse($row->dispatch_created_at)->format('d-M-Y H:i') : '';
 

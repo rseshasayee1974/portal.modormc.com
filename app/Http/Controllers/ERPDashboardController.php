@@ -41,10 +41,8 @@ class ERPDashboardController extends Controller
         $initialData = $this->emptyPayload();
         if ($plantId) {
             $cacheKey = $this->getCacheKey('full', $plantId, $request);
-            if ($request->boolean('refresh')) {
-                Cache::forget($cacheKey);
-            }
-            $initialData = Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId));
+            // Page navigation must never wait for the report queries.
+            $initialData = Cache::get($cacheKey, $initialData);
         }
 
         return Inertia::render('Dashboard/Dashboard', [
@@ -78,10 +76,7 @@ class ERPDashboardController extends Controller
         $initialData = $this->emptyPayload();
         if ($plantId) {
             $cacheKey = $this->getCacheKey('full', $plantId, $request);
-            if ($request->boolean('refresh')) {
-                Cache::forget($cacheKey);
-            }
-            $initialData = Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId));
+            $initialData = Cache::get($cacheKey, $initialData);
         }
 
         return Inertia::render('Dashboard/AnalyticsDashboard', [
@@ -112,10 +107,12 @@ class ERPDashboardController extends Controller
 
         $cacheKey = $this->getCacheKey('full', $plantId, $request);
         if ($request->boolean('refresh')) {
-            Cache::forget($cacheKey);
+            // Keep the previous snapshot available until a successful refresh.
+            $payload = $this->buildDashboardPayload($plantId, $start, $end, $patronId);
+            Cache::put($cacheKey, $payload, now()->addMinutes(5));
+        } else {
+            $payload = Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId));
         }
-
-        $payload = Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId));
 
         return response()->json($payload);
     }
@@ -780,13 +777,14 @@ class ERPDashboardController extends Controller
 
     private function getCacheKey(string $endpoint, int $plantId, Request $request): string
     {
+        [$start, $end] = $this->resolveDateRange($request->input('start_date'), $request->input('end_date'));
         $filters = [
-            'start_date' => $request->input('start_date'),
-            'end_date' => $request->input('end_date'),
-            'patron_id' => $request->input('patron_id'),
+            'start_date' => $start->toDateTimeString(),
+            'end_date' => $end->toDateTimeString(),
+            'patron_id' => $request->filled('patron_id') ? (int) $request->input('patron_id') : null,
         ];
         return sprintf(
-            'erp.dashboard.datetime.v2.%s.%d.%d.%s',
+            'erp.dashboard.datetime.v3.%s.%d.%d.%s',
             $endpoint,
             auth()->id(),
             $plantId,
@@ -797,7 +795,7 @@ class ERPDashboardController extends Controller
     private function emptyPayload(): array
     {
         return [
-            'generated_at' => now()->toIso8601String(),
+            'generated_at' => null,
             'metrics' => [],
             'module_cards' => [],
             'finance_trend' => ['labels' => [], 'series' => []],
