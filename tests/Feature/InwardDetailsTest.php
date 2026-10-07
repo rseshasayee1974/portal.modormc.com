@@ -130,7 +130,7 @@ class InwardDetailsTest extends TestCase
     {
         $this->updateDetails(['convert_volume' => 4.5, 'conversion_quantity' => 999])->assertSessionHasNoErrors();
         $this->assertEquals(4.5, $this->inward->fresh()->convert_volume);
-        $this->assertEquals(2.2222, $this->inward->fresh()->conversion_quantity);
+        $this->assertEquals(2.22, $this->inward->fresh()->conversion_quantity);
         $this->assertEquals(10, $this->stock->fresh()->quantity);
         $this->updateDetails(['received_qty' => 18])->assertSessionHasNoErrors();
         $this->assertEquals(4, $this->inward->fresh()->conversion_quantity);
@@ -138,8 +138,8 @@ class InwardDetailsTest extends TestCase
         $this->updateDetails(['convert_volume' => null])->assertSessionHasNoErrors();
         $this->assertNull($this->inward->fresh()->convert_volume);
         $this->assertEquals(4, $this->inward->fresh()->conversion_quantity);
-        $this->updateDetails(['convert_volume' => null, 'conversion_quantity' => 6])->assertSessionHasNoErrors();
-        $this->assertEquals(6, $this->inward->fresh()->conversion_quantity);
+        $this->updateDetails(['convert_volume' => null, 'conversion_quantity' => 6.127])->assertSessionHasNoErrors();
+        $this->assertEquals(6.13, $this->inward->fresh()->conversion_quantity);
         $this->assertEquals(18, $this->stock->fresh()->quantity);
         $this->updateDetails(['convert_volume' => 0])->assertSessionHasErrors('convert_volume');
         $this->updateDetails(['convert_volume' => -1])->assertSessionHasErrors('convert_volume');

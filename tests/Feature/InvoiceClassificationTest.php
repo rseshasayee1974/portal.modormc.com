@@ -187,6 +187,11 @@ class InvoiceClassificationTest extends TestCase
                 ['bill', 'BILL', 'PURCHASE_STOCKIN', true],
                 ['sales', 'INVOICE', 'DISPATCH', true],
                 ['bill', 'BILL', 'MANUAL', true],
+                ['Bill', 'Bill', 'Manual', true],
+                ['Invoice', 'Invoice', 'Manual', true],
+                ['Invoice', ' Invoice ', ' Dispatch ', true],
+                ['Bill', 'bill', 'purchase_stockin', true],
+                ['Bill', 'Bill', 'Dispatch', false],
                 ['bill', 'BILL', 'DISPATCH', false],
                 ['sales', 'BILL', 'MANUAL', false],
                 ['sales', 'INVOICE', 'OTHER', false],
@@ -199,6 +204,53 @@ class InvoiceClassificationTest extends TestCase
                 $request->withValidator($validator);
                 $this->assertSame($passes, $validator->passes(), $class.' '.$type.' '.$source);
             }
+        }
+    }
+
+    public function test_display_labels_normalize_and_document_only_requests_infer_bill_type(): void
+    {
+        foreach ([StoreInvoiceRequest::class, UpdateInvoiceRequest::class] as $class) {
+            $request = $class::create('/', 'POST', ['document_type' => ' Bill ', 'document_source' => ' Manual ']);
+            (new \ReflectionMethod($request, 'prepareDocumentClassification'))->invoke($request);
+            $rules = array_intersect_key($request->rules(), array_flip(['invoice_type', 'document_type', 'document_source']));
+            $validator = Validator::make($request->all(), $rules);
+            $request->withValidator($validator);
+            $this->assertTrue($validator->passes(), json_encode($validator->errors()->all()));
+            $this->assertSame('Bill', $request->input('invoice_type'));
+            $this->assertSame('BILL', $request->input('document_type'));
+            $this->assertSame('MANUAL', $request->input('document_source'));
+        }
+        $invoice = new Invoice(['invoice_type' => 'Bill', 'document_type' => ' Bill ', 'document_source' => ' Manual ']);
+        $invoice->normalizeDocumentClassification();
+        $this->assertSame('BILL', $invoice->document_type);
+        $this->assertSame('MANUAL', $invoice->document_source);
+        $this->assertSame('Manual', $invoice->invoice_label);
+    }
+
+    public function test_invoice_manual_outstanding_filter_accepts_display_labels(): void
+    {
+        Schema::create('mm_invoices', function (Blueprint $table) {
+            $table->id();
+            $table->integer('plant_id')->nullable();
+            $table->string('status');
+            $table->decimal('balance_amount');
+            $table->string('document_type');
+            $table->string('document_source');
+            $table->softDeletes();
+            $table->timestamps();
+        });
+        try {
+            $controller = new class extends \App\Http\Controllers\InvoiceController {
+                protected function authorizeModule(string $action, ?string $module = null): void {}
+            };
+            foreach (['Invoice' => 'INVOICE', 'Bill' => 'BILL'] as $label => $canonical) {
+                $request = \Illuminate\Http\Request::create('/', 'GET', ['document_type' => $label, 'document_source' => 'Manual']);
+                $controller->outstanding($request);
+                $this->assertSame($canonical, $request->input('document_type'));
+                $this->assertSame('MANUAL', $request->input('document_source'));
+            }
+        } finally {
+            Schema::drop('mm_invoices');
         }
     }
 

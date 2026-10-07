@@ -9,6 +9,16 @@ final class InvoiceClassification
     public const TYPES = ['INVOICE', 'BILL'];
     public const SOURCES = ['DISPATCH', 'PURCHASE_STOCKIN', 'MANUAL'];
 
+    public static function normalizeType(mixed $value): mixed
+    {
+        return is_string($value) ? strtoupper(trim($value)) : $value;
+    }
+
+    public static function normalizeSource(mixed $value): mixed
+    {
+        return is_string($value) ? strtoupper(trim($value)) : $value;
+    }
+
     /** Historical values remain readable while all new writes use Invoice / Bill. */
     public static function aliases(string $type): array
     {

@@ -230,11 +230,7 @@ const saveInwardDetails = () => {
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
                 <BaseSelect :model-value="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required disabled :error="detailsErrors.uom_id" />
                 <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
-                <div class="space-y-1">
-                    <label :for="'inward-conversion-' + data.id" class="text-xs font-medium text-slate-600">Converted quantity</label>
-                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number" min="0" step="0.01" :disabled="isBilled || detailsSaving" class="w-full border border-slate-300 rounded-md text-sm" />
-                    <p v-if="detailsErrors.conversion_quantity" class="text-xs text-red-600">{{ detailsErrors.conversion_quantity }}</p>
-                </div>
+                <BaseInputNumber :model-value="Number(data.conversion_quantity || 0)" @update:model-value="data.conversion_quantity = $event" label="Converted quantity" :min="0" :minFractionDigits="2" :maxFractionDigits="2" :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_quantity" />
             </div>
             <!-- <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <p class="text-xs text-slate-500">Received UOM is fixed when the inward is created and cannot be changed. <span v-if="isBilled">Void the linked bills before changing receipt quantities or conversion units.</span></p>
@@ -254,7 +250,7 @@ const saveInwardDetails = () => {
                     <BaseDatePicker v-model="billForm.due_date" label="Due date" :disabled="formBusy" :error="detailsErrors['bill.due_date']" />
                     <BaseInputNumber v-model="billForm.unit_price" :label="`Rate per ${billingUomLabel}`" :min="0" :minFractionDigits="2" :maxFractionDigits="2" required :disabled="formBusy" :error="detailsErrors['bill.unit_price']" />
                 </div>
-                <p class="text-xs text-indigo-600">Bill quantity: {{ Number(billsConvertedQuantity ? data.conversion_quantity : data.received_qty).toLocaleString(APP_LOCALE) }} {{ billingUomLabel }} ({{ billsConvertedQuantity ? 'converted quantity' : 'received quantity' }}).</p>
+                <p class="text-xs text-indigo-600">Bill quantity: {{ Number(billsConvertedQuantity ? data.conversion_quantity : data.received_qty).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{ billingUomLabel }} ({{ billsConvertedQuantity ? 'converted quantity' : 'received quantity' }}).</p>
                 <!-- <p class="text-xs text-indigo-600">{{ data.order?.tax_inclusive ? 'The rate includes tax.' : 'Tax is added to the rate.' }} Purchase order discounts and charges apply.</p> -->
             </template>
         </div>
@@ -403,7 +399,7 @@ const saveInwardDetails = () => {
                     <div class="my-1 flex items-baseline gap-1">
                         <span class="text-base font-black text-indigo-800 font-mono">
                             {{ Number(data.conversion_quantity || 0).toLocaleString(APP_LOCALE, {
-                                minimumFractionDigits: 2, maximumFractionDigits: 4
+                                minimumFractionDigits: 2, maximumFractionDigits: 2
                             }) }}
                         </span>
                         <span class="text-[10px] font-extrabold text-indigo-600 uppercase">{{

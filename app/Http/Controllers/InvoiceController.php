@@ -278,6 +278,14 @@ class InvoiceController extends Controller
     public function outstanding(Request $request)
     {
         $this->authorizeModule('menu');
+        $classification = [];
+        if ($request->exists('document_type')) {
+            $classification['document_type'] = \App\Support\InvoiceClassification::normalizeType($request->input('document_type'));
+        }
+        if ($request->exists('document_source')) {
+            $classification['document_source'] = \App\Support\InvoiceClassification::normalizeSource($request->input('document_source'));
+        }
+        $request->merge($classification);
         $plantId = session('active_plant_id');
 // dd($request->all());
         $query = Invoice::where('plant_id', $plantId)

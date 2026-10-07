@@ -225,7 +225,7 @@ class PurchaseOrderInwardController extends Controller
                     'uom_id' => $item->product_uom,
                     'used_quantity' => $newReceivedQty,
                     'received_qty' => $acceptedQty,
-                    'conversion_quantity' => $convQty ?? 0,
+                    'conversion_quantity' => round($convQty ?? 0, 2),
                     'convert_volume' => $convertVolume,
                     'conversion_uom_id' => $convUomId,
                     'unit_price' => $item->unit_price,
@@ -416,9 +416,9 @@ class PurchaseOrderInwardController extends Controller
                 $inward->convert_volume = $validated['convert_volume'];
             }
             if ((float) $inward->convert_volume > 0 && ($diff != 0 || array_key_exists('convert_volume', $validated) || array_key_exists('conversion_quantity', $validated))) {
-                $inward->conversion_quantity = round($newReceivedQty / (float) $inward->convert_volume, 4);
+                $inward->conversion_quantity = round($newReceivedQty / (float) $inward->convert_volume, 2);
             } elseif (array_key_exists('conversion_quantity', $validated) && $validated['conversion_quantity'] !== null) {
-                $inward->conversion_quantity = (float)$validated['conversion_quantity'];
+                $inward->conversion_quantity = round((float)$validated['conversion_quantity'], 2);
             } elseif ($diff != 0 && $inward->product && (float)$inward->product->conversion_quantity > 0) {
                 $itemUom = \App\Models\ProductUnit::find($receivedUomId);
                 
@@ -435,7 +435,7 @@ class PurchaseOrderInwardController extends Controller
                     case 'TONNES':
                     case 'METRIC TON':
                     case 'TONS':
-                        $inward->conversion_quantity = $newReceivedQty;
+                        $inward->conversion_quantity = round($newReceivedQty, 2);
                         if (!array_key_exists('conversion_uom_id', $validated)) {
                             $inward->conversion_uom_id = $receivedUomId;
                         }
@@ -445,7 +445,7 @@ class PurchaseOrderInwardController extends Controller
                     case 'UNT/UNT':
                     case 'UNIT':
                     default:
-                        $inward->conversion_quantity = $newReceivedQty / (float)$inward->product->conversion_quantity;
+                        $inward->conversion_quantity = round($newReceivedQty / (float)$inward->product->conversion_quantity, 2);
                         break;
                 }
             }

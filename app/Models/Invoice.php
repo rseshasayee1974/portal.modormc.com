@@ -272,6 +272,8 @@ class Invoice extends Model implements Postable
             ? $this->document_type : $legacy['document_type'];
         $source = ($this->isDirty('document_source') || (!$this->isDirty('invoice_label') && !$this->isDirty('invoice_type'))) && $this->document_source !== null
             ? $this->document_source : $legacy['document_source'];
+        $type = \App\Support\InvoiceClassification::normalizeType($type);
+        $source = \App\Support\InvoiceClassification::normalizeSource($source);
         if ($type !== null && $source === null) $source = 'MANUAL';
         \App\Support\InvoiceClassification::validate($type, $source);
 
