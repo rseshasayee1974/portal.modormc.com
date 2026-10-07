@@ -152,6 +152,13 @@ const saveInwardDetails = () => {
     if (data.value._loaded_snap) payload.loaded_weight_photo = data.value._loaded_snap;
     if (data.value._empty_snap) payload.empty_weight_photo = data.value._empty_snap;
     if (generateBill.value && canBillInward.value) {
+        detailsErrors.value = {};
+        if (!billForm.value.unit_price || Number(billForm.value.unit_price) <= 0) {
+            detailsErrors.value = {
+                'bill.unit_price': 'The rate must be greater than 0.'
+            };
+            return;
+        }
         payload.generate_bill = true;
         payload.bill = { ...billForm.value };
     }
@@ -175,62 +182,35 @@ const saveInwardDetails = () => {
 <template>
     <form :id="`inward-edit-${data.id}`" @submit.prevent="saveInwardDetails" class="space-y-2">
         <!-- Header & Action Toolbar -->
-        <!-- <div
-            class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-200/80 bg-white p-2.5 rounded-lg border border-slate-200">
-            <div class="flex items-center gap-2.5">
-                <div
-                    class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-xs">
-                    <ScaleIcon class="w-4 h-4" />
-                </div>
-                <div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <h3 class="text-xs font-black text-slate-800 uppercase tracking-tight">Weighment Station</h3>
-                        <span class="text-[10px] font-mono text-slate-500 font-bold">GRN: {{ data.inward_no
-                        }}</span>
-                        <span class="text-[10px] text-slate-500 font-bold">• Truck: {{ truckLabel }}</span>
-                        <span v-if="Number(data.truck_loaded || 0) > 0 && Number(data.truck_empty || 0) > 0"
-                            class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">
-                            Completed
-                        </span>
-                        <span v-else
-                            class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-200 animate-pulse">
-                            Pending Weigh-out
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2 shrink-0"> -->
-                <!-- <a :href="route('inwards.receipt', data.id)" target="_blank"
-                    class="px-3 py-1.5 rounded-md font-bold text-[10px] uppercase flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all text-decoration-none"
-                    title="Print Receipt">
-                    <PrinterIcon class="w-3.5 h-3.5" />
-                    <span>Print</span>
-                </a>
-
-                <a :href="route('inwards.download-receipt', data.id)"
-                    class="px-3 py-1.5 rounded-md font-bold text-[10px] uppercase flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 shadow-xs transition-all text-decoration-none"
-                    title="Download PDF">
-                    <ArrowDownTrayIcon class="w-3.5 h-3.5 text-slate-600" />
-                    <span>PDF</span>
-                </a> -->
-
-                <!-- <button type="submit" :disabled="formBusy"
-                    class="px-3.5 py-1.5 rounded-md font-black text-sm uppercase flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer border-0 disabled:opacity-50"
-                    title="Save Changes">
-                    <CheckCircleIcon class="w-3.5 h-3.5" />
-                    <span>{{ detailsSaving ? 'Saving…' : generateBill ? 'Save & Generate Bill' : 'Save' }}</span>
-                </button> -->
-            <!-- </div>
-        </div> -->
+        <!-- Header & Action Toolbar -->
 
         <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
             <h4 class="text-xs font-bold text-slate-700">Edit vehicle and units</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+<<<<<<< Updated upstream
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
                 <BaseSelect :model-value="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required disabled :error="detailsErrors.uom_id" />
                 <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
                 <BaseInputNumber :model-value="Number(data.conversion_quantity || 0)" @update:model-value="data.conversion_quantity = $event" label="Converted quantity" :min="0" :minFractionDigits="2" :maxFractionDigits="2" :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_quantity" />
+=======
+                <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck"
+                    class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving"
+                    :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
+                <BaseSelect :model-value="data.uom_id" :options="units" label="Received UOM" optionLabel="label"
+                    optionValue="value" required disabled :error="detailsErrors.uom_id" />
+                <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label"
+                    optionValue="value" showClear :disabled="isBilled || detailsSaving"
+                    :error="detailsErrors.conversion_uom_id" />
+                <div class="space-y-1">
+                    <label :for="'inward-conversion-' + data.id" class="text-xs font-medium text-slate-600">Converted
+                        quantity</label>
+                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number"
+                        min="0" step="0.01" :disabled="isBilled || detailsSaving"
+                        class="w-full border border-slate-300 rounded-md text-sm" />
+                    <p v-if="detailsErrors.conversion_quantity" class="text-xs text-red-600">{{
+                        detailsErrors.conversion_quantity }}</p>
+                </div>
+>>>>>>> Stashed changes
             </div>
             <!-- <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <p class="text-xs text-slate-500">Received UOM is fixed when the inward is created and cannot be changed. <span v-if="isBilled">Void the linked bills before changing receipt quantities or conversion units.</span></p>
@@ -239,23 +219,39 @@ const saveInwardDetails = () => {
 
         <div v-if="canBillInward" class="bg-white p-3 rounded-lg border border-indigo-200 space-y-3">
             <label class="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
-                <input v-model="generateBill" type="checkbox" :disabled="formBusy" class="rounded border-slate-300 text-indigo-600" />
+                <input v-model="generateBill" type="checkbox" :disabled="formBusy"
+                    class="rounded border-slate-300 text-indigo-600" />
                 Generate purchase bill
             </label>
             <template v-if="generateBill">
                 <!-- <p class="text-xs text-slate-500">Save will bill this inward's unbilled received quantity, including any weight changes made here.</p> -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <BaseSelect v-model="billForm.account_id" :options="accounts" label="Purchase account" optionLabel="label" optionValue="value" placeholder="Select account" required filter :disabled="formBusy" :error="detailsErrors['bill.account_id']" />
-                    <BaseDatePicker v-model="billForm.invoice_date" label="Bill date" required :disabled="formBusy" :error="detailsErrors['bill.invoice_date']" />
-                    <BaseDatePicker v-model="billForm.due_date" label="Due date" :disabled="formBusy" :error="detailsErrors['bill.due_date']" />
-                    <BaseInputNumber v-model="billForm.unit_price" :label="`Rate per ${billingUomLabel}`" :min="0" :minFractionDigits="2" :maxFractionDigits="2" required :disabled="formBusy" :error="detailsErrors['bill.unit_price']" />
+                    <BaseSelect v-model="billForm.account_id" :options="accounts" label="Purchase account"
+                        optionLabel="label" optionValue="value" placeholder="Select account" required filter
+                        :disabled="formBusy" :error="detailsErrors['bill.account_id']" />
+                    <BaseDatePicker v-model="billForm.invoice_date" label="Bill date" required :disabled="formBusy"
+                        :error="detailsErrors['bill.invoice_date']" />
+                    <BaseDatePicker v-model="billForm.due_date" label="Due date" :disabled="formBusy"
+                        :error="detailsErrors['bill.due_date']" />
+                    <BaseInputNumber v-model="billForm.unit_price" :label="`Rate per ${billingUomLabel}`"
+                        :minFractionDigits="2" :maxFractionDigits="2" required :disabled="formBusy"
+                        :error="detailsErrors['bill.unit_price']" />
                 </div>
+<<<<<<< Updated upstream
                 <p class="text-xs text-indigo-600">Bill quantity: {{ Number(billsConvertedQuantity ? data.conversion_quantity : data.received_qty).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{ billingUomLabel }} ({{ billsConvertedQuantity ? 'converted quantity' : 'received quantity' }}).</p>
                 <!-- <p class="text-xs text-indigo-600">{{ data.order?.tax_inclusive ? 'The rate includes tax.' : 'Tax is added to the rate.' }} Purchase order discounts and charges apply.</p> -->
+=======
+                <p class="text-xs text-indigo-600">Bill quantity: {{ Number(billsConvertedQuantity ?
+                    data.conversion_quantity : Math.max(0, Number(data.truck_loaded || 0) - Number(data.truck_empty ||
+                        0))).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{
+                        billingUomLabel }}
+                    ({{ billsConvertedQuantity ? 'converted quantity' : 'net weight' }}).</p>
+>>>>>>> Stashed changes
             </template>
         </div>
         <p v-else-if="isBilled" class="text-xs font-semibold text-emerald-700">This inward has already been billed.</p>
-        <div v-if="Object.keys(detailsErrors).length" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+        <div v-if="Object.keys(detailsErrors).length" role="alert"
+            class="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
             <p v-for="(error, field) in detailsErrors" :key="field">{{ error }}</p>
         </div>
 
@@ -273,28 +269,14 @@ const saveInwardDetails = () => {
                             (Loaded)</label>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <input step="any" type="number" v-model="data.truck_loaded" disabled
-                            class="w-full bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-sm font-black text-slate-800 font-mono focus:bg-white focus:ring-1 focus:ring-indigo-500"
-                            placeholder="0.00" />
+                    <div class="flex flex-row items-center justify-between gap-4 h-full w-full">
+                        <div class="flex-1 flex items-center gap-2">
+                            <input step="any" type="number" v-model="data.truck_loaded" disabled
+                                class="w-full bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-sm font-black text-slate-800 font-mono focus:bg-white focus:ring-1 focus:ring-indigo-500"
+                                placeholder="0.00" />
 
-                        <!-- <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
-                            @click.stop="captureGrossWeight(data)" type="button" :class="[
-                                'relative px-2.5 py-1.5 rounded-md font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs border cursor-pointer shrink-0 h-9',
-                                isScaleConnected
-                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
-                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600'
-                            ]" :title="isScaleConnected ? 'Capture Gross Weight from Scale' : 'Connect Weighbridge'">
-                        <span v-if="!data.truck_loaded || Number(data.truck_loaded) === 0"
-                            class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                            <span
-                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-300 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-400"></span>
-                        </span>
-                        <ArrowDownTrayIcon class="w-3.5 h-3.5 text-white animate-bounce" />
-                        <span>Get Gross</span>
-                        </button> -->
-                    </div>
+                            <!-- Capture Gross Weight Button was here -->
+                        </div>
 
                         <!-- Photo Thumbnail -->
                         <div v-if="getGrossPhotoUrl(data)"
@@ -307,6 +289,7 @@ const saveInwardDetails = () => {
                                 class="text-[9px] text-slate-500 font-bold uppercase tracking-wider leading-tight w-8">Gross
                                 Snap</span>
                         </div>
+                    </div>
                 </div>
 
                 <!-- Tare (Empty) Card -->
@@ -318,30 +301,33 @@ const saveInwardDetails = () => {
                             (Empty)</label>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <input step="any" type="number" v-model="data.truck_empty"
-                            :disabled="isBilled || formBusy || page.props.custom_settings?.batching?.manual_weight == 0"
-                            class="w-full bg-slate-50 border border-amber-300 rounded-md px-2.5 py-1.5 text-sm font-black text-amber-900 font-mono focus:bg-white focus:ring-1 focus:ring-amber-500"
-                            placeholder="0.00" />
+                    <div class="flex flex-row items-center justify-between gap-4 h-full w-full">
+                        <div class="flex-1 flex items-center gap-2">
+                            <input step="any" type="number" v-model="data.truck_empty"
+                                :disabled="isBilled || formBusy || page.props.custom_settings?.batching?.manual_weight == 0"
+                                class="w-full bg-slate-50 border border-amber-300 rounded-md px-2.5 py-1.5 text-sm font-black text-amber-900 font-mono focus:bg-white focus:ring-1 focus:ring-amber-500"
+                                placeholder="0.00" />
 
-                        <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
-                            @click.stop="captureTareWeight(data)" type="button" :disabled="isBilled || formBusy" :class="[
-                                'relative px-2.5 py-1.5 rounded-md font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs border cursor-pointer shrink-0 h-9',
-                                isScaleConnected
-                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
-                                    : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
-                            ]" :title="isScaleConnected ? 'Capture Tare Weight from Scale' : 'Connect Weighbridge'">
-                            <!-- Pulsing Indicator Dot -->
-                            <span v-if="!data.truck_empty || Number(data.truck_empty) === 0"
-                                class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                <span
-                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
-                            </span>
-                            <ArrowDownTrayIcon class="w-3.5 h-3.5 text-white animate-bounce" />
-                            <span>Get Tare</span>
-                        </button>
-                    </div>
+                            <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
+                                @click.stop="captureTareWeight(data)" type="button" :disabled="isBilled || formBusy"
+                                :class="[
+                                    'relative px-2.5 py-1.5 rounded-md font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs border cursor-pointer shrink-0 h-9',
+                                    isScaleConnected
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
+                                        : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
+                                ]"
+                                :title="isScaleConnected ? 'Capture Tare Weight from Scale' : 'Connect Weighbridge'">
+                                <!-- Pulsing Indicator Dot -->
+                                <span v-if="!data.truck_empty || Number(data.truck_empty) === 0"
+                                    class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                    <span
+                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
+                                </span>
+                                <ArrowDownTrayIcon class="w-3.5 h-3.5 text-white animate-bounce" />
+                                <span>Get Tare</span>
+                            </button>
+                        </div>
 
                         <!-- Photo Thumbnail -->
                         <div v-if="getTarePhotoUrl(data)"
@@ -354,6 +340,7 @@ const saveInwardDetails = () => {
                                 class="text-[9px] text-amber-700 font-bold uppercase tracking-wider leading-tight w-8">Tare
                                 Snap</span>
                         </div>
+                    </div>
                 </div>
             </div>
 
@@ -364,7 +351,6 @@ const saveInwardDetails = () => {
                     class="bg-emerald-50/80 p-3.5 rounded-lg border border-emerald-200/90 flex items-center justify-between shadow-2xs">
                     <div class="flex flex-col">
                         <span class="text-[10px] font-black uppercase tracking-wider text-emerald-800">Net Weight</span>
-                        <span class="text-[9px] text-emerald-600/70 font-bold uppercase mt-0.5">Gross - Tare</span>
                     </div>
                     <div class="flex items-baseline gap-1.5">
                         <span class="text-2xl font-black text-emerald-700 font-mono">
@@ -374,7 +360,6 @@ const saveInwardDetails = () => {
                         <span class="text-[9px] font-extrabold text-emerald-600 uppercase">{{ data.uom?.unit_code
                         }}</span>
                     </div>
-                    <span class="text-[8px] text-emerald-700 font-extrabold uppercase">Gross - Tare</span>
                 </div>
 
                 <!-- Accepted Qty -->
@@ -411,9 +396,9 @@ const saveInwardDetails = () => {
 
         </div>
     </form>
-  <!-- Action Buttons -->
-            <div class="flex justify-end p-3 gap-2 shrink-0">
-                <!-- <a :href="route('inwards.receipt', data.id)" target="_blank"
+    <!-- Action Buttons -->
+    <div class="flex justify-end p-3 gap-2 shrink-0">
+        <!-- <a :href="route('inwards.receipt', data.id)" target="_blank"
                     class="px-3 py-1.5 rounded-md font-bold text-[10px] uppercase flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all text-decoration-none"
                     title="Print Receipt">
                     <PrinterIcon class="w-3.5 h-3.5" />
@@ -427,13 +412,13 @@ const saveInwardDetails = () => {
                     <span>PDF</span>
                 </a> -->
 
-                <button type="submit" :form="`inward-edit-${data.id}`" :disabled="formBusy"
-                    class="px-3.5 py-1.5 rounded-md font-black text-sm uppercase flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer border-0 disabled:opacity-50"
-                    title="Save Changes">
-                    <CheckCircleIcon class="w-3.5 h-3.5" />
-                    <span>{{ detailsSaving ? 'Saving…' : generateBill ? 'Save & Generate Bill' : 'Save' }}</span>
-                </button>
-            </div>
+        <button type="submit" :form="`inward-edit-${data.id}`" :disabled="formBusy"
+            class="px-3.5 py-1.5 rounded-md font-black text-sm uppercase flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer border-0 disabled:opacity-50"
+            title="Save Changes">
+            <CheckCircleIcon class="w-3.5 h-3.5" />
+            <span>{{ detailsSaving ? 'Saving…' : generateBill ? 'Save & Generate Bill' : 'Save' }}</span>
+        </button>
+    </div>
     <Dialog v-model:visible="imageModalVisible" modal :header="imageModalTitle"
         :style="{ width: '750px', maxWidth: '95vw' }" class="p-fluid rounded-2xl overflow-hidden shadow-2xl border-0">
         <div class="p-4 flex flex-col items-center justify-center bg-slate-950 rounded-xl">
