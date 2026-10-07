@@ -152,6 +152,19 @@ class PatronStatementBillTest extends TestCase
         }
     }
 
+    public function test_ledger_report_returns_the_ledger_name_separately_from_narration(): void
+    {
+        $report = app(\App\Services\Reports\LedgerReportService::class)->generate([
+            'start' => '2026-10-07',
+            'end' => '2026-10-31',
+        ]);
+
+        $row = collect($report['transactions'])->firstWhere('voucher_type', 'BILL');
+
+        $this->assertSame($this->ledger->title, $row['ledger_name']);
+        $this->assertStringNotContainsString('[' . $this->ledger->title . ']', $row['narration']);
+    }
+
     public function test_prior_bill_is_carried_into_opening_without_its_journal_being_counted_twice(): void
     {
         $report = $this->statement('2026-10-08');

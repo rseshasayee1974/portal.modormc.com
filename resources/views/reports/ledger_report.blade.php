@@ -5,6 +5,14 @@
     <title>General Ledger Statement</title>
     <style>
         {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/ledger_report.css')) ? file_get_contents(public_path('css/reports/ledger_report.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
+        @page { margin: 12mm 10mm; }
+        .data-table { width: 100%; table-layout: fixed; font-size: 7pt; }
+        .data-table th, .data-table td { padding: 4px 3px; }
+        .data-table td { vertical-align: top; overflow-wrap: break-word; word-wrap: break-word; }
+        .data-table th:nth-child(1), .data-table td:nth-child(1),
+        .data-table th:nth-child(6), .data-table td:nth-child(6),
+        .data-table th:nth-child(7), .data-table td:nth-child(7),
+        .data-table th:nth-child(8), .data-table td:nth-child(8) { white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -61,11 +69,13 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 12%;">Date</th>
-                <th style="width: 40%;">Particulars</th>
-                <th style="width: 16%;">Reference</th>
-                <th style="width: 12%; text-align: right;">Amount</th>
-                <th style="width: 8%; text-align: center;">Type</th>
+                <th style="width: 9%;">Date</th>
+                <th style="width: 14%;">Ledger / Journal</th>
+                <th style="width: 26%;">Particulars</th>
+                <th style="width: 8%;">Voucher Type</th>
+                <th style="width: 11%;">Reference</th>
+                <th style="width: 10%; text-align: right;">Debit</th>
+                <th style="width: 10%; text-align: right;">Credit</th>
                 <th style="width: 12%; text-align: right;">Balance</th>
             </tr>
         </thead>
@@ -77,15 +87,15 @@
             <!-- Opening Balance Row -->
             <tr class="opening-row">
                 <td style="color: #94a3b8; font-style: italic; font-size: 8pt;">{{ \Carbon\Carbon::parse($start)->format('d-m-Y') }}</td>
+                <td>---</td>
                 <td class="font-bold" style="color: #1d2d3e; text-transform: uppercase;">Opening Balance</td>
                 <td>---</td>
-                <td class="text-right font-bold">₹ {{ number_format(abs($balance), 2) }}</td>
-                <td class="text-center">
-                    <span class="badge-dr">{{ $balance >= 0 ? 'DR' : 'CR' }}</span>
-                </td>
+                <td>---</td>
+                <td class="text-right font-bold">{{ $balance > 0 ? '₹ ' . number_format($balance, 2) : '---' }}</td>
+                <td class="text-right font-bold">{{ $balance < 0 ? '₹ ' . number_format(abs($balance), 2) : '---' }}</td>
                 <td class="text-right font-bold" style="color: #1d2d3e;">
                     ₹ {{ number_format(abs($balance), 2) }}
-                    <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small>
+                    {{-- <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small> --}}
                 </td>
             </tr>
 
@@ -93,33 +103,31 @@
             @forelse($transactions as $trx)
                 @php
                     $balance += (($trx['debit'] ?? 0) - ($trx['credit'] ?? 0));
-                    $isDr = ($trx['type'] ?? 'Dr') === 'Dr';
                 @endphp
                 <tr>
                     <td style="color: #64748b;">{{ \Carbon\Carbon::parse($trx['date'])->format('d-m-Y') }}</td>
+                    <td class="font-bold" style="color: #1e293b;">{{ $trx['ledger_name'] ?? 'General Account' }}</td>
                     <td>
                         <div class="font-bold" style="color: #1e293b;">{{ $trx['narration'] ?? '-' }}</div>
-                        <span class="badge-voucher">{{ $trx['voucher_type'] ?? 'JOURNAL' }}</span>
                     </td>
+                    <td><span class="badge-voucher">{{ $trx['voucher_type'] ?? 'JOURNAL' }}</span></td>
                     <td class="font-bold" style="color: #1e293b;">{{ $trx['voucher_no'] ?? '-' }}</td>
-                    <td class="text-right font-bold" style="color: #0f172a;">₹ {{ number_format($trx['amount'] ?? 0, 2) }}</td>
-                    <td class="text-center">
-                        <span class="{{ $isDr ? 'badge-dr' : 'badge-cr' }}">{{ strtoupper($trx['type'] ?? 'Dr') }}</span>
-                    </td>
+                    <td class="text-right font-bold" style="color: #0f172a;">{{ ($trx['debit'] ?? 0) > 0 ? '₹ ' . number_format($trx['debit'], 2) : '---' }}</td>
+                    <td class="text-right font-bold" style="color: #0f172a;">{{ ($trx['credit'] ?? 0) > 0 ? '₹ ' . number_format($trx['credit'], 2) : '---' }}</td>
                     <td class="text-right font-bold" style="color: #0f172a; background-color: #f8fafc;">
                         ₹ {{ number_format(abs($balance), 2) }}
-                        <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small>
+                        {{-- <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small> --}}
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="text-center" style="padding: 15px; color: #94a3b8; font-style: italic;">No ledger entries recorded for this period.</td>
+                    <td colspan="8" class="text-center" style="padding: 15px; color: #94a3b8; font-style: italic;">No ledger entries recorded for this period.</td>
                 </tr>
             @endforelse
 
             <!-- Net Closing Balance Row -->
             <tr class="closing-row">
-                <td colspan="3" class="text-right font-bold" style="padding: 10px 14px; text-transform: uppercase; font-size: 8.5pt; color: #cbd5e1;">
+                <td colspan="5" class="text-right font-bold" style="padding: 10px 14px; text-transform: uppercase; font-size: 8.5pt; color: #cbd5e1;">
                     Net Closing Balance
                 </td>
                 <td colspan="3" class="text-right font-bold" style="padding: 10px 14px; font-size: 11pt; color: #ffffff;">

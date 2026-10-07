@@ -6,8 +6,8 @@ import { useForm, router } from '@inertiajs/vue3';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
-import { 
-    DocumentTextIcon, 
+import {
+    DocumentTextIcon,
     ArrowPathIcon,
     PrinterIcon,
     ArrowDownTrayIcon
@@ -60,7 +60,7 @@ const printReport = () => {
     <AppLayout title="Ledger Report">
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                
+
                 <!-- Filter Header -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8 no-print">
                     <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -84,25 +84,21 @@ const printReport = () => {
                     <div class="p-6 bg-white">
                         <form @submit.prevent="submit" class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                             <div class="col-span-1 md:col-span-2">
-                                <BaseSelect 
-                                    v-model="form.ledger_id"
-                                    :options="ledgers"
-                                    optionLabel="title"
-                                    optionValue="id"
-                                    label="Select Ledger"
-                                    placeholder="Choose an account..."
-                                    filter
-                                    showClear
-                                />
+                                <BaseSelect v-model="form.ledger_id" :options="ledgers" optionLabel="title"
+                                    optionValue="id" label="Select Ledger" placeholder="Choose an account..." filter
+                                    showClear />
                             </div>
                             <div>
-                                <BaseDatePicker v-model="form.start_date" :showTime="true" hourFormat="12" label="From Date & Time" fluid />
+                                <BaseDatePicker v-model="form.start_date" :showTime="true" hourFormat="12"
+                                    label="From Date & Time" fluid />
                             </div>
                             <div>
-                                <BaseDatePicker v-model="form.end_date" :showTime="true" hourFormat="12" label="To Date & Time" fluid />
+                                <BaseDatePicker v-model="form.end_date" :showTime="true" hourFormat="12"
+                                    label="To Date & Time" fluid />
                             </div>
                             <div class="col-span-full flex justify-end gap-3 mt-2 border-t pt-6">
-                                <BaseButton type="submit" variant="filled" severity="primary" :loading="form.processing">
+                                <BaseButton type="submit" variant="filled" severity="primary"
+                                    :loading="form.processing">
                                     <ArrowPathIcon class="h-4 w-4 mr-2" />
                                     Generate Report
                                 </BaseButton>
@@ -112,21 +108,26 @@ const printReport = () => {
                 </div>
 
                 <!-- Report Content -->
-                <div v-if="reportData.transactions.length > 0 || reportData.opening_balance != 0" class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden print:shadow-none print:border-none">
-                    
+                <div v-if="reportData.transactions.length > 0 || reportData.opening_balance != 0"
+                    class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden print:shadow-none print:border-none">
+
                     <!-- Report Header (Visible in Print) -->
                     <div class="hidden print:block p-8 text-center border-b-2 border-slate-900 mb-8">
                         <h1 class="text-3xl font-black uppercase tracking-widest">Ledger Statement</h1>
-                        <p class="text-lg font-bold mt-2">{{ ledgers.find(l => l.id == form.ledger_id)?.title }}</p>
-                        <p class="text-sm mt-1 text-slate-600 italic">Period: {{ form.start_date }} to {{ form.end_date }}</p>
+                        <p class="text-lg font-bold mt-2">{{ledgers.find(l => l.id == form.ledger_id)?.title}}</p>
+                        <p class="text-sm mt-1 text-slate-600 italic">Period: {{ form.start_date }} to {{ form.end_date
+                        }}</p>
                     </div>
 
                     <div class="p-8">
                         <table class="w-full text-left border-collapse">
                             <thead>
-                                <tr class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100">
+                                <tr
+                                    class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-100">
                                     <th class="pb-4 font-black">Date</th>
+                                    <th class="pb-4 font-black">Ledger / Journal</th>
                                     <th class="pb-4 font-black">Particulars</th>
+                                    <th class="pb-4 font-black">Voucher Type</th>
                                     <th class="pb-4 font-black">Voucher</th>
                                     <th class="pb-4 text-right font-black">Debit</th>
                                     <th class="pb-4 text-right font-black">Credit</th>
@@ -137,28 +138,38 @@ const printReport = () => {
                                 <!-- Opening Balance Row -->
                                 <tr class="border-b border-slate-50 bg-slate-50/30">
                                     <td class="py-4 text-slate-400 italic">{{ form.start_date }}</td>
-                                    <td class="py-4 font-black text-indigo-600 uppercase tracking-tighter">Opening Balance</td>
+                                    <td class="py-4">---</td>
+                                    <td class="py-4 font-black text-indigo-600 uppercase tracking-tighter">Opening
+                                        Balance</td>
+                                    <td class="py-4">---</td>
                                     <td class="py-4">---</td>
                                     <td class="py-4 text-right">
-                                        {{ reportData.opening_balance > 0 ? formatCurrency(reportData.opening_balance) : '---' }}
+                                        {{ reportData.opening_balance > 0 ? formatCurrency(reportData.opening_balance) :
+                                            '---' }}
                                     </td>
                                     <td class="py-4 text-right">
-                                        {{ reportData.opening_balance < 0 ? formatCurrency(Math.abs(reportData.opening_balance)) : '---' }}
-                                    </td>
-                                    <td class="py-4 text-right font-black" :class="reportData.opening_balance >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                                        {{ reportData.opening_balance < 0 ?
+                                            formatCurrency(Math.abs(reportData.opening_balance)) : '---' }} </td>
+                                    <td class="py-4 text-right font-black"
+                                        :class="reportData.opening_balance >= 0 ? 'text-emerald-600' : 'text-rose-600'">
                                         {{ formatCurrency(reportData.opening_balance) }}
-                                        <span class="text-[10px] ml-1 uppercase">{{ reportData.opening_balance >= 0 ? 'Dr' : 'Cr' }}</span>
+                                        <span class="text-[10px] ml-1 uppercase">{{ reportData.opening_balance >= 0 ?
+                                            'Dr' : 'Cr' }}</span>
                                     </td>
                                 </tr>
 
                                 <!-- Transactions -->
-                                <tr v-for="(trx, idx) in transactionsWithBalance" :key="idx" class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                <tr v-for="(trx, idx) in transactionsWithBalance" :key="idx"
+                                    class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                                     <td class="py-4 text-slate-600 whitespace-nowrap">{{ trx.date }}</td>
+                                    <td class="py-4 font-bold text-slate-800">{{ trx.ledger_name || 'General Account' }}
+                                    </td>
                                     <td class="py-4">
                                         <div class="font-bold text-slate-800">{{ trx.narration }}</div>
-                                        <div class="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">{{ trx.voucher_type }}</div>
                                     </td>
-                                    <td class="py-4 text-indigo-600 font-black tracking-tighter">{{ trx.voucher_no }}</td>
+                                    <td class="py-4 text-[10px] text-slate-400 uppercase tracking-widest">{{ trx.voucher_type || 'JOURNAL' }}</td>
+                                    <td class="py-4 text-indigo-600 font-black tracking-tighter">{{ trx.voucher_no }}
+                                    </td>
                                     <td class="py-4 text-right text-slate-900 font-bold">
                                         {{ trx.debit > 0 ? formatCurrency(trx.debit) : '---' }}
                                     </td>
@@ -167,17 +178,24 @@ const printReport = () => {
                                     </td>
                                     <td class="py-4 text-right font-black text-slate-800 bg-slate-50/20">
                                         {{ formatCurrency(trx.running_balance) }}
-                                        <span class="text-[10px] ml-1 uppercase text-slate-400">{{ trx.running_balance >= 0 ? 'Dr' : 'Cr' }}</span>
+                                        <span class="text-[10px] ml-1 uppercase text-slate-400">{{ trx.running_balance
+                                            >= 0 ? 'Dr' : 'Cr' }}</span>
                                     </td>
                                 </tr>
 
                                 <!-- Closing Balance Footer -->
                                 <tr class="bg-indigo-900 text-white shadow-xl shadow-indigo-100">
-                                    <td colspan="3" class="py-6 px-4 text-right font-black uppercase tracking-widest text-[11px]">Closing Balance</td>
+                                    <td colspan="5"
+                                        class="py-6 px-4 text-right font-black uppercase tracking-widest text-[11px]">
+                                        Closing Balance</td>
                                     <td colspan="3" class="py-6 px-8 text-right font-black text-xl">
-                                        {{ formatCurrency(transactionsWithBalance.length > 0 ? transactionsWithBalance[transactionsWithBalance.length - 1].running_balance : reportData.opening_balance) }}
+                                        {{ formatCurrency(transactionsWithBalance.length > 0 ?
+                                            transactionsWithBalance[transactionsWithBalance.length - 1].running_balance :
+                                            reportData.opening_balance) }}
                                         <span class="text-xs ml-2 uppercase opacity-60">
-                                            {{ (transactionsWithBalance.length > 0 ? transactionsWithBalance[transactionsWithBalance.length - 1].running_balance : reportData.opening_balance) >= 0 ? 'Debit' : 'Credit' }}
+                                            {{ (transactionsWithBalance.length > 0 ?
+                                                transactionsWithBalance[transactionsWithBalance.length - 1].running_balance
+                                                : reportData.opening_balance) >= 0 ? 'Debit' : 'Credit' }}
                                         </span>
                                     </td>
                                 </tr>
@@ -187,12 +205,14 @@ const printReport = () => {
                 </div>
 
                 <!-- Empty State -->
-                <div v-else-if="form.ledger_id" class="bg-white rounded-2xl p-20 text-center border border-dashed border-slate-300">
+                <div v-else-if="form.ledger_id"
+                    class="bg-white rounded-2xl p-20 text-center border border-dashed border-slate-300">
                     <div class="mx-auto w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                         <DocumentTextIcon class="h-8 w-8 text-slate-300" />
                     </div>
                     <h3 class="text-lg font-black text-slate-800">No transactions found</h3>
-                    <p class="text-slate-500 max-w-xs mx-auto mt-2">There are no journal entries for this ledger in the selected date range.</p>
+                    <p class="text-slate-500 max-w-xs mx-auto mt-2">There are no journal entries for this ledger in the
+                        selected date range.</p>
                 </div>
             </div>
         </div>
@@ -204,6 +224,7 @@ const printReport = () => {
     .no-print {
         display: none !important;
     }
+
     body {
         background: white !important;
     }
