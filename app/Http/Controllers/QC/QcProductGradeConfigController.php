@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\QC;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\QC\QcProductGradeConfig;
 use App\Models\QC\QcConfigAgeMilestone;
 use App\Models\QC\QcTestType;
@@ -16,8 +17,13 @@ use Illuminate\Support\Facades\DB;
 
 class QcProductGradeConfigController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'qc_product_grade_config';
+
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -56,6 +62,8 @@ class QcProductGradeConfigController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
+
         $validated = $request->validate([
             'material_id' => 'required|exists:mm_products,id',
             'concrete_grade_id' => 'nullable|exists:mm_concrete_grades,id',
@@ -122,6 +130,8 @@ class QcProductGradeConfigController extends Controller
 
     public function update(Request $request, QcProductGradeConfig $config)
     {
+        $this->authorizeModule('edit');
+
         $validated = $request->validate([
             'material_id' => 'required|exists:mm_products,id',
             'concrete_grade_id' => 'nullable|exists:mm_concrete_grades,id',
@@ -185,6 +195,8 @@ class QcProductGradeConfigController extends Controller
 
     public function destroy(QcProductGradeConfig $config)
     {
+        $this->authorizeModule('delete');
+
         $config->delete();
         return redirect()->back()->with('success', 'Configuration deleted successfully.');
     }

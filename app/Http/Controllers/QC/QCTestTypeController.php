@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\QC;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\ConcreteGrade;
 use App\Models\QC\QcUnit;
 use App\Models\QC\QcTestType;
@@ -17,8 +18,12 @@ use Illuminate\Validation\Rule;
 
 class QCTestTypeController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'QCTestType';
+
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
         $product = Product::query()
             ->whereNull('deleted_at')
             ->where('plant_id', session('active_plant_id'))
@@ -63,6 +68,8 @@ class QCTestTypeController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
+
         \Log::info('QCTestTypeController store payload parameters:', $request->input('parameters', []));
         
         $validated = $request->validate([
@@ -199,6 +206,8 @@ class QCTestTypeController extends Controller
 
     public function update(Request $request, QcTestType $test_type)
     {
+        $this->authorizeModule('edit');
+
         $validated = $request->validate([
             'name' => 'nullable|string|max:150',
             'code' => 'nullable|string|max:50',
@@ -358,6 +367,8 @@ class QCTestTypeController extends Controller
 
     public function destroy(QcTestType $test_type)
     {
+        $this->authorizeModule('delete');
+
         $test_type->updateQuietly([
             'deleted_by' => auth()->id() ?: 1,
         ]);

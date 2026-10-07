@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\QC;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\QC\QcTest;
 use App\Models\QC\QcTestMeasurement;
 use App\Models\QC\QcTestResult;
@@ -17,6 +18,9 @@ use Illuminate\Support\Facades\Storage;
 
 class QCTestExecutionController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'q_c_test_execution';
+
     protected FormulaEngine $formulaEngine;
 
     public function __construct(FormulaEngine $formulaEngine)
@@ -26,6 +30,8 @@ class QCTestExecutionController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 

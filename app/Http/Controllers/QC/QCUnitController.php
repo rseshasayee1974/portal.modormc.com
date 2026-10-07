@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\QC;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\QC\QcUnit;
 use App\Services\PlantContextService;
 use Illuminate\Http\Request;
@@ -10,8 +11,13 @@ use Inertia\Inertia;
 
 class QCUnitController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'q_c_unit';
+
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -51,6 +57,8 @@ class QCUnitController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -88,6 +96,8 @@ class QCUnitController extends Controller
 
     public function update(Request $request, QcUnit $unit)
     {
+        $this->authorizeModule('edit');
+
         $validated = $request->validate([
             'code' => 'required|string|max:50',
             'name' => 'required|string|max:150',
@@ -104,6 +114,8 @@ class QCUnitController extends Controller
 
     public function destroy(QcUnit $unit)
     {
+        $this->authorizeModule('delete');
+
         $unit->updateQuietly([
             'deleted_by' => auth()->id() ?: 1,
         ]);
