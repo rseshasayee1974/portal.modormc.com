@@ -187,30 +187,10 @@ const saveInwardDetails = () => {
         <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
             <h4 class="text-xs font-bold text-slate-700">Edit vehicle and units</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-<<<<<<< Updated upstream
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
                 <BaseSelect :model-value="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required disabled :error="detailsErrors.uom_id" />
                 <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
                 <BaseInputNumber :model-value="Number(data.conversion_quantity || 0)" @update:model-value="data.conversion_quantity = $event" label="Converted quantity" :min="0" :minFractionDigits="2" :maxFractionDigits="2" :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_quantity" />
-=======
-                <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck"
-                    class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving"
-                    :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
-                <BaseSelect :model-value="data.uom_id" :options="units" label="Received UOM" optionLabel="label"
-                    optionValue="value" required disabled :error="detailsErrors.uom_id" />
-                <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label"
-                    optionValue="value" showClear :disabled="isBilled || detailsSaving"
-                    :error="detailsErrors.conversion_uom_id" />
-                <div class="space-y-1">
-                    <label :for="'inward-conversion-' + data.id" class="text-xs font-medium text-slate-600">Converted
-                        quantity</label>
-                    <input :id="'inward-conversion-' + data.id" v-model.number="data.conversion_quantity" type="number"
-                        min="0" step="0.01" :disabled="isBilled || detailsSaving"
-                        class="w-full border border-slate-300 rounded-md text-sm" />
-                    <p v-if="detailsErrors.conversion_quantity" class="text-xs text-red-600">{{
-                        detailsErrors.conversion_quantity }}</p>
-                </div>
->>>>>>> Stashed changes
             </div>
             <!-- <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <p class="text-xs text-slate-500">Received UOM is fixed when the inward is created and cannot be changed. <span v-if="isBilled">Void the linked bills before changing receipt quantities or conversion units.</span></p>
@@ -237,16 +217,8 @@ const saveInwardDetails = () => {
                         :minFractionDigits="2" :maxFractionDigits="2" required :disabled="formBusy"
                         :error="detailsErrors['bill.unit_price']" />
                 </div>
-<<<<<<< Updated upstream
                 <p class="text-xs text-indigo-600">Bill quantity: {{ Number(billsConvertedQuantity ? data.conversion_quantity : data.received_qty).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{ billingUomLabel }} ({{ billsConvertedQuantity ? 'converted quantity' : 'received quantity' }}).</p>
                 <!-- <p class="text-xs text-indigo-600">{{ data.order?.tax_inclusive ? 'The rate includes tax.' : 'Tax is added to the rate.' }} Purchase order discounts and charges apply.</p> -->
-=======
-                <p class="text-xs text-indigo-600">Bill quantity: {{ Number(billsConvertedQuantity ?
-                    data.conversion_quantity : Math.max(0, Number(data.truck_loaded || 0) - Number(data.truck_empty ||
-                        0))).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{
-                        billingUomLabel }}
-                    ({{ billsConvertedQuantity ? 'converted quantity' : 'net weight' }}).</p>
->>>>>>> Stashed changes
             </template>
         </div>
         <p v-else-if="isBilled" class="text-xs font-semibold text-emerald-700">This inward has already been billed.</p>

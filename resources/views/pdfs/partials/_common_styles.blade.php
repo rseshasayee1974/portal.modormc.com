@@ -277,7 +277,6 @@
          * Those can split normal words in the PDF.
          */
         white-space: normal !important;
-<<<<<<< HEAD
         word-break: {{ ($data['document_module'] ?? '') === 'quotations' ? 'normal' : 'break-word' }} !important;
         overflow-wrap: {{ ($data['document_module'] ?? '') === 'quotations' ? 'normal' : 'break-word' }} !important;
     }
@@ -293,13 +292,6 @@
     .terms-text-content p {
         margin: 0 0 2px 0 !important;
         padding: 0 !important;
-=======
-        word-break: normal !important;
-        overflow-wrap: normal !important;
-        word-wrap: normal !important;
-
-        text-align: left !important;
->>>>>>> 715318db9e945931a5d5cf4fbadedaac422142a7
         line-height: 1.3 !important;
     }
 
