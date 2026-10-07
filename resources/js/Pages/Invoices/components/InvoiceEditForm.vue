@@ -106,8 +106,6 @@ const removeItem = (index: number) => {
     }
 };
 
-const roundOffManuallySet = ref(false);
-let roundOffInitialized = false;
 
 const calculateTotals = () => {
     let untaxed = 0;
@@ -161,16 +159,9 @@ const calculateTotals = () => {
 
     const rawTotal = Number((untaxed + form.amount_tax - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0)).toFixed(2));
     const inclusiveTotal = form.items.reduce((sum, item) => sum + item.total, 0) - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0) + (form.amount_tax - taxTotal);
-    const automaticRoundOff = Number(((isInclusive ? inclusiveTotal : Math.round(rawTotal)) - rawTotal).toFixed(2));
-    if (!roundOffInitialized) {
-        // Preserve saved overrides; otherwise continue automatic rounding.
-        roundOffManuallySet.value = form.round_off !== 0 && form.round_off !== automaticRoundOff;
-        roundOffInitialized = true;
-    }
-    if (!roundOffManuallySet.value) {
-        form.round_off = automaticRoundOff;
-    }
-    form.amount_total = Number((rawTotal + (Number(form.round_off) || 0)).toFixed(2));
+    const automaticRoundOff = Number((Math.round(isInclusive ? inclusiveTotal : rawTotal) - rawTotal).toFixed(2));
+    form.round_off = automaticRoundOff;
+    form.amount_total = Math.round(Number((rawTotal + (Number(form.round_off) || 0)).toFixed(2)));
 };
 
 watch(
@@ -518,8 +509,8 @@ const setupDemoCompliance = () => {
                                 <BaseInputNumber v-model="form.adjustment" @input="form.adjustment = $event.value; calculateTotals()" size="small" class="w-28" />
                             </div>
                             <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
-                                <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off (+/-)</span>
-                                <BaseInputNumber v-model="form.round_off" @input="roundOffManuallySet = true; form.round_off = $event.value; calculateTotals()" @update:modelValue="roundOffManuallySet = true; calculateTotals()" :error="form.errors.round_off" :minFractionDigits="2" :maxFractionDigits="2" size="small" class="w-28" />
+                                <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off</span>
+                                <span class="text-sm tabular-nums text-slate-700">{{ form.round_off.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                             </div>
 
                             <div class="flex justify-between items-center border-t border-slate-200 pt-6 mt-6">

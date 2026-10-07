@@ -87,17 +87,17 @@ class PatronStatementBillTest extends TestCase
         $this->assertSame([147.84, 147.84], $this->bill->orderTaxes()->orderBy('id')->get()->map(fn ($tax) => (float) $tax->amount)->all());
         $this->assertEquals(295.68, $item->fresh()->line_tax_amount);
         $this->assertEquals(295.68, $this->bill->fresh()->tax_amount);
-        $this->assertEquals(-0.01, $this->bill->fresh()->round_off);
+        $this->assertEquals(-0.31, $this->bill->fresh()->round_off);
         $item = $item->fresh();
         $item->setRelation('itemTaxes', $this->bill->orderTaxes()->get());
         $row = app(\App\Services\Reports\SalesRegisterService::class)->mapSalesRow($item);
         $this->assertEquals(295.68, $row['tax_amount']);
         $this->assertEquals($row['cgst'] + $row['sgst'], $row['tax_amount']);
-        $this->assertEquals(1938.30, round($row['taxable_amount'] + $row['tax_amount'] + $row['roundoff'], 2));
+        $this->assertEquals(1938, round($row['taxable_amount'] + $row['tax_amount'] + $row['roundoff'], 2));
         $this->bill->recalculate();
         $this->bill->syncTaxSplits('Bill');
-        $this->assertEquals(1938.30, $this->bill->fresh()->total_amount);
-        $this->assertEquals(-0.01, $this->bill->fresh()->round_off);
+        $this->assertEquals(1938, $this->bill->fresh()->total_amount);
+        $this->assertEquals(-0.31, $this->bill->fresh()->round_off);
     }
 
     public function test_bill_recalculation_preserves_positive_negative_and_zero_round_off(): void
@@ -107,11 +107,11 @@ class PatronStatementBillTest extends TestCase
             'discount_amount' => 0, 'line_tax_amount' => 180,
         ]));
         $this->bill->updateQuietly(['global_discount' => 0, 'adjustment' => 0, 'shipping_charges' => 0, 'paid_amount' => 100]);
-        foreach ([[-0.25, 1180], [0.75, 1181], [0, 1180.25]] as [$roundOff, $total]) {
+        foreach ([[-0.25, 1180], [0.75, 1181], [0, 1180]] as [$roundOff, $total]) {
             $this->bill->updateQuietly(['round_off' => $roundOff]);
             $this->bill->recalculate();
             $this->bill->refresh();
-            $this->assertEquals($roundOff, $this->bill->round_off);
+            $this->assertEquals($total - 1180.25, $this->bill->round_off);
             $this->assertEquals($total, $this->bill->total_amount);
             $this->assertEquals($total - 100, $this->bill->balance_amount);
         }
@@ -121,6 +121,92 @@ class PatronStatementBillTest extends TestCase
                 $this->assertTrue(\Illuminate\Support\Facades\Validator::make(['round_off' => $roundOff], ['round_off' => $rules['round_off']])->passes());
             }
         }
+    }
+
+    public function test_invoice_and_bill_create_update_store_whole_rupee_totals(): void
+    {
+        foreach (['Invoice', 'Bill'] as $index => $type) {
+            $document = Invoice::createWithItems([
+                'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id,
+                'invoice_type' => $type, 'invoice_label' => 'Manual',
+                'prefix' => 'ROUND/', 'invoice_number' => 100 + $index, 'invoice_date' => '2026-10-07',
+                'status' => Invoice::STATUS_DRAFT, 'global_discount' => 0, 'paid_amount' => 100,
+                'round_off' => 0, 'items' => [['quantity' => 1, 'price_unit' => 1938.30, 'item_name' => 'Test']],
+            ])->fresh();
+            $this->assertEquals(1938, $document->total_amount);
+            $this->assertEquals(-0.30, $document->round_off);
+            $this->assertEquals(1838, $document->balance_amount);
+            $document->updateWithItems([
+                'round_off' => 0,
+                'items' => [['quantity' => 1, 'price_unit' => 1938.70, 'item_name' => 'Test']],
+            ]);
+            $document->refresh();
+            $this->assertEquals(1939, $document->total_amount);
+            $this->assertEquals(0.30, $document->round_off);
+            $this->assertEquals(1839, $document->balance_amount);
+            $this->assertDatabaseHas('mm_invoices', ['id' => $document->id, 'total_amount' => 1939]);
+        }
+    }
+
+    public function test_partial_payment_balances_are_stored_as_whole_rupees(): void
+    {
+        \App\Models\InvoiceItem::withoutEvents(fn () => \App\Models\InvoiceItem::factory()->create([
+            'invoice_id' => $this->bill->id, 'subtotal' => 1938,
+            'discount_amount' => 0, 'line_tax_amount' => 0,
+        ]));
+        $this->bill->updateQuietly(['global_discount' => 0, 'adjustment' => 0, 'shipping_charges' => 0, 'round_off' => 0]);
+        foreach (['Invoice', 'Bill'] as $type) {
+            foreach ([[100.30, 1838], [100.70, 1837], [100.50, 1838], [1938, 0]] as [$paid, $balance]) {
+                $this->bill->updateQuietly(['invoice_type' => $type, 'paid_amount' => $paid]);
+                $this->bill->recalculate();
+                $this->bill->syncTaxSplits($type);
+                $this->assertDatabaseHas('mm_invoices', ['id' => $this->bill->id, 'balance_amount' => $balance]);
+                $this->assertEquals($paid, $this->bill->fresh()->paid_amount);
+            }
+        }
+        $this->bill->updateQuietly(['balance_amount' => 1837.70]);
+        $this->assertEquals(1838, $this->bill->fresh()->balance_amount);
+    }
+
+    public function test_rounded_zero_balance_does_not_mark_a_partial_payment_as_fully_paid(): void
+    {
+        $this->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::class);
+        $user = \App\Models\User::factory()->create();
+        $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Platform Admin', 'guard_name' => 'web'], ['code' => 'PLATFORM_ADMIN']
+        ));
+        $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
+        $this->bill->updateQuietly(['total_amount' => 1180, 'paid_amount' => 1179.70, 'balance_amount' => 0.30, 'status' => Invoice::STATUS_APPROVED]);
+        foreach ([[0.10, Invoice::STATUS_APPROVED], [0.20, Invoice::STATUS_PAID]] as $index => [$amount, $status]) {
+            Payment::withoutEvents(fn () => $this->post(route('payments.store'), [
+                'transaction_date' => '2026-10-07', 'ledger_id' => $this->ledger->id,
+                'patron_id' => $this->patron->id, 'amount' => $amount, 'transaction_type' => 'payment',
+                'status' => 'pending', 'reference' => 'ROUND-PAY-' . $index,
+                'allocations' => [['invoice_id' => $this->bill->id, 'amount' => $amount]],
+            ]))->assertRedirect()->assertSessionHasNoErrors();
+            $this->assertSame($status, $this->bill->fresh()->status);
+            $this->assertEquals(0, $this->bill->fresh()->balance_amount);
+        }
+        $lastPayment = Payment::where('reference', 'ROUND-PAY-1')->firstOrFail();
+        $this->delete(route('payments.destroy', $lastPayment))->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame(Invoice::STATUS_APPROVED, $this->bill->fresh()->status);
+        $this->assertEquals(1179.80, $this->bill->fresh()->paid_amount);
+        $this->assertEquals(0, $this->bill->fresh()->balance_amount);
+    }
+
+    public function test_rounding_is_applied_to_document_total_after_all_items_are_saved(): void
+    {
+        $document = Invoice::createWithItems([
+            'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id,
+            'invoice_type' => 'Invoice', 'invoice_label' => 'Manual', 'prefix' => 'ROUND/',
+            'invoice_number' => 200, 'invoice_date' => '2026-10-07', 'global_discount' => 0,
+            'round_off' => 0, 'items' => [
+                ['quantity' => 1, 'price_unit' => 0.50, 'item_name' => 'First'],
+                ['quantity' => 1, 'price_unit' => 0.50, 'item_name' => 'Second'],
+            ],
+        ])->fresh();
+        $this->assertEquals(1, $document->total_amount);
+        $this->assertEquals(0, $document->round_off);
     }
 
     public function test_bill_is_a_purchase_document_and_is_counted_once(): void

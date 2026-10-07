@@ -119,6 +119,16 @@ class Invoice extends Model implements Postable
         $this->attributes['is_tax_inclusive'] = $val;
     }
 
+    public function setTotalAmountAttribute($value): void
+    {
+        $this->attributes['total_amount'] = round((float) $value, 0);
+    }
+
+    public function setBalanceAmountAttribute($value): void
+    {
+        $this->attributes['balance_amount'] = round((float) $value, 0);
+    }
+
     // ------------------------------------------------------------------ constants
     const STATUS_DRAFT     = 'Draft';
     const STATUS_APPROVED  = 'Approved';
@@ -374,7 +384,8 @@ class Invoice extends Model implements Postable
         // Add shipping charges to total
         $rawTotal       = $subtotal + $taxAmount - $globalDiscount + $this->adjustment + ($this->shipping_charges ?? 0);
         $roundOff       = round((float) ($this->round_off ?? 0), 2);
-        $totalAmount    = round($rawTotal + $roundOff, 2);
+        $totalAmount    = round($rawTotal + $roundOff, 0);
+        $roundOff       = round($totalAmount - $rawTotal, 2);
 
         $this->updateQuietly([
             'subtotal'       => $subtotal,
@@ -382,7 +393,7 @@ class Invoice extends Model implements Postable
             'tax_amount'     => $taxAmount,
             'total_amount'   => $totalAmount,
             'round_off'      => $roundOff,
-            'balance_amount' => $totalAmount - (float)($this->paid_amount ?? 0),
+            'balance_amount' => round($totalAmount - (float)($this->paid_amount ?? 0), 0),
         ]);
     }
 
@@ -508,6 +519,7 @@ class Invoice extends Model implements Postable
             }
 
             $invoice->refresh();
+            $invoice->round_off = $data['round_off'] ?? 0;
             $invoice->recalculate();
             
             // For now, we still sync aggregated splits at invoice level using a weighted average or just the first item's rate for split naming
@@ -527,6 +539,7 @@ class Invoice extends Model implements Postable
             throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Void this receipt bill from the purchase order and generate it again to change it.']);
         }
         return DB::transaction(function () use ($data) {
+            $requestedRoundOff = $data['round_off'] ?? $this->round_off;
             $itemsData = $data['items'] ?? [];
             unset($data['items']);
 
@@ -564,6 +577,7 @@ class Invoice extends Model implements Postable
             }
 
             $this->refresh();
+            $this->round_off = $requestedRoundOff;
             $this->recalculate();
             $this->syncTaxSplits($this['invoice_type']);
 
@@ -620,9 +634,12 @@ class Invoice extends Model implements Postable
                 : (float) $this->global_discount;
             $beforeRound = (float) $this->subtotal + $taxAmount - $globalDiscount
                 + (float) $this->adjustment + (float) $this->shipping_charges;
+            $totalAmount = round((float) $this->total_amount, 0);
             $this->updateQuietly([
                 'tax_amount' => $taxAmount,
-                'round_off' => round((float) $this->total_amount - $beforeRound, 2),
+                'total_amount' => $totalAmount,
+                'round_off' => round($totalAmount - $beforeRound, 2),
+                'balance_amount' => round($totalAmount - (float) $this->paid_amount, 0),
             ]);
         }
     }
@@ -744,6 +761,9 @@ class Invoice extends Model implements Postable
                 }
             }
 
+            $roundedTotal = round($totalAmount, 0);
+            $roundOff = round($roundOff + $roundedTotal - $totalAmount, 2);
+            $totalAmount = $roundedTotal;
             $isTaxInclusive = (bool)($params['is_tax_inclusive'] ?? $source->is_tax_inclusive ?? false);
 
             // 1. Create the Invoice Header
@@ -765,7 +785,7 @@ class Invoice extends Model implements Postable
                 'shipping_charges' => round($shippingCharges, 2),
                 'round_off'        => round($roundOff, 2),
                 'total_amount'     => round($totalAmount, 2),
-                'balance_amount'   => round($totalAmount, 2),
+                'balance_amount'   => round($totalAmount, 0),
                 'status'           => self::STATUS_APPROVED,
                 'notes'            => $params['notes'] ?? null,
                 'created_by'       => $userId,
@@ -804,7 +824,7 @@ class Invoice extends Model implements Postable
             // Item save events must not replace the source document's agreed total.
             $invoice->updateQuietly([
                 'total_amount' => $totalAmount,
-                'balance_amount' => round($totalAmount - (float) $invoice->paid_amount, 2),
+                'balance_amount' => round($totalAmount - (float) $invoice->paid_amount, 0),
             ]);
 
             // 3. Tax Splits and Automated Accounting Posting
