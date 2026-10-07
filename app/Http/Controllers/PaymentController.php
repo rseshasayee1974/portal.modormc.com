@@ -167,7 +167,7 @@ class PaymentController extends Controller
 
                         $invoice->paid_amount += $alloc['amount'];
                         $invoice->balance_amount = max(0.00, $invoice->total_amount - $invoice->paid_amount);
-                        if ($invoice->balance_amount <= 0) {
+                        if ((float) $invoice->paid_amount >= (float) $invoice->total_amount) {
                             $invoice->status = Invoice::STATUS_PAID;
                         }
                         $invoice->save();
@@ -199,7 +199,7 @@ class PaymentController extends Controller
 
                         $invoice->paid_amount += $alloc['amount'];
                         $invoice->balance_amount = max(0.00, $invoice->total_amount - $invoice->paid_amount);
-                        if ($invoice->balance_amount <= 0) {
+                        if ((float) $invoice->paid_amount >= (float) $invoice->total_amount) {
                             $invoice->status = Invoice::STATUS_PAID;
                         }
                         $invoice->save();
@@ -230,7 +230,7 @@ class PaymentController extends Controller
                         $invoice->paid_amount += $allocationData['amount'];
                         $invoice->balance_amount = max(0.00, $invoice->total_amount - $invoice->paid_amount);
                         
-                        if ($invoice->balance_amount <= 0) {
+                        if ((float) $invoice->paid_amount >= (float) $invoice->total_amount) {
                             $invoice->status = Invoice::STATUS_PAID;
                         }
                         $invoice->save();
@@ -455,7 +455,7 @@ class PaymentController extends Controller
                         $invoice->balance_amount = max(0.00, round((float)$invoice->total_amount - (float)$invoice->paid_amount, 2));
                         
                         // If it was paid, move it back to approved
-                        if ($invoice->balance_amount > 0 && (strcasecmp($invoice->status, 'paid') === 0 || $invoice->status === Invoice::STATUS_PAID)) {
+                        if ((float) $invoice->paid_amount < (float) $invoice->total_amount && (strcasecmp($invoice->status, 'paid') === 0 || $invoice->status === Invoice::STATUS_PAID)) {
                             $invoice->status = Invoice::STATUS_APPROVED;
                         }
                         $invoice->save();
