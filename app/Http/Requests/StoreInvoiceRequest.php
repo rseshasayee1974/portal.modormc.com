@@ -135,7 +135,7 @@ class StoreInvoiceRequest extends FormRequest
             'items.*.discount'     => 'nullable|numeric|min:0',
             'items.*.tax_id'       => 'nullable|exists:mm_taxes,id',
             'dispatch_ids'         => 'nullable|array',
-            'dispatch_ids.*'       => 'exists:mm_dispatches,id',
+             'dispatch_ids.*'       => 'exists:mm_dispatches,id',
             'purchase_order_ids'   => 'nullable|array',
             'purchase_order_ids.*' => 'exists:mm_purchase_orders,id',
             'startDate'            => 'nullable|date',
