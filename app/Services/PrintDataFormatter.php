@@ -1099,6 +1099,10 @@ class PrintDataFormatter
             else $docTitle = strtoupper($invoice->invoice_label);
         }
 
+        if (in_array(strtolower((string) $invoice->invoice_type), ['credit_note', 'debit_note'], true)) {
+            $docTitle = strtolower((string) $invoice->invoice_type) === 'credit_note' ? 'CREDIT NOTE' : 'DEBIT NOTE';
+            $data['settings']['pdf']['labels']['invoice_title'] = $docTitle;
+        }
         $data['doc_title'] = $docTitle;
         $data['doc_no']    = strtoupper((string) ($invoice->prefix . $invoice->invoice_number));
         $data['doc_date']  = $invoice->invoice_date?->format('d/m/Y') ?? now()->format('d/m/Y');

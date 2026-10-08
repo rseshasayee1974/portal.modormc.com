@@ -111,6 +111,13 @@ class PatronStatementBillTest extends TestCase
                 $this->assertEquals($type === 'credit_note' ? 1180 : 0, $line->credit_amount);
                 $print = \App\Services\PrintDataFormatter::fromInvoice($note);
                 $this->assertSame(strtoupper($note->invoice_label), $print['doc_title']);
+                $this->assertSame($print['doc_title'], $print['settings']['pdf']['labels']['invoice_title']);
+                $printer = new class extends \App\Http\Controllers\PrintController {
+                    public function dataFor(string $module, string $id): array { return $this->resolveData($module, $id); }
+                };
+                foreach (['invoices', 'billings'] as $module) {
+                    $this->assertSame(strtoupper($note->invoice_label), $printer->dataFor($module, $note->encrypted_id)['doc_title']);
+                }
                 $this->assertStringContainsString($source->full_number, $print['meta']['notes']);
                 $this->assertSame($documentType === 'Bill', $print['is_purchase_bill']);
                 $this->assertEquals(1180, $source->fresh()->total_amount);
