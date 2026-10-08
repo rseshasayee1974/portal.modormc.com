@@ -86,7 +86,13 @@ abstract class RegisterReportService implements ReportServiceInterface
             'cgst' => 0.0, 'sgst' => 0.0, 'utgst' => 0.0, 'igst' => 0.0, 'tcs' => 0.0, 'taxes' => []];
         $fields = ['qty' => 'qty', 'taxable_amount' => 'taxable', 'tax_amount' => 'gst',
             'net_amount' => 'grand_total', 'cgst' => 'cgst', 'sgst' => 'sgst', 'utgst' => 'utgst', 'igst' => 'igst', 'tcs' => 'tcs'];
-        $append = function (array $row) use (&$rows, &$count, $offset, $perPage, $allRows) {
+        $sales = $this->reportType() === 'sales_register';
+        $append = function (array $row) use (&$rows, &$count, &$totals, $sales, $offset, $perPage, $allRows) {
+            if ($sales) {
+                // Round the final displayed row: items in detail, grouped documents in summary.
+                $row['net_amount'] = round((float) $row['net_amount'], 0);
+                $totals['grand_total'] += $row['net_amount'];
+            }
             if ($allRows || ($count >= $offset && $count < $offset + $perPage)) {
                 $rows[] = $row;
             }
@@ -114,6 +120,7 @@ abstract class RegisterReportService implements ReportServiceInterface
                     fn ($key) => str_starts_with($key, strtoupper($component).'_'), ARRAY_FILTER_USE_KEY)), 2);
             }
             foreach ($fields as $field => $total) {
+                if ($sales && $field === 'net_amount') continue;
                 $totals[$total] += $row[$field];
             }
             foreach ($row['taxes'] as $key => $amount) {
@@ -153,7 +160,8 @@ abstract class RegisterReportService implements ReportServiceInterface
             'register_view' => $filters['register_view'], 'data' => $rows, 'totals' => $totals,
             'tax_columns' => $taxColumns,
             'columns' => RegisterReportColumns::for($this->reportType(), $filters['register_view'], $taxColumns),
-            'note' => ($sampleDetail ? 'Net Amount is the stored item total including tax; Sales GST is the taxable item value. ' : '')
+            'note' => ($sales ? 'Net Amount is rounded to the nearest whole rupee. ' : '')
+                .($sampleDetail ? 'Net Amount includes item tax; Sales GST is the taxable item value. ' : '')
                 .'Amounts are based on matching invoice or bill items. Document-level charges, discounts and rounding are excluded from item amounts.'
                 .($this->reportType() === 'sales_register' ? ' Round Off is shown separately once per invoice, on its first matching item.' : ''),
             'pagination' => ['total' => $count, 'per_page' => $perPage, 'current_page' => $page,
