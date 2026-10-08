@@ -358,7 +358,7 @@ const formatDate = (dateString: string) => {
                 </template>
             </Column>
 
-            <Column header="Credit / Debit Notes">
+            <!-- <Column header="Credit / Debit Notes">
                 <template #body="{ data }">
                     <div class="flex flex-col gap-2">
                         <div v-for="type in ['credit_note', 'debit_note']" :key="type">
@@ -367,7 +367,7 @@ const formatDate = (dateString: string) => {
                         </div>
                     </div>
                 </template>
-            </Column>
+            </Column> -->
             <Column header="Actions" class="text-right w-24">
                 <template #body="slotProps">
                     <Button 

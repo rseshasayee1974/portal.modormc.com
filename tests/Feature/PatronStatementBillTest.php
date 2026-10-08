@@ -58,6 +58,48 @@ class PatronStatementBillTest extends TestCase
         );
     }
 
+    public function test_sales_register_net_amounts_and_totals_are_whole_rupees(): void
+    {
+        $rows = [];
+        foreach ([[1, 1938.30], [2, 1938.70], [3, 0.50], [3, 0.50]] as $index => [$document, $amount]) {
+            $rows[] = ['id' => $index + 1, 'document_id' => $document, 'qty' => 1,
+                'taxable_amount' => 10.25, 'tax_amount' => 1.85, 'net_amount' => $amount,
+                'roundoff' => 0, 'discount' => 0, 'taxes' => ['CGST_9.00' => 0.92, 'SGST_9.00' => 0.93]];
+        }
+        $service = app(\App\Services\Reports\SalesRegisterService::class);
+        $detail = $service->buildFromRows($rows, ['register_view' => 'detail']);
+        $this->assertSame([1938.0, 1939.0, 1.0, 1.0], array_column($detail['data'], 'net_amount'));
+        $this->assertEquals(3879, $detail['totals']['grand_total']);
+        $summary = $service->buildFromRows($rows, ['register_view' => 'summary']);
+        $this->assertSame([1938.0, 1939.0, 1.0], array_column($summary['data'], 'net_amount'));
+        $this->assertEquals(3878, $summary['totals']['grand_total']);
+        $paged = $service->buildFromRows($rows, ['register_view' => 'summary', 'page' => 2, 'per_page' => 1], false);
+        $this->assertSame([1939.0], array_column($paged['data'], 'net_amount'));
+        $this->assertEquals(3878, $paged['totals']['grand_total']);
+        $this->assertEquals(10.25, $detail['data'][0]['taxable_amount']);
+        $this->assertEquals(1.85, $detail['data'][0]['tax_amount']);
+        $workbook = app(\App\Services\Reports\ExcelExportService::class)->generateExcelReport(
+            'sales_register', '2026-10-01', '2026-10-08', $detail + ['excel_format' => 'complete']
+        );
+        $sheet = $workbook->getActiveSheet();
+        foreach ($sheet->toArray() as $index => $cells) {
+            $column = array_search('Net Amount', $cells, true);
+            if ($column === false) continue;
+            $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($column + 1);
+            $this->assertEquals(1938, $sheet->getCell($letter . ($index + 2))->getValue());
+            $this->assertEquals(1939, $sheet->getCell($letter . ($index + 3))->getValue());
+            break;
+        }
+        $this->assertNotFalse($column);
+        $workbook->disconnectWorksheets();
+        $html = view('reports.register_pdf', ['title' => 'Sales Register', 'report' => $detail,
+            'filters' => ['from_date' => '2026-10-01', 'to_date' => '2026-10-08'], 'generated_at' => '2026-10-08'])->render();
+        $this->assertStringContainsString('1,938.00', $html);
+        $this->assertStringContainsString('1,939.00', $html);
+        $purchase = app(\App\Services\Reports\PurchaseRegisterService::class)->buildFromRows($rows, ['register_view' => 'detail']);
+        $this->assertEquals(1938.30, $purchase['data'][0]['net_amount']);
+    }
+
     public function test_notes_link_to_invoice_and_bill_and_post_correct_ledger_sides(): void
     {
         $this->assertNotesPosting();
