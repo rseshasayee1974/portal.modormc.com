@@ -442,6 +442,10 @@ Route::middleware([
         Route::get('invoices/next-number', [\App\Http\Controllers\InvoiceController::class, 'getNextNumber'])->name('invoices.next-number');
 
         Route::get('invoices/outstanding', [\App\Http\Controllers\InvoiceController::class, 'outstanding'])->name('invoices.outstanding');
+        Route::post('invoices/{invoice}/notes', [\App\Http\Controllers\InvoiceNoteController::class, 'store'])->name('invoices.notes.store');
+        Route::get('crdrnote', [\App\Http\Controllers\InvoiceNoteController::class, 'index'])->name('crdrnote.index');
+        Route::post('crdrnote', [\App\Http\Controllers\InvoiceNoteController::class, 'moduleStore'])->name('crdrnote.store');
+        Route::put('crdrnote/{note}', [\App\Http\Controllers\InvoiceNoteController::class, 'update'])->name('crdrnote.update');
         Route::get('invoices/{invoice}/print-tax-invoice', [\App\Http\Controllers\InvoiceController::class, 'printTaxInvoice'])->name('invoices.print-tax-invoice');
         Route::delete('invoices/{invoice}', [\App\Http\Controllers\InvoiceController::class, 'destroy'])->name('invoices.destroy')->where('invoice', '.*');
         Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit', 'destroy']);

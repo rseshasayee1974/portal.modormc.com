@@ -16,6 +16,7 @@ import {
     CheckCircleIcon
 } from '@heroicons/vue/24/outline';
 import BillingEditForm from './BillingEditForm.vue';
+import InvoiceNoteActions from '@/Components/InvoiceNoteActions.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 
 const props = defineProps<{
@@ -28,6 +29,7 @@ const props = defineProps<{
 }>();
 
 const expandedRows = ref<Record<number, boolean>>({});
+const findNote = (document: any, type: string) => (document.adjustment_notes || []).find((note: any) => String(note.invoice_type).toLowerCase() === type);
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
 });
@@ -206,9 +208,20 @@ const printInvoice = (data: any) => {
                 </template>
             </Column>
 
+            <Column header="Credit / Debit Notes">
+                <template #body="{ data }">
+                    <div class="flex flex-col gap-2">
+                        <div v-for="type in ['credit_note', 'debit_note']" :key="type">
+                            <Tag :severity="findNote(data, type) ? 'success' : 'secondary'" :value="`${type === 'credit_note' ? 'Credit Note' : 'Debit Note'}: ${findNote(data, type) ? 'Generated' : 'Not Generated'}`" />
+                            <div v-if="findNote(data, type)" class="text-xs mt-1">{{ findNote(data, type).full_number }}</div>
+                        </div>
+                    </div>
+                </template>
+            </Column>
             <Column header="Actions" class="text-right">
                 <template #body="slotProps">
                     <div class="flex justify-end gap-1">
+                        <InvoiceNoteActions :document="slotProps.data" />
                         <Button 
                             icon="pi pi-print" 
                             text rounded severity="secondary" 

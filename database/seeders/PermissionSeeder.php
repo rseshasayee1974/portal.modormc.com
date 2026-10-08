@@ -56,6 +56,7 @@ class PermissionSeeder extends Seeder
             'PETTY_CASH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'PAYMENT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'BILLING' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'CRDRNOTE' => ['VIEW', 'CREATE', 'UPDATE'],
             
             // Commerce
             'PATRON' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
@@ -181,7 +182,7 @@ class PermissionSeeder extends Seeder
         $accountantRole = Role::where('code', 'ACCOUNTANT')->first();
         if ($accountantRole) {
             $accountantPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'DISCOUNT', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING'])
+                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'DISCOUNT', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING', 'CRDRNOTE'])
                        || Str::endsWith($p, '.VIEW');
             });
             $accountantRole->syncPermissions($accountantPermissions);
@@ -191,7 +192,7 @@ class PermissionSeeder extends Seeder
         $salesRole = Role::where('code', 'SALES_MANAGER')->first();
         if ($salesRole) {
             $salesPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['QUOTATION', 'SALES_ORDER', 'CUSTOMER_PO', 'INVOICE', 'PATRON', 'PRODUCT', 'SITE'])
+                return Str::startsWith($p, ['QUOTATION', 'SALES_ORDER', 'CUSTOMER_PO', 'INVOICE', 'CRDRNOTE', 'PATRON', 'PRODUCT', 'SITE'])
                        || Str::endsWith($p, '.VIEW');
             });
             $salesRole->syncPermissions($salesPermissions);
@@ -260,7 +261,7 @@ class PermissionSeeder extends Seeder
         $financeManagerRole = Role::where('code', 'FINANCE_MANAGER')->first();
         if ($financeManagerRole) {
             $financePermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'DISCOUNT', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING'])
+                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'DISCOUNT', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING', 'CRDRNOTE'])
                        || Str::endsWith($p, '.VIEW');
             });
             $financeManagerRole->syncPermissions($financePermissions);

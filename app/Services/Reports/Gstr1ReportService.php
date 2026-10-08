@@ -22,10 +22,10 @@ class Gstr1ReportService implements ReportServiceInterface
         // Query all sales invoices, credit notes, and debit notes
         $invoices = Invoice::where('plant_id', $plantId)
             ->whereNull('deleted_at')
-            ->with(['partner.addresses.state'])
+            ->with(['partner.addresses.state', 'sourceDocument'])
             ->whereIn('invoice_type', array_merge(\App\Support\InvoiceClassification::aliases('Invoice'), ['credit_note', 'debit_note']))
             ->whereIn('status', ['Approved', 'approved', 'APPROVED', 'Paid', 'paid', 'PAID'])
-            ->whereBetween('invoice_date', [$start, $end])
+            ->whereBetween('invoice_date', [\Carbon\Carbon::parse($start)->startOfDay(), \Carbon\Carbon::parse($end)->endOfDay()])
             ->get();
 
         $b2b = [];
@@ -34,6 +34,7 @@ class Gstr1ReportService implements ReportServiceInterface
         $exp = [];
 
         foreach ($invoices as $inv) {
+            if ($inv->accountingModule() === 'Purchase') continue;
             $taxes = OrderTax::where('order_id', $inv->id)->where('order_type', 'Invoice')->whereNull('deleted_at')->get();
             $cgst  = (float) $taxes->filter(fn($t) => str_contains(strtoupper($t->name), 'CGST'))->sum('amount');
             $sgst  = (float) $taxes->filter(fn($t) => str_contains(strtoupper($t->name), 'SGST') || str_contains(strtoupper($t->name), 'UGST') || str_contains(strtoupper($t->name), 'UTGST'))->sum('amount');
@@ -52,7 +53,7 @@ class Gstr1ReportService implements ReportServiceInterface
                     'note_date'         => $inv->invoice_date->toDateString(),
                     'note_type'         => $inv->invoice_type === 'credit_note' ? 'C' : 'D',
                     'original_inv_no'   => $inv->ref_title ?: 'N/A',
-                    'original_inv_date' => $inv->invoice_date->toDateString(),
+                    'original_inv_date' => $inv->sourceDocument?->invoice_date?->toDateString() ?? $inv->invoice_date->toDateString(),
                     'note_value'        => (float)$inv->total_amount,
                     'taxable_value'     => (float)$inv->subtotal,
                     'cgst'              => $cgst,

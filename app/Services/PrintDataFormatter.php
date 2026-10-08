@@ -1067,7 +1067,7 @@ class PrintDataFormatter
 
     public static function fromInvoice($invoice): array
     {
-        $isPurchaseBill = in_array(strtolower((string) $invoice->invoice_type), ['bill', 'purchase'], true);
+        $isPurchaseBill = $invoice->accountingModule() === 'Purchase';
         $isManualDocument = strtolower(trim((string) $invoice->invoice_label)) === 'manual';
         $invoice->loadMissing([
             'plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses',
@@ -1289,7 +1289,8 @@ class PrintDataFormatter
         $data['meta'] = [
             'currency_code'          => 'INR',
             'currency_symbol'        => '&#8377;',
-            'notes'                  => $invoice->notes ?? '',
+            'notes'                  => in_array($invoice->invoice_type, ['credit_note', 'debit_note'], true)
+                ? 'Against ' . $invoice->ref_title . ': ' . ($invoice->notes ?? '') : ($invoice->notes ?? ''),
             'terms_text'             => self::resolveTermsCondition($data['settings'], $orderTypeForTerms, $invoice->plant_id, "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction."),
             'total_words'            => self::numberToWords($grandTotalVal, 'INR'),
             'po_number'              => $poNumber,

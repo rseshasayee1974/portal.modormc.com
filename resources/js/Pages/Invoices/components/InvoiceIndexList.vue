@@ -18,6 +18,7 @@ import {
     CheckCircleIcon
 } from '@heroicons/vue/24/outline';
 import InvoiceEditForm from './InvoiceEditForm.vue';
+import InvoiceNoteActions from '@/Components/InvoiceNoteActions.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 
@@ -33,6 +34,7 @@ const props = defineProps<{
 
 const actionsPopover = ref();
 const selectedRow = ref<any>(null);
+const findNote = (document: any, type: string) => (document.adjustment_notes || []).find((note: any) => String(note.invoice_type).toLowerCase() === type);
 
 const toggleActions = (event: any, row: any) => {
     selectedRow.value = row;
@@ -356,6 +358,16 @@ const formatDate = (dateString: string) => {
                 </template>
             </Column>
 
+            <Column header="Credit / Debit Notes">
+                <template #body="{ data }">
+                    <div class="flex flex-col gap-2">
+                        <div v-for="type in ['credit_note', 'debit_note']" :key="type">
+                            <Tag :severity="findNote(data, type) ? 'success' : 'secondary'" :value="`${type === 'credit_note' ? 'Credit Note' : 'Debit Note'}: ${findNote(data, type) ? 'Generated' : 'Not Generated'}`" />
+                            <div v-if="findNote(data, type)" class="text-xs mt-1">{{ findNote(data, type).full_number }}</div>
+                        </div>
+                    </div>
+                </template>
+            </Column>
             <Column header="Actions" class="text-right w-24">
                 <template #body="slotProps">
                     <Button 
@@ -485,6 +497,7 @@ const formatDate = (dateString: string) => {
         <!-- Actions Popover (Appends to body to bypass overflow-hidden boundaries) -->
         <Popover ref="actionsPopover" class="!shadow-xl !border !border-slate-200 !rounded-xl overflow-hidden">
             <div class="flex flex-col w-48 py-1" v-if="selectedRow">
+                <InvoiceNoteActions :document="invoices.find(row => row.id === selectedRow.id) || selectedRow" />
                 <!-- Edit -->
                 <button 
                     @click="toggleEdit(selectedRow); actionsPopover.hide()" 

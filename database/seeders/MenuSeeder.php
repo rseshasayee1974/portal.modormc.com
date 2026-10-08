@@ -170,5 +170,6 @@ class MenuSeeder extends Seeder
         ]);
         \App\Services\Reports\InstallReportPermissions::syncMenus();
         $this->call(DiscountModuleSeeder::class);
+        \App\Services\InstallNoteModule::run();
     }
 }

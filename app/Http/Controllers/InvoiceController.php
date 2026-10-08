@@ -31,6 +31,7 @@ class InvoiceController extends Controller
                     'destroyer:id,username',
                     'items.uom:id,unit_code',
                     'items.tax',
+                    'adjustmentNotes',
                 ])
                 ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
                 ->where('plant_id', $plantId)->where('deleted_at',null)

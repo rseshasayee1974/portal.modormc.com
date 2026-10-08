@@ -58,6 +58,169 @@ class PatronStatementBillTest extends TestCase
         );
     }
 
+    public function test_notes_link_to_invoice_and_bill_and_post_correct_ledger_sides(): void
+    {
+        $this->assertNotesPosting();
+    }
+
+    public function test_notes_can_be_generated_without_purchase_history_column(): void
+    {
+        \Illuminate\Support\Facades\Schema::table('mm_invoice_items', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->dropIndex(['purchase_order_history_id']);
+            $table->dropColumn('purchase_order_history_id');
+        });
+        $this->assertNotesPosting();
+    }
+
+    private function assertNotesPosting(): void
+    {
+        $base = Ledger::factory()->create(['plant_id' => $this->plant->id]);
+        $tax = \App\Models\Tax::factory()->create(['plant_id' => $this->plant->id, 'tax_group' => 'GST', 'tax_rate' => 18, 'account_id' => $base->id]);
+        foreach (['CGST', 'SGST'] as $name) {
+            \App\Models\Tax::factory()->create(['plant_id' => $this->plant->id, 'parent_id' => $tax->id, 'tax_name' => $name, 'tax_rate' => 9, 'account_id' => $base->id]);
+        }
+        $this->patron->updateQuietly(['debit_ledger_id' => $this->ledger->id, 'credit_ledger_id' => $this->ledger->id]);
+        foreach (['Invoice', 'Bill'] as $index => $documentType) {
+            $source = Invoice::factory()->create([
+                'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id, 'account_id' => $base->id,
+                'invoice_type' => $documentType, 'invoice_label' => 'Manual', 'prefix' => 'NOTE-SOURCE/',
+                'invoice_number' => 100 + $index, 'invoice_date' => '2026-10-06', 'status' => Invoice::STATUS_APPROVED,
+                'subtotal' => 1000, 'total_amount' => 1180, 'tax_amount' => 180, 'global_discount' => 0,
+                'adjustment' => 0, 'shipping_charges' => 0, 'round_off' => 0, 'paid_amount' => 0,
+            ]);
+            \App\Models\InvoiceItem::withoutEvents(fn () => \App\Models\InvoiceItem::factory()->create([
+                'invoice_id' => $source->id, 'subtotal' => 1000, 'quantity' => 1, 'price_unit' => 1000,
+                'tax_id' => $tax->id, 'line_tax_amount' => 180, 'line_total' => 1180,
+            ]));
+            foreach (['credit_note', 'debit_note'] as $type) {
+                $note = $source->generateAdjustmentNote($type, '2026-10-07', 'Adjustment test');
+                $this->assertSame($source->id, (int) $note->ref_id);
+                $this->assertSame($source->full_number, $note->ref_title);
+                $this->assertSame($type, $note->invoice_type);
+                $this->assertStringStartsWith($type === 'credit_note' ? 'CN/' : 'DN/', $note->full_number);
+                $this->assertEquals(1180, $note->total_amount);
+                $this->assertCount(1, $note->items);
+                $this->assertCount(2, $note->orderTaxes);
+                $this->assertEquals(180, $note->orderTaxes->sum('amount'));
+                $this->assertSame($documentType === 'Bill' ? 'Purchase' : 'Invoice', $note->orderTaxes->first()->order_type);
+                $entry = \App\Models\JournalEntry::where('ref_id', $note->id)->where('voucher_type', strtoupper($type))->firstOrFail();
+                $this->assertEquals(1180, $entry->total_debit);
+                $this->assertEquals($entry->total_debit, $entry->total_credit);
+                $line = $entry->lines()->where('partner_id', $this->patron->id)->firstOrFail();
+                $this->assertEquals($type === 'debit_note' ? 1180 : 0, $line->debit_amount);
+                $this->assertEquals($type === 'credit_note' ? 1180 : 0, $line->credit_amount);
+                $print = \App\Services\PrintDataFormatter::fromInvoice($note);
+                $this->assertSame(strtoupper($note->invoice_label), $print['doc_title']);
+                $this->assertStringContainsString($source->full_number, $print['meta']['notes']);
+                $this->assertSame($documentType === 'Bill', $print['is_purchase_bill']);
+                $this->assertEquals(1180, $source->fresh()->total_amount);
+                try {
+                    $source->generateAdjustmentNote($type, '2026-10-07', 'Duplicate');
+                    $this->fail('Duplicate full-value note must be rejected.');
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    $this->assertArrayHasKey('note_type', $e->errors());
+                }
+            }
+            $this->assertCount(2, $source->adjustmentNotes);
+        }
+        $gst = app(\App\Services\Reports\Gstr1ReportService::class)->generate(['start' => '2026-10-07', 'end' => '2026-10-07']);
+        $this->assertCount(2, $gst['cdnr']);
+        foreach ($gst['cdnr'] as $row) {
+            $this->assertSame('2026-10-06', $row['original_inv_date']);
+            $this->assertEquals(90, $row['cgst']);
+            $this->assertEquals(90, $row['sgst']);
+        }
+    }
+
+    public function test_note_generation_rejects_draft_sources_and_rolls_back_failed_posting(): void
+    {
+        $this->bill->updateQuietly(['status' => Invoice::STATUS_DRAFT]);
+        try {
+            $this->bill->generateAdjustmentNote('credit_note', '2026-10-07', 'Invalid');
+            $this->fail('Draft source must be rejected.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertArrayHasKey('note_type', $e->errors());
+        }
+        $this->bill->updateQuietly(['status' => Invoice::STATUS_APPROVED, 'account_id' => null]);
+        try {
+            $this->bill->generateAdjustmentNote('debit_note', '2026-10-07', 'Missing ledger');
+            $this->fail('Missing accounting ledgers must reject posting.');
+        } catch (\App\Exceptions\AccountingException $e) {
+            $this->assertSame(0, $this->bill->adjustmentNotes()->count());
+        }
+    }
+
+    public function test_note_endpoint_validates_date_and_restricts_active_plant(): void
+    {
+        $user = \App\Models\User::factory()->create();
+        $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Platform Admin', 'guard_name' => 'web'], ['code' => 'PLATFORM_ADMIN']
+        ));
+        $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
+        $this->patron->updateQuietly(['credit_ledger_id' => $this->ledger->id]);
+        $this->bill->updateQuietly(['account_id' => $this->ledger->id, 'subtotal' => 1180, 'total_amount' => 1180,
+            'tax_amount' => 0, 'global_discount' => 0, 'adjustment' => 0, 'shipping_charges' => 0, 'round_off' => 0]);
+        $url = route('invoices.notes.store', $this->bill->encrypted_id);
+        $data = ['note_type' => 'debit_note', 'note_date' => '2026-10-06', 'reason' => 'Returned goods'];
+        $this->post($url, $data)->assertSessionHasErrors('note_date');
+        $data['note_date'] = '2026-10-07';
+        $this->post($url, $data)->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('debit_note', $this->bill->adjustmentNotes()->firstOrFail()->invoice_type);
+        $otherPlant = Plant::factory()->create();
+        $this->withSession(['active_plant_id' => $otherPlant->id, 'active_entity_id' => $otherPlant->entity_id]);
+        $this->post($url, $data)->assertNotFound();
+    }
+
+    public function test_note_module_lists_creates_edits_and_reposts_without_changing_source(): void
+    {
+        $user = \App\Models\User::factory()->create();
+        $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Platform Admin', 'guard_name' => 'web'], ['code' => 'PLATFORM_ADMIN']
+        ));
+        $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
+        $this->patron->updateQuietly(['credit_ledger_id' => $this->ledger->id]);
+        $this->bill->updateQuietly(['account_id' => $this->ledger->id, 'subtotal' => 1180, 'total_amount' => 1180,
+            'tax_amount' => 0, 'global_discount' => 0, 'adjustment' => 0, 'shipping_charges' => 0, 'round_off' => 0]);
+        $this->get(route('crdrnote.index'))->assertOk()->assertInertia(fn ($page) => $page
+            ->component('CrDrNote/Index')->has('documents', 1)->has('notes', 0));
+        $this->post(route('crdrnote.store'), ['source_id' => $this->bill->id, 'note_type' => 'debit_note',
+            'note_date' => '2026-10-07', 'reason' => 'Purchase Return / Bill Adjustment'])
+            ->assertRedirect(route('crdrnote.index'))->assertSessionHasNoErrors();
+        $note = $this->bill->adjustmentNotes()->firstOrFail();
+        $number = $note->full_number;
+        $entry = \App\Models\JournalEntry::where('ref_id', $note->id)->where('voucher_type', 'DEBIT_NOTE')->firstOrFail();
+        $lines = $entry->lines()->count();
+        $this->put(route('crdrnote.update', $note->encrypted_id), ['note_date' => '2026-10-08', 'reason' => 'Tax Correction'])
+            ->assertRedirect(route('crdrnote.index'))->assertSessionHasNoErrors();
+        $this->assertSame('2026-10-08', $note->fresh()->invoice_date->toDateString());
+        $this->assertSame('Tax Correction', $note->fresh()->notes);
+        $this->assertSame($number, $note->fresh()->full_number);
+        $this->assertEquals(1180, $note->fresh()->total_amount);
+        $this->assertSame('2026-10-08', $entry->fresh()->voucher_date->toDateString());
+        $this->assertEquals($lines, $entry->lines()->count());
+        $this->assertSame('2026-10-07', $this->bill->fresh()->invoice_date->toDateString());
+        $this->put(route('crdrnote.update', $this->bill->encrypted_id), ['note_date' => '2026-10-08', 'reason' => 'Test'])->assertNotFound();
+        $this->get(route('crdrnote.index'))->assertOk()->assertInertia(fn ($page) => $page->has('notes', 1));
+        $other = Plant::factory()->create();
+        $this->withSession(['active_plant_id' => $other->id, 'active_entity_id' => $other->entity_id]);
+        $this->get(route('crdrnote.index'))->assertOk()->assertInertia(fn ($page) => $page->has('notes', 0)->has('documents', 0));
+        $this->put(route('crdrnote.update', $note->encrypted_id), ['note_date' => '2026-10-08', 'reason' => 'Test'])->assertNotFound();
+        $this->post(route('crdrnote.store'), ['source_id' => $this->bill->id, 'note_type' => 'credit_note',
+            'note_date' => '2026-10-07', 'reason' => 'Test'])->assertNotFound();
+    }
+
+    public function test_note_module_requires_separate_view_create_update_permissions(): void
+    {
+        $user = \App\Models\User::factory()->create();
+        $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
+        $this->get(route('crdrnote.index'))->assertForbidden();
+        $this->post(route('crdrnote.store'), [])->assertForbidden();
+        $this->put(route('crdrnote.update', $this->bill->encrypted_id), [])->assertForbidden();
+        $user->givePermissionTo('CRDRNOTE.VIEW');
+        $this->get(route('crdrnote.index'))->assertOk();
+        $this->post(route('crdrnote.store'), [])->assertForbidden();
+    }
+
     public function test_manual_invoice_and_bill_print_amounts_exclude_tax(): void
     {
         \App\Models\InvoiceItem::withoutEvents(fn () => \App\Models\InvoiceItem::factory()->create([

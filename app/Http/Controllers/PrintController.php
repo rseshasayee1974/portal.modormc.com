@@ -156,7 +156,8 @@ class PrintController extends Controller
                     $data = PrintDataFormatter::fromInvoice($model);
                     $moduleKey = in_array(strtolower((string) $model->invoice_type), ['bill', 'purchase'], true) ? 'purchase_bills' : 'invoices';
                     $defaultSettings = PrintDataFormatter::getDefaultSettings($moduleKey);
-                    $data['doc_title'] = $defaultSettings['pdf']['labels']['invoice_title'];
+                    $data['doc_title'] = in_array($model->invoice_type, ['credit_note', 'debit_note'], true)
+                        ? strtoupper($model->invoice_label) : $defaultSettings['pdf']['labels']['invoice_title'];
                 }
                 break;
 

@@ -293,12 +293,13 @@ class Invoice extends Model implements Postable
         $defaultPrefix = match ($normalizedLabel) {
             'purchase', 'bill' => "Bill/{$fy}/",
             'credit_note' => "CN/{$fy}/",
+            'debit_note' => "DN/{$fy}/",
             'batching', 'dispatch' => "Inv/{$fy}/",
             default => "INV/{$fy}/",
         };
 
         $prefix = $defaultPrefix;
-        if ($accountId) {
+        if ($accountId && !in_array($normalizedLabel, ['credit_note', 'debit_note'], true)) {
              $ledger = \App\Models\Ledger::withoutGlobalScopes()->find($accountId);
              if ($ledger && !empty(trim((string)$ledger->description))) {
                  $desc = trim((string)$ledger->description);
@@ -436,6 +437,64 @@ class Invoice extends Model implements Postable
     public function partner()
     {
         return $this->belongsTo(Patron::class, 'partner_id');
+    }
+
+    public function sourceDocument()
+    {
+        return $this->belongsTo(self::class, 'ref_id');
+    }
+
+    public function adjustmentNotes()
+    {
+        return $this->hasMany(self::class, 'ref_id')->whereIn('invoice_type', ['credit_note', 'debit_note']);
+    }
+
+    public function accountingModule(): string
+    {
+        $type = strtolower((string) $this->invoice_type);
+        if (in_array($type, ['credit_note', 'debit_note'], true)) {
+            $type = strtolower((string) $this->sourceDocument?->invoice_type);
+        }
+        return in_array($type, ['bill', 'purchase'], true) ? 'Purchase' : 'Invoice';
+    }
+
+    public function generateAdjustmentNote(string $type, string $date, string $reason): self
+    {
+        return DB::transaction(function () use ($type, $date, $reason) {
+            $source = self::whereKey($this->id)->lockForUpdate()->firstOrFail();
+            if (!in_array($type, ['credit_note', 'debit_note'], true)
+                || !in_array(strtolower((string) $source->invoice_type), ['invoice', 'sales', 'bill', 'purchase'], true)
+                || !in_array(strtolower((string) $source->status), ['approved', 'paid'], true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'Notes can only be generated against an approved or paid invoice or bill.']);
+            }
+            if ($source->adjustmentNotes()->where('invoice_type', $type)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'A full-value note of this type already exists for this document.']);
+            }
+            if ((float) $source->total_amount <= 0) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'The source document must have a positive amount.']);
+            }
+            Plant::withoutGlobalScopes()->whereKey($source->plant_id)->lockForUpdate()->firstOrFail();
+            $details = self::generateNumber($source->plant_id, $type);
+            $fields = ['plant_id', 'partner_id', 'account_id', 'subtotal', 'global_discount_type', 'global_discount',
+                'discount_total', 'tax_amount', 'adjustment', 'shipping_charges', 'shipping_tax_id',
+                'total_amount', 'round_off', 'is_tax_inclusive'];
+            $note = self::create(array_merge($source->only($fields), [
+                'invoice_type' => $type, 'invoice_label' => $type === 'credit_note' ? 'Credit Note' : 'Debit Note',
+                'prefix' => $details['prefix'], 'invoice_number' => $details['next_number'],
+                'ref_id' => $source->id, 'ref_title' => $source->full_number,
+                'invoice_date' => $date, 'due_date' => $date, 'notes' => $reason,
+                'paid_amount' => 0, 'balance_amount' => $source->total_amount,
+                'status' => self::STATUS_APPROVED, 'created_by' => auth()->id(),
+            ]));
+            foreach ($source->items as $item) {
+                $copy = $item->replicate(['id', 'created_at', 'updated_at', 'deleted_at', 'deleted_by',
+                    'purchase_order_item_id', 'purchase_order_history_id']);
+                $copy->invoice_id = $note->id;
+                $copy->saveQuietly();
+            }
+            $note->postToAccounting();
+            return $note->refresh();
+        });
     }
 
     public function vendor() { return $this->partner(); }
@@ -590,7 +649,7 @@ class Invoice extends Model implements Postable
      */
     public function syncTaxSplits(string $invoice_type = 'Invoice'): void
     {
-        $normalizedType = in_array(strtolower($invoice_type), ['bill', 'purchase']) ? 'Purchase' : 'Invoice';
+        $normalizedType = $this->accountingModule();
         $keptTaxIds = [];
         
         // 1. Process line items individually to capture specific item IDs and accounts
@@ -860,6 +919,9 @@ class Invoice extends Model implements Postable
     {
         // Normalize 'bill' to 'bill', 'sales' to 'invoice' — keeps DocumentTypeConfig simple
         $type = strtolower($this->invoice_type ?? 'invoice');
+        if (in_array($type, ['credit_note', 'debit_note'], true) && $this->accountingModule() === 'Purchase') {
+            return 'purchase_' . $type;
+        }
         return match($type) {
             'sales'    => 'invoice',
             'purchase' => 'bill',
@@ -946,11 +1008,7 @@ class Invoice extends Model implements Postable
     public function getTaxLines(): Collection
     {
         $docType = $this->getDocumentType();
-        $module  = match($docType) {
-            'invoice' => 'Invoice',
-            'bill'    => 'Purchase',
-            default   => ucfirst($docType),
-        };
+        $module = $this->accountingModule();
 
         return OrderTax::query()
             ->where('order_id', $this->id)
@@ -972,11 +1030,7 @@ class Invoice extends Model implements Postable
     {
         $adjustments = collect();
         $plantId = $this->getPlantId();
-        $module  = match($this->getDocumentType()) {
-            'invoice' => 'Invoice',
-            'bill'    => 'Purchase',
-            default   => ucfirst($this->getDocumentType()),
-        };
+        $module = $this->accountingModule();
 
         $resolver = app(LedgerResolver::class);
 

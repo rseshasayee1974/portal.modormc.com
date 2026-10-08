@@ -81,6 +81,18 @@ class DocumentTypeConfig
     public static function get(string $docType): array
     {
         $type = strtolower($docType);
+        if (in_array($type, ['debit_note', 'purchase_credit_note', 'purchase_debit_note'], true)) {
+            $purchase = str_starts_with($type, 'purchase_');
+            $credit = str_ends_with($type, 'credit_note');
+            $config = self::CONFIG[$purchase ? 'bill' : 'invoice'];
+            $config['voucher_type'] = $credit ? 'CREDIT_NOTE' : 'DEBIT_NOTE';
+            if ($purchase ? !$credit : $credit) {
+                foreach (['partner_side', 'base_side', 'tax_side'] as $side) {
+                    $config[$side] = $config[$side] === 'debit' ? 'credit' : 'debit';
+                }
+            }
+            return $config;
+        }
         if (!isset(self::CONFIG[$type])) {
             throw new AccountingException("Unsupported document type: '{$type}'. Supported: "
                 . implode(', ', array_keys(self::CONFIG)));

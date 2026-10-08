@@ -29,6 +29,7 @@ class BillingController extends Controller
                     'items',
                     'items.uom:id,unit_code',
                     'items.tax',
+                    'adjustmentNotes',
                 ])
                 ->where('plant_id', $plantId)
                 ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))
@@ -43,6 +44,7 @@ class BillingController extends Controller
                     'items',
                     'items.uom:id,unit_code',
                     'items.tax',
+                    'adjustmentNotes',
                 ])
                 ->where('plant_id', $plantId)
                 ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))

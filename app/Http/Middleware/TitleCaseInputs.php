@@ -133,6 +133,7 @@ class TitleCaseInputs
         'standard_reference',
         'layout_type',
         'calculation_type',
+        'note_type',
         'rule_type',
         'comparison_operator',
         'tax_type',
