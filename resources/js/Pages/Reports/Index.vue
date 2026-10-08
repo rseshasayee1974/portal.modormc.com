@@ -63,7 +63,27 @@ import {
     ChevronUpIcon,
     ChevronDownIcon,
     ArrowTopRightOnSquareIcon,
-    DocumentDuplicateIcon
+    DocumentDuplicateIcon,
+    BookOpenIcon,
+    ShoppingCartIcon,
+    ReceiptPercentIcon,
+    ArchiveBoxIcon,
+    ArrowDownOnSquareIcon,
+    ArrowUpOnSquareIcon,
+    MapPinIcon,
+    CalendarDaysIcon,
+    WrenchScrewdriverIcon,
+    CalculatorIcon,
+    TrashIcon,
+    ArrowUturnLeftIcon,
+    IdentificationIcon,
+    CreditCardIcon,
+    PresentationChartLineIcon,
+    ClipboardDocumentCheckIcon,
+    CurrencyRupeeIcon,
+    ClipboardDocumentListIcon,
+    BuildingOfficeIcon,
+    ClockIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -90,9 +110,49 @@ const getModuleIcon = (id) => {
         case 'machines': return TruckIcon;
         case 'payroll': return UsersIcon;
         case 'compliance': return DocumentTextIcon;
-        // default: return DocumentTextIcon;
+        default: return DocumentTextIcon;
     }
 };
+
+const reportIcons = {
+    sales_register: DocumentTextIcon,
+    detailed_sales_register: ClipboardDocumentListIcon,
+    purchase_register: ShoppingCartIcon,
+    deleted_report: TrashIcon,
+    bulk_documents: DocumentDuplicateIcon,
+    ledger: BookOpenIcon,
+    customer_outstanding: ClockIcon,
+    patron: UserGroupIcon,
+    payment: ArrowUpOnSquareIcon,
+    receipt: ArrowDownOnSquareIcon,
+    inventory_stock: ArchiveBoxIcon,
+    inventory_inward: InboxIcon,
+    purchase: ShoppingCartIcon,
+    silo_stock_valuation: CalculatorIcon,
+    overall: ChartBarIcon,
+    sales: TruckIcon,
+    product_consolidated: CubeIcon,
+    customer_consolidated: UserGroupIcon,
+    truck_consolidated: TruckIcon,
+    site_consolidated: MapPinIcon,
+    payment_mode_consolidated: CreditCardIcon,
+    sales_executive: PresentationChartLineIcon,
+    driver: IdentificationIcon,
+    cancelled_dispatch: ArrowUturnLeftIcon,
+    batching_schedule: CalendarDaysIcon,
+    pump_boom_deployment: WrenchScrewdriverIcon,
+    production_batch: Cog6ToothIcon,
+    machines_list: TruckIcon,
+    machine_tracker: ClipboardDocumentListIcon,
+    machine_summary: ChartBarIcon,
+    vehicle_pl: CurrencyRupeeIcon,
+    payroll_personnel: UsersIcon,
+    gstr1: ReceiptPercentIcon,
+    gstr3b: CalculatorIcon,
+    tds_certificate: ClipboardDocumentCheckIcon,
+    esi_pf_challan: BuildingOfficeIcon,
+};
+const getReportIcon = id => reportIcons[id] || DocumentTextIcon;
 
 // SAP Fiori Module Config
 const reportCatalog = [
@@ -1136,9 +1196,10 @@ const shareEmail = () => {
                                     ? 'border-[#0064d2] bg-[#f2f7fc] text-[#0064d2]'
                                     : 'border-transparent text-slate-700'
                             ]">
-                            <h4 class="text-xs font-bold leading-snug">{{ rep.name }}</h4>
-                            <p class="text-[10px] text-slate-400 mt-1 leading-relaxed line-clamp-2">{{ rep.description
-                            }}</p>
+                            <h4 class="text-xs font-bold leading-snug flex items-start gap-2">
+                                <component :is="getReportIcon(rep.id)" class="w-4 h-4 shrink-0" aria-hidden="true" />
+                                <span>{{ rep.name }}</span>
+                            </h4>
                         </div>
                     </div>
                 </div>
@@ -1150,12 +1211,15 @@ const shareEmail = () => {
                     <div class="block lg:hidden mb-5 bg-white p-4 rounded border border-slate-200 shadow-sm">
                         <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Select
                             Report Category</span>
+                        <div class="flex items-center gap-2">
+                        <component :is="getReportIcon(reportType)" class="w-5 h-5 shrink-0 text-[#0064d2]" aria-hidden="true" />
                         <select v-model="reportType"
                             class="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-[#0064d2]">
                             <option v-for="rep in activeModule.reports" :key="rep.id" :value="rep.id">
                                 {{ rep.name }}
                             </option>
                         </select>
+                        </div>
                     </div>
 
                     <!-- Background Progress Alert -->
@@ -1189,7 +1253,10 @@ const shareEmail = () => {
                                     <div>
                                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{
                                             activeModule.name }}</span>
-                                        <h3 class="text-sm font-bold text-[#1d2d3e] mt-0.5">{{ activeReport.name }}</h3>
+                                        <h3 class="text-sm font-bold text-[#1d2d3e] mt-0.5 flex items-center gap-2">
+                                            <component :is="getReportIcon(reportType)" class="w-4 h-4 shrink-0" aria-hidden="true" />
+                                            <span>{{ activeReport.name }}</span>
+                                        </h3>
                                     </div>
                                     <div v-if="isFiltersCollapsed"
                                         class="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200 text-xs text-slate-500">
@@ -1581,7 +1648,7 @@ const shareEmail = () => {
                             class="bg-white rounded border border-slate-200 py-20 text-center flex flex-col items-center shadow-sm">
                             <div
                                 class="w-14 h-14 bg-slate-50 border border-slate-200 rounded flex items-center justify-center mb-5 text-slate-400">
-                                <ChartBarIcon class="h-7 w-7" />
+                                <component :is="getReportIcon(reportType)" class="h-7 w-7" aria-hidden="true" />
                             </div>
                             <h3 class="text-xs font-bold text-slate-700 uppercase tracking-widest">Execute Query
                                 Statement</h3>

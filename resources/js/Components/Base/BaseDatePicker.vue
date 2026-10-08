@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, useAttrs } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import BaseField from './BaseField.vue';
 import { entityToday, entityDateTime, entityCalendarDate } from '@/Utils/entityDateTime';
@@ -49,6 +49,8 @@ const emit = defineEmits<{
 }>();
 
 const baseFieldRef = ref<any>(null);
+const attrs = useAttrs();
+const datePickerAttrs = () => Object.fromEntries(Object.entries(attrs).filter(([key]) => key !== 'class'));
 
 onMounted(() => {
     const el = baseFieldRef.value?.$el;
@@ -137,11 +139,11 @@ const internalValue = computed({
         :error="error"
         :hint="hint"
         :disabled="disabled"
-        :class="fieldClass"
+        :class="[fieldClass, attrs.class]"
     >
         <template #default="{ invalid, inputId }">
             <DatePicker
-                v-bind="$attrs"
+                v-bind="datePickerAttrs()"
                 :id="inputId"
                 :modelValue="internalValue"
                 :dateFormat="dateFormat"

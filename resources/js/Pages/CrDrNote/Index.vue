@@ -7,31 +7,44 @@ import { ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { Head } from '@inertiajs/vue3';
-import Button from 'primevue/button';
-import Dialog from 'primevue/dialog';
+import { DocumentChartBarIcon } from '@heroicons/vue/24/outline';
 import NoteForm from './NoteForm.vue';
 import NoteList from './NoteList.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 
-defineProps({ notes: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] } });
+defineProps({ notes: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
 const { can } = usePermissions();
-const showCreate = ref(false);
-const editNote = ref(null);
+const formVersion = ref(0);
+const resetEditor = () => { formVersion.value++; };
 </script>
 
 <template>
     <AppLayout title="Credit / Debit Notes">
         <template #header><ModuleSubTopNav /></template>
         <Head title="Credit / Debit Notes" />
-        <div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
-            <div class="flex justify-between items-center"><h1 class="text-xl font-semibold">Credit / Debit Notes</h1><Button v-if="can('CRDRNOTE.CREATE')" label="Create Note" icon="pi pi-plus" @click="showCreate = true" /></div>
-            <NoteList :notes="notes" @edit="editNote = $event" />
+        <div class="min-h-screen py-8">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+                <section v-if="can('CRDRNOTE.CREATE')" class="create-panel create-panel--open">
+                    <div class="create-panel__header !cursor-default">
+                        <div class="flex flex-wrap items-center justify-between w-full gap-3">
+                            <div class="flex items-center gap-3">
+                                <div class="create-panel__icon">
+                                    <DocumentChartBarIcon class="w-5 h-5 text-indigo-600" aria-hidden="true" />
+                                </div>
+                                <h1 class="text-xs font-semibold text-gray-700 uppercase">
+                                    Generate Credit / Debit Note
+                                </h1>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="create-panel__body">
+                        <NoteForm :key="`create-${formVersion}`" :documents="documents" :taxes="taxes" :units="units" :products="products" :mixdesign="mixdesign" :note_number_details="note_number_details" @saved="resetEditor" @cancel="resetEditor" />
+                    </div>
+                </section>
+                <section>
+                    <NoteList :notes="notes" :documents="documents" :taxes="taxes" :units="units" :products="products" :mixdesign="mixdesign" :note_number_details="note_number_details" />
+                </section>
+            </div>
         </div>
-        <Dialog v-model:visible="showCreate" modal header="Create Credit / Debit Note" :style="{ width: '60rem', maxWidth: '95vw' }">
-            <NoteForm v-if="showCreate" :documents="documents" @saved="showCreate = false" @cancel="showCreate = false" />
-        </Dialog>
-        <Dialog :visible="!!editNote" @update:visible="value => { if (!value) editNote = null; }" modal :header="'Edit ' + (editNote?.invoice_label || 'Note')" :style="{ width: '60rem', maxWidth: '95vw' }">
-            <NoteForm v-if="editNote" :key="editNote.id" :note="editNote" :documents="documents" @saved="editNote = null" @cancel="editNote = null" />
-        </Dialog>
     </AppLayout>
 </template>

@@ -87,17 +87,17 @@ class Invoice extends Model implements Postable
 
     public function getEwayBillNoAttribute()
     {
-        return $this->ewaybillDetail?->ewaybill_no ?? $this->attributes['eway_bill_no'] ?? null;
+        return $this->resolveEwaybillDetail()?->ewaybill_no ?? $this->attributes['eway_bill_no'] ?? null;
     }
 
     public function getEwayBillDateAttribute()
     {
-        return $this->ewaybillDetail?->ewaybill_date ?? $this->attributes['eway_bill_date'] ?? null;
+        return $this->resolveEwaybillDetail()?->ewaybill_date ?? $this->attributes['eway_bill_date'] ?? null;
     }
 
     public function getEwayBillValidUntilAttribute()
     {
-        return $this->ewaybillDetail?->valid_upto ?? $this->attributes['eway_bill_valid_until'] ?? null;
+        return $this->resolveEwaybillDetail()?->valid_upto ?? $this->attributes['eway_bill_valid_until'] ?? null;
     }
 
     protected $casts = [
@@ -208,7 +208,8 @@ class Invoice extends Model implements Postable
         static::deleted(function ($m) {
             // Use withTrashed() and handle multiple possible ref_module values for backward compatibility
             JournalEntry::withTrashed()
-                ->whereIn('ref_module', ['invoice', 'bill'])
+                ->whereIn('ref_module', ['invoice', 'bill', 'credit_note', 'debit_note', 'purchase_credit_note', 'purchase_debit_note'])
+                ->where('plant_id', $m->plant_id)
                 ->where('ref_id', $m->id)
                 ->get()
                 ->each(function($entry) {
@@ -292,8 +293,8 @@ class Invoice extends Model implements Postable
         $normalizedLabel = strtolower((string)$label);
         $defaultPrefix = match ($normalizedLabel) {
             'purchase', 'bill' => "Bill/{$fy}/",
-            'credit_note' => "CN/{$fy}/",
-            'debit_note' => "DN/{$fy}/",
+            'credit_note' => 'CN/' . str_replace('-', '', $fy) . '/',
+            'debit_note' => 'DN/' . str_replace('-', '', $fy) . '/',
             'batching', 'dispatch' => "Inv/{$fy}/",
             default => "INV/{$fy}/",
         };
@@ -337,6 +338,32 @@ class Invoice extends Model implements Postable
                 $query->whereRaw('LOWER(prefix) = ?', [strtolower($prefix)])
                     ->orWhereRaw('LOWER(SUBSTR(invoice_number, 1, ?)) = ?', [strlen($prefix), strtolower($prefix)]);
             });
+    }
+
+    public static function adjustmentNoteNumber(int $plantId, string $type, ?string $number = null, ?int $excludeId = null): array
+    {
+        $details = self::generateNumber($plantId, $type);
+        $number = trim((string) $number);
+        if ($number === '') {
+            $number = $details['next_number'];
+        }
+        if (strncasecmp($number, $details['prefix'], strlen($details['prefix'])) === 0) {
+            $number = substr($number, strlen($details['prefix']));
+        }
+        if (!ctype_digit($number) || (int) $number < 1 || strlen($number) > 10) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['invoice_number' => 'Enter a positive note number or a full number using ' . $details['prefix'] . '.']);
+        }
+        $number = str_pad((string) (int) $number, 5, '0', STR_PAD_LEFT);
+        $query = self::numberSeries($plantId, $details['prefix']);
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+        foreach ($query->pluck('invoice_number') as $existing) {
+            if (self::sequenceValue((string) $existing, $details['prefix']) === (int) $number) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['invoice_number' => 'This note number already exists in the active factory.']);
+            }
+        }
+        return ['prefix' => $details['prefix'], 'invoice_number' => $number, 'full_number' => $details['prefix'] . $number];
     }
 
     private static function sequenceValue(string $number, string $prefix): ?int
@@ -457,39 +484,58 @@ class Invoice extends Model implements Postable
         return in_array($type, ['bill', 'purchase'], true) ? 'Purchase' : 'Invoice';
     }
 
-    public function generateAdjustmentNote(string $type, string $date, string $reason): self
+    public function generateAdjustmentNote(string $type, string $date, string $reason, array $changes = []): self
     {
-        return DB::transaction(function () use ($type, $date, $reason) {
+        return DB::transaction(function () use ($type, $date, $reason, $changes) {
             $source = self::whereKey($this->id)->lockForUpdate()->firstOrFail();
             if (!in_array($type, ['credit_note', 'debit_note'], true)
                 || !in_array(strtolower((string) $source->invoice_type), ['invoice', 'sales', 'bill', 'purchase'], true)
                 || !in_array(strtolower((string) $source->status), ['approved', 'paid'], true)) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'Notes can only be generated against an approved or paid invoice or bill.']);
             }
-            if ($source->adjustmentNotes()->where('invoice_type', $type)->exists()) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'A full-value note of this type already exists for this document.']);
+            $requiredSourceType = $type === 'credit_note' ? 'Invoice' : 'Bill';
+            if (\App\Support\InvoiceClassification::normalizeInvoiceType($source->invoice_type) !== $requiredSourceType) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'Credit notes require an invoice; debit notes require a bill.']);
+            }
+            if ($source->adjustmentNotes()->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'A credit or debit note already exists for this document. Only one note is allowed.']);
             }
             if ((float) $source->total_amount <= 0) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'The source document must have a positive amount.']);
             }
             Plant::withoutGlobalScopes()->whereKey($source->plant_id)->lockForUpdate()->firstOrFail();
-            $details = self::generateNumber($source->plant_id, $type);
+            $details = self::adjustmentNoteNumber($source->plant_id, $type, $changes['invoice_number'] ?? null);
             $fields = ['plant_id', 'partner_id', 'account_id', 'subtotal', 'global_discount_type', 'global_discount',
                 'discount_total', 'tax_amount', 'adjustment', 'shipping_charges', 'shipping_tax_id',
                 'total_amount', 'round_off', 'is_tax_inclusive'];
             $note = self::create(array_merge($source->only($fields), [
                 'invoice_type' => $type, 'invoice_label' => $type === 'credit_note' ? 'Credit Note' : 'Debit Note',
-                'prefix' => $details['prefix'], 'invoice_number' => $details['next_number'],
+                'prefix' => $details['prefix'], 'invoice_number' => $details['invoice_number'],
                 'ref_id' => $source->id, 'ref_title' => $source->full_number,
                 'invoice_date' => $date, 'due_date' => $date, 'notes' => $reason,
                 'paid_amount' => 0, 'balance_amount' => $source->total_amount,
                 'status' => self::STATUS_APPROVED, 'created_by' => auth()->id(),
             ]));
+            $copiedIds = [];
             foreach ($source->items as $item) {
                 $copy = $item->replicate(['id', 'created_at', 'updated_at', 'deleted_at', 'deleted_by',
                     'purchase_order_item_id', 'purchase_order_history_id']);
                 $copy->invoice_id = $note->id;
                 $copy->saveQuietly();
+                $copiedIds[$item->id] = $copy->id;
+            }
+            if (isset($changes['items'])) {
+                $items = array_map(function ($item) use ($copiedIds) {
+                    if (!isset($copiedIds[$item['id']])) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'Select items from the source document only.']);
+                    }
+                    $item['id'] = $copiedIds[$item['id']];
+                    return $item;
+                }, $changes['items']);
+                $note->updateWithItems(['items' => $items, 'is_tax_inclusive' => $changes['is_tax_inclusive'] ?? $source->is_tax_inclusive]);
+                if ((float) $note->total_amount <= 0) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['items' => 'The note amount must be positive.']);
+                }
             }
             $note->postToAccounting();
             return $note->refresh();
@@ -507,7 +553,28 @@ class Invoice extends Model implements Postable
     public function ewaybillDetail()
     {
         return $this->hasOne(EwaybillDetail::class, 'origin_id')
-            ->whereIn('generation_type', ['invoice', 'batch', 'Invoice', 'Batch']);
+            ->whereIn('generation_type', ['invoice', 'Invoice'])->latest('created_at');
+    }
+
+    private function resolveEwaybillDetail(): ?EwaybillDetail
+    {
+        if (!$this->exists) {
+            return null;
+        }
+        if ($this->ewaybillDetail) {
+            return $this->ewaybillDetail;
+        }
+        $batchIds = \Illuminate\Support\Facades\DB::table('mm_dispatches as d')
+            ->join('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
+            ->where('ds.invoice_id', $this->id)->whereNotNull('d.batch_id')
+            ->select('d.batch_id');
+        $detail = EwaybillDetail::where('plant_id', $this->plant_id)
+            ->whereIn('generation_type', ['batch', 'Batch'])
+            ->whereIn('origin_id', $batchIds)->latest('created_at')->first();
+        if ($detail) {
+            $this->setRelation('ewaybillDetail', $detail);
+        }
+        return $detail;
     }
 
     public function plant()

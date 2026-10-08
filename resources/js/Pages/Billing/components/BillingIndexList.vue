@@ -17,6 +17,7 @@ import {
 } from '@heroicons/vue/24/outline';
 import BillingEditForm from './BillingEditForm.vue';
 import InvoiceNoteActions from '@/Components/InvoiceNoteActions.vue';
+import InvoiceStatusIcons from '@/Components/InvoiceStatusIcons.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 
 const props = defineProps<{
@@ -29,7 +30,6 @@ const props = defineProps<{
 }>();
 
 const expandedRows = ref<Record<number, boolean>>({});
-const findNote = (document: any, type: string) => (document.adjustment_notes || []).find((note: any) => String(note.invoice_type).toLowerCase() === type);
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
 });
@@ -192,32 +192,11 @@ const printInvoice = (data: any) => {
             </Column>
 
             <Column field="status" header="Status" align="center">
-                <template #body="slotProps">
-                    <div class="flex flex-col gap-1 items-center">
-                        <Tag 
-                            :severity="getStatusSeverity(slotProps.data.status)" 
-                            :value="slotProps.data.status" 
-                            class="!text-[9px] !font-black !uppercase !tracking-widest !rounded-lg !px-2"
-                        />
-                        <!-- <div class="flex gap-2 mt-1">
-                            <CheckCircleIcon v-if="slotProps.data.is_sent" class="w-4 h-4 text-emerald-500" title="Sent" />
-                            <ExclamationCircleIcon v-else class="w-4 h-4 text-slate-200" title="Not Sent" />
-                            <Tag v-if="slotProps.data.einvoice_status" :value="slotProps.data.einvoice_status" severity="info" class="!text-[7px] !px-1" />
-                        </div> -->
-                    </div>
+                <template #body="{ data }">
+                    <InvoiceStatusIcons :document="data" />
                 </template>
             </Column>
 
-            <Column header="Credit / Debit Notes">
-                <template #body="{ data }">
-                    <div class="flex flex-col gap-2">
-                        <div v-for="type in ['credit_note', 'debit_note']" :key="type">
-                            <Tag :severity="findNote(data, type) ? 'success' : 'secondary'" :value="`${type === 'credit_note' ? 'Credit Note' : 'Debit Note'}: ${findNote(data, type) ? 'Generated' : 'Not Generated'}`" />
-                            <div v-if="findNote(data, type)" class="text-xs mt-1">{{ findNote(data, type).full_number }}</div>
-                        </div>
-                    </div>
-                </template>
-            </Column>
             <Column header="Actions" class="text-right">
                 <template #body="slotProps">
                     <div class="flex justify-end gap-1">

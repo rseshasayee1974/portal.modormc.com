@@ -192,6 +192,7 @@ class ReportRepository
             ->whereNull('mm_invoices.deleted_at')->where('mm_invoices.is_active',1)
             ->orderBy('mm_invoices.invoice_number', 'asc')
             ->orderBy('mm_invoices.invoice_date', 'asc')
+            ->orderBy('mm_invoices.id', 'asc')
             ->orderBy('mm_invoice_items.id', 'asc');
 
         return $query;
@@ -314,7 +315,8 @@ class ReportRepository
                 ->whereRaw($filters['gst_type'] === 'inter' ? $inter : $intra);
         }
 
-        return $query->orderByRaw('COALESCE(mm_purchase_orders.billed_date, mm_purchase_orders.date_order, mm_purchase_orders.created_at) ASC')
+        return $query->orderByRaw("COALESCE(NULLIF(mm_purchase_orders.bill_number, ''), mm_purchase_orders.po_number) ASC")
+            ->orderByRaw('COALESCE(mm_purchase_orders.billed_date, mm_purchase_orders.date_order, mm_purchase_orders.created_at) ASC')
             ->orderBy('mm_purchase_orders.id', 'asc')
             ->orderBy('mm_purchase_order_items.id', 'asc');
     }

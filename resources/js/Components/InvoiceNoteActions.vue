@@ -27,7 +27,9 @@ const reasonOptions = computed(() => [defaultReasons[form.note_type], ...reasons
     .map(reason => ({ label: reason, value: reason })));
 watch(() => form.note_type, type => { form.reason = defaultReasons[type]; });
 const options = computed(() => [{ label: 'Credit Note', value: 'credit_note' }, { label: 'Debit Note', value: 'debit_note' }]
-    .filter(option => !(props.document.adjustment_notes || []).some(note => String(note.invoice_type).toLowerCase() === option.value)));
+    .filter(option => (option.value === 'credit_note' ? ['invoice', 'sales'] : ['bill', 'purchase'])
+        .includes(String(props.document.invoice_type).toLowerCase()))
+    .filter(() => !(props.document.adjustment_notes || []).length));
 watch(options, remaining => {
     if (!remaining.length) visible.value = false;
     else if (!remaining.some(option => option.value === form.note_type)) form.note_type = remaining[0].value;

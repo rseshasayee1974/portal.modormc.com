@@ -42,7 +42,7 @@ const total = (column) => column.total ? Number(value(props.reportData.totals ||
                 pagination.total || 0 }} records · Amounts in INR</span>
             <span>Totals include all matching records.</span>
         </div>
-        <p v-if="reportData.note" class="text-xs text-slate-500">{{ reportData.note }}</p>
+        <!-- <p v-if="reportData.note" class="text-xs text-slate-500">{{ reportData.note }}</p> -->
         <div class="overflow-auto max-h-[65vh] rounded border border-slate-200" tabindex="0"
             aria-label="Register report table">
             <table class="w-full text-xs text-left border-collapse whitespace-nowrap">

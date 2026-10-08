@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -19,6 +20,8 @@ const props = defineProps<{
     next_invoice_details?: any;
 }>();
 
+const moduleTaxes = computed(() => props.taxes.filter(tax => String(tax.tax_type).toLowerCase() === 'sales'));
+
 </script>
 
 <template>
@@ -36,7 +39,7 @@ const props = defineProps<{
                 <section>
                     <InvoiceCreateForm 
                         :patrons="patrons"
-                        :taxes="taxes" 
+                        :taxes="moduleTaxes"
                         :accounts="accounts"
                         :mixdesign="mixdesign"
                         :units="units"
@@ -50,7 +53,7 @@ const props = defineProps<{
                     <InvoiceIndexList 
                         :invoices="invoices"
                         :patrons="patrons"
-                        :taxes="taxes" 
+                        :taxes="moduleTaxes"
                         :accounts="accounts"
                         :mixdesign="mixdesign"
                         :units="units"

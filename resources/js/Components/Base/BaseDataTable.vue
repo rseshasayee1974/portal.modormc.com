@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDateTime } from '@/Utils/entityDateTime';
-import { useSlots, ref, computed } from 'vue';
+import { useSlots, ref, computed, watch } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Skeleton from 'primevue/skeleton';
@@ -144,6 +144,15 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
+const pageRows = ref(props.rows);
+watch(() => props.rows, rows => { pageRows.value = rows; });
+const changePageRows = (rows: number) => {
+    pageRows.value = rows;
+    dt.value?.resetPage();
+    emit('update:rows', rows);
+    emit('update:first', 0);
+    emit('page', { first: 0, rows, page: 0, pageCount: Math.ceil((props.totalRecords ?? props.value.length) / rows) });
+};
 
 const getExpandedRowClass = (row: any) => {
     const key = props.dataKey || 'id';
@@ -212,18 +221,9 @@ const handleRowClick = (event: any) => {
 };
 
 const internalPageOptions = computed(() => {
-    if (props.rowsPerPageOptions && props.rowsPerPageOptions.length > 0) {
-        return props.rowsPerPageOptions.map((opt: any) => {
-            if (typeof opt === 'object' && opt !== null) return opt;
-            return { label: `${opt} Per Page`, value: Number(opt) };
-        });
-    }
-    return [
-        { label: '30 Per Page', value: 30 },
-        { label: '50 Per Page', value: 50 },
-        { label: '100 Per Page', value: 100 },
-        { label: '200 Per Page', value: 200 }
-    ];
+    const options = props.rowsPerPageOptions?.length ? props.rowsPerPageOptions : [30, 50, 100, 200];
+    return options.map((option: any) => typeof option === 'object' && option !== null
+        ? option : { label: `${option}`, value: Number(option) });
 });
 
 const handleSearch = (val: string) => {
@@ -315,15 +315,16 @@ const toggleFilterPopover = (event: any) => {
 
                 <div v-if="showSearch" class="flex items-center gap-3">
                     <Select
-                        :modelValue="rows"
-                        @update:modelValue="$emit('update:rows', $event)"
+                        v-if="paginator"
+                        :modelValue="pageRows"
+                        @update:modelValue="changePageRows"
                         :options="internalPageOptions"
                         optionLabel="label"
                         optionValue="value"
-                        placeholder="Entries"
-                        class="!h-10 !text-[11px] !font-bold !bg-slate-50 !border-slate-200 !rounded-lg w-32 shadow-sm"
+                        placeholder="Per Page"
+                        aria-label="Rows per page"
+                        class="!w-[80px] !min-w-[80px] !max-w-[80px] shrink-0 !h-10 !text-[11px] !font-bold !bg-slate-50 !border-slate-200 !rounded-lg shadow-sm"
                     />
-
                     <InputGroup class="!rounded-lg overflow-hidden border border-slate-200 shadow-sm group focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-50 transition-all bg-white h-10" style="width: 240px">
                         <InputGroupAddon class="!bg-transparent !border-none !px-3">
                             <MagnifyingGlassIcon class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -359,9 +360,9 @@ const toggleFilterPopover = (event: any) => {
             :lazy="lazy"
             :paginator="paginator"
             :first="first"
-            :rows="rows"
+            :rows="pageRows"
             :totalRecords="totalRecords"
-            :rowsPerPageOptions="rowsPerPageOptions"
+            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
             :paginatorPosition="paginatorPosition"
             :filters="filters"
             :globalFilterFields="globalFilterFields"

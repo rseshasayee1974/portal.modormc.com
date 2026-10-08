@@ -13,7 +13,7 @@ class InstallNoteModule
 {
     public static function run(): void
     {
-        foreach (['VIEW', 'CREATE', 'UPDATE'] as $action) {
+        foreach (['VIEW', 'CREATE', 'UPDATE', 'DELETE'] as $action) {
             $name = 'CRDRNOTE.' . $action;
             if (DB::table('mm_permissions')->where('name', $name)->where('guard_name', 'web')->exists()) continue;
             $id = DB::table('mm_permissions')->insertGetId([

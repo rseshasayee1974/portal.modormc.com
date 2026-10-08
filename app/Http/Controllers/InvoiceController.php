@@ -38,9 +38,10 @@ class InvoiceController extends Controller
                 ->latest()
                 ->get(),
             'patrons' => toSelectOptions(PatronsDropdown(), 'legal_name'),
-            'taxes'   => collect(TaxesDropdown('sales',['GST','IGST']))->map(fn($t) => [
+            'taxes'   => Tax::forPlant($plantId)->ofTaxType('sales')->ofGroup(['GST', 'IGST'])->parentOnly()->where('status', 1)->with('children')->orderBy('tax_name')->get()->map(fn($t) => [
                 'label' => $t->tax_name,
                 'value' => $t->id,
+                'tax_type' => $t->tax_type,
                 'rate'  => $t->tax_rate,
                 'component_rates' => $t->children->pluck('tax_rate')->map(fn($rate) => (float) $rate)->all(),
             ]),

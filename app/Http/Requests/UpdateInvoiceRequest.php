@@ -18,6 +18,13 @@ class UpdateInvoiceRequest extends FormRequest
 
     public function rules(): array
     {
+        $taxType = $this->routeIs('billings.*') ? 'purchase'
+            : ($this->routeIs('invoices.*') ? 'sales'
+                : (in_array(strtolower((string) $this->input('invoice_type')), ['bill', 'purchase', 'debit_note'], true) ? 'purchase' : 'sales'));
+        $taxRule = \Illuminate\Validation\Rule::exists('mm_taxes', 'id')
+            ->where('plant_id', session('active_plant_id'))->where('tax_type', $taxType)
+            ->where('status', 1)->whereNull('deleted_at')->whereNull('parent_id')
+            ->whereIn('tax_group', ['GST', 'IGST']);
         return [
             'partner_id'       => 'required|exists:mm_patrons,id',
             'account_id'       => 'nullable|exists:mm_accounts,id',
@@ -39,7 +46,7 @@ class UpdateInvoiceRequest extends FormRequest
             'adjustment'       => 'nullable|numeric',
             'round_off'        => 'nullable|numeric',
             'shipping_charges' => 'nullable|numeric',
-            'shipping_tax_id'  => 'nullable|exists:mm_taxes,id',
+            'shipping_tax_id'  => ['nullable', 'integer', $taxRule],
             'status'           => 'nullable|in:draft,approved,paid,cancelled',
             'einvoice_status'  => 'nullable|string|max:100',
             'is_duplicate'     => 'nullable|boolean',
@@ -53,7 +60,7 @@ class UpdateInvoiceRequest extends FormRequest
             'items.*.price_unit'   => 'required|numeric|min:0',
             'items.*.discount_type'=> 'nullable|in:%,₹',
             'items.*.discount'     => 'nullable|numeric|min:0',
-            'items.*.tax_id'       => 'nullable|exists:mm_taxes,id',
+            'items.*.tax_id'       => ['nullable', 'integer', $taxRule],
         ];
     }
 }
