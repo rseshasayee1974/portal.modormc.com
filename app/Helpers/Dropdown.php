@@ -594,6 +594,7 @@ if (!function_exists('TaxesDropdown')) {
         return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($taxType, $taxGroup, $parentOnly, $excludeId, $includeId) {
             $query = Tax::where('plant_id', _activePlantId())
                 ->where('status', 1)
+                ->with('children')
                 ->select('id', 'tax_name', 'tax_rate', 'tax_group', 'tax_type', 'status');
 
             if ($taxType !== null) {
@@ -620,7 +621,10 @@ if (!function_exists('TaxesDropdown')) {
                 $query->orWhere('id', $includeId);
             }
 
-            return $query->whereNull('deleted_at')->orderBy('tax_name')->get();
+            return $query->whereNull('deleted_at')->orderBy('tax_name')->get()->each(function ($tax) {
+                $tax->setAttribute('component_rates', $tax->children->pluck('tax_rate')->map(fn ($rate) => (float) $rate)->all());
+                $tax->unsetRelation('children');
+            });
         });
     }
 }

@@ -154,7 +154,7 @@ class ExcelExportService
                     }
                 }
 
-                $sheet->fromArray($formattedRow, null, "A{$currentRow}");
+                $sheet->fromArray($formattedRow, null, "A{$currentRow}", true);
                 if ($rIdx % 2 === 1) {
                     $sheet->getStyle("A{$currentRow}:{$maxColLetter}{$currentRow}")->applyFromArray([
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']]
@@ -168,7 +168,7 @@ class ExcelExportService
             // Optional Total Row
             $totalRowIndex = null;
             if (!empty($totalRow)) {
-                $sheet->fromArray($totalRow, null, "A{$currentRow}");
+                $sheet->fromArray($totalRow, null, "A{$currentRow}", true);
                 $sheet->getStyle("A{$currentRow}:{$maxColLetter}{$currentRow}")->applyFromArray([
                     'font' => ['bold' => true],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
@@ -1578,20 +1578,28 @@ class ExcelExportService
                     'patron'  => 'PATRON STATEMENT OF ACCOUNTS',
                 ];
                 $title = $titles[$type] ?? 'STATEMENT OF ACCOUNTS';
-                $headersList = ['Date', 'Particulars', 'Reference', 'Amount', 'Type', 'Balance'];
+                $isLedgerReport = $type === 'ledger';
+                $headersList = $isLedgerReport
+                    ? ['Date', 'Ledger / Journal', 'Particulars', 'Voucher Type', 'Reference', 'Debit', 'Credit', 'Balance']
+                    : ['Date', 'Particulars', 'Reference', 'Amount', 'Type', 'Balance'];
 
                 $balance = (float)($data['opening_balance'] ?? 0);
                 $opDate = $start ? \Carbon\Carbon::parse($start)->format('d-m-Y') : '';
 
                 // Opening Balance Row
-                $rows[] = [
+                $openingRow = [
                     $opDate,
-                    'OPENING BALANCE',
-                    '---',
-                    abs($balance),
-                    $balance >= 0 ? 'DR' : 'CR',
-                    abs($balance)
                 ];
+                if ($isLedgerReport) {
+                    $openingRow[] = '---';
+                }
+                $rows[] = array_merge($openingRow, [
+                    ...($isLedgerReport ? ['OPENING BALANCE', '---'] : ['OPENING BALANCE']),
+                    '---',
+                    $isLedgerReport ? max($balance, 0) : abs($balance),
+                    $isLedgerReport ? max(-$balance, 0) : ($balance >= 0 ? 'DR' : 'CR'),
+                    abs($balance)
+                ]);
 
                 foreach (($data['transactions'] ?? []) as $row) {
                     $debit  = (float)($row['debit'] ?? 0);
@@ -1601,22 +1609,32 @@ class ExcelExportService
                     $typeStr = strtoupper($row['type'] ?? ($debit > 0 ? 'Dr' : 'Cr'));
                     $rowDate = !empty($row['date']) ? \Carbon\Carbon::parse($row['date'])->format('d-m-Y') : '';
 
-                    $rows[] = [
+                    $transactionRow = [
                         $rowDate,
-                        $row['narration'] ?? '',
-                        $row['voucher_no'] ?? '',
-                        $amt,
-                        $typeStr,
-                        abs($balance)
                     ];
+                    if ($isLedgerReport) {
+                        $transactionRow[] = $row['ledger_name'] ?? 'General Account';
+                    }
+                    $rows[] = array_merge($transactionRow, [
+                        $row['narration'] ?? '',
+                        ...($isLedgerReport ? [$row['voucher_type'] ?? 'JOURNAL'] : []),
+                        $row['voucher_no'] ?? '',
+                        $isLedgerReport ? $debit : $amt,
+                        $isLedgerReport ? $credit : $typeStr,
+                        abs($balance)
+                    ]);
                 }
 
-                $totalRow = [
+                $totalRow = $isLedgerReport ? [
+                    '', '', 'NET CLOSING BALANCE', '', '',
+                ] : [
                     '', 'NET CLOSING BALANCE', '',
-                    abs($balance),
-                    $balance >= 0 ? 'DEBIT' : 'CREDIT',
-                    abs($balance)
                 ];
+                $totalRow = array_merge($totalRow, [
+                    $isLedgerReport ? max($balance, 0) : abs($balance),
+                    $isLedgerReport ? max(-$balance, 0) : ($balance >= 0 ? 'DEBIT' : 'CREDIT'),
+                    abs($balance)
+                ]);
 
                 if ($type === 'patron' && (!empty($data['invoiced_tax']) || !empty($data['invoiced_nontax']) || !empty($data['purchased']) || !empty($data['amount_received']) || !empty($data['amount_paid']))) {
                     $extraSections['tables'][] = [
@@ -1695,6 +1713,7 @@ class ExcelExportService
 
         // Money format: "₹" #,##0.00;("₹" #,##0.00);"₹" 0.00
         $moneyKeywords = [
+            'debit', 'credit',
             'amount', 'amt', 'rate', 'charge', 'price', 'discount', 
             'adjustment', 'round off', 'pass', 'cogs', 'cost', 
             'revenue', 'spend', 'profit', 'balance', 'value', 'taxable',

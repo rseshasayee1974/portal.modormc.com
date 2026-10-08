@@ -333,6 +333,7 @@ console.log(currentBatch,'batch');
 };
 
 const form = useForm(getResolvedFormData());
+const roundOffManuallySet = ref(Number(form.financials.round_off || 0) !== 0);
 
 const isCancelled = computed(() => {
     return form.dispatch_status === 'Cancelled' || props.batch?.status === 5;
@@ -372,6 +373,7 @@ onMounted(async () => {
 
 const syncDispatchData = () => {
     const data = getResolvedFormData();
+    roundOffManuallySet.value = Number(data.financials.round_off || 0) !== 0;
     for (const key in data) {
         // Do not wipe user-entered pending invoice values if invoice is not generated yet
         if (['invoice_number', 'invoice_notes'].includes(key) && form.status?.invoice_status !== 1 && form[key]) {
@@ -421,7 +423,8 @@ watch([
     () => form.financials.transport_expenses, 
     () => form.financials.pump_charges, 
     () => baseRate.value,
-    () => baseTaxId.value
+    () => baseTaxId.value,
+    () => props.dropdownData.taxes
 ], () => {
     if ((form.financials.load_rate === null || form.financials.load_rate === undefined || form.financials.load_rate === 0) && baseRate.value) {
         form.financials.load_rate = baseRate.value;
@@ -437,8 +440,13 @@ watch([
 
     // Calculate amounts
     const loadRate = Number(form.financials.load_rate || 0);
-    const tax = props.dropdownData?.taxes?.find((t: any) => t.id === form.financials.load_tax_id);
+    const tax = props.dropdownData?.taxes?.find((t: any) => Number(t.id ?? t.value) === Number(form.financials.load_tax_id));
     const taxRate = tax ? Number(tax.tax_rate || tax.rate || 0) : 0;
+    const componentRates = tax?.component_rates?.length ? tax.component_rates : [taxRate];
+    const roundMoney = (value: number) => Number(value.toFixed(2));
+    const componentTax = (base: number) => roundMoney(componentRates.reduce(
+        (sum: number, rate: number) => sum + roundMoney(base * Number(rate) / 100), 0
+    ));
     const isInclusive = Boolean(form.status?.is_tax_inclusive);
 
     let materialUntax = 0;
@@ -447,12 +455,12 @@ watch([
     if (isInclusive) {
         // TAX INCLUSIVE: load_rate includes tax
         const grossMaterial = units * loadRate;
-        materialUntax = taxRate > 0 ? (grossMaterial * 100) / (100 + taxRate) : grossMaterial;
-        materialTax = grossMaterial - materialUntax;
+        materialUntax = roundMoney(taxRate > 0 ? grossMaterial / (1 + taxRate / 100) : grossMaterial);
+        materialTax = componentTax(materialUntax);
     } else {
         // TAX EXCLUSIVE: load_rate excludes tax
-        materialUntax = units * loadRate;
-        materialTax = (materialUntax * taxRate) / 100;
+        materialUntax = roundMoney(units * loadRate);
+        materialTax = componentTax(materialUntax);
     }
 
     if (form.financials.pump_charges === null || form.financials.pump_charges === undefined) {
@@ -468,26 +476,32 @@ watch([
     let pumpTax = 0;
 
     if (pumpWithTax) {
-        pumpUntax = taxRate > 0 ? (pumpCharge * 100) / (100 + taxRate) : pumpCharge;
-        pumpTax = pumpCharge - pumpUntax;
+        pumpUntax = roundMoney(taxRate > 0 ? pumpCharge / (1 + taxRate / 100) : pumpCharge);
+        pumpTax = componentTax(pumpUntax);
     } else {
-        pumpUntax = pumpCharge;
+        pumpUntax = roundMoney(pumpCharge);
         pumpTax = 0;
     }
 
     const totalUntax = materialUntax + pumpUntax;
     const totalTax = materialTax + pumpTax;
 
-    const totalAmountVal = totalUntax + totalTax
+    const adjustments =
         - Number(form.financials.discount_amount || 0)
         + Number(form.financials.pass_amount || 0)
-        + Number(form.financials.round_off || 0)
         + Number(form.financials.adjustment_amount || 0)
         + Number(form.financials.transport_expenses || 0);
+    const rawTotal = roundMoney(totalUntax + totalTax + adjustments);
+    const inclusiveTotal = roundMoney(
+        roundMoney(units * loadRate) + (pumpWithTax ? roundMoney(pumpCharge) : pumpUntax) + adjustments
+    );
+    if (!roundOffManuallySet.value) {
+        form.financials.round_off = roundMoney((isInclusive ? inclusiveTotal : Math.round(rawTotal)) - rawTotal);
+    }
 
     form.financials.load_untax_amount = Number(totalUntax.toFixed(2));
     form.financials.load_tax_amount = Number(totalTax.toFixed(2));
-    form.financials.load_total_amount = Number(totalAmountVal.toFixed(2));
+    form.financials.load_total_amount = roundMoney(rawTotal + Number(form.financials.round_off || 0));
 }, { immediate: true, deep: true });
 
 // Auto-switch to cash if immediate payment is entered
@@ -819,6 +833,7 @@ const handleDeleteInvoice = () => {
                 :showInvoiceSection="showInvoiceSection"
                 :generatingEInvoice="generatingEInvoice"
                 @submit="submit"
+                @roundOffChanged="roundOffManuallySet = true"
                 @generateInvoice="handleGenerateInvoice"
                 @generateEInvoice="handleGenerateEInvoice"
                 @generateEwayBill="handleGenerateEwayBill"

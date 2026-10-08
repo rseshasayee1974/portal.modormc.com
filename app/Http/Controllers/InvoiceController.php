@@ -56,6 +56,7 @@ class InvoiceController extends Controller
 
     public function store(StoreInvoiceRequest $request)
     {
+        // dd(request()->all());
         $this->authorizeModule('create');
         $plantId = session('active_plant_id');
 

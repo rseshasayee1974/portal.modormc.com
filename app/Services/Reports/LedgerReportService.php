@@ -127,7 +127,7 @@ class LedgerReportService implements ReportServiceInterface
             })
             ->get()
             ->sortBy(fn($line) => ($line->entry->voucher_date ? $line->entry->voucher_date->format('Y-m-d') : '') . '_' . str_pad($line->entry->id, 8, '0', STR_PAD_LEFT))
-            ->map(function ($line) use ($ledgerId) {
+            ->map(function ($line) {
                 $isDebit       = $line->debit_amount > 0;
                 $vType         = strtoupper($line->entry->voucher_type ?? '');
                 $refModule     = strtolower($line->entry->ref_module ?? '');
@@ -154,7 +154,6 @@ class LedgerReportService implements ReportServiceInterface
 
                 $particulars = ($isDebit ? 'To ' : 'By ') . $oppTitle;
 
-                $ledgerNamePrefix = (!$ledgerId && !empty($line->ledger?->title)) ? '[' . $line->ledger->title . '] ' : '';
                 $rawNarration = trim($line->line_narration ?: $line->entry->narration ?: '');
                 $extraNarration = '';
                 if ($rawNarration && !preg_match('/^(invoice|payment|receipt|bill)\s*#?[\w\/\-]+$/i', $rawNarration)) {
@@ -168,8 +167,9 @@ class LedgerReportService implements ReportServiceInterface
                     'voucher_no'   => $line->entry->voucher_number,
                     'ref_module'   => $line->entry->ref_module,
                     'ref_id'       => $line->entry->ref_id,
+                    'ledger_name'  => $line->ledger?->title ?? 'General Account',
                     'particulars'  => $particulars,
-                    'narration'    => $ledgerNamePrefix . $particulars . $extraNarration,
+                    'narration'    => $particulars . $extraNarration,
                     'amount'       => $isDebit ? (float)$line->debit_amount : (float)$line->credit_amount,
                     'type'         => $isDebit ? 'Dr' : 'Cr',
                     'debit'        => (float)$line->debit_amount,

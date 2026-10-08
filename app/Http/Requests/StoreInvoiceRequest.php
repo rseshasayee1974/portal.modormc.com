@@ -121,7 +121,8 @@ class StoreInvoiceRequest extends FormRequest
             'round_off'        => 'nullable|numeric',
             'shipping_charges' => 'nullable|numeric',
             'shipping_tax_id'  => 'nullable|exists:mm_taxes,id',
-            'round_off'        => 'nullable|numeric',
+            'tds_amount'       => 'nullable|numeric',
+            'tds_tax_id'       => 'nullable|exists:mm_taxes,id',
             'items'            => 'required|array|min:1',
             'items.*.item_id'      => 'nullable', // Validated differently for sales vs purchase
             'items.*.uom_id'       => 'nullable|exists:mm_product_units,id',

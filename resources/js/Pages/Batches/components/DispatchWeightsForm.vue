@@ -62,7 +62,7 @@ const props = withDefaults(defineProps<{
     generatingEInvoice: false,
 });
 
-const emit = defineEmits(['update:modelValue', 'generateInvoice', 'generateEInvoice', 'generateEwayBill', 'deleteInvoice']);
+const emit = defineEmits(['update:modelValue', 'generateInvoice', 'generateEInvoice', 'generateEwayBill', 'deleteInvoice', 'roundOffChanged']);
 
 const { can, isAdmin, isSuperAdmin, isSassOwner, permissions, userRole } = usePermissions();
 
@@ -247,7 +247,7 @@ console.log('jkghkjgk', props.modelValue);
             <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
             <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
             <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" :error="errors['financials.adjustment_amount']" :disabled="isReadOnly" />
-            <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly" />
+            <BaseInputNumber v-model="modelValue.financials.round_off" @update:modelValue="emit('roundOffChanged')" label="Round Off" :minFractionDigits="2" :min="-99" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly" />
         </div>
 
         
