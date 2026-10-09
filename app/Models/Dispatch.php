@@ -245,6 +245,12 @@ class Dispatch extends Model
         return $this->hasOne(DispatchStatus::class, 'dispatch_id');
     }
 
+    public function invoiceStatus(): HasOne
+    {
+        // The status attribute is numeric; use a distinct name when loading invoice details.
+        return $this->hasOne(DispatchStatus::class, 'dispatch_id');
+    }
+
     public function loadTax(): BelongsTo
     {
         return $this->belongsTo(Tax::class, 'load_tax_id');

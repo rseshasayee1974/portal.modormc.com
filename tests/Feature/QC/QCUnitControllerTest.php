@@ -20,7 +20,14 @@ class QCUnitControllerTest extends TestCase
         parent::setUp();
         $this->user = User::factory()->create();
         $this->plant = Plant::factory()->create();
-        $this->user->update(['default_plant_id' => $this->plant->id]);
+        $this->user->update([
+            'default_plant_id' => $this->plant->id,
+            'default_entity_id' => $this->plant->entity_id,
+        ]);
+        \App\Models\EntityUser::create([
+            'user_id' => $this->user->id, 'entity_id' => $this->plant->entity_id,
+            'plant_id' => $this->plant->id, 'role_id' => \App\Models\Role::factory()->create()->id,
+        ]);
         $this->actingAs($this->user);
     }
 

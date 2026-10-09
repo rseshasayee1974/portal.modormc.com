@@ -2,11 +2,15 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch, onBeforeUnmount } from 'vue';
+import BaseButton from '@/Components/Base/BaseButton.vue';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import Tag from 'primevue/tag';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
 import Toast from 'primevue/toast';
+import SampleForm from './SampleForm.vue';
 
 const props = defineProps<{
     samples: any;
@@ -15,18 +19,63 @@ const props = defineProps<{
     customers?: any[];
     dispatches?: any[];
     testTypes?: any[];
+    salesOrders?: any[];
+    batches?: any[];
+    usedBatchIds?: number[];
+    usedDispatchIds?: number[];
+    personnels?: any[];
     filters: any;
 }>();
 
-const searchQuery = ref(props.filters?.search || '');
+const tableFilters = ref({ global: { value: props.filters?.search || '', matchMode: 'contains' } });
 const statusFilter = ref(props.filters?.status || 'All');
-
-const handleSearch = () => {
-    router.get(route('quality.samples.index'), {
-        search: searchQuery.value ? searchQuery.value.trim() : undefined,
-        status: statusFilter.value !== 'All' ? statusFilter.value : undefined,
-    }, { preserveState: true, replace: true });
+const loading = ref(false);
+const formKey = ref(0);
+const expandedRows = ref<Record<number, boolean>>({});
+const toggleEdit = (sample: any) => {
+    expandedRows.value = expandedRows.value[sample.id] ? {} : { [sample.id]: true };
 };
+const onEditSaved = () => {
+    expandedRows.value = {};
+    tableFilters.value.global.value = '';
+    statusFilter.value = 'All';
+};
+const onSampleSaved = () => {
+    formKey.value++;
+    tableFilters.value.global.value = '';
+    statusFilter.value = 'All';
+};
+const statusOptions = [
+    { label: 'All statuses', value: 'All' },
+    { label: 'Pending testing', value: 'pending_test' },
+    { label: 'In progress', value: 'in_progress' },
+    { label: 'Completed', value: 'completed' },
+];
+const loadSamples = (changes: Record<string, any> = {}) => {
+    expandedRows.value = {};
+    router.get(route('quality.samples.index'), {
+        search: tableFilters.value.global.value?.trim() || undefined,
+        status: statusFilter.value === 'All' ? undefined : statusFilter.value,
+        per_page: props.samples.per_page || 20,
+        sort: props.filters?.sort,
+        direction: props.filters?.direction,
+        page: 1,
+        ...changes,
+    }, { preserveState: true, preserveScroll: true, replace: true,
+        onStart: () => { loading.value = true; }, onFinish: () => { loading.value = false; },
+    });
+};
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+watch(() => tableFilters.value.global.value, (value) => {
+    if (value === (props.filters?.search || '')) return;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadSamples(), 300);
+});
+onBeforeUnmount(() => clearTimeout(searchTimer));
+const onPage = (event: any) => loadSamples({ page: Math.floor(event.first / event.rows) + 1, per_page: event.rows });
+const onSort = (event: any) => loadSamples({ sort: event.sortField, direction: event.sortOrder === 1 ? 'asc' : 'desc' });
+const statusLabel = (status: string) => statusOptions.find(option => option.value === status)?.label || status;
+const statusSeverity = (status: string) => status === 'completed' ? 'success' : status === 'in_progress' ? 'info' : 'warn';
 </script>
 
 <template>
@@ -37,198 +86,108 @@ const handleSearch = () => {
         <Head title="Concrete Samples" />
         <Toast />
 
-        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
-            <!-- Hero Header -->
-            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 shadow-xl shadow-indigo-950/20 border border-indigo-800/40">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 relative z-10">
-                    <div class="space-y-1.5">
-                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/20 text-xs font-bold uppercase tracking-wider">
-                            <i class="pi pi-box text-[11px]"></i>
-                            <span>Fresh Concrete Sampling & Cube Casting</span>
-                        </div>
-                        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white">
-                            Concrete Grade Batch Samples
-                        </h1>
-                        <p class="text-xs sm:text-sm text-indigo-200/80 max-w-2xl">
-                            Log concrete cubes cast from transit mixers and batching plants with fresh concrete slump, temperatures, and automated 7-Day & 28-Day CTM testing schedules.
-                        </p>
-                    </div>
-
-                    <div>
-                        <Link :href="route('quality.samples.create')">
-                            <button
-                                type="button"
-                                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-extrabold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/25 transition-all cursor-pointer"
-                            >
-                                <i class="pi pi-plus text-xs"></i>
-                                <span>+ Log Concrete Cube Sample</span>
-                            </button>
-                        </Link>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Filters Bar -->
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div class="relative flex-1 w-full max-w-md">
-                    <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                    <input
-                        v-model="searchQuery"
-                        @keydown.enter="handleSearch"
-                        type="text"
-                        placeholder="Search by sample no, grade, truck, customer, site..."
-                        class="w-full pl-8 pr-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500/20 shadow-2xs"
-                    />
-                </div>
-
-                <div class="flex items-center gap-2 w-full sm:w-auto">
-                    <select
-                        v-model="statusFilter"
-                        @change="handleSearch"
-                        class="px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer shadow-2xs"
-                    >
-                        <option value="All">All Statuses</option>
-                        <option value="pending_test">Pending Testing</option>
-                        <option value="in_progress">Testing In Progress</option>
-                        <option value="completed">Completed</option>
-                    </select>
-
-                    <button
-                        type="button"
-                        @click="handleSearch"
-                        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-                    >
-                        Filter
-                    </button>
-                </div>
-            </div>
-
-            <!-- Samples Data Table -->
-            <BaseDataTable
-                :value="samples.data || []"
-                dataKey="id"
-                showSerial
-                :paginator="true"
-                :rows="20"
-                :totalRecords="samples.total"
-                heading="Concrete Samples Register"
-                headingIcon="pi pi-list"
-                class="rounded-3xl overflow-hidden shadow-xs border border-gray-200/80 dark:border-gray-800"
-            >
-                <!-- Sample No & Date -->
-                <Column field="sample_no" header="Sample ID & Cast Date" sortable style="min-width: 12rem">
-                    <template #body="{ data }">
-                        <div class="py-1">
-                            <div class="font-mono font-black text-xs text-indigo-600 dark:text-indigo-400">
-                                {{ data.sample_no }}
-                            </div>
-                            <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
-                                <i class="pi pi-calendar text-[10px]"></i>
-                                <span>Cast: {{ data.sample_date ? data.sample_date.substring(0, 10) : '—' }}</span>
-                            </div>
-                        </div>
+        <div class="samples-workspace w-full min-w-0 mx-auto px-4 py-3 sm:px-6 space-y-6">
+            <SampleForm :key="formKey" embedded :concreteGrades="concreteGrades" :materials="materials"
+                :customers="customers" :dispatches="dispatches" :batches="batches" :salesOrders="salesOrders"
+                :usedBatchIds="usedBatchIds" :usedDispatchIds="usedDispatchIds" :testTypes="testTypes"
+                :personnels="personnels" @saved="onSampleSaved" />
+            <BaseDataTable :value="samples.data || []" dataKey="id" lazy showSearch v-model:expandedRows="expandedRows" :expandOnRowClick="false"
+                v-model:filters="tableFilters" :loading="loading" :rows="samples.per_page || 20"
+                :first="(samples.current_page - 1) * samples.per_page" :totalRecords="samples.total"
+                :rowsPerPageOptions="[10, 20, 30, 50, 100]" :showAdvancedFilter="false"
+                heading="Concrete samples" headingIcon="BeakerIcon" @page="onPage" @sort="onSort"
+                class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                <template #toolbar>
+                    <BaseSelect v-model="statusFilter" :options="statusOptions" optionLabel="label" optionValue="value"
+                        aria-label="Sample status" class="w-40" @update:modelValue="loadSamples()" />
+                </template>
+                <Column header="S.No" style="width: 4%">
+                    <template #body="{ index }">
+                        <span class="text-xs text-slate-500">{{ (samples.current_page - 1) * samples.per_page + index + 1 }}</span>
                     </template>
                 </Column>
-
-                <!-- Concrete Grade & Client -->
-                <Column header="Concrete Grade & Transit Mixer" style="min-width: 15rem">
+                <Column field="sample_no" header="Sample" sortable style="width: 18%">
                     <template #body="{ data }">
-                        <div class="py-1 space-y-1">
-                            <div class="flex items-center gap-2">
-                                <span class="px-2.5 py-0.5 rounded-lg text-xs font-black bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80">
-                                    {{ data.concrete_grade?.name || data.material?.title || 'Concrete Mix' }}
-                                </span>
-                                <span v-if="data.truck_no" class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                                    {{ data.truck_no }}
-                                </span>
-                            </div>
-                            <div class="text-xs text-gray-600 dark:text-gray-300 truncate">
-                                {{ data.customer?.legal_name || 'Client: Standard Dispatch' }}
-                                <span v-if="data.site_name" class="text-gray-400"> &bull; {{ data.site_name }}</span>
-                            </div>
-                        </div>
+                        <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{{ data.sample_no }}</span>
+                        <p class="mt-1 text-[11px] text-slate-500">{{ data.sample_date?.substring(0, 10) || '—' }}</p>
+                        <Tag :value="statusLabel(data.status)" :severity="statusSeverity(data.status)" class="mt-1 !text-[10px]" />
                     </template>
                 </Column>
-
-                <!-- Fresh Concrete Tests (Slump & Temp) -->
-                <Column header="Slump & Temp" style="min-width: 9rem">
+                <Column header="Batch / Dispatch" style="width: 16%">
+                    <template #body="{ data }"><p class="text-xs font-medium">{{ data.batch?.batch_no || '—' }}</p><p class="mt-1 text-[11px] text-slate-500">{{ data.dispatch?.dispatch_no || '—' }}</p></template>
+                </Column>
+                <Column header="Grade / Customer" style="width: 24%">
                     <template #body="{ data }">
-                        <div class="py-1 space-y-0.5 text-xs">
-                            <div class="font-semibold text-gray-800 dark:text-gray-200">
-                                Slump: <strong class="font-mono text-emerald-600 dark:text-emerald-400">{{ data.slump_mm ? data.slump_mm + ' mm' : '—' }}</strong>
-                            </div>
-                            <div class="text-[11px] text-gray-500">
-                                Temp: <span class="font-mono">{{ data.concrete_temp_c ? data.concrete_temp_c + '°C' : '—' }}</span>
-                            </div>
-                        </div>
+                        <div class="flex flex-wrap items-center gap-2"><Tag :value="data.concrete_grade?.name || data.material?.title || '—'" severity="info" class="!text-[10px]" /><span class="text-[11px] text-slate-500">{{ data.truck_no }}</span></div>
+                        <p class="mt-1 text-xs">{{ data.customer?.legal_name || '—' }}</p><p v-if="data.site_name" class="mt-0.5 text-[11px] text-slate-500">{{ data.site_name }}</p>
                     </template>
                 </Column>
-
-                <!-- Specimens & Curing -->
-                <Column header="Specimens / Tank" style="min-width: 10rem">
+                <Column header="Sample details" style="width: 16%" headerClass="hidden md:table-cell" bodyClass="hidden md:table-cell">
                     <template #body="{ data }">
-                        <div class="py-1 text-xs space-y-0.5">
-                            <div class="font-bold text-gray-800 dark:text-gray-200">
-                                {{ data.specimen_count || 6 }} Cubes ({{ data.specimen_size || '150mm' }})
-                            </div>
-                            <div class="text-[11px] text-gray-500 truncate">
-                                {{ data.curing_tank_id || 'Water Curing' }}
-                            </div>
-                            <div v-if="data.tester || data.sampler" class="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold truncate flex items-center gap-1">
-                                <i class="pi pi-user text-[9px]"></i>
-                                {{ data.tester?.first_name ? `${data.tester.first_name} ${data.tester.last_name || ''}`.trim() : (data.tester?.label || data.sampler?.name) }}
-                            </div>
-                        </div>
+                        <p class="text-xs">{{ data.slump_mm != null ? data.slump_mm + ' mm' : '—' }} · {{ data.concrete_temp_c != null ? data.concrete_temp_c + ' °C' : '—' }}</p>
+                        <p class="mt-1 text-[11px] text-slate-500">{{ data.specimen_count ?? '—' }} specimens · {{ data.specimen_size || '—' }}</p>
+                        <p class="mt-1 text-[11px] text-slate-500">{{ data.curing_tank_id || '—' }}</p>
                     </template>
                 </Column>
-
-                <!-- Scheduled Tests (7D & 28D) -->
-                <Column header="Testing Schedule (CTM)" style="min-width: 14rem">
+                <Column header="Tests" style="width: 14%">
                     <template #body="{ data }">
-                        <div class="flex flex-wrap items-center gap-1.5 py-1">
-                            <Link
-                                v-for="t in data.tests"
-                                :key="t.id"
-                                :href="route('quality.tests.execute', t.id)"
-                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-all shadow-2xs cursor-pointer border"
-                                :class="t.overall_status === 'pass'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                    : t.overall_status === 'fail'
-                                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300'
-                                    : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 hover:bg-amber-100'"
-                                :title="`Click to execute test (${t.test_no})`"
-                            >
-                                <span class="font-mono font-black">{{ t.age_days ? t.age_days + 'D' : t.test_type?.code }}</span>
-                                <span class="text-[9px] opacity-80">({{ t.scheduled_date ? t.scheduled_date.substring(5, 10) : 'Due' }})</span>
-                                <i :class="t.overall_status === 'pass' ? 'pi pi-check' : t.overall_status === 'fail' ? 'pi pi-times' : 'pi pi-arrow-right'" class="text-[9px]"></i>
+                        <div class="flex flex-wrap gap-1">
+                            <Link v-for="test in data.tests" :key="test.id" :href="route('quality.tests.execute', test.id)" :title="`${test.test_no} · ${test.scheduled_date?.substring(0, 10) || 'Unscheduled'}`">
+                                <Tag :value="`${test.age_days ? test.age_days + 'D' : test.test_type?.code || 'Test'} · ${test.scheduled_date?.substring(5, 10) || 'Due'}`" :severity="test.overall_status === 'pass' ? 'success' : test.overall_status === 'fail' ? 'danger' : 'warn'" class="!text-[10px] cursor-pointer" />
                             </Link>
-
-                            <span v-if="!data.tests || data.tests.length === 0" class="text-xs text-gray-400">
-                                No test scheduled
-                            </span>
+                            <span v-if="!data.tests?.length" class="text-xs text-slate-400">No tests scheduled</span>
                         </div>
                     </template>
                 </Column>
-
-                <!-- Actions -->
-                <Column header="Actions" alignFrozen="right" freezeRight style="width: 7rem; text-align: right">
-                    <template #body="{ data }">
-                        <div class="flex items-center justify-end gap-1.5">
-                            <Link
-                                :href="route('quality.samples.edit', data.id)"
-                                class="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 rounded-lg transition-colors cursor-pointer"
-                                title="Edit Sample"
-                            >
-                                <i class="pi pi-pencil text-xs"></i>
-                            </Link>
-                            <BaseDeleteButton
-                                :url="route('quality.samples.destroy', data.id)"
-                                class="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 rounded-lg transition-colors cursor-pointer"
-                            />
-                        </div>
-                    </template>
+                <Column header="Actions" style="width: 8%">
+                    <template #body="{ data }"><div class="flex flex-wrap items-center gap-1">
+                        <BaseButton :icon="expandedRows[data.id] ? 'pi pi-times' : 'pi pi-pencil'" variant="text" :aria-label="expandedRows[data.id] ? 'Close editor' : 'Edit sample'" @click="toggleEdit(data)" />
+                        <BaseDeleteButton :url="route('quality.samples.destroy', data.id)" />
+                    </div></template>
                 </Column>
+                <template #expansion="{ data }">
+                    <div class="min-w-0 bg-slate-50 p-3 sm:p-4 dark:bg-slate-900">
+                        <SampleForm :key="data.id" :sample="data" isEditing embedded
+                            :concreteGrades="concreteGrades" :materials="materials" :customers="customers"
+                            :dispatches="dispatches" :batches="batches" :salesOrders="salesOrders"
+                            :usedBatchIds="usedBatchIds" :usedDispatchIds="usedDispatchIds"
+                            :testTypes="testTypes" :personnels="personnels"
+                            @saved="onEditSaved" @cancel="expandedRows = {}" />
+                    </div>
+                </template>
+                <template #empty><p class="py-6 text-center text-sm text-slate-500">No samples found. Adjust your search or create a new sample.</p></template>
             </BaseDataTable>
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.samples-workspace :deep(.p-datatable-table) {
+    width: 100%;
+    table-layout: fixed;
+}
+.samples-workspace :deep(.p-datatable-table-container) {
+    overflow: visible !important;
+    max-height: none !important;
+}
+.samples-workspace :deep(.p-datatable .p-datatable-thead > tr > th),
+.samples-workspace :deep(.p-datatable .p-datatable-tbody > tr > td) {
+    min-width: 0 !important;
+    padding: 8px !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.samples-workspace :deep(.p-column-title),
+.samples-workspace :deep(.p-tag),
+.samples-workspace :deep(.p-tag-label) {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+}
+.samples-workspace :deep(.p-column-header-content),
+.samples-workspace :deep(.p-paginator) {
+    flex-wrap: wrap;
+}
+.samples-workspace :deep(.p-datatable-row-expansion > td) {
+    padding: 0 !important;
+}
+</style>
