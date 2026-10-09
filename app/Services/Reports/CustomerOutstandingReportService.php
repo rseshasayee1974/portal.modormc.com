@@ -28,14 +28,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             return $this->generateSinglePatronStatement((int)$patronId, $plantId, $start, $end, $params);
         }
 
-        // 1. Query Sales Invoices (whereNull('deleted_at') and status != 'Cancelled')
-        $invoiceQuery = Invoice::query()
-            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
-            ->whereNull('deleted_at')
-            ->where(function ($q) {
-                $q->whereNull('status')
-                  ->orWhere('status', '!=', 'Cancelled');
-            });
+        $invoiceQuery = $this->commercialDocumentQuery($plantId);
 
         if ($plantId) {
             $invoiceQuery->where('plant_id', $plantId);
@@ -46,12 +39,16 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         }
 
         if ($end) {
-            $invoiceQuery->where('invoice_date', '<=', $end);
+            $invoiceQuery->whereDate('invoice_date', '<=', $end);
         }
 
-        $invoices = $invoiceQuery->orderBy('invoice_date', 'asc')
+        $documents = $invoiceQuery->orderBy('invoice_date', 'asc')
             ->orderBy('id', 'asc')
             ->get();
+
+        $invoices = $documents->filter(fn ($document) => in_array($document->invoice_type, \App\Support\InvoiceClassification::aliases('Invoice'), true));
+        $billsByCustomer = $documents->filter(fn ($document) => in_array($document->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true))->groupBy('partner_id');
+        $notesByCustomer = $documents->whereIn('invoice_type', ['credit_note', 'debit_note'])->groupBy('partner_id');
 
         // 2. Fetch all Payments and Receipts from mm_payments where deleted_at IS NULL
         $paymentQuery = \App\Models\Payment::query()
@@ -100,7 +97,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             ->get()->keyBy('partner_id');
 
         // 3. Collect distinct patron IDs across all outstanding-balance sources.
-        $patronIdsFromInvoices = $invoices->pluck('partner_id')->filter()->unique()->all();
+        $patronIdsFromInvoices = $documents->pluck('partner_id')->filter()->unique()->all();
         $patronIdsFromPayments = $allPaymentsAndReceipts->pluck('patron_id')->filter()->unique()->all();
         $allPatronIds = array_values(array_unique(array_merge($patronIdsFromInvoices, $patronIdsFromPayments, $discounts->pluck('partner_id')->filter()->all(), $openings->keys()->all())));
 
@@ -152,14 +149,18 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $totalReceipt  = round((float)$custReceipts->sum(fn($p) => (float)($p->amount ?? 0)), 2);
             $totalPayment  = round((float)$custPayments->sum(fn($p) => (float)($p->amount ?? 0)), 2);
             $totalDiscount = round($discountsByCustomer->get($cId, collect())->sum(fn($d) => abs((float)$d->amount)), 2);
+            $totalPurchased = round((float) $billsByCustomer->get($cId, collect())->sum('total_amount'), 2);
+            $custNotes = $notesByCustomer->get($cId, collect());
+            $totalCreditNote = round((float) $custNotes->where('invoice_type', 'credit_note')->sum('total_amount'), 2);
+            $totalDebitNote = round((float) $custNotes->where('invoice_type', 'debit_note')->sum('total_amount'), 2);
             $opening = $openings->get($cId);
             $openingBalance = round((float)($opening?->balance ?? 0),2);
 
             // Receipts and discounts both settle outstanding invoices; refunds increase it.
-            $netCollections = max(0.00, round($totalReceipt + $totalDiscount - $totalPayment + max(0,-$openingBalance), 2));
+            $netCollections = max(0.00, round($totalReceipt + $totalDiscount + $totalPurchased + $totalCreditNote - $totalPayment - $totalDebitNote + max(0,-$openingBalance), 2));
 
             // Discount-module amounts always subtract, regardless of journal direction.
-            $netOutstanding = round($openingBalance + $totalInvoiced + $totalPayment - $totalReceipt - $totalDiscount, 2);
+            $netOutstanding = round($openingBalance + $totalInvoiced - $totalPurchased + $totalDebitNote - $totalCreditNote + $totalPayment - $totalReceipt - $totalDiscount, 2);
 
             $aging0to30    = 0.00;
             $aging31to60   = 0.00;
@@ -330,6 +331,9 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'phone'               => $phone,
                 'email'               => $primaryContact?->email ?? '-',
                 'total_invoiced'      => $totalInvoiced,
+                'total_purchased'     => $totalPurchased,
+                'total_credit_note'   => $totalCreditNote,
+                'total_debit_note'    => $totalDebitNote,
                 'opening_balance'    => $openingBalance,
                 'total_receipt'       => $totalReceipt,
                 'total_payment'       => $totalPayment,
@@ -387,6 +391,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'total_receipt_amount'       => $totalReceipt,
             'total_payment_amount'       => $totalPayment,
             'total_discount_amount'      => round(collect($customersList)->sum('total_discount'), 2),
+            'total_credit_note_amount'   => round(collect($customersList)->sum('total_credit_note'), 2),
+            'total_debit_note_amount'    => round(collect($customersList)->sum('total_debit_note'), 2),
             'total_paid_amount'          => $totalReceipt,
             'total_outstanding_amount'   => $totalOutstanding,
             'total_amount'               => $totalOutstanding,
@@ -444,14 +450,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $startDateOnly = $start ? substr($start, 0, 10) : null;
         $endDateOnly   = $end ? substr($end, 0, 10) : null;
 
-        // 1. Sales invoices and purchase bills share the commercial document table.
-        $invQuery = Invoice::query()
-            ->whereIn('invoice_type', array_merge(\App\Support\InvoiceClassification::aliases('Invoice'), \App\Support\InvoiceClassification::aliases('Bill')))
-            ->where('partner_id', $patronId)
-            ->whereNull('deleted_at')
-            ->where(function ($q) {
-                $q->whereNull('status')->orWhere('status', '!=', 'Cancelled');
-            });
+        $invQuery = $this->commercialDocumentQuery($plantId)->where('partner_id', $patronId);
 
         if ($plantId) {
             $invQuery->where('plant_id', $plantId);
@@ -483,7 +482,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                   ->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))
                   ->where(function ($sq) {
                       $sq->whereNull('ref_module')
-                         ->orWhereNotIn('ref_module', ['invoice', 'bill', 'payment', 'discount']);
+                         ->orWhereNotIn('ref_module', ['invoice', 'bill', 'payment', 'discount', 'credit_note', 'debit_note', 'purchase_credit_note', 'purchase_debit_note']);
                   });
             });
 
@@ -496,8 +495,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         // 4. Calculate Opening Balance prior to start date
         if ($startDateOnly) {
             $openingInvoiced = (clone $invQuery)
-                ->where('invoice_date', '<', $startDateOnly)
-                ->get()->sum(fn ($invoice) => (in_array($invoice->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true) ? -1 : 1) * (float) $invoice->total_amount);
+                ->whereDate('invoice_date', '<', $startDateOnly)
+                ->get()->sum(fn ($invoice) => $this->documentDirection($invoice) * (float) $invoice->total_amount);
 
             $openingReceipts = (clone $pmtQuery)
                 ->where('transaction_date', '<', $startDateOnly)
@@ -556,8 +555,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
         // 5. Fetch transactions within period
         $periodInvoices = (clone $invQuery)
-            ->when($startDateOnly, fn($q) => $q->where('invoice_date', '>=', $startDateOnly))
-            ->when($endDateOnly, fn($q) => $q->where('invoice_date', '<=', $endDateOnly))
+            ->when($startDateOnly, fn($q) => $q->whereDate('invoice_date', '>=', $startDateOnly))
+            ->when($endDateOnly, fn($q) => $q->whereDate('invoice_date', '<=', $endDateOnly))
             ->orderBy('invoice_date', 'asc')
             ->orderBy('id', 'asc')
             ->get();
@@ -591,7 +590,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $salesDiscount       = 0.0;
 
         foreach ($periodInvoices as $inv) {
-            if (in_array($inv->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true)) continue;
+            if (!in_array($inv->invoice_type, \App\Support\InvoiceClassification::aliases('Invoice'), true)) continue;
             $invTotal = (float)($inv->total_amount ?? 0);
             if ((float)($inv->tax_amount ?? 0) > 0) {
                 $invoicedTaxTotal += $invTotal;
@@ -620,7 +619,9 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             ->filter(fn ($invoice) => in_array($invoice->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true))
             ->sum('total_amount'), 2);
 
-        $credits = round((float)$periodJel->sum('credit_amount'), 2);
+        $creditNotes = round((float) $periodInvoices->where('invoice_type', 'credit_note')->sum('total_amount'), 2);
+        $debitNotes = round((float) $periodInvoices->where('invoice_type', 'debit_note')->sum('total_amount'), 2);
+        $credits = round((float)$periodJel->sum('credit_amount') + $creditNotes, 2);
 
         // 7. Assemble Unified Chronological Items
         $items = collect();
@@ -628,6 +629,10 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         foreach ($periodInvoices as $inv) {
             $invTotal = round((float)($inv->total_amount ?? 0), 2);
             $isBill = in_array($inv->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true);
+            $isNote = in_array($inv->invoice_type, ['credit_note', 'debit_note'], true);
+            $isCredit = $this->documentDirection($inv) < 0;
+            $label = $isNote ? ($inv->invoice_type === 'credit_note' ? 'Credit Note' : 'Debit Note') : ($isBill ? 'Bill' : 'Sales Invoice');
+            $voucherType = $isNote ? strtoupper($inv->invoice_type) : ($isBill ? 'BILL' : 'INVOICE');
             $invNum   = $inv->full_number ?: ('INV-' . $inv->id);
             $details  = $invNum;
             if (!empty($inv->remarks)) {
@@ -640,15 +645,15 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'date'         => $inv->invoice_date ? Carbon::parse($inv->invoice_date)->format('d-m-Y') : '-',
                 'sort_order'   => 1,
                 'id'           => $inv->id,
-                'transactions' => $isBill ? 'Bill' : 'Sales Invoice',
-                'narration'    => ($isBill ? 'Bill ' : 'Invoice ') . $invNum,
+                'transactions' => $label,
+                'narration'    => $label . ' ' . $invNum,
                 'details'      => $details,
-                'type'         => $isBill ? 'BILL' : 'INV',
-                'voucher_type' => $isBill ? 'BILL' : 'INVOICE',
+                'type'         => $isNote ? $voucherType : ($isBill ? 'BILL' : 'INV'),
+                'voucher_type' => $voucherType,
                 'voucher_no'   => $invNum,
-                'debit'        => $isBill ? 0.0 : $invTotal,
-                'credit'       => $isBill ? $invTotal : 0.0,
-                'discount'     => (float)($inv->discount_total ?? $inv->discount_amount ?? 0),
+                'debit'        => $isCredit ? 0.0 : $invTotal,
+                'credit'       => $isCredit ? $invTotal : 0.0,
+                'discount'     => $isNote ? 0.0 : (float)($inv->discount_total ?? $inv->discount_amount ?? 0),
             ]);
         }
 
@@ -831,7 +836,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
             // Invoice totals already include their own discounts. Only standalone
             // discount rows cause an additional subtraction from outstanding.
-            $isDocument = in_array($it['transactions'], ['Sales Invoice', 'Bill'], true);
+            $isDocument = in_array($it['transactions'], ['Sales Invoice', 'Bill', 'Credit Note', 'Debit Note'], true);
             $isPayment = in_array($it['transactions'], ['Payment Received', 'Payment Made'], true);
             $balanceDiscount = $isDocument ? 0.0 : abs($disc);
             $runningBalance = round($runningBalance + $debit - $credit - $balanceDiscount, 2);
@@ -880,6 +885,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'amount_received_display' => $amountReceived > 0 ? '₹ ' . number_format($amountReceived, 2) : '0',
             'amount_paid'             => (float)$amountPaid,
             'amount_paid_display'     => $amountPaid > 0 ? '₹ ' . number_format($amountPaid, 2) : '0',
+            'credit_notes'            => $creditNotes,
+            'debit_notes'             => $debitNotes,
             'credits'                 => (float)$credits,
             'credits_display'         => $credits > 0 ? '₹ ' . number_format($credits, 2) : '0',
             'balance_due'             => (float)$closingBalance,
@@ -908,6 +915,28 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'generated_at'         => now()->format('d/m/Y h:i A'),
             'filters'              => $params,
         ];
+    }
+
+    private function commercialDocumentQuery($plantId)
+    {
+        $types = array_merge(\App\Support\InvoiceClassification::aliases('Invoice'),
+            \App\Support\InvoiceClassification::aliases('Bill'), ['credit_note', 'debit_note']);
+        return Invoice::query()->whereIn('invoice_type', $types)
+            ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
+            ->where(function ($query) {
+                $query->where(function ($documents) {
+                    $documents->whereNotIn('invoice_type', ['credit_note', 'debit_note'])
+                        ->where(fn ($status) => $status->whereNull('status')->orWhereRaw('LOWER(status) != ?', ['cancelled']));
+                })->orWhere(function ($notes) {
+                    $notes->whereIn('invoice_type', ['credit_note', 'debit_note'])
+                        ->whereRaw('LOWER(status) IN (?, ?)', ['approved', 'paid']);
+                });
+            });
+    }
+
+    private function documentDirection(Invoice $document): int
+    {
+        return in_array(strtolower((string) $document->invoice_type), ['bill', 'purchase', 'credit_note'], true) ? -1 : 1;
     }
 
     private function discountQuery(?int $plantId): \Illuminate\Database\Eloquent\Builder

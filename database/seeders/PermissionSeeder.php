@@ -56,7 +56,7 @@ class PermissionSeeder extends Seeder
             'PETTY_CASH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'PAYMENT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'BILLING' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
-            'CRDRNOTE' => ['VIEW', 'CREATE', 'UPDATE'],
+            'CRDRNOTE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             
             // Commerce
             'PATRON' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],

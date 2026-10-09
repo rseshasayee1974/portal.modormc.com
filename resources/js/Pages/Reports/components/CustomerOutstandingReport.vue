@@ -126,6 +126,8 @@ const filteredTotals = computed(() => {
         receipt: list.reduce((acc, c) => acc + (c.total_receipt || c.total_paid || 0), 0),
         payment: list.reduce((acc, c) => acc + (c.total_payment || 0), 0),
         discount: list.reduce((acc, c) => acc + Number(c.total_discount || 0), 0),
+        creditNote: list.reduce((acc, c) => acc + Number(c.total_credit_note || 0), 0),
+        debitNote: list.reduce((acc, c) => acc + Number(c.total_debit_note || 0), 0),
         outstanding: list.reduce((acc, c) => acc + (c.total_outstanding || 0), 0),
         aging0to30: list.reduce((acc, c) => acc + (c.aging_0_30 || 0), 0),
         aging31to60: list.reduce((acc, c) => acc + (c.aging_31_60 || 0), 0),
@@ -333,7 +335,7 @@ const filteredTotals = computed(() => {
 
                 <!-- Customer Summary Table -->
                 <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
-                    <table class="w-full text-left border-collapse min-w-[980px]">
+                    <table class="w-full text-left border-collapse min-w-[1200px]">
                         <thead>
                             <tr
                                 class="sticky top-0 bg-[#f8fafc] z-10 text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 shadow-2xs">
@@ -344,6 +346,8 @@ const filteredTotals = computed(() => {
                                 <th class="py-3 px-3 text-right text-emerald-700" width="9%">Total Receipts</th>
                                 <th class="py-3 px-3 text-right text-indigo-700" width="8%">Total Payments</th>
                                 <th class="py-3 px-3 text-right text-emerald-700">Discount</th>
+                                <th class="py-3 px-3 text-right text-emerald-700">Credit Notes</th>
+                                <th class="py-3 px-3 text-right text-indigo-700">Debit Notes</th>
                                 <th class="py-3 px-3 text-right text-rose-700" width="11%">Outstanding Balance</th>
                                 <th class="py-3 px-3 text-right text-blue-700" width="5.5%">0-30d</th>
                                 <th class="py-3 px-3 text-right text-amber-700" width="5.5%">31-60d</th>
@@ -378,6 +382,8 @@ const filteredTotals = computed(() => {
                                     {{ formatCurrency(c.total_payment || 0) }}
                                 </td>
                                 <td class="py-3 px-3 text-right text-emerald-700">{{ formatCurrency(c.total_discount || 0) }}</td>
+                                <td class="py-3 px-3 text-right text-emerald-700">{{ formatCurrency(c.total_credit_note || 0) }}</td>
+                                <td class="py-3 px-3 text-right text-indigo-700">{{ formatCurrency(c.total_debit_note || 0) }}</td>
                                 <td class="py-3 px-3 text-right font-bold"
                                     :class="c.total_outstanding > 0 ? 'text-rose-700 bg-rose-50/20' : 'text-slate-700'">
                                     {{ formatCurrency(c.total_outstanding) }}
@@ -405,7 +411,7 @@ const filteredTotals = computed(() => {
                             </tr>
 
                             <tr v-if="!paginatedCustomers.length">
-                                <td colspan="13" class="py-12 text-center text-slate-400">
+                                <td colspan="15" class="py-12 text-center text-slate-400">
                                     <CheckCircleIcon class="w-8 h-8 mx-auto text-emerald-400 mb-2" />
                                     No customer outstanding records found matching your filters.
                                 </td>
@@ -429,6 +435,8 @@ const filteredTotals = computed(() => {
                                     {{ formatCurrency(filteredTotals.payment) }}
                                 </td>
                                 <td class="py-3 px-3 text-right text-emerald-700">{{ formatCurrency(filteredTotals.discount) }}</td>
+                                <td class="py-3 px-3 text-right text-emerald-700">{{ formatCurrency(filteredTotals.creditNote) }}</td>
+                                <td class="py-3 px-3 text-right text-indigo-700">{{ formatCurrency(filteredTotals.debitNote) }}</td>
                                 <td class="py-3 px-3 text-right text-rose-800">
                                     {{ formatCurrency(filteredTotals.outstanding) }}
                                 </td>

@@ -594,6 +594,8 @@
                     <th width="8%" class="text-right">Receipts</th>
                     <th width="8%" class="text-right">Payments</th>
                     <th width="5%" class="text-right">Discount</th>
+                    <th class="text-right">Credit Notes</th>
+                    <th class="text-right">Debit Notes</th>
                     <th width="8%" class="text-right">Balance Due (₹)</th>
                     <th width="7%" class="text-right">0-30d (₹)</th>
                     <th width="7%" class="text-right">30-60d (₹)</th>
@@ -616,6 +618,8 @@
                             {{ number_format($row['total_payment'] ?? 0, 2) }}</td>
                         <td class="text-right amount-cell nowrap">{{ number_format($row['total_discount'] ?? 0, 2) }}
                         </td>
+                        <td class="text-right amount-cell nowrap">{{ number_format($row['total_credit_note'] ?? 0, 2) }}</td>
+                        <td class="text-right amount-cell nowrap">{{ number_format($row['total_debit_note'] ?? 0, 2) }}</td>
                         <td class="text-right amount-cell nowrap"
                             style="font-weight: bold; color: {{ ($row['total_outstanding'] ?? 0) > 0 ? '#b91c1c' : '#334155' }};">
                             {{ number_format($row['total_outstanding'] ?? 0, 2) }}
@@ -636,7 +640,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="13" class="text-center" style="padding: 15px; color: #94a3b8;">No customer
+                        <td colspan="14" class="text-center" style="padding: 15px; color: #94a3b8;">No customer
                             outstanding balances found.</td>
                     </tr>
                 @endforelse
@@ -648,6 +652,8 @@
                         {{ number_format($total_receipt_amount ?? ($total_paid_amount ?? 0), 2) }}</td>
                     <td class="text-right amount-cell nowrap">{{ number_format($total_payment_amount ?? 0, 2) }}</td>
                     <td class="text-right amount-cell nowrap">{{ number_format($total_discount_amount ?? 0, 2) }}</td>
+                    <td class="text-right amount-cell nowrap">{{ number_format($total_credit_note_amount ?? 0, 2) }}</td>
+                    <td class="text-right amount-cell nowrap">{{ number_format($total_debit_note_amount ?? 0, 2) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #b91c1c;">&#8377;
                         {{ number_format($total_outstanding_amount ?? 0, 2) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #1e40af;">

@@ -796,4 +796,140 @@ class PatronStatementBillTest extends TestCase
         $this->assertSame('₹ 300.00', $receipt['receipt_payment_display']);
         $this->assertEquals(-26240, $report['balance_due']);
     }
+
+    public function test_customer_outstanding_includes_notes_once_in_summary_statement_and_opening(): void
+    {
+        DB::table('mm_journal_entries')->where('ref_module', 'opening_balance')->update(['deleted_at' => now()]);
+        $invoice = Invoice::withoutEvents(fn () => Invoice::factory()->create([
+            'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id, 'invoice_type' => 'Invoice',
+            'total_amount' => 3000, 'invoice_date' => '2026-10-07', 'due_date' => '2026-10-07', 'status' => 'Approved',
+        ]));
+        $makeNote = fn ($type, $amount, $date, $extra = []) => Invoice::withoutEvents(fn () => Invoice::factory()->create(array_merge([
+            'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id, 'invoice_type' => $type,
+            'ref_id' => $type === 'credit_note' ? $invoice->id : $this->bill->id,
+            'invoice_date' => $date, 'total_amount' => $amount, 'status' => 'Approved', 'discount_total' => 50,
+        ], $extra)));
+        $credit = $makeNote('credit_note', 200, '2026-10-08');
+        $debit = $makeNote('debit_note', 100, '2026-10-09');
+        $makeNote('credit_note', 900, '2026-10-08', ['status' => 'Draft']);
+        $makeNote('debit_note', 900, '2026-10-08', ['status' => 'Cancelled']);
+        $deleted = $makeNote('credit_note', 900, '2026-10-08');
+        DB::table('mm_invoices')->where('id', $deleted->id)->update(['deleted_at' => now()]);
+        $makeNote('credit_note', 900, '2026-11-01');
+        $otherPlant = Plant::factory()->create();
+        $makeNote('credit_note', 900, '2026-10-08', ['plant_id' => $otherPlant->id]);
+        $service = app(CustomerOutstandingReportService::class);
+        $summary = fn ($end = '2026-10-31') => $service->generate(['plant_id' => $this->plant->id, 'end' => $end]);
+        $report = $summary();
+        $customer = collect($report['customer_summary'])->firstWhere('customer_id', $this->patron->id);
+        $this->assertEquals(1720, $customer['total_outstanding']);
+        $this->assertEquals(200, $customer['total_credit_note']);
+        $this->assertEquals(100, $customer['total_debit_note']);
+        $this->assertEquals(1180, $customer['total_purchased']);
+        $this->assertEquals(1720, array_sum(array_intersect_key($customer, array_flip(['aging_0_30', 'aging_31_60', 'aging_61_90', 'aging_90_plus']))));
+        $this->assertEquals(1720, collect($customer['open_invoices'])->sum('balance_amount'));
+        $this->assertEquals(1620, $summary('2026-10-08')['total_outstanding_amount']);
+        $statement = $this->statement();
+        $this->assertEquals(1720, $statement['balance_due']);
+        $creditRow = collect($statement['transactions'])->firstWhere('transactions', 'Credit Note');
+        $debitRow = collect($statement['transactions'])->firstWhere('transactions', 'Debit Note');
+        $this->assertEquals(200, $creditRow['credit']);
+        $this->assertEquals(100, $debitRow['debit']);
+        $this->assertSame('-', $creditRow['receipt_payment_display']);
+        $this->assertSame('₹ 200.00', $creditRow['invoice_bill_display']);
+        $this->assertSame('-', $creditRow['discount_display']);
+        $this->assertEquals(200, $statement['account_summary']['credit_notes']);
+        $this->assertEquals(100, $statement['account_summary']['debit_notes']);
+        foreach ([$credit, $debit] as $note) {
+            $entryId = DB::table('mm_journal_entries')->insertGetId([
+                'plant_id' => $this->plant->id, 'entity_id' => $this->plant->entity_id,
+                'ref_module' => $note->invoice_type === 'credit_note' ? 'credit_note' : 'purchase_debit_note',
+                'ref_id' => $note->id, 'voucher_type' => strtoupper($note->invoice_type),
+                'voucher_number' => $note->full_number, 'voucher_date' => $note->invoice_date, 'posting_date' => $note->invoice_date,
+            ]);
+            DB::table('mm_journal_entry_lines')->insert([
+                'journal_entry_id' => $entryId, 'plant_id' => $this->plant->id, 'account_id' => $this->ledger->id,
+                'partner_type' => 'Patron', 'partner_id' => $this->patron->id,
+                'debit_amount' => $note->invoice_type === 'debit_note' ? 100 : 0,
+                'credit_amount' => $note->invoice_type === 'credit_note' ? 200 : 0,
+            ]);
+        }
+        $this->assertEquals(1720, $summary()['total_outstanding_amount']);
+        $this->assertEquals(1720, $this->statement()['balance_due']);
+        $this->assertCount(1, collect($this->statement()['transactions'])->where('transactions', 'Credit Note'));
+        $openingReport = $this->statement('2026-10-09');
+        $this->assertEquals(1620, $openingReport['opening_balance']);
+        $this->assertEquals(1720, $openingReport['balance_due']);
+        DB::table('mm_invoices')->where('id', $credit->id)->update(['deleted_at' => now()]);
+        $this->assertEquals(1920, $summary()['total_outstanding_amount']);
+        $this->assertEquals(1920, $this->statement()['balance_due']);
+        $this->assertEquals(3000, $invoice->fresh()->total_amount);
+        $this->assertEquals(1180, $this->bill->fresh()->total_amount);
+        DB::table('mm_invoices')->where('id', $invoice->id)->update(['deleted_at' => now()]);
+        $supplierStatement = $this->statement();
+        $this->assertEquals(-1080, $supplierStatement['balance_due']);
+        $this->assertSame('Cr', $supplierStatement['account_summary']['balance_due_type']);
+    }
+
+    public function test_outstanding_summary_matches_statement_for_the_5400_credit_note_example(): void
+    {
+        DB::table('mm_journal_entries')->where('ref_module', 'opening_balance')->update(['deleted_at' => now()]);
+        DB::table('mm_invoices')->where('id', $this->bill->id)->update([
+            'invoice_type' => 'Invoice', 'invoice_date' => '2026-09-30', 'due_date' => '2026-09-30',
+            'total_amount' => 140780, 'discount_total' => 0, 'prefix' => 'INV/26-27/', 'invoice_number' => '00003',
+        ]);
+        $sourceId = null;
+        foreach ([['00007', 5400.01], ['00010', 5400]] as [$number, $amount]) {
+            $source = Invoice::withoutEvents(fn () => Invoice::factory()->create([
+                'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id,
+                'invoice_type' => 'Invoice', 'invoice_date' => '2026-10-07', 'due_date' => '2026-10-07',
+                'invoice_number' => $number, 'prefix' => 'INV/26-27/', 'status' => 'Approved', 'discount_total' => 0,
+            ]));
+            // Preserve the historical paise value shown in the screenshot.
+            DB::table('mm_invoices')->where('id', $source->id)->update(['total_amount' => $amount]);
+            $sourceId = $source->id;
+        }
+        Invoice::withoutEvents(fn () => Invoice::factory()->create([
+            'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id,
+            'invoice_type' => 'credit_note', 'ref_id' => $sourceId, 'status' => 'Approved',
+            'invoice_date' => '2026-10-08', 'total_amount' => 5400,
+            'prefix' => 'CN/2627/', 'invoice_number' => '00001',
+        ]));
+        $service = app(CustomerOutstandingReportService::class);
+        $params = ['plant_id' => $this->plant->id, 'start' => '2026-09-09 00:00:00', 'end' => '2026-10-09 23:59:59'];
+        $summary = $service->generate($params);
+        $statement = $service->generate($params + ['patron_id' => $this->patron->id]);
+        $customer = collect($summary['transactions'])->firstWhere('customer_id', $this->patron->id);
+        $this->assertEquals(151580.01, $customer['total_invoiced']);
+        $this->assertEquals(5400, $customer['total_credit_note']);
+        $this->assertEquals(5400, $summary['total_credit_note_amount']);
+        $this->assertEquals(0, $summary['total_debit_note_amount']);
+        $this->assertEquals(146180.01, $customer['total_outstanding']);
+        $this->assertEquals(146180.01, $summary['total_outstanding_amount']);
+        $this->assertEquals($customer['total_outstanding'], $statement['balance_due']);
+        $this->assertEquals(146180.01, collect($customer['open_invoices'])->sum('balance_amount'));
+        $this->assertEquals(146180.01, array_sum(array_intersect_key($customer, array_flip(['aging_0_30', 'aging_31_60', 'aging_61_90', 'aging_90_plus']))));
+        $html = view('reports.customer_outstanding_report', $summary)->render();
+        $this->assertStringContainsString('Credit Notes', $html);
+        $this->assertStringContainsString('Debit Notes', $html);
+        $this->assertStringContainsString('146,180.01', $html);
+        $this->assertStringContainsString('5,400.00', $html);
+        $workbook = app(\App\Services\Reports\ExcelExportService::class)->generateExcelReport(
+            'customer_outstanding', '2026-09-09', '2026-10-09', $summary
+        );
+        $sheet = $workbook->getActiveSheet();
+        $found = false;
+        foreach ($sheet->toArray() as $index => $cells) {
+            $creditColumn = array_search('Credit Notes (₹)', $cells, true);
+            if ($creditColumn === false) continue;
+            $balanceColumn = array_search('Outstanding Balance (₹)', $cells, true);
+            $this->assertNotFalse($balanceColumn);
+            $this->assertEquals(5400, $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($creditColumn + 1) . ($index + 2))->getValue());
+            $this->assertEquals(146180.01, $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($balanceColumn + 1) . ($index + 2))->getValue());
+            $found = true;
+            break;
+        }
+        $this->assertTrue($found);
+        $workbook->disconnectWorksheets();
+    }
 }
