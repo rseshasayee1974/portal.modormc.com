@@ -232,136 +232,153 @@ const submit = () => {
 <template>
     <form @submit.prevent="submit" class="sample-form min-w-0 space-y-3">
         <div class="flex items-center justify-between gap-3">
-            <div>
-                <h1 class="text-lg font-semibold text-slate-900 dark:text-white">{{ isEditing ? 'Edit concrete sample' :
-                    embedded ? 'New concrete sample' : 'Concrete sampling' }}</h1>
-                <p class="text-xs text-slate-500">Select loads, record sample details and schedule tests.</p>
-            </div>
+
             <Link v-if="!embedded" :href="route('quality.samples.index')"
                 class="shrink-0 text-xs font-medium text-slate-500 hover:text-indigo-600">Back to samples</Link>
         </div>
 
-        <BaseCard title="Production" headerClass="!px-4 !py-2" bodyClass="!py-3">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-                <!-- Left Column: Inputs -->
-                <div class="space-y-4 lg:col-span-5 xl:col-span-4">
-                    <BaseSelect v-model="form.sales_order_id" label="Sales order" required :options="salesOrderOptions"
-                        optionLabel="label" optionValue="value" placeholder="Select sales order" :filter="true"
-                        :error="form.errors.sales_order_id" />
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <BaseDatePicker v-model="form.sample_date" label="Casting date" required dateFormat="yy-mm-dd"
-                            :error="form.errors.sample_date" iconDisplay="button" />
-                        <BaseSelect v-model="form.tested_by" label="Tested by" :options="personnelOptions"
-                            optionLabel="label" optionValue="value" placeholder="Select personnel" :filter="true"
-                            :error="form.errors.tested_by" />
+        <BaseCard bodyClass="!p-0">
+            <!-- Form Header -->
+            <div
+                class="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div
+                        class="rounded-lg bg-indigo-100 dark:bg-indigo-950/50 p-1.5 text-indigo-700 dark:text-indigo-400 ring-1 ring-indigo-200 dark:ring-indigo-900/30 flex items-center justify-center h-7 w-7">
+                        <i :class="isEditing ? 'pi pi-pencil' : 'pi pi-plus-circle'" class="text-xs"></i>
                     </div>
-
-                    <div class="space-y-1">
-                        <p v-if="form.errors.source_keys" role="alert" class="text-xs text-rose-600">{{
-                            form.errors.source_keys }}</p>
-                        <p class="text-xs text-slate-500">Each selected load gets a separate sample. Unselected loads
-                            remain
-                            available for later.</p>
-                    </div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        {{ isEditing ? 'Edit Concrete Sample' : embedded ? 'New Concrete Sample' : 'Concrete Sampling'
+                        }}
+                    </h2>
                 </div>
+            </div>
 
-                <!-- Right Column: Data Table -->
-                <div class="space-y-2 lg:col-span-7 xl:col-span-8 min-w-0">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <p class="text-xs text-slate-500"><span
-                                class="font-semibold text-indigo-600 dark:text-indigo-400">{{
-                                    form.source_keys.length }} selected</span> / {{ productionRows.length }} loads <span
-                                class="mx-2 text-slate-300">·</span>{{ selectedQuantity.toLocaleString(APP_LOCALE, {
-                                    maximumFractionDigits: 3
-                                }) }} m³</p>
+            <!-- Production Section -->
+            <div class="p-3">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+                    <!-- Left Column: Inputs -->
+                    <div class="space-y-4 lg:col-span-5 xl:col-span-4">
+                        <BaseSelect v-model="form.sales_order_id" label="Sales order" required
+                            :options="salesOrderOptions" optionLabel="label" optionValue="value"
+                            placeholder="Select sales order" :filter="true" :error="form.errors.sales_order_id" />
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <BaseDatePicker v-model="form.sample_date" label="Casting date" required
+                                dateFormat="yy-mm-dd" :error="form.errors.sample_date" iconDisplay="button" />
+                            <BaseSelect v-model="form.tested_by" label="Tested by" :options="personnelOptions"
+                                optionLabel="label" optionValue="value" placeholder="Select personnel" :filter="true"
+                                :error="form.errors.tested_by" />
+                        </div>
+
+                        <div class="space-y-1">
+                            <p v-if="form.errors.source_keys" role="alert" class="text-xs text-rose-600">{{
+                                form.errors.source_keys }}</p>
+                            <!-- <p class="text-[0.8rem] text-slate-500">Each selected load gets a separate sample.
+                                Unselected
+                                loads
+                                remain
+                                available for later.</p> -->
+                        </div>
                     </div>
 
-                    <div class="rounded-lg border border-slate-200 dark:border-slate-700">
-                        <BaseDataTable :value="productionRows" dataKey="key" :paginator="false" :stripedRows="false"
-                            :rowClass="productionRowClass" :showAdvancedFilter="false"
-                            class="p-datatable-sm qc-production-table">
-                            <Column style="width: 4rem">
-                                <template #header>
-                                    <Checkbox :modelValue="areAllAvailableSelected" binary
-                                        :disabled="!availableRows.length && !form.source_keys.length"
-                                        @update:modelValue="toggleSelectAll" aria-label="Select all available" />
-                                </template>
-                                <template #body="{ data }">
-                                    <Checkbox :modelValue="form.source_keys.includes(data.key)" binary
-                                        :disabled="data.unavailable || data.cancelled"
-                                        :aria-label="`Select batch ${data.batch?.batch_no || data.dispatch?.dispatch_no}`"
-                                        @update:modelValue="toggleSource(data.key)" />
-                                </template>
-                            </Column>
-                            <Column header="Batch">
-                                <template #body="{ data }">
-                                    <div class="flex items-center gap-2"><i
-                                            class="pi pi-box text-indigo-400 text-xs"></i><span
-                                            class="font-bold text-indigo-700 dark:text-indigo-300">{{
-                                                data.batch?.batch_no
-                                                ||
-                                                '—' }}</span></div>
-                                </template>
-                            </Column>
-                            <Column header="Invoice">
-                                <template #body="{ data }">
-                                    <Tag :value="data.dispatch?.invoice_status?.invoice?.invoice_number || data.dispatch?.invoice_status?.invoice_number || 'Not invoiced'"
-                                        :severity="data.dispatch?.invoice_status?.invoice_id ? 'success' : 'secondary'"
-                                        class="!text-[10px] !font-bold" />
-                                </template>
-                            </Column>
-                            <Column header="Grade">
-                                <template #body="{ data }">
-                                    <div class="flex flex-wrap items-center gap-2 min-w-0">
-                                        <Tag :value="data.dispatch?.mix_design?.concrete_grade?.name || selectedOrder?.mix_design?.concrete_grade?.name || 'No grade'"
-                                            severity="info" class="!text-[10px] !font-bold" />
+                    <!-- Right Column: Data Table -->
+                    <div class="space-y-2 lg:col-span-7 xl:col-span-8 min-w-0">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-xs text-slate-500"><span
+                                    class="font-semibold text-indigo-600 dark:text-indigo-400">{{
+                                        form.source_keys.length }} selected</span> / {{ productionRows.length }} loads <span
+                                    class="mx-2 text-slate-300">·</span>{{ selectedQuantity.toLocaleString(APP_LOCALE, {
+                                        maximumFractionDigits: 3
+                                    }) }} m³</p>
+                        </div>
 
-                                    </div>
+                        <div class="rounded-lg border border-slate-200 dark:border-slate-700">
+                            <BaseDataTable :value="productionRows" dataKey="key" :paginator="false" :stripedRows="false"
+                                :rowClass="productionRowClass" :showAdvancedFilter="false"
+                                class="p-datatable-sm qc-production-table">
+                                <Column style="width: 4rem">
+                                    <template #header>
+                                        <Checkbox :modelValue="areAllAvailableSelected" binary
+                                            :disabled="!availableRows.length && !form.source_keys.length"
+                                            @update:modelValue="toggleSelectAll" aria-label="Select all available" />
+                                    </template>
+                                    <template #body="{ data }">
+                                        <Checkbox :modelValue="form.source_keys.includes(data.key)" binary
+                                            :disabled="data.unavailable || data.cancelled"
+                                            :aria-label="`Select batch ${data.batch?.batch_no || data.dispatch?.dispatch_no}`"
+                                            @update:modelValue="toggleSource(data.key)" />
+                                    </template>
+                                </Column>
+                                <Column header="Batch">
+                                    <template #body="{ data }">
+                                        <div class="flex items-center gap-2"><i
+                                                class="pi pi-box text-indigo-400 text-xs"></i><span
+                                                class="font-bold text-indigo-700 dark:text-indigo-300">{{
+                                                    data.batch?.batch_no
+                                                    ||
+                                                    '—' }}</span></div>
+                                    </template>
+                                </Column>
+                                <Column header="Invoice">
+                                    <template #body="{ data }">
+                                        <Tag :value="data.dispatch?.invoice_status?.invoice?.invoice_number || data.dispatch?.invoice_status?.invoice_number || 'Not invoiced'"
+                                            :severity="data.dispatch?.invoice_status?.invoice_id ? 'success' : 'secondary'"
+                                            class="!text-[10px] !font-bold" />
+                                    </template>
+                                </Column>
+                                <Column header="Grade">
+                                    <template #body="{ data }">
+                                        <div class="flex flex-wrap items-center gap-2 min-w-0">
+                                            <Tag :value="data.dispatch?.mix_design?.concrete_grade?.name || selectedOrder?.mix_design?.concrete_grade?.name || 'No grade'"
+                                                severity="info" class="!text-[10px] !font-bold" />
+
+                                        </div>
+                                    </template>
+                                </Column>
+                                <Column header="Truck">
+                                    <template #body="{ data }">
+                                        <div class="flex flex-wrap items-center gap-2 min-w-0">
+                                            <p
+                                                class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                                <!-- <i class="pi pi-truck text-[10px]"></i> -->
+                                                {{ data.dispatch?.truck?.registration
+                                                    ||
+                                                    `No
+                                                vehicle assigned` }}
+                                            </p>
+                                        </div>
+                                    </template>
+                                </Column>
+                                <Column header="Volume">
+                                    <template #body="{ data }"><span
+                                            class="font-bold tabular-nums text-slate-800 dark:text-slate-100">{{
+                                                Number(data.dispatch?.delivered_qty ?? data.batch?.batch_size ??
+                                                    0).toLocaleString(APP_LOCALE, { maximumFractionDigits: 3 }) }}</span><span
+                                            class="ml-1 text-[10px] text-slate-400">m³</span></template>
+                                </Column>
+                                <Column header="Testing status">
+                                    <template #body="{ data }">
+                                        <Tag :value="testingLabel(data)" :severity="testingSeverity(data)"
+                                            :icon="form.source_keys.includes(data.key) ? 'pi pi-check-circle' : undefined"
+                                            rounded class="!text-[10px]" />
+                                    </template>
+                                </Column>
+                                <template #empty>
+                                    <p class="py-5 text-center text-sm text-slate-500">{{ selectedOrder ? `No production
+                                        loads
+                                        for
+                                        this order.` : `Select a sales order to view production.` }}</p>
                                 </template>
-                            </Column>
-                            <Column header="Truck">
-                                <template #body="{ data }">
-                                    <div class="flex flex-wrap items-center gap-2 min-w-0">
-                                        <p
-                                            class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                                            <!-- <i class="pi pi-truck text-[10px]"></i> -->
-                                            {{ data.dispatch?.truck?.registration
-                                                ||
-                                                `No
-                                            vehicle assigned` }}
-                                        </p>
-                                    </div>
-                                </template>
-                            </Column>
-                            <Column header="Volume">
-                                <template #body="{ data }"><span
-                                        class="font-bold tabular-nums text-slate-800 dark:text-slate-100">{{
-                                            Number(data.dispatch?.delivered_qty ?? data.batch?.batch_size ??
-                                                0).toLocaleString(APP_LOCALE, { maximumFractionDigits: 3 }) }}</span><span
-                                        class="ml-1 text-[10px] text-slate-400">m³</span></template>
-                            </Column>
-                            <Column header="Testing status">
-                                <template #body="{ data }">
-                                    <Tag :value="testingLabel(data)" :severity="testingSeverity(data)"
-                                        :icon="form.source_keys.includes(data.key) ? 'pi pi-check-circle' : undefined"
-                                        rounded class="!text-[10px]" />
-                                </template>
-                            </Column>
-                            <template #empty>
-                                <p class="py-5 text-center text-sm text-slate-500">{{ selectedOrder ? `No production
-                                    loads
-                                    for
-                                    this order.` : `Select a sales order to view production.` }}</p>
-                            </template>
-                        </BaseDataTable>
+                            </BaseDataTable>
+                        </div>
                     </div>
                 </div>
             </div>
-        </BaseCard>
 
-        <div class="space-y-3">
-            <BaseCard title="Sample details" headerClass="!px-4 !py-2" bodyClass="!py-3 space-y-2">
+            <!-- Sample Details Section -->
+            <div class="p-3">
+                <h2 class="text-sm font-black uppercase tracking-tight text-gray-800 dark:text-gray-100 mb-4">Sample
+                    details</h2>
                 <div class="grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
                     <BaseInput v-model="form.slump_mm" type="number" label="Slump (mm)" required
                         :error="form.errors.slump_mm" />
@@ -383,24 +400,24 @@ const submit = () => {
                             :error="form.errors.remarks" />
                     </div>
                 </div>
-                <p v-if="Number(form.concrete_temp_c) > 35" class="text-xs text-rose-600">Concrete temperature exceeds
+                <p v-if="Number(form.concrete_temp_c) > 35" class="text-xs text-rose-600 mt-2">Concrete temperature
+                    exceeds
                     35°C (IS
                     7861).</p>
-                <p v-if="Number(form.slump_mm) > 200" class="text-xs text-amber-600">Slump exceeds 200 mm. Verify the
+                <p v-if="Number(form.slump_mm) > 200" class="text-xs text-amber-600 mt-2">Slump exceeds 200 mm. Verify
+                    the
                     concrete
                     grade.</p>
+            </div>
 
-            </BaseCard>
-
-            <BaseCard headerClass="!px-4 !py-2" bodyClass="!py-3">
-                <template #header>
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <h2 class="text-sm font-black uppercase tracking-tight text-gray-800 dark:text-gray-100">Testing
-                            schedule</h2>
-                        <span class="text-xs text-slate-500">{{ selectedMilestones.length }} stages · {{
-                            form.specimen_count }} specimens per load</span>
-                    </div>
-                </template>
+            <!-- Testing Schedule Section -->
+            <div class="p-4 sm:p-5">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                    <h2 class="text-sm font-black uppercase tracking-tight text-gray-800 dark:text-gray-100">Testing
+                        schedule</h2>
+                    <span class="text-xs text-slate-500">{{ selectedMilestones.length }} stages · {{
+                        form.specimen_count }} specimens per load</span>
+                </div>
                 <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <label v-for="milestone in availableMilestones" :key="milestone.days"
                         class="flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 transition-colors"
@@ -423,23 +440,25 @@ const submit = () => {
                         </div>
                     </label>
                 </div>
-            </BaseCard>
-        </div>
-
-        <div
-            class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3 dark:border-slate-700">
-            <p class="text-xs text-slate-500">{{ form.source_keys.length }} load{{ form.source_keys.length === 1 ? '' :
-                's' }}
-                selected · {{ selectedMilestones.length }} test stages per sample</p>
-            <div class="flex flex-wrap items-center gap-2">
-                <BaseButton v-if="isEditing && embedded" label="Cancel" severity="secondary" variant="text"
-                    @click="emit('cancel')" />
-                <BaseButton type="submit" :loading="form.processing"
-                    :disabled="form.processing || !form.source_keys.length" variant="filled"
-                    :icon="isEditing ? 'pi pi-check' : 'pi pi-plus'"
-                    :label="isEditing ? 'Save changes' : 'Create samples & tests'" />
             </div>
-        </div>
+
+            <!-- Footer Actions -->
+            <div
+                class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700 rounded-b-lg">
+                <p class="text-xs text-slate-500">{{ form.source_keys.length }} load{{ form.source_keys.length === 1 ?
+                    '' :
+                    's' }}
+                    selected · {{ selectedMilestones.length }} test stages per sample</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <BaseButton v-if="isEditing && embedded" label="Cancel" severity="secondary" variant="text"
+                        @click="emit('cancel')" />
+                    <BaseButton type="submit" :loading="form.processing"
+                        :disabled="form.processing || !form.source_keys.length" variant="filled"
+                        :icon="isEditing ? 'pi pi-check' : 'pi pi-plus'"
+                        :label="isEditing ? 'Save changes' : 'Create samples & tests'" />
+                </div>
+            </div>
+        </BaseCard>
     </form>
 </template>
 
