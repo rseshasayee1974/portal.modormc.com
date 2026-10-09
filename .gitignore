@@ -33,6 +33,7 @@ package.json
 /tests/Feature/*
 !/tests/Feature/InvoiceClassificationTest.php
 !/tests/Feature/PatronStatementBillTest.php
+!/tests/Feature/CrmLeadTest.php
 !/tests/Feature/InwardDetailsTest.php
 !/tests/Feature/ConcreteQualityDropdownTest.php
 !/tests/Feature/PurchaseOrderTaxInclusiveTest.php

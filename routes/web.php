@@ -46,6 +46,20 @@ Route::middleware([
     })->name('session.ping');
 
     Route::get('/dashboard', [\App\Http\Controllers\ERPDashboardController::class, 'index'])->name('dashboard');
+    Route::prefix('crm/leads')->name('crm.leads.')->controller(\App\Http\Controllers\CrmLeadController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::post('/assign', 'assign')->name('assign');
+        Route::get('/{lead}', 'show')->name('show');
+        Route::put('/{lead}', 'update')->name('update');
+        Route::delete('/{lead}', 'destroy')->name('destroy');
+        Route::post('/{lead}/convert', 'convert')->name('convert');
+        Route::post('/{lead}/activities', 'activity')->name('activity');
+        Route::patch('/{lead}/activities/{activity}/complete', 'complete')->name('complete');
+        Route::put('/{lead}/deal', 'deal')->name('deal');
+        Route::post('/{lead}/attachments', 'attach')->name('attach');
+        Route::get('/{lead}/attachments/{attachment}', 'download')->name('download');
+    });
     Route::get('/dashboard/analytics', [\App\Http\Controllers\ERPDashboardController::class, 'analytics'])->name('dashboard.analytics');
     Route::get('dashboard/data', [\App\Http\Controllers\ERPDashboardController::class, 'getData'])->name('dashboard.data');
     Route::get('dashboard/data/metrics', [\App\Http\Controllers\ERPDashboardController::class, 'getMetricsData'])->name('dashboard.data.metrics');

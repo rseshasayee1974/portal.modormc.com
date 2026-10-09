@@ -57,6 +57,7 @@ class PermissionSeeder extends Seeder
             'PAYMENT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'BILLING' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'CRDRNOTE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'CRM_LEAD' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'ASSIGN', 'CONVERT'],
             
             // Commerce
             'PATRON' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
@@ -192,7 +193,7 @@ class PermissionSeeder extends Seeder
         $salesRole = Role::where('code', 'SALES_MANAGER')->first();
         if ($salesRole) {
             $salesPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['QUOTATION', 'SALES_ORDER', 'CUSTOMER_PO', 'INVOICE', 'CRDRNOTE', 'PATRON', 'PRODUCT', 'SITE'])
+                return Str::startsWith($p, ['QUOTATION', 'SALES_ORDER', 'CUSTOMER_PO', 'INVOICE', 'CRDRNOTE', 'CRM_LEAD', 'PATRON', 'PRODUCT', 'SITE'])
                        || Str::endsWith($p, '.VIEW');
             });
             $salesRole->syncPermissions($salesPermissions);
