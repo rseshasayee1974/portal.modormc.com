@@ -10,6 +10,9 @@ defineProps<{
     customers?: any[];
     dispatches?: any[];
     batches?: any[];
+    salesOrders?: any[];
+    usedBatchIds?: number[];
+    usedDispatchIds?: number[];
     testTypes?: any[];
     personnels?: any[];
 }>();
@@ -22,13 +25,16 @@ defineProps<{
         </template>
         <Head title="Log Concrete Sample" />
 
-        <div class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+        <div class="w-full max-w-7xl mx-auto py-3 px-4 sm:px-6">
             <SampleForm
                 :concreteGrades="concreteGrades"
                 :materials="materials"
                 :customers="customers"
                 :dispatches="dispatches"
                 :batches="batches"
+                :salesOrders="salesOrders"
+                :usedBatchIds="usedBatchIds"
+                :usedDispatchIds="usedDispatchIds"
                 :testTypes="testTypes"
                 :personnels="personnels"
                 :isEditing="false"

@@ -10,17 +10,17 @@ import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputGroup from 'primevue/inputgroup';
 import InputGroupAddon from 'primevue/inputgroupaddon';
-import { 
-    MagnifyingGlassIcon, 
-    ListBulletIcon, 
-    ClipboardDocumentListIcon, 
-    FunnelIcon, 
-    TruckIcon, 
-    CubeIcon, 
-    BeakerIcon, 
-    UserGroupIcon, 
-    BuildingOfficeIcon, 
-    BookOpenIcon, 
+import {
+    MagnifyingGlassIcon,
+    ListBulletIcon,
+    ClipboardDocumentListIcon,
+    FunnelIcon,
+    TruckIcon,
+    CubeIcon,
+    BeakerIcon,
+    UserGroupIcon,
+    BuildingOfficeIcon,
+    BookOpenIcon,
     ArchiveBoxIcon,
     PlusIcon,
     ArrowPathIcon,
@@ -46,6 +46,7 @@ const props = withDefaults(
         loading?: boolean;
         dataKey?: string;
         expandedRows?: any;
+        expandOnRowClick?: boolean;
         first?: number;
 
         paginator?: boolean;
@@ -99,6 +100,7 @@ const props = withDefaults(
     }>(),
     {
         loading: false,
+        expandOnRowClick: true,
         paginator: true,
         first: 0,
         rows: 10,
@@ -113,8 +115,8 @@ const props = withDefaults(
         showSerial: false,
         showSearch: false,
         showAdvancedFilter: true,
-        heading : "",
-        headingIcon:'',
+        heading: "",
+        headingIcon: '',
         showExport: false,
         exportFilename: 'report',
         scrollable: false,
@@ -177,22 +179,22 @@ const getRowSerial = (index: number) => {
 const handleRowClick = (event: any) => {
     if (!event || !event.originalEvent) return;
     emit('row-click', event);
-    
+
     // Auto-toggle expansion if the expansion slot is provided
     // and the click wasn't on an action button, the expander icon itself, or inside the expanded row
-    if (slots.expansion) {
+    if (slots.expansion && props.expandOnRowClick) {
         const target = event.originalEvent.target;
         if (!target) return;
-        
+
         const isExpander = target.closest('.p-row-toggler');
         const isAction = target.closest('button') || target.closest('a');
         const isExpansion = target.closest('.p-datatable-row-expansion');
-        
+
         if (!isExpander && !isAction && !isExpansion) {
             let newExpandedRows;
             const id = event.data?.[props.dataKey || 'id'];
             if (id === undefined) return;
- 
+
             if (Array.isArray(props.expandedRows)) {
                 newExpandedRows = [...props.expandedRows];
                 const index = newExpandedRows.findIndex(row => (row[props.dataKey || 'id'] || row) === id);
@@ -214,7 +216,7 @@ const handleRowClick = (event: any) => {
                     emit('rowExpand', { data: event.data });
                 }
             }
-            
+
             emit('update:expandedRows', newExpandedRows);
         }
     }
@@ -278,24 +280,29 @@ const toggleFilterPopover = (event: any) => {
 
 <template>
     <div class="base-datatable-wrapper border border-slate-200 rounded-sm overflow-hidden shadow-sm">
-        
+
         <!-- Print Only Header -->
         <div class="print-only-header hidden">
             <div class="flex justify-between items-end border-b-2 border-slate-900 pb-4 mb-6">
                 <div>
-                    <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter">{{ heading || 'Data Report' }}</h1>
-                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Generated: {{ entityLocaleDateTime(undefined, APP_LOCALE) }}</p>
+                    <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter">{{ heading || `Data
+                        Report` }}</h1>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Generated: {{
+                        entityLocaleDateTime(undefined, APP_LOCALE) }}</p>
                 </div>
                 <div class="text-right">
                     <h2 class="text-xl font-black text-indigo-600 tracking-tighter">MODOR RMC</h2>
-                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none">Portal Reporting System</p>
+                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none">Portal
+                        Reporting System</p>
                 </div>
             </div>
         </div>
 
-        <div v-if="heading || showSearch || $slots.toolbar" class="no-print bg-white border-b border-slate-100 px-5 py-4 flex flex-wrap items-center justify-between gap-4">
-            <div v-if="heading" class="flex items-center gap-3"> 
-                <div v-if="headingIcon" class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center shadow-sm border border-indigo-100/50">
+        <div v-if="heading || showSearch || $slots.toolbar"
+            class="no-print bg-white border-b border-slate-100 px-5 py-4 flex flex-wrap items-center justify-between gap-4">
+            <div v-if="heading" class="flex items-center gap-3">
+                <div v-if="headingIcon"
+                    class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center shadow-sm border border-indigo-100/50">
                     <component v-if="IconMap[headingIcon]" :is="IconMap[headingIcon]" class="w-6 h-6 text-indigo-600" />
                     <i v-else :class="[headingIcon, 'text-xl text-indigo-500']"></i>
                 </div>
@@ -303,100 +310,60 @@ const toggleFilterPopover = (event: any) => {
                     <h3 class="text-lg font-bold text-slate-800 tracking-tight leading-none">
                         {{ heading }}
                     </h3>
-                    <div v-if="(totalRecords !== undefined ? totalRecords : value?.length) > 0" class="flex items-center gap-2 mt-1">
+                    <div v-if="(totalRecords !== undefined ? totalRecords : value?.length) > 0"
+                        class="flex items-center gap-2 mt-1">
                         <div class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ totalRecords !== undefined ? totalRecords : value.length }} Records Found</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ totalRecords !==
+                            undefined ? totalRecords : value.length }} Records Found</span>
                     </div>
                 </div>
             </div>
-           
+
             <div class="flex items-center flex-wrap gap-3 ml-auto">
                 <slot name="toolbar"></slot>
 
                 <div v-if="showSearch" class="flex items-center gap-3">
-                    <Select
-                        v-if="paginator"
-                        :modelValue="pageRows"
-                        @update:modelValue="changePageRows"
-                        :options="internalPageOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="Per Page"
+                    <Select v-if="paginator" :modelValue="pageRows" @update:modelValue="changePageRows"
+                        :options="internalPageOptions" optionLabel="label" optionValue="value" placeholder="Per Page"
                         aria-label="Rows per page"
-                        class="!w-[80px] !min-w-[80px] !max-w-[80px] shrink-0 !h-10 !text-[11px] !font-bold !bg-slate-50 !border-slate-200 !rounded-lg shadow-sm"
-                    />
-                    <InputGroup class="!rounded-lg overflow-hidden border border-slate-200 shadow-sm group focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-50 transition-all bg-white h-10" style="width: 240px">
+                        class="!w-[80px] !min-w-[80px] !max-w-[80px] shrink-0 !h-10 !text-[11px] !font-bold !bg-slate-50 !border-slate-200 !rounded-lg shadow-sm" />
+                    <InputGroup
+                        class="!rounded-lg overflow-hidden border border-slate-200 shadow-sm group focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-50 transition-all bg-white h-10"
+                        style="width: 240px">
                         <InputGroupAddon class="!bg-transparent !border-none !px-3">
-                            <MagnifyingGlassIcon class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                            <MagnifyingGlassIcon
+                                class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                         </InputGroupAddon>
-                        <InputText 
-                            :modelValue="filters?.global?.value" 
-                            @update:modelValue="handleSearch"
-                            placeholder="Quick search..." 
-                            class="!border-none !text-[13px] !font-semibold !bg-transparent !px-0 h-full placeholder:text-slate-400 placeholder:font-medium" 
-                        />
+                        <InputText :modelValue="filters?.global?.value" @update:modelValue="handleSearch"
+                            placeholder="Quick search..."
+                            class="!border-none !text-[13px] !font-semibold !bg-transparent !px-0 h-full placeholder:text-slate-400 placeholder:font-medium" />
                     </InputGroup>
-                    
-                    <Button 
-                        v-if="showAdvancedFilter"
-                        icon="pi pi-filter" 
-                        severity="secondary" 
-                        text 
-                        rounded 
+
+                    <Button v-if="showAdvancedFilter" icon="pi pi-filter" severity="secondary" text rounded
                         class="!h-10 !w-10 !border !border-slate-200 !bg-white !shadow-sm hover:!border-indigo-400 group transition-all"
-                        v-tooltip.bottom="'Advanced Filters'"
-                        @click="toggleFilterPopover"
-                    />
+                        v-tooltip.bottom="'Advanced Filters'" @click="toggleFilterPopover" />
                 </div>
             </div>
 
         </div>
 
-        <DataTable
-            ref="dt"
-            :value="value"
-            :dataKey="dataKey || 'id'"
-            :loading="loading"
-            :lazy="lazy"
-            :paginator="paginator"
-            :first="first"
-            :rows="pageRows"
-            :totalRecords="totalRecords"
+        <DataTable ref="dt" :value="value" :dataKey="dataKey || 'id'" :loading="loading" :lazy="lazy"
+            :paginator="paginator" :first="first" :rows="pageRows" :totalRecords="totalRecords"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-            :paginatorPosition="paginatorPosition"
-            :filters="filters"
-            :globalFilterFields="globalFilterFields"
-            :filterMode="filterMode"
-            :filterDisplay="filterDisplay"
-            :stripedRows="stripedRows"
-            :removableSort="removableSort"
-            :responsiveLayout="responsiveLayout"
-            :expandedRows="expandedRows"
-            :exportFilename="exportFilename"
-            :rowClass="getExpandedRowClass"
-            :selection="selection"
-            :selectionMode="selectionMode"
-            :scrollable="scrollable"
-            :scrollHeight="scrollHeight"
-            :virtualScrollerOptions="virtualScrollerOptions"
-            @update:first="$emit('update:first', $event)"
-            @update:rows="$emit('update:rows', $event)"
-            @update:filters="$emit('update:filters', $event)"
+            :paginatorPosition="paginatorPosition" :filters="filters" :globalFilterFields="globalFilterFields"
+            :filterMode="filterMode" :filterDisplay="filterDisplay" :stripedRows="stripedRows"
+            :removableSort="removableSort" :responsiveLayout="responsiveLayout" :expandedRows="expandedRows"
+            :exportFilename="exportFilename" :rowClass="getExpandedRowClass" :selection="selection"
+            :selectionMode="selectionMode" :scrollable="scrollable" :scrollHeight="scrollHeight"
+            :virtualScrollerOptions="virtualScrollerOptions" @update:first="$emit('update:first', $event)"
+            @update:rows="$emit('update:rows', $event)" @update:filters="$emit('update:filters', $event)"
             @update:expandedRows="$emit('update:expandedRows', $event)"
-            @update:selection="$emit('update:selection', $event)"
-            class="p-datatable-sm"
-            :class="[props.class, { 'cursor-pointer': slots.expansion }]"
-            rowHover
-            @page="$emit('page', $event)"
-            @sort="$emit('sort', $event)"
-            @filter="$emit('filter', $event)"
-            @row-click="handleRowClick"
-            @row-select="$emit('row-select', $event)"
-            @row-unselect="$emit('row-unselect', $event)"
-            @selection-change="$emit('selection-change', $event)"
-            @rowExpand="$emit('rowExpand', $event)"
-            @rowCollapse="$emit('rowCollapse', $event)"
-        >
+            @update:selection="$emit('update:selection', $event)" class="p-datatable-sm"
+            :class="[props.class, { 'cursor-pointer': slots.expansion && expandOnRowClick }]" rowHover
+            @page="$emit('page', $event)" @sort="$emit('sort', $event)" @filter="$emit('filter', $event)"
+            @row-click="handleRowClick" @row-select="$emit('row-select', $event)"
+            @row-unselect="$emit('row-unselect', $event)" @selection-change="$emit('selection-change', $event)"
+            @rowExpand="$emit('rowExpand', $event)" @rowCollapse="$emit('rowCollapse', $event)">
             <template v-if="$slots.header" #header>
                 <slot name="header" />
             </template>
@@ -404,7 +371,8 @@ const toggleFilterPopover = (event: any) => {
             <!-- Default S.No Column -->
             <Column v-if="showSerial" header="S.No" style="width: 5rem">
                 <template #body="slotProps">
-                    <div class="font-semibold bg-gray-200/10 dark:bg-gray-800/60 h-9 pt-2 rounded-3xl shadow-inner text-center text-slate-600 dark:text-slate-300 w-9 mx-auto">
+                    <div
+                        class="font-semibold bg-gray-200/10 dark:bg-gray-800/60 h-9 pt-2 rounded-3xl shadow-inner text-center text-slate-600 dark:text-slate-300 w-9 mx-auto">
                         {{ getRowSerial(slotProps.index) }}
                     </div>
                 </template>
@@ -416,11 +384,7 @@ const toggleFilterPopover = (event: any) => {
             <Column v-if="deleteUrl" header="Actions" style="width: 70px; text-align: right">
                 <template #body="slotProps">
                     <div class="flex justify-end">
-                        <BaseDeleteButton
-                            :url="deleteUrl(slotProps.data)"
-                            :title="deleteTitle"
-                            :text="deleteText"
-                        />
+                        <BaseDeleteButton :url="deleteUrl(slotProps.data)" :title="deleteTitle" :text="deleteText" />
                     </div>
                 </template>
             </Column>
@@ -454,20 +418,16 @@ const toggleFilterPopover = (event: any) => {
                 <div class="flex flex-col gap-4">
                     <div class="grid grid-cols-2 gap-3">
                         <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">From Date</label>
-                            <BaseDatePicker 
-                                :modelValue="dateFrom" 
-                                @update:modelValue="$emit('update:dateFrom', $event)"
-                                class="!h-9"
-                            />
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">From
+                                Date</label>
+                            <BaseDatePicker :modelValue="dateFrom" @update:modelValue="$emit('update:dateFrom', $event)"
+                                class="!h-9" />
                         </div>
                         <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">To Date</label>
-                            <BaseDatePicker 
-                                :modelValue="dateTo" 
-                                @update:modelValue="$emit('update:dateTo', $event)"
-                                class="!h-9"
-                            />
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">To
+                                Date</label>
+                            <BaseDatePicker :modelValue="dateTo" @update:modelValue="$emit('update:dateTo', $event)"
+                                class="!h-9" />
                         </div>
                     </div>
                 </div>
@@ -477,22 +437,13 @@ const toggleFilterPopover = (event: any) => {
                 </div>
 
                 <div v-if="showExport" class="flex flex-col gap-3 pt-4 border-t border-slate-100">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Export Options</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Export
+                        Options</label>
                     <div class="grid grid-cols-2 gap-3">
-                        <Button 
-                            label="Excel" 
-                            icon="pi pi-file-excel" 
-                            severity="success" 
-                            class="!py-2 !text-xs font-bold shadow-sm"
-                            @click="exportCSV" 
-                        />
-                        <Button 
-                            label="PDF" 
-                            icon="pi pi-print" 
-                            severity="danger" 
-                            class="!py-2 !text-xs font-bold shadow-sm"
-                            @click="printReport" 
-                        />
+                        <Button label="Excel" icon="pi pi-file-excel" severity="success"
+                            class="!py-2 !text-xs font-bold shadow-sm" @click="exportCSV" />
+                        <Button label="PDF" icon="pi pi-print" severity="danger"
+                            class="!py-2 !text-xs font-bold shadow-sm" @click="printReport" />
                     </div>
                 </div>
             </div>
@@ -505,7 +456,7 @@ const toggleFilterPopover = (event: any) => {
 .base-datatable-wrapper {
     /* border-radius: 12px !important; */
     border-color: #e2e8f0 !important;
-    box-shadow: 0 1px 4px rgba(99,102,241,.06), 0 1px 2px rgba(0,0,0,.04) !important;
+    box-shadow: 0 1px 4px rgba(99, 102, 241, .06), 0 1px 2px rgba(0, 0, 0, .04) !important;
     overflow: hidden;
 }
 
@@ -550,10 +501,12 @@ const toggleFilterPopover = (event: any) => {
     transition: color 0.2s, transform 0.2s;
     margin-left: 2px;
 }
+
 :deep(.p-datatable .p-datatable-thead > tr > th.p-sort-column .p-sortable-column-icon),
 :deep(.p-datatable .p-datatable-thead > tr > th:hover .p-sortable-column-icon) {
     color: #6366f1 !important;
 }
+
 :deep(.p-datatable .p-datatable-thead > tr > th.p-sort-column) {
     background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%) !important;
 }
@@ -604,6 +557,7 @@ const toggleFilterPopover = (event: any) => {
     font-size: 12px !important;
     border-radius: 0 0 12px 12px !important;
 }
+
 :deep(.p-datatable .p-paginator .p-paginator-page) {
     min-width: 28px !important;
     height: 28px !important;
@@ -613,27 +567,31 @@ const toggleFilterPopover = (event: any) => {
     color: #64748b !important;
     transition: background 0.15s, color 0.15s;
 }
+
 :deep(.p-datatable .p-paginator .p-paginator-page.p-highlight) {
     background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
     color: #fff !important;
-    box-shadow: 0 2px 8px rgba(99,102,241,.35) !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, .35) !important;
 }
+
 :deep(.p-datatable .p-paginator .p-paginator-page:not(.p-highlight):hover) {
     background: #eef2ff !important;
     color: #6366f1 !important;
 }
+
 :deep(.p-datatable .p-paginator .p-paginator-prev,
-       .p-datatable .p-paginator .p-paginator-next,
-       .p-datatable .p-paginator .p-paginator-first,
-       .p-datatable .p-paginator .p-paginator-last) {
+    .p-datatable .p-paginator .p-paginator-next,
+    .p-datatable .p-paginator .p-paginator-first,
+    .p-datatable .p-paginator .p-paginator-last) {
     min-width: 28px !important;
     height: 28px !important;
     border-radius: 6px !important;
     color: #94a3b8 !important;
     transition: background 0.15s, color 0.15s;
 }
+
 :deep(.p-datatable .p-paginator .p-paginator-prev:hover,
-       .p-datatable .p-paginator .p-paginator-next:hover) {
+    .p-datatable .p-paginator .p-paginator-next:hover) {
     background: #eef2ff !important;
     color: #6366f1 !important;
 }
@@ -643,6 +601,7 @@ const toggleFilterPopover = (event: any) => {
     color: #a5b4fc !important;
     transition: color 0.15s, transform 0.2s;
 }
+
 :deep(.p-row-toggler:hover) {
     color: #6366f1 !important;
     transform: scale(1.15);
