@@ -190,8 +190,9 @@ class ReportRepository
                 'register_customer.patron_type as register_party_type',
             ])
             ->whereNull('mm_invoices.deleted_at')->where('mm_invoices.is_active',1)
+            // Legacy numbers can be unpadded: sort 1, 2, 10 before 00088, 00219.
+            ->orderByRaw('CAST(mm_invoices.invoice_number AS UNSIGNED) ASC')
             ->orderBy('mm_invoices.invoice_number', 'asc');
-            // ->orderBy('mm_invoices.invoice_date', 'asc')
             // ->orderBy('mm_invoices.id', 'asc')
             // ->orderBy('mm_invoice_items.id', 'asc');
 
