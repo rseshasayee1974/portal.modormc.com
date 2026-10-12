@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/AuthenticationCard-DytB6F2K.js
-import{_ as s}from"./app-kNqHoQ91.js";import{l as r,j as e,k as a,E as o}from"./framework-core-ZTMr0ooM.js";const t={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},m=s({},[["render",function(s,m){return r(),e("div",t,[a("div",null,[o(s.$slots,"logo")]),a("div",l,[o(s.$slots,"default")])])}]]);export{m as A};
-========
-import{_ as s}from"./app-E1SFngm3.js";import{l as r,j as e,k as a,E as o}from"./framework-core-ZTMr0ooM.js";const t={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},m=s({},[["render",function(s,m){return r(),e("div",t,[a("div",null,[o(s.$slots,"logo")]),a("div",l,[o(s.$slots,"default")])])}]]);export{m as A};
->>>>>>>> 08d97387ee8a60acd82c0cd996225be44335992a:public/build/assets/AuthenticationCard-B4rsAuZX.js
