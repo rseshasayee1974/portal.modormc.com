@@ -118,6 +118,7 @@ class Patron extends Model
         'code',
         'patron_type',
         'legal_name',
+        'sales_executive_id',
         'debit_ledger_id',
         'credit_ledger_id',
         'operational_status',

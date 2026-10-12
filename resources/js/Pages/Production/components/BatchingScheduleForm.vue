@@ -1,6 +1,5 @@
 <script setup>
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday, entityDateTime } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -41,10 +40,6 @@ const props = defineProps({
             pumpTypes: []
         }),
     },
-    defaultScheduleDate: {
-        type: String,
-        default: () => entityToday(),
-    },
 });
 
 const emit = defineEmits(['saved', 'cancel']);
@@ -52,7 +47,7 @@ const emit = defineEmits(['saved', 'cancel']);
 const saving = ref(false);
 
 const form = ref({
-    schedule_date: props.defaultScheduleDate,
+    schedule_date: null,
     pour_reference: '',
     site_id: null,
     mix_design_id: null,
@@ -64,11 +59,11 @@ const form = ref({
     pump_vehicle_id: null,
     sales_order_id: null,
     dispatch_id: null,
-    batching_time: '',
-    dispatch_time: '',
-    eta_site: '',
-    unloading_start: '',
-    unloading_end: '',
+    batching_time: null,
+    dispatch_time: null,
+    eta_site: null,
+    unloading_start: null,
+    unloading_end: null,
     status: 'scheduled',
     notes: '',
 });
@@ -117,25 +112,6 @@ const normalizePumpType = (raw) => {
     return s;
 };
 
-const onStatusChange = () => {
-    const nowStr = entityDateTime().replace(' ', 'T').substring(0, 16);
-    if (form.value.status === 'batching' && !form.value.batching_time) {
-        form.value.batching_time = nowStr;
-    } else if (form.value.status === 'in_transit') {
-        if (!form.value.dispatch_time) form.value.dispatch_time = nowStr;
-        if (!form.value.eta_site) {
-            const eta = new Date(Date.now() + 35 * 60000);
-            form.value.eta_site = eta.toISOString().substring(0, 16);
-        }
-    } else if (form.value.status === 'on_site') {
-        if (!form.value.eta_site) form.value.eta_site = nowStr;
-    } else if (form.value.status === 'pouring' && !form.value.unloading_start) {
-        form.value.unloading_start = nowStr;
-    } else if (form.value.status === 'completed' && !form.value.unloading_end) {
-        form.value.unloading_end = nowStr;
-    }
-};
-
 const onSalesOrderSelected = (salesOrderId) => {
     if (!salesOrderId) {
         form.value.sales_order_id = null;
@@ -169,7 +145,7 @@ const initForm = () => {
     if (props.isEditing && props.initialData) {
         const item = props.initialData;
         form.value = {
-            schedule_date: item.schedule_date || props.defaultScheduleDate,
+            schedule_date: item.schedule_date || null,
             pour_reference: item.pour_reference || '',
             site_id: item.site_id ? Number(item.site_id) : null,
             mix_design_id: item.mix_design_id ? Number(item.mix_design_id) : null,
@@ -181,17 +157,17 @@ const initForm = () => {
             pump_vehicle_id: item.pump_vehicle_id ? Number(item.pump_vehicle_id) : null,
             sales_order_id: item.sales_order_id ? Number(item.sales_order_id) : null,
             dispatch_id: item.dispatch_id ? Number(item.dispatch_id) : null,
-            batching_time: item.batching_time ? item.batching_time.substring(0, 16) : '',
-            dispatch_time: item.dispatch_time ? item.dispatch_time.substring(0, 16) : '',
-            eta_site: item.eta_site ? item.eta_site.substring(0, 16) : '',
-            unloading_start: item.unloading_start ? item.unloading_start.substring(0, 16) : '',
-            unloading_end: item.unloading_end ? item.unloading_end.substring(0, 16) : '',
+            batching_time: item.batching_time || null,
+            dispatch_time: item.dispatch_time || null,
+            eta_site: item.eta_site || null,
+            unloading_start: item.unloading_start || null,
+            unloading_end: item.unloading_end || null,
             status: item.status || 'scheduled',
             notes: item.notes || '',
         };
     } else {
         form.value = {
-            schedule_date: props.defaultScheduleDate || entityToday(),
+            schedule_date: null,
             pour_reference: '',
             site_id: props.dropdowns.sites?.[0]?.id ? Number(props.dropdowns.sites[0].id) : null,
             mix_design_id: props.dropdowns.mixDesigns?.[0]?.id ? Number(props.dropdowns.mixDesigns[0].id) : null,
@@ -203,11 +179,11 @@ const initForm = () => {
             pump_vehicle_id: null,
             sales_order_id: null,
             dispatch_id: null,
-            batching_time: '',
-            dispatch_time: '',
-            eta_site: '',
-            unloading_start: '',
-            unloading_end: '',
+            batching_time: null,
+            dispatch_time: null,
+            eta_site: null,
+            unloading_start: null,
+            unloading_end: null,
             status: 'scheduled',
             notes: '',
         };
@@ -247,6 +223,9 @@ const submitForm = async () => {
             ...form.value,
             pump_type: normalizePumpType(form.value.pump_type),
         };
+        for (const field of ['batching_time', 'dispatch_time', 'eta_site', 'unloading_start', 'unloading_end']) {
+            payload[field] = payload[field] || null;
+        }
         if (props.isEditing && props.initialData?.id) {
             await axios.put(route('production.batching-schedules.update', props.initialData.id), payload);
             Swal.fire({
@@ -382,7 +361,7 @@ const submitForm = async () => {
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <BaseDatePicker v-model="form.schedule_date" label="Schedule Date" required />
+                <BaseDatePicker v-model="form.schedule_date" :autoFillOnSubmit="false" label="Schedule Date" required />
                 <!-- <BaseInput v-model="form.pour_reference" label="Pour Reference (Auto-generated if empty)"
                     placeholder="e.g. SLAB-L3" /> -->
                 <BaseSelect v-model="form.site_id" :options="siteOptions" optionLabel="label" optionValue="value"
@@ -403,16 +382,16 @@ const submitForm = async () => {
                 <BaseInputNumber v-model="form.qty_m3" :min="0.5" :step="0.5" :minFractionDigits="1"
                     :maxFractionDigits="2" label="Trip Volume (m³)" required />
                 <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value"
-                    label="Status" @change="onStatusChange" />
+                    label="Status" />
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <BaseDatePicker v-model="form.batching_time" :showTime="true" hourFormat="12" label="Batching Time" />
-                <BaseDatePicker v-model="form.dispatch_time" :showTime="true" hourFormat="12" label="Dispatch Time" />
-                <BaseDatePicker v-model="form.eta_site" :showTime="true" hourFormat="12" label="ETA at Site" />
-                <BaseDatePicker v-model="form.unloading_start" :showTime="true" hourFormat="12"
+                <BaseDatePicker v-model="form.batching_time" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="Batching Time" />
+                <BaseDatePicker v-model="form.dispatch_time" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="Dispatch Time" />
+                <BaseDatePicker v-model="form.eta_site" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="ETA at Site" />
+                <BaseDatePicker v-model="form.unloading_start" :autoFillOnSubmit="false" :showTime="true" hourFormat="12"
                     label="Unloading Start" />
-                <BaseDatePicker v-model="form.unloading_end" :showTime="true" hourFormat="12" label="Unloading End" />
+                <BaseDatePicker v-model="form.unloading_end" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="Unloading End" />
             </div>
 
             <div

@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\MobileApiController;
 
+require __DIR__.'/sales-mobile.php';
+
 /*
 |--------------------------------------------------------------------------
 | Mobile Application API Routes

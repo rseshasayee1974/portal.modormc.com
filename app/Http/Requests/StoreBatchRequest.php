@@ -9,6 +9,17 @@ use Illuminate\Validation\Rule;
 
 class StoreBatchRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('batching_schedule_id')) {
+            $schedule = \App\Models\ConcreteBatchingSchedule::where('plant_id', session('active_plant_id'))
+                ->find($this->input('batching_schedule_id'));
+            if ($schedule) {
+                $this->merge(['sales_order_id' => $schedule->sales_order_id]);
+            }
+        }
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -29,7 +40,11 @@ class StoreBatchRequest extends FormRequest
         }
 
         return [
-            'sales_order_id' => ['required', 'integer', 'exists:mm_sales_orders,id'],
+            'batching_schedule_id' => ['nullable', 'integer', Rule::exists('mm_concrete_batching_schedules', 'id')
+                ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at')
+                    ->whereNull('batch_id')->whereNull('dispatch_id')->where('status', 'scheduled'))],
+            'sales_order_id' => ['required', 'integer', Rule::exists('mm_sales_orders', 'id')
+                ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at'))],
             'batch_no' => $batchNoRules,
             'batch_size' => ['required', 'numeric', 'min:0.1', 'max:20'],
             'start_time' => ['nullable', 'date'],
@@ -65,6 +80,13 @@ class StoreBatchRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+            $source = \App\Models\CustomSetting::batchCreationSource(session('active_plant_id'));
+            if ($source === 'batch_schedule' && !$this->filled('batching_schedule_id')) {
+                $validator->errors()->add('batching_schedule_id', 'Select a batch schedule to create this batch.');
+            }
+            if ($source === 'sales_order' && $this->filled('batching_schedule_id')) {
+                $validator->errors()->add('batching_schedule_id', 'This plant creates batches directly from sales orders.');
+            }
             $salesOrderId = $this->input('sales_order_id');
             $batchSize = (float) $this->input('batch_size', 0);
             

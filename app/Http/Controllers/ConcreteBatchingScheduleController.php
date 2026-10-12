@@ -826,6 +826,7 @@ class ConcreteBatchingScheduleController extends Controller
 
         $query = ConcreteBatchingSchedule::where('plant_id', $plantId)
             ->where('vehicle_id', $vehicleId)
+            ->withActiveBatch()
             ->whereNotIn('status', ['completed', 'cancelled']);
 
         if ($ignoreScheduleId) {
@@ -852,6 +853,7 @@ class ConcreteBatchingScheduleController extends Controller
 
         $dispatchQuery = Dispatch::where('plant_id', $plantId)
             ->where('truck_id', $vehicleId)
+            ->withActiveBatch()
             ->whereNotIn('dispatch_status', ['Delivered', 'Cancelled', 'Invoiced']);
 
         if ($ignoreDispatchId) {
@@ -897,6 +899,7 @@ class ConcreteBatchingScheduleController extends Controller
 
         $query = ConcreteBatchingSchedule::where('plant_id', $plantId)
             ->where('driver_id', $driverId)
+            ->withActiveBatch()
             ->whereNotIn('status', ['completed', 'cancelled']);
 
         if ($ignoreScheduleId) {
@@ -923,6 +926,7 @@ class ConcreteBatchingScheduleController extends Controller
 
         $dispatchQuery = Dispatch::where('plant_id', $plantId)
             ->where('driver_id', $driverId)
+            ->withActiveBatch()
             ->whereNotIn('dispatch_status', ['Delivered', 'Cancelled', 'Invoiced']);
 
         if ($ignoreDispatchId) {

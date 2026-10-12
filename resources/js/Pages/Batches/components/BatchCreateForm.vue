@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
-import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
+import { computed, watch, ref, nextTick, onMounted, onUnmounted } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -20,6 +20,8 @@ const canEditBatchNo = computed(() => Boolean(isAdmin.value || isSuperAdmin.valu
 
 const props = withDefaults(defineProps<{
     salesOrders?: any[];
+    batchingSchedules?: any[];
+    batchCreationSource?: string;
     trucks?: any[];
     transporters?: any[];
     sales_executives?: any[];
@@ -35,6 +37,8 @@ const props = withDefaults(defineProps<{
     existingBatches?: any[];
 }>(), {
     salesOrders: () => [],
+    batchingSchedules: () => [],
+    batchCreationSource: 'sales_order',
     trucks: () => [],
     transporters: () => [],
     sales_executives: () => [],
@@ -57,6 +61,7 @@ const emit = defineEmits(['offline-batch-added', 'cancel', 'created']);
 // console.log("salesOrders",props?.salesOrders);
 
 const form = useForm({
+    batching_schedule_id: null as number | null,
     sales_order_id: null as number | null,
     batch_no: null as number | null,
     batch_size: 0,
@@ -80,6 +85,27 @@ const form = useForm({
 
 
 const customSettings = page.props.custom_settings as any;
+const creationMode = computed(() => props.batchCreationSource || 'sales_order');
+const creationSource = ref(creationMode.value === 'batch_schedule' ? 'batch_schedule' : 'sales_order');
+const selectedSchedule = computed(() => props.batchingSchedules.find(schedule => Number(schedule.id) === Number(form.batching_schedule_id)));
+watch(creationMode, mode => { creationSource.value = mode === 'batch_schedule' ? 'batch_schedule' : 'sales_order'; });
+watch(creationSource, () => {
+    form.batching_schedule_id = null;
+    form.sales_order_id = null;
+    form.batch_size = 0;
+    form.clearErrors();
+});
+watch(() => form.batching_schedule_id, async () => {
+    const schedule = selectedSchedule.value;
+    form.sales_order_id = schedule ? Number(schedule.sales_order_id) : null;
+    await nextTick();
+    if (schedule && selectedSchedule.value?.id === schedule.id) {
+        form.batch_size = Number(schedule.qty_m3);
+        form.truck_id = schedule.vehicle_id ? Number(schedule.vehicle_id) : null;
+        form.driver_id = schedule.driver_id ? Number(schedule.driver_id) : null;
+        form.site_id = schedule.site_id ? Number(schedule.site_id) : null;
+    }
+});
 
 const isTimeManuallySet = ref(false);
 const updatingProgrammatically = ref(false);
@@ -136,13 +162,18 @@ const duplicateBatchWarning = computed(() => {
     const num = Number(form.batch_no);
     if (!num || num <= 0) return null;
 
-    const list = (props.existingBatches?.length ? props.existingBatches : (page.props.batches as any[])) || [];
-    const exists = list.some((b: any) => Number(b.batch_no) === num);
+    const exists = props.existingBatches.some((b: any) => !b.deleted_at && Number(b.batch_no) === num);
     if (exists) {
         return `Batch #${num} already exists in this plant. Duplicate batch numbers are restricted.`;
     }
     return null;
 });
+
+watch(() => form.batch_no, () => form.clearErrors('batch_no'));
+watch(() => props.existingBatches, () => {
+    if (!duplicateBatchWarning.value) form.clearErrors('batch_no');
+}, { deep: true });
+watch(isManualBatchNo, () => form.clearErrors('batch_no'));
 
 watch(() => props.nextBatchNo, (newVal) => {
     if (!isManualBatchNo.value && newVal) {
@@ -430,7 +461,8 @@ const submit = () => {
     }
 
     const validations = [
-        { condition: !form.sales_order_id, field: 'sales_order_id', message: 'Sales Order is required' },
+        { condition: creationSource.value === 'batch_schedule' && !form.batching_schedule_id, field: 'batching_schedule_id', message: 'Batch Schedule is required' },
+        { condition: creationSource.value === 'sales_order' && !form.sales_order_id, field: 'sales_order_id', message: 'Sales Order is required' },
         { condition: !form.truck_id, field: 'truck_id', message: 'Truck is required' },
         // { condition: !form.transport_id, field: 'transport_id', message: 'Transporter is required' },
         // { condition: !form.driver_id, field: 'driver_id', message: 'Driver is required' },
@@ -635,9 +667,16 @@ const submit = () => {
                         <h3
                             class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-2">
                             <span class="h-2 w-2 rounded-full bg-indigo-600"></span>
-                            Sales Order Link
+                            {{ creationSource === 'batch_schedule' ? 'Batch Schedule Link' : 'Sales Order Link' }}
                         </h3>
-                        <BaseSelect v-model="form.sales_order_id" :options="salesOrders" optionLabel="full_number"
+                        <BaseSelect v-if="creationMode === 'both'" v-model="creationSource"
+                            :options="[{ label: 'Sales Order', value: 'sales_order' }, { label: 'Batch Schedule', value: 'batch_schedule' }]"
+                            optionLabel="label" optionValue="value" label="Create From" class="mb-3" />
+                        <BaseSelect v-if="creationSource === 'batch_schedule'" v-model="form.batching_schedule_id"
+                            :options="batchingSchedules" optionLabel="label" optionValue="id" filter
+                            label="Select Batch Schedule" placeholder="Select a schedule" required
+                            :error="form.errors.batching_schedule_id" />
+                        <BaseSelect v-else v-model="form.sales_order_id" :options="salesOrders" optionLabel="full_number"
                             optionValue="id" filter label="Select Sales Order" placeholder="Select Sales Order" required
                             :error="form.errors.sales_order_id" />
                     </div>

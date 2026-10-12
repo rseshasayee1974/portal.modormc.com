@@ -223,13 +223,17 @@ const duplicateBatchWarning = computed(() => {
     if (!num || num <= 0) return null;
     if (num === Number(props.batch?.batch_no)) return null;
 
-    const list = (props.existingBatches?.length ? props.existingBatches : (page.props.batches as any[])) || [];
-    const exists = list.some((b: any) => Number(b.id) !== Number(props.batch?.id) && Number(b.batch_no) === num);
+    const exists = props.existingBatches.some((b: any) => !b.deleted_at && Number(b.id) !== Number(props.batch?.id) && Number(b.batch_no) === num);
     if (exists) {
         return `Batch #${num} already exists in this plant. Duplicate batch numbers are restricted.`;
     }
     return null;
 });
+
+watch(() => form.batch_no, () => form.clearErrors('batch_no'));
+watch(() => props.existingBatches, () => {
+    if (!duplicateBatchWarning.value) form.clearErrors('batch_no');
+}, { deep: true });
 
 const hasInvoice = computed(() => {
     if (props.batch?.invoice_id) return true;

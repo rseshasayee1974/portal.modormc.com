@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'mobile_otp' => [
+        'template' => env('MOBILE_WHATSAPP_OTP_TEMPLATE', 'modormcloginotp'),
+        'country_code' => env('MOBILE_OTP_COUNTRY_CODE', '91'),
+    ],
     'tendigit' => [
         'license_number' => env('TENDIGIT_LICENSE_NUMBER'),
         'api_key' => env('TENDIGIT_API_KEY'),

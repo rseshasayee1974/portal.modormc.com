@@ -41,6 +41,13 @@ class Dispatch extends Model
 
     protected $table = 'mm_dispatches';
 
+    public function scopeWithActiveBatch(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where(function ($query) {
+            $query->whereNull('batch_id')->orWhereHas('batch');
+        });
+    }
+
     /** Loading is not finished until the batch is completed or dispatched. */
     public function applyBatchLoadTime(int $batchStatus): void
     {
@@ -271,7 +278,9 @@ class Dispatch extends Model
         }
 
         $scheduleStatus = match ($this->dispatch_status) {
-            'Draft'                 => 'scheduled',
+            'Draft'                 => $this->batch
+                ? ConcreteBatchingSchedule::statusForBatch((int) $this->batch->status, $schedule->status)
+                : 'scheduled',
             'Loading'               => 'batching',
             'In Transit'            => 'in_transit',
             'On Site'               => 'on_site',

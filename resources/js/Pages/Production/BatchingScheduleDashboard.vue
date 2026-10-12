@@ -339,7 +339,7 @@ const getRowClass = (data) => {
                 <!-- Create/edit form stays above the schedule table. -->
                 <div>
                     <BatchingScheduleForm :isEditing="activeView === 'edit'" :initialData="selectedSchedule"
-                        :dropdowns="dropdowns" :defaultScheduleDate="scheduleDate" @saved="handleFormSaved"
+                        :dropdowns="dropdowns" @saved="handleFormSaved"
                         @cancel="handleFormCancel" />
                 </div>
 

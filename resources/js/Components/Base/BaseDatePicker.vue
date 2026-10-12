@@ -28,6 +28,7 @@ const props = withDefaults(
         showTime?: boolean;
         hourFormat?: '12' | '24';
         showSeconds?: boolean;
+        autoFillOnSubmit?: boolean;
     }>(),
     {
         required: false,
@@ -40,6 +41,7 @@ const props = withDefaults(
         showTime: false,
         hourFormat: '24',
         showSeconds: false,
+        autoFillOnSubmit: true,
     }
 );
 
@@ -57,7 +59,7 @@ onMounted(() => {
     const form = el?.closest('form');
     if (form) {
         form.addEventListener('submit', () => {
-            if (props.modelValue === null || props.modelValue === undefined || props.modelValue === '') {
+            if (props.autoFillOnSubmit && (props.modelValue === null || props.modelValue === undefined || props.modelValue === '')) {
                 emit('update:modelValue', props.showTime ? entityDateTime() : entityToday());
             }
         }, { capture: true });

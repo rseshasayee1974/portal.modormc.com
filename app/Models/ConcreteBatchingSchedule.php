@@ -26,6 +26,13 @@ class ConcreteBatchingSchedule extends Model
 
     protected $guarded = [];
 
+    public function scopeWithActiveBatch(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where(function ($query) {
+            $query->whereNull('batch_id')->orWhereHas('batch');
+        });
+    }
+
     protected $casts = [
         'schedule_date'       => 'date:Y-m-d',
         'batching_time'       => 'datetime',
@@ -52,6 +59,15 @@ class ConcreteBatchingSchedule extends Model
      */
     protected static function booted()
     {
+        static::saving(function (self $model) {
+            if ($model->batch_id && $model->isDirty('batch_id')) {
+                $batch = Batch::where('plant_id', $model->plant_id)->find($model->batch_id);
+                if ($batch) {
+                    $model->status = self::statusForBatch((int) $batch->status, $model->status);
+                }
+            }
+        });
+
         static::saved(function (self $model) {
             if ($model->pour_reference) {
                 self::recalculatePourBalances($model->pour_reference, $model->plant_id);
@@ -63,6 +79,19 @@ class ConcreteBatchingSchedule extends Model
                 self::recalculatePourBalances($model->pour_reference, $model->plant_id);
             }
         });
+    }
+
+    public static function statusForBatch(int $batchStatus, ?string $currentStatus = null): string
+    {
+        return match ($batchStatus) {
+            Batch::STATUS_PLANNED => 'scheduled',
+            Batch::STATUS_LOADING => 'batching',
+            Batch::STATUS_DISPATCHED => in_array($currentStatus, ['on_site', 'pouring', 'completed'], true)
+                ? $currentStatus : 'in_transit',
+            Batch::STATUS_COMPLETED => 'completed',
+            Batch::STATUS_CANCELLED => 'cancelled',
+            default => $currentStatus ?? 'scheduled',
+        };
     }
 
     /**

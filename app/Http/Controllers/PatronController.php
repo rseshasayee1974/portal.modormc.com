@@ -41,6 +41,7 @@ class PatronController extends Controller
             'states' => StateCodesDropdown(),
             'operationalStatuses' => OperationalStatusesDropdown(),
             'patronTypes' => PatronTypesDropdown(),
+            'salesExecutives' => SalesExecutivesDropdown(),
             'allStates' => StateCode::whereNull('deleted_at')->distinct()->pluck('state_code'),
         ]);
     }
@@ -145,6 +146,7 @@ class PatronController extends Controller
             // Only pass patron-table columns — not contact/address/bank keys
             $patronData = array_intersect_key($validated, array_flip([
                 'patron_type', 'legal_name',
+                'sales_executive_id',
                 'debit_ledger_id', 'credit_ledger_id',
                 'operational_status', 'pan_no', 'gstin', 'aadhar_number',
                 'status', 'displayed',

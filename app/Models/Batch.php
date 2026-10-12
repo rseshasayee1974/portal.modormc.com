@@ -13,6 +13,26 @@ class Batch extends Model
 
     protected $table = 'mm_batches';
 
+    protected static function booted(): void
+    {
+        static::saved(function (self $batch) {
+            if ($batch->wasChanged('status')) {
+                $batch->syncBatchingSchedules();
+            }
+        });
+    }
+
+    public function syncBatchingSchedules(): void
+    {
+        ConcreteBatchingSchedule::where('plant_id', $this->plant_id)->where('batch_id', $this->id)
+            ->get()->each(function ($schedule) {
+                $status = ConcreteBatchingSchedule::statusForBatch((int) $this->status, $schedule->status);
+                if ($schedule->status !== $status) {
+                    $schedule->updateQuietly(['status' => $status]);
+                }
+            });
+    }
+
     protected $fillable = [
         'plant_id',
         'sales_order_id',

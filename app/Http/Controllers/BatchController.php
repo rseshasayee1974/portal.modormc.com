@@ -14,6 +14,7 @@ use App\Models\SalesOrder;
 use App\Models\Dispatch;
 use App\Models\Plant;
 use App\Models\CustomSetting;
+use App\Models\ConcreteBatchingSchedule;
 use App\Support\BatchNumberAccess;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -298,8 +299,23 @@ class BatchController extends Controller
             //     'batches' => $batches,
             //     'salesOrders' => $salesOrders,
             // ]);
-
+            $schedule =ConcreteBatchingSchedule::where('plant_id', $activePlantId)
+                ->whereNull('batch_id')->whereNull('dispatch_id')
+                // ->whereIn('sales_order_id', $salesOrders->pluck('id'))
+                ->with(['salesOrder', 'site', 'mixDesign', 'vehicle'])
+                ->whereNull('deleted_at')
+                ->orderBy('schedule_date')->orderBy('batching_time')->get()
+                ->map(fn ($schedule) => [
+                    'id' => $schedule->id, 'sales_order_id' => $schedule->sales_order_id,
+                    'label' => $schedule->pour_reference . ' / Slot #' . $schedule->id
+                        . ' / ' . $schedule->schedule_date->format('d-m-Y') . ' / ' . $schedule->qty_m3 . ' m³',
+                    'qty_m3' => $schedule->qty_m3, 'vehicle_id' => $schedule->vehicle_id,
+                    'driver_id' => $schedule->driver_id, 'site_id' => $schedule->site_id,
+                ]);
+// dd($schedule);
         return Inertia::render('Batches/Index', [
+            'batchingSchedules' => $schedule,
+            'batchCreationSource' => CustomSetting::batchCreationSource($activePlantId),
             'batches'           => $batches,
             'salesOrders'        => $salesOrders,
             'trucks'            => MachinesDropdown(['Transit Mixer', 'Truck']),
@@ -347,6 +363,16 @@ class BatchController extends Controller
 
     try {
         $batch = DB::transaction(function () use ($payload, $salesOrder, $emptyPhoto, $loadedPhoto, $materialsData, $activePlantId, $canEditBatchNo) {
+            $schedule = null;
+            if (!empty($payload['batching_schedule_id'])) {
+                $schedule = ConcreteBatchingSchedule::where('plant_id', $activePlantId)
+                    ->lockForUpdate()->find($payload['batching_schedule_id']);
+                if (!$schedule || $schedule->batch_id || $schedule->dispatch_id || $schedule->status !== 'scheduled'
+                    || (int) $schedule->sales_order_id !== (int) $salesOrder->id) {
+                    throw ValidationException::withMessages(['batching_schedule_id' => 'This schedule is no longer available for batching.']);
+                }
+                $payload['sales_order_id'] = $schedule->sales_order_id;
+            }
             if (!$canEditBatchNo || empty($payload['batch_no'])) {
                 $payload['batch_no'] = (Batch::withoutGlobalScope('plant_id')
                     ->where('plant_id', $activePlantId)
@@ -387,6 +413,7 @@ class BatchController extends Controller
                 }
 
                 $batchData = array_intersect_key($payload, array_flip([
+                    'plant_id',
                     'sales_order_id',
                     'batch_no',
                     'batch_size',
@@ -513,6 +540,14 @@ class BatchController extends Controller
 
             if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
             if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
+
+            if ($schedule) {
+                $schedule->update([
+                    'batch_id' => $batch->id,
+                    'dispatch_id' => isset($dispatch) ? $dispatch->id : null,
+                    'status' => $batch->status === Batch::STATUS_LOADING ? 'batching' : 'scheduled',
+                ]);
+            }
 
             return $batch;
         });

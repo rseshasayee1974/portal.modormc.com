@@ -1,0 +1,2278 @@
+{
+  "info": {
+    "name": "MODO Sales Executive Mobile API v1",
+    "description": "ERP APIs for the mobile prototype. Set an ERP base_url, not the Sites preview URL. Run delete actions individually. Approval and rejection are alternative actions, and require a different reviewer. Author: ragul-onemodo.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if(!pm.environment.get('today'))pm.environment.set('today',new Date().toISOString().slice(0,10));",
+          "if(!pm.environment.get('validity_date'))pm.environment.set('validity_date',new Date(Date.now()+7*86400000).toISOString().slice(0,10));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Email/password login returns the bearer token directly. Alternative: Send WhatsApp OTP and Verify OTP.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"device_name\": \"Postman Android\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d.token) pm.environment.set('api_token',d.token); if(d.challenge_id) { pm.environment.set('challenge_id',d.challenge_id); pm.environment.unset('api_token'); pm.environment.unset('otp'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send WhatsApp OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/auth/send-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "auth",
+                "send-otp"
+              ]
+            },
+            "description": "Passwordless alternative. Set mobile to a uniquely registered user number. Returns 202 after WhatsApp provider submission. Enter the received code in otp and run Verify OTP.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{mobile}}\",\n  \"device_name\": \"Postman - Sales Executive\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d.token) pm.environment.set('api_token',d.token); if(d.challenge_id) { pm.environment.set('challenge_id',d.challenge_id); pm.environment.unset('api_token'); pm.environment.unset('otp'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/auth/verify-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\",\n  \"otp\": \"{{otp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d.token) pm.environment.set('api_token',d.token); if(d.challenge_id) { pm.environment.set('challenge_id',d.challenge_id); pm.environment.unset('api_token'); pm.environment.unset('otp'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "me"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accessible plants",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/plants",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "plants"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reviewer login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Email/password login returns reviewer_token directly.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{reviewer_email}}\",\n  \"password\": \"{{reviewer_password}}\",\n  \"device_name\": \"Postman Android\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d.token) pm.environment.set('reviewer_token',d.token); if(d.challenge_id) { pm.environment.set('challenge_id',d.challenge_id); pm.environment.unset('reviewer_token'); pm.environment.unset('otp'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reviewer send WhatsApp OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/auth/send-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "auth",
+                "send-otp"
+              ]
+            },
+            "description": "Passwordless alternative. Enter reviewer WhatsApp code in otp, then run Reviewer verify OTP.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{reviewer_mobile}}\",\n  \"device_name\": \"Postman - Sales Manager\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d.token) pm.environment.set('reviewer_token',d.token); if(d.challenge_id) { pm.environment.set('challenge_id',d.challenge_id); pm.environment.unset('reviewer_token'); pm.environment.unset('otp'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reviewer verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/auth/verify-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\",\n  \"otp\": \"{{otp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d.token) pm.environment.set('reviewer_token',d.token); if(d.challenge_id) { pm.environment.set('challenge_id',d.challenge_id); pm.environment.unset('reviewer_token'); pm.environment.unset('otp'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout this device (run last)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/auth/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Workspace",
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "dashboard"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dropdown lookups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/lookups",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "lookups"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Marketing summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/marketing/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "marketing",
+                "summary"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "List customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customers?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer and progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customers/{{customer_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customers",
+                "{{customer_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Leads",
+      "item": [
+        {
+          "name": "List leads",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"New\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const j=pm.response.json(); const d=j.data || j.schedule; if(d && d.id) pm.environment.set('lead_id',d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lead detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads",
+                "{{lead_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update lead",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads",
+                "{{lead_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"Qualified\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Convert qualified lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads/{{lead_id}}/convert",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads",
+                "{{lead_id}}",
+                "convert"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Follow ups",
+      "item": [
+        {
+          "name": "List follow ups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/follow-ups?view=today&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "follow-ups"
+              ],
+              "query": [
+                {
+                  "key": "view",
+                  "value": "today"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create follow up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/follow-ups",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "follow-ups"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lead_id\": \"{{lead_id}}\",\n  \"type\": \"Site Visit\",\n  \"subject\": \"Review concrete requirement\",\n  \"description\": \"Confirm site access\",\n  \"due_at\": \"{{today}} 15:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const j=pm.response.json(); const d=j.data || j.schedule; if(d && d.id) pm.environment.set('activity_id',d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update follow up",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/follow-ups/{{activity_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "follow-ups",
+                "{{activity_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lead_id\": \"{{lead_id}}\",\n  \"type\": \"Site Visit\",\n  \"subject\": \"Review concrete requirement\",\n  \"description\": \"Confirm site access\",\n  \"due_at\": \"{{today}} 15:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete follow up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/follow-ups/{{activity_id}}/complete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "follow-ups",
+                "{{activity_id}}",
+                "complete"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Site requirement confirmed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Quotations",
+      "item": [
+        {
+          "name": "List quotations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create quotation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"quote_date\": \"{{today}}\",\n  \"validity_date\": \"{{validity_date}}\",\n  \"is_tax_inclusive\": true,\n  \"notes\": \"Delivery subject to schedule confirmation\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 3.55,\n      \"rate\": 546,\n      \"tax_id\": \"{{sales_tax_id}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const j=pm.response.json(); const d=j.data || j.schedule; if(d && d.id) pm.environment.set('quotation_id',d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quotation detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations",
+                "{{quotation_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit quotation",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations",
+                "{{quotation_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"quote_date\": \"{{today}}\",\n  \"validity_date\": \"{{validity_date}}\",\n  \"is_tax_inclusive\": true,\n  \"notes\": \"Delivery subject to schedule confirmation\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 3.55,\n      \"rate\": 546,\n      \"tax_id\": \"{{sales_tax_id}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit for approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}/submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations",
+                "{{quotation_id}}",
+                "submit"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve quotation (different reviewer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations",
+                "{{quotation_id}}",
+                "review"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approved\",\n  \"comment\": \"Rates approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{reviewer_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject quotation (alternative to approve)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations",
+                "{{quotation_id}}",
+                "review"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"rejected\",\n  \"comment\": \"Revise rate before resubmission\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{reviewer_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sales orders",
+      "item": [
+        {
+          "name": "List orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create order against customer PO",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": \"{{customer_po_id}}\",\n  \"total_qty\": 40,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const j=pm.response.json(); const d=j.data || j.schedule; if(d && d.id) pm.environment.set('order_id',d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit unstarted order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": \"{{customer_po_id}}\",\n  \"total_qty\": 40,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order batches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders/{{order_id}}/batches?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders",
+                "{{order_id}}",
+                "batches"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order dispatches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders/{{order_id}}/dispatches?per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders",
+                "{{order_id}}",
+                "dispatches"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Batch schedules",
+      "item": [
+        {
+          "name": "List schedules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/batch-schedules?schedule_date={{today}}&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "batch-schedules"
+              ],
+              "query": [
+                {
+                  "key": "schedule_date",
+                  "value": "{{today}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create planned schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/batch-schedules",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "batch-schedules"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedule_date\": \"{{today}}\",\n  \"sales_order_id\": \"{{order_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"qty_m3\": 6,\n  \"order_volume_m3\": 40,\n  \"pump_type\": \"direct_pour\",\n  \"vehicle_id\": null,\n  \"driver_id\": null,\n  \"pump_vehicle_id\": null,\n  \"batching_time\": null,\n  \"dispatch_time\": null,\n  \"eta_site\": null,\n  \"unloading_start\": null,\n  \"unloading_end\": null,\n  \"status\": \"scheduled\",\n  \"notes\": \"Requested by sales executive\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const j=pm.response.json(); const d=j.data || j.schedule; if(d && d.id) pm.environment.set('schedule_id',d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Schedule detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/batch-schedules/{{schedule_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "batch-schedules",
+                "{{schedule_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit unlinked planned schedule",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/batch-schedules/{{schedule_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "batch-schedules",
+                "{{schedule_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedule_date\": \"{{today}}\",\n  \"sales_order_id\": \"{{order_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"qty_m3\": 6,\n  \"order_volume_m3\": 40,\n  \"pump_type\": \"direct_pour\",\n  \"vehicle_id\": null,\n  \"driver_id\": null,\n  \"pump_vehicle_id\": null,\n  \"batching_time\": null,\n  \"dispatch_time\": null,\n  \"eta_site\": null,\n  \"unloading_start\": null,\n  \"unloading_end\": null,\n  \"status\": \"scheduled\",\n  \"notes\": \"Requested by sales executive\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Delete actions (run individually)",
+      "item": [
+        {
+          "name": "Delete Lead",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads",
+                "{{lead_id}}"
+              ]
+            },
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Follow up",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/follow-ups/{{activity_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "follow-ups",
+                "{{activity_id}}"
+              ]
+            },
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Draft quotation",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations",
+                "{{quotation_id}}"
+              ]
+            },
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Unstarted order",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Unlinked schedule",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/batch-schedules/{{schedule_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "batch-schedules",
+                "{{schedule_id}}"
+              ]
+            },
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

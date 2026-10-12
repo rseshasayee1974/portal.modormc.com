@@ -66,6 +66,10 @@ class CustomSettingController extends Controller
         }
 
         $module = $request->input('module', 'batching');
+        $request->validate([
+            'settings' => ['required', 'array'],
+            'settings.batch_creation_source' => ['sometimes', 'in:sales_order,batch_schedule,both'],
+        ]);
         $settings = $request->input('settings', []);
 
         $customSetting = CustomSetting::where('plant_id', $plantId)

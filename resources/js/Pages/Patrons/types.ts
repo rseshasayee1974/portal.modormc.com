@@ -14,4 +14,5 @@ export interface Patron {
     ledger?: any;
     debit_ledger_id: number | null;
     credit_ledger_id: number | null;
+    sales_executive_id?: number | null;
 }

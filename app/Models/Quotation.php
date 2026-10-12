@@ -43,6 +43,8 @@ class Quotation extends Model
     ];
 
     protected $casts = [
+        'mobile_submitted_at' => 'datetime',
+        'mobile_reviewed_at' => 'datetime',
         'is_customer_po' => 'integer',
         'sales_executive_id' => 'integer',
         'is_tax_inclusive' => 'boolean',

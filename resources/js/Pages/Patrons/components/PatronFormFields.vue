@@ -9,6 +9,10 @@ import axios from 'axios';
 import { usePage } from '@inertiajs/vue3';
 
 const page = usePage();
+const salesExecutiveOptions = computed(() => [
+    { label: 'Unassigned', value: null },
+    ...((page.props.salesExecutives as any[]) || []),
+]);
 const ledgerOptions = (ledgers: any[]) => (ledgers || []).map(ledger => ({
     label: `${ledger.name} - ${ledger.title}`,
     value: ledger.id,
@@ -206,6 +210,18 @@ onMounted(async () => {
                     />
                 </div>
                 <div class="col-span-12 md:col-span-3">
+                    <BaseSelect
+                        class="w-full"
+                        v-model="form.sales_executive_id"
+                        label="Sales Executive"
+                        :options="salesExecutiveOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Select a sales executive"
+                        :error="form.errors.sales_executive_id"
+                    />
+                </div>
+                <div class="col-span-12 md:col-span-3">
                     <BaseField label="Patron Category" required :error="form.errors.patron_type">
                         <MultiSelect
                             v-model="form.patron_type"
@@ -274,6 +290,16 @@ onMounted(async () => {
                 <BaseSelect label="Credit Ledger" v-model="form.credit_ledger_id" :options="creditLedgerOptions"
                     optionLabel="label" optionValue="value" filter clearable
                     placeholder="Use account defaults" :error="form.errors.credit_ledger_id" />
+                    <BaseSelect
+                class="w-full md:max-w-sm"
+                v-model="form.sales_executive_id"
+                label="Sales Executive"
+                :options="salesExecutiveOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select a sales executive"
+                :error="form.errors.sales_executive_id"
+            />
             </div>
         </section>
 

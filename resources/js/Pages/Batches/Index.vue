@@ -35,6 +35,8 @@ declare const route: any;
 const props = withDefaults(defineProps<{
     batches?: any[];
     salesOrders?: any[];
+    batchingSchedules?: any[];
+    batchCreationSource?: string;
     trucks?: any[];
     customers?: any[];
     transporters?: any[];
@@ -56,6 +58,8 @@ const props = withDefaults(defineProps<{
 }>(), {
     batches: () => [],
     salesOrders: () => [],
+    batchingSchedules: () => [],
+    batchCreationSource: 'sales_order',
     trucks: () => [],
     customers: () => [],
     transporters: () => [],
@@ -136,7 +140,7 @@ const refreshBatches = async () => {
         await refreshBatchRow(expandedBatchId.value);
     }
     router.reload({
-        only: ['batches', 'nextBatchNo', 'salesOrders'],
+        only: ['batches', 'nextBatchNo', 'salesOrders', 'batchingSchedules', 'batchCreationSource'],
         onFinish: () => {
             isRefreshing.value = false;
         },
@@ -510,7 +514,7 @@ const handlePreviewClose = async (batchId: number | null) => {
 };
 const handleBatchCreated = () => {
     router.reload({
-        only: ['batches', 'nextBatchNo', 'salesOrders'],
+        only: ['batches', 'nextBatchNo', 'salesOrders', 'batchingSchedules', 'batchCreationSource'],
     });
 };
 const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
@@ -802,10 +806,11 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                 </div>
 
                 <BatchCreateForm :key="batchFormKey" v-if="!hideBatchForm" :salesOrders="salesOrders" :trucks="trucks"
+                    :batchingSchedules="batchingSchedules" :batchCreationSource="batchCreationSource"
                     :transporters="transporters" :drivers="drivers" :sales_executives="sales_executives"
                     :products="products" :uoms="uoms" :unloading_sites="unloading_sites" :loading_sites="loading_sites"
                     :taxes="taxes" :statuses="statuses" :nextBatchNo="nextBatchNo"
-                    :concretePumpOptions="concretePumpOptions" :existingBatches="batches" @created="handleBatchCreated"
+                    :concretePumpOptions="concretePumpOptions" :existingBatches="localBatches" @created="handleBatchCreated"
                     @offline-batch-added="handleOfflineBatchAdded" />
 
                 <hr class="border-slate-200 border-dashed" />
@@ -1248,7 +1253,7 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                                     :sales_executives="sales_executives" :products="products"
                                                     :uoms="uoms" :statuses="statuses" :loading_sites="loading_sites"
                                                     :concretePumpOptions="concretePumpOptions"
-                                                    :existingBatches="batches" @saved="handleBatchSaved"
+                                                    :existingBatches="localBatches" @saved="handleBatchSaved"
                                                     @cancel="collapseExpandedRows()" />
                                             </div>
                                         </TabPanel>

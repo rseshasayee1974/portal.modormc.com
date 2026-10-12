@@ -39,6 +39,7 @@ const props = defineProps<{
 const form = useForm({
     module: 'batching',
     settings: {
+        batch_creation_source: props.batchingSettings?.batch_creation_source || 'sales_order',
         new_weight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
         newweight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
         manual_weight: props.batchingSettings?.manual_weight == 1,
@@ -89,6 +90,7 @@ const toggle = (key: string) => { expanded.value[key] = !expanded.value[key]; };
 
 // ─── Summary table ─────────────────────────────────────────────────────────
 const settingRows = computed(() => [
+    { section: 'Batch Sheet', key: 'batch_creation_source', label: 'Create Batches From', value: ({ sales_order: 'Sales Order', batch_schedule: 'Batch Schedule', both: 'Sales Order or Batch Schedule' } as Record<string, string>)[form.settings.batch_creation_source], type: 'text' },
     // Weighbridge
     {
         section: 'Weighbridge',
@@ -640,6 +642,15 @@ const deleteModule = (id: number) => {
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.target_to_actual" />
+                            </div>
+
+                            <div class="flex flex-col gap-2 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                                <h4 class="font-bold text-indigo-700 text-sm">Create Batches From</h4>
+                                <Dropdown v-model="form.settings.batch_creation_source"
+                                    :options="[{ label: 'Sales Order', value: 'sales_order' }, { label: 'Batch Schedule', value: 'batch_schedule' }, { label: 'Sales Order or Batch Schedule', value: 'both' }]"
+                                    optionLabel="label" optionValue="value" class="w-full" />
+                                <p class="text-xs text-indigo-600">Choose the source dropdown available in the Create Batch form for this plant.</p>
+                                <p v-if="form.errors['settings.batch_creation_source']" class="text-xs text-red-600">{{ form.errors['settings.batch_creation_source'] }}</p>
                             </div>
 
                             <!-- auto_carry_pump -->

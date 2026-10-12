@@ -88,6 +88,7 @@ class UpdatePatronRequest extends FormRequest
             ],
             'debit_ledger_id' => 'nullable|exists:mm_ledgers,id',
             'credit_ledger_id' => 'nullable|exists:mm_ledgers,id',
+            'sales_executive_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('mm_personnels', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')->whereIn('designation_id', \Illuminate\Support\Facades\DB::table('mm_designations')->whereNull('deleted_at')->where(fn ($q) => $q->where('code', 'SE')->orWhere('name', 'Sales Executive'))->select('id'))],
             'operational_status' => 'required|string|max:100',
             'pan_no' => 'nullable|string|max:20',
             'gstin' => 'nullable|string|max:20|required_without:aadhar_number',

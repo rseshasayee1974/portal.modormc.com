@@ -53,6 +53,13 @@ class CustomSetting extends Model
         $this->attributes['module_id'] = $value;
     }
 
+    public static function batchCreationSource($plantId): string
+    {
+        $source = self::getForModule($plantId, 'batching')['batch_creation_source'] ?? 'sales_order';
+
+        return in_array($source, ['sales_order', 'batch_schedule', 'both'], true) ? $source : 'sales_order';
+    }
+
     public static function getForModule($plantId, $moduleName)
     {
         $moduleNameColumn = Schema::hasColumn('mm_custom_settings', 'module_name')
