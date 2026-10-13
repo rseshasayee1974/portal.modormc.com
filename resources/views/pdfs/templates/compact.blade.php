@@ -206,6 +206,8 @@
 <body>
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
         @if (
             ($pdfSettings['show_einvoice_details'] ?? true) &&
                 (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
@@ -229,34 +231,7 @@
         @endif
 
         <div class="compact-header">
-            <div class="ch-left">
-                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                    @php
-                        $cleanLogoPath = ltrim(
-                            str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
-                            '/',
-                        );
-                        $logoUrl =
-                            request()->route('action') !== 'download' && !($is_pdf ?? false)
-                                ? asset('storage/' . $cleanLogoPath)
-                                : public_path('storage/' . $cleanLogoPath);
-                    @endphp
-                    <div style="margin-bottom: 4px;">
-                        <img src="{{ $logoUrl }}"
-                            style="max-height: 40px; max-width: 140px; object-fit: contain;" />
-                    </div>
-                @endif
-                @if ($pdfSettings['company_name'] ?? true)
-                    <div class="co-name">{{ $data['company']['name'] }}</div>
-                @endif
-                @if ($pdfSettings['address'] ?? true)
-                    <div class="co-det">{{ $data['company']['address'] }}, {{ $data['company']['city'] }}</div>
-                @endif
-                @if (($pdfSettings['gstin'] ?? true) && $data['company']['gstin'])
-                    <div class="co-det" style="font-weight:700; color:#1e293b;">GSTIN: {{ $data['company']['gstin'] }}
-                    </div>
-                @endif
-            </div>
+            
             <div class="ch-right">
                 <div class="inv-title">{{ $data['doc_title'] }}</div>
                 <div class="inv-ref">{{ strtoupper($data['doc_no']) }} &bull; {{ $data['doc_date'] }}</div>
@@ -468,8 +443,8 @@
                             <td colspan="{{ $recipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
                                 @if ($hasRecipe)
                                     <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
-                                    <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
-                                        <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
+                                    <div style="display: block; width: 100%; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
+                                        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
                                             @php
                                                 $hsnVal = (!empty($item['hsn']) && trim((string)$item['hsn']) !== '-') ? $item['hsn'] : '38245010';
                                                 $allSegments = [];

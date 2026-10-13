@@ -160,6 +160,8 @@
 @include('pdfs.partials._print_actions')
 
 <div class="ewb-box">
+@include('pdfs.partials._brand_header')
+
     <!-- Top Header -->
     <div class="ewb-header">
         <div class="ewb-title">e-Way Bill</div>

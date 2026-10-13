@@ -279,10 +279,10 @@ const submitForm = async () => {
                     {{ isEditing ? `Edit Batching Schedule #${initialData?.id}` : 'New Batching Schedule' }}
                 </h2>
             </div>
-            <button type="button" @click="emit('cancel')"
+            <!-- <button type="button" @click="emit('cancel')"
                 class="text-xs font-semibold text-slate-500 transition-colors hover:text-rose-600 dark:text-slate-400">
                 Cancel
-            </button>
+            </button> -->
         </div>
 
         <form @submit.prevent="submitForm" class="space-y-6 p-5">
@@ -296,12 +296,6 @@ const submitForm = async () => {
                 <BaseSelect v-model="form.sales_order_id" :required="!isEditing" :options="salesOrderOptions"
                     optionLabel="label" optionValue="value" label="Sales Order" placeholder="Manual schedule" filter
                     @change="onSalesOrderSelected(form.sales_order_id)" />
-                <div v-if="form.sales_order_id" class="pb-1">
-                    <button type="button" @click="clearSalesOrderSelection"
-                        class="flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700">
-                        <XMarkIcon class="h-3.5 w-3.5" /> Clear selection
-                    </button>
-                </div>
             </div>
 
             <div v-if="selectedSalesOrder"
@@ -388,10 +382,10 @@ const submitForm = async () => {
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <BaseDatePicker v-model="form.batching_time" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="Batching Time" />
                 <BaseDatePicker v-model="form.dispatch_time" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="Dispatch Time" />
-                <BaseDatePicker v-model="form.eta_site" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="ETA at Site" />
+                <!-- <BaseDatePicker v-model="form.eta_site" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="ETA at Site" />
                 <BaseDatePicker v-model="form.unloading_start" :autoFillOnSubmit="false" :showTime="true" hourFormat="12"
                     label="Unloading Start" />
-                <BaseDatePicker v-model="form.unloading_end" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="Unloading End" />
+                <BaseDatePicker v-model="form.unloading_end" :autoFillOnSubmit="false" :showTime="true" hourFormat="12" label="Unloading End" /> -->
             </div>
 
             <div
@@ -399,7 +393,7 @@ const submitForm = async () => {
                 <BaseInput v-model="form.notes" label="Notes" placeholder="Optional batching instructions"
                     class="min-w-0 flex-1" />
                 <div class="flex shrink-0 justify-end gap-2">
-                    <BaseButton label="Cancel" severity="secondary" variant="outlined" @click="emit('cancel')" />
+                    <!-- <BaseButton label="Cancel" severity="secondary" variant="outlined" @click="emit('cancel')" /> -->
                     <BaseButton :label="isEditing ? 'Save Changes' : 'Create Schedule'" severity="primary"
                         variant="filled" type="submit" :loading="saving"
                         class="!border-transparent !bg-indigo-600 !text-white hover:!bg-indigo-700" />

@@ -32,6 +32,9 @@ interface QuotationItemPayload {
     quantity: number;
     tax_id: number | null;
     rate: number;
+    discount_type: string;
+    discount: number;
+    discount_amount: number;
     uom_id: number | null;
     notes: null | string;
     untaxed_amount: number;
@@ -110,6 +113,9 @@ function createNewItem(): QuotationItemPayload {
         tax_id: null,
         uom_id: defaultUomId, 
         rate: 0,
+        discount_type: 'amount',
+        discount: 0,
+        discount_amount: 0,
         tax_amount: 0,
         notes: '',
         untaxed_amount: 0,
@@ -167,10 +173,13 @@ const calculateTotals = () => {
             rate: Number(item.rate || 0),
             pump_rate: Number(item.pump_rate || 0),
             taxRate,
+            discount: Number(item.discount || 0),
+            discountType: item.discount_type,
             isTaxInclusive: Boolean(form.is_tax_inclusive),
         });
 
         // Update Item Internal State (for SQL Insertion)
+        item.discount_amount = res.discountAmount;
         item.untaxed_amount = res.untaxedAmount;
         item.tax_amount = res.taxAmount;
         item.amount_total = res.amountTotal;
@@ -650,6 +659,7 @@ const submit = () => {
                                         <th class="px-4 py-3 text-center w-24">QTY</th>
                                         <th class="px-4 py-3 text-center w-24">UOM</th>
                                         <th class="px-4 py-3 text-center w-32">Rate</th>
+                                        <th class="px-4 py-3 text-center w-44">Discount</th>
                                         <th class="px-4 py-3 text-center w-40">Tax </th>
                                         <th class="px-4 py-3 text-center w-40">Pump Type</th>
                                         <th class="px-4 py-3 text-center w-32">Pump Rate</th>
@@ -701,6 +711,12 @@ const submit = () => {
                                         <td class="p-3">
                                             <BaseInputNumber v-model="item.rate" prefix="₹" />
                                         </td>
+                            <td class="p-2 min-w-[180px]">
+                                <div class="flex gap-1">
+                                    <BaseSelect v-model="item.discount_type" :options="[{label: 'Amount', value: 'amount'}, {label: '%', value: '%'}]" optionLabel="label" optionValue="value" class="w-24" />
+                                    <BaseInputNumber v-model="item.discount" :min="0" :max="item.discount_type === '%' ? 100 : undefined" :minFractionDigits="2" :maxFractionDigits="2" :error="form.errors[`items.${index}.discount`]" class="flex-1" />
+                                </div>
+                            </td>
                                            <td class="p-3">
                                             <BaseSelect v-model="item.tax_id" :options="taxOptions" optionLabel="label" optionValue="value" placeholder="None" clearable />
                                         </td>

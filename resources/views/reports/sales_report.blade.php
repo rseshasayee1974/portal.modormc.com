@@ -8,6 +8,8 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
 
     <!-- Header section with logo and addresses in a borderless table layout -->
     <table class="header-table">
@@ -36,22 +38,7 @@
             
             <td style="width: 48%; text-align: right;">
                 <!-- Company / Plant details -->
-                <div class="address-box" style="margin-top: 5px; padding-left: 20px;">
-                    <span class="address-title">Address:</span>
-                    <span class="address-name">{{ $plant->name ?? 'DEMO LOGIN' }}</span>
-                    @if($plant && $plant->addresses->isNotEmpty())
-                        @php $plAddr = $plant->addresses->first(); @endphp
-                        {{ $plAddr->line_1 ?? '' }}<br>
-                        @if($plAddr->line_2){{ $plAddr->line_2 }}<br>@endif
-                        {{ $plAddr->city ?? '' }}, {{ $plAddr->state->state_name ?? $plAddr->state_code ?? '' }} - {{ $plAddr->zipcode ?? '' }}<br>
-                    @else
-                        3/150, Akkiyampatti (Po),<br>
-                        Sendamangalam (Tk),<br>
-                        Namakkal (Dt), Tamil Nadu - 637409<br>
-                    @endif
-                    <strong>GSTIN/UIN :</strong> {{ $plant->gstin ?? '' }}<br>
-                    {{-- <strong>MSME - UDYAM-</strong> {{ $plant->msme_no ?? '' }} --}}
-                </div>
+                
             </td>
         </tr>
     </table>

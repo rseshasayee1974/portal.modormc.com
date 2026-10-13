@@ -18,25 +18,13 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
 
     <table class="header-table">
         <tr>
             <td style="width: 60%; vertical-align: top;">
-                <div class="address-box">
-                    <span class="address-title">Plant / Operational Unit:</span>
-                    <span class="address-name">{{ $plant->name ?? 'Ready Mix Concrete Plant' }}</span>
-                    @if(!empty($plant->addresses) && $plant->addresses->isNotEmpty())
-                        @php $addr = $plant->addresses->first(); @endphp
-                        {{ $addr->line_1 ?? '' }}@if(!empty($addr->line_2)), {{ $addr->line_2 }}@endif<br>
-                        {{ $addr->city ?? '' }} - {{ $addr->zipcode ?? '' }}@if(!empty($addr->state)), {{ $addr->state->name }}@endif<br>
-                    @endif
-                    @if(!empty($plant->gstin))
-                        <strong>GSTIN:</strong> {{ $plant->gstin }}<br>
-                    @endif
-                    @if(!empty($plant->phone))
-                        <strong>Phone:</strong> {{ $plant->phone }}
-                    @endif
-                </div>
+                
             </td>
             
             <td style="width: 40%; text-align: right; vertical-align: top;">

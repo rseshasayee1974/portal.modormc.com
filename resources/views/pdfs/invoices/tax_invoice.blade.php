@@ -644,27 +644,13 @@
     </div>
 
     <div class="invoice-container">
+@include('pdfs.partials._brand_header')
+
 
         <!-- 1. Header Bar -->
-        <table class="header-table">
-            <tr>
-                <td style="width: 20%;">
-                    @php $embeddedLogo = \App\Services\PdfLogo::dataUri($plant?->logo_path); @endphp
-                    @if ($embeddedLogo)
-                        <img src="{{ $embeddedLogo }}" class="company-logo" alt="Logo" />
-                    @endif
-                </td>
-                <td style="width: 55%;">
-                    <div class="company-title">{{ strtoupper($companyName) }}</div>
-                </td>
-                <td style="width: 25%;">
-                    <div class="invoice-type-tag">
-                        <div class="copy-title">{{ $copyType }}</div>
-                        <div>TAX INVOICE</div>
-                    </div>
-                </td>
-            </tr>
-        </table>
+        <div class="invoice-type-tag" style="text-align:right; margin-bottom:6px;">
+            <div class="copy-title">{{ $copyType }}</div><div>TAX INVOICE</div>
+        </div>
 
         <!-- 2. IRN & E-Invoice Compliance Bar -->
         <table class="compliance-bar">

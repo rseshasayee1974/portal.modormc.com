@@ -6,19 +6,6 @@ Created: 2026-10-13 10:14:46 Asia/Calcutta (UTC+05:30)
     $receipt = strtolower((string)$payment->transaction_type) === 'receipt';
     $title = $receipt ? 'Receipt Voucher' : 'Payment Voucher';
     $plant = $payment->plant;
-    $address = $plant?->addresses->firstWhere('is_primary', true) ?? $plant?->addresses->first();
-    $addressText = $address ? implode(', ', array_filter([$address->line_1, $address->line_2, $address->city, $address->zipcode])) : '';
-    $logoSrc = null;
-    $logoDisk = \Illuminate\Support\Facades\Storage::disk('public');
-    foreach ([$plant?->entity?->logo_file, $plant?->logo_path] as $logoFile) {
-        if (!$logoFile) continue;
-        $logoPath = preg_replace('#^(?:public/|storage/)+#', '', ltrim(str_replace('\\', '/', $logoFile), '/'));
-        if (in_array('..', explode('/', $logoPath), true) || !$logoDisk->exists($logoPath)) continue;
-        $logoMime = $logoDisk->mimeType($logoPath);
-        if (!in_array($logoMime, ['image/jpeg','image/png','image/gif','image/webp','image/svg+xml'], true)) continue;
-        $logoSrc = 'data:' . $logoMime . ';base64,' . base64_encode($logoDisk->get($logoPath));
-        break;
-    }
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -71,19 +58,9 @@ Created: 2026-10-13 10:14:46 Asia/Calcutta (UTC+05:30)
     </style>
 </head>
 <body>
-    <div class="brand">
-        <table><tr>
-            <td>
-        <div class="brand-name">{{ $plant?->entity?->legal_name ?: $plant?->name ?: config('app.name') }}</div>
-        {{-- @if($plant?->entity?->legal_name)<div class="brand-detail">{{ $plant->name }}</div>@endif --}}
-        @if($addressText)<div class="brand-detail">{{ $addressText }}</div>@endif
-        @if($plant?->gstin)<div class="brand-detail">GSTIN {{ $plant->gstin }}</div>@endif
-            </td>
-            @if($logoSrc)
-                <td class="brand-logo-cell"><img class="brand-logo" src="{{ $logoSrc }}" alt="Company logo" /></td>
-            @endif
-        </tr></table>
-    </div>
+@include('pdfs.partials._brand_header')
+
+    
 
     <div class="document-title">{{ $title }}</div>
     <table class="document-meta">

@@ -111,7 +111,7 @@ class Quotation extends Model
 
             $quotation = self::create($quotationData);
 
-            foreach ($data['items'] as $itemData) {
+            foreach ($data['items'] as $itemIndex => $itemData) {
                 $pumpRates = $itemData['pump_rates'] ?? [];
                 $itemPayload = collect($itemData)->except('pump_rates')->toArray();
 
@@ -120,6 +120,9 @@ class Quotation extends Model
 
                 $itemPayload['concrete_pump'] = $concretePump;
                 $itemPayload['pump_rate'] = $pumpRate;
+                if (array_key_exists('discount', $itemPayload)) {
+                    $itemPayload = \App\Services\Mobile\QuotationCalculator::items([$itemIndex => $itemPayload], (bool) ($quotationData['is_tax_inclusive'] ?? false))[0];
+                }
 
                 $quotation->items()->create($itemPayload);
             }
@@ -150,7 +153,7 @@ class Quotation extends Model
                 $staleItem->delete();
             }
 
-            foreach ($data['items'] as $itemData) {
+            foreach ($data['items'] as $itemIndex => $itemData) {
                 $pumpRates = $itemData['pump_rates'] ?? [];
                 $itemPayload = collect($itemData)->except('pump_rates')->toArray();
 
@@ -159,6 +162,9 @@ class Quotation extends Model
 
                 $itemPayload['concrete_pump'] = $concretePump;
                 $itemPayload['pump_rate'] = $pumpRate;
+                if (array_key_exists('discount', $itemPayload)) {
+                    $itemPayload = \App\Services\Mobile\QuotationCalculator::items([$itemIndex => $itemPayload], (bool) $this->is_tax_inclusive)[0];
+                }
 
                 if (isset($itemData['id'])) {
                     $item = $this->items()->find($itemData['id']);

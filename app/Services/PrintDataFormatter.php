@@ -483,6 +483,7 @@ class PrintDataFormatter
         $pan       = strlen($gstin) >= 14 ? substr($gstin, 2, 10) : ($plant?->pan ?? '');
 
         return [
+            'plant_id'       => $plant?->id,
             'name'           => $plant?->entity?->legal_name ?? $plant?->entity?->entity_name ?? $plant?->name ?? 'Company',
             'address'        => $plAddr?->line_1 ? $plAddr?->line_1 . ' ' . $plAddr?->line_2 : '',
             'city'           => $plAddr?->city ?? '',
@@ -1438,6 +1439,12 @@ class PrintDataFormatter
             $lineTotal   = $calcs['amountTotal'];
             $lineTax     = $calcs['taxAmount'];
             $lineUntaxed = $calcs['untaxedAmount'];
+            if ($model instanceof Quotation && $discount > 0) {
+                $lineTotal = (float) $item->amount_total;
+                $lineTax = (float) $item->tax_amount;
+                $lineUntaxed = (float) $item->untaxed_amount;
+            }
+
 
             $subtotalAmt   += $lineUntaxed;
             $totalTaxAmt   += $lineTax;
@@ -1468,12 +1475,23 @@ class PrintDataFormatter
                 'tax_name'         => $taxDetails['name'] ?: '-',
                 'tax_rate'         => $taxDetails['rate'],
                 'tax_group'        => $taxDetails['group'],
+                'discount'         => $discount,
                 'tax_amount'       => (float) $lineTax,
                 'total'            => (float) $lineTotal,
                 'pump_rates'       => [],
                 'recipe_materials' => self::resolveRecipeMaterials($item->mixDesign),
             ];
         })->toArray();
+
+        $quotationDiscount = 0.0;
+        if ($model instanceof Quotation) {
+            foreach ($data['items'] as $printItem) {
+                $quotationDiscount += $isTaxInclusive && $printItem['tax_rate'] > 0
+                    ? $printItem['discount'] * 100 / (100 + $printItem['tax_rate']) : $printItem['discount'];
+            }
+            $quotationDiscount = round($quotationDiscount, 2);
+            if ($quotationDiscount > 0) $data['settings']['pdf']['discount'] = true;
+        }
 
         $taxLines = [];
         foreach ($data['items'] as $item) {
@@ -1495,8 +1513,8 @@ class PrintDataFormatter
         $ratesTableHtml  = '';
 
         $data['totals'] = [
-            'sub_total'          => (float) $subtotalAmt,
-            'discount'           => 0,
+            'sub_total'          => (float) $subtotalAmt + $quotationDiscount,
+            'discount'           => $quotationDiscount,
             'tax_lines'          => $formattedTaxLines,
             'shipping'           => 0,
             'adjustment'         => $adjustment,

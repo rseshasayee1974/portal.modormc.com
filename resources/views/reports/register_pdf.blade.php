@@ -99,6 +99,8 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
     @php
         $isSales = ($report['report_type'] ?? '') === 'sales_register' || str_contains(strtolower($title ?? ''), 'sales');
         $isDetail = ($report['register_view'] ?? 'summary') === 'detail';

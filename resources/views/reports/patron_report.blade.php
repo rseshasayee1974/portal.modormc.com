@@ -216,56 +216,13 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
 
-@php
-    $plantLogoBase64 = null;
-    $rawLogoPath = $plant->logo_path ?? null;
-    if ($rawLogoPath) {
-        $cleanLogo = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $rawLogoPath), '/');
-        $possiblePaths = [
-            storage_path('app/public/' . $cleanLogo),
-            public_path('storage/' . $cleanLogo),
-        ];
-        foreach ($possiblePaths as $pPath) {
-            if (file_exists($pPath)) {
-                $mime = mime_content_type($pPath) ?: 'image/png';
-                $plantLogoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($pPath));
-                break;
-            }
-        }
-    }
-@endphp
+
+
 
 <!-- Top Header: Plant Logo on Left, Entity Address on Right -->
-<table class="statement-header-table">
-    <tr>
-        <td style="width: 48%;">
-            @if($plantLogoBase64)
-                <img src="{{ $plantLogoBase64 }}" class="logo-img" alt="Plant Logo">
-            @else
-                <div style="font-size: 14pt; font-weight: bold; color: #0f172a;">
-                    {{ $plant->legal_name ?? ($plant->name ?? 'DEMO LOGIN') }}
-                </div>
-            @endif
-        </td>
-        <td style="width: 52%; text-align: right;">
-            <div class="address-block">
-                <strong>Address:</strong><br>
-                <strong>{{ $plant->name ?? 'DEMO LOGIN' }}</strong><br>
-                @if(!empty($plant->addresses) && $plant->addresses->isNotEmpty())
-                    @php $plAddr = $plant->addresses->first(); @endphp
-                    {{ $plAddr->line_1 ?? '' }}@if(!empty($plAddr->line_2)), {{ $plAddr->line_2 }}@endif<br>
-                    {{ $plAddr->city ?? '' }} - {{ $plAddr->zipcode ?? '' }}@if(!empty($plAddr->state)), {{ $plAddr->state->name ?? $plAddr->state->state_name }}@endif<br>
-                @else
-                    3/150, Akkiyampatti (Po),<br>
-                    Sendamangalam (Tk), Namakkal (Dt), Tamil Nadu - 637409<br>
-                @endif
-                GSTIN/UIN #: {{ $plant->gstin ?? '' }}<br>
-                MSME - UDYAM-
-            </div>
-        </td>
-    </tr>
-</table>
+
 
 <!-- Middle Header: To Address on Left, Title & Account Summary on Right -->
 <table class="statement-header-table" style="margin-top: 4px;">

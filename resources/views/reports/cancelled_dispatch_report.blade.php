@@ -8,20 +8,12 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
     <table class="header-table">
         <tr>
             <td style="width: 60%;">
-                <div class="address-box">
-                    <span class="address-title">Plant</span>
-                    <span class="address-name">{{ $plant->name ?? 'MODO RMC' }}</span>
-                    @if($plant && $plant->addresses && $plant->addresses->first())
-                        @php $addr = $plant->addresses->first(); @endphp
-                        {{ $addr->line_1 ?? '' }}{{ $addr->city ? ', ' . $addr->city : '' }}{{ $addr->state ? ', ' . $addr->state->name : '' }} - {{ $addr->zipcode ?? '' }}<br>
-                    @endif
-                    @if(!empty($plant->gstin))
-                        <strong>GSTIN:</strong> {{ $plant->gstin }}
-                    @endif
-                </div>
+                
             </td>
             <td style="width: 40%; text-align: right;">
                 <div class="address-box">

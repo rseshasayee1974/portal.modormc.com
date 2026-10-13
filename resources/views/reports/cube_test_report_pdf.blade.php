@@ -30,33 +30,9 @@
 </style>
 </head>
 <body>
-@php
-    // Resolve plant logo if not provided
-    $plantLogo = $plantLogo ?? ($companyLogo ?? null);
-    if (empty($plantLogo)) {
-        $plant = $plant ?? ($test->plant ?? null);
-        if (!$plant) {
-            $activePlantId = app(\App\Services\PlantContextService::class)->plantId() ?? session('active_plant_id');
-            $plant = $activePlantId ? \App\Models\Plant::find($activePlantId) : \App\Models\Plant::first();
-        }
-        if ($plant && !empty($plant->logo_path)) {
-            $cleanLogo = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $plant->logo_path), '/\\');
-            $possiblePaths = [
-                storage_path('app/public/' . $cleanLogo),
-                public_path('storage/' . $cleanLogo),
-                base_path('storage/app/public/' . $cleanLogo),
-                base_path('public/storage/' . $cleanLogo),
-            ];
-            foreach ($possiblePaths as $pPath) {
-                if (file_exists($pPath)) {
-                    $mime = mime_content_type($pPath) ?: 'image/png';
-                    $plantLogo = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($pPath));
-                    break;
-                }
-            }
-        }
-    }
 
+
+@php
     // Keep set averages independent. Paginate at three specimen rows per block,
     // repeating a set's recorded average when that set continues in another block.
     $blocks = collect();
@@ -74,21 +50,8 @@
 @endphp
 @foreach ($pages as $pageIndex => $pageBlocks)
 <div class="page">
-    <table class="heading">
-        <colgroup><col style="width:69%"><col style="width:31%"></colgroup>
-        <tr>
-            <td rowspan="2" class="brand" style="width:69%">
-                <table><tr>
-                    @if (!empty($plantLogo))
-                        <td style="width:78px; vertical-align:middle; padding-right:10px;"><img class="logo" src="{{ $plantLogo }}" alt="Plant logo"></td>
-                    @endif
-                    <td style="vertical-align:middle;"><div class="company">{{ $companyName }}</div><div class="address">{{ $companyAddress }}</div></td>
-                </tr></table>
-            </td>
-            <td class="title" style="width:31%">CUBE TEST REPORT<br>COMPRESSIVE STRENGTH</td>
-        </tr>
-        <tr><td class="date">DATE : {{ $reportDate }}</td></tr>
-    </table>
+@include('pdfs.partials._brand_header')
+    <table class="heading"><tr><td class="title" style="text-align:right;">CUBE TEST REPORT - COMPRESSIVE STRENGTH<br><span class="date">DATE : {{ $reportDate }}</span></td></tr></table>
     <table class="metadata">
         <colgroup><col style="width:14%"><col style="width:40%"><col style="width:46%"></colgroup>
         <tr><td style="width:14%">CLIENT NAME : M/S.</td><td style="width:40%">{{ $clientName }}</td><td style="width:46%">GRADE OF CONCRETE : {{ $gradeName }}</td></tr>

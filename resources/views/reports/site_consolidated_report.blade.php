@@ -8,6 +8,8 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
 
     <table class="header-table">
         <tr>
@@ -20,17 +22,7 @@
             </td>
             
             <td style="width: 48%; text-align: right;">
-                <div class="address-box">
-                    <span class="address-name" style="color: #0284c7;">{{ $plant->name ?? 'Ready Mix Concrete Operations' }}</span>
-                    @if(!empty($plant->addresses) && $plant->addresses->isNotEmpty())
-                        @php $addr = $plant->addresses->first(); @endphp
-                        {{ $addr->line_1 ?? '' }}@if($addr->line_2), {{ $addr->line_2 }}@endif<br>
-                        {{ $addr->city ?? '' }} - {{ $addr->zipcode ?? '' }}@if(!empty($addr->state)), {{ $addr->state->name }}@endif<br>
-                    @endif
-                    @if(!empty($plant->gstin))
-                        <strong>GSTIN:</strong> {{ $plant->gstin }}<br>
-                    @endif
-                </div>
+                
             </td>
         </tr>
     </table>

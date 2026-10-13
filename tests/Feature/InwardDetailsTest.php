@@ -105,22 +105,22 @@ class InwardDetailsTest extends TestCase
         $this->assertNull($this->inward->fresh()->truck_id);
     }
 
-    public function test_received_unit_is_locked_and_stock_cannot_move_to_another_unit(): void
+    public function test_received_unit_change_moves_stock_to_the_selected_unit(): void
     {
         $unit = ProductUnit::factory()->create();
         $destination = Quantity::create([
             'plant_id' => $this->plant->id, 'product_id' => $this->inward->product_id,
             'uom_id' => $unit->id, 'quantity' => 5, 'opening_quantity' => 0, 'status' => 1,
         ]);
-        $this->updateDetails(['uom_id' => $unit->id])->assertSessionHasErrors('uom_id');
+        $this->updateDetails(['uom_id' => $unit->id])->assertSessionHasNoErrors();
         $this->updateDetails(['uom_id' => null])->assertSessionHasErrors('uom_id');
-        $this->assertEquals($this->stock->uom_id, $this->inward->fresh()->uom_id);
-        $this->assertEquals(10, $this->stock->fresh()->quantity);
-        $this->assertEquals(5, $destination->fresh()->quantity);
+        $this->assertEquals($unit->id, $this->inward->fresh()->uom_id);
+        $this->assertEquals(0, $this->stock->fresh()->quantity);
+        $this->assertEquals(15, $destination->fresh()->quantity);
         $this->assertEquals(10, $this->item->fresh()->received_quantity);
     }
 
-    public function test_received_unit_change_rejects_the_entire_update(): void
+    public function test_insufficient_stock_rejects_the_entire_unit_update(): void
     {
         $this->stock->update(['quantity' => 3]);
         $unit = ProductUnit::factory()->create();
@@ -131,6 +131,22 @@ class InwardDetailsTest extends TestCase
         $this->assertEquals($this->stock->uom_id, $this->inward->fresh()->uom_id);
         $this->assertEquals(3, $this->stock->fresh()->quantity);
         $this->assertDatabaseMissing('mm_quantity', ['product_id' => $this->inward->product_id, 'uom_id' => $unit->id]);
+    }
+
+    public function test_unit_and_quantity_change_updates_stock_and_receipt_together(): void
+    {
+        $unit = ProductUnit::factory()->create();
+        $truck = Machine::factory()->create(['plant_id' => $this->plant->id]);
+        $this->updateDetails(['uom_id' => $unit->id, 'received_qty' => 15, 'truck_id' => $truck->id,
+            'conversion_uom_id' => $unit->id, 'conversion_quantity' => 3])->assertSessionHasNoErrors();
+        $this->assertEquals($unit->id, $this->inward->fresh()->uom_id);
+        $this->assertEquals($truck->id, $this->inward->fresh()->truck_id);
+        $this->assertEquals(3, $this->inward->fresh()->conversion_quantity);
+        $this->assertEquals(15, $this->item->fresh()->received_quantity);
+        $this->assertEquals(0, $this->stock->fresh()->quantity);
+        $this->assertDatabaseHas('mm_quantity', ['plant_id' => $this->plant->id,
+            'product_id' => $this->inward->product_id, 'uom_id' => $unit->id, 'quantity' => 15]);
+        $this->updateDetails(['uom_id' => 99999999])->assertSessionHasErrors('uom_id');
     }
 
     public function test_weight_edit_keeps_stock_in_the_original_received_unit(): void
@@ -186,6 +202,14 @@ class InwardDetailsTest extends TestCase
         $this->updateDetails(['convert_volume' => -1])->assertSessionHasErrors('convert_volume');
         $this->item->update(['invoiced_quantity' => 18]);
         $this->updateDetails(['convert_volume' => 2])->assertSessionHasErrors('inward');
+    }
+
+    public function test_manual_converted_quantity_change_is_saved_with_an_existing_factor(): void
+    {
+        $this->inward->update(['convert_volume' => 4, 'conversion_quantity' => 2.5]);
+        $this->updateDetails(['conversion_quantity' => 3])->assertSessionHasNoErrors();
+        $this->assertEquals(3, $this->inward->fresh()->conversion_quantity);
+        $this->assertEquals(10, $this->stock->fresh()->quantity);
     }
 
     public function test_direct_stock_quantity_update_preserves_weights_and_explicit_billing_conversion(): void

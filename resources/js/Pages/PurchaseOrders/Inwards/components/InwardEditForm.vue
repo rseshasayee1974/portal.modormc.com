@@ -31,6 +31,7 @@ const detailsSaving = ref(false);
 const detailsErrors = ref<Record<string, string>>({});
 const isBilled = computed(() => Boolean(data.value.is_billed));
 const generateBill = ref(false);
+const receivedUomLabel = computed(() => props.units.find(unit => Number(unit.value) === Number(data.value.uom_id))?.label || data.value.uom?.unit_code || '');
 const billsConvertedQuantity = computed(() => Number(data.value.conversion_quantity || 0) > 0);
 const billingUomLabel = computed(() => {
     const unitId = billsConvertedQuantity.value ? data.value.conversion_uom_id : data.value.uom_id;
@@ -142,7 +143,7 @@ const captureGrossWeight = (inward: any) => captureInwardWeight(inward, 'loaded'
 const saveInwardDetails = () => {
     if (formBusy.value) return;
     const payload: Record<string, any> = {};
-    for (const field of ['truck_id', 'received_qty', 'convert_volume', 'conversion_uom_id', 'conversion_quantity', 'truck_loaded', 'truck_empty']) {
+    for (const field of ['truck_id', 'uom_id', 'received_qty', 'convert_volume', 'conversion_uom_id', 'conversion_quantity', 'truck_loaded', 'truck_empty']) {
         const value = data.value[field] ?? null;
         const original = props.inward[field] ?? null;
         if (value !== original && (value === null || original === null || Number(value) !== Number(original))) {
@@ -188,12 +189,12 @@ const saveInwardDetails = () => {
             <h4 class="text-xs font-bold text-slate-700">Edit vehicle and units</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
-                <BaseSelect :model-value="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required :error="detailsErrors.uom_id" />
+                <BaseSelect v-model="data.uom_id" :disabled="isBilled || formBusy" :options="units" label="Actual UOM" optionLabel="label" optionValue="value" required :error="detailsErrors.uom_id" />
                 <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
                 <BaseInputNumber :model-value="Number(data.conversion_quantity || 0)" @update:model-value="data.conversion_quantity = $event" label="Converted quantity" :min="0" :minFractionDigits="2" :maxFractionDigits="2" :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_quantity" />
             </div>
             <!-- <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <p class="text-xs text-slate-500">Received UOM is fixed when the inward is created and cannot be changed. <span v-if="isBilled">Void the linked bills before changing receipt quantities or conversion units.</span></p>
+                <p class="text-xs text-slate-500">Received UOM changes also update the stock unit. <span v-if="isBilled">Void the linked bills before changing receipt quantities or conversion units.</span></p>
             </div> -->
         </div>
 
@@ -329,8 +330,7 @@ const saveInwardDetails = () => {
                             {{ Math.max(0, Number(data.truck_loaded || 0) - Number(data.truck_empty ||
                                 0)).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                         </span>
-                        <span class="text-[9px] font-extrabold text-emerald-600 uppercase">{{ data.uom?.unit_code
-                        }}</span>
+                        <span class="text-[9px] font-extrabold text-emerald-600 uppercase">{{ receivedUomLabel }}</span>
                     </div>
                 </div>
 
@@ -360,7 +360,7 @@ const saveInwardDetails = () => {
                             }) }}
                         </span>
                         <span class="text-[10px] font-extrabold text-indigo-600 uppercase">{{
-                            data.conversion_uom?.unit_code || data.conversionUom?.unit_code || data.uom?.unit_code
+                            billingUomLabel
                             }}</span>
                     </div>
                 </div>

@@ -346,7 +346,7 @@ class PurchaseOrderInwardController extends Controller
         abort_unless((int)$inward->plant_id === (int)session('active_plant_id'), 404);
         $validated = $request->validate([
             'truck_id' => ['sometimes', 'nullable', \Illuminate\Validation\Rule::exists('mm_machines', 'id')->where('plant_id', $inward->plant_id)->whereNull('deleted_at')],
-            'uom_id' => 'sometimes|required|integer',
+            'uom_id' => ['sometimes', 'required', 'integer', \Illuminate\Validation\Rule::exists('mm_product_units', 'id')->whereNull('deleted_at')],
             'received_qty' => 'sometimes|required|numeric|min:0',
             'truck_empty' => 'nullable|numeric|min:0',
             'truck_loaded' => 'nullable|numeric|min:0',
@@ -367,15 +367,17 @@ class PurchaseOrderInwardController extends Controller
         $invoice = DB::transaction(function () use ($validated, $inward, $changesReceipt, $generateBill) {
             PurchaseOrder::whereKey($inward->order_id)->lockForUpdate()->firstOrFail();
             $inward->refresh();
-            if (array_key_exists('uom_id', $validated) && (int) $validated['uom_id'] !== (int) $inward->uom_id) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['uom_id' => 'Received UOM cannot be changed after the inward is created.']);
+            $oldUomId = $inward->uom_id;
+            $receivedUomId = $validated['uom_id'] ?? $oldUomId;
+            $changesUom = (int) $receivedUomId !== (int) $oldUomId;
+            if ($changesUom && $this->isInwardBilled($inward)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['uom_id' => 'Void the bill for this inward number before changing its units.']);
             }
             if ($changesReceipt && $this->isInwardBilled($inward)) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['inward' => 'Void the bill for this inward number before changing its quantities or units.']);
             }
             $userId = Auth::id();
             $oldReceivedQty = (float)$inward->received_qty;
-            $receivedUomId = $inward->uom_id;
 
             $loadedWeight = array_key_exists('truck_loaded', $validated) && $validated['truck_loaded'] !== null
                 ? (float)$validated['truck_loaded']
@@ -410,6 +412,7 @@ class PurchaseOrderInwardController extends Controller
             $diff = $newReceivedQty - $oldReceivedQty;
 
             // Update history record
+            $inward->uom_id = $receivedUomId;
             if (array_key_exists('truck_id', $validated)) {
                 $inward->truck_id = $validated['truck_id'];
             }
@@ -424,7 +427,7 @@ class PurchaseOrderInwardController extends Controller
             if (array_key_exists('convert_volume', $validated)) {
                 $inward->convert_volume = $validated['convert_volume'];
             }
-            if ((float) $inward->convert_volume > 0 && ($diff != 0 || array_key_exists('convert_volume', $validated) || array_key_exists('conversion_quantity', $validated))) {
+            if ((float) $inward->convert_volume > 0 && (array_key_exists('convert_volume', $validated) || ($diff != 0 && !array_key_exists('conversion_quantity', $validated)))) {
                 $inward->conversion_quantity = round($newReceivedQty / (float) $inward->convert_volume, 2);
             } elseif (array_key_exists('conversion_quantity', $validated) && $validated['conversion_quantity'] !== null) {
                 $inward->conversion_quantity = round((float)$validated['conversion_quantity'], 2);
@@ -481,26 +484,30 @@ class PurchaseOrderInwardController extends Controller
                 $item->save();
             }
 
-            // Update Stock Balance
-            if ($diff != 0) {
+            // Move this receipt out of the old unit before adding it to the new one.
+            $stockDeltas = $changesUom
+                ? [(int) $oldUomId => -$oldReceivedQty, (int) $receivedUomId => $newReceivedQty]
+                : [(int) $receivedUomId => $diff];
+            ksort($stockDeltas); // Lock units in a consistent order.
+            foreach ($stockDeltas as $unitId => $stockDelta) {
+                if ($stockDelta == 0) continue;
                 $stockKey = [
                     'plant_id' => $inward->plant_id,
                     'product_id' => $inward->product_id,
-                    'uom_id' => $inward->uom_id
+                    'uom_id' => $unitId,
                 ];
                 $quantityRecord = Quantity::where($stockKey)->lockForUpdate()->first() ?? new Quantity($stockKey);
-
                 if (!$quantityRecord->exists) {
                     $quantityRecord->opening_quantity = 0;
                     $quantityRecord->created_by = $userId;
                     $quantityRecord->status = 1;
                 }
-
-                if ($diff < 0 && ((float)$quantityRecord->quantity + $diff < 0)) {
-                    throw new \InvalidArgumentException('Stock cannot be reduced below zero.');
+                if ((float) $quantityRecord->quantity + $stockDelta < 0) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        $changesUom ? 'uom_id' : 'received_qty' => 'Available stock is insufficient to update this inward.',
+                    ]);
                 }
-
-                $quantityRecord->quantity = max(0, (float)$quantityRecord->quantity + $diff);
+                $quantityRecord->quantity = (float) $quantityRecord->quantity + $stockDelta;
                 $quantityRecord->updated_by = $userId;
                 $quantityRecord->save();
             }

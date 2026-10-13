@@ -189,6 +189,8 @@
 </head>
 
 <body>
+@include('pdfs.partials._brand_header', ['compactBrandHeader' => true])
+
     {{-- @if (!empty($isPreview))
         <div class="preview-toolbar">
             <table>
@@ -205,31 +207,7 @@
         </div>
     @endif --}}
 
-    <div class="header">
-        @if ($batch->salesOrder?->plant?->logo_path)
-            <div style="text-align: center; margin-bottom: 4px;">
-                @php
-                    $cleanLogoPath = ltrim(
-                        str_replace(['public/', 'storage/', '/storage/'], '', $batch->salesOrder->plant->logo_path),
-                        '/',
-                    );
-                    $logoUrl = !empty($isPreview)
-                        ? asset('storage/' . $cleanLogoPath)
-                        : public_path('storage/' . $cleanLogoPath);
-                @endphp
-                <img src="{{ $logoUrl }}" style="max-height: 40px; max-width: 130px; object-fit: contain;" />
-            </div>
-        @endif
-        <div class="company-name">{{ $batch->salesOrder?->plant?->name }}</div>
-        @if ($batch->salesOrder?->plant && $batch->salesOrder->plant->addresses->isNotEmpty())
-            @php $plAddr = $batch->salesOrder->plant->addresses->first(); @endphp
-            <div class="company-address">
-                {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }},
-                {{ $plAddr->state->state_name ?? ($plAddr->state_code ?? '') }} - {{ $plAddr->zipcode ?? '' }}
-            </div>
-        @endif
-        <div class="token-title">DISPATCH TOKEN</div>
-    </div>
+    <div class="header"><div class="token-title">DISPATCH TOKEN</div></div>
 
     <table class="meta-table">
         <tr>

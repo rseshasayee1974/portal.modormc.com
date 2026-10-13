@@ -160,16 +160,13 @@
 <body>
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
     {{-- TOP LOGO & TITLE HEADER --}}
     <table class="header-table">
         <tr>
             <td style="width: 65%;">
-                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                    @php $logoUrl = $resolveAssetPath($data['company']['logo_path']); @endphp
-                    @if(!empty($logoUrl))
-                        <img src="{{ $logoUrl }}" style="max-height: 40px; max-width: 160px; object-fit: contain; vertical-align: middle; margin-right: 8px;" />
-                    @endif
-                @endif
+                
                 @if(($pdfSettings['company_name'] ?? true) && $hasValue($data['company']['name'] ?? null))
                     <span style="font-size: 12pt; font-weight: bold; text-transform: uppercase; vertical-align: middle;">{{ $data['company']['name'] }}</span>
                 @endif
@@ -346,7 +343,7 @@
         if ($showTax) $boxTotalCols++;
         if ($showAmount) $boxTotalCols++;
 
-        $boxRecipeColspan = min(7, $boxTotalCols - 1);
+        $boxRecipeColspan = min(8, $boxTotalCols - 1);
         $boxRemainingCols = max(0, $boxTotalCols - 1 - $boxRecipeColspan);
     @endphp
     <table class="items-table">
@@ -427,8 +424,8 @@
                         <td style="border-top: none; padding-top: 0;"></td>
                         <td colspan="{{ $boxRecipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 6px;">
                             <div style="font-size: 8.5px; font-weight: 700; color: #2563eb; margin-top: 1px; margin-bottom: 2px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
-                            <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 4px; padding: 2px 6px;">
-                                <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 8.5px; color: #334155;">
+                            <div style="display: block; width: 100%; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 4px; padding: 2px 6px;">
+                                <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 8.5px; color: #334155;">
                                     @php
                                         $allSegments = [];
                                         foreach ($item['recipe_materials'] as $rm) {

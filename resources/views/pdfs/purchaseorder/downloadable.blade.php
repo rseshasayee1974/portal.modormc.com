@@ -42,6 +42,8 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
     <div class="premium-border">
         <!-- Brand Strip -->
         <div class="header-strip">

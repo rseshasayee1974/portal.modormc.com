@@ -184,6 +184,8 @@
 <body>
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
         @if (
             ($pdfSettings['show_einvoice_details'] ?? true) &&
                 (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
@@ -210,27 +212,7 @@
         @endif
 
         <div class="title-bar">
-            <div class="title-left">
-                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                    @php
-                        $cleanLogoPath = ltrim(
-                            str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
-                            '/',
-                        );
-                        $logoUrl =
-                            request()->route('action') !== 'download' && !($is_pdf ?? false)
-                                ? asset('storage/' . $cleanLogoPath)
-                                : public_path('storage/' . $cleanLogoPath);
-                    @endphp
-                    <div style="margin-bottom: 4px;">
-                        <img src="{{ $logoUrl }}"
-                            style="max-height: 45px; max-width: 160px; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px;" />
-                    </div>
-                @endif
-                {{ $data['company']['name'] }}<br><span
-                    style="font-size:10px;color:#ccc">{{ $data['company']['city'] }},
-                    {{ $data['company']['state'] }}</span>
-            </div>
+            
             <div class="title-right">{{ $data['doc_title'] }}<br><span
                     style="font-size:11px;font-weight:400;opacity:0.7">{{ strtoupper($data['doc_no']) }}</span></div>
         </div>
@@ -412,8 +394,8 @@
                             <td colspan="{{ $recipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
                                 @if ($hasRecipe)
                                     <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
-                                    <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
-                                        <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
+                                    <div style="display: block; width: 100%; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
+                                        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
                                             @php
                                                 $hsnVal = (!empty($item['hsn']) && trim((string)$item['hsn']) !== '-') ? $item['hsn'] : '38245010';
                                                 $allSegments = [];

@@ -89,3 +89,5 @@ package-lock.json
 
 #ssl certificate
 perione.in.pem
+
+!tests/Feature/QuotationDiscountTest.php

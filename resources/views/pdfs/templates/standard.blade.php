@@ -258,6 +258,8 @@
 <body>
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
 
         @if (
             ($pdfSettings['show_einvoice_details'] ?? true) &&
@@ -286,35 +288,7 @@
 
         {{-- HEADER --}}
         <div class="inv-header">
-            <div class="header-left">
-                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                    @php
-                        $cleanLogoPath = ltrim(
-                            str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
-                            '/',
-                        );
-                        $logoUrl =
-                            request()->route('action') !== 'download' && !($is_pdf ?? false)
-                                ? asset('storage/' . $cleanLogoPath)
-                                : public_path('storage/' . $cleanLogoPath);
-                    @endphp
-                    <div style="margin-bottom: 6px;">
-                        <img src="{{ $logoUrl }}"
-                            style="max-height: 50px; max-width: 180px; object-fit: contain;" />
-                    </div>
-                @endif
-                @if ($pdfSettings['company_name'] ?? true)
-                    <div class="co-name">{{ $data['company']['name'] }}</div>
-                @endif
-                @if ($pdfSettings['address'] ?? true)
-                    <div class="co-detail">{{ $data['company']['address'] }}</div>
-                    <div class="co-detail">{{ $data['company']['city'] }}, {{ $data['company']['state'] }} -
-                        {{ $data['company']['pin'] }}</div>
-                @endif
-                @if (($pdfSettings['gstin'] ?? true) && $data['company']['gstin'])
-                    <div class="co-detail">GSTIN: {{ $data['company']['gstin'] }}</div>
-                @endif
-            </div>
+            
             <div class="header-right">
                 <div class="inv-title">{{ $data['doc_title'] }}</div>
                 <div class="inv-ref">
@@ -479,20 +453,20 @@
                         <th class="text-left" style="width:9%">Pump Charges</th>
                     @endif
                     @if ($pdfSettings['qty'] ?? true)
-                        <th class="text-right" style="width:5%">Qty</th>
+                        <th class="text-right" style="width:{{ in_array(strtoupper($data['doc_title'] ?? ''), ['QUOTATION', 'PRICE LIST'], true) ? 10 : 5 }}%">Qty</th>
                     @endif
                     @if ($pdfSettings['unit'] ?? true)
-                        <th class="text-center" style="width:4%">UOM</th>
+                        <th class="text-center" style="width:8%">UOM</th>
                     @endif
-                    <th class="text-right" style="width:9%">{{ $labels['rate'] ?? 'Rate' }}</th>
+                    <th class="text-right" style="width:8%">{{ $labels['rate'] ?? 'Rate' }}</th>
                     @if ($pdfSettings['discount'] ?? false)
-                        <th class="text-right" style="width:7%">Discount</th>
+                        <th class="text-right" style="width:8%">Discount</th>
                     @endif
                     @if ($pdfSettings['tax_rate'] ?? true)
-                        <th class="text-right" style="width:5%">Tax %</th>
+                        <th class="text-right" style="width:8%">Tax %</th>
                     @endif
                     @if ($pdfSettings['tax_amount'] ?? true)
-                        <th class="text-right" style="width:8%">Tax Amt</th>
+                        <th class="text-right" style="width:9%">Tax Amt</th>
                     @endif
                     @if ($pdfSettings['amount'] ?? true)
                         <th class="text-right" style="width:11%">{{ $labels['amount'] ?? 'Amount' }}</th>
@@ -511,7 +485,7 @@
                     if ($pdfSettings['tax_amount'] ?? true) $totalCols++;
                     if ($pdfSettings['amount'] ?? true) $totalCols++; // amount
 
-                    $recipeColspan = min(7, $totalCols - 1);
+                    $recipeColspan = min(8, $totalCols - 1);
                     $remainingCols = max(0, $totalCols - 1 - $recipeColspan);
                 @endphp
                 @foreach ($data['items'] as $item)
@@ -574,8 +548,8 @@
                                 @endphp
                                 @if ($hasRecipe)
                                     <div style="font-size: 9px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; margin-bottom: 4px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
-                                    <div style="display: inline-block; padding: 2px 4px;">
-                                        <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9px; color: #475569;">
+                                    <div style="display: block; width: 100%; padding: 2px 4px;">
+                                        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9px; color: #475569;">
                                             @php
                                                 $allSegments = [];
                                                 foreach ($item['recipe_materials'] as $rm) {

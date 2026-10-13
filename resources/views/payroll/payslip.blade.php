@@ -201,24 +201,11 @@
 <body>
 @include('pdfs.partials._print_actions')
 <div class="payslip-root inv-root">
+@include('pdfs.partials._brand_header')
 
     {{-- HEADER --}}
     <div class="payslip-header">
-        <div class="header-left">
-            <div class="co-name">{{ $plant->entity->entity_name ?? $plant->name }}</div>
-            <div class="co-detail">{{ $plant->name }}</div>
-            @if(!empty($plant->addresses) && $plant->addresses->first())
-                @php $addr = $plant->addresses->first(); @endphp
-                <div class="co-detail">{{ $addr->address_line1 }}</div>
-                <div class="co-detail">{{ $addr->city }}, {{ $addr->state?->state_name ?? $plant->state }} - {{ $addr->pincode }}</div>
-            @else
-                <div class="co-detail">{{ $plant->address }}</div>
-                <div class="co-detail">{{ $plant->city }}, {{ $plant->state }} - {{ $plant->pincode }}</div>
-            @endif
-            @if($plant->gstin)
-                <div class="co-detail bold" style="margin-top: 3px; color: #334155;">GSTIN: {{ $plant->gstin }}</div>
-            @endif
-        </div>
+        
         <div class="header-right">
             <div class="payslip-title">PAYSLIP</div>
             <div class="co-detail">Payslip No: <strong>{{ $payslip->payslip_no }}</strong></div>

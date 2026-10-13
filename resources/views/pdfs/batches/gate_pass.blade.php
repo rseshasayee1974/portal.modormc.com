@@ -106,6 +106,8 @@
 </head>
 
 <body>
+@include('pdfs.partials._brand_header', ['compactBrandHeader' => true])
+
 
     {{-- ── Prepare QR data URI (server-side, no external requests) ── --}}
     @php
@@ -126,29 +128,7 @@
         $qrDataUri = QrCodeGenerator::svgDataUri($qrUrl, size: 4, quiet: 2);
     @endphp
 
-    <div class="header">
-        @if ($batch->workOrder?->plant?->logo_path)
-            <div style="text-align: center; margin-bottom: 4px;">
-                @php
-                    $cleanLogoPath = ltrim(
-                        str_replace(['public/', 'storage/', '/storage/'], '', $batch->workOrder->plant->logo_path),
-                        '/',
-                    );
-                    $logoUrl = !empty($isPreview)
-                        ? asset('storage/' . $cleanLogoPath)
-                        : public_path('storage/' . $cleanLogoPath);
-                @endphp
-                <img src="{{ $logoUrl }}" style="max-height: 40px; max-width: 130px; object-fit: contain;" />
-            </div>
-        @endif
-        <div class="company-name">{{ $batch->workOrder?->plant?->name }}</div>
-        @if ($batch->workOrder?->plant && $batch->workOrder->plant->addresses->isNotEmpty())
-            @php $plAddr = $batch->workOrder->plant->addresses->first(); @endphp
-            <div class="company-address">
-                {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }} - {{ $plAddr->zipcode ?? '' }}
-            </div>
-        @endif
-    </div>
+    
 
     {{-- ── Batch / Pass Number ── --}}
     <div class="pass-number-row">

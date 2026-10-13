@@ -8,25 +8,15 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
     <table class="header-table">
         <tr>
             <td style="width: 50%;">
-                <div class="address-box">
-                    <span class="address-title">GST Compliance Report</span>
-                    <span class="address-name">GSTR-1 Outward Supplies</span>
-                    <strong>GSTIN:</strong> {{ $plant->gstin ?? 'N/A' }}<br>
-                </div>
+                
             </td>
             <td style="width: 50%; text-align: right;">
-                <div class="address-box">
-                    <span class="address-title">Plant / Branch:</span>
-                    <span class="address-name">{{ $plant->name ?? '' }}</span>
-                    @if($plant && $plant->addresses->isNotEmpty())
-                        @php $plAddr = $plant->addresses->first(); @endphp
-                        {{ $plAddr->line_1 ?? '' }}<br>
-                        {{ $plAddr->city ?? '' }}, {{ $plAddr->state->state_name ?? '' }} - {{ $plAddr->zipcode ?? '' }}
-                    @endif
-                </div>
+                
             </td>
         </tr>
     </table>

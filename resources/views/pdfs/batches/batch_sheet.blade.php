@@ -260,28 +260,9 @@
     @endif
 
     <div class="sheet">
-        <table class="top-row">
-            <tr>
-                <td class="logo-cell">
-                    @if ($batch->salesOrder?->plant?->logo_path)
-                        @php
-                            $logoUrl = !empty($isPreview)
-                                ? asset('storage/' . str_replace(['public/', 'storage/', '/storage/'], '', $batch->salesOrder->plant->logo_path))
-                                : public_path('storage/' . str_replace(['public/', 'storage/', '/storage/'], '', $batch->salesOrder->plant->logo_path));
-                        @endphp
-                        <img src="{{ $logoUrl }}" style="max-height: 55px; max-width: 180px; object-fit: contain;" />
-                    @endif
-                </td>
-                <td class="title-cell">
-                    <div class="company-title">
-                        {{ strtoupper($batch->salesOrder?->plant?->entity?->legal_name ?? '') }}
-                    </div>
-                    <div class="report-title">BATCH SHEET REPORT</div>
-                </td>
-                <td class="logo-cell" style="text-align:right;">
-                </td>
-            </tr>
-        </table>
+@include('pdfs.partials._brand_header')
+
+        <div class="report-title">BATCH SHEET REPORT</div>
 
         <table class="meta-strip">
             <tr>

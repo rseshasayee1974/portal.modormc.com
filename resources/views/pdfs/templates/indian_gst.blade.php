@@ -78,17 +78,13 @@
 <body>
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
     {{-- TOP LOGO & TITLE HEADER --}}
     <table class="header-table">
         <tr>
             <td style="width: 65%;">
-                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                    @php
-                        $cleanLogoPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']), '/');
-                        $logoUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false)) ? asset('storage/' . $cleanLogoPath) : public_path('storage/' . $cleanLogoPath);
-                    @endphp
-                    <img src="{{ $logoUrl }}" style="max-height: 45px; max-width: 180px; object-fit: contain; vertical-align: middle; margin-right: 8px;" />
-                @endif
+                
                 <span style="font-size: 13pt; font-weight: bold; text-transform: uppercase; vertical-align: middle;">{{ $data['company']['name'] }}</span>
             </td>
             <td style="width: 35%; text-align: right;">
@@ -229,7 +225,7 @@
                 if (($pdfSettings['tax_rate'] ?? true) || ($pdfSettings['tax_amount'] ?? true)) $igstTotalCols++;
                 if ($pdfSettings['amount'] ?? true) $igstTotalCols++;
 
-                $igstRecipeColspan = min(7, $igstTotalCols - 1);
+                $igstRecipeColspan = min(8, $igstTotalCols - 1);
                 $igstRemainingCols = max(0, $igstTotalCols - 1 - $igstRecipeColspan);
             @endphp
             @foreach($data['items'] as $item)
@@ -296,8 +292,8 @@
                         <td style="border-top: none; padding-top: 0;"></td>
                         <td colspan="{{ $igstRecipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
                             <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
-                            <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
-                                <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
+                            <div style="display: block; width: 100%; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
+                                <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
                                     @php
                                         $allSegments = [];
                                         foreach ($item['recipe_materials'] as $rm) {

@@ -632,37 +632,13 @@
     @endif
 
     <div class="grn-container">
+@include('pdfs.partials._brand_header')
+
 
         <!-- 1. Header with Company Logo & Info -->
         <table class="header-table">
             <tr>
-                <td style="width: 60%;">
-                    @if (!empty($company['logo_base64']))
-                        <img src="{{ $company['logo_base64'] }}" class="company-logo" alt="Logo"
-                            style="margin-bottom: 4px;" />
-                    @endif
-                    <div class="company-title">{{ $company['name'] ?? 'MODO RMC' }}</div>
-                    <div class="company-sub">
-                        {{ $company['address'] ?? '' }}
-                        @if (!empty($company['city']))
-                            , {{ $company['city'] }}
-                        @endif
-                        @if (!empty($company['state']))
-                            , {{ $company['state'] }}
-                        @endif
-                        @if (!empty($company['pin']))
-                            - {{ $company['pin'] }}
-                        @endif
-                    </div>
-                    <div class="company-sub">
-                        @if (!empty($company['gstin']))
-                            <strong>GSTIN:</strong> {{ $company['gstin'] }} &bull;
-                        @endif
-                        @if (!empty($company['phone']))
-                            <strong>Phone:</strong> {{ $company['phone'] }}
-                        @endif
-                    </div>
-                </td>
+                
                 <td class="doc-badge" style="width: 40%;">
                     <div class="doc-badge-title">GOODS RECEIPT NOTE</div>
                     <div class="doc-badge-ref">{{ $inward->inward_no }}</div>
