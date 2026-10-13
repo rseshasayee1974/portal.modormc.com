@@ -214,28 +214,17 @@ import { router } from '@inertiajs/vue3';
                         <Column header="Actions" textAlign="right">
                             <template #body="slotProps">
                                 <div class="flex justify-end gap-2">
-                                    <a :href="route('payments.print', slotProps.data.id)" target="_blank" rel="noopener"
+                                    <a :href="route('payments.print', slotProps.data.encrypted_id)" target="_blank" rel="noopener"
                                         @click.stop class="inline-flex items-center justify-center rounded-full p-2 text-indigo-600 hover:bg-indigo-50"
                                         title="Print A5 PDF" aria-label="Print A5 PDF">
                                         <PrinterIcon class="w-4 h-4" />
                                     </a>
-                                    <a :href="route('payments.print', { payment: slotProps.data.id, download: 1 })"
+                                    <a :href="route('payments.print', { payment: slotProps.data.encrypted_id, download: 1 })"
                                         @click.stop class="inline-flex items-center justify-center rounded-full p-2 text-slate-600 hover:bg-slate-100"
                                         title="Download A5 PDF" aria-label="Download A5 PDF">
                                         <ArrowDownTrayIcon class="w-4 h-4" />
                                     </a>
-                                    <Button 
-                                        icon="pi pi-pencil" 
-                                        severity="secondary" 
-                                        text 
-                                        rounded 
-                                        @click.stop="toggleEdit(slotProps.data)"
-                                        title="View / Edit Details"
-                                    >
-                                        <template #icon>
-                                            <PencilSquareIcon class="w-4 h-4 text-emerald-600" />
-                                        </template>
-                                    </Button>
+                                   
                                     <Button 
                                         icon="pi pi-trash" 
                                         severity="danger" 

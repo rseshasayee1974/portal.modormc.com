@@ -11,6 +11,13 @@ class Payment extends Model
     use TracksModelChanges;
 
 	protected $table = 'mm_payments';
+
+    protected $appends = ['encrypted_id'];
+
+    public function getEncryptedIdAttribute(): string
+    {
+        return encrypt($this->getKey());
+    }
         use HasFactory, SoftDeletes;
 
     protected $fillable = [
