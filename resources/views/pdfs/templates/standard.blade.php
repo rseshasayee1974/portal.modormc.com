@@ -469,7 +469,7 @@
                         <th class="text-right" style="width:9%">Tax Amt</th>
                     @endif
                     @if ($pdfSettings['amount'] ?? true)
-                        <th class="text-right" style="width:1%">{{ $labels['amount'] ?? 'Amount' }}</th>
+                        <th class="text-right" style="width:11%">{{ $labels['amount'] ?? 'Amount' }}</th>
                     @endif
                 </tr>
             </thead>
