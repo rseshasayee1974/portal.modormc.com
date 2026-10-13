@@ -21,9 +21,13 @@ Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::cla
         Route::middleware(MobilePlantContext::class)->group(function () {
             Route::get('dashboard', [WorkspaceController::class, 'dashboard']);
             Route::get('lookups', [WorkspaceController::class, 'lookups']);
+            Route::get('mix-designs', [WorkspaceController::class, 'mixDesigns']);
+            Route::get('taxes', [WorkspaceController::class, 'taxes']);
             Route::get('marketing/summary', [WorkspaceController::class, 'marketing']);
             Route::get('customers', [WorkspaceController::class, 'customers']);
             Route::get('customers/{customer}', [WorkspaceController::class, 'customer'])->whereNumber('customer');
+            Route::get('sites', [WorkspaceController::class, 'sites']);
+            Route::get('sites/{site}', [WorkspaceController::class, 'site'])->whereNumber('site');
             Route::apiResource('leads', LeadController::class)->names('sales-mobile.leads')->where(['lead' => '[0-9]+']);
             Route::post('leads/{lead}/convert', [LeadController::class, 'convert'])->whereNumber('lead');
             Route::get('follow-ups', [LeadController::class, 'followups']);

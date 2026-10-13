@@ -101,14 +101,19 @@ class QuotationController extends Controller
     }
     public function review(Request $r, int $quotation)
     {
-        Access::authorize('QUOTATION', 'APPROVE');
+        $isSaasOwner = $r->user()->isSystemAdmin();
+        if (!$isSaasOwner) Access::authorize('QUOTATION', 'APPROVE');
         $data = $r->validate(['decision' => 'required|in:approved,rejected', 'comment' => 'nullable|required_if:decision,rejected|string|max:2000']);
-        return DB::transaction(function () use ($r, $quotation, $data) {
-            $model = Access::quotations()->lockForUpdate()->findOrFail($quotation);
-            abort_unless($model->mobile_approval_state === 'pending', 422, 'Only submitted quotations can be reviewed.');
-            abort_if((int) $model->mobile_submitted_by === (int) $r->user()->id, 403, 'Another authorized user must review this quotation.');
+        return DB::transaction(function () use ($r, $quotation, $data, $isSaasOwner) {
+            $query = $isSaasOwner ? Quotation::where('plant_id', Access::plantId()) : Access::quotations();
+            $model = $query->lockForUpdate()->find($quotation);
+            abort_unless($model, 404, 'Quotation not found or you do not have access to it.');
+            if (!$isSaasOwner) {
+                abort_unless($model->mobile_approval_state === 'pending', 422, 'Only submitted quotations can be reviewed.');
+                abort_if((int) $model->mobile_submitted_by === (int) $r->user()->id, 403, 'You cannot review your own quotation submission.');
+            }
             $model->forceFill(['mobile_approval_state' => $data['decision'], 'mobile_approval_comment' => $data['comment'] ?? null, 'mobile_reviewed_by' => $r->user()->id, 'mobile_reviewed_at' => now(), 'status' => $data['decision'] === 'approved' ? Quotation::STATUS_ACCEPTED : Quotation::STATUS_REJECTED])->save();
-            return response()->json(['success' => true, 'data' => $model]);
+            return response()->json(['success' => true, 'data' => $model->setAppends([])]);
         });
     }
 }

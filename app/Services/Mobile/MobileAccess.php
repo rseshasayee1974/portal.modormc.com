@@ -28,6 +28,8 @@ class MobileAccess
 
     public static function plants(User $user): Builder
     {
+        if ($user->isSystemAdmin()) return Plant::query();
+
         return Plant::query()->where('is_active', 1)
             ->whereHas('entity', function ($q) use ($user) {
                 if (!$user->isSystemAdmin()) $q->where('is_suspended', 0);

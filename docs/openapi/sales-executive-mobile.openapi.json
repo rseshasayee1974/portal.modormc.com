@@ -3795,6 +3795,124 @@
           }
         }
       }
+    },
+    "/mix-designs": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "List active mix designs",
+        "description": "Requires MIX_DESIGN.VIEW, CRM_LEAD.VIEW, QUOTATION.VIEW or SALES_ORDER.VIEW. Only active, non-deleted mix designs in the selected plant. Search matches design name or code. Includes grade, unit_id and rate_per_qty.",
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. The data object contains Laravel pagination fields and the records in data.data."
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or plant access denied"
+          },
+          "422": {
+            "description": "Invalid lookup parameters"
+          }
+        }
+      }
+    },
+    "/taxes": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "List sales taxes",
+        "description": "Requires TAX.VIEW, QUOTATION.VIEW or SALES_ORDER.VIEW. Only active, non-deleted parent Sales taxes in the selected plant, with active non-deleted Sales children from that plant. Search matches tax name.",
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. The data object contains Laravel pagination fields and the records in data.data."
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or plant access denied"
+          },
+          "422": {
+            "description": "Invalid lookup parameters"
+          }
+        }
+      }
     }
   },
   "components": {
