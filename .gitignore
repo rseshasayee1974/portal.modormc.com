@@ -34,6 +34,8 @@ package.json
 !/tests/Feature/InvoiceClassificationTest.php
 !/tests/Feature/PatronStatementBillTest.php
 !/tests/Feature/CrmLeadTest.php
+!/tests/Feature/SalesMobileApiTest.php
+!/tests/Feature/ErpMcpTest.php
 !/tests/Feature/BatchCreationSourceTest.php
 !/tests/Feature/InwardDetailsTest.php
 !/tests/Feature/ConcreteQualityDropdownTest.php
