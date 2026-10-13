@@ -14,7 +14,6 @@ Use the ERP server as the API host. The Sites preview address is not an API host
 Run on the Laravel application server:
 
 ```sh
-php artisan migrate --force
 php artisan permission:cache-reset
 php artisan optimize:clear
 php artisan route:list --path=api/mobile/v1
@@ -112,7 +111,7 @@ X-Plant-Id: <accessible plant ID>     # for workspace/module requests
 
 `GET /me`, `GET /plants` and `POST /auth/logout` do not require `X-Plant-Id`. Logout revokes only the bearer token used for that request. No cookies or CSRF token are required. Do not use the old shared-key or legacy user-detail routes for this app. Profiles use an explicit field whitelist and never expose password hashes, OTP secrets or API keys.
 
-The plant header is required; the API does not silently choose plant 1 or change the user's saved defaults. For ordinary users, a suspended entity, inactive plant, removed membership, inactive user or locked account cannot be used. Globally assigned system administrators can access active plants in suspended entities, matching the ERP workspace rules, without requiring per-plant membership. Deleted entities and inactive/deleted plants remain excluded. Missing plant returns 422; inaccessible plant returns 403. Use `GET /plants` again when permissions or membership change.
+The plant header is required; the API does not silently choose plant 1 or change the user's saved defaults. System administrators (including Super Admin) can select any existing, non-deleted plant without membership or module-permission restrictions, including inactive plants and plants under suspended entities. Other users require a current entity-wide or plant-specific membership, an active plant, a non-suspended entity, and the relevant role or direct module permissions. Account and device-token checks still apply to all users. Missing plant header returns 422; inaccessible plant returns 403. Use `GET /plants` again when permissions or membership change.
 
 ## Permissions and record ownership
 
@@ -144,6 +143,7 @@ Permissions follow the ERP's singular/plural uppercase module conventions. The r
 | Quotations | `QUOTATION.VIEW`, `CREATE`, `UPDATE`, `DELETE`; `APPROVE` for review |
 | Sales orders/progress | `SALES_ORDER.VIEW`, `CREATE`, `UPDATE`, `DELETE` |
 | Customers | `PATRON.VIEW` |
+| Sites | `SITE.VIEW` |
 | Batch schedules | `BATCHING_SCHEDULE.VIEW`, `CREATE`, `UPDATE`, `DELETE` |
 
 `CRM_LEAD.VIEW_ALL`, `QUOTATION.VIEW_ALL`, `SALES_ORDER.VIEW_ALL`, and `PATRON.VIEW_ALL` extend visibility within the selected plant. They do not grant editing or cross-plant access. The migration grants these and `QUOTATION.APPROVE` to existing standard administrator and sales-manager role codes; ordinary executives do not receive them automatically. Use the ERP role/permission editor to grant the normal module actions needed by an executive. A reviewer normally needs `QUOTATION.VIEW_ALL` as well as `QUOTATION.APPROVE`. A submitter cannot review their own submission, even if they are an administrator.
@@ -171,12 +171,20 @@ Use `YYYY-MM-DD` for dates. Supply explicit offsets for date/time values where p
 | Method | Path | Result |
 |---|---|---|
 | GET | `/me` | Safe current user profile |
-| GET | `/plants` | Accessible active plants |
+| GET | `/plants` | All existing plants for system administrators; assigned active plants under non-suspended entities for other users |
 | GET | `/dashboard` | Own-record metrics for permitted modules and `as_of` timestamp |
 | GET | `/lookups` | Permitted customers, sites, active mix designs, sales taxes, customer POs, orders and scheduling resources |
+| GET | `/mix-designs?search=M25&per_page=20` | Active mix designs in the selected plant; search by name or code; includes grade, unit and rate |
+| GET | `/taxes?search=GST&per_page=20` | Active parent sales taxes in the selected plant, with active sales-tax children |
 | GET | `/marketing/summary` | Lead counts by source and site-visit activity count |
 | GET | `/customers?search=Kavin&per_page=20` | Customer list |
 | GET | `/customers/{id}` | Customer contacts and production progress, where permitted |
+| GET | `/sites?search=Central&per_page=20` | Paginated sites in the selected plant; optional name search, `per_page` 1–100 (default 20), `page` for subsequent pages |
+| GET | `/sites/{id}` | Site fields; missing, deleted or foreign-plant IDs return 404 |
+
+Site responses use `{ "success": true, "data": ... }`: the list data contains the paginator and its site array; detail data contains one site. Both require `SITE.VIEW` and exclude soft-deleted sites.
+
+Mix-design and tax lists use the same paginated response format, with `per_page` 1–100 (default 20) and `page` for subsequent pages. Both require a bearer token and `X-Plant-Id`. Mix designs require any of `MIX_DESIGN.VIEW`, `CRM_LEAD.VIEW`, `QUOTATION.VIEW`, or `SALES_ORDER.VIEW`. Taxes require any of `TAX.VIEW`, `QUOTATION.VIEW`, or `SALES_ORDER.VIEW`. Deleted records are excluded; tax children are restricted to active sales taxes in the selected plant. Use the parent tax ID for quotation items.
 
 Lookup options are permission-dependent. Marketing enquiries are created as leads with `source: Campaign` or another existing source. Record field visits as follow-ups with `type: Site Visit`. Campaign automation and bulk messaging are not part of this API.
 
@@ -225,6 +233,8 @@ Types: Call, Meeting, Site Visit, Task, Note. `due_at` is required except for No
 | DELETE | `/quotations/{id}` | Soft delete an editable draft |
 | POST | `/quotations/{id}/submit` | Submit for another user's review |
 | POST | `/quotations/{id}/review` | Approve/reject submitted quotation |
+
+SaaS Owner is exempt from the review permission, pending-state and different-submitter restrictions described below and can review any non-deleted quotation in the selected plant. Other reviewers require `QUOTATION.APPROVE` and quotation visibility (`QUOTATION.VIEW_ALL` for another executive's records). Missing or inaccessible records return 404, missing approval permission or self-review returns 403, and a non-pending review returns 422. Mobile error responses contain the message without a stack trace. Decision validation and the rejection-comment requirement apply to everyone.
 
 ```json
 {"patron_id":5,"site_id":10,"quote_date":"2026-10-09","validity_date":"2026-10-16","is_tax_inclusive":true,"notes":"Delivery subject to scheduling","items":[{"mix_design_id":4,"quantity":3.55,"rate":546,"tax_id":36}]}

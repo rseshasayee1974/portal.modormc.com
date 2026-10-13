@@ -13,6 +13,49 @@ use Illuminate\Http\Request;
 
 class WorkspaceController extends Controller
 {
+    public function mixDesigns(Request $r)
+    {
+        abort_unless(Access::permits('MIX_DESIGN', 'VIEW') || Access::permits('CRM_LEAD', 'VIEW')
+            || Access::permits('QUOTATION', 'VIEW') || Access::permits('SALES_ORDER', 'VIEW'), 403, 'Mix design lookup access is required.');
+        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);
+        $q = MixDesign::where('plant_id', Access::plantId())->where('is_active', 1);
+        if ($r->filled('search')) {
+            $q->where(fn ($q) => $q->where('design_name', 'like', '%'.$r->search.'%')
+                ->orWhere('design_code', 'like', '%'.$r->search.'%'));
+        }
+        return response()->json(['success' => true, 'data' => $q->orderBy('design_name')->orderBy('id')
+            ->paginate($r->integer('per_page', 20), ['id', 'design_name', 'design_code', 'grade', 'concrete_grade_id', 'unit_id', 'rate_per_qty'])]);
+    }
+
+    public function taxes(Request $r)
+    {
+        abort_unless(Access::permits('TAX', 'VIEW') || Access::permits('QUOTATION', 'VIEW')
+            || Access::permits('SALES_ORDER', 'VIEW'), 403, 'Sales tax lookup access is required.');
+        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);
+        $q = Tax::where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')->parentOnly()
+            ->with(['children' => fn ($q) => $q->where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')]);
+        if ($r->filled('search')) $q->where('tax_name', 'like', '%'.$r->search.'%');
+        return response()->json(['success' => true, 'data' => $q->orderBy('tax_name')->orderBy('id')->paginate($r->integer('per_page', 20))]);
+    }
+
+    public function sites(Request $r)
+    {
+        Access::authorize('SITE', 'VIEW');
+        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);
+        $q = Site::where('plant_id', Access::plantId());
+        if ($r->filled('search')) $q->where('name', 'like', '%'.$r->search.'%');
+        $page = $q->orderBy('name')->orderBy('id')->paginate($r->integer('per_page', 20));
+        $page->getCollection()->each->setAppends([]);
+        return response()->json(['success' => true, 'data' => $page]);
+    }
+
+    public function site(int $site)
+    {
+        Access::authorize('SITE', 'VIEW');
+        $model = Site::where('plant_id', Access::plantId())->findOrFail($site)->setAppends([]);
+        return response()->json(['success' => true, 'data' => $model]);
+    }
+
     private function customersQuery()
     {
         return Patron::where('plant_id', Access::plantId())->ofType('Customer')->when(!Access::all('PATRON'), function ($q) {

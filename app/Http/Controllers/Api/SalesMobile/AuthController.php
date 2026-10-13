@@ -17,7 +17,7 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $data = $request->validate(['email' => 'required|email', 'password' => 'required|string']);
+        $data = $request->validate(['email' => 'required|email', 'password' => 'required|string', 'device_name' => 'nullable|string|max:100']);
         $user = User::where('email', strtolower($data['email']))->first();
         abort_unless($user && Hash::check($data['password'], $user->password), 401, 'Invalid email or password.');
         abort_unless($user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()), 403, 'Account inactive or locked.');
@@ -156,7 +156,7 @@ class AuthController extends Controller
 
     private function profile(User $user): array
     {
-        return ['id' => $user->id, 'name' => $user->username, 'email' => $user->email, 'personnel_id' => $user->personnel?->id];
+        return ['id' => $user->id, 'name' => $user->username, 'email' => $user->email, 'personnel_id' => $user->personnel?->id , 'mobile' => $user->mobile];
     }
 
     private function plantList(User $user)
