@@ -219,6 +219,7 @@ Route::middleware([
 
     // 5. Patrons & Personnel (Membership)
     Route::prefix('membership')->group(function () {
+        Route::put('users/mobile-access', [\App\Http\Controllers\UserMobileAccessController::class, 'update'])->name('users.mobile-access');
         Route::get('users/{user}/whatsapp-verification', [\App\Http\Controllers\UserController::class, 'whatsappVerificationUrl'])->name('users.whatsapp-verification');
         Route::post('users/{id}/restore', [\App\Http\Controllers\UserController::class, 'restore'])->name('users.restore');
         Route::delete('users/{id}/force-delete', [\App\Http\Controllers\UserController::class, 'forceDelete'])->name('users.force-delete');
@@ -449,6 +450,7 @@ Route::middleware([
 
         Route::get('payments/next-reference', [\App\Http\Controllers\PaymentController::class, 'getNextReferenceNumber'])->name('payments.next-reference');
         Route::get('payments/patron-advance-balance', [\App\Http\Controllers\PaymentController::class, 'getPatronAdvanceBalance'])->name('payments.patron-advance-balance');
+        Route::get('payments/{payment}/print', [\App\Http\Controllers\PaymentController::class, 'printPdf'])->name('payments.print');
         Route::resource('payments', \App\Http\Controllers\PaymentController::class)->except(['create', 'edit', 'show']);
         Route::get('billings/unbilled-purchase-orders', [\App\Http\Controllers\BillingController::class, 'getUnbilledPurchaseOrders'])->name('billings.unbilled-pos');
         Route::get('invoices/uninvoiced-dispatches', [\App\Http\Controllers\InvoiceController::class, 'getUninvoicedDispatches'])->name('invoices.uninvoiced-dispatches');

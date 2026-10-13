@@ -154,6 +154,7 @@ class UserController extends Controller
             'entities' => $entities,
             'plants' => $plants,
             'userGroups' => $userGroups,
+            'canManageMobileAccess' => \App\Services\Mobile\MobileAccess::canManageUserAccess($user),
             'filters' => $request->only('search')
         ]);
     }
@@ -166,6 +167,9 @@ class UserController extends Controller
         $this->authorizeModule('create');
 
         $data = $request->validated();
+        if (!empty($data['is_otp_enabled'])) {
+            abort_unless(\App\Services\Mobile\MobileAccess::canManageUserAccess($request->user()), 403, 'Only administrators can manage mobile app access.');
+        }
 
         if (array_key_exists('profile_photo_path', $data) && $data['profile_photo_path'] === '') {
             unset($data['profile_photo_path']);
@@ -211,6 +215,10 @@ class UserController extends Controller
         $this->ensureUserAccess($user, $request->user());
 
         $data = $request->validated();
+        if (array_key_exists('is_otp_enabled', $data) && (bool)$data['is_otp_enabled'] !== (bool)$user->is_otp_enabled) {
+            abort_unless(\App\Services\Mobile\MobileAccess::canManageUserAccess($request->user()), 403, 'Only administrators can manage mobile app access.');
+            abort_if(!$request->user()->isSystemAdmin() && $user->isSystemAdmin(), 403, 'System administrator access can only be managed by a system administrator.');
+        }
 
         // Empty string = user removed the photo; null the key so model deletes the old file
         if (array_key_exists('profile_photo_path', $data) && $data['profile_photo_path'] === '') {

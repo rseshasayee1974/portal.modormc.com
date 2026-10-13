@@ -790,6 +790,35 @@
             </table>
         @endif
 
+        @php
+            $cameraPhotos = $batch->photos->filter(function ($photo) {
+                return in_array($photo->image_name, ['empty_weight_snap', 'loaded_weight_snap'], true)
+                    && $photo->image_path
+                    && \Illuminate\Support\Facades\Storage::disk('public')->exists($photo->image_path);
+            })->sortBy(fn ($photo) => $photo->image_name === 'empty_weight_snap' ? 0 : 1)->values();
+        @endphp
+        @if ($cameraPhotos->isNotEmpty())
+            <div style="margin-top: 18px; page-break-inside: avoid;">
+                <div class="section-title">Camera Images</div>
+                <table style="width: 100%; table-layout: fixed; border-collapse: collapse;">
+                    <tr>
+                        @foreach ($cameraPhotos as $photo)
+                            @php
+                                $photoSrc = !empty($isPreview)
+                                    ? '/storage/' . ltrim($photo->image_path, '/')
+                                    : \Illuminate\Support\Facades\Storage::disk('public')->path($photo->image_path);
+                            @endphp
+                            <td style="width: 50%; padding: 8px; border: 1px solid #e2e8f0; text-align: center; vertical-align: top;">
+                                <div style="font-size: 10px; font-weight: bold; margin-bottom: 6px;">{{ $photo->image_name === 'empty_weight_snap' ? 'Empty Weight Camera' : 'Loaded Weight Camera' }}</div>
+                                <img src="{{ $photoSrc }}" alt="{{ $photo->alt_txt ?: 'Batch camera image' }}"
+                                    style="max-width: 100%; max-height: 125px; width: auto; height: auto;" />
+                            </td>
+                        @endforeach
+                    </tr>
+                </table>
+            </div>
+        @endif
+
         <!-- Signatures Section -->
         <table class="signatures-table">
             <tr>

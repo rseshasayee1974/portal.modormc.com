@@ -216,11 +216,9 @@ const confirmForceDelete = (id: number) => {
             </Column>
 
             <Column field="mobile" header="Mobile" />
-
-            <Column field="is_otp_enabled" header="OTP">
-                <template #body="slotProps">
-                    <i v-if="slotProps.data.is_otp_enabled" class="pi pi-shield text-amber-500" />
-                    <i v-else class="pi pi-circle text-gray-300" />
+            <Column field="is_otp_enabled" header="Mobile App">
+                <template #body="{ data }">
+                    <Tag :value="data.is_otp_enabled ? 'Allowed' : 'No Access'" :severity="data.is_otp_enabled ? 'success' : 'secondary'" />
                 </template>
             </Column>
 

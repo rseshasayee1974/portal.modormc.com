@@ -61,6 +61,7 @@ class User extends Authenticatable implements MustVerifyEmail
 	protected $table = 'mm_users';
 
 	protected $casts = [
+        'mobile_access_revision' => 'integer',
 		'two_factor_confirmed_at' => 'datetime',
 		'email_verified_at' => 'datetime',
 		'is_active' => 'boolean',
@@ -119,6 +120,20 @@ class User extends Authenticatable implements MustVerifyEmail
 		'updated_by',
 		'deleted_by'
 	];
+
+    protected static function booted(): void
+    {
+        static::updating(function (self $user) {
+            if ($user->isDirty('is_otp_enabled')) {
+                $user->mobile_access_revision = (int) $user->mobile_access_revision + 1;
+            }
+        });
+        static::updated(function (self $user) {
+            if ($user->wasChanged('is_otp_enabled') && !$user->is_otp_enabled) {
+                $user->tokens()->where('name', 'like', 'sales-mobile:%')->delete();
+            }
+        });
+    }
 
 	public function entityUsers()
 	{

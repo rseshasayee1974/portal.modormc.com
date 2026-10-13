@@ -1,0 +1,4056 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MODO Sales Executive Mobile API",
+    "version": "1.0.0",
+    "description": "Test the ERP mobile APIs here. First grant the user Mobile App Access in Membership > Users. Login using email/password, or send WhatsApp OTP then verify it. Copy data.token into Authorize (without Bearer), and supply X-Plant-Id for workspace requests. The OTP template is sales_executive_login with one six-digit parameter. Codes expire in five minutes. Swagger does not send requests until you click Execute. Existing module permissions and plant ownership still apply."
+  },
+  "servers": [
+    {
+      "url": "/api/mobile/v1",
+      "description": "Current ERP server"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Workspace"
+    },
+    {
+      "name": "Customers"
+    },
+    {
+      "name": "Leads"
+    },
+    {
+      "name": "Follow ups"
+    },
+    {
+      "name": "Quotations"
+    },
+    {
+      "name": "Sales orders"
+    },
+    {
+      "name": "Batch schedules"
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Login",
+        "operationId": "post__auth_login",
+        "description": "An administrator must grant mobile app access for this email in Membership > Users first. Email/password login returns the bearer token directly. Alternative: Send WhatsApp OTP and Verify OTP.",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "token": "paste-this-token-into-Authorize",
+                    "token_type": "Bearer",
+                    "expires_at": "2026-11-11T13:30:00+05:30",
+                    "user": {
+                      "id": 1,
+                      "name": "Sales Executive",
+                      "email": "executive@example.com",
+                      "personnel_id": 1
+                    },
+                    "plants": [
+                      {
+                        "id": 1,
+                        "name": "Example Plant",
+                        "entity_id": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              },
+              "example": {
+                "email": "executive@example.com",
+                "password": "your-password"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/send-otp": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Send WhatsApp OTP",
+        "operationId": "post__auth_send_otp",
+        "description": "Passwordless alternative. Mobile app access must be granted by an administrator first. Set mobile to a uniquely registered user number. Returns 202 after WhatsApp provider submission. Enter the received code in otp and run Verify OTP.",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": "WhatsApp submission accepted; no token until verification.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "otp_required": true,
+                    "channel": "whatsapp",
+                    "challenge_id": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "expires_in": 300
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mobile": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "mobile"
+                ]
+              },
+              "example": {
+                "mobile": "+919876543210"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify-otp": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Verify OTP",
+        "operationId": "post__auth_verify_otp",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "token": "paste-this-token-into-Authorize",
+                    "token_type": "Bearer",
+                    "expires_at": "2026-11-11T13:30:00+05:30",
+                    "user": {
+                      "id": 1,
+                      "name": "Sales Executive",
+                      "email": "executive@example.com",
+                      "personnel_id": 1
+                    },
+                    "plants": [
+                      {
+                        "id": 1,
+                        "name": "Example Plant",
+                        "entity_id": 1
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "challenge_id": {
+                    "type": "string",
+                    "minLength": 64,
+                    "maxLength": 64
+                  },
+                  "otp": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 6,
+                    "pattern": "^[0-9]{6}$",
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "challenge_id",
+                  "otp"
+                ]
+              },
+              "example": {
+                "challenge_id": "0000000000000000000000000000000000000000000000000000000000000000",
+                "otp": "123456"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Profile",
+        "operationId": "get__me",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/plants": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Accessible plants",
+        "operationId": "get__plants",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Logout this device (run last)",
+        "operationId": "post__auth_logout",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Dashboard",
+        "operationId": "get__dashboard",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/lookups": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Dropdown lookups",
+        "operationId": "get__lookups",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/marketing/summary": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Marketing summary",
+        "operationId": "get__marketing_summary",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/customers": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "List customers",
+        "operationId": "get__customers",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/customers/{customer}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customer and progress",
+        "operationId": "get__customers_customer_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/leads": {
+      "get": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "List leads",
+        "operationId": "get__leads",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Create lead",
+        "operationId": "post__leads",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contact_name": {
+                    "type": "string"
+                  },
+                  "company_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "Phone or email is required."
+                  },
+                  "email": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "enquiry_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "New",
+                      "Contacted",
+                      "Qualified",
+                      "Unqualified"
+                    ]
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "requirement": {
+                    "type": "string"
+                  },
+                  "estimated_quantity": {
+                    "type": "number"
+                  },
+                  "expected_value": {
+                    "type": "number"
+                  },
+                  "remarks": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contact_name",
+                  "enquiry_date",
+                  "source",
+                  "priority",
+                  "status",
+                  "expected_value"
+                ]
+              },
+              "example": {
+                "contact_name": "Arun Kumar",
+                "company_name": "Kavin Builders",
+                "phone": "9876543210",
+                "email": null,
+                "enquiry_date": "2026-10-12",
+                "source": "Referral",
+                "status": "New",
+                "priority": "High",
+                "requirement": "M25 Design",
+                "estimated_quantity": 40,
+                "expected_value": 200000,
+                "remarks": "Site enquiry"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/leads/{lead}": {
+      "get": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Lead detail",
+        "operationId": "get__leads_lead_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Update lead",
+        "operationId": "put__leads_lead_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contact_name": {
+                    "type": "string"
+                  },
+                  "company_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "Phone or email is required."
+                  },
+                  "email": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "enquiry_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "New",
+                      "Contacted",
+                      "Qualified",
+                      "Unqualified"
+                    ]
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "requirement": {
+                    "type": "string"
+                  },
+                  "estimated_quantity": {
+                    "type": "number"
+                  },
+                  "expected_value": {
+                    "type": "number"
+                  },
+                  "remarks": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contact_name",
+                  "enquiry_date",
+                  "source",
+                  "priority",
+                  "status",
+                  "expected_value"
+                ]
+              },
+              "example": {
+                "contact_name": "Arun Kumar",
+                "company_name": "Kavin Builders",
+                "phone": "9876543210",
+                "email": null,
+                "enquiry_date": "2026-10-12",
+                "source": "Referral",
+                "status": "Qualified",
+                "priority": "High",
+                "requirement": "M25 Design",
+                "estimated_quantity": 40,
+                "expected_value": 200000,
+                "remarks": "Site enquiry"
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Update lead (PATCH)",
+        "operationId": "patch__leads_lead_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. PATCH accepts the same full form as PUT.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contact_name": {
+                    "type": "string"
+                  },
+                  "company_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "Phone or email is required."
+                  },
+                  "email": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "enquiry_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "New",
+                      "Contacted",
+                      "Qualified",
+                      "Unqualified"
+                    ]
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "requirement": {
+                    "type": "string"
+                  },
+                  "estimated_quantity": {
+                    "type": "number"
+                  },
+                  "expected_value": {
+                    "type": "number"
+                  },
+                  "remarks": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contact_name",
+                  "enquiry_date",
+                  "source",
+                  "priority",
+                  "status",
+                  "expected_value"
+                ]
+              },
+              "example": {
+                "contact_name": "Arun Kumar",
+                "company_name": "Kavin Builders",
+                "phone": "9876543210",
+                "email": null,
+                "enquiry_date": "2026-10-12",
+                "source": "Referral",
+                "status": "Qualified",
+                "priority": "High",
+                "requirement": "M25 Design",
+                "estimated_quantity": 40,
+                "expected_value": 200000,
+                "remarks": "Site enquiry"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Delete Lead",
+        "operationId": "delete__leads_lead_",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/leads/{lead}/convert": {
+      "post": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Convert qualified lead",
+        "operationId": "post__leads_lead_convert",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customer_id": {
+                    "type": "integer",
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "customer_id": null
+              }
+            }
+          }
+        }
+      }
+    },
+    "/follow-ups": {
+      "get": {
+        "tags": [
+          "Follow ups"
+        ],
+        "summary": "List follow ups",
+        "operationId": "get__follow_ups",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "today",
+                "upcoming",
+                "overdue",
+                "completed",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Follow ups"
+        ],
+        "summary": "Create follow up",
+        "operationId": "post__follow_ups",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lead_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "subject": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "due_at": {
+                    "type": "string",
+                    "description": "Required unless type is Note. Use an ISO timestamp or ERP local datetime."
+                  }
+                },
+                "required": [
+                  "lead_id",
+                  "type",
+                  "subject"
+                ]
+              },
+              "example": {
+                "lead_id": 1,
+                "type": "Site Visit",
+                "subject": "Review concrete requirement",
+                "description": "Confirm site access",
+                "due_at": "2026-10-12T15:00:00+05:30"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/follow-ups/{activity}": {
+      "put": {
+        "tags": [
+          "Follow ups"
+        ],
+        "summary": "Update follow up",
+        "operationId": "put__follow_ups_activity_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "activity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lead_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "subject": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "due_at": {
+                    "type": "string",
+                    "description": "Required unless type is Note. Use an ISO timestamp or ERP local datetime."
+                  }
+                },
+                "required": [
+                  "lead_id",
+                  "type",
+                  "subject"
+                ]
+              },
+              "example": {
+                "lead_id": 1,
+                "type": "Site Visit",
+                "subject": "Review concrete requirement",
+                "description": "Confirm site access",
+                "due_at": "2026-10-12T15:00:00+05:30"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Follow ups"
+        ],
+        "summary": "Delete Follow up",
+        "operationId": "delete__follow_ups_activity_",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "activity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/follow-ups/{activity}/complete": {
+      "post": {
+        "tags": [
+          "Follow ups"
+        ],
+        "summary": "Complete follow up",
+        "operationId": "post__follow_ups_activity_complete",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "activity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "description": "Site requirement confirmed"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quotations": {
+      "get": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "List quotations",
+        "operationId": "get__quotations",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Create quotation",
+        "operationId": "post__quotations",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "patron_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "quote_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "validity_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "is_tax_inclusive": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "mix_design_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "number"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "tax_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      },
+                      "required": [
+                        "mix_design_id",
+                        "quantity",
+                        "rate"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "patron_id",
+                  "site_id",
+                  "quote_date",
+                  "is_tax_inclusive",
+                  "items"
+                ]
+              },
+              "example": {
+                "patron_id": 1,
+                "site_id": 1,
+                "quote_date": "2026-10-12",
+                "validity_date": "2026-10-19",
+                "is_tax_inclusive": true,
+                "notes": "Delivery subject to schedule confirmation",
+                "items": [
+                  {
+                    "mix_design_id": 1,
+                    "quantity": 3.55,
+                    "rate": 546,
+                    "tax_id": 1
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quotations/{quotation}": {
+      "get": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Quotation detail",
+        "operationId": "get__quotations_quotation_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quotation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Edit quotation",
+        "operationId": "put__quotations_quotation_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quotation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "patron_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "quote_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "validity_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "is_tax_inclusive": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "mix_design_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "number"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "tax_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      },
+                      "required": [
+                        "mix_design_id",
+                        "quantity",
+                        "rate"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "patron_id",
+                  "site_id",
+                  "quote_date",
+                  "is_tax_inclusive",
+                  "items"
+                ]
+              },
+              "example": {
+                "patron_id": 1,
+                "site_id": 1,
+                "quote_date": "2026-10-12",
+                "validity_date": "2026-10-19",
+                "is_tax_inclusive": true,
+                "notes": "Delivery subject to schedule confirmation",
+                "items": [
+                  {
+                    "mix_design_id": 1,
+                    "quantity": 3.55,
+                    "rate": 546,
+                    "tax_id": 1
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Edit quotation (PATCH)",
+        "operationId": "patch__quotations_quotation_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. PATCH accepts the same full form as PUT.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quotation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "patron_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "quote_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "validity_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "is_tax_inclusive": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "mix_design_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "number"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "tax_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      },
+                      "required": [
+                        "mix_design_id",
+                        "quantity",
+                        "rate"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "patron_id",
+                  "site_id",
+                  "quote_date",
+                  "is_tax_inclusive",
+                  "items"
+                ]
+              },
+              "example": {
+                "patron_id": 1,
+                "site_id": 1,
+                "quote_date": "2026-10-12",
+                "validity_date": "2026-10-19",
+                "is_tax_inclusive": true,
+                "notes": "Delivery subject to schedule confirmation",
+                "items": [
+                  {
+                    "mix_design_id": 1,
+                    "quantity": 3.55,
+                    "rate": 546,
+                    "tax_id": 1
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Delete Draft quotation",
+        "operationId": "delete__quotations_quotation_",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quotation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/quotations/{quotation}/submit": {
+      "post": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Submit for approval",
+        "operationId": "post__quotations_quotation_submit",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quotation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/quotations/{quotation}/review": {
+      "post": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Approve quotation (different reviewer)",
+        "operationId": "post__quotations_quotation_review",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quotation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "approved",
+                      "rejected"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string",
+                    "description": "Required when rejecting."
+                  }
+                },
+                "required": [
+                  "decision"
+                ]
+              },
+              "example": {
+                "decision": "approved",
+                "comment": "Rates approved"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "tags": [
+          "Sales orders"
+        ],
+        "summary": "List orders",
+        "operationId": "get__orders",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sales orders"
+        ],
+        "summary": "Create order against customer PO",
+        "operationId": "post__orders",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customer_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "mix_design_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "customer_po_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "total_qty": {
+                    "type": "number"
+                  },
+                  "scheduled_start": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "scheduled_end": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "customer_id",
+                  "site_id",
+                  "mix_design_id",
+                  "customer_po_id",
+                  "total_qty"
+                ]
+              },
+              "example": {
+                "customer_id": 1,
+                "site_id": 1,
+                "mix_design_id": 1,
+                "customer_po_id": 1,
+                "total_qty": 40,
+                "scheduled_start": null,
+                "scheduled_end": null
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{order}": {
+      "get": {
+        "tags": [
+          "Sales orders"
+        ],
+        "summary": "Order progress",
+        "operationId": "get__orders_order_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Sales orders"
+        ],
+        "summary": "Edit unstarted order",
+        "operationId": "put__orders_order_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customer_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "mix_design_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "customer_po_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "total_qty": {
+                    "type": "number"
+                  },
+                  "scheduled_start": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "scheduled_end": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "customer_id",
+                  "site_id",
+                  "mix_design_id",
+                  "customer_po_id",
+                  "total_qty"
+                ]
+              },
+              "example": {
+                "customer_id": 1,
+                "site_id": 1,
+                "mix_design_id": 1,
+                "customer_po_id": 1,
+                "total_qty": 40,
+                "scheduled_start": null,
+                "scheduled_end": null
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Sales orders"
+        ],
+        "summary": "Edit unstarted order (PATCH)",
+        "operationId": "patch__orders_order_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. PATCH accepts the same full form as PUT.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customer_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "mix_design_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "customer_po_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "total_qty": {
+                    "type": "number"
+                  },
+                  "scheduled_start": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "scheduled_end": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "customer_id",
+                  "site_id",
+                  "mix_design_id",
+                  "customer_po_id",
+                  "total_qty"
+                ]
+              },
+              "example": {
+                "customer_id": 1,
+                "site_id": 1,
+                "mix_design_id": 1,
+                "customer_po_id": 1,
+                "total_qty": 40,
+                "scheduled_start": null,
+                "scheduled_end": null
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sales orders"
+        ],
+        "summary": "Delete Unstarted order",
+        "operationId": "delete__orders_order_",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/orders/{order}/batches": {
+      "get": {
+        "tags": [
+          "Sales orders"
+        ],
+        "summary": "Order batches",
+        "operationId": "get__orders_order_batches",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/orders/{order}/dispatches": {
+      "get": {
+        "tags": [
+          "Sales orders"
+        ],
+        "summary": "Order dispatches",
+        "operationId": "get__orders_order_dispatches",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/batch-schedules": {
+      "get": {
+        "tags": [
+          "Batch schedules"
+        ],
+        "summary": "List schedules",
+        "operationId": "get__batch_schedules",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Batch schedules"
+        ],
+        "summary": "Create planned schedule",
+        "operationId": "post__batch_schedules",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schedule_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "sales_order_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Accessible confirmed/in-progress order with matching site and mix design."
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "mix_design_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "qty_m3": {
+                    "type": "number"
+                  },
+                  "order_volume_m3": {
+                    "type": "number"
+                  },
+                  "pump_type": {
+                    "type": "string"
+                  },
+                  "vehicle_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "driver_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "pump_vehicle_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "batching_time": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "dispatch_time": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "eta_site": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "unloading_start": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "unloading_end": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "scheduled"
+                    ]
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "schedule_date",
+                  "sales_order_id",
+                  "site_id",
+                  "mix_design_id",
+                  "qty_m3",
+                  "order_volume_m3",
+                  "pump_type"
+                ]
+              },
+              "example": {
+                "schedule_date": "2026-10-12",
+                "sales_order_id": 1,
+                "site_id": 1,
+                "mix_design_id": 1,
+                "qty_m3": 6,
+                "order_volume_m3": 40,
+                "pump_type": "direct_pour",
+                "vehicle_id": null,
+                "driver_id": null,
+                "pump_vehicle_id": null,
+                "batching_time": null,
+                "dispatch_time": null,
+                "eta_site": null,
+                "unloading_start": null,
+                "unloading_end": null,
+                "status": "scheduled",
+                "notes": "Requested by sales executive"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/batch-schedules/{schedule}": {
+      "get": {
+        "tags": [
+          "Batch schedules"
+        ],
+        "summary": "Schedule detail",
+        "operationId": "get__batch_schedules_schedule_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Batch schedules"
+        ],
+        "summary": "Edit unlinked planned schedule",
+        "operationId": "put__batch_schedules_schedule_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schedule_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "sales_order_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Accessible confirmed/in-progress order with matching site and mix design."
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "mix_design_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "qty_m3": {
+                    "type": "number"
+                  },
+                  "order_volume_m3": {
+                    "type": "number"
+                  },
+                  "pump_type": {
+                    "type": "string"
+                  },
+                  "vehicle_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "driver_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "pump_vehicle_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "batching_time": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "dispatch_time": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "eta_site": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "unloading_start": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "unloading_end": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "scheduled"
+                    ]
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "schedule_date",
+                  "sales_order_id",
+                  "site_id",
+                  "mix_design_id",
+                  "qty_m3",
+                  "order_volume_m3",
+                  "pump_type"
+                ]
+              },
+              "example": {
+                "schedule_date": "2026-10-12",
+                "sales_order_id": 1,
+                "site_id": 1,
+                "mix_design_id": 1,
+                "qty_m3": 6,
+                "order_volume_m3": 40,
+                "pump_type": "direct_pour",
+                "vehicle_id": null,
+                "driver_id": null,
+                "pump_vehicle_id": null,
+                "batching_time": null,
+                "dispatch_time": null,
+                "eta_site": null,
+                "unloading_start": null,
+                "unloading_end": null,
+                "status": "scheduled",
+                "notes": "Requested by sales executive"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Batch schedules"
+        ],
+        "summary": "Delete Unlinked schedule",
+        "operationId": "delete__batch_schedules_schedule_",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "schedule",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Paste the device token from data.token after login or OTP verification."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Invalid or expired bearer token.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "type": "string",
+                  "description": "WhatsApp failures: WHATSAPP_TLS_ERROR, WHATSAPP_CONNECTION_ERROR or WHATSAPP_SUBMISSION_FAILED."
+                },
+                "errors": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Mobile access not granted, account inactive/locked, inaccessible plant or missing permission.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "type": "string",
+                  "description": "WhatsApp failures: WHATSAPP_TLS_ERROR, WHATSAPP_CONNECTION_ERROR or WHATSAPP_SUBMISSION_FAILED."
+                },
+                "errors": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Record unavailable in the user scope.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "type": "string",
+                  "description": "WhatsApp failures: WHATSAPP_TLS_ERROR, WHATSAPP_CONNECTION_ERROR or WHATSAPP_SUBMISSION_FAILED."
+                },
+                "errors": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Input validation or lifecycle restriction. Display message and field errors.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "type": "string",
+                  "description": "WhatsApp failures: WHATSAPP_TLS_ERROR, WHATSAPP_CONNECTION_ERROR or WHATSAPP_SUBMISSION_FAILED."
+                },
+                "errors": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Request or OTP attempt limit reached.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "type": "string",
+                  "description": "WhatsApp failures: WHATSAPP_TLS_ERROR, WHATSAPP_CONNECTION_ERROR or WHATSAPP_SUBMISSION_FAILED."
+                },
+                "errors": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "WhatsApp provider not configured, rejected the template or could not confirm submission.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "type": "string",
+                  "description": "WhatsApp failures: WHATSAPP_TLS_ERROR, WHATSAPP_CONNECTION_ERROR or WHATSAPP_SUBMISSION_FAILED."
+                },
+                "errors": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "OTP verification already in progress. Try again shortly.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "type": "string",
+                  "description": "WhatsApp failures: WHATSAPP_TLS_ERROR, WHATSAPP_CONNECTION_ERROR or WHATSAPP_SUBMISSION_FAILED."
+                },
+                "errors": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

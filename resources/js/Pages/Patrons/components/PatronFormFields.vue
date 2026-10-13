@@ -290,16 +290,6 @@ onMounted(async () => {
                 <BaseSelect label="Credit Ledger" v-model="form.credit_ledger_id" :options="creditLedgerOptions"
                     optionLabel="label" optionValue="value" filter clearable
                     placeholder="Use account defaults" :error="form.errors.credit_ledger_id" />
-                    <BaseSelect
-                class="w-full md:max-w-sm"
-                v-model="form.sales_executive_id"
-                label="Sales Executive"
-                :options="salesExecutiveOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Select a sales executive"
-                :error="form.errors.sales_executive_id"
-            />
             </div>
         </section>
 

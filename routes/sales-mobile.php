@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\SalesMobile\{AuthController, LeadController, Quotat
 use App\Http\Middleware\{MobileDeviceToken, MobilePlantContext};
 
 Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::class)->group(function () {
+    Route::get('docs', [\App\Http\Controllers\Api\SalesMobile\DocumentationController::class, 'index'])->name('sales-mobile.docs');
+    Route::get('openapi.json', [\App\Http\Controllers\Api\SalesMobile\DocumentationController::class, 'specification'])->name('sales-mobile.openapi');
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1,sales-mobile-login');
     Route::post('auth/send-otp', [AuthController::class, 'sendOtp'])->middleware('throttle:5,1,sales-mobile-send-otp');
     Route::post('auth/verify-otp', [AuthController::class, 'verify'])->middleware('throttle:10,1,sales-mobile-otp');

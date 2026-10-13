@@ -37,6 +37,18 @@ class PaymentController extends Controller
         ]);
     }
 
+    public function printPdf(Request $request, Payment $payment)
+    {
+        $this->authorizeModule('show');
+        abort_unless(session('active_plant_id') && (int)$payment->plant_id === (int)session('active_plant_id'), 404);
+        $payment->load(['plant.entity', 'plant.addresses', 'ledger', 'patron', 'creator', 'allocations.invoice']);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.payments.voucher', ['payment' => $payment])
+            ->setPaper('a5', 'portrait');
+        $type = strtolower((string)$payment->transaction_type) === 'receipt' ? 'receipt' : 'payment';
+        $filename = $type.'-voucher-'.$payment->id.'-a5.pdf';
+        return $request->boolean('download') ? $pdf->download($filename) : $pdf->stream($filename);
+    }
+
     public function store(Request $request)
     {
         $this->authorizeModule('create');

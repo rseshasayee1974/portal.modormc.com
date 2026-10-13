@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import axios from 'axios';
+import { usePage } from '@inertiajs/vue3';
+const page = usePage();
 import { useToast } from 'primevue/usetoast';
 import FileUpload from 'primevue/fileupload';
 import ToggleSwitch from 'primevue/toggleswitch';
@@ -217,10 +219,10 @@ const submit = async () => {
                 </div>
             </div>
             <div class="col-span-12 md:col-span-1 flex flex-col gap-2">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Enable OTP</label>
+                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Mobile App / OTP</label>
                 <div class="flex items-center gap-2 mt-2">
-                    <ToggleSwitch v-model="form.is_otp_enabled" />
-                    <!-- <span class="text-sm">Enable OTP</span> -->
+                    <ToggleSwitch v-model="form.is_otp_enabled" :disabled="!page.props.canManageMobileAccess" />
+                    <!-- <span class="text-sm">Mobile App / OTP</span> -->
                 </div>
             </div>
  <!-- Profile Photo -->

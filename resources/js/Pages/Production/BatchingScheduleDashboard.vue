@@ -34,9 +34,9 @@ const props = defineProps({
     initialFilters: Object,
 });
 
-// The create/edit form remains above the schedule table at all times.
-const activeView = ref('create');
-const selectedSchedule = ref(null);
+// Keep creation above the list and edit schedules inside expanded rows.
+const expandedRows = ref({});
+const createFormVersion = ref(0);
 
 const scheduleDate = ref(props.initialDate || entityToday());
 const statusFilter = ref(props.initialFilters?.status || 'all');
@@ -130,7 +130,9 @@ const resetFilters = () => {
 onMounted(() => {
     fetchDropdowns();
     fetchData();
-    pollTimer = setInterval(fetchData, 30000);
+    pollTimer = setInterval(() => {
+        if (!Object.keys(expandedRows.value).length) fetchData();
+    }, 30000);
 });
 
 onUnmounted(() => {
@@ -148,28 +150,39 @@ const filteredSchedules = computed(() => {
     });
 });
 
-// Open dedicated Form Component (No Modals)
 const openCreateForm = () => {
     fetchDropdowns();
-    selectedSchedule.value = null;
-    activeView.value = 'create';
+    expandedRows.value = {};
+    createFormVersion.value++;
 };
 
 const openEditForm = (item) => {
-    fetchDropdowns();
-    selectedSchedule.value = item;
-    activeView.value = 'edit';
+    if (expandedRows.value[item.id]) {
+        expandedRows.value = {};
+    } else {
+        expandedRows.value = { [item.id]: true };
+        fetchDropdowns();
+    }
+};
+
+const collapseRow = (id) => {
+    const rows = { ...expandedRows.value };
+    delete rows[id];
+    expandedRows.value = rows;
+};
+
+const handleEditSaved = (id) => {
+    collapseRow(id);
+    fetchData();
 };
 
 const handleFormSaved = () => {
-    activeView.value = 'create';
-    selectedSchedule.value = null;
+    createFormVersion.value++;
     fetchData();
 };
 
 const handleFormCancel = () => {
-    activeView.value = 'create';
-    selectedSchedule.value = null;
+    createFormVersion.value++;
 };
 
 const createDispatch = async (item) => {
@@ -208,6 +221,7 @@ const deleteSchedule = async (item) => {
 
     try {
         await axios.delete(route('production.batching-schedules.destroy', item.id));
+        collapseRow(item.id);
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Schedule deleted', timer: 2000, showConfirmButton: false });
         fetchData();
     } catch (err) {
@@ -336,9 +350,9 @@ const getRowClass = (data) => {
                 </div>
             </div> -->
 
-                <!-- Create/edit form stays above the schedule table. -->
+                <!-- Create form stays above the schedule table. -->
                 <div>
-                    <BatchingScheduleForm :isEditing="activeView === 'edit'" :initialData="selectedSchedule"
+                    <BatchingScheduleForm :key="createFormVersion"
                         :dropdowns="dropdowns" @saved="handleFormSaved"
                         @cancel="handleFormCancel" />
                 </div>
@@ -484,8 +498,10 @@ const getRowClass = (data) => {
                         <!-- Data Table using BaseDataTable -->
                         <div class="w-full">
                             <BaseDataTable :value="filteredSchedules" :loading="loading" dataKey="id" :paginator="true"
+                                v-model:expandedRows="expandedRows" @rowExpand="fetchDropdowns"
                                 :rows="20" :rowsPerPageOptions="[10, 20, 50, 100]" :showSerial="true"
                                 :rowClass="getRowClass" class="text-xs">
+                                <Column expander style="width: 3rem" />
                                 <Column field="pour_reference" header="Pour Ref" :sortable="true">
                                     <template #body="{ data }">
                                         <div class="font-bold uppercase text-indigo-600 text-xs">
@@ -595,6 +611,14 @@ const getRowClass = (data) => {
                                         </div>
                                     </template>
                                 </Column>
+
+                                <template #expansion="{ data }">
+                                    <div class="border-y border-indigo-100 bg-slate-50 dark:border-gray-700 dark:bg-gray-900/60">
+                                        <BatchingScheduleForm :key="data.id" :isEditing="true" :initialData="data"
+                                            :dropdowns="dropdowns" @saved="handleEditSaved(data.id)"
+                                            @cancel="collapseRow(data.id)" />
+                                    </div>
+                                </template>
 
                                 <template #empty>
                                     <div class="py-10 flex flex-col items-center justify-center text-gray-400">

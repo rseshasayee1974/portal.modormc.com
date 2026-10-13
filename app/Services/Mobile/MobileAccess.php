@@ -12,10 +12,26 @@ use Illuminate\Support\Str;
 
 class MobileAccess
 {
+    public static function canManageUserAccess(User $user): bool
+    {
+        if ($user->isSystemAdmin()) return true;
+        $entity = (int) session('active_entity_id');
+        if (!$entity) return false;
+        $role = EntityUser::forContext($user->id, $entity, session('active_plant_id'))?->role;
+        return in_array(strtoupper((string) $role?->code), [
+            'ADMINISTRATOR',
+            'SUPER_ADMIN',
+            'PLATFORM_ADMIN',
+            'SAAS_OWNER',
+        ], true);
+    }
+
     public static function plants(User $user): Builder
     {
         return Plant::query()->where('is_active', 1)
-            ->whereHas('entity', fn ($q) => $q->where('is_suspended', 0))
+            ->whereHas('entity', function ($q) use ($user) {
+                if (!$user->isSystemAdmin()) $q->where('is_suspended', 0);
+            })
             ->when(!$user->isSystemAdmin(), function ($q) use ($user) {
                 $q->whereExists(function ($membership) use ($user) {
                     $membership->selectRaw('1')->from('mm_entity_users')->where('user_id', $user->id)

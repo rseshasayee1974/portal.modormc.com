@@ -1712,6 +1712,7 @@ class BatchController extends Controller
             'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
             'materials.product:id,title',
             'materials.uom:id,unit_code',
+            'photos',
             'operator:id,first_name,last_name'
         ]);
 
@@ -1748,6 +1749,7 @@ class BatchController extends Controller
             'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
             'materials.product:id,title',
             'materials.uom:id,unit_code',
+            'photos',
             'operator:id,first_name,last_name'
         ]);
 

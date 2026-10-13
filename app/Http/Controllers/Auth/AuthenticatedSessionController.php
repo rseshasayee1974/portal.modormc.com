@@ -115,7 +115,7 @@ class AuthenticatedSessionController extends Controller
                 $templateName = "modormcloginotp";
                 $code = 'Your Code';
                 $paramString = implode(',', [$user->email, $code, $otp]);
-
+dd($paramString);
                 $result = $this->sendWhatsAppTemplate($licenseNumber, $apiKey, '91' . $number, $templateName, $paramString);
 
                 if ($result['error']) {

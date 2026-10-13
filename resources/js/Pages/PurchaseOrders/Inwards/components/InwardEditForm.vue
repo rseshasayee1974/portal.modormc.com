@@ -188,7 +188,7 @@ const saveInwardDetails = () => {
             <h4 class="text-xs font-bold text-slate-700">Edit vehicle and units</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
-                <BaseSelect :model-value="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required disabled :error="detailsErrors.uom_id" />
+                <BaseSelect :model-value="data.uom_id" :options="units" label="Received UOM" optionLabel="label" optionValue="value" required :error="detailsErrors.uom_id" />
                 <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
                 <BaseInputNumber :model-value="Number(data.conversion_quantity || 0)" @update:model-value="data.conversion_quantity = $event" label="Converted quantity" :min="0" :minFractionDigits="2" :maxFractionDigits="2" :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_quantity" />
             </div>
