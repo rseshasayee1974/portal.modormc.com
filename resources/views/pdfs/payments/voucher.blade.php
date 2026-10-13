@@ -8,6 +8,17 @@ Created: 2026-10-13 10:14:46 Asia/Calcutta (UTC+05:30)
     $plant = $payment->plant;
     $address = $plant?->addresses->firstWhere('is_primary', true) ?? $plant?->addresses->first();
     $addressText = $address ? implode(', ', array_filter([$address->line_1, $address->line_2, $address->city, $address->zipcode])) : '';
+    $logoSrc = null;
+    $logoDisk = \Illuminate\Support\Facades\Storage::disk('public');
+    foreach ([$plant?->entity?->logo_file, $plant?->logo_path] as $logoFile) {
+        if (!$logoFile) continue;
+        $logoPath = preg_replace('#^(?:public/|storage/)+#', '', ltrim(str_replace('\\', '/', $logoFile), '/'));
+        if (in_array('..', explode('/', $logoPath), true) || !$logoDisk->exists($logoPath)) continue;
+        $logoMime = $logoDisk->mimeType($logoPath);
+        if (!in_array($logoMime, ['image/jpeg','image/png','image/gif','image/webp','image/svg+xml'], true)) continue;
+        $logoSrc = 'data:' . $logoMime . ';base64,' . base64_encode($logoDisk->get($logoPath));
+        break;
+    }
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -20,6 +31,8 @@ Created: 2026-10-13 10:14:46 Asia/Calcutta (UTC+05:30)
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         td, th { vertical-align: top; word-wrap: break-word; }
         .brand { border-bottom: 2px solid #1d3557; padding-bottom: 8px; }
+        .brand-logo-cell { width: 96px; padding-left: 12px; text-align: right; vertical-align: middle; }
+        .brand-logo { max-width: 86px; max-height: 52px; width: auto; height: auto; }
         .brand-name { font-size: 15px; font-weight: bold; color: #142a45; margin-bottom: 3px; }
         .brand-detail { font-size: 8.5px; color: #66758a; line-height: 1.35; }
         .document-title { font-size: 16px; font-weight: bold; color: #142a45; margin: 10px 0 7px; }
@@ -59,10 +72,17 @@ Created: 2026-10-13 10:14:46 Asia/Calcutta (UTC+05:30)
 </head>
 <body>
     <div class="brand">
+        <table><tr>
+            <td>
         <div class="brand-name">{{ $plant?->entity?->legal_name ?: $plant?->name ?: config('app.name') }}</div>
         {{-- @if($plant?->entity?->legal_name)<div class="brand-detail">{{ $plant->name }}</div>@endif --}}
         @if($addressText)<div class="brand-detail">{{ $addressText }}</div>@endif
         @if($plant?->gstin)<div class="brand-detail">GSTIN {{ $plant->gstin }}</div>@endif
+            </td>
+            @if($logoSrc)
+                <td class="brand-logo-cell"><img class="brand-logo" src="{{ $logoSrc }}" alt="Company logo" /></td>
+            @endif
+        </tr></table>
     </div>
 
     <div class="document-title">{{ $title }}</div>
