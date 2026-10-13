@@ -460,7 +460,7 @@
                     @endif
                     <th class="text-right" style="width:8%">{{ $labels['rate'] ?? 'Rate' }}</th>
                     @if ($pdfSettings['discount'] ?? false)
-                        <th class="text-right" style="width8%">Discount</th>
+                        <th class="text-right" style="width:8%">Discount</th>
                     @endif
                     @if ($pdfSettings['tax_rate'] ?? true)
                         <th class="text-right" style="width:8%">Tax %</th>
