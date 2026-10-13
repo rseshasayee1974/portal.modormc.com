@@ -334,7 +334,7 @@
                     if ($pdfSettings['tax_amount'] ?? true) $totalCols++;
                     if ($pdfSettings['amount'] ?? true) $totalCols++; // amount
 
-                    $recipeColspan = min(7, $totalCols - 1);
+                    $recipeColspan = min(4, $totalCols - 1);
                     $remainingCols = max(0, $totalCols - 1 - $recipeColspan);
                 @endphp
                 @foreach ($data['items'] as $item)
@@ -394,8 +394,8 @@
                             <td colspan="{{ $recipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
                                 @if ($hasRecipe)
                                     <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
-                                    <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
-                                        <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
+                                    <div style="display: block; width: 100%; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
+                                        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
                                             @php
                                                 $hsnVal = (!empty($item['hsn']) && trim((string)$item['hsn']) !== '-') ? $item['hsn'] : '38245010';
                                                 $allSegments = [];

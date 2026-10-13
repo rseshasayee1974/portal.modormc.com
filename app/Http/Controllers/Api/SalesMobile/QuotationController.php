@@ -37,8 +37,9 @@ class QuotationController extends Controller
             'patron_id' => ['required', 'integer', $exists('mm_patrons')], 'site_id' => ['required', 'integer', $exists('mm_sites')],
             'quote_date' => 'required|date_format:Y-m-d', 'validity_date' => 'nullable|date_format:Y-m-d|after_or_equal:quote_date',
             'notes' => 'nullable|string|max:10000', 'is_tax_inclusive' => 'required|boolean',
-            'items' => 'required|array|min:1|max:100', 'items.*' => 'required|array:mix_design_id,quantity,rate,tax_id,uom_id,concrete_pump,pump_rate', 'items.*.mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')],
+            'items' => 'required|array|min:1|max:100', 'items.*' => 'required|array:mix_design_id,quantity,rate,tax_id,uom_id,concrete_pump,pump_rate,discount_type,discount', 'items.*.mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')],
             'items.*.quantity' => 'required|numeric|between:0.01,999999', 'items.*.rate' => 'required|numeric|between:0,99999999',
+            'items.*.discount_type' => 'nullable|in:amount,%', 'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
             'items.*.uom_id' => ['nullable', 'integer', $exists('mm_product_units')],
             'items.*.concrete_pump' => 'nullable|string|max:100', 'items.*.pump_rate' => 'nullable|numeric|min:0',
@@ -47,7 +48,7 @@ class QuotationController extends Controller
         $data['sales_executive_id'] = $quotation?->sales_executive_id ?? Access::personnelId();
         $data['items'] = QuotationCalculator::items($data['items'], (bool) $data['is_tax_inclusive']);
         $baseTotal = array_sum(array_column($data['items'], 'amount_total'));
-        $target = $data['is_tax_inclusive'] ? array_sum(array_map(fn ($i) => round($i['quantity'] * $i['rate'] + ($i['pump_rate'] ?? 0), 2), $data['items'])) : $baseTotal;
+        $target = $data['is_tax_inclusive'] ? array_sum(array_map(fn ($i) => round($i['quantity'] * $i['rate'] + ($i['pump_rate'] ?? 0) - ($i['discount_amount'] ?? 0), 2), $data['items'])) : $baseTotal;
         $data['adjustment'] = round(round($target) - $baseTotal, 2);
         $data['status'] = Quotation::STATUS_DRAFT;
         return $data;

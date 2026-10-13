@@ -56,6 +56,8 @@ class StoreQuotationRequest extends FormRequest
             'items.*.uom_id' => 'nullable|integer',
             'items.*.tax_id' => 'nullable|integer',
             'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.discount_type' => 'nullable|in:amount,%',
+            'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.rate' => 'required|numeric|min:0',
             'items.*.untaxed_amount' => 'nullable|numeric',
             'items.*.tax_amount' => 'nullable|numeric',

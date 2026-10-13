@@ -28,6 +28,9 @@ interface QuotationItemPayload {
     quantity: number;
     tax_id: number | null;
     rate: number;
+    discount_type: string;
+    discount: number;
+    discount_amount: number;
     uom_id: null | number;
     tax_amount: number | null;
     untaxed_amount: number;
@@ -109,6 +112,9 @@ const form = useForm({
             quantity: Number(item.quantity || 0),
             tax_id: item.tax_id ?? null,
             rate: Number(item.rate || 0),
+            discount_type: item.discount_type || 'amount',
+            discount: Number(item.discount || 0),
+            discount_amount: Number(item.discount_amount || 0),
             tax_amount: Number(item.tax_amount || 0),
             untaxed_amount: Number(item.untaxed_amount || 0),
             amount_total: Number(item.amount_total || 0),
@@ -245,9 +251,12 @@ const calculateTotals = () => {
             rate: Number(item.rate || 0),
             pump_rate: Number(item.pump_rate || 0),
             taxRate,
+            discount: Number(item.discount || 0),
+            discountType: item.discount_type,
             isTaxInclusive: Boolean(form.is_tax_inclusive),
         });
 
+        item.discount_amount = res.discountAmount;
         item.untaxed_amount = res.untaxedAmount;
         item.tax_amount = res.taxAmount;
         item.amount_total = res.amountTotal;
@@ -299,6 +308,9 @@ function createNewItem(): QuotationItemPayload {
         uom_id: defaultUomId,
         quantity: 1,
         rate: 0,
+        discount_type: 'amount',
+        discount: 0,
+        discount_amount: 0,
         tax_amount: 0,
         untaxed_amount: 0,
         amount_total: 0,
@@ -479,6 +491,7 @@ const sendEmail = () => {
                             <th class="px-3 py-3 text-center" style="width: 120px;">Qty</th>
                             <th class="px-3 py-3 text-center" style="width: 100px;">UOM</th>
                             <th class="px-3 py-3 text-center" style="width: 140px;">Rate</th>
+                                        <th class="px-4 py-3 text-center w-44">Discount</th>
                             <th class="px-3 py-3 text-center" style="width: 140px;">Tax</th>
                             <th class="px-3 py-3 text-center" style="width: 180px;">Pump Type</th>
                             <th class="px-3 py-3 text-center" style="width: 140px;">Pump Rate</th>
@@ -539,6 +552,12 @@ const sendEmail = () => {
                                     :error="form.errors[`items.${index}.rate`]"
                                     :disabled="isLocked"
                                 />
+                            </td>
+                            <td class="p-2 min-w-[180px]">
+                                <div class="flex gap-1">
+                                    <BaseSelect v-model="item.discount_type" :options="[{label: 'Amount', value: 'amount'}, {label: '%', value: '%'}]" optionLabel="label" optionValue="value" class="w-24" :disabled="isLocked" />
+                                    <BaseInputNumber v-model="item.discount" :min="0" :max="item.discount_type === '%' ? 100 : undefined" :minFractionDigits="2" :maxFractionDigits="2" :error="form.errors[`items.${index}.discount`]" class="flex-1" :disabled="isLocked" />
+                                </div>
                             </td>
                              <td class="p-2">
                                 <BaseSelect

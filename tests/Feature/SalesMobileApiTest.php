@@ -49,7 +49,7 @@ class SalesMobileApiTest extends TestCase
             'mm_mix_designs' => ['plant_id','design_name','design_code','is_active'], 'mm_product_units' => ['plant_id','name'],
             'mm_taxes' => ['plant_id','tax_name','tax_type','tax_rate','parent_id','status','tax_group'],
             'mm_quotations' => ['plant_id','reference','patron_id','site_id','quote_date','validity_date','notes','is_tax_inclusive','sales_executive_id','adjustment','status','is_customer_po','amount_untaxed','amount_tax','amount_total','created_by','updated_by','deleted_by','mobile_approval_state','mobile_submitted_by','mobile_submitted_at','mobile_reviewed_by','mobile_reviewed_at','mobile_approval_comment'],
-            'mm_quotation_items' => ['quotation_id','mix_design_id','uom_id','quantity','rate','tax_id','tax_amount','untaxed_amount','amount_total','concrete_pump','pump_rate','created_by','updated_by','deleted_by'],
+            'mm_quotation_items' => ['discount_type','discount','discount_amount','quotation_id','mix_design_id','uom_id','quantity','rate','tax_id','tax_amount','untaxed_amount','amount_total','concrete_pump','pump_rate','created_by','updated_by','deleted_by'],
             'mm_contacts' => ['patron_id','plant_id','name','phone'],
             'mm_customer_pos' => ['plant_id','quotation_id','patron_id','site_id','created_by','sales_executive_id','is_tax_inclusive'],
             'mm_customer_po_items' => ['customer_po_id','mix_design_id','rate','tax_id','quantity','concrete_pump','pump_rate'],

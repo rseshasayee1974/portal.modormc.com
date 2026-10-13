@@ -485,7 +485,7 @@
                     if ($pdfSettings['tax_amount'] ?? true) $totalCols++;
                     if ($pdfSettings['amount'] ?? true) $totalCols++; // amount
 
-                    $recipeColspan = min(7, $totalCols - 1);
+                    $recipeColspan = min(4, $totalCols - 1);
                     $remainingCols = max(0, $totalCols - 1 - $recipeColspan);
                 @endphp
                 @foreach ($data['items'] as $item)
@@ -548,8 +548,8 @@
                                 @endphp
                                 @if ($hasRecipe)
                                     <div style="font-size: 9px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; margin-bottom: 4px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
-                                    <div style="display: inline-block; padding: 2px 4px;">
-                                        <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9px; color: #475569;">
+                                    <div style="display: block; width: 100%; padding: 2px 4px;">
+                                        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9px; color: #475569;">
                                             @php
                                                 $allSegments = [];
                                                 foreach ($item['recipe_materials'] as $rm) {

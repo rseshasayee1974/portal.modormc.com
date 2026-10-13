@@ -22,6 +22,9 @@ class QuotationItem extends Model
         'uom_id',
         'quantity',
         'rate',
+        'discount_type',
+        'discount',
+        'discount_amount',
         'tax_id',
         'tax_amount',
         'untaxed_amount',
@@ -29,6 +32,8 @@ class QuotationItem extends Model
         'concrete_pump',
         'pump_rate',
     ];
+
+    protected $casts = ['discount' => 'decimal:2', 'discount_amount' => 'decimal:2'];
 
     protected static function booted()
     {

@@ -343,7 +343,7 @@
         if ($showTax) $boxTotalCols++;
         if ($showAmount) $boxTotalCols++;
 
-        $boxRecipeColspan = min(7, $boxTotalCols - 1);
+        $boxRecipeColspan = min(4, $boxTotalCols - 1);
         $boxRemainingCols = max(0, $boxTotalCols - 1 - $boxRecipeColspan);
     @endphp
     <table class="items-table">
@@ -424,8 +424,8 @@
                         <td style="border-top: none; padding-top: 0;"></td>
                         <td colspan="{{ $boxRecipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 6px;">
                             <div style="font-size: 8.5px; font-weight: 700; color: #2563eb; margin-top: 1px; margin-bottom: 2px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
-                            <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 4px; padding: 2px 6px;">
-                                <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 8.5px; color: #334155;">
+                            <div style="display: block; width: 100%; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 4px; padding: 2px 6px;">
+                                <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 8.5px; color: #334155;">
                                     @php
                                         $allSegments = [];
                                         foreach ($item['recipe_materials'] as $rm) {
