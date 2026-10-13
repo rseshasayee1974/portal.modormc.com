@@ -29,40 +29,43 @@ class AuthController extends Controller
     {
         $data = $request->validate(['mobile' => ['required', 'string', 'regex:/^\+?[0-9][0-9 ()-]{8,23}$/']]);
         $mobile = $this->normalizeMobile($data['mobile']);
-        $digits = substr($mobile, 1);
         $numberKey = 'sales-mobile:number:'.hash('sha256', $mobile);
         abort_if(RateLimiter::tooManyAttempts($numberKey, 3), 429, 'Too many OTP requests. Try again in a minute.');
         RateLimiter::hit($numberKey, 60);
-        $matches=User::whereNotNull('mobile')->get(['id','mobile'])->filter(fn(User $candidate)=>$this->normalizeMobile((string)$candidate->mobile)===$mobile);
-        abort_if($matches->count()>1,422,'Multiple users have this mobile number. Contact your administrator.');
-        $user=User::whereIn('id',$matches->pluck('id'))->where('is_active',1)->where('is_otp_enabled',1)->first();
-        abort_unless($user,403,'Mobile app access has not been granted or the account is inactive. Contact your administrator.');
-        abort_unless(!$user->lockout_until || $user->lockout_until->isPast(),403,'Account inactive or locked.');
+
+        $matches = User::whereNotNull('mobile')->get(['id', 'mobile'])
+            ->filter(fn (User $user) => $this->normalizeMobile($user->mobile) === $mobile);
+        abort_if($matches->count() > 1, 422, 'Multiple users have this mobile number. Contact your administrator.');
+        $user = User::whereIn('id', $matches->pluck('id'))->where('is_active', 1)->where('is_otp_enabled', 1)->first();
+        abort_unless($user, 403, 'Mobile app access has not been granted or the account is inactive. Contact your administrator.');
+        abort_unless(!$user->lockout_until || $user->lockout_until->isPast(), 403, 'Account inactive or locked.');
+
+        $otp = (string) random_int(100000, 999999);
+        $result = $this->sendWhatsAppTemplate(
+            (string) config('services.tendigit.license_number'),
+            (string) config('services.tendigit.api_key'),
+            substr($mobile, 1),
+            (string) config('services.mobile_otp.template', 'sales_executive_login'),
+            $otp
+        );
+        if (!$this->isWhatsAppAccepted($result)) {
+            $errorCode = $result['error_code'] ?? 'WHATSAPP_SEND_FAILED';
+            $message = match ($errorCode) {
+                'WHATSAPP_TLS_ERROR' => 'The WhatsApp provider HTTPS certificate does not validate.',
+                'WHATSAPP_CONFIG_ERROR' => 'WhatsApp OTP endpoint, credentials or template are not configured.',
+                default => 'Unable to submit WhatsApp verification code. Contact your administrator.',
+            };
+            return response()->json(['success' => false, 'message' => $message, 'error_code' => $errorCode, 'code' => 503], 503);
+        }
 
         $challenge = Str::random(64);
-        $otp = (string) random_int(100000, 999999);
-        Cache::put('sales-mobile:'.$challenge, ['user_id'=>$user->id,'mobile'=>$mobile,'access_revision'=>(int)$user->mobile_access_revision,'otp'=>Hash::make($otp)], now()->addMinutes(5));
-        $result=$this->sendWhatsAppTemplate((string)config('services.tendigit.license_number'), (string)config('services.tendigit.api_key'), $digits, (string)config('services.mobile_otp.template','sales_executive_login'), $otp);
-        $body=json_decode($result['response'] ?? '',true);
-        $status=is_array($body) ? ($body['status'] ?? $body['success'] ?? null) : null;
-        $error=is_array($body) ? ($body['error'] ?? null) : null;
-        $code=is_array($body) ? ($body['code'] ?? $body['Code'] ?? null) : null;
-        $message=is_array($body) ? ($body['message'] ?? $body['Message'] ?? $body['response'] ?? '') : ($result['response'] ?? '');
-        $failed=($result['error'] ?? true) || ($result['http_status'] ?? 0)<200 || ($result['http_status'] ?? 0)>=300
-            || trim($result['response'] ?? '')==='' || $status===false
-            || in_array(strtolower((string)$status),['error','failed','failure','false'],true)
-            || !in_array($error,[null,false,0,'','false','0'],true)
-            || (is_numeric($code) && ((int)$code>=400 || (int)$code<0))
-            || (is_string($message) && preg_match('/\b(error|failed|failure|invalid|insufficient|unauthorized|unauthorised)\b/i',strip_tags($message)))
-            || (is_string($message) && preg_match('/<html|<!doctype/i',$message));
-        if ($failed) {
-            Cache::forget('sales-mobile:'.$challenge);
-            return response()->json(['success'=>false,'message'=>($result['error_code'] ?? '')==='WHATSAPP_TLS_ERROR'
-                ? 'The WhatsApp provider HTTPS certificate does not validate. Tendigit must correct its certificate or confirm the HTTPS API endpoint.'
-                : 'Unable to submit WhatsApp verification code. Contact your administrator.',
-                'error_code'=>$result['error_code'] ?? 'WHATSAPP_SEND_FAILED','code'=>503],503);
-        }
-        return response()->json(['success'=>true,'data'=>['otp_required'=>true,'channel'=>'whatsapp','challenge_id'=>$challenge,'expires_in'=>300]],202);
+        Cache::put('sales-mobile:'.$challenge, [
+            'user_id' => $user->id, 'mobile' => $mobile,
+            'access_revision' => (int) $user->mobile_access_revision, 'otp' => Hash::make($otp),
+        ], now()->addMinutes(5));
+        return response()->json(['success' => true, 'data' => [
+            'otp_required' => true, 'channel' => 'whatsapp', 'challenge_id' => $challenge, 'expires_in' => 300,
+        ]], 202);
     }
 
     private function normalizeMobile(string $mobile): string
@@ -74,16 +77,43 @@ class AuthController extends Controller
 
     protected function sendWhatsAppTemplate(string $licenseNumber, string $apiKey, string $contact, string $template, string $paramString): array
     {
-        $url=(string)config('services.tendigit.endpoint','https://login.tendigit.in/api/sendtemplate.php');
-        $params=['LicenseNumber'=>$licenseNumber,'APIKey'=>$apiKey,'Contact'=>$contact,'Template'=>$template,'Param'=>$paramString];
-        $ch=curl_init($url.'?'.http_build_query($params));
-        curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>10,CURLOPT_TIMEOUT=>30]);
-        $response=curl_exec($ch);
-        $errno=curl_errno($ch);
-        $status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        if ($errno) return ['error'=>true,'error_code'=>$errno===60 ? 'WHATSAPP_TLS_ERROR' : 'WHATSAPP_CONNECTION_ERROR'];
-        return ['error'=>false,'response'=>$response,'http_status'=>$status];
+        $url = (string) config('services.tendigit.endpoint', 'https://login.tendigit.in/api/sendtemplate.php');
+        if (!$licenseNumber || !$apiKey || !$template || parse_url($url, PHP_URL_SCHEME) !== 'https' || !parse_url($url, PHP_URL_HOST)) {
+            return ['error' => true, 'error_code' => 'WHATSAPP_CONFIG_ERROR'];
+        }
+        $params = ['LicenseNumber' => $licenseNumber, 'APIKey' => $apiKey,
+            'Contact' => $contact, 'Template' => $template, 'Param' => $paramString];
+        $curl = curl_init($url.'?'.http_build_query($params));
+        curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 30]);
+        $response = curl_exec($curl);
+        $errno = curl_errno($curl);
+        $httpStatus = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        if ($errno) {
+            return ['error' => true, 'error_code' => in_array($errno, [51, 60, 77, 90, 91], true)
+                ? 'WHATSAPP_TLS_ERROR' : 'WHATSAPP_CONNECTION_ERROR'];
+        }
+        return ['error' => false, 'http_status' => $httpStatus, 'response' => (string) $response];
+    }
+
+    private function isWhatsAppAccepted(array $result): bool
+    {
+        $httpStatus = $result['http_status'] ?? 0;
+        $response = (string) ($result['response'] ?? '');
+        if (($result['error'] ?? true) || $httpStatus < 200 || $httpStatus >= 300 || trim($response) === '') return false;
+
+        $body = json_decode($response, true);
+        $body = is_array($body) ? $body : [];
+        $status = $body['status'] ?? $body['success'] ?? null;
+        $error = $body['error'] ?? null;
+        $code = $body['code'] ?? $body['Code'] ?? null;
+        if ($status === false || in_array(strtolower((string) $status), ['error', 'failed', 'failure', 'false'], true)) return false;
+        if (!in_array($error, [null, false, 0, '', 'false', '0'], true)) return false;
+        if (is_numeric($code) && ((int) $code >= 400 || (int) $code < 0)) return false;
+
+        $message = $body['message'] ?? $body['Message'] ?? $body['response'] ?? $response;
+        return !is_string($message) || !preg_match('/\b(error|failed|failure|invalid|insufficient|unauthorized|unauthorised)\b|<html|<!doctype/i', $message);
     }
 
     public function verify(Request $request)

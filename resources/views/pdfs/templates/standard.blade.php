@@ -24,6 +24,10 @@
             }
         }
 
+        /* Keep the document outline visible beside the borderless branding cells. */
+        .print-brand-header td:first-child { border-left: 1px solid #cbd5e1 !important; }
+        .print-brand-header td:last-child { border-right: 1px solid #cbd5e1 !important; }
+
         /* HEADER */
         .inv-header {
             display: table;

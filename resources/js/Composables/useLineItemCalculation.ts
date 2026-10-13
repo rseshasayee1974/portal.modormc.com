@@ -5,7 +5,7 @@ export interface LineItemCalculationParams {
     taxRate: number;
     isTaxInclusive: boolean;
     discount?: number;
-    discountType?: string;
+    discountType?: string | null;
 }
 
 export interface LineItemCalculationResult {

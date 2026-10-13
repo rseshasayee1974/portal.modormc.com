@@ -32,7 +32,7 @@ interface QuotationItemPayload {
     quantity: number;
     tax_id: number | null;
     rate: number;
-    discount_type: string;
+    discount_type: string | null;
     discount: number;
     discount_amount: number;
     uom_id: number | null;
@@ -113,7 +113,7 @@ function createNewItem(): QuotationItemPayload {
         tax_id: null,
         uom_id: defaultUomId, 
         rate: 0,
-        discount_type: 'amount',
+        discount_type: null,
         discount: 0,
         discount_amount: 0,
         tax_amount: 0,
@@ -713,7 +713,7 @@ const submit = () => {
                                         </td>
                             <td class="p-2 min-w-[180px]">
                                 <div class="flex gap-1">
-                                    <BaseSelect v-model="item.discount_type" :options="[{label: 'Amount', value: 'amount'}, {label: '%', value: '%'}]" optionLabel="label" optionValue="value" class="w-24" />
+                                    <BaseSelect v-model="item.discount_type" placeholder="Discount type" showClear :options="[{label: 'Amount', value: 'amount'}, {label: '%', value: '%'}]" optionLabel="label" optionValue="value" class="w-24" />
                                     <BaseInputNumber v-model="item.discount" :min="0" :max="item.discount_type === '%' ? 100 : undefined" :minFractionDigits="2" :maxFractionDigits="2" :error="form.errors[`items.${index}.discount`]" class="flex-1" />
                                 </div>
                             </td>

@@ -52,6 +52,32 @@ class QuotationDiscountTest extends TestCase
         $this->assertEquals(1062, $line['amount_total']);
     }
 
+    public function test_discount_is_optional_and_blank_values_mean_zero(): void
+    {
+        foreach ([[], ['discount'=>null, 'discount_type'=>null], ['discount'=>'', 'discount_type'=>''], ['discount'=>0]] as $optional) {
+            $line = QuotationCalculator::items([array_merge(['quantity'=>1, 'rate'=>500], $optional)], false)[0];
+            $this->assertEquals(0, $line['discount']);
+            $this->assertEquals(0, $line['discount_amount']);
+            $this->assertEquals(500, $line['amount_total']);
+            $this->assertNull($line['discount_type']);
+        }
+    }
+
+    public function test_create_and_edit_requests_accept_optional_types_and_normalize_labels(): void
+    {
+        foreach ([\App\Http\Requests\StoreQuotationRequest::class, \App\Http\Requests\UpdateQuotationRequest::class] as $class) {
+            foreach ([['Amount', 10, 'amount'], ['fixed', 10, 'amount'], ['Percentage', 10, '%'], [' % ', 10, '%'], ['', null, null], ['none', 0, null]] as [$type, $value, $expected]) {
+                $request = $class::create('/', 'POST', ['items'=>[['discount_type'=>$type, 'discount'=>$value]]]);
+                (new \ReflectionMethod($request, 'prepareForValidation'))->invoke($request);
+                $this->assertSame($expected, $request->input('items.0.discount_type'));
+                $validation = \Illuminate\Support\Facades\Validator::make($request->all(), [
+                    'items.*.discount_type'=>'nullable|in:amount,%', 'items.*.discount'=>'nullable|numeric|min:0',
+                ]);
+                $this->assertFalse($validation->fails());
+            }
+        }
+    }
+
     public function test_invalid_discounts_are_rejected(): void
     {
         foreach ([['discount_type'=>'%', 'discount'=>101], ['discount_type'=>'amount', 'discount'=>501],
