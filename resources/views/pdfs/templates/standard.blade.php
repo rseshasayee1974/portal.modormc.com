@@ -453,23 +453,23 @@
                         <th class="text-left" style="width:9%">Pump Charges</th>
                     @endif
                     @if ($pdfSettings['qty'] ?? true)
-                        <th class="text-right" style="width:5%">Qty</th>
+                        <th class="text-right" style="width:{{ in_array(strtoupper($data['doc_title'] ?? ''), ['QUOTATION', 'PRICE LIST'], true) ? 10 : 5 }}%">Qty</th>
                     @endif
                     @if ($pdfSettings['unit'] ?? true)
-                        <th class="text-center" style="width:4%">UOM</th>
+                        <th class="text-center" style="width:8%">UOM</th>
                     @endif
-                    <th class="text-right" style="width:9%">{{ $labels['rate'] ?? 'Rate' }}</th>
+                    <th class="text-right" style="width:8%">{{ $labels['rate'] ?? 'Rate' }}</th>
                     @if ($pdfSettings['discount'] ?? false)
-                        <th class="text-right" style="width:7%">Discount</th>
+                        <th class="text-right" style="width8%">Discount</th>
                     @endif
                     @if ($pdfSettings['tax_rate'] ?? true)
-                        <th class="text-right" style="width:5%">Tax %</th>
+                        <th class="text-right" style="width:8%">Tax %</th>
                     @endif
                     @if ($pdfSettings['tax_amount'] ?? true)
-                        <th class="text-right" style="width:8%">Tax Amt</th>
+                        <th class="text-right" style="width:9%">Tax Amt</th>
                     @endif
                     @if ($pdfSettings['amount'] ?? true)
-                        <th class="text-right" style="width:11%">{{ $labels['amount'] ?? 'Amount' }}</th>
+                        <th class="text-right" style="width:1%">{{ $labels['amount'] ?? 'Amount' }}</th>
                     @endif
                 </tr>
             </thead>
