@@ -60,7 +60,7 @@ Created: 2026-10-13 10:14:46 Asia/Calcutta (UTC+05:30)
 <body>
     <div class="brand">
         <div class="brand-name">{{ $plant?->entity?->legal_name ?: $plant?->name ?: config('app.name') }}</div>
-        @if($plant?->entity?->legal_name)<div class="brand-detail">{{ $plant->name }}</div>@endif
+        {{-- @if($plant?->entity?->legal_name)<div class="brand-detail">{{ $plant->name }}</div>@endif --}}
         @if($addressText)<div class="brand-detail">{{ $addressText }}</div>@endif
         @if($plant?->gstin)<div class="brand-detail">GSTIN {{ $plant->gstin }}</div>@endif
     </div>
