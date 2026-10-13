@@ -24,7 +24,7 @@ class WorkspaceController extends Controller
                 ->orWhere('design_code', 'like', '%'.$r->search.'%'));
         }
         return response()->json(['success' => true, 'data' => $q->orderBy('design_name')->orderBy('id')
-            ->paginate($r->integer('per_page', 20), ['id', 'design_name', 'design_code', 'grade', 'concrete_grade_id', 'unit_id', 'rate_per_qty'])]);
+            ->paginate($r->integer('per_page', 20), ['id', 'design_name', 'design_code', 'concrete_grade_id', 'unit_id', 'rate_per_qty'])]);
     }
 
     public function taxes(Request $r)
