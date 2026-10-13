@@ -32,6 +32,10 @@ class QuotationController extends Controller
     private function data(Request $r, ?Quotation $quotation): array
     {
         $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
+        if (is_array($r->input('items'))) {
+            $r->merge(['items' => array_map(fn ($item) => is_array($item)
+                ? QuotationCalculator::normalizeDiscount($item) : $item, $r->input('items'))]);
+        }
         $data = $r->validate([
             'reference' => ['nullable', 'string', 'max:100', Rule::unique('mm_quotations', 'reference')->where('plant_id', Access::plantId())->whereNull('deleted_at')->ignore($quotation?->id)],
             'patron_id' => ['required', 'integer', $exists('mm_patrons')], 'site_id' => ['required', 'integer', $exists('mm_sites')],

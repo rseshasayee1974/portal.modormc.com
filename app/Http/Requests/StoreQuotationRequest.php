@@ -16,6 +16,10 @@ class StoreQuotationRequest extends FormRequest
 
     protected function prepareForValidation()
     {
+        if (is_array($this->input('items'))) {
+            $this->merge(['items' => array_map(fn ($item) => is_array($item)
+                ? \App\Services\Mobile\QuotationCalculator::normalizeDiscount($item) : $item, $this->input('items'))]);
+        }
         if ($this->filled('reference') && is_numeric($this->reference)) {
             $now = now();
             $startYear = $now->month >= 4 ? $now->year : $now->year - 1;

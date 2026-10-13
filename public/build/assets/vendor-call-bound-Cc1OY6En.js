@@ -1,1 +1,0 @@
-import{r}from"./vendor-get-intrinsic-Bir8kKUA.js";import{r as t}from"./vendor-call-bind-apply-helpers-BxVMGeos.js";var n,o;function e(){if(o)return n;o=1;var e=r(),i=t(),p=i([e("%String.prototype.indexOf%")]);return n=function(r,t){var n=e(r,!!t);return"function"==typeof n&&p(r,".prototype.")>-1?i([n]):n}}export{e as r};

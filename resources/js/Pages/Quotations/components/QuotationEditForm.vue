@@ -28,7 +28,7 @@ interface QuotationItemPayload {
     quantity: number;
     tax_id: number | null;
     rate: number;
-    discount_type: string;
+    discount_type: string | null;
     discount: number;
     discount_amount: number;
     uom_id: null | number;
@@ -112,7 +112,7 @@ const form = useForm({
             quantity: Number(item.quantity || 0),
             tax_id: item.tax_id ?? null,
             rate: Number(item.rate || 0),
-            discount_type: item.discount_type || 'amount',
+            discount_type: item.discount_type ?? null,
             discount: Number(item.discount || 0),
             discount_amount: Number(item.discount_amount || 0),
             tax_amount: Number(item.tax_amount || 0),
@@ -308,7 +308,7 @@ function createNewItem(): QuotationItemPayload {
         uom_id: defaultUomId,
         quantity: 1,
         rate: 0,
-        discount_type: 'amount',
+        discount_type: null,
         discount: 0,
         discount_amount: 0,
         tax_amount: 0,
@@ -555,7 +555,7 @@ const sendEmail = () => {
                             </td>
                             <td class="p-2 min-w-[180px]">
                                 <div class="flex gap-1">
-                                    <BaseSelect v-model="item.discount_type" :options="[{label: 'Amount', value: 'amount'}, {label: '%', value: '%'}]" optionLabel="label" optionValue="value" class="w-24" :disabled="isLocked" />
+                                    <BaseSelect v-model="item.discount_type" placeholder="Discount type" showClear :options="[{label: 'Amount', value: 'amount'}, {label: '%', value: '%'}]" optionLabel="label" optionValue="value" class="w-24" :disabled="isLocked" />
                                     <BaseInputNumber v-model="item.discount" :min="0" :max="item.discount_type === '%' ? 100 : undefined" :minFractionDigits="2" :maxFractionDigits="2" :error="form.errors[`items.${index}.discount`]" class="flex-1" :disabled="isLocked" />
                                 </div>
                             </td>
