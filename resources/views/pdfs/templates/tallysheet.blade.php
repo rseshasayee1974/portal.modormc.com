@@ -325,7 +325,7 @@
                     if ($pdfSettings['amount'] ?? true) $totalCols++;
                     if ($pdfSettings['show_pump_charges'] ?? true) $totalCols += 2;
                     if ($pdfSettings['discount'] ?? false) $totalCols++;
-                    $recipeColspan = min(4, $totalCols - 1);
+                    $recipeColspan = min(7, $totalCols - 1);
                     $remainingCols = max(0, $totalCols - 1 - $recipeColspan);
                 @endphp
                 @foreach ($data['items'] as $item)

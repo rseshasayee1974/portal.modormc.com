@@ -343,7 +343,7 @@
         if ($showTax) $boxTotalCols++;
         if ($showAmount) $boxTotalCols++;
 
-        $boxRecipeColspan = min(4, $boxTotalCols - 1);
+        $boxRecipeColspan = min(8, $boxTotalCols - 1);
         $boxRemainingCols = max(0, $boxTotalCols - 1 - $boxRecipeColspan);
     @endphp
     <table class="items-table">

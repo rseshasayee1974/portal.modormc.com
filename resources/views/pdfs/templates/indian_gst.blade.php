@@ -225,7 +225,7 @@
                 if (($pdfSettings['tax_rate'] ?? true) || ($pdfSettings['tax_amount'] ?? true)) $igstTotalCols++;
                 if ($pdfSettings['amount'] ?? true) $igstTotalCols++;
 
-                $igstRecipeColspan = min(4, $igstTotalCols - 1);
+                $igstRecipeColspan = min(8, $igstTotalCols - 1);
                 $igstRemainingCols = max(0, $igstTotalCols - 1 - $igstRecipeColspan);
             @endphp
             @foreach($data['items'] as $item)

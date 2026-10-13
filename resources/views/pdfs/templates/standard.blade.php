@@ -485,7 +485,7 @@
                     if ($pdfSettings['tax_amount'] ?? true) $totalCols++;
                     if ($pdfSettings['amount'] ?? true) $totalCols++; // amount
 
-                    $recipeColspan = min(4, $totalCols - 1);
+                    $recipeColspan = min(8, $totalCols - 1);
                     $remainingCols = max(0, $totalCols - 1 - $recipeColspan);
                 @endphp
                 @foreach ($data['items'] as $item)
