@@ -7,16 +7,16 @@ Created: 2026-10-12 13:46:15 Asia/Calcutta (UTC+05:30)
 namespace App\Services;
 
 use Illuminate\Http\Client\Response;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 class TendigitWhatsAppClient
 {
     public function sendTemplate(string $contact, string $template, array $parameters): Response
     {
-        $license='76484572302';
-        $apiKey='PhaO2ElxqQ78WyRC61dN5zInt';
-        $endpoint="https://app.tendigit.in/api/sendtemplate.php";
-      
+        $license = config('services.tendigit.license_number');
+        $apiKey = config('services.tendigit.api_key');
+        $endpoint = config('services.tendigit.endpoint', 'https://login.tendigit.in/api/sendtemplate.php');
         $values=array_map(static fn($value)=>trim(preg_replace('/\s+/u',' ',str_replace(',',';',(string)$value))),$parameters);
         // One provider request; never retry uncertain submissions or log credentials/OTP values.
         return Http::connectTimeout(10)->timeout(30)->get($endpoint,[
@@ -24,6 +24,19 @@ class TendigitWhatsAppClient
             'Contact'=>preg_replace('/[^0-9]/','',$contact),
             'Template'=>$template,'Param'=>implode(',',$values),
         ]);
+    }
+
+    public function isCertificateFailure(ConnectionException $exception): bool
+    {
+        // Certificate verification fails before the HTTP request can be submitted.
+        for ($cause = $exception; $cause !== null; $cause = $cause->getPrevious()) {
+            if (method_exists($cause, 'getHandlerContext')) {
+                $context = $cause->getHandlerContext();
+                if (in_array((int) ($context['errno'] ?? 0), [51, 60, 77, 90, 91], true)) return true;
+            }
+            if (preg_match('/cURL error (51|60|77|90|91)\b/i', $cause->getMessage())) return true;
+        }
+        return false;
     }
 
     public function isAccepted(Response $response): bool

@@ -8,6 +8,8 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
     <div class="header-title">TDS Deduction & Certificate Statement (Period: {{ $start }} to {{ $end }})</div>
 
     <table class="details-table">

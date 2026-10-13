@@ -218,17 +218,14 @@
 </head>
 <body>
 <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
 
     <!-- ═══════════════════════════════════════
          HEADER
     ════════════════════════════════════════ -->
     <div class="inv-header">
-        <div class="header-left">
-            <div class="co-name">{{ $order->plant->entity->entity_name ?? $order->plant->name }}</div>
-            <div class="co-detail">{{ $order->plant->address }}</div>
-            <div class="co-detail">{{ $order->plant->city }}, {{ $order->plant->state }} - {{ $order->plant->pincode }}</div>
-            <div class="co-detail">GSTIN: {{ $order->plant->gstin ?? 'N/A' }}</div>
-        </div>
+        
         <div class="header-right">
             <div class="inv-title">PURCHASE ORDER</div>
             <div class="inv-ref">PO# <strong>{{ $order->ref_no }}</strong></div>

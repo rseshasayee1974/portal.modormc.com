@@ -250,6 +250,8 @@
 <body>
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
 
         @if (
             ($pdfSettings['show_einvoice_details'] ?? true) &&
@@ -277,35 +279,7 @@
         @endif
 
         <div class="inv-header">
-            <div class="header-left">
-                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                    @php
-                        $cleanLogoPath = ltrim(
-                            str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
-                            '/',
-                        );
-                        $logoUrl =
-                            request()->route('action') !== 'download' && !($is_pdf ?? false)
-                                ? asset('storage/' . $cleanLogoPath)
-                                : public_path('storage/' . $cleanLogoPath);
-                    @endphp
-                    <div style="margin-bottom: 6px;">
-                        <img src="{{ $logoUrl }}"
-                            style="max-height: 50px; max-width: 180px; object-fit: contain;" />
-                    </div>
-                @endif
-                @if ($pdfSettings['company_name'] ?? true)
-                    <div class="co-name">{{ $data['company']['name'] }}</div>
-                @endif
-                @if ($pdfSettings['address'] ?? true)
-                    <div class="co-detail">{{ $data['company']['address'] }}</div>
-                    <div class="co-detail">{{ $data['company']['city'] }}, {{ $data['company']['state'] }}</div>
-                @endif
-                @if (($pdfSettings['gstin'] ?? true) && $data['company']['gstin'])
-                    <div class="co-detail" style="font-weight:700; color:#1e293b; margin-top:2px;">GSTIN:
-                        {{ $data['company']['gstin'] }}</div>
-                @endif
-            </div>
+            
             <div class="header-right">
                 <div class="inv-title">{{ $data['doc_title'] }}</div>
                 <div class="inv-ref">Ref# <strong>{{ strtoupper($data['doc_no']) }}</strong></div>

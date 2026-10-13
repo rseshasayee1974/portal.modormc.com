@@ -184,6 +184,8 @@
 <body>
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
         @if (
             ($pdfSettings['show_einvoice_details'] ?? true) &&
                 (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
@@ -210,27 +212,7 @@
         @endif
 
         <div class="title-bar">
-            <div class="title-left">
-                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                    @php
-                        $cleanLogoPath = ltrim(
-                            str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
-                            '/',
-                        );
-                        $logoUrl =
-                            request()->route('action') !== 'download' && !($is_pdf ?? false)
-                                ? asset('storage/' . $cleanLogoPath)
-                                : public_path('storage/' . $cleanLogoPath);
-                    @endphp
-                    <div style="margin-bottom: 4px;">
-                        <img src="{{ $logoUrl }}"
-                            style="max-height: 45px; max-width: 160px; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px;" />
-                    </div>
-                @endif
-                {{ $data['company']['name'] }}<br><span
-                    style="font-size:10px;color:#ccc">{{ $data['company']['city'] }},
-                    {{ $data['company']['state'] }}</span>
-            </div>
+            
             <div class="title-right">{{ $data['doc_title'] }}<br><span
                     style="font-size:11px;font-weight:400;opacity:0.7">{{ strtoupper($data['doc_no']) }}</span></div>
         </div>

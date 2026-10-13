@@ -74,7 +74,7 @@ class AuthController extends Controller
 
     protected function sendWhatsAppTemplate(string $licenseNumber, string $apiKey, string $contact, string $template, string $paramString): array
     {
-        $url=(string)config('services.tendigit.endpoint','https://app.tendigit.in/api/sendtemplate.php');
+        $url=(string)config('services.tendigit.endpoint','https://login.tendigit.in/api/sendtemplate.php');
         $params=['LicenseNumber'=>$licenseNumber,'APIKey'=>$apiKey,'Contact'=>$contact,'Template'=>$template,'Param'=>$paramString];
         $ch=curl_init($url.'?'.http_build_query($params));
         curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>10,CURLOPT_TIMEOUT=>30]);

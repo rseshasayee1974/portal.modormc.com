@@ -18,6 +18,8 @@ td, th { padding: 2mm; vertical-align: top; }
 .notes { margin-top: 6mm; font-size: 8pt; }
 .footer { margin-top: 12mm; border-top: 1px solid #cbd5e1; padding-top: 3mm; }
 </style></head><body>
+@include('pdfs.partials._brand_header')
+
 @php
     $bill = in_array(strtolower($invoice->invoice_type), ['bill', 'purchase'], true);
     $plant = $invoice->plant;
@@ -28,11 +30,7 @@ td, th { padding: 2mm; vertical-align: top; }
         ? (float)$invoice->subtotal * (float)$invoice->global_discount / 100
         : (float)$invoice->global_discount;
 @endphp
-<table class="header"><tr><td>
-    <h2>{{ $plant?->entity?->legal_name ?? $plant?->name }}</h2>
-    {{ $plant?->name }}<br>{{ $address($plant?->addresses->first()) }}<br>
-    GSTIN: {{ $plant?->gstin ?? '—' }}
-</td><td class="right"><h1>{{ $bill ? 'BILL' : ((float)$invoice->tax_amount > 0 ? 'TAX INVOICE' : 'INVOICE') }}</h1><span class="muted">{{ $invoice->invoice_label }} · COPY</span></td></tr></table>
+<table class="header"><tr><td class="right"><h1>{{ $bill ? 'BILL' : ((float)$invoice->tax_amount > 0 ? 'TAX INVOICE' : 'INVOICE') }}</h1><span class="muted">{{ $invoice->invoice_label }} · COPY</span></td></tr></table>
 <table class="details"><tr><td style="width:55%">
     <strong>{{ $bill ? 'Supplier / Vendor' : 'Bill to' }}</strong><br>
     {{ $party?->legal_name ?? '—' }}<br>{{ $address($party?->addresses->first()) }}<br>

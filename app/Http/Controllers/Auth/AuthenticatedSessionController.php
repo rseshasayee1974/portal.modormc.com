@@ -241,7 +241,7 @@ dd($paramString);
      */
     private function sendWhatsAppTemplate($licenseNumber, $apiKey, $contact, $template, $paramString)
     {
-        $url = "https://app.tendigit.in/api/sendtemplate.php";
+        $url = "https://login.tendigit.in/api/sendtemplate.php";
         $params = [
             'LicenseNumber' => $licenseNumber,
             'APIKey'        => $apiKey,

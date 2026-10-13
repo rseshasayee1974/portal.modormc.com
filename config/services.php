@@ -6,7 +6,7 @@ return [
         'country_code' => env('MOBILE_OTP_COUNTRY_CODE', '91'),
     ],
     'tendigit' => [
-        'endpoint' => env('TENDIGIT_ENDPOINT', 'https://app.tendigit.in/api/sendtemplate.php'),
+        'endpoint' => env('TENDIGIT_ENDPOINT', 'https://login.tendigit.in/api/sendtemplate.php'),
         'license_number' => env('TENDIGIT_LICENSE_NUMBER'),
         'api_key' => env('TENDIGIT_API_KEY'),
     ],

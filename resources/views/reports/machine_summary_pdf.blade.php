@@ -9,6 +9,8 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
 
     <div class="title-container">
         <h2 class="report-title">Machine Summary Report</h2>

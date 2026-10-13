@@ -483,6 +483,7 @@ class PrintDataFormatter
         $pan       = strlen($gstin) >= 14 ? substr($gstin, 2, 10) : ($plant?->pan ?? '');
 
         return [
+            'plant_id'       => $plant?->id,
             'name'           => $plant?->entity?->legal_name ?? $plant?->entity?->entity_name ?? $plant?->name ?? 'Company',
             'address'        => $plAddr?->line_1 ? $plAddr?->line_1 . ' ' . $plAddr?->line_2 : '',
             'city'           => $plAddr?->city ?? '',

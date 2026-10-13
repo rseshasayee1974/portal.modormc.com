@@ -8,6 +8,8 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
     <div class="header">
         <h1>Quality Control Technical Report</h1>
         <p>Ready Mix Concrete Quality Control Summary &bull; Generated: {{ $generated_at }}</p>

@@ -160,16 +160,13 @@
 <body>
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
     {{-- TOP LOGO & TITLE HEADER --}}
     <table class="header-table">
         <tr>
             <td style="width: 65%;">
-                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                    @php $logoUrl = $resolveAssetPath($data['company']['logo_path']); @endphp
-                    @if(!empty($logoUrl))
-                        <img src="{{ $logoUrl }}" style="max-height: 40px; max-width: 160px; object-fit: contain; vertical-align: middle; margin-right: 8px;" />
-                    @endif
-                @endif
+                
                 @if(($pdfSettings['company_name'] ?? true) && $hasValue($data['company']['name'] ?? null))
                     <span style="font-size: 12pt; font-weight: bold; text-transform: uppercase; vertical-align: middle;">{{ $data['company']['name'] }}</span>
                 @endif

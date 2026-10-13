@@ -197,6 +197,8 @@
 <body>
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
+@include('pdfs.partials._brand_header')
+
         @if (
             ($pdfSettings['show_einvoice_details'] ?? true) &&
                 (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
@@ -224,22 +226,7 @@
 
         <div class="ledger-header">
             <div class="lh-left">
-                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                    @php
-                        $cleanLogoPath = ltrim(
-                            str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
-                            '/',
-                        );
-                        $logoUrl =
-                            request()->route('action') !== 'download' && !($is_pdf ?? false)
-                                ? asset('storage/' . $cleanLogoPath)
-                                : public_path('storage/' . $cleanLogoPath);
-                    @endphp
-                    <div style="margin-bottom: 4px;">
-                        <img src="{{ $logoUrl }}"
-                            style="max-height: 45px; max-width: 160px; object-fit: contain;" />
-                    </div>
-                @endif
+                
                 <div class="co-name">{{ $data['company']['name'] }}</div>
                 <div class="co-det">{{ $data['company']['address'] }}, {{ $data['company']['city'] }} | GSTIN:
                     {{ $data['company']['gstin'] ?? 'N/A' }}</div>

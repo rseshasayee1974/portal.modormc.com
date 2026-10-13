@@ -61,6 +61,9 @@ class DispatchWhatsAppService
                 // Do not retry a sending request: the provider may accept it before a timeout.
                 $response = $this->client->sendTemplate($contact, $template, $values);
             } catch (ConnectionException $e) {
+                if ($this->client->isCertificateFailure($e)) {
+                    $this->reject($record, 'Tendigit HTTPS certificate verification failed. No WhatsApp request was submitted. Ask Tendigit to repair the endpoint certificate, then try again.');
+                }
                 $message = 'Tendigit could not confirm the request. Check the provider before trying again.';
                 $record->update(['status' => 'unknown', 'error_message' => $message, 'updated_by' => auth()->id()]);
                 $this->fail($message);

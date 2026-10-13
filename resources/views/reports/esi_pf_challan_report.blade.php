@@ -8,6 +8,8 @@
     </style>
 </head>
 <body>
+@include('pdfs.partials._brand_header')
+
     <table class="header-table">
         <tr>
             <td style="width: 50%;">
@@ -18,15 +20,7 @@
                 </div>
             </td>
             <td style="width: 50%; text-align: right;">
-                <div class="address-box">
-                    <span class="address-title">Plant / Branch:</span>
-                    <span class="address-name">{{ $plant->name ?? '' }}</span>
-                    @if($plant && $plant->addresses->isNotEmpty())
-                        @php $plAddr = $plant->addresses->first(); @endphp
-                        {{ $plAddr->address_line1 ?? '' }}<br>
-                        {{ $plAddr->city ?? '' }}, {{ $plAddr->state->state_name ?? '' }} - {{ $plAddr->pincode ?? '' }}
-                    @endif
-                </div>
+                
             </td>
         </tr>
     </table>
