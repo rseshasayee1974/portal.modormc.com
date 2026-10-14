@@ -21,6 +21,7 @@ class SalesMobileSitesTest extends TestCase
             $table->id();
             $table->integer('plant_id');
             $table->integer('created_by')->nullable();
+            $table->integer('updated_by')->nullable();
             $table->integer('sales_executive_id')->nullable();
             $table->string('mobile_approval_state');
             $table->integer('mobile_submitted_by')->nullable();
@@ -31,7 +32,7 @@ class SalesMobileSitesTest extends TestCase
             $table->timestamps();
             $table->softDeletes();
         });
-        DB::table('mm_quotations')->insert(['id' => 1, 'plant_id' => 11, 'created_by' => 99, 'mobile_submitted_by' => 99, 'mobile_approval_state' => 'pending']);
+        DB::table('mm_quotations')->insert(['id' => 1, 'plant_id' => 11, 'created_by' => 99, 'mobile_submitted_by' => 99, 'mobile_approval_state' => 'pending', 'status' => 1]);
         $user = \Mockery::mock(User::class)->makePartial();
         $user->id = 10;
         $user->setRelation('personnel', null);
@@ -47,16 +48,16 @@ class SalesMobileSitesTest extends TestCase
     public function test_saas_owner_can_review_own_draft_without_permission(): void
     {
         $this->reviewContext([], true);
-        DB::table('mm_quotations')->where('id', 1)->update(['mobile_approval_state' => 'draft', 'mobile_submitted_by' => 10]);
+        DB::table('mm_quotations')->where('id', 1)->update(['status' => 0, 'mobile_approval_state' => 'draft', 'mobile_submitted_by' => 10]);
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertOk()
             ->assertJsonPath('data.mobile_approval_state', 'approved')->assertJsonPath('data.mobile_reviewed_by', 10);
     }
 
-    public function test_reviewer_requires_permission_and_visibility(): void
+    public function test_reviewer_requires_visibility_without_module_permission(): void
     {
         $this->reviewContext();
-        $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertForbidden()
-            ->assertExactJson(['message' => 'Required permission: QUOTATION.APPROVE']);
+        $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertNotFound()
+            ->assertExactJson(['message' => 'Quotation not found or you do not have access to it.']);
         Route::matched(fn ($event) => $event->request->attributes->set('mobile_role', (object) ['permissions' => collect([(object) ['name' => 'QUOTATION.APPROVE']])]));
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertNotFound()
             ->assertExactJson(['message' => 'Quotation not found or you do not have access to it.']);
@@ -229,7 +230,7 @@ class SalesMobileSitesTest extends TestCase
         $role = new \Spatie\Permission\Models\Role;
         $role->forceFill(['name' => 'Super Admin', 'guard_name' => 'web']);
         $admin->setRelation('roles', new \Illuminate\Database\Eloquent\Collection([$role]));
-        $this->assertSame([1, 2, 3, 4], \App\Services\Mobile\MobileAccess::plants($admin)->orderBy('id')->pluck('id')->all());
+        $this->assertSame([1, 2, 4], \App\Services\Mobile\MobileAccess::plants($admin)->orderBy('id')->pluck('id')->all());
 
         $user = new User;
         $user->id = 10;

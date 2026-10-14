@@ -17,7 +17,7 @@ class ScheduleController extends ConcreteBatchingScheduleController
 {
     protected function authorizeModule(string $action, ?string $module = null): void
     {
-        Access::authorize('BATCHING_SCHEDULE', match ($action) { 'create' => 'CREATE', 'update' => 'UPDATE', 'delete' => 'DELETE', default => 'VIEW' });
+        // Mobile routes enforce authentication and plant access; module permissions are not required.
     }
     protected function getValidationRules(): array
     {
@@ -32,7 +32,6 @@ class ScheduleController extends ConcreteBatchingScheduleController
     }
     public function store(Request $request): JsonResponse
     {
-        Access::authorize('BATCHING_SCHEDULE', 'CREATE');
         return DB::transaction(function () use ($request) {
             \App\Models\Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
             return parent::store($request);
@@ -40,7 +39,6 @@ class ScheduleController extends ConcreteBatchingScheduleController
     }
     public function listing(Request $r)
     {
-        Access::authorize('BATCHING_SCHEDULE', 'VIEW');
         $r->validate(['schedule_date' => 'nullable|date_format:Y-m-d', 'per_page' => 'nullable|integer|between:1,100']);
         $q = Access::schedules()->with(['site:id,name', 'mixDesign:id,design_name', 'batch', 'dispatch']);
         if ($r->filled('schedule_date')) $q->whereDate('schedule_date', $r->schedule_date);
@@ -48,24 +46,25 @@ class ScheduleController extends ConcreteBatchingScheduleController
     }
     public function detail(int $schedule)
     {
-        Access::authorize('BATCHING_SCHEDULE', 'VIEW');
-        return response()->json(['success' => true, 'data' => Access::schedules()->findOrFail($schedule)->load(['site', 'mixDesign', 'batch', 'dispatch'])]);
+        $model = Access::schedules()->find($schedule);
+        abort_unless($model, 404, 'Batch schedule not found.');
+        return response()->json(['success' => true, 'data' => $model->load(['site', 'mixDesign', 'batch', 'dispatch'])]);
     }
     public function change(Request $r, int $schedule)
     {
-        Access::authorize('BATCHING_SCHEDULE', 'UPDATE');
         return DB::transaction(function () use ($r, $schedule) {
             \App\Models\Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
-            $model = Access::schedules()->lockForUpdate()->findOrFail($schedule);
+            $model = Access::schedules()->lockForUpdate()->find($schedule);
+            abort_unless($model, 404, 'Batch schedule not found.');
             abort_if($model->batch_id || $model->dispatch_id || $model->status !== 'scheduled', 422, 'Only unlinked planned slots can be edited.');
             return parent::update($r, $model);
         });
     }
     public function remove(int $schedule)
     {
-        Access::authorize('BATCHING_SCHEDULE', 'DELETE');
         return DB::transaction(function () use ($schedule) {
-            $model = Access::schedules()->lockForUpdate()->findOrFail($schedule);
+            $model = Access::schedules()->lockForUpdate()->find($schedule);
+            abort_unless($model, 404, 'Batch schedule not found.');
             abort_if($model->batch_id || $model->dispatch_id || $model->status !== 'scheduled', 422, 'Only unlinked planned slots can be deleted.');
             return parent::destroy($model);
         });

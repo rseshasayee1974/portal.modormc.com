@@ -7,6 +7,20 @@ Created: 2026-10-09 18:13:46 Asia/Calcutta (UTC+05:30)
 
 These Laravel JSON APIs support the sales executive mobile screens: dashboard, leads, marketing enquiries and visits, follow-ups, customers, quotations, sales orders, production progress and batch schedules. They are separate from the existing mobile dashboard routes and web/Inertia pages. The published Sites screen demonstration does not call these APIs yet.
 
+## Mobile endpoint regression verification
+
+The regression suites cover `routes/mobileapp.php`, including its imported `/v1` routes. All protected routes are exercised without a token and with an invalid token; all `/v1` plant-scoped routes are exercised with missing and inaccessible plant headers. Successful lifecycles cover legacy login/OTP/user management, leads and conversion, follow-ups, customers/sites, quotations and approval, orders, batch/dispatch history, and schedule CRUD. Dedicated catalog and OTP suites cover their additional cases.
+
+Boundary cases include pagination limits, empty searches, missing/non-numeric IDs, invalid dates and payloads, duplicate users/leads, foreign/unowned records, deleted batches and dispatches, repeated deletion, completed/linked record protections, approval transitions, expired/replayed OTPs, account revocation, rate limits, and concise errors even when debug mode is enabled.
+
+Run from the repository root:
+
+```powershell
+php vendor/phpunit/phpunit/phpunit tests/Feature/SalesMobileApiTest.php tests/Feature/Api/SalesMobileCatalogTest.php tests/Feature/Api/SalesMobileOtpTest.php tests/Feature/Api/SalesMobileSitesTest.php tests/Feature/Api/MobileLoginApiTest.php
+```
+
+Tests use isolated SQLite databases and fake external notifications. Legacy report endpoints use a mocked `DashboardService` to verify filter forwarding, empty responses and server failures; they do not validate production report SQL, financial totals, or report tenancy. Real WhatsApp/email delivery and concurrent MySQL transactions require separate integration verification. The legacy email OTP implementation currently caches a code and logs it locally; it does not invoke an email delivery transport.
+
 ## Deployment
 
 Use the ERP server as the API host. The Sites preview address is not an API host. The base path is `/api/mobile/v1`; for example `https://your-erp.example/api/mobile/v1`.
@@ -141,10 +155,10 @@ Permissions follow the ERP's singular/plural uppercase module conventions. The r
 |---|---|
 | CRM and follow-ups | `CRM_LEAD.VIEW`, `CREATE`, `UPDATE`, `DELETE`; `ASSIGN` for assigning another user; `CONVERT` for customer conversion |
 | Quotations | `QUOTATION.VIEW`, `CREATE`, `UPDATE`, `DELETE`; `APPROVE` for review |
-| Sales orders/progress | `SALES_ORDER.VIEW`, `CREATE`, `UPDATE`, `DELETE` |
+| Sales orders/progress and customer PO listing | No module action permission required; authenticated mobile access and plant membership required. Ownership scope remains; `SALES_ORDER.VIEW_ALL` expands visibility within the selected plant. |
 | Customers | `PATRON.VIEW` |
 | Sites | `SITE.VIEW` |
-| Batch schedules | `BATCHING_SCHEDULE.VIEW`, `CREATE`, `UPDATE`, `DELETE` |
+| Batch schedules | No module action permission required; authenticated mobile access, plant membership and sales order ownership scope remain required. |
 
 `CRM_LEAD.VIEW_ALL`, `QUOTATION.VIEW_ALL`, `SALES_ORDER.VIEW_ALL`, and `PATRON.VIEW_ALL` extend visibility within the selected plant. They do not grant editing or cross-plant access. The migration grants these and `QUOTATION.APPROVE` to existing standard administrator and sales-manager role codes; ordinary executives do not receive them automatically. Use the ERP role/permission editor to grant the normal module actions needed by an executive. A reviewer normally needs `QUOTATION.VIEW_ALL` as well as `QUOTATION.APPROVE`. A submitter cannot review their own submission, even if they are an administrator.
 
@@ -254,11 +268,11 @@ Customer PO conversion and quotation PDF/email delivery remain established ERP w
 |---|---|---|
 | GET | `/orders` | List; `search` searches order number; optional `customer_id` |
 | GET | `/customer-pos` | Paged customer POs with customer (`patron`), site and items; optional `search` (ERP/customer reference), `customer_id`, `site_id`, `status` (0 Draft, 1 Confirmed, 2 Completed), `per_page` (1–100, default 20) |
-| POST | `/orders` | Create against an existing customer PO |
+| POST | `/orders` | Create with an optional customer PO; `rate` is required without a PO |
 | GET | `/orders/{id}` | Order and progress |
 | PUT/PATCH | `/orders/{id}` | Full form update before operations start |
 | DELETE | `/orders/{id}` | Soft delete before operations start |
-| GET | `/orders/{id}/batches` | Paged batch history, batch number ascending |
+| GET | `/orders/{id}/batches` | Paged batch history within the selected plant, batch number then ID ascending; only ID, batch number, order ID, size, status, start/end times |
 | GET | `/orders/{id}/dispatches` | Paged trips, dispatch time ascending |
 
 Customer PO results include only `id`, `reference`, `customer_po_reference`, `patron_id`, `site_id`, `order_date`, `status`, `is_tax_inclusive`, totals (`amount_untaxed`, `amount_tax`, `amount_total`), `patron` (ID/name), `site` (ID/name), and `items`. Each item includes `id`, `mix_design_id`, `quantity`, `rate`, `tax_id`, `concrete_pump`, `pump_rate`, and its three totals. Audit fields and internal conversion fields are omitted.
@@ -267,7 +281,7 @@ Customer PO results include only `id`, `reference`, `customer_po_reference`, `pa
 {"customer_id":5,"site_id":10,"mix_design_id":4,"customer_po_id":7,"total_qty":40,"scheduled_start":null,"scheduled_end":null}
 ```
 
-Customer and site must match the PO, and the mix design must be one of its lines. Price, sales tax, tax-inclusive flag and pump charge are copied from that PO line. The server generates the order number and starts it as Confirmed with zero produced quantity. Clients cannot submit production quantities or operational statuses. Ownership is checked for the PO. An order with batches, dispatches or schedule slots cannot be edited/deleted through this API. Completed and cancelled orders are also protected.
+`customer_po_id` is optional or nullable. Without a PO, submit `rate` and optionally `tax_id`, `is_tax_inclusive`, `concrete_pump`, and `pump_rate`. When a PO is supplied, customer and site must match it and the mix design must be one of its lines; price, sales tax, tax-inclusive flag and pump charge are copied from that line. Omitting `customer_po_id` during an update preserves the existing link; explicit null removes it and requires a rate. The server generates the order number and starts it as Confirmed with zero produced quantity. Clients cannot submit production quantities or operational statuses. Ownership is checked for the PO. An order with batches, dispatches or schedule slots cannot be edited/deleted through this API. Completed and cancelled orders are also protected.
 
 Progress fields: `ordered_m3`, `batch_count`, `completed_batches`, `cancelled_batches`, `committed_m3`, `dispatched_m3`, `delivered_m3`, `remaining_delivery_m3`. Committed quantity includes planned batches and excludes cancelled/deleted batches. Completed count uses the explicit completed batch status. Dispatched quantity excludes Draft, Loading, Cancelled and deleted trips, and trips whose linked batch was deleted. Delivered quantity uses Delivered/Completed trip status. Invoicing alone does not establish delivery. Remaining delivery is ordered minus delivered, floored at zero. Customer progress sums accessible orders; it does not include orders owned by another executive without VIEW_ALL.
 

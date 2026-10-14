@@ -15,19 +15,38 @@ use Illuminate\Validation\Rule;
 
 class QuotationController extends Controller
 {
+    private const APPROVAL_STATES = [
+        Quotation::STATUS_DRAFT => 'draft', Quotation::STATUS_SENT => 'pending',
+        Quotation::STATUS_ACCEPTED => 'approved', Quotation::STATUS_REJECTED => 'rejected',
+    ];
+
+    private function syncApprovalState(Quotation $quotation): Quotation
+    {
+        $quotation->mobile_approval_state = self::APPROVAL_STATES[(int) $quotation->status] ?? 'draft';
+        return $quotation;
+    }
+
     public function index(Request $r)
     {
-        Access::authorize('QUOTATION', 'VIEW');
         $r->validate(['per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100', 'approval_state' => 'nullable|in:draft,pending,approved,rejected']);
         $q = Access::quotations()->with(['patron:id,legal_name', 'site:id,name']);
         if ($r->filled('search')) $q->where('reference', 'like', '%'.$r->search.'%');
-        if ($r->filled('approval_state')) $q->where('mobile_approval_state', $r->approval_state);
-        return response()->json(['success' => true, 'data' => $q->latest('id')->paginate($r->integer('per_page', 20))]);
+        if ($r->filled('approval_state')) $q->where('status', array_search($r->approval_state, self::APPROVAL_STATES, true));
+        $page = $q->latest('id')->paginate($r->integer('per_page', 20));
+        $page->getCollection()->each(function ($quotation) {
+            $this->syncApprovalState($quotation);
+            $quotation->patron?->setAppends([]);
+            $quotation->site?->setAppends([]);
+        });
+        return response()->json(['success' => true, 'data' => $page]);
     }
     public function show(int $quotation)
     {
-        Access::authorize('QUOTATION', 'VIEW');
-        return response()->json(['success' => true, 'data' => Access::quotations()->findOrFail($quotation)->load(['items.mixDesign', 'items.tax.children', 'patron', 'site'])]);
+        $model = $this->syncApprovalState(Access::quotations()->findOrFail($quotation))
+            ->load(['items.mixDesign', 'items.tax.children', 'patron', 'site']);
+        $model->patron?->setAppends([]);
+        $model->site?->setAppends([]);
+        return response()->json(['success' => true, 'data' => $model]);
     }
     private function data(Request $r, ?Quotation $quotation): array
     {
@@ -59,33 +78,33 @@ class QuotationController extends Controller
     }
     public function store(Request $r)
     {
-        Access::authorize('QUOTATION', 'CREATE');
         $data = $this->data($r, null);
         $model = DB::transaction(function () use ($data) {
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
-            return Quotation::createWithItems($data, Access::plantId());
+            $quotation = Quotation::createWithItems($data, Access::plantId());
+            $this->syncApprovalState($quotation)->save();
+            return $quotation;
         });
         return response()->json(['success' => true, 'data' => $model->fresh()->load('items')], 201);
     }
     public function update(Request $r, int $quotation)
     {
-        Access::authorize('QUOTATION', 'UPDATE');
         return DB::transaction(function () use ($r, $quotation) {
             $model = Access::quotations()->lockForUpdate()->findOrFail($quotation);
             $this->editable($model);
             $model->updateWithItems($this->data($r, $model));
-            $model->forceFill(['mobile_approval_state' => 'draft', 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null])->save();
+            $model->forceFill(['mobile_approval_state' => 'draft', 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null, 'mobile_submitted_by' => null, 'mobile_submitted_at' => null])->save();
             return response()->json(['success' => true, 'data' => $model->fresh()->load('items')]);
         });
     }
     private function editable(Quotation $model): void
     {
+        $this->syncApprovalState($model);
         abort_if($model->is_customer_po || $model->customerPOs()->exists(), 422, 'Quotation already converted into a customer PO.');
         abort_if(in_array($model->mobile_approval_state, ['pending', 'approved']) || (int) $model->status === Quotation::STATUS_ACCEPTED, 422, 'Submitted or approved quotations cannot be edited or deleted.');
     }
     public function destroy(int $quotation)
     {
-        Access::authorize('QUOTATION', 'DELETE');
         return DB::transaction(function () use ($quotation) {
             $model = Access::quotations()->lockForUpdate()->findOrFail($quotation);
             $this->editable($model);
@@ -95,24 +114,23 @@ class QuotationController extends Controller
     }
     public function submit(int $quotation)
     {
-        Access::authorize('QUOTATION', 'UPDATE');
         return DB::transaction(function () use ($quotation) {
             $model = Access::quotations()->lockForUpdate()->findOrFail($quotation);
             $this->editable($model);
             abort_unless($model->items()->exists(), 422, 'Add quotation items before submission.');
-            $model->forceFill(['mobile_approval_state' => 'pending', 'mobile_submitted_by' => request()->user()->id, 'mobile_submitted_at' => now()])->save();
+            $model->forceFill(['status' => Quotation::STATUS_SENT, 'mobile_approval_state' => 'pending', 'mobile_submitted_by' => request()->user()->id, 'mobile_submitted_at' => now(), 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null])->save();
             return response()->json(['success' => true, 'data' => $model]);
         });
     }
     public function review(Request $r, int $quotation)
     {
         $isSaasOwner = $r->user()->isSystemAdmin();
-        if (!$isSaasOwner) Access::authorize('QUOTATION', 'APPROVE');
         $data = $r->validate(['decision' => 'required|in:approved,rejected', 'comment' => 'nullable|required_if:decision,rejected|string|max:2000']);
         return DB::transaction(function () use ($r, $quotation, $data, $isSaasOwner) {
             $query = $isSaasOwner ? Quotation::where('plant_id', Access::plantId()) : Access::quotations();
             $model = $query->lockForUpdate()->find($quotation);
             abort_unless($model, 404, 'Quotation not found or you do not have access to it.');
+            $this->syncApprovalState($model);
             if (!$isSaasOwner) {
                 abort_unless($model->mobile_approval_state === 'pending', 422, 'Only submitted quotations can be reviewed.');
                 abort_if((int) $model->mobile_submitted_by === (int) $r->user()->id, 403, 'You cannot review your own quotation submission.');

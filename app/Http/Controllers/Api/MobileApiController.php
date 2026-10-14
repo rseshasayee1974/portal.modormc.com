@@ -29,7 +29,12 @@ class MobileApiController extends Controller
 
     private function getFilters(Request $request)
     {
-        return $request->only(['from_date', 'to_date', 'plant_id', 'type']);
+        return $request->validate([
+            'from_date' => 'nullable|date_format:Y-m-d',
+            'to_date' => 'nullable|date_format:Y-m-d|after_or_equal:from_date',
+            'plant_id' => 'nullable|integer|min:1',
+            'type' => 'nullable|string|max:100',
+        ]);
     }
 
     /**
@@ -120,6 +125,7 @@ class MobileApiController extends Controller
         ]);
 
         $user = User::query()->where('email', $data['email'])->firstOrFail();
+        abort_unless($user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()), 403, 'Account inactive or locked.');
         $otp = (string) random_int(100000, 999999);
 
         Cache::put($this->otpCacheKey($user->email), Hash::make($otp), now()->addMinutes(5));
@@ -148,6 +154,7 @@ class MobileApiController extends Controller
         ]);
 
         $user = User::query()->where('email', $data['email'])->firstOrFail();
+        abort_unless($user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()), 403, 'Account inactive or locked.');
         $cachedOtp = Cache::get($this->otpCacheKey($user->email));
 
         if (!$cachedOtp || !Hash::check($data['otp'], $cachedOtp)) {

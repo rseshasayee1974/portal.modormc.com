@@ -121,6 +121,13 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response) {
+            if (request()->is('api/mobile/*') && $response->getStatusCode() >= 400) {
+                $status = $response->getStatusCode();
+                $decoded = json_decode((string) $response->getContent(), true);
+                $payload = ['message' => $status >= 500 ? 'Server error.' : ($decoded['message'] ?? 'Request failed.')];
+                if ($status === 422 && isset($decoded['errors'])) $payload['errors'] = $decoded['errors'];
+                return response()->json($payload, $status, \Illuminate\Support\Arr::only($response->headers->all(), ['retry-after', 'www-authenticate']));
+            }
             // Only use the custom Inertia error view if debugging is disabled
             if (!config('app.debug') 
                 && in_array($response->getStatusCode(), [400, 403, 404, 419, 429, 500, 503])

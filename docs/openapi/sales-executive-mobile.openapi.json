@@ -2600,7 +2600,7 @@
         "tags": ["Sales orders"],
         "summary": "List customer POs",
         "operationId": "get__customer_pos",
-        "description": "Requires SALES_ORDER.VIEW. Scoped to the selected plant and owned/assigned POs unless SALES_ORDER.VIEW_ALL is granted. Includes patron, site and items; newest first. Status: 0 Draft, 1 Confirmed, 2 Completed.",
+        "description": "No module action permission is required. Requires authenticated mobile access and plant membership. Scoped to the selected plant and owned/assigned POs unless SALES_ORDER.VIEW_ALL is granted. Includes patron, site and items; newest first. Status: 0 Draft, 1 Confirmed, 2 Completed.",
         "security": [{"bearerAuth": []}],
         "parameters": [
           {"name": "X-Plant-Id", "in": "header", "required": true, "schema": {"type": "integer", "minimum": 1}},

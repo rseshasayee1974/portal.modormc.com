@@ -12,12 +12,12 @@ use App\Services\Mobile\MobileAccess as Access;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
     public function customerPOs(Request $r)
     {
-        Access::authorize('SALES_ORDER', 'VIEW');
         $r->validate([
             'per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100',
             'customer_id' => 'nullable|integer', 'site_id' => 'nullable|integer', 'status' => 'nullable|integer|in:0,1,2',
@@ -52,17 +52,22 @@ class OrderController extends Controller
 
     public function index(Request $r)
     {
-        Access::authorize('SALES_ORDER', 'VIEW');
         $r->validate(['per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100', 'customer_id' => 'nullable|integer']);
         $q = Access::orders()->with(['customer:id,legal_name', 'site:id,name', 'mixDesign:id,design_name']);
         if ($r->filled('search')) $q->where('order_no', 'like', '%'.$r->search.'%');
         if ($r->filled('customer_id')) $q->where('customer_id', $r->customer_id);
-        return response()->json(['success' => true, 'data' => $q->latest('id')->paginate($r->integer('per_page', 20))]);
+        $page = $q->latest('id')->paginate($r->integer('per_page', 20));
+        $page->getCollection()->each(function ($order) {
+            $order->customer?->setAppends([]);
+            $order->site?->setAppends([]);
+        });
+        return response()->json(['success' => true, 'data' => $page]);
     }
     public function show(int $order)
     {
-        Access::authorize('SALES_ORDER', 'VIEW');
         $model = Access::orders()->findOrFail($order)->load(['customer', 'site', 'mixDesign']);
+        $model->customer?->setAppends([]);
+        $model->site?->setAppends([]);
         return response()->json(['success' => true, 'data' => ['order' => $model, 'progress' => self::progress($model)]]);
     }
     public static function progress(SalesOrder $order): array
@@ -79,32 +84,62 @@ class OrderController extends Controller
     }
     public function batches(Request $r, int $order)
     {
-        Access::authorize('SALES_ORDER', 'VIEW');
-        $r->validate(['per_page' => 'nullable|integer|between:1,100']);
+        $r->validate(['per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
         $model = Access::orders()->findOrFail($order);
-        return response()->json(['success' => true, 'data' => $model->batches()->select(['id', 'batch_no', 'sales_order_id', 'batch_size', 'status', 'start_time', 'end_time'])->orderBy('batch_no')->paginate($r->integer('per_page', 20))]);
+        $fields = ['id', 'batch_no', 'sales_order_id', 'batch_size', 'status', 'start_time', 'end_time'];
+        $page = $model->batches()->where('plant_id', Access::plantId())
+            ->select($fields)
+            ->orderBy('batch_no')->orderBy('id')->paginate($r->integer('per_page', 20));
+        $page->getCollection()->each(fn ($batch) => $batch->setAppends([])->setVisible($fields));
+        return response()->json(['success' => true, 'data' => $page]);
     }
     public function dispatches(Request $r, int $order)
     {
-        Access::authorize('SALES_ORDER', 'VIEW');
-        $r->validate(['per_page' => 'nullable|integer|between:1,100']);
+        $r->validate(['per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
         $model = Access::orders()->findOrFail($order);
-        return response()->json(['success' => true, 'data' => $model->dispatches()->withActiveBatch()->with(['truck:id,registration', 'batch:id,batch_no,batch_size'])->select(['id', 'sales_order_id', 'batch_id', 'truck_id', 'prefix', 'dispatch_no', 'dispatch_time', 'delivery_time', 'delivered_qty', 'dispatch_status'])->orderBy('dispatch_time')->orderBy('id')->paginate($r->integer('per_page', 20))]);
+        $fields = ['id', 'sales_order_id', 'batch_id', 'truck_id', 'prefix', 'dispatch_no',
+            'dispatch_time', 'delivery_time', 'delivered_qty', 'dispatch_status'];
+        $page = $model->dispatches()->where('plant_id', Access::plantId())->withActiveBatch()
+            ->with(['truck:id,registration', 'batch:id,batch_no,batch_size'])
+            ->select($fields)
+            ->orderBy('dispatch_time')->orderBy('id')->paginate($r->integer('per_page', 20));
+        $page->getCollection()->each(function ($dispatch) use ($fields) {
+            $dispatch->setAppends([])->setVisible(array_merge($fields, ['truck', 'batch']));
+            $dispatch->truck?->setAppends([])->setVisible(['id', 'registration']);
+            $dispatch->batch?->setAppends([])->setVisible(['id', 'batch_no', 'batch_size']);
+        });
+        return response()->json(['success' => true, 'data' => $page]);
     }
-    private function data(Request $r): array
+    private function data(Request $r, ?SalesOrder $order = null): array
     {
+        if ($order && !$r->exists('customer_po_id')) $r->merge(['customer_po_id' => $order->customer_po_id]);
         $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
         $data = $r->validate([
             'customer_id' => ['required', 'integer', $exists('mm_patrons')], 'site_id' => ['required', 'integer', $exists('mm_sites')],
-            'mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')], 'customer_po_id' => ['required', 'integer', $exists('mm_customer_pos')],
+            'mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')], 'customer_po_id' => ['nullable', 'integer', $exists('mm_customer_pos')],
             'total_qty' => 'required|numeric|between:0.01,999999', 'scheduled_start' => 'nullable|date',
             'scheduled_end' => 'nullable|date|after_or_equal:scheduled_start',
+            'rate' => 'required_without:customer_po_id|numeric|between:0,99999999',
+            'tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
+            'is_tax_inclusive' => 'nullable|boolean', 'concrete_pump' => 'nullable|string|max:100',
+            'pump_rate' => 'nullable|numeric|between:0,99999999',
         ]);
+        $data['sales_executive_id'] = Access::personnelId();
+        if (empty($data['customer_po_id'])) {
+            $data['customer_po_id'] = null;
+            $data['tax_id'] = $data['tax_id'] ?? null;
+            $data['is_tax_inclusive'] = $data['is_tax_inclusive'] ?? false;
+            $data['concrete_pump'] = $data['concrete_pump'] ?? null;
+            $data['pump_rate'] = $data['pump_rate'] ?? 0;
+            return $data;
+        }
         $po = CustomerPO::findOrFail($data['customer_po_id']);
         abort_unless((int) $po->patron_id === (int) $data['customer_id'] && (int) $po->site_id === (int) $data['site_id'], 422, 'Customer and site must match the customer PO.');
         if (!Access::all('SALES_ORDER')) abort_unless((int) $po->created_by === (int) $r->user()->id || (Access::personnelId() && (int) $po->sales_executive_id === Access::personnelId()), 404);
-        $item = $po->items()->where('mix_design_id', $data['mix_design_id'])->firstOrFail();
-        $data['sales_executive_id'] = Access::personnelId();
+        $item = $po->items()->where('mix_design_id', $data['mix_design_id'])->first();
+        if (!$item) throw ValidationException::withMessages([
+            'mix_design_id' => ['The selected mix design is not available in the selected customer PO. Choose a mix design from its items or remove customer_po_id to use a direct rate.'],
+        ]);
         $data['rate'] = $item->rate;
         $data['tax_id'] = $item->tax_id;
         $data['is_tax_inclusive'] = $po->is_tax_inclusive;
@@ -114,7 +149,6 @@ class OrderController extends Controller
     }
     public function store(Request $r)
     {
-        Access::authorize('SALES_ORDER', 'CREATE');
         $data = $this->data($r);
         return DB::transaction(function () use ($data) {
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
@@ -125,11 +159,10 @@ class OrderController extends Controller
     }
     public function update(Request $r, int $order)
     {
-        Access::authorize('SALES_ORDER', 'UPDATE');
         return DB::transaction(function () use ($r, $order) {
             $model = Access::orders()->lockForUpdate()->findOrFail($order);
             $this->editable($model);
-            $model->update($this->data($r));
+            $model->update($this->data($r, $model));
             return response()->json(['success' => true, 'data' => $model]);
         });
     }
@@ -140,7 +173,6 @@ class OrderController extends Controller
     }
     public function destroy(int $order)
     {
-        Access::authorize('SALES_ORDER', 'DELETE');
         return DB::transaction(function () use ($order) {
             $model = Access::orders()->lockForUpdate()->findOrFail($order);
             $this->editable($model);
