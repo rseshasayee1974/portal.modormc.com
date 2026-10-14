@@ -38,6 +38,7 @@ Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::cla
             Route::apiResource('quotations', QuotationController::class)->names('sales-mobile.quotations')->where(['quotation' => '[0-9]+']);
             Route::post('quotations/{quotation}/submit', [QuotationController::class, 'submit'])->whereNumber('quotation');
             Route::post('quotations/{quotation}/review', [QuotationController::class, 'review'])->whereNumber('quotation');
+            Route::get('customer-pos', [OrderController::class, 'customerPOs']);
             Route::apiResource('orders', OrderController::class)->names('sales-mobile.orders')->where(['order' => '[0-9]+']);
             Route::get('orders/{order}/batches', [OrderController::class, 'batches'])->whereNumber('order');
             Route::get('orders/{order}/dispatches', [OrderController::class, 'dispatches'])->whereNumber('order');

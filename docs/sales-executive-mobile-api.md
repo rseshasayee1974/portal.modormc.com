@@ -253,12 +253,15 @@ Customer PO conversion and quotation PDF/email delivery remain established ERP w
 | Method | Path | Action |
 |---|---|---|
 | GET | `/orders` | List; `search` searches order number; optional `customer_id` |
+| GET | `/customer-pos` | Paged customer POs with customer (`patron`), site and items; optional `search` (ERP/customer reference), `customer_id`, `site_id`, `status` (0 Draft, 1 Confirmed, 2 Completed), `per_page` (1–100, default 20) |
 | POST | `/orders` | Create against an existing customer PO |
 | GET | `/orders/{id}` | Order and progress |
 | PUT/PATCH | `/orders/{id}` | Full form update before operations start |
 | DELETE | `/orders/{id}` | Soft delete before operations start |
 | GET | `/orders/{id}/batches` | Paged batch history, batch number ascending |
 | GET | `/orders/{id}/dispatches` | Paged trips, dispatch time ascending |
+
+Customer PO results include only `id`, `reference`, `customer_po_reference`, `patron_id`, `site_id`, `order_date`, `status`, `is_tax_inclusive`, totals (`amount_untaxed`, `amount_tax`, `amount_total`), `patron` (ID/name), `site` (ID/name), and `items`. Each item includes `id`, `mix_design_id`, `quantity`, `rate`, `tax_id`, `concrete_pump`, `pump_rate`, and its three totals. Audit fields and internal conversion fields are omitted.
 
 ```json
 {"customer_id":5,"site_id":10,"mix_design_id":4,"customer_po_id":7,"total_qty":40,"scheduled_start":null,"scheduled_end":null}

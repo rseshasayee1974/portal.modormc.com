@@ -51,8 +51,8 @@ class SalesMobileApiTest extends TestCase
             'mm_quotations' => ['plant_id','reference','patron_id','site_id','quote_date','validity_date','notes','is_tax_inclusive','sales_executive_id','adjustment','status','is_customer_po','amount_untaxed','amount_tax','amount_total','created_by','updated_by','deleted_by','mobile_approval_state','mobile_submitted_by','mobile_submitted_at','mobile_reviewed_by','mobile_reviewed_at','mobile_approval_comment'],
             'mm_quotation_items' => ['discount_type','discount','discount_amount','quotation_id','mix_design_id','uom_id','quantity','rate','tax_id','tax_amount','untaxed_amount','amount_total','concrete_pump','pump_rate','created_by','updated_by','deleted_by'],
             'mm_contacts' => ['patron_id','plant_id','name','phone'],
-            'mm_customer_pos' => ['plant_id','quotation_id','patron_id','site_id','created_by','sales_executive_id','is_tax_inclusive'],
-            'mm_customer_po_items' => ['customer_po_id','mix_design_id','rate','tax_id','quantity','concrete_pump','pump_rate'],
+            'mm_customer_pos' => ['plant_id','quotation_id','patron_id','site_id','created_by','sales_executive_id','is_tax_inclusive','reference','customer_po_reference','status','order_date','amount_untaxed','amount_tax','amount_total'],
+            'mm_customer_po_items' => ['customer_po_id','mix_design_id','rate','tax_id','quantity','concrete_pump','pump_rate','untaxed_amount','tax_amount','amount_total'],
             'mm_custom_settings' => ['plant_id','module_name','settings'],
             'mm_batches' => ['plant_id','sales_order_id','batch_no','batch_size','status'],
             'mm_sales_orders' => ['plant_id','created_by','updated_by','deleted_by','sales_executive_id','customer_id','site_id','mix_design_id','total_qty','rate','tax_id','is_tax_inclusive','customer_po_id','produced_qty','status','order_no','prefix','concrete_pump','pump_rate','scheduled_start','scheduled_end'],
@@ -87,6 +87,42 @@ class SalesMobileApiTest extends TestCase
         $this->withHeaders(['Authorization'=>'Bearer '.$this->token,'X-Plant-Id'=>'1']);
     }
     private function lead(): array { return ['contact_name'=>'Arun','phone'=>'9876543210','email'=>null,'enquiry_date'=>'2026-10-09','source'=>'Referral','priority'=>'High','status'=>'New','expected_value'=>10000]; }
+    public function test_customer_po_listing_scopes_filters_and_permissions(): void
+    {
+        foreach ([
+            [1,1,1,null,null], [2,1,2,1,null], [3,1,2,2,null],
+            [4,2,1,1,null], [5,1,1,1,'2026-10-14 00:00:00'],
+        ] as [$id,$plant,$creator,$executive,$deleted]) {
+            DB::table('mm_customer_pos')->insert(['id'=>$id,'plant_id'=>$plant,'created_by'=>$creator,
+                'sales_executive_id'=>$executive,'patron_id'=>1,'site_id'=>1,'reference'=>'CPO-'.$id,
+                'customer_po_reference'=>'CUSTOMER-'.$id,'status'=>0,'amount_untaxed'=>100,'amount_tax'=>18,
+                'amount_total'=>118,'deleted_at'=>$deleted]);
+        }
+        DB::table('mm_customer_po_items')->insert(['customer_po_id'=>2,'mix_design_id'=>1,'quantity'=>10,'rate'=>10]);
+        $listing = $this->getJson('/api/mobile/v1/customer-pos?per_page=1')->assertOk()
+            ->assertJsonPath('data.total',2)->assertJsonPath('data.data.0.id',2)
+            ->assertJsonPath('data.data.0.patron.legal_name','Customer')->assertJsonPath('data.data.0.site.name','Site')
+            ->assertJsonCount(1,'data.data.0.items');
+        $this->assertEqualsCanonicalizing(['id','reference','customer_po_reference','patron_id','site_id','order_date',
+            'status','is_tax_inclusive','amount_untaxed','amount_tax','amount_total','patron','site','items'],
+            array_keys($listing->json('data.data.0')));
+        $this->assertEqualsCanonicalizing(['id','mix_design_id','quantity','rate','tax_id','concrete_pump','pump_rate',
+            'untaxed_amount','tax_amount','amount_total'], array_keys($listing->json('data.data.0.items.0')));
+        $this->getJson('/api/mobile/v1/customer-pos?search=CUSTOMER-2&customer_id=1&site_id=1&status=0')
+            ->assertOk()->assertJsonPath('data.total',1)->assertJsonPath('data.data.0.id',2);
+        $this->getJson('/api/mobile/v1/customer-pos?search=CPO-3')->assertOk()->assertJsonPath('data.total',0);
+        $this->getJson('/api/mobile/v1/customer-pos?status=1')->assertOk()->assertJsonPath('data.total',0);
+        $this->getJson('/api/mobile/v1/customer-pos?customer_id=2')->assertOk()->assertJsonPath('data.total',0);
+        $this->getJson('/api/mobile/v1/customer-pos?per_page=101&status=3')->assertUnprocessable();
+        DB::table('mm_permissions')->insert(['id'=>100,'name'=>'SALES_ORDER.VIEW_ALL','guard_name'=>'web']);
+        DB::table('mm_role_has_permissions')->insert(['role_id'=>1,'permission_id'=>100]);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->getJson('/api/mobile/v1/customer-pos')->assertOk()->assertJsonPath('data.total',3);
+        DB::table('mm_role_has_permissions')->where('role_id',1)->delete();
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->getJson('/api/mobile/v1/customer-pos')->assertForbidden();
+        $this->withHeaders(['Authorization'=>''])->getJson('/api/mobile/v1/customer-pos')->assertUnauthorized();
+    }
     private function quote(): array { return ['reference'=>'QT-TEST-1','patron_id'=>1,'site_id'=>1,'quote_date'=>'2026-10-09','is_tax_inclusive'=>true,'items'=>[['mix_design_id'=>1,'quantity'=>3.55,'rate'=>546,'tax_id'=>1]]]; }
     public function test_login_profile_logout_and_token_revocation(): void
     {

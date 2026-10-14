@@ -2595,6 +2595,31 @@
         }
       }
     },
+    "/customer-pos": {
+      "get": {
+        "tags": ["Sales orders"],
+        "summary": "List customer POs",
+        "operationId": "get__customer_pos",
+        "description": "Requires SALES_ORDER.VIEW. Scoped to the selected plant and owned/assigned POs unless SALES_ORDER.VIEW_ALL is granted. Includes patron, site and items; newest first. Status: 0 Draft, 1 Confirmed, 2 Completed.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "X-Plant-Id", "in": "header", "required": true, "schema": {"type": "integer", "minimum": 1}},
+          {"name": "per_page", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
+          {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+          {"name": "search", "in": "query", "description": "Search ERP reference or customer PO reference.", "schema": {"type": "string", "maxLength": 100}},
+          {"name": "customer_id", "in": "query", "schema": {"type": "integer"}},
+          {"name": "site_id", "in": "query", "schema": {"type": "integer"}},
+          {"name": "status", "in": "query", "schema": {"type": "integer", "enum": [0, 1, 2]}}
+        ],
+        "responses": {
+          "200": {"description": "Success; Laravel pagination under data with customer POs including patron, site and items.", "content": {"application/json": {"schema": {"type": "object"}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "403": {"$ref": "#/components/responses/Forbidden"},
+          "422": {"$ref": "#/components/responses/ValidationError"},
+          "429": {"$ref": "#/components/responses/TooManyRequests"}
+        }
+      }
+    },
     "/orders": {
       "get": {
         "tags": [

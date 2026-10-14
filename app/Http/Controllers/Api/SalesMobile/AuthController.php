@@ -17,7 +17,7 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $data = $request->validate(['email' => 'required|email', 'password' => 'required|string', 'device_name' => 'nullable|string|max:100']);
+        $data = $request->validate(['email' => 'required|email', 'password' => 'required|string']);
         $user = User::where('email', strtolower($data['email']))->first();
         abort_unless($user && Hash::check($data['password'], $user->password), 401, 'Invalid email or password.');
         abort_unless($user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()), 403, 'Account inactive or locked.');

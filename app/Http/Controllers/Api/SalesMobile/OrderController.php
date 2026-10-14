@@ -15,6 +15,41 @@ use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
+    public function customerPOs(Request $r)
+    {
+        Access::authorize('SALES_ORDER', 'VIEW');
+        $r->validate([
+            'per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100',
+            'customer_id' => 'nullable|integer', 'site_id' => 'nullable|integer', 'status' => 'nullable|integer|in:0,1,2',
+        ]);
+        $fields = ['id', 'reference', 'customer_po_reference', 'patron_id', 'site_id', 'order_date',
+            'status', 'is_tax_inclusive', 'amount_untaxed', 'amount_tax', 'amount_total'];
+        $itemFields = ['id', 'customer_po_id', 'mix_design_id', 'quantity', 'rate', 'tax_id',
+            'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'];
+        $q = CustomerPO::select($fields)->where('plant_id', Access::plantId())
+            ->when(!Access::all('SALES_ORDER'), function ($q) use ($r) {
+                $q->where(function ($owner) use ($r) {
+                    $owner->where('created_by', $r->user()->id);
+                    if ($id = Access::personnelId()) $owner->orWhere('sales_executive_id', $id);
+                });
+            })->with(['patron:id,legal_name', 'site:id,name', 'items' => fn ($items) => $items->select($itemFields)]);
+        if ($r->filled('search')) $q->where(function ($search) use ($r) {
+            $search->where('reference', 'like', '%'.$r->search.'%')
+                ->orWhere('customer_po_reference', 'like', '%'.$r->search.'%');
+        });
+        if ($r->filled('customer_id')) $q->where('patron_id', $r->customer_id);
+        if ($r->filled('site_id')) $q->where('site_id', $r->site_id);
+        if ($r->filled('status')) $q->where('status', $r->status);
+        $page = $q->latest('id')->paginate($r->integer('per_page', 20));
+        $page->getCollection()->each(function ($po) use ($fields, $itemFields) {
+            $po->setAppends(['amount_untaxed', 'amount_tax', 'amount_total'])->setVisible(array_merge($fields, ['patron', 'site', 'items']));
+            $po->patron?->setAppends([]);
+            $po->site?->setAppends([]);
+            $po->items->each->setVisible(array_values(array_diff($itemFields, ['customer_po_id'])));
+        });
+        return response()->json(['success' => true, 'data' => $page]);
+    }
+
     public function index(Request $r)
     {
         Access::authorize('SALES_ORDER', 'VIEW');
