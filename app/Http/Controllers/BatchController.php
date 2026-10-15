@@ -89,6 +89,7 @@ class BatchController extends Controller
                 DB::raw('COALESCE(dm.design_code, m.design_code) as mix_design_code'),
                 DB::raw('COALESCE(cg.name, dm.design_type, m.design_type) as concrete_grade'),
                 'd.id as dispatch_id',
+                'd.dispatch_status',
                 'd.truck_id as dispatch_truck_id',
                 'd.delivered_qty as dispatch_delivered_qty',
                 't.registration as truck_registration',
@@ -172,6 +173,7 @@ class BatchController extends Controller
                     'dispatches' => $row->dispatch_id ? [
                         [
                             'id' => $row->dispatch_id,
+                            'dispatch_status' => $row->dispatch_status,
                             'batch_id' => $row->id,
                             'truck_id' => $row->dispatch_truck_id,
                             'delivered_qty' => $row->dispatch_delivered_qty,
@@ -314,6 +316,7 @@ class BatchController extends Controller
                 ]);
 // dd($schedule);
         return Inertia::render('Batches/Index', [
+            'canDeleteDispatchedBatches' => $this->canDeleteDispatchedBatches(),
             'batchingSchedules' => $schedule,
             'batchCreationSource' => CustomSetting::batchCreationSource($activePlantId),
             'batches'           => $batches,
@@ -1381,12 +1384,17 @@ class BatchController extends Controller
         $batch->load('salesOrder');
         $this->ensurePlantScope($batch->salesOrder);
 
-        if ($batch->status === Batch::STATUS_CANCELLED || $batch->dispatches()->where('dispatch_status', 'Cancelled')->exists()) {
-            return redirect()->back()->withErrors(['error' => 'Cancelled batches cannot be deleted.']);
-        }
-
         $batchId = $batch->id;
         DB::transaction(function () use ($batch) {
+            $batch = Batch::query()->lockForUpdate()->findOrFail($batch->id);
+            $batch->load('salesOrder');
+            $this->ensurePlantScope($batch->salesOrder);
+            if ((int) $batch->status === Batch::STATUS_CANCELLED || $batch->dispatches()->where('dispatch_status', 'Cancelled')->exists()) {
+                throw ValidationException::withMessages(['error' => 'Cancelled batches cannot be deleted.']);
+            }
+            $dispatched = in_array((int) $batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED], true)
+                || $batch->dispatches()->whereNotIn('dispatch_status', ['Draft', 'Loading', 'Cancelled'])->exists();
+            abort_if($dispatched && !$this->canDeleteDispatchedBatches(), 403, 'Only SaaS Owner can delete dispatched or completed batches.');
             $materials = $batch->materials()->get()->toArray();
             
             $batchingSettings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id ?? session('active_plant_id'), 'batching');
@@ -1401,7 +1409,8 @@ class BatchController extends Controller
             $batch->deleted_by = auth()->id();
             $batch->save();
 
-            // Delete related materials and dispatches
+            // All three models use SoftDeletes; retain rows and deletion audit data.
+            $batch->materials()->update(['deleted_by' => auth()->id()]);
             $batch->materials()->delete();
             
             foreach ($batch->dispatches as $dispatch) {
@@ -1419,6 +1428,11 @@ class BatchController extends Controller
         $this->broadcastBatchDeletion($batchId);
 
         return redirect()->back()->with('success', 'Batch deleted successfully.');
+    }
+
+    private function canDeleteDispatchedBatches(): bool
+    {
+        return auth()->user()?->hasRole('Saas Owner') ?? false;
     }
 
     public function report($batchId)

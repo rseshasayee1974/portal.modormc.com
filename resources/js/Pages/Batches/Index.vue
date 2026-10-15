@@ -37,6 +37,7 @@ const props = withDefaults(defineProps<{
     salesOrders?: any[];
     batchingSchedules?: any[];
     batchCreationSource?: string;
+    canDeleteDispatchedBatches?: boolean;
     trucks?: any[];
     customers?: any[];
     transporters?: any[];
@@ -451,7 +452,7 @@ const closeAllMenus = () => {
     }
 };
 
-const { destroy, downloadPdf, retrySync, statusSeverity, statusLabel } =
+const { destroy, canDeleteBatch, downloadPdf, retrySync, statusSeverity, statusLabel } =
     useBatchActions(props);
 
 const refreshBatchRow = async (id: number) => {
@@ -1197,7 +1198,7 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                                 </button>
                                             </div>
 
-                                            <div v-if="Number(slotProps.data.status) < 3 && !isBatchCancelled(slotProps.data) && can('BATCH.DELETE')"
+                                            <div v-if="canDeleteBatch(slotProps.data) && (canDeleteDispatchedBatches || can('BATCH.DELETE'))"
                                                 class="py-1 text-left">
                                                 <button
                                                     class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
@@ -1533,7 +1534,7 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                     </div>
 
                     <!-- Group 4: Delete Batch -->
-                    <div v-if="Number(activeBatch.status) < 3 && !isBatchCancelled(activeBatch) && can('BATCH.DELETE')"
+                    <div v-if="canDeleteBatch(activeBatch) && (canDeleteDispatchedBatches || can('BATCH.DELETE'))"
                         class="py-1">
                         <button
                             class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"

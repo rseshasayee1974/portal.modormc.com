@@ -11,22 +11,32 @@ import Swal from 'sweetalert2';
  *  - statusSeverity : Map a status code to a PrimeVue Tag severity string
  *  - statusLabel    : Resolve a status code to its human-readable label
  */
-export function useBatchActions(props: { statuses: { label: string; value: number }[] }) {
+export function useBatchActions(props: { statuses: { label: string; value: number }[]; canDeleteDispatchedBatches?: boolean }) {
+
+    const isCancelled = (row: any) => Number(row.status) === 5
+        || row.dispatches?.some((dispatch: any) => dispatch.dispatch_status === 'Cancelled');
+    const isDispatched = (row: any) => [3, 4].includes(Number(row.status))
+        || row.dispatches?.some((dispatch: any) => dispatch.dispatch_status
+            && !['Draft', 'Loading', 'Cancelled'].includes(dispatch.dispatch_status));
+    const canDeleteBatch = (row: any) => !isCancelled(row)
+        && (!isDispatched(row) || props.canDeleteDispatchedBatches === true);
 
     // ── Delete Batch ─────────────────────────────────────────────────────────
     const destroy = (row: any) => {
-        if (Number(row.status) === 5 || row?.dispatches?.[0]?.dispatch_status === 'Cancelled') {
+        if (!canDeleteBatch(row)) {
             Swal.fire({
                 icon: 'error',
                 title: 'Cannot Delete',
-                text: 'Cancelled batches cannot be deleted.',
+                text: isCancelled(row) ? 'Cancelled batches cannot be deleted.' : 'Only SaaS Owner can delete dispatched or completed batches.',
             });
             return;
         }
 
         Swal.fire({
             title: 'Delete batch?',
-            text: `Batch #${row.batch_no} will be deleted.`,
+            text: isDispatched(row)
+                ? `Batch #${row.batch_no}, its materials and dispatch records will be deleted. Deducted stock will be restored when inventory is enabled.`
+                : `Batch #${row.batch_no} and its related records will be deleted.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
@@ -54,7 +64,7 @@ export function useBatchActions(props: { statuses: { label: string; value: numbe
      * Uses the anchor-click technique to avoid popup-blocker issues.
      */
     const downloadPdf = (id: number | string) => {
-        const url  = route('batches.download', id);
+        const url = route('batches.download', id);
         const link = document.createElement('a');
         link.href = url;
         link.setAttribute('download', '');
@@ -115,6 +125,7 @@ export function useBatchActions(props: { statuses: { label: string; value: numbe
 
     // ── Public API ───────────────────────────────────────────────────────────
     return {
+        canDeleteBatch,
         destroy,
         downloadPdf,
         retrySync,
