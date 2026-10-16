@@ -349,7 +349,7 @@ const submit = () => {
                             class="block font-medium text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200">
                             {{ data.test.test_no }}</Link>
                         <span v-else class="text-slate-500">{{ data.sample?.sample_no || data.dispatch.dispatch_no
-                        }}</span>
+                            }}</span>
                         <span class="mt-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize"
                             :class="statusClass(data)">{{ rowStatus(data) }}</span>
 
@@ -385,7 +385,7 @@ const submit = () => {
                         <p>{{ fieldTechnician(data) }}</p>
                         <p class="mt-1 text-xxs text-slate-500">{{ data.test && (data.test.evaluated_at ||
                             data.test.overall_status !== 'pending') ? data.test.tester?.username || '-' : 'Not tested'
-                        }}</p>
+                            }}</p>
                     </template>
                 </Column>
                 <Column header="Actions" style="width: 60px">
@@ -612,7 +612,7 @@ const submit = () => {
                         Use the row's Edit sample action to change them.</p>
                     <p v-else-if="!editing && sourceKey" class="text-xs text-slate-500">Scheduled testing dates: {{
                         scheduledDate
-                    }}. After saving, enter the specimen weights and loads to execute the test.</p>
+                        }}. After saving, enter the specimen weights and loads to execute the test.</p>
                     <p v-if="existingTest" role="alert" class="text-xs text-tangerine-700 dark:text-tangerine-300">This
                         test
                         already exists at one of the selected ages. Remove that age to schedule the others.
@@ -627,7 +627,7 @@ const submit = () => {
                         <BaseButton type="button" :label="editing ? 'Cancel' : 'Reset'" severity="secondary"
                             @click="closeEditor" />
                         <BaseButton type="submit" :label="editing ? 'Save sample' : 'Save & enter results'"
-                            :loading="form.processing" :disabled="form.processing || !editing" />
+                            :loading="form.processing" />
                     </div>
                 </form>
             </section>
