@@ -44,7 +44,7 @@ class CrmLeadController extends Controller
     {
         $this->authorizeModule('menu');
         $plantId = $this->plantId();
-        $leads = CrmLead::where('plant_id', $plantId)->with(['owner:id,username', 'deal'])->withMin(['activities as next_follow_up' => fn ($q) => $q->whereNull('completed_at')->whereNotNull('due_at')], 'due_at')->orderByDesc('id')->get();
+        $leads = CrmLead::where('plant_id', $plantId)->with(['owner:id,username', 'deal', 'mixDesign:id,design_name'])->withMin(['activities as next_follow_up' => fn ($q) => $q->whereNull('completed_at')->whereNotNull('due_at')], 'due_at')->orderByDesc('id')->get();
         $statuses = $leads->groupBy('status')->map->count();
         $owners = $this->owners()->orderBy('username')->get(['id as value', 'username as label']);
         $customers = Patron::where('plant_id', $plantId)->ofType('Customer')->where('status', 1)->orderBy('legal_name')->get(['id', 'legal_name'])->map(fn ($p) => ['value' => $p->id, 'label' => $p->legal_name]);
@@ -66,8 +66,8 @@ class CrmLeadController extends Controller
     {
         return MixDesign::where('plant_id', $plantId)->where('is_active', 1)
             ->whereNotNull('design_name')->where('design_name', '!=', '')
-            ->orderBy('design_name')->distinct()->pluck('design_name')
-            ->map(fn ($name) => ['label' => $name, 'value' => $name])->values();
+            ->orderBy('design_name')->orderBy('id')->get(['id', 'design_name'])
+            ->map(fn ($design) => ['label' => $design->design_name, 'value' => $design->id])->values();
     }
 
     private function leadData(Request $request, ?CrmLead $lead = null): array
@@ -85,7 +85,7 @@ class CrmLeadController extends Controller
             'source' => ['required', Rule::in(CrmLead::SOURCES)], 'priority' => ['required', Rule::in(CrmLead::PRIORITIES)],
             'status' => ['required', Rule::in($lead?->converted_at ? ['Converted'] : ['New', 'Contacted', 'Qualified', 'Unqualified'])],
             'assigned_to' => ['nullable', 'integer', Rule::in($this->owners()->pluck('id')->all())],
-            'project_name' => 'nullable|string|max:200', 'requirement' => 'nullable|string|max:500', 'estimated_quantity' => 'nullable|numeric|min:0|max:99999999999',
+            'project_name' => 'nullable|string|max:200', 'requirement' => 'prohibited', 'mix_design_id' => ['nullable', 'integer', Rule::exists('mm_mix_designs', 'id')->where('plant_id', $this->plantId())->whereNull('deleted_at')->where(fn ($q) => $q->where('is_active', 1)->when($lead?->mix_design_id, fn ($q) => $q->orWhere('id', $lead->mix_design_id)))], 'estimated_quantity' => 'nullable|numeric|min:0|max:99999999999',
             'delivery_location' => 'nullable|string|max:500', 'expected_value' => 'required|numeric|min:0|max:99999999999999',
             'expected_purchase_date' => 'nullable|date_format:Y-m-d', 'remarks' => 'nullable|string|max:10000',
             'lost_reason' => 'nullable|required_if:status,Unqualified|string|max:2000',
@@ -114,7 +114,7 @@ class CrmLeadController extends Controller
     public function show(CrmLead $lead)
     {
         $this->authorizeModule('show');
-        $this->scoped($lead)->load(['owner:id,username', 'customer', 'deal', 'activities' => fn ($q) => $q->with(['owner:id,username', 'creator:id,username'])->orderByDesc('id'), 'attachments']);
+        $this->scoped($lead)->load(['mixDesign:id,design_name', 'owner:id,username', 'customer', 'deal', 'activities' => fn ($q) => $q->with(['owner:id,username', 'creator:id,username'])->orderByDesc('id'), 'attachments']);
         $plantId = $this->plantId();
         return response()->json([
             'lead' => $lead,

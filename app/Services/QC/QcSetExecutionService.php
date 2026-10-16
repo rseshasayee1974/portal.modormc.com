@@ -5,20 +5,12 @@ namespace App\Services\QC;
 use App\Models\QC\QcTest;
 use App\Models\QC\QcTestSet;
 use App\Models\QC\QcTestSpecimen;
-use App\Models\QC\QcTestParameter;
-use App\Models\QC\QcTestMeasurement;
-use App\Models\QC\QcTestResult;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Carbon\Carbon;
 
 class QcSetExecutionService
 {
-    protected FormulaEngine $formulaEngine;
-
-    public function __construct(FormulaEngine $formulaEngine)
-    {
-        $this->formulaEngine = $formulaEngine;
-    }
-
     /**
      * Process and evaluate execution data for a multi-set test (e.g. 3 sets of 3 concrete cubes).
      */
@@ -34,15 +26,16 @@ class QcSetExecutionService
             $test->remarks = $payload['remarks'] ?? $test->remarks;
             $test->tested_by = auth()->id() ?: ($test->tested_by ?: 1);
 
+            $calculator = app(ConcreteCubeCalculator::class);
+            $dimensions = $calculator->dimensions($test);
+            $calculator->snapshot($test, $dimensions);
             $setsData = $payload['sets'] ?? [];
-            $allSetsEvaluated = true;
-            $anySetFailed = false;
 
             foreach ($setsData as $sData) {
                 $setId = $sData['id'] ?? null;
                 $testSet = $setId ? QcTestSet::where('qc_test_id', $test->id)->find($setId) : null;
                 if (!$testSet) {
-                    continue;
+                    throw ValidationException::withMessages(['sets' => 'Select a set belonging to this test.']);
                 }
 
                 // Update set level metadata
@@ -54,9 +47,6 @@ class QcSetExecutionService
                 }
                 if (isset($sData['testing_date'])) {
                     $testSet->testing_date = $sData['testing_date'];
-                }
-                if (isset($sData['age_days'])) {
-                    $testSet->age_days = (int)$sData['age_days'];
                 }
                 if (isset($sData['client_sign_name'])) {
                     $testSet->client_sign_name = $sData['client_sign_name'];
@@ -71,102 +61,58 @@ class QcSetExecutionService
                     }
                 }
 
-                $area = (float)($test->config?->specimen_dimensions ? 22500 : 22500);
-                $volumeM3 = 0.003375; // 150mm cube volume in m3
+                $casting = Carbon::parse($testSet->casting_date ?: $test->sample->sample_date)->startOfDay();
+                $testing = Carbon::parse($sData['testing_date'] ?? $payload['test_date'] ?? $test->test_date)->startOfDay();
+                if ($testing->lt($casting)) {
+                    throw ValidationException::withMessages(['sets' => 'Testing date cannot be before casting date.']);
+                }
+                $testSet->testing_date = $testing;
+                $testSet->age_days = (int) $casting->diffInDays($testing);
 
                 // Process specimens in this set
                 $specimensData = $sData['specimens'] ?? [];
-                $validStrengths = [];
 
                 foreach ($specimensData as $specData) {
                     $specId = $specData['id'] ?? null;
                     $specimen = $specId ? QcTestSpecimen::where('qc_test_set_id', $testSet->id)->find($specId) : null;
                     if (!$specimen) {
-                        continue;
+                        throw ValidationException::withMessages(['sets' => 'Select specimens belonging to the selected set.']);
                     }
 
-                    $weightKg = isset($specData['weight_kg']) && $specData['weight_kg'] !== '' ? (float)$specData['weight_kg'] : null;
-                    $loadKn = isset($specData['load_kn']) && $specData['load_kn'] !== '' ? (float)$specData['load_kn'] : null;
-                    $identMark = $specData['identification_mark'] ?? $specimen->identification_mark;
-                    $failureType = $specData['failure_type'] ?? 'Normal';
-
-                    $specimen->identification_mark = $identMark;
-                    $specimen->weight_kg = $weightKg;
-                    $specimen->load_kn = $loadKn;
-                    $specimen->cross_sectional_area = $area;
-                    $specimen->failure_type = $failureType;
-
-                    // Density calculation: weight / volume
-                    if ($weightKg !== null && $volumeM3 > 0) {
-                        $specimen->density_kg_m3 = round($weightKg / $volumeM3, 2);
-                    } else {
-                        $specimen->density_kg_m3 = null;
-                    }
-
-                    // Strength calculation: (load_kn * 1000) / area
-                    if ($loadKn !== null && $area > 0) {
-                        $calcResult = $this->formulaEngine->evaluateFormulaDetailed('(LOAD * 1000) / AREA', [
-                            'LOAD' => $loadKn,
-                            'AREA' => $area,
-                        ]);
-
-                        if ($calcResult['status'] === FormulaEngine::STATUS_OK) {
-                            $specimen->strength_mpa = round($calcResult['value'], 2);
-                            $specimen->calculation_error = null;
-                            $specimen->status = 'completed';
-                            $validStrengths[] = $specimen->strength_mpa;
-                        } else {
-                            $specimen->strength_mpa = null;
-                            $specimen->calculation_error = $calcResult['error'] ?? 'ERR_CALC';
-                            $specimen->status = 'error';
-                        }
-                    } else {
-                        $specimen->strength_mpa = null;
-                        $specimen->calculation_error = null;
-                        $specimen->status = 'pending';
-                    }
-
+                    $values = $calculator->observation(array_replace([
+                        'weight_kg' => $specimen->weight_kg, 'load_kn' => $specimen->load_kn,
+                    ], $specData), $dimensions);
+                    $specimen->fill($values);
+                    $specimen->identification_mark = $specData['identification_mark'] ?? $specimen->identification_mark;
+                    $specimen->failure_type = $specData['failure_type'] ?? 'Normal';
+                    $specimen->calculation_error = null;
+                    $specimen->status = $values['weight_kg'] > 0 && $values['load_kn'] > 0 ? 'completed' : 'pending';
                     $specimen->save();
                 }
 
-                // Recalculate set average strength
-                if (!empty($validStrengths)) {
-                    $setAvg = round(array_sum($validStrengths) / count($validStrengths), 2);
-                    $testSet->average_strength = $setAvg;
-
-                    // Evaluate acceptance rule strictly (do not infer from target %)
-                    if ($testSet->min_strength !== null) {
-                        $rule = [
-                            'rule_type' => QcTestParameter::RULE_TYPE_GREATER_THAN_OR_EQUAL,
-                            'min_value' => $testSet->min_strength,
-                        ];
-                        $eval = $this->formulaEngine->evaluateRule($rule, $setAvg);
-                        $testSet->status = strtolower($eval); // 'pass' or 'fail'
-                        if ($eval === 'FAIL') {
-                            $anySetFailed = true;
-                        }
-                    } else {
-                        $testSet->status = 'completed';
+                $stored = $testSet->specimens()->get();
+                $complete = $stored->count() >= 3 && $stored->every(fn ($specimen) => $specimen->weight_kg > 0 && $specimen->load_kn > 0 && $specimen->strength_mpa !== null);
+                $testSet->average_strength = $complete ? round($stored->avg('strength_mpa'), 2) : null;
+                $testSet->status = 'pending';
+                $testSet->error_reason = null;
+                if ($complete) {
+                    $minimum = $testSet->min_strength ?? $testSet->target_strength;
+                    $testSet->status = $minimum === null ? 'completed' : ($testSet->average_strength >= $minimum ? 'pass' : 'fail');
+                    $outlier = $stored->contains(fn ($specimen) => abs((float) $specimen->strength_mpa - (float) $testSet->average_strength) > (float) $testSet->average_strength * 0.15 + 0.000001);
+                    if ($outlier) {
+                        $testSet->status = 'retest';
+                        $testSet->error_reason = 'Specimen strength differs from the set average by more than 15%.';
                     }
-                } else {
-                    $testSet->average_strength = null;
-                    $testSet->status = 'pending';
-                    $allSetsEvaluated = false;
                 }
 
                 $testSet->save();
             }
 
-            // Overall test status
-            if ($anySetFailed) {
-                $test->overall_status = 'fail';
-            } elseif ($allSetsEvaluated && count($setsData) > 0) {
-                $test->overall_status = 'pass';
-            } else {
-                $test->overall_status = 'pending';
-            }
-
-            $test->evaluated_at = now();
+            $statuses = $test->sets()->pluck('status');
+            $test->overall_status = $statuses->contains(fn ($status) => !in_array($status, ['pass', 'fail', 'completed', 'retest'], true)) ? 'pending'
+                : ($statuses->contains('retest') ? 'retest' : ($statuses->contains('fail') ? 'fail' : 'pass'));
+            $test->evaluated_at = $test->overall_status === 'pending' ? null : now();
+            $test->test_date = $test->sets()->whereIn('status', ['pass', 'fail', 'completed', 'retest'])->max('testing_date');
             $test->save();
 
             return $test;

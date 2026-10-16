@@ -16,13 +16,13 @@ const emit = defineEmits(['saved', 'cancel']);
 const { can } = usePermissions();
 const page = usePage();
 const formElement = ref(null);
-const fields = ['enquiry_date', 'contact_name', 'company_name', 'phone', 'email', 'address', 'source', 'status', 'priority', 'assigned_to', 'project_name', 'requirement', 'estimated_quantity', 'delivery_location', 'expected_value', 'expected_purchase_date', 'remarks', 'lost_reason'];
-const defaults = { enquiry_date: entityToday(), contact_name: '', company_name: '', phone: '', email: '', address: '', source: 'Phone', status: 'New', priority: 'Medium', assigned_to: page.props.auth?.user?.id ?? null, project_name: '', requirement: '', estimated_quantity: null, delivery_location: '', expected_value: 0, expected_purchase_date: null, remarks: '', lost_reason: '' };
+const fields = ['enquiry_date', 'contact_name', 'company_name', 'phone', 'email', 'address', 'source', 'status', 'priority', 'assigned_to', 'project_name', 'mix_design_id', 'estimated_quantity', 'delivery_location', 'expected_value', 'expected_purchase_date', 'remarks', 'lost_reason'];
+const defaults = { enquiry_date: entityToday(), contact_name: '', company_name: '', phone: '', email: '', address: '', source: 'Phone', status: 'New', priority: 'Medium', assigned_to: page.props.auth?.user?.id ?? null, project_name: '', mix_design_id: null, estimated_quantity: null, delivery_location: '', expected_value: 0, expected_purchase_date: null, remarks: '', lost_reason: '' };
 const form = useForm(Object.fromEntries(fields.map(key => [key, props.lead ? (props.lead[key] ?? defaults[key]) : defaults[key]])));
 const requirementOptions = computed(() => {
     const choices = [...(props.options.requirements || [])];
-    if (form.requirement && !choices.some(item => item.value === form.requirement)) {
-        choices.push({ value: form.requirement, label: `${form.requirement} (saved requirement)` });
+    if (form.mix_design_id && !choices.some(item => item.value === form.mix_design_id) && props.lead?.mix_design) {
+        choices.push({ value: form.mix_design_id, label: `${props.lead.mix_design.design_name} (saved mix design)` });
     }
     return choices;
 });
@@ -54,7 +54,8 @@ defineExpose({ processing: computed(() => form.processing), errors: computed(() 
             <BaseInput v-model="form.project_name" label="Project / Site Name" :error="form.errors.project_name" />
             <BaseInput v-model="form.expected_value" type="number" min="0" label="Expected Value (₹)" :error="form.errors.expected_value" required />
             <BaseDatePicker v-model="form.expected_purchase_date" label="Expected Purchase Date" :error="form.errors.expected_purchase_date" />
-            <BaseSelect  v-model="form.requirement" :options="requirementOptions" optionLabel="label" optionValue="value" label="Mix Design Requirement" placeholder="Select a mix design" filter showClear :error="form.errors.requirement" />
+            <BaseSelect  v-model="form.mix_design_id" :options="requirementOptions" optionLabel="label" optionValue="value" label="Mix Design Requirement" placeholder="Select a mix design" filter showClear :error="form.errors.mix_design_id" />
+            <p v-if="lead?.requirement && !lead?.mix_design_id" class="text-xs text-slate-500">Previous requirement: {{ lead.requirement }}. Select a mix design to link this lead.</p>
             <BaseInput v-model="form.estimated_quantity" type="number" min="0" step="0.001" label="Estimated Quantity" :error="form.errors.estimated_quantity" />
             <BaseInput v-model="form.delivery_location" label="Delivery Location" :error="form.errors.delivery_location" />
         </div>

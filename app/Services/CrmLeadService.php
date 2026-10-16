@@ -21,6 +21,7 @@ class CrmLeadService
         return DB::transaction(function () use ($plantId, $data) {
             Plant::whereKey($plantId)->lockForUpdate()->firstOrFail();
             $this->ensureUniqueContact($plantId, $data);
+            if (!empty($data['mix_design_id'])) $data['requirement'] = null;
             $lead = CrmLead::create(array_merge($data, ['plant_id' => $plantId]));
             $lead->update(['lead_number' => 'LD/' . now()->format('Y') . '/' . str_pad($lead->id, 5, '0', STR_PAD_LEFT)]);
             $this->log($lead, 'Lead created');
@@ -37,6 +38,7 @@ class CrmLeadService
                 throw ValidationException::withMessages(['status' => 'A converted lead must retain Converted status. Update its deal stage instead.']);
             }
             $this->ensureUniqueContact($lead->plant_id, $data, $lead->id);
+            if (array_key_exists('mix_design_id', $data) && ($data['mix_design_id'] !== null || $lead->mix_design_id !== null)) $data['requirement'] = null;
             $lead->fill($data);
             $changes = collect($lead->getDirty())->map(fn ($value, $key) => str_replace('_', ' ', $key) . ': ' . ($value ?? 'cleared'))->implode("\n");
             $lead->save();

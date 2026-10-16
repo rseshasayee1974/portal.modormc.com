@@ -17,6 +17,12 @@ class SalesMobileSitesTest extends TestCase
 {
     private function reviewContext(array $permissions = [], bool $owner = false): void
     {
+        Schema::create('mm_personnels', function (Blueprint $table) {
+            $table->id();
+            $table->integer('user_id');
+            $table->integer('plant_id');
+            $table->softDeletes();
+        });
         Schema::create('mm_quotations', function (Blueprint $table) {
             $table->id();
             $table->integer('plant_id');

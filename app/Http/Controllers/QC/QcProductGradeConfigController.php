@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 class QcProductGradeConfigController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'qc_product_grade_config';
+    protected string $module = 'QC_CONFIG';
 
     public function index(Request $request)
     {
@@ -131,6 +131,7 @@ class QcProductGradeConfigController extends Controller
     public function update(Request $request, QcProductGradeConfig $config)
     {
         $this->authorizeModule('edit');
+        abort_if($config->plant_id !== null && (int) $config->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         $validated = $request->validate([
             'material_id' => 'required|exists:mm_products,id',
@@ -196,6 +197,7 @@ class QcProductGradeConfigController extends Controller
     public function destroy(QcProductGradeConfig $config)
     {
         $this->authorizeModule('delete');
+        abort_if($config->plant_id !== null && (int) $config->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         $config->delete();
         return redirect()->back()->with('success', 'Configuration deleted successfully.');

@@ -7,6 +7,11 @@ use Illuminate\Support\Collection;
 
 class CubeReportDataService
 {
+    public function certificateSets(QcTest $test): Collection
+    {
+        return $this->completedSets(collect([$test]));
+    }
+
     /** Include completed ages of this sample and test type, within its plant. */
     public function sampleSets(QcTest $test): Collection
     {
@@ -29,13 +34,24 @@ class CubeReportDataService
                 // A multi-age test may still be pending while an individual set
                 // is completed. Legacy measurements use the test's status.
                 $status = strtolower((string) ($set->status ?? $test->overall_status));
-                if (!in_array($status, ['pass', 'fail', 'completed'], true)
-                    || $set->specimens->isEmpty()
-                    || $set->specimens->contains(fn ($specimen) => $specimen->strength_mpa === null)) {
+                if (!in_array($status, ['pass', 'fail', 'completed', 'retest'], true)
+                    || $set->specimens->count() < 3
+                    || $set->specimens->contains(fn ($specimen) => $specimen->strength_mpa === null || $specimen->weight_kg <= 0 || $specimen->load_kn <= 0)) {
                     continue;
                 }
                 $group = clone $set;
                 $group->source_test_no = $test->test_no;
+                $group->dimensions = app(ConcreteCubeCalculator::class)->dimensions($test);
+                $group->average_strength = round($group->specimens->avg('strength_mpa'), 2);
+                if ($group->casting_date && $group->testing_date) {
+                    $group->age_days = (int) \Carbon\Carbon::parse($group->casting_date)->startOfDay()
+                        ->diffInDays(\Carbon\Carbon::parse($group->testing_date)->startOfDay());
+                }
+                $group->report_remarks = match ($status) {
+                    'retest' => $set->error_reason ?? $test->retest_reason ?? 'Retest required.',
+                    'fail' => 'Below the configured acceptance strength.',
+                    default => $set->remarks ?? '',
+                };
                 $groups->push($group);
             }
         }
@@ -72,6 +88,7 @@ class CubeReportDataService
                 'weight_kg' => $this->numeric($meta['weight_kg'] ?? null),
                 'load_kn' => $this->numeric($meta['load_kn'] ?? null),
                 'strength_mpa' => $this->numeric($measurement->value_numeric ?? $meta['strength_mpa'] ?? null),
+                'density_kg_m3' => $this->numeric($meta['density'] ?? null),
             ];
         })->filter()->values();
 

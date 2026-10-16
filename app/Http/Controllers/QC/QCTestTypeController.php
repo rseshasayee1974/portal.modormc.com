@@ -19,7 +19,7 @@ use Illuminate\Validation\Rule;
 class QCTestTypeController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'QCTestType';
+    protected string $module = 'QC_CONFIG';
 
     public function index(Request $request)
     {
@@ -63,6 +63,8 @@ class QCTestTypeController extends Controller
 
     public function create()
     {
+        $this->authorizeModule('create');
+
         return redirect()->route('quality.config.test-types.index');
     }
 
@@ -201,12 +203,16 @@ class QCTestTypeController extends Controller
 
     public function edit(QcTestType $test_type)
     {
+        $this->authorizeModule('edit');
+        abort_if($test_type->plant_id !== null && (int) $test_type->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
+
         return redirect()->route('quality.config.test-types.index', ['edit' => $test_type->id]);
     }
 
     public function update(Request $request, QcTestType $test_type)
     {
         $this->authorizeModule('edit');
+        abort_if($test_type->plant_id !== null && (int) $test_type->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         $validated = $request->validate([
             'name' => 'nullable|string|max:150',
@@ -340,6 +346,9 @@ class QCTestTypeController extends Controller
 
     public function toggleActive(QcTestType $test_type)
     {
+        $this->authorizeModule('edit');
+        abort_if($test_type->plant_id !== null && (int) $test_type->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
+
         $newStatus = !$test_type->is_active;
 
         if ($newStatus) {
@@ -368,6 +377,7 @@ class QCTestTypeController extends Controller
     public function destroy(QcTestType $test_type)
     {
         $this->authorizeModule('delete');
+        abort_if($test_type->plant_id !== null && (int) $test_type->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         $test_type->updateQuietly([
             'deleted_by' => auth()->id() ?: 1,

@@ -7,7 +7,7 @@ Created: 2026-10-09 18:04:42 Asia/Calcutta (UTC+05:30)
 namespace App\Http\Controllers\Api\SalesMobile;
 
 use App\Http\Controllers\Controller;
-use App\Models\{SalesOrder, CustomerPO, Plant, Batch, Dispatch};
+use App\Models\{SalesOrder, Plant, Batch};
 use App\Services\Mobile\MobileAccess as Access;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,13 +26,7 @@ class OrderController extends Controller
             'status', 'is_tax_inclusive', 'amount_untaxed', 'amount_tax', 'amount_total'];
         $itemFields = ['id', 'customer_po_id', 'mix_design_id', 'quantity', 'rate', 'tax_id',
             'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'];
-        $q = CustomerPO::select($fields)->where('plant_id', Access::plantId())
-            ->when(!Access::all('SALES_ORDER'), function ($q) use ($r) {
-                $q->where(function ($owner) use ($r) {
-                    $owner->where('created_by', $r->user()->id);
-                    if ($id = Access::personnelId()) $owner->orWhere('sales_executive_id', $id);
-                });
-            })->with(['patron:id,legal_name', 'site:id,name', 'items' => fn ($items) => $items->select($itemFields)]);
+        $q = Access::customerPOs()->select($fields)->with(['patron:id,legal_name', 'site:id,name', 'items' => fn ($items) => $items->select($itemFields)]);
         if ($r->filled('search')) $q->where(function ($search) use ($r) {
             $search->where('reference', 'like', '%'.$r->search.'%')
                 ->orWhere('customer_po_reference', 'like', '%'.$r->search.'%');
@@ -115,8 +109,8 @@ class OrderController extends Controller
         if ($order && !$r->exists('customer_po_id')) $r->merge(['customer_po_id' => $order->customer_po_id]);
         $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
         $data = $r->validate([
-            'customer_id' => ['required', 'integer', $exists('mm_patrons')], 'site_id' => ['required', 'integer', $exists('mm_sites')],
-            'mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')], 'customer_po_id' => ['nullable', 'integer', $exists('mm_customer_pos')],
+            'customer_id' => ['required', 'integer', Access::exists(Access::customers())], 'site_id' => ['required', 'integer', Access::exists(Access::sites())],
+            'mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')], 'customer_po_id' => ['nullable', 'integer', Access::exists(Access::customerPOs())],
             'total_qty' => 'required|numeric|between:0.01,999999', 'scheduled_start' => 'nullable|date',
             'scheduled_end' => 'nullable|date|after_or_equal:scheduled_start',
             'rate' => 'required_without:customer_po_id|numeric|between:0,99999999',
@@ -124,7 +118,7 @@ class OrderController extends Controller
             'is_tax_inclusive' => 'nullable|boolean', 'concrete_pump' => 'nullable|string|max:100',
             'pump_rate' => 'nullable|numeric|between:0,99999999',
         ]);
-        $data['sales_executive_id'] = Access::personnelId();
+        $data['sales_executive_id'] = Access::commercialOwnerId($order?->sales_executive_id);
         if (empty($data['customer_po_id'])) {
             $data['customer_po_id'] = null;
             $data['tax_id'] = $data['tax_id'] ?? null;
@@ -133,9 +127,8 @@ class OrderController extends Controller
             $data['pump_rate'] = $data['pump_rate'] ?? 0;
             return $data;
         }
-        $po = CustomerPO::findOrFail($data['customer_po_id']);
+        $po = Access::customerPOs()->findOrFail($data['customer_po_id']);
         abort_unless((int) $po->patron_id === (int) $data['customer_id'] && (int) $po->site_id === (int) $data['site_id'], 422, 'Customer and site must match the customer PO.');
-        if (!Access::all('SALES_ORDER')) abort_unless((int) $po->created_by === (int) $r->user()->id || (Access::personnelId() && (int) $po->sales_executive_id === Access::personnelId()), 404);
         $item = $po->items()->where('mix_design_id', $data['mix_design_id'])->first();
         if (!$item) throw ValidationException::withMessages([
             'mix_design_id' => ['The selected mix design is not available in the selected customer PO. Choose a mix design from its items or remove customer_po_id to use a direct rate.'],

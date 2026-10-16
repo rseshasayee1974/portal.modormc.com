@@ -18,9 +18,13 @@ Saving closes the editor and reloads the current lead details. Creation remains
 in the top form.
 
 Mix Design Requirement uses a searchable dropdown of active, nondeleted mix
-designs from the current plant. Options contain label/value pairs and duplicate
-names appear once. The selected name is saved in the existing requirement field. Previously saved text
-remains selectable when it is no longer in the catalog. No schema change is needed.
+designs from the current plant. Options contain a name label and numeric ID value;
+separate designs remain distinct even when their names match. The selected ID is stored
+in `mix_design_id`, with the name loaded through the mix design relationship. Apply the
+new migration before using the updated forms or mobile API. Existing requirement text is
+linked only when it uniquely matches a nondeleted design in the same plant. Unmatched
+legacy text remains visible; new selections use IDs. Clearing a linked design clears its
+old requirement text as well.
 
 Calls, meetings, site visits and
 tasks require a due date; notes are recorded immediately. Complete scheduled

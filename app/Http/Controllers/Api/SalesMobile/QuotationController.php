@@ -26,27 +26,48 @@ class QuotationController extends Controller
         return $quotation;
     }
 
+    private function detailRelations(): array
+    {
+        return [
+            'patron', 'site', 'items.uom', 'items.tax.children',
+            'items.mixDesign' => fn ($query) => $query->withTrashed()->where('plant_id', Access::plantId()),
+            'items.mixDesign.concreteGrade:id,name', 'items.mixDesign.unit',
+            'items.mixDesign.items' => fn ($query) => $query->where('plant_id', Access::plantId()),
+            'items.mixDesign.items.product:id,title,code,material_code',
+            'items.mixDesign.items.uom',
+        ];
+    }
+
+    private function details(Quotation $quotation): Quotation
+    {
+        $this->syncApprovalState($quotation)->loadMissing($this->detailRelations());
+        $quotation->patron?->setAppends([]);
+        $quotation->site?->setAppends([]);
+        foreach ($quotation->items as $item) {
+            // Usage flags query production tables and are unrelated to quotation display.
+            $item->setAppends([]);
+            foreach ($item->mixDesign?->items ?? [] as $component) {
+                $component->setAppends([]);
+                $component->product?->setAppends([]);
+            }
+        }
+        return $quotation;
+    }
+
     public function index(Request $r)
     {
         $r->validate(['per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100', 'approval_state' => 'nullable|in:draft,pending,approved,rejected']);
-        $q = Access::quotations()->with(['patron:id,legal_name', 'site:id,name']);
+        $q = Access::quotations()->with($this->detailRelations());
         if ($r->filled('search')) $q->where('reference', 'like', '%'.$r->search.'%');
         if ($r->filled('approval_state')) $q->where('status', array_search($r->approval_state, self::APPROVAL_STATES, true));
         $page = $q->latest('id')->paginate($r->integer('per_page', 20));
-        $page->getCollection()->each(function ($quotation) {
-            $this->syncApprovalState($quotation);
-            $quotation->patron?->setAppends([]);
-            $quotation->site?->setAppends([]);
-        });
+        $page->getCollection()->each(fn ($quotation) => $this->details($quotation));
         return response()->json(['success' => true, 'data' => $page]);
     }
     public function show(int $quotation)
     {
-        $model = $this->syncApprovalState(Access::quotations()->findOrFail($quotation))
-            ->load(['items.mixDesign', 'items.tax.children', 'patron', 'site']);
-        $model->patron?->setAppends([]);
-        $model->site?->setAppends([]);
-        return response()->json(['success' => true, 'data' => $model]);
+        $model = $this->details(Access::quotations()->findOrFail($quotation));
+        return response()->json(['success' => true, 'data' => $this->details($model)]);
     }
     private function data(Request $r, ?Quotation $quotation): array
     {
@@ -57,7 +78,7 @@ class QuotationController extends Controller
         }
         $data = $r->validate([
             'reference' => ['nullable', 'string', 'max:100', Rule::unique('mm_quotations', 'reference')->where('plant_id', Access::plantId())->whereNull('deleted_at')->ignore($quotation?->id)],
-            'patron_id' => ['required', 'integer', $exists('mm_patrons')], 'site_id' => ['required', 'integer', $exists('mm_sites')],
+            'patron_id' => ['required', 'integer', Access::exists(Access::customers())], 'site_id' => ['required', 'integer', Access::exists(Access::sites())],
             'quote_date' => 'required|date_format:Y-m-d', 'validity_date' => 'nullable|date_format:Y-m-d|after_or_equal:quote_date',
             'notes' => 'nullable|string|max:10000', 'is_tax_inclusive' => 'required|boolean',
             'items' => 'required|array|min:1|max:100', 'items.*' => 'required|array:mix_design_id,quantity,rate,tax_id,uom_id,concrete_pump,pump_rate,discount_type,discount', 'items.*.mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')],
@@ -67,8 +88,7 @@ class QuotationController extends Controller
             'items.*.uom_id' => ['nullable', 'integer', $exists('mm_product_units')],
             'items.*.concrete_pump' => 'nullable|string|max:100', 'items.*.pump_rate' => 'nullable|numeric|min:0',
         ]);
-        \App\Models\Patron::ofType('Customer')->findOrFail($data['patron_id']);
-        $data['sales_executive_id'] = $quotation?->sales_executive_id ?? Access::personnelId();
+        $data['sales_executive_id'] = Access::commercialOwnerId($quotation?->sales_executive_id);
         $data['items'] = QuotationCalculator::items($data['items'], (bool) $data['is_tax_inclusive']);
         $baseTotal = array_sum(array_column($data['items'], 'amount_total'));
         $target = $data['is_tax_inclusive'] ? array_sum(array_map(fn ($i) => round($i['quantity'] * $i['rate'] + ($i['pump_rate'] ?? 0) - ($i['discount_amount'] ?? 0), 2), $data['items'])) : $baseTotal;
@@ -85,7 +105,7 @@ class QuotationController extends Controller
             $this->syncApprovalState($quotation)->save();
             return $quotation;
         });
-        return response()->json(['success' => true, 'data' => $model->fresh()->load('items')], 201);
+        return response()->json(['success' => true, 'data' => $this->details($model->fresh())], 201);
     }
     public function update(Request $r, int $quotation)
     {
@@ -94,7 +114,7 @@ class QuotationController extends Controller
             $this->editable($model);
             $model->updateWithItems($this->data($r, $model));
             $model->forceFill(['mobile_approval_state' => 'draft', 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null, 'mobile_submitted_by' => null, 'mobile_submitted_at' => null])->save();
-            return response()->json(['success' => true, 'data' => $model->fresh()->load('items')]);
+            return response()->json(['success' => true, 'data' => $this->details($model->fresh())]);
         });
     }
     private function editable(Quotation $model): void
@@ -119,12 +139,12 @@ class QuotationController extends Controller
             $this->editable($model);
             abort_unless($model->items()->exists(), 422, 'Add quotation items before submission.');
             $model->forceFill(['status' => Quotation::STATUS_SENT, 'mobile_approval_state' => 'pending', 'mobile_submitted_by' => request()->user()->id, 'mobile_submitted_at' => now(), 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null])->save();
-            return response()->json(['success' => true, 'data' => $model]);
+            return response()->json(['success' => true, 'data' => $this->details($model)]);
         });
     }
     public function review(Request $r, int $quotation)
     {
-        $isSaasOwner = $r->user()->isSystemAdmin();
+        $isSaasOwner = !Access::isSalesExecutive() && $r->user()->isSystemAdmin();
         $data = $r->validate(['decision' => 'required|in:approved,rejected', 'comment' => 'nullable|required_if:decision,rejected|string|max:2000']);
         return DB::transaction(function () use ($r, $quotation, $data, $isSaasOwner) {
             $query = $isSaasOwner ? Quotation::where('plant_id', Access::plantId()) : Access::quotations();
@@ -136,7 +156,7 @@ class QuotationController extends Controller
                 abort_if((int) $model->mobile_submitted_by === (int) $r->user()->id, 403, 'You cannot review your own quotation submission.');
             }
             $model->forceFill(['mobile_approval_state' => $data['decision'], 'mobile_approval_comment' => $data['comment'] ?? null, 'mobile_reviewed_by' => $r->user()->id, 'mobile_reviewed_at' => now(), 'status' => $data['decision'] === 'approved' ? Quotation::STATUS_ACCEPTED : Quotation::STATUS_REJECTED])->save();
-            return response()->json(['success' => true, 'data' => $model->setAppends([])]);
+            return response()->json(['success' => true, 'data' => $this->details($model)->setAppends([])]);
         });
     }
 }

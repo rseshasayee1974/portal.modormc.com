@@ -57,6 +57,15 @@ class QcSample extends Model
         'specimen_count' => 'integer',
     ];
 
+    public function scheduledTestDate(int $age): string
+    {
+        $dispatchDate = $this->dispatch?->dispatch_time;
+        $timezone = request()->attributes->get('entity_timezone', 'Asia/Kolkata');
+        $origin = $dispatchDate ? \Carbon\Carbon::parse($dispatchDate)->timezone($timezone) : $this->sample_date->copy();
+
+        return $origin->addDays($age)->toDateString();
+    }
+
     public function plant()
     {
         return $this->belongsTo(Plant::class, 'plant_id');

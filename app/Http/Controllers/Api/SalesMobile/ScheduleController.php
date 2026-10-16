@@ -25,7 +25,7 @@ class ScheduleController extends ConcreteBatchingScheduleController
         foreach (['site_id' => 'mm_sites', 'mix_design_id' => 'mm_mix_designs', 'vehicle_id' => 'mm_machines', 'pump_vehicle_id' => 'mm_machines', 'driver_id' => 'mm_personnels'] as $field => $table) {
             $rules[$field] = [in_array($field, ['site_id', 'mix_design_id']) ? 'required' : 'nullable', 'integer', Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')];
         }
-        $rules['sales_order_id'] = ['required', 'integer', Rule::in(Access::orders()->whereIn('status', [1, 2])->where('site_id', request('site_id'))->where('mix_design_id', request('mix_design_id'))->pluck('id')->all())];
+        $rules['sales_order_id'] = ['required', 'integer', Access::exists(Access::orders()->whereIn('status', [1, 2])->where('site_id', request('site_id'))->where('mix_design_id', request('mix_design_id')))];
         $rules['status'] = 'nullable|in:scheduled';
         $rules['dispatch_id'] = 'prohibited';
         return $rules;

@@ -109,7 +109,7 @@ class QcTest extends Model
     }
 
     /**
-     * Ensure the test has its 3 sets and 9 specimens initialized.
+     * Initialize specimen sets for this test's scheduled age.
      */
     public function ensureSetsAndSpecimensInitialized(): void
     {
@@ -127,10 +127,16 @@ class QcTest extends Model
             3 => ['age_days' => 28, 'label' => '28 Days'],
         ];
 
+        if ($this->age_days) {
+            $setConfigs = [1 => ['age_days' => $this->age_days, 'label' => $this->age_days.' Days']];
+        }
+
         // Check if a Product Grade Config exists with configured milestones
-        if ($this->config && $this->config->milestones()->count() > 0) {
+        $milestones = $this->config?->milestones
+            ?->filter(fn ($milestone) => !$this->age_days || (int) $milestone->age_days === $this->age_days);
+        if ($milestones?->isNotEmpty()) {
             $setConfigs = [];
-            foreach ($this->config->milestones as $m) {
+            foreach ($milestones as $m) {
                 $setConfigs[$m->set_number] = [
                     'milestone_id' => $m->id,
                     'age_days' => $m->age_days,
@@ -144,7 +150,7 @@ class QcTest extends Model
         $cubeIndex = 1;
         foreach ($setConfigs as $setNum => $sInfo) {
             $ageDays = $sInfo['age_days'];
-            $testingDate = (clone $castingDate)->addDays($ageDays);
+            $testingDate = \Carbon\Carbon::parse($this->sample->scheduledTestDate((int) $ageDays));
 
             $testSet = $this->sets()->create([
                 'set_number' => $setNum,

@@ -6,7 +6,7 @@ Created: 2026-10-09 18:05:42 Asia/Calcutta (UTC+05:30)
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\SalesMobile\{AuthController, LeadController, QuotationController, OrderController, ScheduleController, WorkspaceController};
-use App\Http\Middleware\{MobileDeviceToken, MobilePlantContext};
+use App\Http\Middleware\{MobileDeviceToken, MobilePlantContext, MobileSalesScope};
 
 Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::class)->group(function () {
     Route::get('docs', [\App\Http\Controllers\Api\SalesMobile\DocumentationController::class, 'index'])->name('sales-mobile.docs');
@@ -18,7 +18,7 @@ Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::cla
         Route::get('me', [AuthController::class, 'me']);
         Route::get('plants', [AuthController::class, 'plants']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
-        Route::middleware(MobilePlantContext::class)->group(function () {
+        Route::middleware([MobilePlantContext::class, MobileSalesScope::class])->group(function () {
             Route::get('dashboard', [WorkspaceController::class, 'dashboard']);
             Route::get('lookups', [WorkspaceController::class, 'lookups']);
             Route::get('mix-designs', [WorkspaceController::class, 'mixDesigns']);

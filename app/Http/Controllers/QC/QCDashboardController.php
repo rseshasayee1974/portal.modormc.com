@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 class QCDashboardController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'q_c_dashboard';
+    protected string $module = 'QC';
 
     public function index(Request $request)
     {

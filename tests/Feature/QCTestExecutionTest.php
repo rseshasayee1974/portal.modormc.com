@@ -53,6 +53,11 @@ class QCTestExecutionTest extends TestCase
             'default_plant_id' => $this->plant->id,
         ]);
 
+        \App\Models\EntityUser::create([
+            'user_id' => $this->user->id, 'entity_id' => $entity->id, 'plant_id' => $this->plant->id,
+            'role_id' => \App\Models\Role::factory()->create()->id,
+        ]);
+
         session([
             'active_entity_id' => $entity->id,
             'active_plant_id' => $this->plant->id,
@@ -154,7 +159,7 @@ class QCTestExecutionTest extends TestCase
 
         $this->test->refresh();
         $this->assertEquals('pass', $this->test->overall_status);
-        $this->assertDatabaseHas('qc_test_results', [
+        $this->assertDatabaseHas('mm_qc_test_results', [
             'qc_test_id' => $this->test->id,
             'parameter_id' => $this->param2->id,
             'status' => 'PASS',

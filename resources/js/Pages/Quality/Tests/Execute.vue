@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { entityToday } from '@/Utils/entityDateTime';
+import { usePermissions } from '@/Composables/usePermissions';
+import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
@@ -7,6 +8,7 @@ import { ref, computed, watch } from 'vue';
 import Toast from 'primevue/toast';
 import { useToast } from 'primevue/usetoast';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 
 const fracturePatternOptions = [
@@ -18,13 +20,40 @@ const fracturePatternOptions = [
 ];
 
 const props = defineProps<{
+    readOnly?: boolean;
     test: any;
     rules: any[];
+    isConcreteCubeTest?: boolean;
+    cubeDimensions?: { length_mm: number; width_mm: number; height_mm: number; area_mm2: number; volume_m3: number };
 }>();
 
 const toast = useToast();
+const { can } = usePermissions();
+const readOnly = computed(() => props.readOnly || !can('QC_TEST.UPDATE'));
+const showTestDetails = ref(false);
+const showCubeDetails = ref(false);
+const testSummary = computed(() => ({
+    accountName: props.test.sample?.customer?.legal_name || props.test.sample?.dispatch?.sales_order?.customer?.legal_name || '-',
+    siteName: props.test.sample?.site_name || '-',
+    sampleNo: props.test.sample?.sample_no || '-',
+    dispatchNo: props.test.sample?.dispatch?.dispatch_no || '-',
+    dispatchDate: props.test.sample?.dispatch?.dispatch_time ? entityLocaleDate(props.test.sample.dispatch.dispatch_time) : '-',
+    gradeMaterial: props.test.sample?.concrete_grade?.name || props.test.sample?.material?.title || '-',
+    testAge: props.test.age_days != null ? `${props.test.age_days} days` : '-',
+    labTechnician: props.test.tester?.name || props.test.tester?.username || 'Not tested',
+}));
+const testDetails = computed(() => [
+    { label: 'Sample number', value: testSummary.value.sampleNo },
+    { label: 'Lab technician', value: testSummary.value.labTechnician },
+    { label: 'Mould size', value: props.test.sample?.specimen_size || '-' },
+    { label: 'Curing tank', value: props.test.sample?.curing_tank_id || '-' },
+    { label: 'Standard', value: props.test.test_type?.standard_reference || '-' },
+]);
 
-const hasMeasurements = computed(() => props.test.measurements && props.test.measurements.length > 0);
+const hasMeasurements = computed(() => props.test.measurements?.length > 0
+    || props.test.sets?.some((set: any) => set.specimens?.some((specimen: any) => specimen.strength_mpa != null)));
+const hasSavedResults = computed(() => hasMeasurements.value && !!props.test.evaluated_at && props.test.overall_status !== 'pending');
+const resultLabel = computed(() => !hasSavedResults.value ? 'Awaiting results' : ({ pass: 'Passed', fail: 'Failed', retest: 'Retest required' } as Record<string, string>)[props.test.overall_status] || props.test.overall_status);
 const mode = ref<'entry' | 'certificate'>(hasMeasurements.value && props.test.overall_status !== 'pending' ? 'certificate' : 'entry');
 
 const parameters = computed(() => props.test.test_type?.parameters || []);
@@ -33,6 +62,7 @@ const gridConfig = computed(() => props.test.test_type?.grid_config || {});
 
 // Concrete Cube Compressive Strength testing flag
 const isConcreteCubeTest = computed(() => {
+    if (props.isConcreteCubeTest !== undefined) return props.isConcreteCubeTest;
     const cat = (props.test.test_type?.category || '').toLowerCase();
     const name = (props.test.test_type?.name || '').toLowerCase();
     // Exclude Cement and Raw Material so they use the dynamic IS 4031 parameter engine
@@ -55,6 +85,17 @@ const defaultConcreteSpecimens = [
 ];
 
 const initConcreteSpecimens = () => {
+    const stored = (props.test.sets || []).flatMap((set: any) => set.specimens || []);
+    if (stored.some((specimen: any) => specimen.load_kn != null)) {
+        return stored.map((specimen: any) => ({
+            ident_mark: specimen.identification_mark,
+            weight_kg: specimen.weight_kg == null ? null : Number(specimen.weight_kg),
+            load_kn: specimen.load_kn == null ? null : Number(specimen.load_kn),
+            strength_mpa: specimen.strength_mpa == null ? null : Number(specimen.strength_mpa),
+            density: specimen.density_kg_m3 == null ? null : Number(specimen.density_kg_m3),
+            failure_type: specimen.failure_type || 'Normal',
+        }));
+    }
     const measurements = props.test.measurements || [];
     if (measurements.length > 0) {
         const list: any[] = [];
@@ -69,7 +110,7 @@ const initConcreteSpecimens = () => {
             const weight = meta?.weight_kg ?? null;
             const load = meta?.load_kn ?? null;
             const strength = m.value_numeric ?? meta?.strength_mpa ?? null;
-            const density = meta?.density ?? (weight ? Number((Number(weight) / 0.003375).toFixed(1)) : null);
+            const density = meta?.density ?? (weight ? Number((Number(weight) / (props.cubeDimensions?.volume_m3 || 0.003375)).toFixed(2)) : null);
             const failure = meta?.failure_type ?? 'Normal non-explosive';
 
             list.push({
@@ -107,18 +148,15 @@ const removeConcreteSpecimen = (idx: number) => {
 
 const recalculateSpecimen = (spec: any) => {
     if (spec.weight_kg !== null && spec.weight_kg !== '' && !isNaN(Number(spec.weight_kg))) {
-        let wt = Number(spec.weight_kg);
-        if (wt > 100) wt = wt / 1000;
-        spec.density = Number((wt / 0.003375).toFixed(1));
+        const wt = Number(spec.weight_kg);
+        spec.density = Number((wt / (props.cubeDimensions?.volume_m3 || 0.003375)).toFixed(2));
     } else {
         spec.density = null;
     }
 
     if (spec.load_kn !== null && spec.load_kn !== '' && !isNaN(Number(spec.load_kn))) {
         const load = Number(spec.load_kn);
-        // Area for 150x150 mm cube = 22,500 mm2.
-        // Compressive Strength (N/mm2 or MPa) = (Load in kN * 1000) / 22500 = Load / 22.5
-        spec.strength_mpa = Number((load / 22.5).toFixed(2));
+        spec.strength_mpa = Number((load * 1000 / (props.cubeDimensions?.area_mm2 || 22500)).toFixed(2));
     } else {
         spec.strength_mpa = null;
     }
@@ -177,12 +215,14 @@ const outlierAnalysis = computed(() => {
 });
 
 const concreteStatus = computed(() => {
+    if (concreteSpecimens.value.length < 3 || concreteSpecimens.value.some(specimen => !(Number(specimen.weight_kg) > 0 && Number(specimen.load_kn) > 0))) return 'pending';
     if (concreteAvgStrength.value <= 0) return 'pending';
+    if (outlierAnalysis.value.hasOutlier) return 'retest';
     if (minStrength.value > 0) {
         return concreteAvgStrength.value >= minStrength.value ? 'pass' : 'fail';
     }
     if (targetStrength.value > 0) {
-        return concreteAvgStrength.value >= (targetStrength.value * 0.85) ? 'pass' : 'fail';
+        return concreteAvgStrength.value >= targetStrength.value ? 'pass' : 'fail';
     }
     return 'pass';
 });
@@ -653,13 +693,14 @@ const form = useForm({
 });
 
 const submitExecution = () => {
+    if (readOnly.value) return;
     if (isConcreteCubeTest.value) {
-        const valid = concreteSpecimens.value.filter(s => Number(s.load_kn) > 0);
-        if (valid.length === 0) {
+        const valid = concreteSpecimens.value.filter(s => Number(s.load_kn) > 0 && Number(s.weight_kg) > 0);
+        if (valid.length < 3 || valid.length !== concreteSpecimens.value.length) {
             toast.add({
                 severity: 'error',
-                summary: 'Missing Failure Load',
-                detail: 'Please enter failure load in kN for at least one concrete specimen.',
+                summary: 'Incomplete specimens',
+                detail: 'Enter weight in kg and failure load in kN for every specimen, with at least three specimens per set.',
                 life: 3000
             });
             return;
@@ -815,161 +856,106 @@ const printCertificate = () => {
         <Head :title="`QC Test — ${test.test_no}`" />
         <Toast />
 
-        <div class="max-w-6xl mx-auto py-5 px-4 sm:px-6 space-y-5">
-            <!-- ============================================================= -->
-            <!-- TOP COMMAND BAR                                               -->
-            <!-- ============================================================= -->
-            <div
-                class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
-                <!-- Left: Title, Badges & Context -->
-                <div class="flex items-center gap-3.5">
-                    <Link :href="route('quality.tests.index')"
-                        class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center transition-all border border-slate-200/60 dark:border-slate-700/60"
-                        title="Back to QC Tests">
-                        <i class="pi pi-arrow-left text-sm font-bold"></i>
-                    </Link>
-
-                    <div>
-                        <!-- Title & Key Badges -->
-                        <div class="flex flex-wrap items-center gap-2.5">
-                            <h1 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-                                {{ test.test_type?.name }}
-                            </h1>
-                            <span
-                                class="text-xs font-mono font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
-                                {{ test.test_no }}
-                            </span>
-                            <span
-                                class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5"
-                                :class="{
-                                    'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60': test.overall_status === 'pass',
-                                    'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800/60': test.overall_status === 'fail',
-                                    'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60': !test.overall_status || test.overall_status === 'pending',
-                                }">
-                                <span class="w-1.5 h-1.5 rounded-full"
-                                    :class="{ 'bg-emerald-500': test.overall_status === 'pass', 'bg-rose-500': test.overall_status === 'fail', 'bg-amber-500': !test.overall_status || test.overall_status === 'pending' }"></span>
-                                {{ test.overall_status === 'pass' ? 'Passed' : test.overall_status === 'fail' ? 'Failed'
-                                    :
-                                    'Pending Entry' }}
-                            </span>
-                        </div>
-
-                        <!-- Context Metadata Trail -->
-                        <div
-                            class="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <span class="font-medium text-slate-700 dark:text-slate-300">{{
-                                test.test_type?.category || 'Quality Test' }}</span>
-                            <span class="text-slate-300 dark:text-slate-700">&bull;</span>
-                            <span class="text-slate-600 dark:text-slate-300 font-medium">
-                                {{ test.sample?.material?.title || 'Material' }}
-                                <span class="font-mono text-slate-400 text-[11px] ml-0.5">#{{ test.sample?.sample_no
-                                    }}</span>
-                            </span>
-                            <template v-if="test.test_type?.standard_reference">
-                                <span class="text-slate-300 dark:text-slate-700">&bull;</span>
-                                <span
-                                    class="text-amber-700 dark:text-amber-400 font-medium inline-flex items-center gap-1">
-                                    <i class="pi pi-book text-[10px]"></i> {{ test.test_type?.standard_reference }}
+        <div
+            class="qc-execute mx-auto w-full min-w-0 space-y-5 px-3 py-3 text-sm text-slate-700 sm:px-5 dark:text-slate-200">
+            <section
+                class="rounded-xl border border-slate-200 bg-white shadow-sm print:hidden dark:border-slate-700 dark:bg-slate-900">
+                <header class="flex flex-wrap items-center justify-between gap-4 p-5">
+                    <div class="flex min-w-0 items-center gap-3.5">
+                        <Link :href="route('quality.samples.index')"
+                            class="group flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/80 transition-all shadow-2xs"
+                            aria-label="Back to concrete samples">
+                            <i class="pi pi-arrow-left text-sm transition-transform group-hover:-translate-x-0.5" aria-hidden="true"></i>
+                        </Link>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                                    {{ readOnly ? 'View Quality Test' : 'Execute Quality Test' }}
+                                </h1>
+                            </div>
+                            <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
+                                <span class="font-medium text-slate-600 dark:text-slate-300">
+                                    {{ test.test_type?.name || 'Quality test' }}
                                 </span>
-                            </template>
-                            <span class="text-slate-300 dark:text-slate-700">&bull;</span>
-                            <span
-                                class="text-indigo-600 dark:text-indigo-400 font-medium inline-flex items-center gap-1">
-                                <i class="pi pi-th-large text-[10px]"></i> {{ layoutType }}
-                            </span>
+                                <span class="text-slate-300 dark:text-slate-600">/</span>
+                                <span class="font-mono text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/60 px-2 py-0.5 rounded-md">
+                                    {{ test.test_no }}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Right: Segmented Switcher & Actions -->
-                <div class="flex items-center gap-2 self-start md:self-auto shrink-0">
-                    <div
-                        class="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold border border-slate-200/60 dark:border-slate-700">
-                        <button type="button" @click="mode = 'entry'" :class="[
-                            'px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer',
-                            mode === 'entry'
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        ]">
-                            <i class="pi pi-pencil text-[10px]"></i> Data Entry
-                        </button>
-                        <button type="button" @click="mode = 'certificate'" :class="[
-                            'px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer',
-                            mode === 'certificate'
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        ]">
-                            <i class="pi pi-file text-[10px]"></i> Certificate
-                        </button>
-                    </div>
-
-                    <button v-if="mode === 'certificate'" type="button" @click="printCertificate"
-                        class="px-3.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer">
-                        <i class="pi pi-print text-xs text-indigo-600 dark:text-indigo-400"></i> Print
-                    </button>
-                </div>
-            </div>
-
-            <!-- ============================================================= -->
-            <!-- CONTEXT SUMMARY METRICS STRIP                                -->
-            <!-- ============================================================= -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
-                <div class="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Plant /
-                        Facility</span>
-                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block mt-0.5">{{
-                        test.plant?.name
-                        || 'Central Facility' }}</span>
-                </div>
-                <div class="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Sample
-                        Source</span>
-                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block mt-0.5">{{
-                        test.sample?.source_location || test.sample?.supplier?.legal_name || 'Plant Sampling' }}</span>
-                </div>
-                <div class="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tested By</span>
-                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block mt-0.5">{{
-                        test.tester?.name || 'Lab Technician' }}</span>
-                </div>
-                <div
-                    class="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl flex flex-col justify-center">
-                    <template v-if="mode === 'entry'">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Test
-                            Date</span>
-                        <BaseDatePicker v-model="form.test_date" dateFormat="yy-mm-dd" placeholder="Select test date"
-                            size="small" class="w-full" :error="form.errors.test_date" />
-                    </template>
-                    <div v-else class="flex items-center justify-between">
-                        <div>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Test
-                                Date</span>
-                            <span class="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 block mt-0.5">{{
-                                form.test_date }}</span>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider shadow-2xs"
+                            :class="test.overall_status === 'pass'
+                                ? 'border-emerald-200 bg-emerald-50/90 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                : test.overall_status === 'fail'
+                                ? 'border-rose-200 bg-rose-50/90 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                                : test.overall_status === 'retest'
+                                ? 'border-amber-200 bg-amber-50/90 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                                : 'border-indigo-100 bg-indigo-50/90 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300'">
+                            <span class="h-1.5 w-1.5 rounded-full"
+                                :class="test.overall_status === 'pass' ? 'bg-emerald-500' : test.overall_status === 'fail' ? 'bg-rose-500' : test.overall_status === 'retest' ? 'bg-amber-500' : 'bg-indigo-500 animate-pulse'"></span>
+                            {{ test.overall_status || 'pending' }}
+                        </span>
+                        <div class="flex rounded-lg border border-slate-200 bg-slate-100/80 p-1 dark:border-slate-700 dark:bg-slate-800">
+                            <button type="button" @click="mode = 'entry'" :aria-pressed="mode === 'entry'"
+                                class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
+                                :class="mode === 'entry' ? 'bg-white text-indigo-700 shadow-2xs dark:bg-slate-700 dark:text-indigo-300' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'">
+                                <i class="pi pi-pencil text-[11px]" aria-hidden="true"></i>
+                                {{ readOnly ? 'View Data' : 'Data Entry' }}
+                            </button>
+                            <button type="button" @click="mode = 'certificate'" :aria-pressed="mode === 'certificate'"
+                                class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
+                                :class="mode === 'certificate' ? 'bg-white text-indigo-700 shadow-2xs dark:bg-slate-700 dark:text-indigo-300' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'">
+                                <i class="pi pi-file text-[11px]" aria-hidden="true"></i>
+                                Results
+                            </button>
                         </div>
-                        <i class="pi pi-calendar text-slate-400 text-sm"></i>
+                        <BaseButton v-if="mode === 'certificate' && can('QC_TEST.PDF')" type="button" label="Print Results" icon="pi pi-print"
+                            :disabled="!hasSavedResults" @click="printCertificate" />
                     </div>
+                </header>
+
+                <div class="border-t border-slate-100 px-5 py-4 dark:border-slate-800">
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sample &amp; dispatch details</h2>
+                        <button type="button" class="flex items-center gap-1.5 text-xxs font-medium text-indigo-600 dark:text-indigo-300" :aria-expanded="showTestDetails" aria-controls="execution-details" @click="showTestDetails = !showTestDetails"><i :class="showTestDetails ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>{{ showTestDetails ? 'Less details' : 'All details' }}</button>
+                    </div>
+                    <dl class="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-5">
+                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Account</dt><dd class="mt-1 break-words text-sm font-medium">{{ testSummary.accountName }}</dd></div>
+                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Project / Site</dt><dd class="mt-1 break-words text-sm font-medium">{{ testSummary.siteName }}</dd></div>
+                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Grade / Test age</dt><dd class="mt-1 text-sm font-medium">{{ testSummary.gradeMaterial }} &middot; {{ testSummary.testAge }}</dd></div>
+                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Dispatch</dt><dd class="mt-1 break-words text-sm font-medium">{{ testSummary.dispatchNo }}</dd></div>
+                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Dispatch date</dt><dd class="mt-1 text-sm font-medium">{{ testSummary.dispatchDate }}</dd></div>
+                    </dl>
+                    <dl v-if="showTestDetails" id="execution-details" class="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-5 dark:border-slate-800">
+                        <div v-for="item in testDetails" :key="item.label" class="min-w-0"><dt class="text-[10px] text-slate-500">{{ item.label }}</dt><dd class="mt-1 break-words text-sm font-medium">{{ item.value }}</dd></div>
+                    </dl>
+                    <p v-if="mode === 'certificate'" class="mt-3 text-xxs text-slate-500">Tested: {{ test.test_date ? entityLocaleDate(test.test_date) : 'Not tested' }}</p>
                 </div>
-            </div>
+            </section>
 
             <!-- ============================================================= -->
             <!-- MODE 1: DATA ENTRY FORM                                       -->
             <!-- ============================================================= -->
-            <div v-if="mode === 'entry'" class="space-y-4">
+            <fieldset v-if="mode === 'entry'" :disabled="readOnly" class="min-w-0 space-y-4">
                 <div
-                    class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
+                    class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 sm:p-6 shadow-sm space-y-5">
+                    <div class="grid grid-cols-1 items-end gap-4 border-b border-slate-100 pb-4 sm:grid-cols-2 lg:grid-cols-5 dark:border-slate-800">
+                        <BaseDatePicker v-model="form.test_date" label="Test date" dateFormat="yy-mm-dd" :disabled="readOnly" :error="form.errors.test_date" size="small" />
+                        <p class="text-xxs text-slate-500 sm:col-span-1 lg:col-span-4">{{ readOnly ? 'Saved measurements are shown below.' : 'Enter the test date, cube measurements and remarks below.' }}</p>
+                    </div>
                     <!-- Mode/Header inside card -->
                     <div
-                        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-700">
                         <div class="flex items-center gap-2.5">
                             <div
-                                class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shadow-2xs">
+                                class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300 flex items-center justify-center font-bold shadow-sm">
                                 <i class="pi pi-sliders-h text-xs"></i>
                             </div>
                             <div>
-                                <h2
-                                    class="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                                    Laboratory Measurements Input
+                                <h2 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                    Laboratory test information
                                 </h2>
                                 <p class="text-[11px] text-slate-500 dark:text-slate-400">
                                     Enter raw specimen observations. Calculated fields and compliance are evaluated
@@ -983,7 +969,7 @@ const printCertificate = () => {
                             <button
                                 type="button"
                                 @click="isMultiTrial = false"
-                                :class="!isMultiTrial ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500'"
+                                :class="!isMultiTrial ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500'"
                                 class="px-2.5 py-1 rounded-md transition-all cursor-pointer"
                             >
                                 Single Reading
@@ -991,7 +977,7 @@ const printCertificate = () => {
                             <button
                                 type="button"
                                 @click="isMultiTrial = true"
-                                :class="isMultiTrial ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs' : 'text-slate-500'"
+                                :class="isMultiTrial ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500'"
                                 class="px-2.5 py-1 rounded-md transition-all cursor-pointer"
                             >
                                 Multi-Trial Matrix
@@ -1003,60 +989,22 @@ const printCertificate = () => {
                     <!-- LAYOUT 0: CONCRETE CUBE COMPRESSION (CTM CRUSHING)        -->
                     <!-- --------------------------------------------------------- -->
                     <div v-if="isConcreteCubeTest" class="space-y-5">
-                        <!-- Concrete Context & Fresh Properties Card -->
-                        <div
-                            class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
-                            <div class="flex flex-wrap items-center justify-between gap-3">
-                                <div class="flex items-center gap-3">
-                                    <span
-                                        class="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-mono font-black text-sm shadow-xs">
-                                        {{ test.sample?.concrete_grade?.name || 'M25' }}
-                                    </span>
-                                    <div>
-                                        <div
-                                            class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                            <span>{{ test.age_days || 7 }}-Day Compressive Strength Test</span>
-                                            <span class="text-[11px] font-mono text-slate-400">({{
-                                                test.sample?.specimen_size ||
-                                                '150 x 150 x 150 mm' }})</span>
-                                        </div>
-                                        <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
-                                            <span>Curing: <strong class="text-slate-700 dark:text-slate-300">{{
-                                                test.sample?.curing_tank_id || 'Tank #1' }}</strong></span>
-                                            <span>&bull;</span>
-                                            <span>Slump: <strong class="text-slate-700 dark:text-slate-300">{{
-                                                test.sample?.slump_mm ? test.sample.slump_mm + ' mm' : '120 mm'
-                                                    }}</strong></span>
-                                            <span>&bull;</span>
-                                            <span>Temp: <strong class="text-slate-700 dark:text-slate-300">{{
-                                                test.sample?.concrete_temp_c ? test.sample.concrete_temp_c + ' °C' :
-                                                    '28 °C'
-                                                    }}</strong></span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="flex items-center gap-2">
-                                    <div class="text-right">
-                                        <span
-                                            class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target
-                                            / Min Strength</span>
-                                        <span class="text-xs font-mono font-black text-indigo-600 dark:text-indigo-400">
-                                            {{ test.target_strength || '20.0' }} / {{ test.min_strength || '17.5' }} {{
-                                                test.unit || 'MPa' }}
-                                        </span>
-                                    </div>
-                                    <button type="button" @click="addConcreteSpecimen"
-                                        class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer">
-                                        <i class="pi pi-plus text-[10px]"></i> Add Cube
-                                    </button>
-                                </div>
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <p class="text-xs text-slate-500">Enter each cube's weight and failure load. Strength is
+                                calculated
+                                automatically.</p>
+                            <div class="flex items-center gap-4">
+                                <label class="flex items-center gap-2 text-xxs text-slate-500"><input
+                                        v-model="showCubeDetails" type="checkbox"
+                                        class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-100" />Extra
+                                    columns</label>
+                                <BaseButton v-if="!readOnly" type="button" label="Add cube" icon="pi pi-plus"
+                                    @click="addConcreteSpecimen" />
                             </div>
                         </div>
 
                         <!-- CTM Specimens Crushing Table -->
-                        <div
-                            class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xs">
+                        <div class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
                             <table class="w-full text-left text-xs">
                                 <thead>
                                     <tr
@@ -1072,9 +1020,10 @@ const printCertificate = () => {
                                             <span class="text-[10px] text-slate-400 block font-normal">Air-dry
                                                 mass</span>
                                         </th>
-                                        <th class="py-3 px-3 min-w-[105px]">
+                                        <th v-if="showCubeDetails" class="py-3 px-3 min-w-[105px]">
                                             <span>Density (kg/m³)</span>
-                                            <span class="text-[10px] text-slate-400 block font-normal">Vol: 0.003375
+                                            <span class="text-[10px] text-slate-400 block font-normal">Vol: {{
+                                                cubeDimensions?.volume_m3 || 0.003375 }}
                                                 m³</span>
                                         </th>
                                         <th class="py-3 px-3 min-w-[130px]">
@@ -1084,17 +1033,17 @@ const printCertificate = () => {
                                                 Load</span>
                                         </th>
                                         <th class="py-3 px-3 min-w-[125px]">
-                                            <span class="text-purple-600 dark:text-purple-400 font-black">Strength
+                                            <span class="text-indigo-600 dark:text-indigo-400 font-black">Strength
                                                 (MPa)</span>
                                             <span class="text-[10px] text-slate-400 block font-normal">Load /
-                                                22.5</span>
+                                                {{ (cubeDimensions?.area_mm2 || 22500) / 1000 }}</span>
                                         </th>
-                                        <th class="py-3 px-3 min-w-[180px]">
+                                        <th v-if="showCubeDetails" class="py-3 px-3 min-w-[180px]">
                                             <span>Fracture Pattern</span>
                                             <span class="text-[10px] text-slate-400 block font-normal">IS 516
                                                 Failure</span>
                                         </th>
-                                        <th class="py-3 px-3 min-w-[100px] text-center">
+                                        <th v-if="showCubeDetails" class="py-3 px-3 min-w-[100px] text-center">
                                             <span>IS 516 Dev</span>
                                             <span class="text-[10px] text-slate-400 block font-normal">±15% Limit</span>
                                         </th>
@@ -1117,7 +1066,7 @@ const printCertificate = () => {
                                                 type="number" step="0.001" placeholder="e.g. 8.25"
                                                 class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" />
                                         </td>
-                                        <td
+                                        <td v-if="showCubeDetails"
                                             class="py-2.5 px-3 font-mono font-bold text-xs text-slate-700 dark:text-slate-300">
                                             {{ spec.density ? `${spec.density}` : '-' }}
                                         </td>
@@ -1128,17 +1077,18 @@ const printCertificate = () => {
                                         </td>
                                         <td class="py-2.5 px-3">
                                             <span v-if="spec.strength_mpa"
-                                                class="inline-block px-2.5 py-1 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 rounded-lg font-mono font-black text-purple-700 dark:text-purple-300 text-xs">
+                                                class="inline-block px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono font-black text-indigo-700 dark:text-indigo-300 text-xs">
                                                 {{ spec.strength_mpa }}
                                             </span>
                                             <span v-else class="text-slate-300 dark:text-slate-700 font-mono">-</span>
                                         </td>
-                                        <td class="py-2.5 px-3">
+                                        <td v-if="showCubeDetails" class="py-2.5 px-3">
                                             <BaseSelect v-model="spec.failure_type" :options="fracturePatternOptions"
                                                 optionLabel="label" optionValue="value" placeholder="Select Pattern"
                                                 size="small" :filter="false" class="w-full" />
                                         </td>
-                                        <td class="py-2.5 px-3 text-center font-mono text-[11px]">
+                                        <td v-if="showCubeDetails"
+                                            class="py-2.5 px-3 text-center font-mono text-[11px]">
                                             <template v-if="concreteAvgStrength > 0 && spec.strength_mpa">
                                                 <span :class="[
                                                     'font-bold px-2 py-0.5 rounded-md inline-block',
@@ -1162,106 +1112,71 @@ const printCertificate = () => {
                                         </td>
                                     </tr>
                                 </tbody>
-                                <tfoot
-                                    class="bg-slate-50/80 dark:bg-slate-800/60 font-bold border-t border-slate-200 dark:border-slate-700">
-                                    <tr>
-                                        <td colspan="3" class="py-3 px-4 text-slate-700 dark:text-slate-300 font-bold">
-                                            {{ concreteSpecimens.length }}-Specimen Average Results:
-                                        </td>
-                                        <td class="py-3 px-3 font-mono text-slate-700 dark:text-slate-300 font-bold">
-                                            {{ concreteAvgDensity ? `${concreteAvgDensity} kg/m³` : '-' }}
-                                        </td>
-                                        <td class="py-3 px-3 text-slate-400 text-[11px] font-normal">
-                                            Formula: Load / 22.5
-                                        </td>
-                                        <td
-                                            class="py-3 px-3 font-mono font-black text-sm text-purple-700 dark:text-purple-300">
-                                            {{ concreteAvgStrength ? `${concreteAvgStrength} MPa` : '-' }}
-                                        </td>
-                                        <td colspan="3"></td>
-                                    </tr>
-                                </tfoot>
+
                             </table>
                         </div>
 
-                        <!-- Real-time Quality & Outlier KPI Cards -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                            <!-- 1. Average Compressive Strength -->
-                            <div
-                                class="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
-                                <span
-                                    class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Average
-                                    Strength</span>
-                                <div class="flex items-baseline gap-1.5 mt-1">
-                                    <span class="text-2xl font-black font-mono text-slate-900 dark:text-white">
-                                        {{ concreteAvgStrength || '0.00' }}
-                                    </span>
-                                    <span class="text-xs font-bold text-slate-500">{{ test.unit || 'MPa' }}</span>
+                        <!-- Elevated KPI Summary Dashboard -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <!-- KPI 1: Average Strength -->
+                            <div class="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-indigo-50/20 p-3.5 dark:border-indigo-900/50 dark:from-indigo-950/40 dark:to-transparent">
+                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                                    <span>Average Strength</span>
+                                    <span class="font-mono text-slate-400">{{ concreteSpecimens.length }} Specimen{{ concreteSpecimens.length > 1 ? 's' : '' }}</span>
                                 </div>
-                                <span class="text-[11px] text-slate-500 mt-1 block">
-                                    Mean of {{concreteSpecimens.filter(s => Number(s.strength_mpa) > 0).length}}
-                                    tested
-                                    cube(s)
-                                </span>
+                                <div class="mt-1 flex items-baseline gap-1.5">
+                                    <span class="font-mono text-2xl font-black text-indigo-700 dark:text-indigo-300">
+                                        {{ concreteAvgStrength > 0 ? concreteAvgStrength : '-' }}
+                                    </span>
+                                    <span class="text-xs font-bold text-indigo-500">MPa</span>
+                                </div>
+                                <p class="mt-1 text-xxs text-slate-500">
+                                    Avg Density: <span class="font-mono font-semibold">{{ concreteAvgDensity > 0 ? concreteAvgDensity + ' kg/m³' : '-' }}</span>
+                                </p>
                             </div>
 
-                            <!-- 2. Target Achievement -->
-                            <div
-                                class="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target
-                                    Achievement</span>
-                                <div class="flex items-baseline gap-1.5 mt-1">
-                                    <span class="text-2xl font-black font-mono"
-                                        :class="percentTargetAchieved >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
-                                        {{ percentTargetAchieved || '0.0' }}%
+                            <!-- KPI 2: Target Compliance -->
+                            <div class="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 dark:border-slate-700 dark:bg-slate-800/40">
+                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    <span>Target Benchmark</span>
+                                    <span v-if="percentTargetAchieved > 0" class="font-bold text-xs" :class="percentTargetAchieved >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
+                                        {{ percentTargetAchieved }}% Achieved
                                     </span>
-                                    <span class="text-xs text-slate-400 font-mono">/ {{ targetStrength }} MPa</span>
                                 </div>
-                                <div
-                                    class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div class="mt-1 flex items-baseline gap-1.5">
+                                    <span class="font-mono text-2xl font-black text-slate-800 dark:text-slate-100">
+                                        {{ targetStrength > 0 ? targetStrength : (minStrength > 0 ? minStrength : '-') }}
+                                    </span>
+                                    <span class="text-xs font-bold text-slate-400">MPa Required</span>
+                                </div>
+                                <div v-if="targetStrength > 0" class="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                                     <div class="h-full rounded-full transition-all duration-500"
-                                        :class="percentTargetAchieved >= 100 ? 'bg-emerald-500' : 'bg-amber-500'"
-                                        :style="{ width: `${Math.min(100, percentTargetAchieved)}%` }"></div>
+                                        :style="{ width: `${Math.min(100, percentTargetAchieved)}%` }"
+                                        :class="concreteStatus === 'pass' ? 'bg-emerald-500' : 'bg-amber-500'"></div>
                                 </div>
                             </div>
 
-                            <!-- 3. IS 516 Outlier Shield -->
-                            <div
-                                class="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">IS 516
-                                    Variation (±15%)</span>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <i :class="[
-                                        'pi text-lg',
-                                        outlierAnalysis.hasOutlier ? 'pi-exclamation-triangle text-rose-500' : 'pi-check-circle text-emerald-500'
-                                    ]"></i>
-                                    <span class="text-sm font-bold"
-                                        :class="outlierAnalysis.hasOutlier ? 'text-rose-600' : 'text-emerald-600'">
-                                        {{ outlierAnalysis.hasOutlier ? 'Outlier Warning' : 'Within ±15% Limit' }}
+                            <!-- KPI 3: IS 516 Outlier Analysis -->
+                            <div class="rounded-xl border p-3.5 transition-colors"
+                                :class="outlierAnalysis.hasOutlier
+                                    ? 'border-rose-200 bg-rose-50/60 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                                    : concreteAvgStrength > 0
+                                    ? 'border-emerald-200 bg-emerald-50/60 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                    : 'border-slate-200/80 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-800/40'">
+                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
+                                    <span>IS 516 Consistency</span>
+                                    <span class="font-bold">±15% Limit</span>
+                                </div>
+                                <div class="mt-1.5 flex items-center gap-2">
+                                    <i class="text-base"
+                                        :class="outlierAnalysis.hasOutlier ? 'pi pi-exclamation-triangle text-rose-600' : concreteAvgStrength > 0 ? 'pi pi-check-circle text-emerald-600' : 'pi pi-info-circle text-slate-400'"></i>
+                                    <span class="text-xs font-bold">
+                                        {{ outlierAnalysis.hasOutlier ? 'Outlier detected (> 15%)' : concreteAvgStrength > 0 ? 'Cubes within tolerance' : 'Awaiting 3 specimens' }}
                                     </span>
                                 </div>
-                                <span class="text-[11px] text-slate-500 mt-1 block">
-                                    Max deviation: <strong class="font-mono text-slate-700 dark:text-slate-300">{{
-                                        outlierAnalysis.maxDeviationPct }}%</strong>
-                                </span>
-                            </div>
-
-                            <!-- 4. Acceptance Status -->
-                            <div class="p-4 rounded-2xl border shadow-xs flex flex-col justify-between" :class="{
-                                'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200/80 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-100': concreteStatus === 'pass',
-                                'bg-rose-50/70 dark:bg-rose-950/40 border-rose-200/80 dark:border-rose-800/80 text-rose-900 dark:text-rose-100': concreteStatus === 'fail',
-                                'bg-amber-50/70 dark:bg-amber-950/40 border-amber-200/80 dark:border-amber-800/80 text-amber-900 dark:text-amber-100': concreteStatus === 'pending',
-                            }">
-                                <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 block">Evaluation
-                                    Verdict</span>
-                                <div class="text-xl font-black uppercase tracking-tight mt-1 flex items-center gap-2">
-                                    <span>{{ concreteStatus === 'pass' ? 'PASSED' : (concreteStatus === 'fail' ?
-                                        'FAILED' :
-                                        'PENDING ENTRY') }}</span>
-                                </div>
-                                <span class="text-[11px] opacity-80 mt-1 block">
-                                    Min required: {{ minStrength }} MPa
-                                </span>
+                                <p class="mt-1 text-xxs opacity-80">
+                                    {{ outlierAnalysis.hasOutlier ? 'Max deviation ' + outlierAnalysis.maxDeviationPct + '%. Retest is recommended.' : 'Individual deviation from average must not exceed ±15%.' }}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -1294,7 +1209,7 @@ const printCertificate = () => {
                                 </button>
                             </div>
                             <button type="button" @click="addGaugeRow"
-                                class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer">
+                                class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
                                 <i class="pi pi-plus text-[10px]"></i> Add Fraction
                             </button>
                         </div>
@@ -1311,7 +1226,7 @@ const printCertificate = () => {
                                         <th class="py-2.5 px-3">Total Weight (g)</th>
                                         <th class="py-2.5 px-3 text-indigo-700 dark:text-indigo-300">Flakiness Pass (g)
                                         </th>
-                                        <th class="py-2.5 px-3 text-purple-700 dark:text-purple-300">Elongation Pass (g)
+                                        <th class="py-2.5 px-3 text-indigo-700 dark:text-indigo-300">Elongation Pass (g)
                                         </th>
                                         <th class="py-2.5 px-2 w-10"></th>
                                     </tr>
@@ -1346,7 +1261,7 @@ const printCertificate = () => {
                                         <td class="py-2 px-3">
                                             <input v-model.number="r.passing_elongation_weight" type="number" step="any"
                                                 placeholder="0"
-                                                class="w-24 px-2 py-1 bg-purple-50/50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg text-right font-bold text-purple-700 dark:text-purple-300 text-xs" />
+                                                class="w-24 px-2 py-1 bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg text-right font-bold text-indigo-700 dark:text-indigo-300 text-xs" />
                                         </td>
                                         <td class="py-2 px-2 text-center">
                                             <button type="button" @click="removeGaugeRow(idx)"
@@ -1380,14 +1295,14 @@ const printCertificate = () => {
                                     40%</span>
                             </div>
                             <div
-                                class="p-3 bg-purple-50/70 dark:bg-purple-950/40 rounded-xl border border-purple-200 dark:border-purple-800/70">
+                                class="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70">
                                 <span
-                                    class="text-[10px] uppercase font-bold text-purple-800 dark:text-purple-300">Elongation
+                                    class="text-[10px] uppercase font-bold text-indigo-800 dark:text-indigo-300">Elongation
                                     Index (EI)</span>
-                                <div class="text-base font-mono font-black text-purple-700 dark:text-purple-300 mt-0.5">
+                                <div class="text-base font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
                                     {{
                                         elongationIndex }}%</div>
-                                <span class="text-[10px] text-purple-600/80 dark:text-purple-400/80">IS 383 Spec: &le;
+                                <span class="text-[10px] text-indigo-600/80 dark:text-indigo-400/80">IS 383 Spec: &le;
                                     40%</span>
                             </div>
                         </div>
@@ -1417,7 +1332,7 @@ const printCertificate = () => {
                                 </button>
                             </div>
                             <button type="button" @click="addSieveRow"
-                                class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer">
+                                class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
                                 <i class="pi pi-plus text-[10px]"></i> Add Sieve Row
                             </button>
                         </div>
@@ -1451,7 +1366,7 @@ const printCertificate = () => {
                                         </td>
                                         <td class="py-2 px-3 text-slate-600 dark:text-slate-400">{{
                                             r.pct_retained.toFixed(1)
-                                            }}%</td>
+                                        }}%</td>
                                         <td class="py-2 px-3 text-slate-600 dark:text-slate-400">{{
                                             r.cum_pct_retained.toFixed(1) }}%</td>
                                         <td class="py-2 px-3 font-black text-indigo-600 dark:text-indigo-400">{{
@@ -1521,13 +1436,13 @@ const printCertificate = () => {
                                     class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-xs font-mono font-black text-indigo-700 dark:text-indigo-300" />
                             </div>
                             <div
-                                class="p-3.5 bg-purple-50/70 dark:bg-purple-950/40 rounded-xl border border-purple-200 dark:border-purple-800/70 space-y-1">
+                                class="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70 space-y-1">
                                 <label
-                                    class="text-[10px] font-bold text-purple-800 dark:text-purple-300 uppercase">Final
+                                    class="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase">Final
                                     Setting (min)</label>
                                 <input v-model.number="timedData.final_setting_mins" type="number" step="1"
                                     placeholder="e.g. 240"
-                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-lg text-xs font-mono font-black text-purple-700 dark:text-purple-300" />
+                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-xs font-mono font-black text-indigo-700 dark:text-indigo-300" />
                             </div>
                         </div>
 
@@ -1647,7 +1562,7 @@ const printCertificate = () => {
                                     <div class="flex items-baseline justify-between">
                                         <span class="text-xs text-slate-500">Loss / Gain:</span>
                                         <span class="font-mono font-bold text-xs">{{ deltaMass ? `${deltaMass} g` : '-'
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                     <div
                                         class="flex items-baseline justify-between pt-1 border-t border-indigo-200/60 dark:border-indigo-800">
@@ -1739,7 +1654,7 @@ const printCertificate = () => {
                                     <tr v-for="(item, iIdx) in observationChecklist" :key="iIdx"
                                         class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                         <td class="py-2 px-3 font-bold text-slate-800 dark:text-slate-200">{{ item.item
-                                            }}</td>
+                                        }}</td>
                                         <td class="py-2 px-3 text-center">
                                             <select v-model="item.rating"
                                                 class="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold cursor-pointer"
@@ -1774,9 +1689,9 @@ const printCertificate = () => {
                                             m.unit }}</span>
                                 </div>
                                 <div v-if="m.is_calculated"
-                                    class="px-3 py-2 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 rounded-lg font-mono font-black text-purple-700 dark:text-purple-300 text-sm flex items-center justify-between">
+                                    class="px-3 py-2 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono font-black text-indigo-700 dark:text-indigo-300 text-sm flex items-center justify-between">
                                     <span>{{ getTrialCalculatedVal(0, m.code, m.formula) ?? '-' }}</span>
-                                    <span v-if="m.unit" class="text-xs font-bold text-purple-600/80">{{ m.unit }}</span>
+                                    <span v-if="m.unit" class="text-xs font-bold text-indigo-600/80">{{ m.unit }}</span>
                                 </div>
                                 <div v-else-if="m.data_type === 'time'">
                                     <input v-model="m.value_text" type="time"
@@ -1809,7 +1724,7 @@ const printCertificate = () => {
                                             <span>{{ p.name }}</span>
                                             <span v-if="p.unit" class="text-indigo-600 font-mono font-normal ml-1">({{
                                                 p.unit
-                                                }})</span>
+                                            }})</span>
                                         </th>
                                         <th class="py-2.5 px-2 text-center w-10"></th>
                                     </tr>
@@ -1822,7 +1737,7 @@ const printCertificate = () => {
                                             Specimen #{{ rIdx + 1 }}</td>
                                         <td v-for="m in trialRow" :key="m.parameter_id" class="py-2 px-3">
                                             <span v-if="m.is_calculated"
-                                                class="font-black text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1 rounded-md border border-purple-200/60 inline-block">
+                                                class="font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-1 rounded-md border border-indigo-200/60 inline-block">
                                                 {{ getTrialCalculatedVal(rIdx, m.code, m.formula) ?? '-' }}
                                             </span>
                                             <input v-else-if="m.data_type === 'time'" v-model="m.value_text" type="time"
@@ -1861,7 +1776,7 @@ const printCertificate = () => {
                     </div>
 
                     <!-- Remarks & Action -->
-                    <div class="space-y-1.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <div class="space-y-1.5 pt-3 border-t border-slate-100 dark:border-slate-700">
                         <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Observations & Quality
                             Remarks</label>
                         <textarea v-model="form.remarks" rows="2"
@@ -1869,37 +1784,35 @@ const printCertificate = () => {
                             class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"></textarea>
                     </div>
 
-                    <div class="flex items-center justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
-                        <button type="button" @click="submitExecution" :disabled="form.processing"
-                            class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
-                            <i v-if="form.processing" class="pi pi-spin pi-spinner text-xs"></i>
-                            <i v-else class="pi pi-check text-xs"></i>
-                            <span>Save & Evaluate Test Results</span>
-                        </button>
+                    <div class="flex items-center justify-end pt-3 border-t border-slate-100 dark:border-slate-700">
+                        <BaseButton v-if="!readOnly" type="button" label="Save & evaluate results" icon="pi pi-check"
+                            :loading="form.processing" :disabled="form.processing" @click="submitExecution" />
                     </div>
                 </div>
-            </div>
+            </fieldset>
 
             <!-- ============================================================= -->
             <!-- MODE 2: QUALITY CERTIFICATE & LAB REPORT                      -->
             <!-- ============================================================= -->
             <div v-else class="space-y-4">
                 <div
-                    class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6 print:border-none print:p-0 print:shadow-none">
+                    class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-6 sm:p-8 shadow-sm space-y-6 print:border-none print:p-0 print:shadow-none">
                     <!-- Certificate Header Banner -->
-                    <div
-                        class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:bg-white print:text-black print:p-0 print:border-b-2 print:border-black print:rounded-none">
+                    <div v-if="!isConcreteCubeTest"
+                        class="bg-indigo-50/30 border border-indigo-100 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 p-5 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:bg-white print:text-black print:p-0 print:border-b-2 print:border-black print:rounded-none">
                         <div>
                             <div
                                 class="text-[10px] font-black uppercase tracking-widest text-indigo-300 print:text-slate-600">
                                 Quality Assurance & Materials Testing Laboratory
                             </div>
-                            <h2 class="text-xl font-black tracking-tight text-white print:text-black mt-0.5">
+                            <h2
+                                class="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100 print:text-black mt-1">
                                 {{ test.test_type?.name }} Test Certificate
                             </h2>
-                            <div class="text-xs text-indigo-200/80 print:text-slate-600 mt-0.5">
-                                Specification Standard: <span class="font-bold text-white print:text-black">{{
-                                    test.test_type?.standard_reference || 'IS Standard' }}</span>
+                            <div class="text-xs text-slate-500 dark:text-slate-400 print:text-slate-600 mt-0.5">
+                                Specification Standard: <span
+                                    class="font-semibold text-indigo-700 dark:text-indigo-300 print:text-black">{{
+                                        test.test_type?.standard_reference || 'IS Standard' }}</span>
                             </div>
                         </div>
 
@@ -1907,81 +1820,18 @@ const printCertificate = () => {
                             <div
                                 class="text-[10px] font-bold text-indigo-300 print:text-slate-600 uppercase tracking-wider">
                                 Report Number</div>
-                            <div class="text-sm font-mono font-black text-white print:text-black">{{ test.test_no }}
+                            <div
+                                class="text-sm font-mono font-bold text-indigo-700 dark:text-indigo-300 print:text-black">
+                                {{
+                                    test.test_no }}
                             </div>
                             <div class="text-xs text-indigo-200/70 print:text-slate-600">{{ form.test_date }}</div>
                         </div>
                     </div>
 
-                    <!-- 2-Column Metadata Grid -->
-                    <div v-if="isConcreteCubeTest" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                    <div v-if="!isConcreteCubeTest" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         <div
-                            class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 print:bg-transparent print:border print:border-slate-300">
-                            <div class="text-[11px] font-black uppercase tracking-wider text-slate-400 border-b pb-1">
-                                Client &
-                                Dispatch Docket</div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Customer / Client:</span>
-                                <span class="font-bold text-slate-900 dark:text-slate-100">{{
-                                    test.sample?.customer?.name ||
-                                    'Project Client' }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Project / Site Name:</span>
-                                <span class="font-bold text-slate-900 dark:text-slate-100">{{ test.sample?.site_name ||
-                                    'Delivery Site' }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Transit Mixer Truck #:</span>
-                                <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">{{
-                                    test.sample?.truck_no
-                                    || test.sample?.dispatch?.truck?.truck_no || 'Plant Direct' }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Sampling Date:</span>
-                                <span class="font-mono font-bold text-slate-900 dark:text-slate-100">{{
-                                    test.sample?.sample_date
-                                        ? test.sample.sample_date.substring(0, 10) : '-' }}</span>
-                            </div>
-                        </div>
-
-                        <div
-                            class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 print:bg-transparent print:border print:border-slate-300">
-                            <div class="text-[11px] font-black uppercase tracking-wider text-slate-400 border-b pb-1">
-                                Mix
-                                Specification & Curing</div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Specified Concrete Grade:</span>
-                                <span class="font-bold text-indigo-700 dark:text-indigo-300 font-mono text-sm">{{
-                                    test.sample?.concrete_grade?.name || 'M25' }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Age at Test:</span>
-                                <span class="font-bold text-slate-900 dark:text-slate-100 font-mono">{{ test.age_days ||
-                                    7 }}
-                                    Days</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Curing Environment:</span>
-                                <span class="font-bold text-slate-900 dark:text-slate-100">{{
-                                    test.sample?.curing_tank_id ?
-                                        test.sample.curing_tank_id
-                                        + ' (Water Curing 27 ± 2 °C)'
-                                        : 'Standard Water Immersion (27 ± 2°C)' }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-500">Fresh Slump & Temp:</span>
-                                <span class="font-mono font-bold text-slate-900 dark:text-slate-100">
-                                    {{ test.sample?.slump_mm ? test.sample.slump_mm + ' mm' : '120 mm' }} • {{
-                                        test.sample?.concrete_temp_c ? test.sample.concrete_temp_c + ' °C' : '28 °C' }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div
-                            class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5 print:bg-transparent print:border print:border-slate-300">
+                            class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5 print:bg-transparent print:border print:border-slate-300">
                             <div class="flex justify-between">
                                 <span class="text-slate-500">Facility / Plant:</span>
                                 <span class="font-bold text-slate-800 dark:text-slate-200">
@@ -1996,7 +1846,7 @@ const printCertificate = () => {
                         </div>
 
                         <div
-                            class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5 print:bg-transparent print:border print:border-slate-300">
+                            class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5 print:bg-transparent print:border print:border-slate-300">
                             <div class="flex justify-between">
                                 <span class="text-slate-500">Sample Number:</span>
                                 <span class="font-mono font-bold text-slate-800 dark:text-slate-200">{{
@@ -2012,149 +1862,71 @@ const printCertificate = () => {
                         </div>
                     </div>
 
-                    <!-- ========================================================= -->
-                    <!-- CERTIFICATE VIEW: CONCRETE COMPRESSION TEST CERTIFICATE    -->
-                    <!-- ========================================================= -->
-                    <div v-if="isConcreteCubeTest" class="space-y-6">
-                        <!-- Quality Declaration Ribbon -->
-                        <div
-                            class="p-3.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/80 rounded-xl flex items-center justify-between text-xs print:border print:border-slate-300">
-                            <div class="flex items-center gap-2.5">
-                                <span
-                                    class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-                                    <i class="pi pi-verified text-sm"></i>
-                                </span>
+                    <div v-if="isConcreteCubeTest" class="space-y-5">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100">Cube test results</h2>
+                                <p class="mt-1 text-xs text-slate-500">{{ hasSavedResults ? `Saved laboratory
+                                    measurements` :
+                                    `Results will appear after the test is saved and evaluated.` }}</p>
+                            </div>
+                            <span class="rounded-full px-3 py-1 text-xxs font-semibold"
+                                :class="!hasSavedResults ? 'bg-slate-100 text-slate-600' : test.overall_status === 'pass' ? 'bg-emerald-50 text-emerald-700' : test.overall_status === 'fail' ? 'bg-rose-50 text-rose-700' : 'bg-tangerine-50 text-tangerine-700'">{{
+                                    resultLabel }}</span>
+                        </div>
+                        <div v-if="!hasSavedResults"
+                            class="rounded-lg border border-dashed border-slate-200 px-5 py-10 text-center dark:border-slate-700">
+                            <i class="pi pi-clipboard mb-3 text-xl text-slate-400" aria-hidden="true"></i>
+                            <p class="text-sm font-medium">No evaluated results yet</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ readOnly ? `This test is awaiting laboratory
+                                entry.` :
+                                `Enter the cube weights and loads to complete this test.` }}</p>
+                            <BaseButton v-if="!readOnly" type="button" label="Enter results" icon="pi pi-pencil"
+                                class="mt-4" @click="mode = 'entry'" />
+                        </div>
+                        <template v-else>
+                            <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+                                <table class="w-full text-left text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Cube</th>
+                                            <th class="text-right">Weight (kg)</th>
+                                            <th class="text-right">Load (kN)</th>
+                                            <th class="text-right">Strength (MPa)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                        <tr v-for="(spec, index) in concreteSpecimens" :key="index">
+                                            <td>{{ spec.ident_mark || index + 1 }}</td>
+                                            <td class="text-right tabular-nums">{{ spec.weight_kg != null ?
+                                                Number(spec.weight_kg).toFixed(2) : '-' }}</td>
+                                            <td class="text-right tabular-nums">{{ spec.load_kn != null ?
+                                                Number(spec.load_kn).toFixed(2) : '-' }}</td>
+                                            <td class="text-right font-medium tabular-nums">{{ spec.strength_mpa != null
+                                                ? Number(spec.strength_mpa).toFixed(2) : '-' }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div
+                                class="grid grid-cols-1 gap-4 rounded-lg bg-slate-50 p-4 sm:grid-cols-3 dark:bg-slate-800">
                                 <div>
-                                    <div class="font-bold text-blue-950 dark:text-blue-200">
-                                        IS 516:2021 & IS 456:2000 Ready-Mix Concrete Test Certificate
-                                    </div>
-                                    <div class="text-[11px] text-blue-800/80 dark:text-blue-300/80">
-                                        Test Certificate No: <strong class="font-mono">MTC-{{ test.test_no }}</strong>
-                                        &bull;
-                                        Sampling ID: <strong class="font-mono">#{{ test.sample?.sample_no }}</strong>
-                                    </div>
+                                    <p class="text-[10px] font-semibold text-slate-500">Average strength</p>
+                                    <p class="mt-1 text-lg font-semibold text-indigo-700 dark:text-indigo-300">{{
+                                        concreteAvgStrength }} <span class="text-xs font-normal">MPa</span></p>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-semibold text-slate-500">Target strength</p>
+                                    <p class="mt-1 text-sm font-medium">{{ test.target_strength != null ?
+                                        test.target_strength + ' MPa' : '-' }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-semibold text-slate-500">Cube variation</p>
+                                    <p class="mt-1 text-sm font-medium">{{ outlierAnalysis.hasOutlier ? `Review
+                                        required` : `Within limits` }}</p>
                                 </div>
                             </div>
-                            <span class="text-xs font-black uppercase px-3 py-1 rounded-full border"
-                                :class="concreteStatus === 'pass' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300'">
-                                {{ concreteStatus === 'pass' ? 'APPROVED / COMPLIANT' : 'NON-COMPLIANT' }}
-                            </span>
-                        </div>
-
-                        <!-- CTM Specimen Crushing Results Table -->
-                        <div class="space-y-2">
-                            <div class="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-200">
-                                Compressive Testing Machine (CTM) Specimen Results
-                            </div>
-                            <table
-                                class="w-full text-left text-xs border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden print:border-collapse">
-                                <thead
-                                    class="bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold border-b border-slate-200 dark:border-slate-700">
-                                    <tr>
-                                        <th class="py-2.5 px-3 text-center">Specimen #</th>
-                                        <th class="py-2.5 px-3">Cube Identification</th>
-                                        <th class="py-2.5 px-3 text-right">Mass (kg)</th>
-                                        <th class="py-2.5 px-3 text-right">Density (kg/m³)</th>
-                                        <th class="py-2.5 px-3 text-right">Failure Load (kN)</th>
-                                        <th class="py-2.5 px-3 text-right">Compressive Strength (N/mm²)</th>
-                                        <th class="py-2.5 px-3">Failure Mode</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                                    <tr v-for="(spec, sIdx) in concreteSpecimens" :key="sIdx"
-                                        class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                                        <td class="py-2.5 px-3 text-center font-bold text-slate-500">{{ sIdx + 1 }}</td>
-                                        <td class="py-2.5 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
-                                            {{
-                                                spec.ident_mark }}</td>
-                                        <td class="py-2.5 px-3 text-right font-mono">{{ spec.weight_kg ?
-                                            Number(spec.weight_kg).toFixed(3) : '-' }}</td>
-                                        <td class="py-2.5 px-3 text-right font-mono">{{ spec.density ?
-                                            Number(spec.density).toFixed(1) : '-' }}</td>
-                                        <td
-                                            class="py-2.5 px-3 text-right font-mono font-bold text-indigo-700 dark:text-indigo-300">
-                                            {{ spec.load_kn ? Number(spec.load_kn).toFixed(1) : '-' }}</td>
-                                        <td
-                                            class="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-100 text-sm">
-                                            {{ spec.strength_mpa ? Number(spec.strength_mpa).toFixed(2) : '-' }}</td>
-                                        <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400">{{ spec.failure_type
-                                            ||
-                                            'Normal Non-explosive' }}</td>
-                                    </tr>
-                                </tbody>
-                                <tfoot
-                                    class="bg-slate-50/80 dark:bg-slate-800/60 font-bold border-t-2 border-slate-300 dark:border-slate-700">
-                                    <tr>
-                                        <td colspan="3" class="py-3 px-4 text-slate-800 dark:text-slate-200">
-                                            Average Compressive Strength (N/mm²):
-                                        </td>
-                                        <td class="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                                            {{ concreteAvgDensity ? `${concreteAvgDensity}` : '-' }}
-                                        </td>
-                                        <td class="py-3 px-3 text-right text-slate-400 text-[11px]">
-                                            Area: 22,500 mm²
-                                        </td>
-                                        <td
-                                            class="py-3 px-3 text-right font-mono font-black text-base text-indigo-700 dark:text-indigo-400">
-                                            {{ concreteAvgStrength }} N/mm²
-                                        </td>
-                                        <td class="py-3 px-3 text-slate-500 font-normal text-[11px]">
-                                            IS 516 Compliance: {{ outlierAnalysis.hasOutlier ? 'Outlier detected (>15%)'
-                                                :
-                                                'Consistent (±15%)' }}
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-
-                        <!-- Statistical Evaluation Summary Bar -->
-                        <div
-                            class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                            <div>
-                                <span class="text-slate-500 block text-[10px] uppercase font-bold">Characteristic
-                                    Strength</span>
-                                <span class="font-mono font-black text-sm text-slate-900 dark:text-slate-100">{{
-                                    test.sample?.concrete_grade?.name || 'M25' }}</span>
-                            </div>
-                            <div>
-                                <span class="text-slate-500 block text-[10px] uppercase font-bold">Expected {{
-                                    test.age_days ||
-                                    7 }}-Day Target</span>
-                                <span class="font-mono font-black text-sm text-indigo-600 dark:text-indigo-400">{{
-                                    targetStrength }} N/mm²</span>
-                            </div>
-                            <div>
-                                <span class="text-slate-500 block text-[10px] uppercase font-bold">Achieved
-                                    Strength</span>
-                                <span class="font-mono font-black text-sm text-purple-700 dark:text-purple-300">{{
-                                    concreteAvgStrength }} N/mm²</span>
-                            </div>
-                            <div>
-                                <span class="text-slate-500 block text-[10px] uppercase font-bold">% Target
-                                    Achieved</span>
-                                <span class="font-mono font-black text-sm"
-                                    :class="percentTargetAchieved >= 100 ? 'text-emerald-600' : 'text-amber-600'">{{
-                                        percentTargetAchieved }}%</span>
-                            </div>
-                        </div>
-
-                        <!-- Compliance Statement -->
-                        <div
-                            class="p-4 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-200/80 dark:border-emerald-800/50 text-xs space-y-1">
-                            <div class="font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
-                                <i class="pi pi-check-circle text-emerald-600"></i>
-                                <span>Official Certification & Acceptance Statement:</span>
-                            </div>
-                            <p class="text-emerald-900/90 dark:text-emerald-300/80 leading-relaxed">
-                                The concrete specimens referenced above were cast, cured, and crushed under laboratory
-                                controlled conditions conforming to <strong>IS 516:2021</strong>.
-                                The compressive strength achieved of <strong>{{ concreteAvgStrength }} N/mm²</strong> {{
-                                    concreteStatus === 'pass' ? 'satisfies and conforms to' : 'does not satisfy' }} the
-                                acceptance
-                                criteria specified in <strong>IS 456:2000</strong>.
-                            </p>
-                        </div>
+                        </template>
                     </div>
 
                     <!-- CERTIFICATE VIEW: GAUGE MATRIX -->
@@ -2186,7 +1958,7 @@ const printCertificate = () => {
                                     <td class="py-2 px-3 font-semibold">{{ (r.total_weight || 0).toFixed(2) }}</td>
                                     <td class="py-2 px-3 text-indigo-700 dark:text-indigo-400 font-semibold">{{
                                         (r.passing_flakiness_weight || 0).toFixed(2) }}</td>
-                                    <td class="py-2 px-3 text-purple-700 dark:text-purple-400 font-semibold">{{
+                                    <td class="py-2 px-3 text-indigo-700 dark:text-indigo-400 font-semibold">{{
                                         (r.passing_elongation_weight || 0).toFixed(2) }}</td>
                                 </tr>
                                 <tr
@@ -2198,7 +1970,7 @@ const printCertificate = () => {
                                     <td class="py-2.5 px-3 font-mono font-black text-indigo-700 dark:text-indigo-300">
                                         Flakiness:
                                         {{ flakinessIndex }}%</td>
-                                    <td class="py-2.5 px-3 font-mono font-black text-purple-700 dark:text-purple-300">
+                                    <td class="py-2.5 px-3 font-mono font-black text-indigo-700 dark:text-indigo-300">
                                         Elongation: {{ elongationIndex }}%</td>
                                 </tr>
                             </tbody>
@@ -2238,7 +2010,7 @@ const printCertificate = () => {
                                         r.cum_pct_passing.toFixed(1) }}%</td>
                                     <td class="py-2 px-3 font-sans text-amber-700 dark:text-amber-300 font-bold">{{
                                         r.is_limit
-                                        }}</td>
+                                    }}</td>
                                     <td class="py-2 px-3 text-center font-sans">
                                         <span
                                             class="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -2285,11 +2057,11 @@ const printCertificate = () => {
                                 <div class="text-[10px] text-slate-500 mt-0.5">IS 269 Req: &ge; 30 mins (Pass)</div>
                             </div>
                             <div
-                                class="p-3 bg-purple-50/60 dark:bg-purple-950/40 rounded-xl border border-purple-100 dark:border-purple-900">
-                                <div class="text-[10px] uppercase font-bold text-purple-800 dark:text-purple-300">Final
+                                class="p-3 bg-indigo-50/60 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900">
+                                <div class="text-[10px] uppercase font-bold text-indigo-800 dark:text-indigo-300">Final
                                     Setting
                                     Time (FST)</div>
-                                <div class="text-base font-mono font-black text-purple-700 dark:text-purple-300 mt-0.5">
+                                <div class="text-base font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
                                     {{
                                         timedData.final_setting_mins || '240' }} mins</div>
                                 <div class="text-[10px] text-slate-500 mt-0.5">IS 269 Req: &le; 600 mins (Pass)</div>
@@ -2431,31 +2203,43 @@ const printCertificate = () => {
                         </table>
                     </div>
 
-                    <!-- Remarks Callout Box -->
-                    <div class="font-bold text-amber-900 dark:text-amber-200">Remarks & Compliance Statement:</div>
-                    <p class="text-amber-800/90 dark:text-amber-300/80">
-                        {{ test.remarks || `Test samples have been tested in accordance with relevant IS Standards
-                        and
-                        confirm to standard acceptance limits`
-                        }}
-                    </p>
-                </div>
-
-
-                <!-- Signatures Footer -->
-                <div class="pt-6 flex justify-between items-end text-xs text-slate-600 dark:text-slate-400">
-                    <div>
-                        <span class="text-[10px] text-slate-400 uppercase font-bold">Tested By</span>
-                        <div class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">{{ test.tester?.name ||
-                            `Lab
-                            Technician` }}</div>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-[10px] text-slate-400 uppercase font-bold">Authorised Signatory</span>
-                        <div class="font-bold text-slate-800 dark:text-slate-200 mt-0.5">QA / QC Incharge</div>
+                    <div v-if="test.remarks" class="border-t border-slate-100 pt-4 dark:border-slate-700">
+                        <h3 class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Remarks</h3>
+                        <p class="mt-2 whitespace-pre-line text-sm">{{ test.remarks }}</p>
                     </div>
                 </div>
             </div>
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+@media screen {
+    .qc-execute :deep(table) {
+        width: 100%;
+    }
+
+    .qc-execute :deep(thead th) {
+        @apply bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800 dark:text-slate-400;
+    }
+
+    .qc-execute :deep(tbody td) {
+        @apply px-4 py-3 align-middle;
+    }
+
+    .qc-execute :deep(tbody tr:hover) {
+        @apply bg-slate-50/50 dark:bg-slate-800/30;
+    }
+
+    .qc-execute :deep(input:not([type='checkbox']):not([type='radio'])),
+    .qc-execute :deep(select),
+    .qc-execute :deep(textarea) {
+        @apply rounded-md border-slate-200 text-sm shadow-sm transition-colors focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:focus:ring-indigo-900/40;
+    }
+
+    .qc-execute :deep(fieldset:disabled input),
+    .qc-execute :deep(fieldset:disabled textarea) {
+        @apply bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400;
+    }
+}
+</style>

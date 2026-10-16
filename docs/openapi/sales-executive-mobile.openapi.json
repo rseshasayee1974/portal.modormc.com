@@ -872,9 +872,6 @@
                   "priority": {
                     "type": "string"
                   },
-                  "requirement": {
-                    "type": "string"
-                  },
                   "estimated_quantity": {
                     "type": "number"
                   },
@@ -883,6 +880,11 @@
                   },
                   "remarks": {
                     "type": "string"
+                  },
+                  "mix_design_id": {
+                    "type": "integer",
+                    "nullable": true,
+                    "description": "Active mix design ID from the selected plant. Obtain from the mix-design lookup."
                   }
                 },
                 "required": [
@@ -903,10 +905,10 @@
                 "source": "Referral",
                 "status": "New",
                 "priority": "High",
-                "requirement": "M25 Design",
                 "estimated_quantity": 40,
                 "expected_value": 200000,
-                "remarks": "Site enquiry"
+                "remarks": "Site enquiry",
+                "mix_design_id": 4
               }
             }
           }
@@ -1075,9 +1077,6 @@
                   "priority": {
                     "type": "string"
                   },
-                  "requirement": {
-                    "type": "string"
-                  },
                   "estimated_quantity": {
                     "type": "number"
                   },
@@ -1086,6 +1085,11 @@
                   },
                   "remarks": {
                     "type": "string"
+                  },
+                  "mix_design_id": {
+                    "type": "integer",
+                    "nullable": true,
+                    "description": "Active mix design ID from the selected plant. Obtain from the mix-design lookup."
                   }
                 },
                 "required": [
@@ -1106,10 +1110,10 @@
                 "source": "Referral",
                 "status": "Qualified",
                 "priority": "High",
-                "requirement": "M25 Design",
                 "estimated_quantity": 40,
                 "expected_value": 200000,
-                "remarks": "Site enquiry"
+                "remarks": "Site enquiry",
+                "mix_design_id": 4
               }
             }
           }
@@ -1215,9 +1219,6 @@
                   "priority": {
                     "type": "string"
                   },
-                  "requirement": {
-                    "type": "string"
-                  },
                   "estimated_quantity": {
                     "type": "number"
                   },
@@ -1226,6 +1227,11 @@
                   },
                   "remarks": {
                     "type": "string"
+                  },
+                  "mix_design_id": {
+                    "type": "integer",
+                    "nullable": true,
+                    "description": "Active mix design ID from the selected plant. Obtain from the mix-design lookup."
                   }
                 },
                 "required": [
@@ -1246,10 +1252,10 @@
                 "source": "Referral",
                 "status": "Qualified",
                 "priority": "High",
-                "requirement": "M25 Design",
                 "estimated_quantity": 40,
                 "expected_value": 200000,
-                "remarks": "Site enquiry"
+                "remarks": "Site enquiry",
+                "mix_design_id": 4
               }
             }
           }
@@ -1860,7 +1866,32 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MobileQuotation"
+                          }
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "current_page": {
+                          "type": "integer"
+                        },
+                        "per_page": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -1912,7 +1943,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MobileQuotation"
+                    }
+                  }
                 }
               }
             }
@@ -2061,7 +2100,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MobileQuotation"
+                    }
+                  }
                 }
               }
             }
@@ -2122,7 +2169,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MobileQuotation"
+                    }
+                  }
                 }
               }
             }
@@ -2269,7 +2324,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MobileQuotation"
+                    }
+                  }
                 }
               }
             }
@@ -2479,7 +2542,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MobileQuotation"
+                    }
+                  }
                 }
               }
             }
@@ -2542,7 +2613,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MobileQuotation"
+                    }
+                  }
                 }
               }
             }
@@ -2597,26 +2676,104 @@
     },
     "/customer-pos": {
       "get": {
-        "tags": ["Sales orders"],
+        "tags": [
+          "Sales orders"
+        ],
         "summary": "List customer POs",
         "operationId": "get__customer_pos",
-        "description": "No module action permission is required. Requires authenticated mobile access and plant membership. Scoped to the selected plant and owned/assigned POs unless SALES_ORDER.VIEW_ALL is granted. Includes patron, site and items; newest first. Status: 0 Draft, 1 Confirmed, 2 Completed.",
-        "security": [{"bearerAuth": []}],
+        "description": "No module action permission is required. Requires authenticated mobile access and plant membership. Scoped to the selected plant. Sales executives see only POs assigned to their personnel ID in that plant, regardless of creator or VIEW_ALL grants. Management roles retain owned/assigned access or SALES_ORDER.VIEW_ALL visibility. Includes patron, site and items; newest first. Status: 0 Draft, 1 Confirmed, 2 Completed.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          {"name": "X-Plant-Id", "in": "header", "required": true, "schema": {"type": "integer", "minimum": 1}},
-          {"name": "per_page", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
-          {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
-          {"name": "search", "in": "query", "description": "Search ERP reference or customer PO reference.", "schema": {"type": "string", "maxLength": 100}},
-          {"name": "customer_id", "in": "query", "schema": {"type": "integer"}},
-          {"name": "site_id", "in": "query", "schema": {"type": "integer"}},
-          {"name": "status", "in": "query", "schema": {"type": "integer", "enum": [0, 1, 2]}}
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search ERP reference or customer PO reference.",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "site_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            }
+          }
         ],
         "responses": {
-          "200": {"description": "Success; Laravel pagination under data with customer POs including patron, site and items.", "content": {"application/json": {"schema": {"type": "object"}}}},
-          "401": {"$ref": "#/components/responses/Unauthorized"},
-          "403": {"$ref": "#/components/responses/Forbidden"},
-          "422": {"$ref": "#/components/responses/ValidationError"},
-          "429": {"$ref": "#/components/responses/TooManyRequests"}
+          "200": {
+            "description": "Success; Laravel pagination under data with customer POs including patron, site and items.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
         }
       }
     },
@@ -4191,6 +4348,297 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "MobileQuotationItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "mix_design_id": {
+            "type": "integer"
+          },
+          "mix_design": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "design_name": {
+                "type": "string"
+              },
+              "design_code": {
+                "type": "string",
+                "nullable": true
+              },
+              "rate_per_qty": {
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Decimal value; may be serialized as a string."
+              },
+              "concrete_grade": {
+                "type": "object",
+                "nullable": true
+              },
+              "unit": {
+                "type": "object",
+                "nullable": true
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "product_id": {
+                      "type": "integer"
+                    },
+                    "product": {
+                      "type": "object",
+                      "nullable": true
+                    },
+                    "uom": {
+                      "type": "object",
+                      "nullable": true
+                    },
+                    "actual_quantity": {
+                      "oneOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "description": "Decimal value; may be serialized as a string."
+                    },
+                    "cross_quantity": {
+                      "oneOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "description": "Decimal value; may be serialized as a string."
+                    },
+                    "variation_quantity": {
+                      "oneOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "description": "Decimal value; may be serialized as a string."
+                    },
+                    "rate": {
+                      "oneOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "description": "Decimal value; may be serialized as a string."
+                    }
+                  }
+                }
+              }
+            },
+            "nullable": true
+          },
+          "uom_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "uom": {
+            "type": "object",
+            "nullable": true
+          },
+          "tax": {
+            "type": "object",
+            "nullable": true
+          },
+          "concrete_pump": {
+            "type": "string",
+            "nullable": true
+          },
+          "discount_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "quantity": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "rate": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "discount": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "discount_amount": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "tax_amount": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "untaxed_amount": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "amount_total": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "pump_rate": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          }
+        }
+      },
+      "MobileQuotation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "patron": {
+            "type": "object",
+            "nullable": true
+          },
+          "site": {
+            "type": "object",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MobileQuotationItem"
+            }
+          },
+          "amount_untaxed": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "amount_tax": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "adjustment": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
+          },
+          "amount_total": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Decimal value; may be serialized as a string."
           }
         }
       }

@@ -14,7 +14,7 @@ use Inertia\Inertia;
 class QCMaterialTestMappingController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'q_c_material_test_mapping';
+    protected string $module = 'QC_CONFIG';
 
     public function index(Request $request)
     {
@@ -56,7 +56,7 @@ class QCMaterialTestMappingController extends Controller
 
     public function save(Request $request)
     {
-        $this->authorizeModule('create');
+        $this->authorizeModule('edit');
 
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();

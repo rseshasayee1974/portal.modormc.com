@@ -149,20 +149,20 @@ For a fresh installation, run all migrations in their normal order. Do not rerun
 
 Removal blocks both email/password and mobile/WhatsApp OTP login immediately, revokes the account's sales-mobile tokens, and blocks subsequent authenticated mobile requests. Existing ERP website sessions remain available. Pending OTP challenges become invalid even if access is granted again; the user must request a fresh code. The grant does not create memberships, change roles or bypass module permissions. User activity status and account lock checks remain enforced.
 
-Permissions follow the ERP's singular/plural uppercase module conventions. The role for the selected entity and plant is resolved on every request. Membership alone does not grant module access. Ordinary executives see their assigned leads and activities, plus quotations/orders they created or whose `sales_executive_id` matches their personnel ID. Leads use `mm_users.id` for ownership; commercial documents use `mm_personnels.id`. These IDs are not interchangeable.
+Permissions follow the ERP's singular/plural uppercase module conventions. The role for the selected entity and plant is resolved on every request. Membership alone does not grant module access. The selected plant role code `SALES_EXECUTIVE` restricts executives to their assigned leads and activities and to quotations, customer POs and orders whose `sales_executive_id` matches their personnel ID in that plant. Creation alone does not grant document access. For older roles without a code, the name `Sales Executive` is recognized. A missing personnel assignment exposes no commercial records and blocks commercial creation. Leads use `mm_users.id` for ownership; commercial documents use `mm_personnels.id`. These IDs are not interchangeable.
 
 | Module | Required grants |
 |---|---|
 | CRM and follow-ups | `CRM_LEAD.VIEW`, `CREATE`, `UPDATE`, `DELETE`; `ASSIGN` for assigning another user; `CONVERT` for customer conversion |
 | Quotations | `QUOTATION.VIEW`, `CREATE`, `UPDATE`, `DELETE`; `APPROVE` for review |
-| Sales orders/progress and customer PO listing | No module action permission required; authenticated mobile access and plant membership required. Ownership scope remains; `SALES_ORDER.VIEW_ALL` expands visibility within the selected plant. |
+| Sales orders/progress and customer PO listing | No module action permission required; authenticated mobile access and plant membership required. Ownership scope remains; `SALES_ORDER.VIEW_ALL` expands management visibility within the selected plant, but cannot broaden a sales executive's scope. |
 | Customers | `PATRON.VIEW` |
 | Sites | `SITE.VIEW` |
 | Batch schedules | No module action permission required; authenticated mobile access, plant membership and sales order ownership scope remain required. |
 
-`CRM_LEAD.VIEW_ALL`, `QUOTATION.VIEW_ALL`, `SALES_ORDER.VIEW_ALL`, and `PATRON.VIEW_ALL` extend visibility within the selected plant. They do not grant editing or cross-plant access. The migration grants these and `QUOTATION.APPROVE` to existing standard administrator and sales-manager role codes; ordinary executives do not receive them automatically. Use the ERP role/permission editor to grant the normal module actions needed by an executive. A reviewer normally needs `QUOTATION.VIEW_ALL` as well as `QUOTATION.APPROVE`. A submitter cannot review their own submission, even if they are an administrator.
+For management roles, `CRM_LEAD.VIEW_ALL`, `QUOTATION.VIEW_ALL`, `SALES_ORDER.VIEW_ALL`, and `PATRON.VIEW_ALL` extend visibility within the selected plant. These grants never bypass sales executive ownership, including when the account also has a global administrator role. They do not grant editing or cross-plant access. The migration grants these and `QUOTATION.APPROVE` to existing standard administrator and sales-manager role codes; ordinary executives do not receive them automatically. Use the ERP role/permission editor to grant the normal module actions needed by an executive. A reviewer normally needs `QUOTATION.VIEW_ALL` as well as `QUOTATION.APPROVE`. A submitter cannot review their own submission, even if they are an administrator.
 
-Customers are scoped through the executive's leads, quotations and orders unless `PATRON.VIEW_ALL` is granted. Module permissions still apply when retrieving detail data. Foreign or unowned records return 404. Login, profile and plant discovery work even if the user has no business module permissions; dashboard omits modules they cannot view.
+Executives can see customers assigned directly through `mm_patrons.sales_executive_id`, or related through their visible leads, quotations, customer POs or orders. Direct assignments support the first sale without requiring prior documents. Sites must belong to a visible customer or be referenced by a visible quotation, PO or order. Schedules and production history inherit access through the visible sales order. Management roles retain their existing plant-wide site access and permission-based customer access. Module permissions still apply when retrieving detail data. Foreign or unowned records return 404. Login, profile and plant discovery work even if the user has no business module permissions; dashboard omits modules they cannot view.
 
 ## Response and list conventions
 
@@ -218,10 +218,12 @@ Lookup options are permission-dependent. Marketing enquiries are created as lead
 | POST | `/follow-ups/{id}/complete` | Complete activity once; optional `description` outcome |
 | DELETE | `/follow-ups/{id}` | Soft delete activity |
 
-Lead create/update required fields: `contact_name`, `enquiry_date`, `source`, `priority`, `status`, `expected_value`, and either `phone` or `email`. Optional fields: `company_name`, `address`, `assigned_to`, `project_name`, `requirement`, `estimated_quantity`, `delivery_location`, `expected_purchase_date`, `remarks`, `lost_reason`.
+Use `mix_design_id` to submit the selected plant mix design ID, rather than its name or label. Responses include `mix_design_id` and `mix_design` (`id`, `design_name`). The legacy `requirement` input is rejected.
+
+Lead create/update required fields: `contact_name`, `enquiry_date`, `source`, `priority`, `status`, `expected_value`, and either `phone` or `email`. Optional fields: `company_name`, `address`, `assigned_to`, `project_name`, `mix_design_id`, `estimated_quantity`, `delivery_location`, `expected_purchase_date`, `remarks`, `lost_reason`.
 
 ```json
-{"contact_name":"Arun Kumar","company_name":"Kavin Builders","phone":"9876543210","email":null,"enquiry_date":"2026-10-09","source":"Referral","priority":"High","status":"New","expected_value":200000,"requirement":"M25 Design","estimated_quantity":40}
+{"contact_name":"Arun Kumar","company_name":"Kavin Builders","phone":"9876543210","email":null,"enquiry_date":"2026-10-09","source":"Referral","priority":"High","status":"New","expected_value":200000,"mix_design_id":4,"estimated_quantity":40}
 ```
 
 Use the enums from `/lookups`. Valid unconverted lead statuses are New, Contacted, Qualified and Unqualified. Unqualified requires `lost_reason`. Converted status is assigned by conversion and cannot be manually selected for an unconverted lead. A converted lead must retain that status and cannot be deleted. Phone is normalized to digits and email to lowercase. Duplicate active lead phone/email is rejected within the plant.
@@ -248,10 +250,18 @@ Types: Call, Meeting, Site Visit, Task, Note. `due_at` is required except for No
 | POST | `/quotations/{id}/submit` | Submit for another user's review |
 | POST | `/quotations/{id}/review` | Approve/reject submitted quotation |
 
-SaaS Owner is exempt from the review permission, pending-state and different-submitter restrictions described below and can review any non-deleted quotation in the selected plant. Other reviewers require `QUOTATION.APPROVE` and quotation visibility (`QUOTATION.VIEW_ALL` for another executive's records). Missing or inaccessible records return 404, missing approval permission or self-review returns 403, and a non-pending review returns 422. Mobile error responses contain the message without a stack trace. Decision validation and the rejection-comment requirement apply to everyone.
+A system administrator whose selected plant role is not SALES_EXECUTIVE is exempt from the review permission, pending-state and different-submitter restrictions described below and can review any non-deleted quotation in the selected plant. Selecting a SALES_EXECUTIVE role retains executive visibility restrictions. Other reviewers require `QUOTATION.APPROVE` and quotation visibility (`QUOTATION.VIEW_ALL` for another executive's records). Missing or inaccessible records return 404, missing approval permission or self-review returns 403, and a non-pending review returns 422. Mobile error responses contain the message without a stack trace. Decision validation and the rejection-comment requirement apply to everyone.
 
 ```json
 {"patron_id":5,"site_id":10,"quote_date":"2026-10-09","validity_date":"2026-10-16","is_tax_inclusive":true,"notes":"Delivery subject to scheduling","items":[{"mix_design_id":4,"quantity":3.55,"rate":546,"tax_id":36}]}
+```
+
+Quotation list, detail, create, update, submit and review responses include `items` with `mix_design_id`, `quantity`, `rate`, `uom`, `discount_type`, `discount`, `discount_amount`, `tax_id`, `tax` (including children), `tax_amount`, `untaxed_amount`, `amount_total`, `concrete_pump` and `pump_rate`. Each line's `mix_design` includes its name/code, catalog rate, `concrete_grade`, `unit`, and component `items`. Each component includes `product`, `uom`, `actual_quantity`, `cross_quantity`, `variation_quantity` and `rate`. Quotation quantities/rates are the agreed selling values; component quantities/rates describe the current mix recipe, and `rate_per_qty` is the current catalog rate. They are not historical recipe snapshots. Related records may be null when unavailable; decimal values may serialize as strings. Lists retain Laravel pagination (`data.data`); individual responses use `data`.
+
+Example line (abbreviated):
+
+```json
+{"mix_design_id":4,"quantity":"3.550","rate":"546.00","discount_amount":"0.00","tax_amount":"295.68","untaxed_amount":"1642.63","amount_total":"1938.31","mix_design":{"id":4,"design_name":"M25","design_code":"M25-01","rate_per_qty":"546.0000","concrete_grade":{"id":2,"name":"M25"},"items":[{"product":{"id":8,"title":"Cement"},"actual_quantity":"300.0000","rate":"6.0000"}]}}
 ```
 
 Required: customer `patron_id`, `site_id`, `quote_date`, `is_tax_inclusive` and 1–100 `items`. Validity date must be on/after quote date. Optional `reference` is unique among active quotations within the plant; otherwise numbering uses the ERP quotation prefix. Item fields: `mix_design_id`, `quantity`, `rate`, optional `tax_id`, `uom_id`, `concrete_pump`, `pump_rate`. An item has no manually supplied ID in this API; editing replaces its lines using the existing quotation model. `pump_rate` is the existing flat line charge, not a charge multiplied by quantity.
@@ -283,7 +293,7 @@ Customer PO results include only `id`, `reference`, `customer_po_reference`, `pa
 
 `customer_po_id` is optional or nullable. Without a PO, submit `rate` and optionally `tax_id`, `is_tax_inclusive`, `concrete_pump`, and `pump_rate`. When a PO is supplied, customer and site must match it and the mix design must be one of its lines; price, sales tax, tax-inclusive flag and pump charge are copied from that line. Omitting `customer_po_id` during an update preserves the existing link; explicit null removes it and requires a rate. The server generates the order number and starts it as Confirmed with zero produced quantity. Clients cannot submit production quantities or operational statuses. Ownership is checked for the PO. An order with batches, dispatches or schedule slots cannot be edited/deleted through this API. Completed and cancelled orders are also protected.
 
-Progress fields: `ordered_m3`, `batch_count`, `completed_batches`, `cancelled_batches`, `committed_m3`, `dispatched_m3`, `delivered_m3`, `remaining_delivery_m3`. Committed quantity includes planned batches and excludes cancelled/deleted batches. Completed count uses the explicit completed batch status. Dispatched quantity excludes Draft, Loading, Cancelled and deleted trips, and trips whose linked batch was deleted. Delivered quantity uses Delivered/Completed trip status. Invoicing alone does not establish delivery. Remaining delivery is ordered minus delivered, floored at zero. Customer progress sums accessible orders; it does not include orders owned by another executive without VIEW_ALL.
+Progress fields: `ordered_m3`, `batch_count`, `completed_batches`, `cancelled_batches`, `committed_m3`, `dispatched_m3`, `delivered_m3`, `remaining_delivery_m3`. Committed quantity includes planned batches and excludes cancelled/deleted batches. Completed count uses the explicit completed batch status. Dispatched quantity excludes Draft, Loading, Cancelled and deleted trips, and trips whose linked batch was deleted. Delivered quantity uses Delivered/Completed trip status. Invoicing alone does not establish delivery. Remaining delivery is ordered minus delivered, floored at zero. Customer progress sums accessible orders. Sales executives never include another executive's orders; management visibility follows SALES_ORDER.VIEW_ALL.
 
 ## Batch schedules
 
@@ -327,3 +337,10 @@ Additional Swagger files:
 - resources/views/sales-mobile-docs.blade.php
 
 Mobile OTP cURL integration: app/Http/Controllers/Api/SalesMobile/AuthController.php and config/services.php. The former app/Services/Mobile/MobileOtpSender.php has been removed. Batches/Dispatch retains its existing services. All 24 mobile API tests pass.
+
+
+## Maintaining mobile data visibility
+
+The route group declares `MobileSalesScope` after `MobilePlantContext` once. It resolves the executive role and personnel identity for the request. `MobileAccess` owns the shared visibility queries and foreign-key validation; controllers use those helpers instead of repeating ownership conditions. Each helper returns a fresh query. Personnel identity is cached only on the request and is specific to the selected plant.
+
+Use `Access::exists(Access::customers())` (or the corresponding resource query) for related-record validation. Keep plant-wide scheduling capacity and resource-conflict checks outside executive visibility filtering. Shared catalogs keep their existing plant validation. Lists, details, writes, lookups and summaries use the same ownership rules.

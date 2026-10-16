@@ -14,7 +14,7 @@ use Inertia\Inertia;
 class QCTestScheduleController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'q_c_test_schedule';
+    protected string $module = 'QC_CONFIG';
 
     public function index(Request $request)
     {
@@ -68,6 +68,8 @@ class QCTestScheduleController extends Controller
 
     public function create()
     {
+        $this->authorizeModule('create');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -106,6 +108,9 @@ class QCTestScheduleController extends Controller
 
     public function edit(QcTestSchedule $schedule)
     {
+        $this->authorizeModule('edit');
+        abort_if($schedule->plant_id !== null && (int) $schedule->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -177,6 +182,7 @@ class QCTestScheduleController extends Controller
     public function update(Request $request, QcTestSchedule $schedule)
     {
         $this->authorizeModule('edit');
+        abort_if($schedule->plant_id !== null && (int) $schedule->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         if ($request->has('frequency_type')) {
             $request->merge([
@@ -203,6 +209,7 @@ class QCTestScheduleController extends Controller
     public function destroy(QcTestSchedule $schedule)
     {
         $this->authorizeModule('delete');
+        abort_if($schedule->plant_id !== null && (int) $schedule->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         $schedule->deleted_by = auth()->id();
         $schedule->save();

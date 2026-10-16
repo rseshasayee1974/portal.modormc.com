@@ -16,6 +16,7 @@ use App\Models\Dispatch;
 use App\Models\Personnel;
 use App\Models\SalesOrder;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use App\Services\PlantContextService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,7 +25,7 @@ use Illuminate\Support\Facades\DB;
 class QCSampleController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'q_c_sample';
+    protected string $module = 'QC_SAMPLE';
 
     public function index(Request $request)
     {
@@ -32,29 +33,6 @@ class QCSampleController extends Controller
 
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
-
-        // Cleanup any accidental non-compressive duplicate pending tests (e.g. split tensile created alongside compressive)
-        try {
-            $duplicateIds = QcTest::whereHas('testType', function ($q) {
-                    $q->where('name', 'like', '%Split Tensile%')
-                      ->orWhere('name', 'like', '%Flexural%');
-                })
-                ->whereHas('sample', function ($q) {
-                    $q->whereNotNull('concrete_grade_id');
-                })
-                ->where('overall_status', 'pending')
-                ->whereIn('sample_id', function ($q) {
-                    $q->select('sample_id')
-                        ->from('mm_qc_tests')
-                        ->groupBy('sample_id', 'age_days')
-                        ->havingRaw('COUNT(*) > 1');
-                })
-                ->pluck('id');
-
-            if ($duplicateIds->isNotEmpty()) {
-                QcTest::whereIn('id', $duplicateIds)->delete();
-            }
-        } catch (\Throwable $e) {}
 
         $query = QcSample::with([
             'material',
@@ -181,6 +159,7 @@ class QCSampleController extends Controller
         $testTypes = $testTypesQuery->get(['id', 'name', 'code', 'category', 'material_type']);
 
         return Inertia::render('Quality/Samples/Edit', [
+            'supportedTestAges' => [7, 15, 28],
             'sample' => $sample,
             'concreteGrades' => $concreteGrades,
             'materials' => $materials,
@@ -200,19 +179,20 @@ class QCSampleController extends Controller
         $this->authorizeModule('create');
 
         $ctx = app(PlantContextService::class);
-        $plantId = $ctx->plantId() ?: session('active_plant_id', 1);
+        $plantId = $ctx->requirePlantId();
 
         $validated = $request->validate([
+            'execute_after_create' => 'sometimes|boolean',
             'sales_order_id' => 'nullable|integer',
             'source_keys' => 'required_with:sales_order_id|array|min:1',
             'source_keys.*' => ['required', 'string', 'distinct', 'regex:/^(batch|dispatch):[0-9]+$/'],
             'sample_date' => 'required|date',
-            'tested_by' => 'nullable|integer',
+            'tested_by' => ['nullable', 'integer', Rule::exists('mm_personnels', 'id')->whereNull('deleted_at')->where(fn ($q) => $q->where('plant_id', app(PlantContextService::class)->requirePlantId())->orWhereNull('plant_id'))],
             'concrete_grade_id' => 'nullable|exists:mm_concrete_grades,id',
             'material_id' => 'nullable|exists:mm_products,id',
-            'dispatch_id' => 'nullable|exists:mm_dispatches,id',
-            'batch_id' => 'nullable|exists:mm_batches,id',
-            'customer_id' => 'nullable|exists:mm_patrons,id',
+            'dispatch_id' => ['nullable', 'integer', Rule::exists('mm_dispatches', 'id')->where('plant_id', app(PlantContextService::class)->requirePlantId())->whereNull('deleted_at')],
+            'batch_id' => ['nullable', 'integer', Rule::exists('mm_batches', 'id')->where('plant_id', app(PlantContextService::class)->requirePlantId())->whereNull('deleted_at')],
+            'customer_id' => ['nullable', 'integer', Rule::exists('mm_patrons', 'id')->where('plant_id', app(PlantContextService::class)->requirePlantId())->whereNull('deleted_at')],
             'truck_no' => 'nullable|string|max:100',
             'site_name' => 'nullable|string|max:150',
             'source_location' => 'nullable|string|max:150',
@@ -223,10 +203,11 @@ class QCSampleController extends Controller
             'specimen_count' => 'nullable|integer|min:1|max:30',
             'curing_tank_id' => 'nullable|string|max:100',
             'sample_quantity' => 'nullable|string|max:50',
-            'schedule_milestones' => 'nullable|array',
-            'schedule_milestones.*' => 'integer|min:1|max:365',
-            'test_type_ids' => 'nullable|array',
-            'test_type_ids.*' => 'exists:mm_qc_test_types,id',
+            'schedule_milestones' => 'sometimes|required|array|min:1|max:3',
+            'schedule_milestones.*' => ['required', 'integer', 'distinct', Rule::in([7, 15, 28])],
+            'test_type_ids' => 'nullable|array|max:100',
+            'test_type_ids.*' => ['integer', 'distinct', Rule::exists('mm_qc_test_types', 'id')->where('is_active', true)->whereNull('deleted_at')
+                ->where(fn ($q) => $q->where('plant_id', $plantId)->orWhereNull('plant_id'))],
             'remarks' => 'nullable|string',
         ]);
 
@@ -258,7 +239,7 @@ class QCSampleController extends Controller
                     'specimen_count' => $validated['specimen_count'] ?? 6,
                     'curing_tank_id' => $validated['curing_tank_id'] ?? null,
                     'sample_quantity' => $validated['sample_quantity'] ?? null,
-                    'sampled_by' => $validated['tested_by'] ?? (auth()->id() ?: 1),
+                    'sampled_by' => auth()->id() ?: 1,
                     'tested_by' => $validated['tested_by'] ?? null,
                     'status' => 'pending_test',
                     'remarks' => $validated['remarks'] ?? null,
@@ -274,6 +255,7 @@ class QCSampleController extends Controller
                     if ($grade) {
                         // Look for Compressive strength test type for this grade first
                         $targetTestTypeIds = QcTestType::where('is_active', true)
+                            ->where(fn ($q) => $q->where('plant_id', $plantId)->orWhereNull('plant_id'))
                             ->where(function ($q) use ($grade) {
                                 $q->where('material_type', $grade->name)
                                   ->orWhere('material_type', (string)$grade->id);
@@ -289,6 +271,7 @@ class QCSampleController extends Controller
                         // If no specific compressive test type exists for this grade, take the first active matching test type
                         if (empty($targetTestTypeIds)) {
                             $targetTestTypeIds = QcTestType::where('is_active', true)
+                            ->where(fn ($q) => $q->where('plant_id', $plantId)->orWhereNull('plant_id'))
                                 ->where(function ($q) use ($grade) {
                                     $q->where('material_type', $grade->name)
                                       ->orWhere('material_type', (string)$grade->id);
@@ -303,6 +286,7 @@ class QCSampleController extends Controller
                 if (empty($targetTestTypeIds)) {
                     // Fallback to any active Concrete Compressive strength test type
                     $targetTestTypeIds = QcTestType::where('is_active', true)
+                            ->where(fn ($q) => $q->where('plant_id', $plantId)->orWhereNull('plant_id'))
                         ->where(function ($q) {
                             $q->where('category', 'Concrete')
                               ->orWhere('name', 'like', '%Compressive%');
@@ -311,6 +295,11 @@ class QCSampleController extends Controller
                         ->pluck('id')
                         ->toArray();
                 }
+
+                if (empty($targetTestTypeIds)) {
+                    throw ValidationException::withMessages(['test_type_ids' => 'Select an active test type for the current plant.']);
+                }
+                $this->authorizeModule('create', 'QC_TEST');
 
                 // Determine characteristic grade strength (fck) if available
                 $fck = 25.0;
@@ -330,11 +319,6 @@ class QCSampleController extends Controller
                     sort($chosenMilestones);
                 }
 
-                // Determine test date from sample submit form or current date
-                $testDate = !empty($validated['sample_date'])
-                    ? date('Y-m-d H:i:s', strtotime($validated['sample_date']))
-                    : now();
-
                 // Create scheduled test events
                 foreach ($targetTestTypeIds as $testTypeId) {
                     $testType = QcTestType::with('parameters')->find($testTypeId);
@@ -343,8 +327,8 @@ class QCSampleController extends Controller
                     if (!empty($chosenMilestones)) {
                         // Create scheduled test for each chosen milestone (7d, 15d, 28d)
                         foreach ($chosenMilestones as $age) {
-                            $scheduledDate = date('Y-m-d', strtotime($validated['sample_date'] . " + {$age} days"));
-                            $testNo = 'TST-' . $datePrefix . '-' . str_pad($count, 3, '0', STR_PAD_LEFT) . "-{$age}D";
+                            $scheduledDate = $sample->scheduledTestDate($age);
+                            $testNo = 'TST-' . $sample->id . '-' . $testType->id . "-{$age}D";
 
                             // Standard IS 456 strength targets
                             if ($age <= 7) {
@@ -368,8 +352,8 @@ class QCSampleController extends Controller
                                 'sample_id' => $sample->id,
                                 'test_type_id' => $testType->id,
                                 'test_no' => $testNo,
-                                'test_date' => $testDate,
-                                'tested_by' => $validated['tested_by'] ?? (auth()->id() ?: 1),
+                                'test_date' => null,
+                                'tested_by' => null,
                                 'scheduled_date' => $scheduledDate,
                                 'age_days' => $age,
                                 'target_strength' => $matchingParam?->target_value ?? $targetVal,
@@ -381,24 +365,24 @@ class QCSampleController extends Controller
                             ]);
                         }
                     } else {
-                        $ageParams = $testType->parameters->filter(function ($p) {
-                            return !empty($p->default_value) || preg_match('/(\d+)\s*(day|d)/i', $p->name);
+                        $ageParams = $testType->parameters->mapWithKeys(function ($parameter) {
+                            $age = is_numeric($parameter->default_value) ? (int) $parameter->default_value : null;
+                            if ($age === null && preg_match('/\b(7|15|28)\s*(?:days?|d)\b/i', $parameter->name, $match)) $age = (int) $match[1];
+                            return in_array($age, [7, 15, 28], true) ? [$age => $parameter] : [];
                         });
 
                         if ($ageParams->isNotEmpty()) {
-                            foreach ($ageParams as $param) {
-                                preg_match('/(\d+)/', (string)($param->default_value ?: $param->name), $matches);
-                                $age = !empty($matches[1]) ? (int)$matches[1] : 28;
-                                $scheduledDate = date('Y-m-d', strtotime($validated['sample_date'] . " + {$age} days"));
-                                $testNo = 'TST-' . $datePrefix . '-' . str_pad($count, 3, '0', STR_PAD_LEFT) . "-{$age}D";
+                            foreach ($ageParams as $age => $param) {
+                                $scheduledDate = $sample->scheduledTestDate($age);
+                                $testNo = 'TST-' . $sample->id . '-' . $testType->id . "-{$age}D";
 
                                 QcTest::create([
                                     'plant_id' => $plantId ?? 1,
                                     'sample_id' => $sample->id,
                                     'test_type_id' => $testType->id,
                                     'test_no' => $testNo,
-                                    'test_date' => $testDate,
-                                    'tested_by' => $validated['tested_by'] ?? (auth()->id() ?: 1),
+                                    'test_date' => null,
+                                    'tested_by' => null,
                                     'scheduled_date' => $scheduledDate,
                                     'age_days' => $age,
                                     'target_strength' => $param->target_value,
@@ -411,15 +395,15 @@ class QCSampleController extends Controller
                             }
                         } else {
                             // Default single 28-day test
-                            $testNo = 'TST-' . $datePrefix . '-' . str_pad($count, 3, '0', STR_PAD_LEFT) . '-28D';
+                            $testNo = 'TST-' . $sample->id . '-' . $testType->id . '-28D';
                             QcTest::create([
                                 'plant_id' => $plantId ?? 1,
                                 'sample_id' => $sample->id,
                                 'test_type_id' => $testType->id,
                                 'test_no' => $testNo,
-                                'test_date' => $testDate,
-                                'tested_by' => $validated['tested_by'] ?? (auth()->id() ?: 1),
-                                'scheduled_date' => date('Y-m-d', strtotime($validated['sample_date'] . ' + 28 days')),
+                                'test_date' => null,
+                                'tested_by' => null,
+                                'scheduled_date' => $sample->scheduledTestDate(28),
                                 'age_days' => 28,
                                 'unit' => 'MPa',
                                 'overall_status' => 'pending',
@@ -430,6 +414,13 @@ class QCSampleController extends Controller
                     }
                 }
 
+            }
+            if ($input['execute_after_create'] ?? false) {
+                $test = $sample->tests()->orderBy('age_days')->first();
+                if (!$test) {
+                    throw ValidationException::withMessages(['test_type_ids' => 'Select an active test type to create and execute a test.']);
+                }
+                return redirect()->route('quality.tests.execute', $test);
             }
             return redirect()->route('quality.samples.index')->with('success', count($sources) . ' concrete sample(s) logged and testing schedules created.');
         });
@@ -443,13 +434,15 @@ class QCSampleController extends Controller
             'sales_order_id' => 'nullable|integer',
             'source_keys' => 'required_with:sales_order_id|array|min:1',
             'source_keys.*' => ['required', 'string', 'distinct', 'regex:/^(batch|dispatch):[0-9]+$/'],
+            'schedule_milestones' => 'sometimes|required|array|min:1|max:3',
+            'schedule_milestones.*' => ['required', 'integer', 'distinct', Rule::in([7, 15, 28])],
             'sample_date' => 'required|date',
-            'tested_by' => 'nullable|integer',
+            'tested_by' => ['nullable', 'integer', Rule::exists('mm_personnels', 'id')->whereNull('deleted_at')->where(fn ($q) => $q->where('plant_id', app(PlantContextService::class)->requirePlantId())->orWhereNull('plant_id'))],
             'concrete_grade_id' => 'nullable|exists:mm_concrete_grades,id',
             'material_id' => 'nullable|exists:mm_products,id',
-            'dispatch_id' => 'nullable|exists:mm_dispatches,id',
-            'batch_id' => 'nullable|exists:mm_batches,id',
-            'customer_id' => 'nullable|exists:mm_patrons,id',
+            'dispatch_id' => ['nullable', 'integer', Rule::exists('mm_dispatches', 'id')->where('plant_id', app(PlantContextService::class)->requirePlantId())->whereNull('deleted_at')],
+            'batch_id' => ['nullable', 'integer', Rule::exists('mm_batches', 'id')->where('plant_id', app(PlantContextService::class)->requirePlantId())->whereNull('deleted_at')],
+            'customer_id' => ['nullable', 'integer', Rule::exists('mm_patrons', 'id')->where('plant_id', app(PlantContextService::class)->requirePlantId())->whereNull('deleted_at')],
             'truck_no' => 'nullable|string|max:100',
             'site_name' => 'nullable|string|max:150',
             'source_location' => 'nullable|string|max:150',
@@ -467,12 +460,32 @@ class QCSampleController extends Controller
         $plantId = app(PlantContextService::class)->plantId();
         abort_if($plantId && (int) $sample->plant_id !== (int) $plantId, 404);
         DB::transaction(function () use ($validated, $sample) {
+            if (isset($validated['schedule_milestones'])) {
+                $requested = collect($validated['schedule_milestones'])->map(fn ($age) => (int) $age)->sort()->values()->all();
+                $existing = $sample->tests()->pluck('age_days')->unique()->sort()->values()->all();
+                if ($requested !== $existing) {
+                    throw ValidationException::withMessages(['schedule_milestones' => 'Schedule additional ages using New test for this sample. Existing milestones cannot be replaced by a metadata edit.']);
+                }
+                unset($validated['schedule_milestones']);
+            }
             $sources = $this->resolveSources($validated, $sample->plant_id, $sample);
             if (count($sources) !== 1) {
                 throw ValidationException::withMessages(['source_keys' => 'Select one production row when editing a sample.']);
             }
+            $castingChanged = \Carbon\Carbon::parse($validated['sample_date'])->toDateString() !== $sample->sample_date->toDateString();
+            if ($castingChanged && $sample->tests()->where(fn ($q) => $q->where('overall_status', '!=', 'pending')->orWhereNotNull('evaluated_at'))->exists()) {
+                throw ValidationException::withMessages(['sample_date' => 'Casting date cannot change after a test has been executed.']);
+            }
             unset($validated['sales_order_id'], $validated['source_keys']);
             $sample->update(array_merge($validated, $sources[0], ['updated_by' => auth()->id()]));
+            if ($castingChanged) {
+                foreach ($sample->tests()->where('overall_status', 'pending')->whereNotNull('age_days')->get() as $test) {
+                    $date = $sample->scheduledTestDate((int) $test->age_days);
+                    $test->update(['scheduled_date' => $date]);
+                    $test->sets()->update(['casting_date' => $sample->sample_date->toDateString(), 'scheduled_testing_date' => $date]);
+                }
+            }
+
         });
 
         return redirect()->route('quality.samples.index')->with('success', 'Concrete Sample details updated.');
@@ -480,6 +493,9 @@ class QCSampleController extends Controller
 
     private function samplingOptions(?int $plantId): array
     {
+        $dispatched = fn ($q) => $q->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
+            ->whereNotNull('dispatch_time')->whereNotNull('dispatch_no')
+            ->whereNotIn('dispatch_status', ['Draft', 'Loading', 'Cancelled']);
         $salesOrders = SalesOrder::with([
             'customer:id,legal_name', 'site:id,name', 'mixDesign.concreteGrade',
             'batches.dispatches.customer', 'batches.dispatches.unloadSite',
@@ -488,10 +504,38 @@ class QCSampleController extends Controller
             'dispatches.customer', 'dispatches.unloadSite', 'dispatches.truck',
             'dispatches.mixDesign.concreteGrade', 'dispatches.invoiceStatus.invoice',
         ])->when($plantId, fn($q) => $q->where('plant_id', $plantId))
-        ->where('status', SalesOrder::STATUS_IN_PROGRESS)
-        ->has('batches')
+        ->whereHas('dispatches', $dispatched)
         ->latest()->get();
         $batches = $salesOrders->flatMap->batches;
+        $sourceSamples = QcSample::with([
+            'tests.tester:id,username', 'tester:id,first_name,last_name,employee_code',
+            'concreteGrade', 'material', 'customer', 'batch', 'dispatch',
+        ])
+            ->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
+            ->get();
+        $samplesByBatch = $sourceSamples->whereNotNull('batch_id')->keyBy('batch_id');
+        $samplesByDispatch = $sourceSamples->whereNotNull('dispatch_id')->keyBy('dispatch_id');
+        $representedSampleIds = [];
+        foreach ($salesOrders as $order) {
+            foreach ($order->batches as $batch) {
+                $batch->setRelation('qualitySample', $samplesByBatch->get($batch->id));
+            }
+            foreach ($order->dispatches as $dispatch) {
+                $timezone = request()->attributes->get('entity_timezone', 'Asia/Kolkata');
+                $dispatchAge = $dispatch->dispatch_time
+                    ? (int) \Carbon\Carbon::parse($dispatch->dispatch_time)->timezone($timezone)->startOfDay()
+                        ->diffInDays(now($timezone)->startOfDay(), false)
+                    : null;
+                $dispatch->setAttribute('qc_due_age', in_array($dispatchAge, [7, 15, 28], true) ? $dispatchAge : null);
+                $sample = $samplesByDispatch->get($dispatch->id) ?? $samplesByBatch->get($dispatch->batch_id);
+                $dispatch->setRelation('qualitySample', $sample);
+                if ($sample && $dispatch->dispatch_time && $dispatch->dispatch_no
+                    && !in_array($dispatch->dispatch_status, ['Draft', 'Loading', 'Cancelled'], true)) {
+                    $representedSampleIds[] = $sample->id;
+                }
+            }
+        }
+        $additionalSamples = $sourceSamples->whereNotIn('id', $representedSampleIds)->values();
         $usedBatchIds = QcSample::where('plant_id', $plantId)->whereNotNull('batch_id')
             ->pluck('batch_id')->all();
         $usedDispatchIds = QcSample::where('plant_id', $plantId)->whereNotNull('dispatch_id')
@@ -510,7 +554,9 @@ class QCSampleController extends Controller
                 'value' => $p->id,
             ]);
 
-        return compact('salesOrders', 'batches', 'usedBatchIds', 'usedDispatchIds', 'personnels');
+        $supportedTestAges = [7, 15, 28];
+
+        return compact('supportedTestAges', 'salesOrders', 'batches', 'usedBatchIds', 'usedDispatchIds', 'personnels', 'additionalSamples');
     }
 
     private function resolveSources(array $input, int $plantId, ?QcSample $sample = null): array
@@ -519,6 +565,21 @@ class QCSampleController extends Controller
         if (empty($input['sales_order_id'])) {
             if (array_key_exists('sales_order_id', $input)) {
                 throw ValidationException::withMessages(['sales_order_id' => 'Select a sales order.']);
+            }
+            if (!empty($input['source_keys'])) {
+                throw ValidationException::withMessages(['sales_order_id' => 'A sales order is required when selecting production rows.']);
+            }
+            if (!empty($input['dispatch_id'])) {
+                $dispatch = Dispatch::where('plant_id', $plantId)->findOrFail($input['dispatch_id']);
+                if (!empty($input['batch_id']) && (int) $input['batch_id'] !== (int) $dispatch->batch_id) {
+                    throw ValidationException::withMessages(['batch_id' => 'The batch does not belong to the selected dispatch.']);
+                }
+                if (!empty($input['customer_id']) && (int) $input['customer_id'] !== (int) $dispatch->customer_id) {
+                    throw ValidationException::withMessages(['customer_id' => 'The customer does not belong to the selected dispatch.']);
+                }
+                if (in_array($dispatch->dispatch_status, ['Draft', 'Loading', 'Cancelled'], true) || !$dispatch->dispatch_time) {
+                    throw ValidationException::withMessages(['dispatch_id' => 'Select a completed dispatch.']);
+                }
             }
             return [[]];
         }

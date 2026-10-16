@@ -12,7 +12,7 @@ use Inertia\Inertia;
 class QCUnitController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'q_c_unit';
+    protected string $module = 'QC_CONFIG';
 
     public function index(Request $request)
     {
@@ -50,6 +50,8 @@ class QCUnitController extends Controller
 
     public function create()
     {
+        $this->authorizeModule('create');
+
         return Inertia::render('Quality/Configuration/Units/Create', [
             'dimensions' => ['mass', 'length', 'volume', 'pressure', 'force', 'ratio', 'temperature', 'density', 'time', 'other'],
         ]);
@@ -88,6 +90,9 @@ class QCUnitController extends Controller
 
     public function edit(QcUnit $unit)
     {
+        $this->authorizeModule('edit');
+        abort_if($unit->plant_id !== null && (int) $unit->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
+
         return Inertia::render('Quality/Configuration/Units/Edit', [
             'unit' => $unit,
             'dimensions' => ['mass', 'length', 'volume', 'pressure', 'force', 'ratio', 'temperature', 'density', 'time', 'other'],
@@ -97,6 +102,7 @@ class QCUnitController extends Controller
     public function update(Request $request, QcUnit $unit)
     {
         $this->authorizeModule('edit');
+        abort_if($unit->plant_id !== null && (int) $unit->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         $validated = $request->validate([
             'code' => 'required|string|max:50',
@@ -115,6 +121,7 @@ class QCUnitController extends Controller
     public function destroy(QcUnit $unit)
     {
         $this->authorizeModule('delete');
+        abort_if($unit->plant_id !== null && (int) $unit->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         $unit->updateQuietly([
             'deleted_by' => auth()->id() ?: 1,
@@ -126,6 +133,9 @@ class QCUnitController extends Controller
 
     public function toggleActive(QcUnit $unit)
     {
+        $this->authorizeModule('edit');
+        abort_if($unit->plant_id !== null && (int) $unit->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
+
         $unit->update([
             'is_active' => !$unit->is_active,
             'updated_by' => auth()->id() ?: 1,

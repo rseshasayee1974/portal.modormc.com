@@ -45,7 +45,7 @@ class CrmLeadTest extends TestCase
             'enquiry_date' => '2026-10-09', 'contact_name' => 'CRM Contact', 'company_name' => 'CRM Company',
             'phone' => '9876543210', 'email' => 'contact@example.test', 'source' => 'Referral', 'status' => 'New',
             'priority' => 'High', 'assigned_to' => $this->user->id, 'project_name' => 'New Factory',
-            'requirement' => 'M25 concrete', 'estimated_quantity' => 200, 'expected_value' => 100000,
+            'mix_design_id' => null, 'estimated_quantity' => 200, 'expected_value' => 100000,
             'expected_purchase_date' => '2026-11-01', 'address' => 'Factory Road', 'delivery_location' => 'Site A',
         ], $overrides);
     }
@@ -241,11 +241,11 @@ class CrmLeadTest extends TestCase
         $this->get(route('crm.leads.index'), ['X-Inertia' => 'true'])->assertOk()->assertJsonPath('props.metrics.overdue', 0);
     }
 
-    public function test_requirement_dropdown_contains_only_active_plant_mix_designs_and_preserves_names(): void
+    public function test_requirement_dropdown_submits_mix_design_ids_and_preserves_legacy_text(): void
     {
         $plantId = $this->plant->id;
         \App\Models\Product::factory()->create(['plant_id' => $plantId, 'title' => 'Cement', 'status' => true]);
-        \App\Models\MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'M25 Design', 'is_active' => true]);
+        $design = \App\Models\MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'M25 Design', 'is_active' => true]);
         \App\Models\MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'M25 Design', 'is_active' => true]);
         \App\Models\Product::factory()->create(['plant_id' => $plantId, 'title' => 'M25 Design', 'status' => true]);
         \App\Models\Product::factory()->create(['plant_id' => $plantId, 'title' => 'Inactive Product', 'status' => false]);
@@ -257,12 +257,32 @@ class CrmLeadTest extends TestCase
         \App\Models\MixDesign::factory()->create(['plant_id' => $foreignPlant->id, 'design_name' => 'Foreign Mix', 'is_active' => true]);
         $response = $this->get(route('crm.leads.index'), ['X-Inertia' => 'true'])->assertOk();
         $choices = $response->json('props.options.requirements');
-        $this->assertCount(1, $choices);
-        $this->assertSame([['label' => 'M25 Design', 'value' => 'M25 Design']], $choices);
+        $this->assertCount(2, $choices);
+        $this->assertSame('M25 Design', $choices[0]['label']);
+        $this->assertSame($design->id, $choices[0]['value']);
+        $this->assertNotSame($choices[0]['value'], $choices[1]['value']);
         $lead = $this->lead(['requirement' => 'Legacy project requirement']);
-        $this->putJson(route('crm.leads.update', $lead), $this->data(['requirement' => $lead->requirement]))->assertRedirect()->assertSessionHasNoErrors();
+        $this->putJson(route('crm.leads.update', $lead), $this->data())->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame('Legacy project requirement', $lead->fresh()->requirement);
-        $this->putJson(route('crm.leads.update', $lead), $this->data(['requirement' => 'M25 Design']))->assertRedirect()->assertSessionHasNoErrors();
-        $this->assertSame('M25 Design', $lead->fresh()->requirement);
+        $this->putJson(route('crm.leads.update', $lead), $this->data(['mix_design_id' => $design->id]))->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame($design->id, $lead->fresh()->mix_design_id);
+        $this->assertNull($lead->fresh()->requirement);
+        $this->assertSame('M25 Design', $lead->fresh()->mixDesign->design_name);
+        $this->putJson(route('crm.leads.update', $lead), $this->data(['mix_design_id' => null]))->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertNull($lead->fresh()->mix_design_id);
+        $this->assertNull($lead->fresh()->requirement);
     }
+    public function test_mix_design_selection_rejects_names_inactive_deleted_and_foreign_ids(): void
+    {
+        $inactive = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id, 'is_active' => false]);
+        $deleted = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id, 'is_active' => true, 'deleted_at' => now()]);
+        $foreign = \App\Models\MixDesign::factory()->create(['plant_id' => Plant::factory()->create()->id, 'is_active' => true]);
+        foreach (['M25 Design', $inactive->id, $deleted->id, $foreign->id, 99999999] as $value) {
+            $this->postJson(route('crm.leads.store'), $this->data(['mix_design_id' => $value]))
+                ->assertUnprocessable()->assertJsonValidationErrors('mix_design_id');
+        }
+        $this->postJson(route('crm.leads.store'), $this->data(['requirement' => 'M25 Design']))
+            ->assertUnprocessable()->assertJsonValidationErrors('requirement');
+    }
+
 }

@@ -19,7 +19,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class QCReportController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'q_c_report';
+    protected string $module = 'QC_REPORT';
 
     public function index(Request $request)
     {
@@ -81,7 +81,7 @@ class QCReportController extends Controller
 
     public function downloadPdf(Request $request)
     {
-        $this->authorizeModule('menu');
+        $this->authorizeModule('pdf');
 
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
@@ -104,17 +104,23 @@ class QCReportController extends Controller
 
     public function downloadCubeReportPdf(Request $request, QcTest $test)
     {
-        $this->authorizeModule('menu');
+        $this->authorizeModule('pdf', 'QC_TEST');
+        $plantId = app(PlantContextService::class)->requirePlantId();
+        abort_unless((int) $test->plant_id === $plantId && $test->sample()->where('plant_id', $plantId)->exists(), 404);
+        abort_unless(app(\App\Services\QC\ConcreteCubeCalculator::class)->supports($test), 422, 'Concrete strength certificates are available for cube compression tests.');
+        $request->validate(['format' => 'nullable|in:certificate,worksheet']);
 
         $test->loadMissing([
             'plant.entity',
             'plant.addresses',
             'sample.material',
             'sample.supplier',
-            'sample.customer',
+            'sample.customer' => fn ($query) => $query->withoutGlobalScope('active_operational_status')->where('plant_id', $test->plant_id),
             'sample.concreteGrade',
             'sample.dispatch.truck',
             'sample.dispatch.salesOrder.customer',
+            'sample.dispatch.salesOrder.site',
+            'sample.dispatch.unloadSite',
             'config.standard',
             'sets.specimens',
             'testType.parameters',
@@ -122,8 +128,7 @@ class QCReportController extends Controller
             'reviewer'
         ]);
 
-        $activePlantId = app(PlantContextService::class)->plantId() ?? session('active_plant_id');
-        $plant = ($activePlantId ? Plant::find($activePlantId) : null) ?? $test->plant ?? Plant::first();
+        $plant = $test->plant;
 
         $address = $plant?->addresses?->firstWhere('is_primary', true)
             ?? $plant?->addresses?->first()
@@ -148,8 +153,11 @@ class QCReportController extends Controller
             }
         }
 
-        $reportSets = app(\App\Services\QC\CubeReportDataService::class)->sampleSets($test);
-        $pdf = Pdf::loadView('reports.cube_test_report_pdf', [
+        $worksheet = $request->input('format') === 'worksheet';
+        $reportData = app(\App\Services\QC\CubeReportDataService::class);
+        $reportSets = $worksheet ? $reportData->sampleSets($test) : $reportData->certificateSets($test);
+        abort_if($reportSets->isEmpty(), 422, 'Complete all specimen weights and loads before generating a concrete strength certificate.');
+        $pdf = Pdf::loadView($worksheet ? 'reports.cube_test_report_pdf' : 'reports.concrete_strength_certificate_pdf', [
             'test' => $test,
             'reportSets' => $reportSets,
             'reportTestNumbers' => $reportSets->pluck('source_test_no')->unique()->implode(', '),
@@ -159,13 +167,14 @@ class QCReportController extends Controller
             'companyLogo' => $companyLogo,
             'plantLogo' => $companyLogo,
             'reportDate' => now()->format('d/m/Y'),
-            'clientName' => $test->sample?->customer?->name ?? 'N/A',
+            'clientName' => $test->sample?->customer?->legal_name ?? $test->sample?->dispatch?->salesOrder?->customer?->legal_name ?? 'N/A',
+            'projectName' => $test->sample?->dispatch?->unloadSite?->name ?? $test->sample?->dispatch?->salesOrder?->site?->name ?? $test->sample?->site_name ?? 'N/A',
             'siteAddress' => $test->sample?->site_name ?? $test->sample?->dispatch?->site_address ?? $test->sample?->source_location ?? 'N/A',
             'gradeName' => $test->sample?->concreteGrade?->name ?? '',
             'cubeSize' => $test->config?->specimen_dimensions ?? $test->sample?->specimen_size ?? $test->testType?->specimen_dimensions ?? '',
-        ])->setPaper('a4', 'landscape');
+        ])->setPaper('a4', $worksheet ? 'landscape' : 'portrait');
 
-        $cleanTestNo = preg_replace('/[^A-Za-z0-9_-]/', '_', $test->sample?->sample_no ?? $test->test_no);
+        $cleanTestNo = preg_replace('/[^A-Za-z0-9_-]/', '_', $worksheet ? ($test->sample?->sample_no ?? $test->test_no) : $test->test_no);
         $filename = "Cube_Test_Report_{$cleanTestNo}.pdf";
         return $request->boolean('inline') ? $pdf->stream($filename) : $pdf->download($filename);
     }

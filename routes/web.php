@@ -363,6 +363,9 @@ Route::middleware([
             Route::get('completed', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'completed'])->name('quality.tests.completed');
             Route::get('failed', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'failed'])->name('quality.tests.failed');
 
+            Route::post('/', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'store'])->name('quality.tests.store');
+
+            Route::delete('{test}', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'destroy'])->name('quality.tests.destroy');
             Route::get('{test}/execute', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'executeForm'])->name('quality.tests.execute');
             Route::post('{test}/execute', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'submitExecution'])->name('quality.tests.submit');
 

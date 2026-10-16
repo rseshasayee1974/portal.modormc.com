@@ -529,6 +529,7 @@ class ConcreteQualityTestController extends Controller
      */
     public function lookupInvoices(Request $request)
     {
+        $this->authorizeModule('menu');
         $search = $request->input('search');
         $plantId = session('active_plant_id');
 

@@ -14,7 +14,7 @@ use Inertia\Inertia;
 class QCTestParameterController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'q_c_test_parameter';
+    protected string $module = 'QC_CONFIG';
 
     public function index(Request $request)
     {
@@ -55,6 +55,8 @@ class QCTestParameterController extends Controller
 
     public function create(Request $request)
     {
+        $this->authorizeModule('create');
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -138,6 +140,9 @@ class QCTestParameterController extends Controller
 
     public function edit(QcTestParameter $test_parameter)
     {
+        $this->authorizeModule('edit');
+        abort_if($test_parameter->plant_id !== null && (int) $test_parameter->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
+
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
@@ -163,6 +168,7 @@ class QCTestParameterController extends Controller
     public function update(Request $request, QcTestParameter $test_parameter)
     {
         $this->authorizeModule('edit');
+        abort_if($test_parameter->plant_id !== null && (int) $test_parameter->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         if ($request->has('data_type')) {
             $request->merge([
@@ -218,6 +224,7 @@ class QCTestParameterController extends Controller
     public function destroy(QcTestParameter $test_parameter)
     {
         $this->authorizeModule('delete');
+        abort_if($test_parameter->plant_id !== null && (int) $test_parameter->plant_id !== app(PlantContextService::class)->requirePlantId(), 404);
 
         $test_parameter->updateQuietly([
             'deleted_by' => auth()->id() ?: 1,
