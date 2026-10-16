@@ -39,8 +39,8 @@ class ConcreteCubeCalculator
 
     public function observation(array $input, array $dimensions): array
     {
-        $weight = isset($input['weight_kg']) && $input['weight_kg'] !== '' ? (float) $input['weight_kg'] : null;
-        $load = isset($input['load_kn']) && $input['load_kn'] !== '' ? (float) $input['load_kn'] : null;
+        $weight = isset($input['weight_kg']) && $input['weight_kg'] !== '' ? round((float) $input['weight_kg'], 2) : null;
+        $load = isset($input['load_kn']) && $input['load_kn'] !== '' ? round((float) $input['load_kn'], 2) : null;
         return [
             'weight_kg' => $weight, 'load_kn' => $load,
             'cross_sectional_area' => $dimensions['area_mm2'],

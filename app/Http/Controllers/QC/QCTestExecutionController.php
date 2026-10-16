@@ -286,8 +286,8 @@ class QCTestExecutionController extends Controller
                 'sets.*.specimens' => 'nullable|array',
                 'sets.*.specimens.*.id' => 'required|exists:mm_qc_test_specimens,id',
                 'sets.*.specimens.*.identification_mark' => 'nullable|string|max:100',
-                'sets.*.specimens.*.weight_kg' => 'nullable|numeric|gt:0',
-                'sets.*.specimens.*.load_kn' => 'nullable|numeric|gt:0',
+                'sets.*.specimens.*.weight_kg' => 'nullable|numeric|min:0.01',
+                'sets.*.specimens.*.load_kn' => 'nullable|numeric|min:0.01',
                 'sets.*.specimens.*.failure_type' => 'nullable|string|max:50',
                 'photos.*' => 'nullable|image|max:10240',
             ]);
@@ -345,8 +345,8 @@ class QCTestExecutionController extends Controller
             'photos.*' => 'nullable|image|max:10240',
             'concrete_specimens' => 'nullable|array|min:3|max:30',
             'concrete_specimens.*.ident_mark' => 'nullable|string|max:100',
-            'concrete_specimens.*.weight_kg' => 'required_with:concrete_specimens|numeric|gt:0',
-            'concrete_specimens.*.load_kn' => 'required_with:concrete_specimens|numeric|gt:0',
+            'concrete_specimens.*.weight_kg' => 'required_with:concrete_specimens|numeric|min:0.01',
+            'concrete_specimens.*.load_kn' => 'required_with:concrete_specimens|numeric|min:0.01',
             'concrete_specimens.*.failure_type' => 'nullable|string|max:50',
             'avg_strength' => 'nullable|numeric',
             'overall_status' => 'nullable|string|in:pass,fail,pending,hold,retest,Pass,Fail,Pending,Hold,Retest,PASS,FAIL,PENDING,HOLD,RETEST',
@@ -419,18 +419,18 @@ class QCTestExecutionController extends Controller
                     
                     $meta = [
                         'ident_mark' => $spec['ident_mark'] ?? ('Specimen #' . ($idx + 1)),
-                        'weight_kg' => isset($spec['weight_kg']) && $spec['weight_kg'] !== '' ? (float)$spec['weight_kg'] : null,
-                        'load_kn' => isset($spec['load_kn']) && $spec['load_kn'] !== '' ? (float)$spec['load_kn'] : null,
-                        'density' => $calculated['density_kg_m3'],
+                        'weight_kg' => $calculated['weight_kg'] !== null ? number_format($calculated['weight_kg'], 2, '.', '') : null,
+                        'load_kn' => $calculated['load_kn'] !== null ? number_format($calculated['load_kn'], 2, '.', '') : null,
+                        'density' => $calculated['density_kg_m3'] !== null ? number_format($calculated['density_kg_m3'], 2, '.', '') : null,
                         'failure_type' => $spec['failure_type'] ?? 'Normal',
-                        'strength_mpa' => $strength,
+                        'strength_mpa' => $strength !== null ? number_format($strength, 2, '.', '') : null,
                     ];
 
                     QcTestMeasurement::create([
                         'qc_test_id' => $test->id,
                         'parameter_id' => $param ? $param->id : null,
                         'value_numeric' => $strength,
-                        'value_text' => json_encode($meta),
+                        'value_text' => json_encode($meta, JSON_THROW_ON_ERROR),
                         'is_calculated' => false,
                         'row_index' => $idx,
                     ]);

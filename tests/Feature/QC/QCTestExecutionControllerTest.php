@@ -122,6 +122,57 @@ class QCTestExecutionControllerTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_high_precision_cube_metadata_is_compact_and_keeps_two_decimal_values(): void
+    {
+        $this->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::class);
+        $column = collect(\Illuminate\Support\Facades\Schema::getColumns('mm_qc_test_measurements'))->firstWhere('name', 'value_text');
+        $this->assertSame('text', strtolower($column['type_name']));
+        $originalPrecision = ini_get('serialize_precision');
+        try {
+            ini_set('serialize_precision', '100');
+            $this->post(route('quality.tests.submit', $this->test), [
+                'test_date' => now()->toDateString(),
+                'concrete_specimens' => array_fill(0, 3, [
+                    'ident_mark' => rtrim(str_repeat('Cube mark ', 10)),
+                    'weight_kg' => 8.2, 'load_kn' => 550,
+                    'failure_type' => 'Normal Non-explosive',
+                ]),
+            ])->assertSessionHasNoErrors()->assertRedirect();
+        } finally {
+            ini_set('serialize_precision', $originalPrecision);
+        }
+        $measurements = $this->test->measurements()->orderBy('row_index')->get();
+        $this->assertCount(3, $measurements);
+        foreach ($measurements as $measurement) {
+            $this->assertLessThanOrEqual(255, strlen($measurement->value_text));
+            $meta = json_decode($measurement->value_text, true, 512, JSON_THROW_ON_ERROR);
+            $this->assertSame(rtrim(str_repeat('Cube mark ', 10)), $meta['ident_mark']);
+            $this->assertSame('8.20', $meta['weight_kg']);
+            $this->assertSame('550.00', $meta['load_kn']);
+            $this->assertSame('24.44', $meta['strength_mpa']);
+            $this->assertSame('2429.63', $meta['density']);
+            $this->assertEquals(550, $meta['load_kn']);
+            $this->assertEqualsWithDelta(24.44, (float) $meta['strength_mpa'], 0.001);
+            $this->assertSame('Normal Non-explosive', $meta['failure_type']);
+        }
+    }
+
+    public function test_cube_inputs_are_rounded_to_two_decimals_before_calculation_and_storage(): void
+    {
+        $this->post(route('quality.tests.submit', $this->test), [
+            'test_date' => now()->toDateString(),
+            'concrete_specimens' => array_fill(0, 3, ['ident_mark' => 'Cube', 'weight_kg' => 8.2349, 'load_kn' => 550.126]),
+        ])->assertSessionHasNoErrors();
+        $meta = json_decode($this->test->measurements()->firstOrFail()->value_text, true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame('8.23', $meta['weight_kg']);
+        $this->assertSame('550.13', $meta['load_kn']);
+        $this->assertSame('24.45', $meta['strength_mpa']);
+        $this->assertSame('2438.52', $meta['density']);
+        $specimen = $this->test->sets()->firstOrFail()->specimens()->firstOrFail();
+        $this->assertEqualsWithDelta(8.23, (float) $specimen->weight_kg, .0001);
+        $this->assertEqualsWithDelta(550.13, (float) $specimen->load_kn, .0001);
+    }
+
     public function test_can_view_tests_index()
     {
         $response = $this->get(route('quality.tests.index'));

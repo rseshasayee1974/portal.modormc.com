@@ -127,7 +127,9 @@ const initConcreteSpecimens = () => {
     return JSON.parse(JSON.stringify(defaultConcreteSpecimens));
 };
 
-const concreteSpecimens = ref(initConcreteSpecimens());
+const roundCubeValue = (value: any): number | null => value === null || value === '' || !Number.isFinite(Number(value)) ? null : Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+const concreteSpecimens = ref(initConcreteSpecimens().map((spec: any) => ({ ...spec, weight_kg: roundCubeValue(spec.weight_kg), load_kn: roundCubeValue(spec.load_kn) })));
+
 
 const addConcreteSpecimen = () => {
     const nextIdx = concreteSpecimens.value.length + 1;
@@ -148,18 +150,24 @@ const removeConcreteSpecimen = (idx: number) => {
 
 const recalculateSpecimen = (spec: any) => {
     if (spec.weight_kg !== null && spec.weight_kg !== '' && !isNaN(Number(spec.weight_kg))) {
-        const wt = Number(spec.weight_kg);
+        const wt = roundCubeValue(spec.weight_kg)!;
         spec.density = Number((wt / (props.cubeDimensions?.volume_m3 || 0.003375)).toFixed(2));
     } else {
         spec.density = null;
     }
 
     if (spec.load_kn !== null && spec.load_kn !== '' && !isNaN(Number(spec.load_kn))) {
-        const load = Number(spec.load_kn);
+        const load = roundCubeValue(spec.load_kn)!;
         spec.strength_mpa = Number((load * 1000 / (props.cubeDimensions?.area_mm2 || 22500)).toFixed(2));
     } else {
         spec.strength_mpa = null;
     }
+};
+
+const normalizeCubeInputs = (spec: any) => {
+    spec.weight_kg = roundCubeValue(spec.weight_kg);
+    spec.load_kn = roundCubeValue(spec.load_kn);
+    recalculateSpecimen(spec);
 };
 
 const concreteAvgStrength = computed(() => {
@@ -694,6 +702,7 @@ const form = useForm({
 
 const submitExecution = () => {
     if (readOnly.value) return;
+    if (isConcreteCubeTest.value) concreteSpecimens.value.forEach(normalizeCubeInputs);
     if (isConcreteCubeTest.value) {
         const valid = concreteSpecimens.value.filter(s => Number(s.load_kn) > 0 && Number(s.weight_kg) > 0);
         if (valid.length < 3 || valid.length !== concreteSpecimens.value.length) {
@@ -1062,8 +1071,8 @@ const printCertificate = () => {
                                                 class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" />
                                         </td>
                                         <td class="py-2.5 px-3">
-                                            <input v-model.number="spec.weight_kg" @input="recalculateSpecimen(spec)"
-                                                type="number" step="0.001" placeholder="e.g. 8.25"
+                                            <input v-model.number="spec.weight_kg" @input="recalculateSpecimen(spec)" @blur="normalizeCubeInputs(spec)"
+                                                type="number" step="0.01" min="0.01" placeholder="e.g. 8.25"
                                                 class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" />
                                         </td>
                                         <td v-if="showCubeDetails"
@@ -1071,14 +1080,14 @@ const printCertificate = () => {
                                             {{ spec.density ? `${spec.density}` : '-' }}
                                         </td>
                                         <td class="py-2.5 px-3">
-                                            <input v-model.number="spec.load_kn" @input="recalculateSpecimen(spec)"
-                                                type="number" step="any" placeholder="e.g. 510.0"
+                                            <input v-model.number="spec.load_kn" @input="recalculateSpecimen(spec)" @blur="normalizeCubeInputs(spec)"
+                                                type="number" step="0.01" min="0.01" placeholder="e.g. 510.00"
                                                 class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border-2 border-indigo-300 dark:border-indigo-700/60 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 rounded-xl text-xs font-mono font-black text-indigo-700 dark:text-indigo-300 transition-colors" />
                                         </td>
                                         <td class="py-2.5 px-3">
                                             <span v-if="spec.strength_mpa"
                                                 class="inline-block px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono font-black text-indigo-700 dark:text-indigo-300 text-xs">
-                                                {{ spec.strength_mpa }}
+                                                {{ Number(spec.strength_mpa).toFixed(2) }}
                                             </span>
                                             <span v-else class="text-slate-300 dark:text-slate-700 font-mono">-</span>
                                         </td>
