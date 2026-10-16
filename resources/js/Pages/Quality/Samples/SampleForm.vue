@@ -349,7 +349,7 @@ const submit = () => {
                             class="block font-medium text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200">
                             {{ data.test.test_no }}</Link>
                         <span v-else class="text-slate-500">{{ data.sample?.sample_no || data.dispatch.dispatch_no
-                            }}</span>
+                        }}</span>
                         <span class="mt-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize"
                             :class="statusClass(data)">{{ rowStatus(data) }}</span>
 
@@ -385,7 +385,7 @@ const submit = () => {
                         <p>{{ fieldTechnician(data) }}</p>
                         <p class="mt-1 text-xxs text-slate-500">{{ data.test && (data.test.evaluated_at ||
                             data.test.overall_status !== 'pending') ? data.test.tester?.username || '-' : 'Not tested'
-                            }}</p>
+                        }}</p>
                     </template>
                 </Column>
                 <Column header="Actions" style="width: 60px">
@@ -414,18 +414,22 @@ const submit = () => {
                     class="border-b border-slate-100 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     {{
                         actionRow.test?.test_no || actionRow.sample?.sample_no || actionRow.dispatch.dispatch_no }}</p>
-                <button type="button" class="qc-menu-item" :disabled="!actionRow.sample || !can('QC_SAMPLE.UPDATE')" @click="editAction"><i
-                        class="pi pi-pencil" aria-hidden="true"></i>Edit</button>
-                <Link v-if="actionRow.test && can('QC_TEST.VIEW')" :href="route('quality.tests.execute', { test: actionRow.test.id, view: 1 })"
-                    class="qc-menu-item" @click="actionPopover?.hide()"><i class="pi pi-eye" aria-hidden="true"></i>View
+                <button type="button" class="qc-menu-item" :disabled="!actionRow.sample || !can('QC_SAMPLE.UPDATE')"
+                    @click="editAction"><i class="pi pi-pencil" aria-hidden="true"></i>Edit</button>
+                <Link v-if="actionRow.test && can('QC_TEST.VIEW')"
+                    :href="route('quality.tests.execute', { test: actionRow.test.id, view: 1 })" class="qc-menu-item"
+                    @click="actionPopover?.hide()"><i class="pi pi-eye" aria-hidden="true"></i>View
                 </Link>
                 <button v-else type="button" class="qc-menu-item" disabled><i class="pi pi-eye"
                         aria-hidden="true"></i>View</button>
-                <Link v-if="actionRow.test && can('QC_TEST.UPDATE')" :href="route('quality.tests.execute', actionRow.test.id)"
-                    class="qc-menu-item" @click="actionPopover?.hide()"><i class="pi pi-play"
-                        aria-hidden="true"></i>Execute test</Link>
-                <button v-else type="button" :disabled="!!actionRow.test || !canCreateTests || (!actionRow.sample && !canCreateSamples)" class="qc-menu-item" @click="executeAction"><i class="pi pi-play"
-                        aria-hidden="true"></i>Execute test</button>
+                <Link v-if="actionRow.test && can('QC_TEST.UPDATE')"
+                    :href="route('quality.tests.execute', actionRow.test.id)" class="qc-menu-item"
+                    @click="actionPopover?.hide()"><i class="pi pi-play" aria-hidden="true"></i>Execute
+                    test</Link>
+                <button v-else type="button"
+                    :disabled="!!actionRow.test || !canCreateTests || (!actionRow.sample && !canCreateSamples)"
+                    class="qc-menu-item" @click="executeAction"><i class="pi pi-play" aria-hidden="true"></i>Execute
+                    test</button>
                 <a v-if="canDownloadReport(actionRow) && can('QC_TEST.PDF')"
                     :href="route('quality.tests.cube-report-pdf', { test: actionRow.test.id, inline: 1 })"
                     target="_blank" rel="noopener" class="qc-menu-item" @click="actionPopover?.hide()"><i
@@ -434,7 +438,8 @@ const submit = () => {
                         aria-hidden="true"></i>Print
                     results</button>
                 <div class="border-t border-slate-100 pt-1">
-                    <BaseDeleteButton v-if="actionRow.sample" :disabled="!can(actionRow.test ? 'QC_TEST.DELETE' : 'QC_SAMPLE.DELETE')"
+                    <BaseDeleteButton v-if="actionRow.sample"
+                        :disabled="!can(actionRow.test ? 'QC_TEST.DELETE' : 'QC_SAMPLE.DELETE')"
                         :url="actionRow.test ? route('quality.tests.destroy', actionRow.test.id) : route('quality.samples.destroy', actionRow.sample.id)"
                         :title="actionRow.test ? 'Delete test?' : 'Delete sample?'"
                         :text="actionRow.test ? 'Delete this test and retain its sample?' : 'Delete this sample?'"
@@ -480,9 +485,13 @@ const submit = () => {
                             <BaseSelect v-model="form.test_type_id" label="Test type" required
                                 :options="testTypeOptions" optionLabel="label" optionValue="value"
                                 :error="form.errors.test_type_id || form.errors.test_type_ids" />
-                            <BaseField label="Test ages" required :error="milestoneError" hint="Select one or more: 7, 15 and 28 days.">
+                            <BaseField label="Test ages" required :error="milestoneError"
+                                hint="Select one or more: 7, 15 and 28 days.">
                                 <template #default="{ invalid, inputId }">
-                                    <MultiSelect :inputId="inputId" v-model="form.schedule_milestones" :options="ageOptionsForTest" optionLabel="label" optionValue="value" display="chip" placeholder="Select test ages" :invalid="invalid" :maxSelectedLabels="3" class="w-full" />
+                                    <MultiSelect :inputId="inputId" v-model="form.schedule_milestones"
+                                        :options="ageOptionsForTest" optionLabel="label" optionValue="value"
+                                        display="chip" placeholder="Select test ages" :invalid="invalid"
+                                        :maxSelectedLabels="3" class="w-full" />
                                 </template>
                             </BaseField>
                         </div>
@@ -603,7 +612,7 @@ const submit = () => {
                         Use the row's Edit sample action to change them.</p>
                     <p v-else-if="!editing && sourceKey" class="text-xs text-slate-500">Scheduled testing dates: {{
                         scheduledDate
-                        }}. After saving, enter the specimen weights and loads to execute the test.</p>
+                    }}. After saving, enter the specimen weights and loads to execute the test.</p>
                     <p v-if="existingTest" role="alert" class="text-xs text-tangerine-700 dark:text-tangerine-300">This
                         test
                         already exists at one of the selected ages. Remove that age to schedule the others.
@@ -618,8 +627,7 @@ const submit = () => {
                         <BaseButton type="button" :label="editing ? 'Cancel' : 'Reset'" severity="secondary"
                             @click="closeEditor" />
                         <BaseButton type="submit" :label="editing ? 'Save sample' : 'Save & enter results'"
-                            :loading="form.processing"
-                            :disabled="form.processing || (!editing && (!sourceKey || !form.test_type_id || !canCreateTests || (!existingSample && !canCreateSamples) || !form.schedule_milestones.length || !!existingTest))" />
+                            :loading="form.processing" :disabled="form.processing || !editing" />
                     </div>
                 </form>
             </section>
