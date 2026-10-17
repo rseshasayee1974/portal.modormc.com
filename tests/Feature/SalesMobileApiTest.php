@@ -41,16 +41,16 @@ class SalesMobileApiTest extends TestCase
         foreach ([
             'mm_users' => ['username','email','mobile','password','api_key','plan','email_verified_at','is_active','is_otp_enabled','last_login','lockout_until','default_plant_id','default_entity_id','two_factor_confirmed_at','mobile_access_revision','login_status','login_location','ip_address','failed_attempts'],
             'mm_entities' => ['name','is_suspended'], 'mm_plants' => ['name','entity_id','is_active','gstin'],
-            'mm_personnels' => ['plant_id','user_id','first_name','last_name','entity_id','status','employee_code'], 'mm_roles' => ['name','code','guard_name'],
+            'mm_personnels' => ['plant_id','user_id','first_name','last_name','entity_id','status','employee_code','designation_id'], 'mm_roles' => ['name','code','guard_name'],
             'mm_permissions' => ['name','guard_name','module','description','is_system'], 'mm_entity_users' => ['user_id','entity_id','plant_id','role_id'],
             'mm_crm_leads' => ['plant_id','lead_number','enquiry_date','contact_name','company_name','phone','email','address','source','status','priority','assigned_to','project_name','mix_design_id','requirement','estimated_quantity','delivery_location','expected_value','expected_purchase_date','remarks','lost_reason','customer_id','converted_at','created_by','updated_by','deleted_by'],
-            'mm_crm_deals' => ['plant_id','lead_id','stage','expected_value','created_by','updated_by','deleted_by'],
+            'mm_crm_deals' => ['plant_id','lead_id','quotation_id','stage','expected_value','created_by','updated_by','deleted_by'],
             'mm_crm_activities' => ['plant_id','lead_id','type','subject','description','due_at','completed_at','assigned_to','created_by','updated_by','deleted_by'],
             'mm_patrons' => ['plant_id','sales_executive_id','legal_name','patron_type','status','operational_status'], 'mm_sites' => ['plant_id','patron_id','name'],
             'mm_concrete_grades' => ['plant_id','name'],
             'mm_mix_design_items' => ['plant_id','mix_design_id','product_id','uom_id','rate','actual_quantity','cross_quantity','variation_quantity'],
             'mm_products' => ['plant_id','title','code','material_code'],
-            'mm_mix_designs' => ['plant_id','design_name','design_code','is_active','concrete_grade_id','unit_id','rate_per_qty'], 'mm_product_units' => ['plant_id','name'],
+            'mm_mix_designs' => ['plant_id','design_name','design_code','is_active','concrete_grade_id','unit_id','rate_per_qty'], 'mm_product_units' => ['unit_name','unit_code','unit_type'],
             'mm_taxes' => ['plant_id','tax_name','tax_type','tax_rate','parent_id','status','tax_group'],
             'mm_quotations' => ['plant_id','reference','patron_id','site_id','quote_date','validity_date','notes','is_tax_inclusive','sales_executive_id','adjustment','status','is_customer_po','amount_untaxed','amount_tax','amount_total','created_by','updated_by','deleted_by','mobile_approval_state','mobile_submitted_by','mobile_submitted_at','mobile_reviewed_by','mobile_reviewed_at','mobile_approval_comment'],
             'mm_quotation_items' => ['discount_type','discount','discount_amount','quotation_id','mix_design_id','uom_id','quantity','rate','tax_id','tax_amount','untaxed_amount','amount_total','concrete_pump','pump_rate','created_by','updated_by','deleted_by'],
@@ -62,7 +62,8 @@ class SalesMobileApiTest extends TestCase
             'mm_batches' => ['plant_id','sales_order_id','batch_no','batch_size','status','start_time','end_time'],
             'mm_sales_orders' => ['plant_id','created_by','updated_by','deleted_by','sales_executive_id','customer_id','site_id','mix_design_id','total_qty','rate','tax_id','is_tax_inclusive','customer_po_id','produced_qty','status','order_no','prefix','concrete_pump','pump_rate','scheduled_start','scheduled_end'],
             'mm_dispatches' => ['plant_id','sales_order_id','batch_id','truck_id','prefix','dispatch_no','dispatch_status','delivered_qty','dispatch_time','delivery_time'],
-            'mm_machines' => ['plant_id','registration'],
+            'mm_machine_types' => ['name'], 'mm_designations' => ['name'],
+            'mm_machines' => ['plant_id','registration','vehicle_model','vehicle_type','is_active'],
             'mm_dispatch_statuses' => ['dispatch_id','is_tax_inclusive'],
             'mm_concrete_batching_schedules' => ['plant_id','sales_order_id','status','batch_id','dispatch_id','schedule_date','site_id','mix_design_id','qty_m3','order_volume_m3','remaining_volume_m3','vehicle_id','driver_id','pump_vehicle_id','pump_type','pour_reference','batching_time','dispatch_time','eta_site','unloading_start','unloading_end','notes','created_by','updated_by','deleted_by'],
         ] as $name => $columns) Schema::create($name, function (Blueprint $t) use ($columns) {
@@ -89,7 +90,7 @@ class SalesMobileApiTest extends TestCase
         DB::table('mm_patrons')->insert(['id'=>1,'plant_id'=>1,'sales_executive_id'=>1,'legal_name'=>'Customer','patron_type'=>'["Customer"]','status'=>1,'operational_status'=>'active']);
         DB::table('mm_sites')->insert(['id'=>1,'plant_id'=>1,'patron_id'=>1,'name'=>'Site']);
         DB::table('mm_mix_designs')->insert(['id'=>1,'plant_id'=>1,'design_name'=>'M25','is_active'=>1]);
-        DB::table('mm_taxes')->insert([['id'=>1,'plant_id'=>1,'tax_name'=>'GST18','tax_type'=>'Sales','tax_rate'=>18,'parent_id'=>null,'status'=>1],['id'=>2,'plant_id'=>1,'tax_name'=>'CGST9','tax_type'=>'Sales','tax_rate'=>9,'parent_id'=>1,'status'=>1],['id'=>3,'plant_id'=>1,'tax_name'=>'SGST9','tax_type'=>'Sales','tax_rate'=>9,'parent_id'=>1,'status'=>1]]);
+        DB::table('mm_taxes')->insert([['id'=>1,'plant_id'=>1,'tax_name'=>'GST18','tax_group'=>'GST','tax_type'=>'Sales','tax_rate'=>18,'parent_id'=>null,'status'=>1],['id'=>2,'plant_id'=>1,'tax_name'=>'CGST9','tax_group'=>'CGST','tax_type'=>'Sales','tax_rate'=>9,'parent_id'=>1,'status'=>1],['id'=>3,'plant_id'=>1,'tax_name'=>'SGST9','tax_group'=>'SGST','tax_type'=>'Sales','tax_rate'=>9,'parent_id'=>1,'status'=>1]]);
         $this->withHeaders(['Authorization'=>'Bearer '.$this->token,'X-Plant-Id'=>'1']);
     }
     public function test_sales_executive_scope_ignores_view_all_and_creator_access(): void
@@ -130,7 +131,7 @@ class SalesMobileApiTest extends TestCase
 
     public function test_quotation_responses_include_priced_items_and_mix_design_details(): void
     {
-        DB::table('mm_product_units')->insert(['id'=>901,'plant_id'=>1,'name'=>'Cubic metre']);
+        DB::table('mm_product_units')->insert(['id'=>901,'unit_name'=>'Cubic metre']);
         DB::table('mm_concrete_grades')->insert(['id'=>901,'plant_id'=>1,'name'=>'M25']);
         DB::table('mm_products')->insert(['id'=>901,'plant_id'=>1,'title'=>'Demo Cement','code'=>'CEM']);
         DB::table('mm_mix_designs')->where('id',1)->update(['concrete_grade_id'=>901,'unit_id'=>901,'rate_per_qty'=>546]);
@@ -145,7 +146,7 @@ class SalesMobileApiTest extends TestCase
                 ->assertJsonPath($prefix.'.items.0.mix_design.items.0.product.title','Demo Cement')
                 ->assertJsonPath($prefix.'.items.0.mix_design.items.0.actual_quantity','300.0000')
                 ->assertJsonPath($prefix.'.items.0.mix_design.items.0.rate','6.0000')
-                ->assertJsonPath($prefix.'.items.0.uom.name','Cubic metre')
+                ->assertJsonPath($prefix.'.items.0.uom.unit_name','Cubic metre')
                 ->assertJsonStructure(['data']);
             foreach (['quantity','rate','discount_amount','tax_amount','untaxed_amount','amount_total','pump_rate'] as $field) {
                 $this->assertNotNull($response->json($prefix.'.items.0.'.$field));
@@ -156,6 +157,222 @@ class SalesMobileApiTest extends TestCase
         $assertDetails($this->getJson('/api/mobile/v1/quotations')->assertOk(),'data.data.0');
         $assertDetails($this->putJson('/api/mobile/v1/quotations/'.$id,$body)->assertOk(),'data');
         $assertDetails($this->postJson('/api/mobile/v1/quotations/'.$id.'/submit')->assertOk(),'data');
+    }
+
+    private function convertedQuotationLead(int $id = 501): void
+    {
+        DB::table('mm_mix_designs')->where('id',1)->update(['rate_per_qty'=>546]);
+        DB::table('mm_crm_leads')->insert([
+            'id'=>$id, 'plant_id'=>1, 'assigned_to'=>1, 'contact_name'=>'Quote Contact',
+            'lead_number'=>'LD-DEMO-'.$id, 'customer_id'=>1, 'converted_at'=>now(), 'status'=>'Converted',
+            'mix_design_id'=>1, 'estimated_quantity'=>3.55, 'project_name'=>'Lead Project', 'delivery_location'=>'Site delivery',
+        ]);
+        DB::table('mm_crm_deals')->insert(['plant_id'=>1,'lead_id'=>$id,'stage'=>'Requirement Received']);
+    }
+
+    public function test_create_quotation_from_lead_uses_source_details_and_shared_pricing(): void
+    {
+        $this->convertedQuotationLead();
+        $result=$this->postJson('/api/mobile/v1/leads/501/quotation',['patron_id'=>1,'tax_id'=>1,'is_tax_inclusive'=>true])
+            ->assertCreated()->assertJsonPath('data.patron_id',fn ($value) => (int) $value === 1)->assertJsonPath('data.site_id',fn ($value) => (int) $value === 1)
+            ->assertJsonPath('data.sales_executive_id',1)->assertJsonPath('data.mobile_approval_state','draft')
+            ->assertJsonPath('data.items.0.mix_design.design_name','M25')->assertJsonPath('data.amount_total','1938.00');
+        $this->assertEquals(3.55,$result->json('data.items.0.quantity'));
+        $this->assertEquals(546,$result->json('data.items.0.rate'));
+        $this->assertStringContainsString('Lead Project',$result->json('data.notes'));
+        $this->assertEquals($result->json('data.id'),DB::table('mm_crm_deals')->where('lead_id',501)->value('quotation_id'));
+        $this->postJson('/api/mobile/v1/leads/501/quotation',[])->assertUnprocessable()->assertJsonValidationErrors('lead_id');
+        $this->assertSame(1,DB::table('mm_quotations')->count());
+    }
+
+    public function test_lead_quotation_rejects_inaccessible_and_incomplete_source_data(): void
+    {
+        $this->convertedQuotationLead();
+        $this->withHeaders(['Authorization'=>'Bearer '.$this->reviewer]);
+        $this->postJson('/api/mobile/v1/leads/501/quotation',[])->assertNotFound();
+        $this->withHeaders(['Authorization'=>'Bearer '.$this->token]);
+        DB::table('mm_crm_leads')->where('id',501)->update(['converted_at'=>null]);
+        $this->postJson('/api/mobile/v1/leads/501/quotation',[])->assertUnprocessable()->assertJsonValidationErrors('lead_id');
+        DB::table('mm_crm_leads')->where('id',501)->update(['converted_at'=>now(),'estimated_quantity'=>null]);
+        $this->postJson('/api/mobile/v1/leads/501/quotation',[])->assertUnprocessable()->assertJsonValidationErrors('items.0.quantity');
+        DB::table('mm_crm_leads')->where('id',501)->update(['estimated_quantity'=>3.55]);
+        DB::table('mm_mix_designs')->where('id',1)->update(['is_active'=>0]);
+        $this->postJson('/api/mobile/v1/leads/501/quotation',[])->assertUnprocessable()->assertJsonValidationErrors('mix_design_id');
+        $this->assertSame(0,DB::table('mm_quotations')->count());
+        $this->assertNull(DB::table('mm_crm_deals')->where('lead_id',501)->value('quotation_id'));
+    }
+
+    public function test_lead_quotation_requires_unambiguous_customer_site_and_allows_price_override(): void
+    {
+        $this->convertedQuotationLead();
+        $this->postJson('/api/mobile/v1/leads/501/quotation',['patron_id'=>'Customer name'])->assertUnprocessable()->assertJsonValidationErrors('patron_id');
+        $this->postJson('/api/mobile/v1/leads/501/quotation',['patron_id'=>999999])->assertUnprocessable()->assertJsonValidationErrors('patron_id');
+        DB::table('mm_sites')->insert(['id'=>502,'plant_id'=>1,'patron_id'=>1,'name'=>'Second site']);
+        $this->postJson('/api/mobile/v1/leads/501/quotation',[])->assertUnprocessable()->assertJsonValidationErrors('site_id');
+        DB::table('mm_sites')->insert(['id'=>503,'plant_id'=>2,'patron_id'=>2,'name'=>'Other plant site']);
+        $this->postJson('/api/mobile/v1/leads/501/quotation',['site_id'=>503])->assertUnprocessable()->assertJsonValidationErrors('site_id');
+        $result=$this->postJson('/api/mobile/v1/leads/501/quotation',['site_id'=>502,'quantity'=>2,'rate'=>600])
+            ->assertCreated()->assertJsonPath('data.site_id',fn ($value) => (int) $value === 502)->assertJsonPath('data.amount_total','1200.00');
+        $this->assertEquals(600,$result->json('data.items.0.rate'));
+    }
+
+    public function test_lead_quotation_uses_logged_in_user_without_personnel_assignment(): void
+    {
+        $this->convertedQuotationLead();
+        DB::table('mm_personnels')->where('user_id',1)->delete();
+        $id = $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated()
+            ->assertJsonPath('data.sales_executive_id', null)->json('data.id');
+        $this->assertEquals(1, DB::table('mm_quotations')->where('id',$id)->value('created_by'));
+        $this->getJson('/api/mobile/v1/quotations/'.$id)->assertOk();
+        $this->getJson('/api/mobile/v1/quotations')->assertOk()->assertJsonPath('data.total',1);
+        $this->putJson('/api/mobile/v1/quotations/'.$id, $this->quote())->assertOk();
+        $this->withHeaders(['Authorization'=>'Bearer '.$this->reviewer]);
+        $this->getJson('/api/mobile/v1/quotations/'.$id)->assertNotFound();
+    }
+
+    public function test_lead_quotation_preserves_personnel_foreign_key_when_user_id_differs(): void
+    {
+        $this->convertedQuotationLead();
+        DB::table('mm_personnels')->where('user_id',1)->update(['id'=>101]);
+        $id = $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated()
+            ->assertJsonPath('data.sales_executive_id',101)->json('data.id');
+        $this->assertEquals(1, DB::table('mm_quotations')->where('id',$id)->value('created_by'));
+        $this->getJson('/api/mobile/v1/quotations/'.$id)->assertOk();
+    }
+
+    public function test_lead_quotation_accepts_global_uom_with_full_pricing_payload(): void
+    {
+        $this->convertedQuotationLead();
+        DB::table('mm_product_units')->insert(['id'=>1, 'unit_name'=>'Cubic metre', 'unit_code'=>'m3']);
+        $payload = [
+            'site_id'=>1, 'quantity'=>30, 'rate'=>4200, 'uom_id'=>1, 'tax_id'=>1,
+            'is_tax_inclusive'=>false, 'concrete_pump'=>'36m Boom Pump', 'pump_rate'=>350,
+            'patron_id'=>1, 'discount_type'=>'amount', 'discount'=>1500,
+            'quote_date'=>'2026-10-17', 'validity_date'=>'2026-11-01',
+            'notes'=>'Quotation includes 36m Boom Pump charges. Pour scheduled for early morning.',
+        ];
+        $this->postJson('/api/mobile/v1/leads/501/quotation', array_replace($payload, ['uom_id'=>999]))
+            ->assertUnprocessable()->assertJsonValidationErrors('items.0.uom_id');
+        DB::table('mm_product_units')->where('id',1)->update(['deleted_at'=>now()]);
+        $this->postJson('/api/mobile/v1/leads/501/quotation', $payload)
+            ->assertUnprocessable()->assertJsonValidationErrors('items.0.uom_id');
+        DB::table('mm_product_units')->where('id',1)->update(['deleted_at'=>null]);
+        $this->postJson('/api/mobile/v1/leads/501/quotation', $payload)->assertCreated()
+            ->assertJsonPath('data.items.0.uom_id', fn ($id) => (int) $id === 1)
+            ->assertJsonPath('data.amount_total', '147323.00');
+        $lookups = $this->getJson('/api/mobile/v1/lookups')->assertOk();
+        $this->assertEquals([1], array_column($lookups->json('data.units'), 'id'));
+    }
+
+    private function unconvertedQuotationLead(): void
+    {
+        foreach ([
+            'mm_patrons' => ['code', 'displayed'],
+            'mm_contacts' => ['displayed'],
+            'mm_crm_deals' => ['customer_id', 'name', 'expected_close_date'],
+            'mm_sites' => ['site_address_1', 'site_address_2', 'type', 'status', 'is_active', 'is_restricted'],
+        ] as $table => $columns) {
+            Schema::table($table, function (Blueprint $t) use ($columns) {
+                foreach ($columns as $column) $t->text($column)->nullable();
+            });
+        }
+        foreach ([
+            'mm_contact_types' => ['type'], 'mm_address_types' => ['type'],
+            'mm_addresses' => ['plant_id', 'contact_id', 'address_type_id', 'line_1', 'line_2', 'is_primary', 'status'],
+        ] as $table => $columns) {
+            Schema::create($table, function (Blueprint $t) use ($columns) {
+                $t->id();
+                foreach ($columns as $column) $t->text($column)->nullable();
+                $t->timestamps(); $t->softDeletes();
+            });
+        }
+        DB::table('mm_contact_types')->insert(['id'=>1, 'type'=>'Primary']);
+        DB::table('mm_address_types')->insert(['id'=>1, 'type'=>'Office']);
+        $this->convertedQuotationLead();
+        DB::table('mm_crm_deals')->where('lead_id',501)->delete();
+        DB::table('mm_crm_leads')->where('id',501)->update([
+            'status'=>'New', 'converted_at'=>null, 'customer_id'=>null,
+            'company_name'=>'New Company', 'phone'=>'9876500000', 'email'=>'quote@example.test', 'address'=>'Office address',
+        ]);
+    }
+
+    public function test_lead_quotation_automatically_creates_customer_contact_address_and_site(): void
+    {
+        $this->unconvertedQuotationLead();
+        DB::table('mm_personnels')->where('user_id',1)->delete();
+        $this->postJson('/api/mobile/v1/leads/501/quotation', ['quantity'=>0])
+            ->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        $this->assertSame(1, DB::table('mm_patrons')->count());
+        $this->assertSame(0, DB::table('mm_contacts')->count());
+        $this->assertNull(DB::table('mm_crm_leads')->where('id',501)->value('converted_at'));
+
+        $this->postJson('/api/mobile/v1/leads/501/quotation', ['tax_id'=>999])
+            ->assertUnprocessable()->assertJsonValidationErrors('items.0.tax_id');
+        $this->assertSame(1, DB::table('mm_sites')->count());
+        $this->assertSame(1, DB::table('mm_patrons')->count());
+        $this->assertSame(0, DB::table('mm_crm_deals')->count());
+        $this->assertSame(0, DB::table('mm_contacts')->count());
+        $this->assertSame(0, DB::table('mm_addresses')->count());
+
+        $result = $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated();
+        $customerId = $result->json('data.patron_id');
+        $customer = DB::table('mm_patrons')->find($customerId);
+        $this->assertEquals('New Company', $customer->legal_name);
+        $this->assertEquals(['Customer'], json_decode($customer->patron_type, true));
+        $this->assertEquals('active', $customer->operational_status);
+        $this->assertEquals(1, $customer->status);
+        $contact = DB::table('mm_contacts')->where('patron_id',$customerId)->first();
+        $this->assertEquals('Quote Contact', $contact->name);
+        $this->assertEquals('9876500000', $contact->mobile);
+        $this->assertEquals('quote@example.test', $contact->email);
+        $this->assertEquals('Office address', DB::table('mm_addresses')->where('contact_id',$contact->id)->value('line_1'));
+        $site = DB::table('mm_sites')->find($result->json('data.site_id'));
+        $this->assertEquals([$customerId], json_decode($site->patron_id, true));
+        $this->assertEquals('Lead Project', $site->name);
+        $this->assertEquals('Site delivery', $site->site_address_1);
+        $this->assertEquals('Converted', DB::table('mm_crm_leads')->where('id',501)->value('status'));
+        $this->assertEquals($result->json('data.id'), DB::table('mm_crm_deals')->where('lead_id',501)->value('quotation_id'));
+        $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertUnprocessable();
+        $this->assertSame(2, DB::table('mm_patrons')->count());
+    }
+
+    public function test_lead_quotation_reuses_same_name_site_without_user_or_customer_restriction(): void
+    {
+        $this->unconvertedQuotationLead();
+        DB::table('mm_sites')->insert(['id'=>502, 'plant_id'=>1, 'patron_id'=>'[999]', 'name'=>' lead PROJECT ']);
+        $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated()
+            ->assertJsonPath('data.site_id', fn ($id) => (int) $id === 502);
+        $this->assertSame(2, DB::table('mm_sites')->count());
+        $this->assertEquals('[999]', DB::table('mm_sites')->where('id',502)->value('patron_id'));
+    }
+
+    public function test_lead_quotation_ignores_deleted_and_foreign_same_name_sites(): void
+    {
+        $this->unconvertedQuotationLead();
+        DB::table('mm_sites')->insert([
+            ['id'=>502, 'plant_id'=>1, 'name'=>'Lead Project', 'deleted_at'=>now()],
+            ['id'=>503, 'plant_id'=>2, 'name'=>'Lead Project', 'deleted_at'=>null],
+        ]);
+        $result = $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated();
+        $this->assertNotContains((int) $result->json('data.site_id'), [502,503]);
+        $this->assertSame(4, DB::table('mm_sites')->count());
+    }
+
+    public function test_converted_lead_quotation_can_select_any_site_in_its_plant(): void
+    {
+        $this->convertedQuotationLead();
+        DB::table('mm_sites')->insert(['id'=>502, 'plant_id'=>1, 'patron_id'=>null, 'name'=>'Shared site']);
+        $this->postJson('/api/mobile/v1/leads/501/quotation', ['site_id'=>502])->assertCreated()
+            ->assertJsonPath('data.site_id', fn ($id) => (int) $id === 502);
+    }
+
+    public function test_converted_lead_reuses_matching_name_before_default_customer_site(): void
+    {
+        $this->convertedQuotationLead();
+        DB::table('mm_sites')->insert(['id'=>502, 'plant_id'=>1, 'patron_id'=>999, 'name'=>'Lead Project']);
+        $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated()
+            ->assertJsonPath('data.site_id', fn ($id) => (int) $id === 502);
+        $this->assertSame(2, DB::table('mm_sites')->count());
     }
 
     private function lead(): array { return ['contact_name'=>'Arun','phone'=>'9876543210','email'=>null,'enquiry_date'=>'2026-10-09','source'=>'Referral','priority'=>'High','status'=>'New','expected_value'=>10000]; }
@@ -212,16 +429,17 @@ class SalesMobileApiTest extends TestCase
             $this->assertEquals([101], array_column($response->json('data.data'), 'id'));
         }
         foreach (['customers', 'sites'] as $resource) {
-            $response = $this->getJson('/api/mobile/v1/'.$resource)->assertOk()->assertJsonPath('data.total', 2);
-            $this->assertEqualsCanonicalizing([1, 3], array_column($response->json('data.data'), 'id'));
-            $this->getJson('/api/mobile/v1/'.$resource.'/2')->assertNotFound();
+            $expected = $resource === 'sites' ? [1, 2, 3] : [1, 3];
+            $response = $this->getJson('/api/mobile/v1/'.$resource)->assertOk()->assertJsonPath('data.total', count($expected));
+            $this->assertEqualsCanonicalizing($expected, array_column($response->json('data.data'), 'id'));
+            $this->getJson('/api/mobile/v1/'.$resource.'/2')->assertStatus($resource === 'sites' ? 200 : 404);
         }
         foreach (['leads', 'quotations', 'orders', 'batch-schedules'] as $resource) {
             $this->getJson('/api/mobile/v1/'.$resource.'/102')->assertNotFound();
         }
         $lookups = $this->getJson('/api/mobile/v1/lookups')->assertOk();
         foreach (['customers', 'sites'] as $key) {
-            $this->assertEqualsCanonicalizing([1, 3], array_column($lookups->json('data.'.$key), 'id'));
+            $this->assertEqualsCanonicalizing($key === 'sites' ? [1, 2, 3] : [1, 3], array_column($lookups->json('data.'.$key), 'id'));
         }
         foreach (['customer_pos', 'sales_orders'] as $key) {
             $this->assertEquals([101], array_column($lookups->json('data.'.$key), 'id'));
@@ -231,6 +449,49 @@ class SalesMobileApiTest extends TestCase
             ->assertJsonPath('data.quotations_pending_approval', 1)->assertJsonPath('data.followups_today', 1);
         $this->getJson('/api/mobile/v1/marketing/summary')->assertOk()
             ->assertJsonPath('data.by_source.0.total', 1)->assertJsonPath('data.site_visits', 1);
+    }
+
+    public function test_followups_and_nested_lead_details_exclude_other_executives_assignments(): void
+    {
+        $this->seedExecutiveVisibilityRecords();
+        DB::table('mm_crm_activities')->insert([
+            ['id'=>201, 'plant_id'=>1, 'lead_id'=>101, 'assigned_to'=>2, 'type'=>'Site Visit', 'subject'=>'Other executive task', 'due_at'=>now()->subDay()],
+            ['id'=>202, 'plant_id'=>1, 'lead_id'=>101, 'assigned_to'=>1, 'type'=>'Call', 'subject'=>'My task', 'due_at'=>now()->addHour()],
+            ['id'=>203, 'plant_id'=>1, 'lead_id'=>102, 'assigned_to'=>1, 'type'=>'Call', 'subject'=>'Foreign lead task', 'due_at'=>now()],
+        ]);
+        $response=$this->getJson('/api/mobile/v1/follow-ups?view=all')->assertOk();
+        $this->assertEqualsCanonicalizing([101,202],array_column($response->json('data.data'),'id'));
+        $lead=$this->getJson('/api/mobile/v1/leads/101')->assertOk();
+        $this->assertEqualsCanonicalizing([101,202],array_column($lead->json('data.activities'),'id'));
+        $this->putJson('/api/mobile/v1/follow-ups/201',[])->assertNotFound();
+        $this->postJson('/api/mobile/v1/follow-ups/201/complete',[])->assertNotFound();
+        $this->deleteJson('/api/mobile/v1/follow-ups/201')->assertNotFound();
+        $this->getJson('/api/mobile/v1/dashboard')->assertOk()->assertJsonPath('data.overdue_followups',0);
+        $this->getJson('/api/mobile/v1/marketing/summary')->assertOk()->assertJsonPath('data.site_visits',1);
+    }
+
+    public function test_managers_and_administrators_are_also_restricted_to_their_own_mobile_records(): void
+    {
+        $this->seedExecutiveVisibilityRecords();
+        foreach (['SALES_MANAGER', 'ADMINISTRATOR', 'SAAS_OWNER'] as $code) {
+            DB::table('mm_roles')->where('id',2)->update(['code'=>$code,'name'=>$code === 'SAAS_OWNER' ? 'Saas Owner' : 'Mobile '.$code]);
+            if ($code === 'SAAS_OWNER') User::find(2)->assignRole(\App\Models\Role::find(2));
+            app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+            $this->withHeaders(['Authorization'=>'Bearer '.$this->reviewer,'X-Plant-Id'=>'1']);
+            foreach (['leads','quotations','orders','customer-pos','batch-schedules','follow-ups'] as $resource) {
+                $result=$this->getJson('/api/mobile/v1/'.$resource)->assertOk()->assertJsonPath('data.total',1);
+                $this->assertEquals([102],array_column($result->json('data.data'),'id'),$code.' '.$resource);
+            }
+            foreach (['leads','quotations','orders','batch-schedules','customers'] as $resource) {
+                $this->getJson('/api/mobile/v1/'.$resource.'/'.(in_array($resource,['customers','sites']) ? 1 : 101))->assertNotFound();
+            }
+            $this->postJson('/api/mobile/v1/quotations/101/review',['decision'=>'approved'])->assertNotFound();
+            $this->postJson('/api/mobile/v1/leads',$this->lead()+['assigned_to'=>1])->assertForbidden();
+            $this->getJson('/api/mobile/v1/dashboard')->assertOk()->assertJsonPath('data.active_orders',1);
+            $lookups=$this->getJson('/api/mobile/v1/lookups')->assertOk();
+            $this->assertEquals([102],array_column($lookups->json('data.customer_pos'),'id'));
+            $this->assertEquals([102],array_column($lookups->json('data.sales_orders'),'id'));
+        }
     }
 
     public function test_executive_writes_reject_inaccessible_foreign_keys_and_records(): void
@@ -244,7 +505,7 @@ class SalesMobileApiTest extends TestCase
         $this->postJson('/api/mobile/v1/orders', $order + ['customer_po_id'=>102])
             ->assertUnprocessable()->assertJsonValidationErrors('customer_po_id');
         $this->postJson('/api/mobile/v1/quotations', array_replace($this->quote(), ['patron_id'=>2, 'site_id'=>2]))
-            ->assertUnprocessable()->assertJsonValidationErrors(['patron_id', 'site_id']);
+            ->assertUnprocessable()->assertJsonValidationErrors(['patron_id']);
         $this->postJson('/api/mobile/v1/batch-schedules', ['site_id'=>1, 'mix_design_id'=>1, 'sales_order_id'=>102])
             ->assertUnprocessable()->assertJsonValidationErrors('sales_order_id');
         $this->postJson('/api/mobile/v1/leads', $this->lead() + ['assigned_to'=>2])->assertForbidden();
@@ -286,9 +547,9 @@ class SalesMobileApiTest extends TestCase
         ]);
         foreach (['customers', 'sites'] as $resource) {
             $response = $this->getJson('/api/mobile/v1/'.$resource)->assertOk();
-            $this->assertEqualsCanonicalizing([1, 11, 12, 13, 14], array_column($response->json('data.data'), 'id'));
+            $this->assertEqualsCanonicalizing($resource === 'sites' ? [1, 11, 12, 13, 14, 15, 16] : [1, 11, 12, 13, 14], array_column($response->json('data.data'), 'id'));
             foreach ([15, 16] as $id) {
-                $this->getJson('/api/mobile/v1/'.$resource.'/'.$id)->assertNotFound();
+                $this->getJson('/api/mobile/v1/'.$resource.'/'.$id)->assertStatus($resource === 'sites' ? 200 : 404);
             }
         }
     }
@@ -699,10 +960,12 @@ class SalesMobileApiTest extends TestCase
         $this->postJson('/api/mobile/v1/quotations/'.$id.'/submit')->assertOk()
             ->assertJsonPath('data.mobile_approval_state','pending');
         $this->assertEquals(1,DB::table('mm_quotations')->where('id',$id)->value('status'));
+        DB::table('mm_quotations')->where('id',$id)->update(['sales_executive_id'=>2]);
         $this->withHeaders(['Authorization'=>'Bearer '.$this->reviewer]);
         $this->postJson('/api/mobile/v1/quotations/'.$id.'/review',['decision'=>'rejected','comment'=>'Revise'])->assertOk()
             ->assertJsonPath('data.mobile_approval_state','rejected');
         $this->assertEquals(3,DB::table('mm_quotations')->where('id',$id)->value('status'));
+        DB::table('mm_quotations')->where('id',$id)->update(['sales_executive_id'=>1]);
         $this->withHeaders(['Authorization'=>'Bearer '.$this->token]);
         $this->putJson('/api/mobile/v1/quotations/'.$id,$this->quote())->assertOk()->assertJsonPath('data.mobile_approval_state','draft');
         $this->assertEquals(0,DB::table('mm_quotations')->where('id',$id)->value('status'));
@@ -807,6 +1070,7 @@ class SalesMobileApiTest extends TestCase
         $this->postJson('/api/mobile/v1/quotations/'.$id.'/submit')->assertOk()->assertJsonPath('data.mobile_approval_state','pending');
         $this->postJson('/api/mobile/v1/quotations/'.$id.'/review',['decision'=>'approved'])->assertForbidden();
         $this->putJson('/api/mobile/v1/quotations/'.$id,$this->quote())->assertUnprocessable();
+        DB::table('mm_quotations')->where('id',$id)->update(['sales_executive_id'=>2]);
         $this->withHeaders(['Authorization'=>'Bearer '.$this->reviewer])->postJson('/api/mobile/v1/quotations/'.$id.'/review',['decision'=>'approved'])->assertOk()->assertJsonPath('data.mobile_approval_state','approved');
         $this->postJson('/api/mobile/v1/quotations/'.$id.'/review',['decision'=>'approved'])->assertUnprocessable();
     }
@@ -967,6 +1231,12 @@ class SalesMobileApiTest extends TestCase
     }
     public function test_dropdowns_marketing_and_revoked_membership(): void
     {
+        foreach (['TCS', 'CESS'] as $index => $group) {
+            DB::table('mm_taxes')->insert(['id'=>900+$index,'plant_id'=>1,'tax_name'=>$group,'tax_group'=>$group,'tax_type'=>'Sales','tax_rate'=>1,'parent_id'=>null,'status'=>1]);
+            DB::table('mm_taxes')->insert(['id'=>910+$index,'plant_id'=>1,'tax_name'=>$group.' child','tax_group'=>$group,'tax_type'=>'Sales','tax_rate'=>1,'parent_id'=>1,'status'=>1]);
+        }
+        $this->getJson('/api/mobile/v1/lookups')->assertOk()->assertJsonCount(1,'data.sales_taxes')->assertJsonCount(2,'data.sales_taxes.0.children');
+        $this->getJson('/api/mobile/v1/taxes')->assertOk()->assertJsonCount(1,'data.data')->assertJsonCount(2,'data.data.0.children');
         DB::table('mm_role_has_permissions')->where('role_id',1)->whereIn('permission_id',DB::table('mm_permissions')->where('name','BATCHING_SCHEDULE.VIEW')->select('id'))->delete();
         $this->getJson('/api/mobile/v1/lookups')->assertOk()->assertJsonPath('data.sales_taxes.0.tax_type','Sales')->assertJsonPath('data.mix_designs.0.design_name','M25');
         $this->postJson('/api/mobile/v1/leads',$this->lead())->assertCreated();

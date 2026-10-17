@@ -7,7 +7,9 @@ Created: 2026-10-09 18:02:55 Asia/Calcutta (UTC+05:30)
 namespace App\Http\Controllers\Api\SalesMobile;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Quotation, Plant};
+use App\Models\{Quotation, Plant, MixDesign, Site};
+use App\Services\CrmLeadService;
+use Illuminate\Validation\ValidationException;
 use App\Services\Mobile\{MobileAccess as Access, QuotationCalculator};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,7 +71,7 @@ class QuotationController extends Controller
         $model = $this->details(Access::quotations()->findOrFail($quotation));
         return response()->json(['success' => true, 'data' => $this->details($model)]);
     }
-    private function data(Request $r, ?Quotation $quotation): array
+    private function data(Request $r, ?Quotation $quotation, bool $fromLead = false): array
     {
         $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
         if (is_array($r->input('items'))) {
@@ -78,17 +80,20 @@ class QuotationController extends Controller
         }
         $data = $r->validate([
             'reference' => ['nullable', 'string', 'max:100', Rule::unique('mm_quotations', 'reference')->where('plant_id', Access::plantId())->whereNull('deleted_at')->ignore($quotation?->id)],
-            'patron_id' => ['required', 'integer', Access::exists(Access::customers())], 'site_id' => ['required', 'integer', Access::exists(Access::sites())],
+            'patron_id' => ['required', 'integer', Access::exists(Access::customers())], 'site_id' => ['required', 'integer', Access::exists(Access::plantSites())],
             'quote_date' => 'required|date_format:Y-m-d', 'validity_date' => 'nullable|date_format:Y-m-d|after_or_equal:quote_date',
             'notes' => 'nullable|string|max:10000', 'is_tax_inclusive' => 'required|boolean',
             'items' => 'required|array|min:1|max:100', 'items.*' => 'required|array:mix_design_id,quantity,rate,tax_id,uom_id,concrete_pump,pump_rate,discount_type,discount', 'items.*.mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')],
             'items.*.quantity' => 'required|numeric|between:0.01,999999', 'items.*.rate' => 'required|numeric|between:0,99999999',
             'items.*.discount_type' => 'nullable|in:amount,%', 'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
-            'items.*.uom_id' => ['nullable', 'integer', $exists('mm_product_units')],
+            'items.*.uom_id' => ['nullable', 'integer', Rule::exists('mm_product_units', 'id')->whereNull('deleted_at')],
             'items.*.concrete_pump' => 'nullable|string|max:100', 'items.*.pump_rate' => 'nullable|numeric|min:0',
         ]);
-        $data['sales_executive_id'] = Access::commercialOwnerId($quotation?->sales_executive_id);
+        $isLeadQuotation = $fromLead || ($quotation && Access::leadQuotationIds()->where('quotation_id', $quotation->id)->exists());
+        $data['sales_executive_id'] = $isLeadQuotation
+            ? ($quotation?->sales_executive_id ?? Access::personnelId())
+            : Access::commercialOwnerId($quotation?->sales_executive_id);
         $data['items'] = QuotationCalculator::items($data['items'], (bool) $data['is_tax_inclusive']);
         $baseTotal = array_sum(array_column($data['items'], 'amount_total'));
         $target = $data['is_tax_inclusive'] ? array_sum(array_map(fn ($i) => round($i['quantity'] * $i['rate'] + ($i['pump_rate'] ?? 0) - ($i['discount_amount'] ?? 0), 2), $data['items'])) : $baseTotal;
@@ -106,6 +111,109 @@ class QuotationController extends Controller
             return $quotation;
         });
         return response()->json(['success' => true, 'data' => $this->details($model->fresh())], 201);
+    }
+    public function createFromLead(Request $r, int $lead, CrmLeadService $service)
+    {
+        Access::authorize('CRM_LEAD', 'CONVERT');
+        return DB::transaction(function () use ($r, $lead, $service) {
+            Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
+            $source = Access::leads()->lockForUpdate()->findOrFail($lead);
+            $autoConverted = false;
+            if (!$source->converted_at || !$source->customer_id) {
+                if ($source->converted_at || !in_array($source->status, ['New', 'Contacted', 'Qualified'], true)) {
+                    throw ValidationException::withMessages(['lead_id' => 'Only a new, contacted, or qualified lead can be converted automatically.']);
+                }
+                $customerId = $r->input('patron_id', $source->customer_id);
+                if ($customerId !== null) {
+                    $r->merge(['patron_id' => $customerId]);
+                    $r->validate(['patron_id' => ['required', 'integer', Access::exists(Access::customers()->where('status', 1))]]);
+                }
+                $source = $service->convert($source, $customerId === null ? null : (int) $customerId, forQuotation: true);
+                $autoConverted = true;
+            }
+            $deal = $source->deal()->lockForUpdate()->first();
+            if (!$deal || $deal->quotation_id) {
+                throw ValidationException::withMessages(['lead_id' => $deal ? 'This lead already has a linked quotation.' : 'This lead has no converted sales opportunity.']);
+            }
+            $customer = Access::customers()->where('status', 1)->find($source->customer_id);
+            if (!$customer) {
+                throw ValidationException::withMessages(['lead_id' => 'The lead customer is not active or accessible in this plant.']);
+            }
+            $mix = MixDesign::where('plant_id', Access::plantId())->where('is_active', 1)->find($source->mix_design_id);
+            if (!$mix) {
+                throw ValidationException::withMessages(['mix_design_id' => 'Select an active mix design on the lead before creating a quotation.']);
+            }
+            $input = $r->validate([
+                'site_id' => ['nullable', 'integer', Access::exists(Access::plantSites())],
+                'quantity' => 'sometimes|required|numeric|between:0.01,999999',
+                'rate' => 'sometimes|required|numeric|between:0,99999999',
+                'reference' => 'nullable|string|max:100', 'quote_date' => 'sometimes|required|date_format:Y-m-d',
+                'validity_date' => 'nullable|date_format:Y-m-d', 'notes' => 'nullable|string|max:10000',
+                'is_tax_inclusive' => 'sometimes|required|boolean',
+                'tax_id' => 'nullable|integer', 'uom_id' => 'nullable|integer',
+                'concrete_pump' => 'nullable|string|max:100', 'pump_rate' => 'nullable|numeric|min:0',
+                'discount_type' => 'nullable|in:amount,%', 'discount' => 'nullable|numeric|min:0',
+                'items' => 'prohibited',
+                'patron_id' => ['nullable', 'integer', Access::exists(Access::customers())],
+                'sales_executive_id' => 'prohibited',
+                'mix_design_id' => 'prohibited',
+            ]);
+            if (isset($input['patron_id']) && (int) $input['patron_id'] !== (int) $customer->id) {
+                throw ValidationException::withMessages(['patron_id' => 'The selected customer must match the lead customer.']);
+            }
+            $sites = Access::sites()->where('patron_id', $customer->id)->limit(2)->pluck('id');
+            $name = mb_substr(trim($source->project_name ?: ($source->delivery_location ?: $customer->legal_name)), 0, 255);
+            $siteId = $input['site_id'] ?? null;
+            if (!$siteId) {
+                $siteId = Access::plantSites()->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($name)])
+                    ->orderBy('id')->lockForUpdate()->value('id');
+            }
+            $siteId ??= $sites->count() === 1 ? $sites->first() : null;
+            if (!$siteId && ($autoConverted || $sites->isEmpty())) {
+                $location = $source->delivery_location ?: $source->address;
+                $siteId = Site::create([
+                    'plant_id' => Access::plantId(), 'patron_id' => [$customer->id],
+                    'name' => $name,
+                    'site_address_1' => $location ? mb_substr($location, 0, 500) : null,
+                    'site_address_2' => $location ? (mb_substr($location, 500, 500) ?: null) : null,
+                    'type' => 'unloading', 'status' => 'Active', 'is_restricted' => false,
+                ])->id;
+            }
+            $line = [
+                'mix_design_id' => $mix->id,
+                'quantity' => $input['quantity'] ?? $source->estimated_quantity,
+                'rate' => $input['rate'] ?? $mix->rate_per_qty,
+                'uom_id' => $input['uom_id'] ?? $mix->unit_id,
+                'tax_id' => $input['tax_id'] ?? null,
+                'concrete_pump' => $input['concrete_pump'] ?? null,
+                'pump_rate' => $input['pump_rate'] ?? 0,
+                'discount_type' => $input['discount_type'] ?? null,
+                'discount' => $input['discount'] ?? 0,
+            ];
+            $notes = collect([
+                'Lead: '.$source->lead_number,
+                $source->project_name ? 'Project: '.$source->project_name : null,
+                $source->delivery_location ? 'Delivery: '.$source->delivery_location : null,
+                $source->remarks,
+            ])->filter()->implode("\n");
+            $r->replace([
+                'patron_id' => $customer->id, 'site_id' => $siteId,
+                'quote_date' => $input['quote_date'] ?? now()->toDateString(),
+                'validity_date' => $input['validity_date'] ?? null,
+                'reference' => $input['reference'] ?? null,
+                'notes' => $input['notes'] ?? mb_substr($notes, 0, 10000),
+                'is_tax_inclusive' => $input['is_tax_inclusive'] ?? false,
+                'items' => [$line],
+            ]);
+            $data = $this->data($r, null, fromLead: true);
+            $data['created_by'] = $r->user()->id;
+            $quotation = Quotation::createWithItems($data, Access::plantId());
+            $this->syncApprovalState($quotation)->save();
+            $deal->update(['quotation_id' => $quotation->id]);
+            $service->log($source, 'Quotation created from lead', 'Quotation: '.$quotation->reference);
+
+            return response()->json(['success' => true, 'data' => $this->details($quotation->fresh())], 201);
+        });
     }
     public function update(Request $r, int $quotation)
     {
@@ -147,7 +255,7 @@ class QuotationController extends Controller
         $isSaasOwner = !Access::isSalesExecutive() && $r->user()->isSystemAdmin();
         $data = $r->validate(['decision' => 'required|in:approved,rejected', 'comment' => 'nullable|required_if:decision,rejected|string|max:2000']);
         return DB::transaction(function () use ($r, $quotation, $data, $isSaasOwner) {
-            $query = $isSaasOwner ? Quotation::where('plant_id', Access::plantId()) : Access::quotations();
+            $query = Access::quotations();
             $model = $query->lockForUpdate()->find($quotation);
             abort_unless($model, 404, 'Quotation not found or you do not have access to it.');
             $this->syncApprovalState($model);

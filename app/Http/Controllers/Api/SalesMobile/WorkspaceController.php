@@ -32,8 +32,8 @@ class WorkspaceController extends Controller
         abort_unless(Access::permits('TAX', 'VIEW') || Access::permits('QUOTATION', 'VIEW')
             || Access::permits('SALES_ORDER', 'VIEW'), 403, 'Sales tax lookup access is required.');
         $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);
-        $q = Tax::where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')->parentOnly()
-            ->with(['children' => fn ($q) => $q->where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')]);
+        $q = Tax::where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')->ofGroup(['GST', 'IGST'])->parentOnly()
+            ->with(['children' => fn ($q) => $q->where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')->ofGroup(['GST', 'CGST', 'SGST', 'IGST'])]);
         if ($r->filled('search')) $q->where('tax_name', 'like', '%'.$r->search.'%');
         return response()->json(['success' => true, 'data' => $q->orderBy('tax_name')->orderBy('id')->paginate($r->integer('per_page', 20))]);
     }
@@ -42,7 +42,7 @@ class WorkspaceController extends Controller
     {
         Access::authorize('SITE', 'VIEW');
         $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);
-        $q = Access::sites();
+        $q = Access::plantSites();
         if ($r->filled('search')) $q->where('name', 'like', '%'.$r->search.'%');
         $page = $q->orderBy('name')->orderBy('id')->paginate($r->integer('per_page', 20));
         $page->getCollection()->each->setAppends([]);
@@ -52,7 +52,7 @@ class WorkspaceController extends Controller
     public function site(int $site)
     {
         Access::authorize('SITE', 'VIEW');
-        $model = Access::sites()->findOrFail($site)->setAppends([]);
+        $model = Access::plantSites()->findOrFail($site)->setAppends([]);
         return response()->json(['success' => true, 'data' => $model]);
     }
 
@@ -106,9 +106,9 @@ class WorkspaceController extends Controller
             $data['mix_designs'] = MixDesign::where('plant_id', Access::plantId())->where('is_active', 1)->get(['id', 'design_name', 'design_code']);
         }
         if (Access::permits('QUOTATION', 'VIEW') || Access::permits('SALES_ORDER', 'VIEW')) {
-            $data['sales_taxes'] = Tax::where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')->parentOnly()->with('children')->get();
-            $data['sites'] = Access::sites()->get(['id', 'name']);
-            $data['units'] = \App\Models\ProductUnit::where('plant_id', Access::plantId())->get();
+            $data['sales_taxes'] = Tax::where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')->ofGroup(['GST', 'IGST'])->parentOnly()->with(['children' => fn ($q) => $q->where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')->ofGroup(['GST', 'CGST', 'SGST', 'IGST'])])->get();
+            $data['sites'] = Access::plantSites()->get(['id', 'name']);
+            $data['units'] = \App\Models\ProductUnit::query()->get();
         }
         if (Access::permits('PATRON', 'VIEW')) $data['customers'] = Access::customers()->get(['id', 'legal_name'])->each->setAppends([]);
         if (Access::permits('SALES_ORDER', 'VIEW')) {

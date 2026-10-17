@@ -18,6 +18,7 @@ Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::cla
         Route::get('me', [AuthController::class, 'me']);
         Route::get('plants', [AuthController::class, 'plants']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
+        // Personal business-record scope applies to every mobile role, including administrators.
         Route::middleware([MobilePlantContext::class, MobileSalesScope::class])->group(function () {
             Route::get('dashboard', [WorkspaceController::class, 'dashboard']);
             Route::get('lookups', [WorkspaceController::class, 'lookups']);
@@ -35,6 +36,7 @@ Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::cla
             Route::put('follow-ups/{activity}', [LeadController::class, 'saveActivity'])->whereNumber('activity');
             Route::post('follow-ups/{activity}/complete', [LeadController::class, 'complete'])->whereNumber('activity');
             Route::delete('follow-ups/{activity}', [LeadController::class, 'deleteActivity'])->whereNumber('activity');
+            Route::post('leads/{lead}/quotation', [QuotationController::class, 'createFromLead'])->whereNumber('lead')->name('sales-mobile.leads.quotation');
             Route::apiResource('quotations', QuotationController::class)->names('sales-mobile.quotations')->where(['quotation' => '[0-9]+']);
             Route::post('quotations/{quotation}/submit', [QuotationController::class, 'submit'])->whereNumber('quotation');
             Route::post('quotations/{quotation}/review', [QuotationController::class, 'review'])->whereNumber('quotation');

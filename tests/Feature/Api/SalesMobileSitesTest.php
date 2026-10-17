@@ -17,29 +17,9 @@ class SalesMobileSitesTest extends TestCase
 {
     private function reviewContext(array $permissions = [], bool $owner = false): void
     {
-        Schema::create('mm_personnels', function (Blueprint $table) {
-            $table->id();
-            $table->integer('user_id');
-            $table->integer('plant_id');
-            $table->softDeletes();
-        });
-        Schema::create('mm_quotations', function (Blueprint $table) {
-            $table->id();
-            $table->integer('plant_id');
-            $table->integer('created_by')->nullable();
-            $table->integer('updated_by')->nullable();
-            $table->integer('sales_executive_id')->nullable();
-            $table->string('mobile_approval_state');
-            $table->integer('mobile_submitted_by')->nullable();
-            $table->text('mobile_approval_comment')->nullable();
-            $table->integer('mobile_reviewed_by')->nullable();
-            $table->timestamp('mobile_reviewed_at')->nullable();
-            $table->integer('status')->default(0);
-            $table->timestamps();
-            $table->softDeletes();
-        });
         DB::table('mm_quotations')->insert(['id' => 1, 'plant_id' => 11, 'created_by' => 99, 'mobile_submitted_by' => 99, 'mobile_approval_state' => 'pending', 'status' => 1]);
         $user = \Mockery::mock(User::class)->makePartial();
+        $user->id = 10;
         $user->id = 10;
         $user->setRelation('personnel', null);
         $user->shouldReceive('hasAnyRole')->andReturn($owner);
@@ -54,7 +34,7 @@ class SalesMobileSitesTest extends TestCase
     public function test_saas_owner_can_review_own_draft_without_permission(): void
     {
         $this->reviewContext([], true);
-        DB::table('mm_quotations')->where('id', 1)->update(['status' => 0, 'mobile_approval_state' => 'draft', 'mobile_submitted_by' => 10]);
+        DB::table('mm_quotations')->where('id', 1)->update(['sales_executive_id'=>110, 'status' => 0, 'mobile_approval_state' => 'draft', 'mobile_submitted_by' => 10]);
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertOk()
             ->assertJsonPath('data.mobile_approval_state', 'approved')->assertJsonPath('data.mobile_reviewed_by', 10);
     }
@@ -72,6 +52,7 @@ class SalesMobileSitesTest extends TestCase
     public function test_permitted_reviewer_can_approve_and_cannot_review_again(): void
     {
         $this->reviewContext(['QUOTATION.APPROVE', 'QUOTATION.VIEW_ALL']);
+        DB::table('mm_quotations')->where('id',1)->update(['sales_executive_id'=>110]);
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertOk()->assertJsonPath('data.status', 2);
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertUnprocessable()
             ->assertExactJson(['message' => 'Only submitted quotations can be reviewed.']);
@@ -80,7 +61,7 @@ class SalesMobileSitesTest extends TestCase
     public function test_self_review_foreign_plant_and_rejection_validation(): void
     {
         $this->reviewContext(['QUOTATION.APPROVE', 'QUOTATION.VIEW_ALL']);
-        DB::table('mm_quotations')->where('id', 1)->update(['mobile_submitted_by' => 10]);
+        DB::table('mm_quotations')->where('id', 1)->update(['sales_executive_id'=>110, 'mobile_submitted_by' => 10]);
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertForbidden()
             ->assertExactJson(['message' => 'You cannot review your own quotation submission.']);
         DB::table('mm_quotations')->where('id', 1)->update(['mobile_submitted_by' => 99, 'plant_id' => 12]);
@@ -122,6 +103,7 @@ class SalesMobileSitesTest extends TestCase
             $table->unsignedBigInteger('plant_id');
             $table->string('name');
             $table->string('site_address_1')->nullable();
+            $table->unsignedBigInteger('patron_id')->nullable();
             $table->softDeletes();
         });
         DB::table('mm_sites')->insert([
@@ -130,6 +112,32 @@ class SalesMobileSitesTest extends TestCase
             ['id' => 3, 'plant_id' => 12, 'name' => 'Foreign', 'site_address_1' => null, 'deleted_at' => null],
             ['id' => 4, 'plant_id' => 11, 'name' => 'Deleted', 'site_address_1' => null, 'deleted_at' => now()],
         ]);
+        foreach ([
+            'mm_personnels' => ['plant_id','user_id'],
+            'mm_patrons' => ['plant_id','sales_executive_id','patron_type','operational_status'],
+            'mm_crm_leads' => ['plant_id','assigned_to','customer_id'],
+            'mm_crm_deals' => ['plant_id','lead_id','quotation_id'],
+            'mm_sales_orders' => ['plant_id','sales_executive_id','customer_id','site_id'],
+            'mm_customer_pos' => ['plant_id','sales_executive_id','patron_id','site_id','quotation_id'],
+            'mm_quotations' => ['plant_id','created_by','updated_by','sales_executive_id','patron_id','site_id','mobile_approval_state','mobile_submitted_by','mobile_approval_comment','mobile_reviewed_by','mobile_reviewed_at','status'],
+            'mm_quotation_items' => ['quotation_id','mix_design_id','tax_id','uom_id'],
+        ] as $name => $columns) {
+            Schema::create($name, function (Blueprint $table) use ($columns) {
+                $table->id();
+                foreach ($columns as $column) $table->text($column)->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+        DB::table('mm_personnels')->insert(['id'=>110,'user_id'=>10,'plant_id'=>11]);
+        DB::table('mm_patrons')->insert(['id'=>1,'plant_id'=>11,'sales_executive_id'=>110,'patron_type'=>'["Customer"]','operational_status'=>'active']);
+        DB::table('mm_sites')->whereIn('id',[1,2])->update(['patron_id'=>1]);
+        $user = \Mockery::mock(User::class)->makePartial();
+        $user->id = 10;
+        $user->shouldReceive('isSystemAdmin')->andReturn(true);
+        $user->shouldReceive('getDirectPermissions')->andReturn(collect());
+        $this->actingAs($user);
+
     }
 
     public function test_list_is_paginated_and_excludes_foreign_and_deleted_sites(): void
@@ -152,6 +160,24 @@ class SalesMobileSitesTest extends TestCase
             ->assertJsonPath('data.id', 1)->assertJsonPath('data.site_address_1', 'First Street');
     }
 
+    public function test_sites_are_visible_without_customer_or_user_relationships(): void
+    {
+        DB::table('mm_sites')->where('id',1)->update(['patron_id'=>999]);
+        DB::table('mm_sites')->where('id',2)->update(['patron_id'=>null]);
+        DB::table('mm_personnels')->delete();
+        Route::matched(function ($event) {
+            $event->request->attributes->set('mobile_system_admin', false);
+            $event->request->attributes->set('mobile_role', (object) [
+                'code'=>'SALES_EXECUTIVE', 'permissions'=>collect([(object) ['name'=>'SITE.VIEW']]),
+            ]);
+        });
+        $this->getJson('/api/mobile/v1/sites')->assertOk()->assertJsonPath('data.total',2);
+        $this->getJson('/api/mobile/v1/sites/1')->assertOk()->assertJsonPath('data.id',1);
+        $this->getJson('/api/mobile/v1/sites/2')->assertOk()->assertJsonPath('data.id',2);
+        $this->getJson('/api/mobile/v1/sites/3')->assertNotFound();
+        $this->getJson('/api/mobile/v1/sites/4')->assertNotFound();
+    }
+
     public function test_missing_foreign_deleted_and_non_numeric_ids_return_404(): void
     {
         foreach ([3, 4, 999, 'invalid'] as $id) {
@@ -170,6 +196,7 @@ class SalesMobileSitesTest extends TestCase
     public function test_site_view_permission_is_required(): void
     {
         $user = \Mockery::mock(User::class)->makePartial();
+        $user->id = 10;
         $user->shouldReceive('getDirectPermissions')->andReturn(collect());
         $this->actingAs($user);
         Route::matched(fn ($event) => $event->request->attributes->set('mobile_system_admin', false));
@@ -251,6 +278,7 @@ class SalesMobileSitesTest extends TestCase
     public function test_other_users_can_view_sites_with_role_or_direct_permission(): void
     {
         $user = \Mockery::mock(User::class)->makePartial();
+        $user->id = 10;
         $user->shouldReceive('getDirectPermissions')->andReturn(collect(), collect([(object) ['name' => 'SITE.VIEW']]));
         $this->actingAs($user);
         $role = (object) ['permissions' => collect([(object) ['name' => 'SITE.VIEW']])];

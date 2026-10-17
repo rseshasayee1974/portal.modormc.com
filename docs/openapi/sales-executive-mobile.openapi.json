@@ -3,7 +3,7 @@
   "info": {
     "title": "MODO Sales Executive Mobile API",
     "version": "1.0.0",
-    "description": "Test the ERP mobile APIs here. First grant the user Mobile App Access in Membership > Users. Login using email/password, or send WhatsApp OTP then verify it. Copy data.token into Authorize (without Bearer), and supply X-Plant-Id for workspace requests. The OTP template is sales_executive_login with one six-digit parameter. Codes expire in five minutes. Swagger does not send requests until you click Execute. Existing module permissions and plant ownership still apply."
+    "description": "Test the ERP mobile APIs here. First grant the user Mobile App Access in Membership > Users. Login using email/password, or send WhatsApp OTP then verify it. Copy data.token into Authorize (without Bearer), and supply X-Plant-Id for workspace requests. The OTP template is sales_executive_login with one six-digit parameter. Codes expire in five minutes. Swagger does not send requests until you click Execute. Existing module permissions and plant ownership still apply. All mobile roles, including managers and system administrators, can access only their own business records. VIEW_ALL and administrator status do not broaden mobile record ownership. Shared catalogs remain plant-scoped."
   },
   "servers": [
     {
@@ -4092,6 +4092,164 @@
           },
           "422": {
             "description": "Invalid lookup parameters"
+          }
+        }
+      }
+    },
+    "/leads/{lead}/quotation": {
+      "post": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Convert owned lead and create draft quotation",
+        "operationId": "post_leads_lead_quotation",
+        "description": "Automatically converts owned New, Contacted or Qualified leads, creating a Customer patron, primary contact, optional address and sales opportunity. An accessible active patron_id may select an existing customer. An explicit site_id can select any non-deleted site in the plant. Otherwise reuses a site matching the lead project/delivery/customer name, ignoring case and surrounding whitespace, regardless of user or customer ownership; then falls back to the sole customer site. Creates an active unloading site with lead delivery/address details when no site exists. Already converted leads with multiple sites and no name match require site_id. Uses the lead mix_design_id and estimated_quantity and the current catalog rate. Already converted leads reuse their customer and opportunity. Links the draft to the opportunity and rejects repeated creation. All creation rolls back on validation failure. All mobile roles remain restricted to their own leads. See docs/sales-executive-mobile-api.md.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MobileQuotation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "site_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 999999
+                  },
+                  "rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 99999999
+                  },
+                  "tax_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "uom_id": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "quote_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "validity_date": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "reference": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 100
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 10000
+                  },
+                  "is_tax_inclusive": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "concrete_pump": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "pump_rate": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "discount_type": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "amount",
+                      "%"
+                    ]
+                  },
+                  "discount": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "patron_id": {
+                    "type": "integer",
+                    "nullable": true,
+                    "description": "Accessible active customer ID, not name. Selects an existing customer during automatic conversion; must match the customer for an already converted lead. Omit to create a customer for an unconverted lead or reuse an already converted lead customer."
+                  }
+                }
+              },
+              "example": {
+                "site_id": 10,
+                "tax_id": 36,
+                "is_tax_inclusive": true
+              }
+            }
           }
         }
       }

@@ -96,14 +96,17 @@ class MobileAccess
 
     public static function all(string $module): bool
     {
-        return !self::isSalesExecutive() && self::permits($module, 'VIEW_ALL');
+        // Mobile records are personal for every role, including administrators.
+        return false;
+                // return !self::isSalesExecutive() && self::permits($module, 'VIEW_ALL');
+
     }
 
     public static function commercialOwnerId(?int $existingOwner = null): ?int
     {
-        if ($existingOwner !== null) return $existingOwner;
         $id = self::personnelId();
-        abort_if(self::isSalesExecutive() && $id === null, 403, 'A personnel assignment in this plant is required.');
+        abort_if($id === null, 403, 'A personnel assignment in this plant is required.');
+        abort_if($existingOwner !== null && $existingOwner !== $id, 403, 'Mobile documents must belong to the logged-in user.');
         return $id;
     }
 
@@ -119,18 +122,30 @@ class MobileAccess
     public static function leads(): Builder
     {
         return self::plantQuery(CrmLead::class)
-            ->when(!self::all('CRM_LEAD'), fn (Builder $query) => $query->where('assigned_to', (int) request()->user()?->id));
+            ->where('assigned_to', (int) request()->user()?->id);
     }
 
     public static function activities(): Builder
     {
         return self::plantQuery(CrmActivity::class)
-            ->whereIn('lead_id', self::leads()->select('id'));
+            ->whereIn('lead_id', self::leads()->select('id'))
+            ->where(fn (Builder $owner) => $owner->where('assigned_to', (int) request()->user()->id)->orWhereNull('assigned_to'));
     }
 
     public static function quotations(): Builder
     {
-        return self::commercial(Quotation::class, 'QUOTATION');
+        return self::plantQuery(Quotation::class)->where(function (Builder $owned) {
+            if (($personnelId = self::personnelId()) !== null) {
+                $owned->where('sales_executive_id', $personnelId);
+            }
+            $owned->orWhereIn('id', self::leadQuotationIds());
+        });
+    }
+
+    public static function leadQuotationIds(): Builder
+    {
+        return self::plantQuery(\App\Models\CrmDeal::class)
+            ->whereIn('lead_id', self::leads()->select('id'))->select('quotation_id');
     }
 
     public static function orders(): Builder
@@ -163,13 +178,18 @@ class MobileAccess
 
     public static function sites(): Builder
     {
-        // Preserve existing plant-wide site access for management roles.
+        // All mobile users receive only sites related to their own business records.
         return self::plantQuery(Site::class)
-            ->when(self::isSalesExecutive(), fn (Builder $query) => $query->where(fn (Builder $related) => $related
+            ->where(fn (Builder $related) => $related
                 ->whereIn('patron_id', self::customers()->select('id'))
                 ->orWhereIn('id', self::orders()->select('site_id'))
                 ->orWhereIn('id', self::quotations()->select('site_id'))
-                ->orWhereIn('id', self::customerPOs()->select('site_id'))));
+                ->orWhereIn('id', self::customerPOs()->select('site_id')));
+    }
+
+    public static function plantSites(): Builder
+    {
+        return self::plantQuery(Site::class);
     }
 
     public static function schedules(): Builder
@@ -193,22 +213,11 @@ class MobileAccess
     private static function commercial(string $model, string $module): Builder
     {
         $query = self::plantQuery($model);
-        if (self::all($module)) return $query;
-
         $personnelId = self::personnelId();
-        if (self::isSalesExecutive()) {
-            // Missing personnel must never match unassigned records (NULL).
-            return $personnelId === null
-                ? $query->whereRaw('1 = 0')
-                : $query->where('sales_executive_id', $personnelId);
-        }
-
-        return $query->where(function (Builder $owner) use ($personnelId) {
-            $owner->where('created_by', (int) request()->user()?->id);
-            if ($personnelId !== null) {
-                $owner->orWhere('sales_executive_id', $personnelId);
-            }
-        });
+        // Creator and VIEW_ALL permissions never broaden mobile ownership.
+        return $personnelId === null
+            ? $query->whereRaw('1 = 0')
+            : $query->where('sales_executive_id', $personnelId);
     }
 
 }

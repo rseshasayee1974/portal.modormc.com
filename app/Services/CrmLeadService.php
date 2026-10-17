@@ -56,12 +56,13 @@ class CrmLeadService
         }
     }
 
-    public function convert(CrmLead $lead, ?int $customerId): CrmLead
+    public function convert(CrmLead $lead, ?int $customerId, bool $forQuotation = false): CrmLead
     {
-        return DB::transaction(function () use ($lead, $customerId) {
+        return DB::transaction(function () use ($lead, $customerId, $forQuotation) {
             Plant::whereKey($lead->plant_id)->lockForUpdate()->firstOrFail();
             $lead = CrmLead::whereKey($lead->id)->lockForUpdate()->firstOrFail();
-            if ($lead->status !== 'Qualified' || $lead->converted_at) {
+            $allowedStatuses = $forQuotation ? ['New', 'Contacted', 'Qualified'] : ['Qualified'];
+            if (!in_array($lead->status, $allowedStatuses, true) || $lead->converted_at) {
                 throw ValidationException::withMessages(['customer_id' => 'Only a qualified, unconverted lead can be converted.']);
             }
             if ($customerId) {
