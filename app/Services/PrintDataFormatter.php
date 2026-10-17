@@ -272,6 +272,12 @@ class PrintDataFormatter
         $batchingStored = CustomSetting::getForModule($plantId, 'batching');
 
         $settings = array_replace_recursive($defaults, ['batching' => $batchingStored], $batchingStored, $baseStored);
+        // Module print settings may contain an old snapshot of batching preferences.
+        // The current plant batching selection is authoritative for item names.
+        if (isset($batchingStored['is_grade_or_is_mix_design'])) {
+            $settings['is_grade_or_is_mix_design'] = $batchingStored['is_grade_or_is_mix_design'];
+            $settings['batching']['is_grade_or_is_mix_design'] = $batchingStored['is_grade_or_is_mix_design'];
+        }
         if (in_array($module, ['purchase_bills', 'purchase_orders'], true)) {
             // Batching preferences must not add concrete/pump columns to purchases.
             $settings['pdf']['show_pump_charges'] = false;
@@ -343,6 +349,12 @@ class PrintDataFormatter
      */
     public static function getPrintItemNameFormat(array $settings, ?int $plantId = null): int
     {
+        if ($plantId !== null) {
+            $batchingSettings = CustomSetting::getForModule($plantId, 'batching');
+            if (isset($batchingSettings['is_grade_or_is_mix_design'])) {
+                return (int) $batchingSettings['is_grade_or_is_mix_design'];
+            }
+        }
         if (isset($settings['batching']['is_grade_or_is_mix_design'])) {
             return (int) $settings['batching']['is_grade_or_is_mix_design'];
         }
@@ -1650,7 +1662,7 @@ class PrintDataFormatter
             }
 
             $description         = self::formatMixDesignDescription('', $mixDesign);
-            $printItemNameFormat = self::getPrintItemNameFormat($data['settings']);
+            $printItemNameFormat = self::getPrintItemNameFormat($data['settings'], $salesOrder->plant_id);
             $grade               = self::resolvePrintedItemName($mixDesign, $printItemNameFormat);
 
             $data['items'] = $mixDesign ? [[
