@@ -387,6 +387,12 @@ class PurchaseOrderInwardController extends Controller
                 ? (float)$validated['truck_empty']
                 : (float)($inward->truck_empty ?? 0);
 
+            if ($emptyWeight > 0 && $loadedWeight > 0 && $emptyWeight >= $loadedWeight) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'truck_empty' => 'Tare weight must be less than gross weight.',
+                ]);
+            }
+
             if (array_key_exists('received_qty', $validated)) {
                 $newReceivedQty = (float) $validated['received_qty'];
             } elseif (!array_key_exists('truck_loaded', $validated) && !array_key_exists('truck_empty', $validated)) {

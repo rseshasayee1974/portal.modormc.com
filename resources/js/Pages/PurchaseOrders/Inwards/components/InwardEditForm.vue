@@ -12,7 +12,7 @@ import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import { entityToday } from '@/Utils/entityDateTime';
 import InwardTruckSelect from './InwardTruckSelect.vue';
 
-import { CheckCircleIcon, ScaleIcon, PrinterIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
+import { CheckCircleIcon, ScaleIcon, PrinterIcon, ArrowDownTrayIcon, ExclamationCircleIcon } from '@heroicons/vue/24/outline';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 
 const props = withDefaults(defineProps<{ inward: any; vehicles?: any[]; units?: any[]; accounts?: any[]; canGenerateBill?: boolean }>(), {
@@ -60,6 +60,91 @@ const truckLabel = computed(() => truckOptions.value.find(vehicle => Number(vehi
 watch(() => props.inward, (inward) => {
     if (!detailsSaving.value) data.value = { ...inward };
 });
+
+const remainingOrderedQty = computed(() => {
+    const item = props.inward?.item;
+    if (!item || item.product_quantity === undefined || item.product_quantity === null) {
+        return null;
+    }
+    const totalOrdered = Number(item.product_quantity || 0);
+    const totalReceived = Number(item.received_quantity || 0);
+    const currentInwardQty = Number(props.inward.received_qty || 0);
+    const otherReceived = Math.max(0, totalReceived - currentInwardQty);
+    return Math.max(0, totalOrdered - otherReceived);
+});
+
+const computedNetWeight = computed(() => {
+    const loaded = Number(data.value.truck_loaded || 0);
+    const empty = Number(data.value.truck_empty || 0);
+    if (empty > 0 && loaded > 0) {
+        return Math.max(0, loaded - empty);
+    }
+    if (loaded > 0) {
+        return loaded;
+    }
+    return Number(data.value.received_qty || 0);
+});
+
+const tareValidationError = computed(() => {
+    const rawTare = data.value.truck_empty;
+    const hasTareValue = rawTare !== null && rawTare !== undefined && rawTare !== '';
+    const tare = hasTareValue ? Number(rawTare) : null;
+    const loaded = Number(data.value.truck_loaded || 0);
+
+    if (hasTareValue && tare !== null) {
+        if (isNaN(tare)) {
+            return 'Tare weight must be a valid number.';
+        }
+        if (tare < 0) {
+            return 'Tare weight cannot be negative.';
+        }
+        if (loaded <= 0 && tare > 0) {
+            return 'Gross (loaded) weight must be recorded before tare weight.';
+        }
+        if (loaded > 0 && tare >= loaded) {
+            return `Tare weight must be less than gross weight (${loaded.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`;
+        }
+    }
+
+    // Check remaining ordered quantity constraint
+    if (remainingOrderedQty.value !== null && loaded > 0) {
+        const net = computedNetWeight.value;
+        const remaining = remainingOrderedQty.value;
+        if (net > remaining + 0.0001) {
+            if (!hasTareValue || tare === 0) {
+                return `Gross weight (${loaded.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) exceeds remaining order (${remaining.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${receivedUomLabel.value}). Record empty truck weight.`;
+            }
+            return `Net received quantity (${net.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${receivedUomLabel.value}) exceeds remaining ordered quantity (${remaining.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${receivedUomLabel.value}).`;
+        }
+    }
+
+    return null;
+});
+
+const tareError = computed(() => {
+    return tareValidationError.value
+        || detailsErrors.value.truck_empty
+        || detailsErrors.value.received_qty
+        || '';
+});
+
+const unhandledErrors = computed(() => {
+    const errors: Record<string, string> = {};
+    for (const [key, val] of Object.entries(detailsErrors.value)) {
+        if (key !== 'truck_empty' && key !== 'received_qty') {
+            errors[key] = val;
+        }
+    }
+    return errors;
+});
+
+watch(() => data.value.truck_empty, () => {
+    if (!tareValidationError.value) {
+        if (detailsErrors.value.truck_empty) delete detailsErrors.value.truck_empty;
+        if (detailsErrors.value.received_qty) delete detailsErrors.value.received_qty;
+    }
+});
+
 const page = usePage();
 const { isScaleConnected, captureWeight, captureCameraSnap } = useWeighbridge();
 const imageModalVisible = ref(false);
@@ -115,6 +200,19 @@ const captureInwardWeight = async (inward: any, kind: 'loaded' | 'empty') => {
         await captureWeight(async (weight: number) => {
             capturingPhoto.value = true;
             try {
+                if (kind === 'empty') {
+                    const loaded = Number(inward.truck_loaded || 0);
+                    if (loaded > 0 && weight >= loaded) {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'error',
+                            title: `Captured tare (${weight.toFixed(2)}) must be less than gross weight (${loaded.toFixed(2)})`,
+                            showConfirmButton: false,
+                            timer: 3000,
+                        });
+                    }
+                }
                 inward[kind === 'loaded' ? 'truck_loaded' : 'truck_empty'] = weight;
                 const settings: any = page.props.custom_settings?.batching || {};
                 const cameraUrl = kind === 'loaded'
@@ -142,6 +240,21 @@ const captureGrossWeight = (inward: any) => captureInwardWeight(inward, 'loaded'
 
 const saveInwardDetails = () => {
     if (formBusy.value) return;
+    if (tareValidationError.value) {
+        detailsErrors.value = {
+            ...detailsErrors.value,
+            truck_empty: tareValidationError.value,
+        };
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: tareValidationError.value,
+            showConfirmButton: false,
+            timer: 2500,
+        });
+        return;
+    }
     const payload: Record<string, any> = {};
     for (const field of ['truck_id', 'uom_id', 'received_qty', 'convert_volume', 'conversion_uom_id', 'conversion_quantity', 'truck_loaded', 'truck_empty']) {
         const value = data.value[field] ?? null;
@@ -223,145 +336,158 @@ const saveInwardDetails = () => {
             </template>
         </div>
         <p v-else-if="isBilled" class="text-xs font-semibold text-emerald-700">This inward has already been billed.</p>
-        <div v-if="Object.keys(detailsErrors).length" role="alert"
+        <div v-if="Object.keys(unhandledErrors).length" role="alert"
             class="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-            <p v-for="(error, field) in detailsErrors" :key="field">{{ error }}</p>
+            <p v-for="(error, field) in unhandledErrors" :key="field">{{ error }}</p>
         </div>
 
         <!-- Main Body Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
 
             <!-- Panel 1: Gross & Tare Inputs (9 Cols) -->
             <div class="lg:col-span-9 flex flex-col md:flex-row gap-3">
                 <!-- Gross (Loaded) Card -->
-                <div class="w-full flex flex-col gap-2.5 bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs">
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                        <label for="gross-input"
-                            class="text-[10px] font-black uppercase tracking-wider text-slate-600">1. Gross
-                            (Loaded)</label>
+                <div class="w-full flex-1 flex flex-col justify-between bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs min-h-[115px]">
+                    <div class="flex items-center justify-between h-5">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                            <label for="gross-input"
+                                class="text-[10px] font-black uppercase tracking-wider text-slate-600">1. Gross (Loaded)</label>
+                        </div>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Locked</span>
                     </div>
 
-                    <div class="flex flex-row items-center justify-between gap-4 h-full w-full">
-                        <div class="flex-1 flex items-center gap-2">
-                            <input step="any" type="number" v-model="data.truck_loaded" disabled
-                                class="w-full bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-sm font-black text-slate-800 font-mono focus:bg-white focus:ring-1 focus:ring-indigo-500"
-                                placeholder="0.00" />
+                    <div class="flex flex-col gap-1 w-full mt-auto pt-2">
+                        <div class="flex flex-row items-center justify-between gap-3 h-10 w-full">
+                            <div class="flex-1 flex items-center">
+                                <input id="gross-input" step="any" type="number" v-model="data.truck_loaded" disabled
+                                    class="w-full h-10 bg-slate-50 border border-slate-300 rounded-md px-3 text-sm font-black text-slate-700 font-mono"
+                                    placeholder="0.00" />
+                            </div>
 
-                            <!-- Capture Gross Weight Button was here -->
-                        </div>
-
-                        <!-- Photo Thumbnail -->
-                        <div v-if="getGrossPhotoUrl(data)"
-                            class="flex items-center gap-2 shrink-0 border-l border-slate-200 pl-4 py-1">
-                            <img :src="getGrossPhotoUrl(data)"
-                                @click="openImageModal(getGrossPhotoUrl(data), 'Gross Weight Snap — ' + data.inward_no)"
-                                class="w-24 h-12 object-cover rounded-md border border-slate-300 shadow-sm cursor-pointer hover:opacity-90 transition-opacity shrink-0"
-                                alt="Gross Snap" />
-                            <span
-                                class="text-[9px] text-slate-500 font-bold uppercase tracking-wider leading-tight w-8">Gross
-                                Snap</span>
+                            <!-- Photo Thumbnail -->
+                            <div v-if="getGrossPhotoUrl(data)"
+                                class="flex items-center gap-2 shrink-0 border-l border-slate-200 pl-3">
+                                <img :src="getGrossPhotoUrl(data)"
+                                    @click="openImageModal(getGrossPhotoUrl(data), 'Gross Weight Snap — ' + data.inward_no)"
+                                    class="w-20 h-10 object-cover rounded-md border border-slate-300 shadow-xs cursor-pointer hover:opacity-90 transition-opacity shrink-0"
+                                    alt="Gross Snap" />
+                                <span
+                                    class="text-[9px] text-slate-500 font-bold uppercase tracking-wider leading-tight w-8">Gross Snap</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Tare (Empty) Card -->
-                <div class="w-full flex flex-col gap-2.5 bg-white p-3.5 rounded-lg border border-amber-200 shadow-2xs">
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                        <label for="tare-input"
-                            class="text-[10px] font-black uppercase tracking-wider text-amber-700">2. Tare
-                            (Empty)</label>
+                <div :class="[
+                    'w-full flex-1 flex flex-col justify-between bg-white p-3.5 rounded-lg border shadow-2xs transition-colors min-h-[115px]',
+                    tareError ? 'border-red-300 ring-1 ring-red-200 bg-red-50/10' : 'border-slate-200 hover:border-amber-300'
+                ]">
+                    <div class="flex items-center justify-between h-5">
+                        <div class="flex items-center gap-1.5">
+                            <span :class="['w-1.5 h-1.5 rounded-full', tareError ? 'bg-red-500' : 'bg-amber-500']"></span>
+                            <label for="tare-input"
+                                :class="['text-[10px] font-black uppercase tracking-wider', tareError ? 'text-red-700' : 'text-amber-700']">
+                                2. Tare (Empty)
+                            </label>
+                        </div>
+                        <span v-if="Number(data.truck_loaded || 0) > 0"
+                            :class="[
+                                'text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider border',
+                                tareError ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200/70'
+                            ]">
+                            Must be &lt; {{ Number(data.truck_loaded).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                        </span>
                     </div>
 
-                    <div class="flex flex-row items-center justify-between gap-4 h-full w-full">
-                        <div class="flex-1 flex items-center gap-2">
-                            <input step="any" type="number" v-model="data.truck_empty"
-                                :disabled="isBilled || formBusy || page.props.custom_settings?.batching?.manual_weight == 0"
-                                class="w-full bg-slate-50 border border-amber-300 rounded-md px-2.5 py-1.5 text-sm font-black text-amber-900 font-mono focus:bg-white focus:ring-1 focus:ring-amber-500"
-                                placeholder="0.00" />
+                    <div class="flex flex-col gap-1 w-full mt-auto pt-2">
+                        <div class="flex flex-row items-center justify-between gap-3 h-10 w-full">
+                            <div class="flex-1 flex items-center gap-2">
+                                <input id="tare-input" step="any" type="number" v-model="data.truck_empty"
+                                    :max="Number(data.truck_loaded || 0) > 0 ? Number(data.truck_loaded) - 0.001 : undefined"
+                                    :disabled="isBilled || formBusy || page.props.custom_settings?.batching?.manual_weight == 0"
+                                    :class="[
+                                        'w-full h-10 rounded-md px-3 text-sm font-black font-mono transition-all',
+                                        tareError
+                                            ? 'bg-red-50 border border-red-400 text-red-900 focus:bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500'
+                                            : 'bg-white border border-slate-300 hover:border-amber-400 focus:border-amber-500 text-slate-900 focus:ring-1 focus:ring-amber-500'
+                                    ]"
+                                    placeholder="0.00" />
 
-                            <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
-                                @click.stop="captureTareWeight(data)" type="button" :disabled="isBilled || formBusy"
-                                :class="[
-                                    'relative px-2.5 py-1.5 rounded-md font-bold text-[9px] uppercase tracking-wider flex items-center gap-1 transition-all shadow-xs border cursor-pointer shrink-0 h-9',
-                                    isScaleConnected
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
-                                        : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
-                                ]"
-                                :title="isScaleConnected ? 'Capture Tare Weight from Scale' : 'Connect Weighbridge'">
-                                <!-- Pulsing Indicator Dot -->
-                                <span v-if="!data.truck_empty || Number(data.truck_empty) === 0"
-                                    class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                    <span
-                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
-                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
-                                </span>
-                                <ArrowDownTrayIcon class="w-3.5 h-3.5 text-white animate-bounce" />
-                                <span>Get Tare</span>
-                            </button>
+                                <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
+                                    @click.stop="captureTareWeight(data)" type="button" :disabled="isBilled || formBusy"
+                                    :class="[
+                                        'relative px-3 rounded-md font-bold text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs border cursor-pointer shrink-0 h-10',
+                                        isScaleConnected
+                                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 ring-2 ring-emerald-400/30'
+                                            : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500'
+                                    ]"
+                                    :title="isScaleConnected ? 'Capture Tare Weight from Scale' : 'Connect Weighbridge'">
+                                    <!-- Pulsing Indicator Dot -->
+                                    <span v-if="!data.truck_empty || Number(data.truck_empty) === 0"
+                                        class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                        <span
+                                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
+                                    </span>
+                                    <ArrowDownTrayIcon class="w-3.5 h-3.5 text-white animate-bounce" />
+                                    <span>Get Tare</span>
+                                </button>
+                            </div>
+
+                            <!-- Photo Thumbnail -->
+                            <div v-if="getTarePhotoUrl(data)"
+                                class="flex items-center gap-2 shrink-0 border-l border-slate-200 pl-3">
+                                <img :src="getTarePhotoUrl(data)"
+                                    @click="openImageModal(getTarePhotoUrl(data), 'Tare Weight Snap — ' + data.inward_no)"
+                                    class="w-20 h-10 object-cover rounded-md border border-slate-300 shadow-xs cursor-pointer hover:opacity-90 transition-opacity shrink-0"
+                                    alt="Tare Snap" />
+                                <span
+                                    class="text-[9px] text-amber-700 font-bold uppercase tracking-wider leading-tight w-8">Tare Snap</span>
+                            </div>
                         </div>
 
-                        <!-- Photo Thumbnail -->
-                        <div v-if="getTarePhotoUrl(data)"
-                            class="flex items-center gap-2 shrink-0 border-l border-amber-200 pl-4 py-1">
-                            <img :src="getTarePhotoUrl(data)"
-                                @click="openImageModal(getTarePhotoUrl(data), 'Tare Weight Snap — ' + data.inward_no)"
-                                class="w-24 h-12 object-cover rounded-md border border-amber-300 shadow-sm cursor-pointer hover:opacity-90 transition-opacity shrink-0"
-                                alt="Tare Snap" />
-                            <span
-                                class="text-[9px] text-amber-700 font-bold uppercase tracking-wider leading-tight w-8">Tare
-                                Snap</span>
-                        </div>
+                        <!-- Tare Validation Error Message -->
+                        <p v-if="tareError" class="text-[11px] font-bold text-red-600 flex items-center gap-1 mt-1 leading-tight">
+                            <ExclamationCircleIcon class="w-3.5 h-3.5 shrink-0" />
+                            <span>{{ tareError }}</span>
+                        </p>
                     </div>
                 </div>
             </div>
 
             <!-- Panel 2: Quantities Summary Stats (3 Cols) -->
-            <div class="lg:col-span-3 flex flex-col gap-3 justify-start">
+            <div class="lg:col-span-3 flex flex-col gap-3 justify-between">
                 <!-- Calculated Net -->
                 <div
-                    class="bg-emerald-50/80 p-3.5 rounded-lg border border-emerald-200/90 flex items-center justify-between shadow-2xs">
-                    <div class="flex flex-col">
-                        <span class="text-[10px] font-black uppercase tracking-wider text-emerald-800">Net Weight</span>
+                    class="flex-1 bg-emerald-50/90 p-3 rounded-lg border border-emerald-200/90 flex items-center justify-between shadow-2xs min-h-[52px]">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full" :class="tareError ? 'bg-red-500' : 'bg-emerald-500'"></span>
+                        <span class="text-[10px] font-black uppercase tracking-wider" :class="tareError ? 'text-red-800' : 'text-emerald-800'">Net Weight</span>
                     </div>
-                    <div class="flex items-baseline gap-1.5">
-                        <span class="text-2xl font-black text-emerald-700 font-mono">
-                            {{ Math.max(0, Number(data.truck_loaded || 0) - Number(data.truck_empty ||
-                                0)).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                    <div class="flex items-baseline gap-1">
+                        <span :class="['text-xl font-black font-mono', tareError ? 'text-red-600' : 'text-emerald-700']">
+                            {{ tareValidationError ? '0.00' : Math.max(0, Number(data.truck_loaded || 0) - Number(data.truck_empty || 0)).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                         </span>
                         <span class="text-[9px] font-extrabold text-emerald-600 uppercase">{{ receivedUomLabel }}</span>
                     </div>
                 </div>
 
-                <!-- Accepted Qty -->
-                <!-- <div class="bg-white p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between shadow-2xs">
-                    <span class="text-[9px] font-black uppercase tracking-wider text-slate-600">Accepted Qty</span>
-                    <div class="my-1 flex items-baseline gap-1">
-                        <span class="text-base font-black text-slate-800 font-mono">
-                            {{ Number(data.received_qty || 0).toLocaleString(APP_LOCALE, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                            }) }}
-                        </span>
-
-                    </div>
-                    <span class="text-[8px] text-slate-400 font-extrabold uppercase">In Stock</span>
-                </div> -->
-
                 <!-- Converted Qty -->
                 <div
-                    class="bg-indigo-50/80 p-2.5 rounded-lg border border-indigo-200/90 flex flex-col justify-between shadow-2xs">
-                    <span class="text-[9px] font-black uppercase tracking-wider text-indigo-800">Converted Qty</span>
-                    <div class="my-1 flex items-baseline gap-1">
-                        <span class="text-base font-black text-indigo-800 font-mono">
+                    class="flex-1 bg-indigo-50/90 p-3 rounded-lg border border-indigo-200/90 flex items-center justify-between shadow-2xs min-h-[52px]">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                        <span class="text-[10px] font-black uppercase tracking-wider text-indigo-800">Converted Qty</span>
+                    </div>
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-xl font-black text-indigo-800 font-mono">
                             {{ Number(data.conversion_quantity || 0).toLocaleString(APP_LOCALE, {
                                 minimumFractionDigits: 2, maximumFractionDigits: 2
                             }) }}
                         </span>
-                        <span class="text-[10px] font-extrabold text-indigo-600 uppercase">{{
-                            billingUomLabel
-                            }}</span>
+                        <span class="text-[9px] font-extrabold text-indigo-600 uppercase">{{ billingUomLabel }}</span>
                     </div>
                 </div>
             </div>
@@ -369,25 +495,22 @@ const saveInwardDetails = () => {
         </div>
     </form>
     <!-- Action Buttons -->
-    <div class="flex justify-end p-3 gap-2 shrink-0">
-        <!-- <a :href="route('inwards.receipt', data.id)" target="_blank"
-                    class="px-3 py-1.5 rounded-md font-bold text-[10px] uppercase flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all text-decoration-none"
-                    title="Print Receipt">
-                    <PrinterIcon class="w-3.5 h-3.5" />
-                    <span>Print</span>
-                </a>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-3 bg-white rounded-lg border border-slate-200 shadow-2xs">
+        <div class="flex-1 min-w-0">
+            <p v-if="tareError" class="text-xs font-bold text-red-600 flex items-center gap-1.5">
+                <ExclamationCircleIcon class="w-4 h-4 shrink-0 text-red-500" />
+                <span>{{ tareError }}</span>
+            </p>
+            <p v-else-if="remainingOrderedQty !== null && Number(data.truck_loaded || 0) > 0" class="text-xs text-slate-500 flex items-center gap-1.5">
+                <span class="text-slate-400 font-medium">Remaining ordered quantity:</span>
+                <span class="font-bold text-slate-700 font-mono">{{ remainingOrderedQty.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{ receivedUomLabel }}</span>
+            </p>
+        </div>
 
-                <a :href="route('inwards.download-receipt', data.id)"
-                    class="px-3 py-1.5 rounded-md font-bold text-[10px] uppercase flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 shadow-xs transition-all text-decoration-none"
-                    title="Download PDF">
-                    <ArrowDownTrayIcon class="w-3.5 h-3.5 text-slate-600" />
-                    <span>PDF</span>
-                </a> -->
-
-        <button type="submit" :form="`inward-edit-${data.id}`" :disabled="formBusy"
-            class="px-3.5 py-1.5 rounded-md font-black text-sm uppercase flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer border-0 disabled:opacity-50"
-            title="Save Changes">
-            <CheckCircleIcon class="w-3.5 h-3.5" />
+        <button type="submit" :form="`inward-edit-${data.id}`" :disabled="formBusy || Boolean(tareValidationError)"
+            class="px-5 py-2 rounded-md font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer border-0 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            :title="tareValidationError ? tareValidationError : 'Save Changes'">
+            <CheckCircleIcon class="w-4 h-4" />
             <span>{{ detailsSaving ? 'Saving…' : generateBill ? 'Save & Generate Bill' : 'Save' }}</span>
         </button>
     </div>

@@ -84,6 +84,14 @@ class InwardDetailsTest extends TestCase
         $this->assertEquals(100, $this->stock->fresh()->quantity);
     }
 
+    public function test_tare_weight_equal_or_greater_than_loaded_weight_is_rejected(): void
+    {
+        // $this->inward has truck_loaded = 100, truck_empty = 20
+        $this->updateDetails(['truck_empty' => 100])->assertSessionHasErrors('truck_empty');
+        $this->updateDetails(['truck_empty' => 120])->assertSessionHasErrors('truck_empty');
+        $this->assertEquals(20, $this->inward->fresh()->truck_empty);
+    }
+
     public function test_received_quantity_above_order_is_rejected_after_loaded_entry(): void
     {
         $this->updateDetails(['received_qty' => 101])->assertSessionHasErrors('received_qty');
