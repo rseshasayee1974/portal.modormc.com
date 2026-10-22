@@ -38,7 +38,10 @@ class QuotationController extends Controller
     private function detailRelations(): array
     {
         return [
-            'patron', 'site', 'items.uom', 'items.tax.children',
+            'patron' => fn ($q) => $q->whereIn('id', Access::customers()->select('id')),
+            'site' => fn ($q) => $q->whereIn('id', Access::sites()->select('id')), 'items.uom',
+            'items.tax' => fn ($q) => $q->where('plant_id', Access::plantId()),
+            'items.tax.children' => fn ($q) => $q->where('plant_id', Access::plantId()),
             'items.mixDesign' => fn ($query) => $query->withTrashed()->where('plant_id', Access::plantId()),
             'items.mixDesign.concreteGrade:id,name', 'items.mixDesign.unit',
             'items.mixDesign.items' => fn ($query) => $query->where('plant_id', Access::plantId()),

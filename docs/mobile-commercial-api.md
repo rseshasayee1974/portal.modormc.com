@@ -97,3 +97,5 @@ app-token separation, plant denial, PO ownership, validation and calculated PO
 updates/deletion. PHPUnit could not execute: PHP reports `is_readable` false for
 the existing `vendor/autoload.php`, so PHPUnit rejects its bootstrap before tests
 start, although Artisan can require that file successfully.
+
+Site discovery and writes now use customer/document relationships within the selected plant. Unrelated site IDs are rejected. Lead approval also requires a visible owned lead; nested PO orders and production relations are filtered by plant and visible order ownership. Plant-shared catalogs (mix designs, taxes, vehicles and drivers) remain available as form inputs; product units are global reference data.

@@ -25,7 +25,7 @@ class LeadController extends Controller
     {
         Access::authorize('CRM_LEAD', 'VIEW');
         $r->validate(['search' => 'nullable|string|max:100', 'status' => ['nullable', Rule::in(CrmLead::STATUSES)], 'per_page' => 'nullable|integer|between:1,100']);
-        $q = Access::leads()->with(['owner:id,username', 'mixDesign:id,design_name'])->withMin(['activities as next_follow_up' => fn ($a) => $a->whereIn('id', Access::activities()->select('id'))->whereNull('completed_at')], 'due_at');
+        $q = Access::leads()->with(['owner:id,username', 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])->withMin(['activities as next_follow_up' => fn ($a) => $a->whereIn('id', Access::activities()->select('id'))->whereNull('completed_at')], 'due_at');
         if ($r->filled('search')) {
             $q->where(fn ($q) => $q->where('contact_name', 'like', '%'.$r->search.'%')->orWhere('company_name', 'like', '%'.$r->search.'%')->orWhere('phone', 'like', '%'.$r->search.'%'));
         }
@@ -39,7 +39,7 @@ class LeadController extends Controller
     public function show(int $lead)
     {
         Access::authorize('CRM_LEAD', 'VIEW');
-        $model = Access::leads()->findOrFail($lead)->load(['mixDesign:id,design_name', 'activities' => fn ($q) => $q->whereIn('id', Access::activities()->select('id'))->latest('id'), 'deal', 'customer', 'owner:id,username']);
+        $model = Access::leads()->findOrFail($lead)->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId()), 'activities' => fn ($q) => $q->whereIn('id', Access::activities()->select('id'))->latest('id'), 'deal' => fn ($q) => $q->where('plant_id', Access::plantId()), 'customer' => fn ($q) => $q->whereIn('id', Access::customers()->select('id')), 'owner:id,username']);
         $model->customer?->setAppends([]);
         $model->setAttribute('allowed_statuses', $model->allowedStatuses());
         $model->setAttribute('status_options', $model->statusOptions());
@@ -76,7 +76,9 @@ class LeadController extends Controller
                 $rules[$field] = array_merge(['sometimes'], is_array($rule) ? $rule : explode('|', $rule));
             }
         }
-        $data = $r->validate($rules);
+        $data = $r->validate($rules, [
+            'mix_design_id.exists' => 'The selected mix design is unavailable in this plant. Refresh the mix designs for the selected plant and choose an active design.',
+        ]);
         abort_if(isset($data['assigned_to']) && (int) $data['assigned_to'] !== (int) $r->user()->id, 403, 'Mobile leads must belong to the logged-in user.');
         if (! $lead || array_key_exists('assigned_to', $data)) {
             $owner = $data['assigned_to'] ?? $lead?->assigned_to ?? $r->user()->id;
@@ -99,7 +101,7 @@ class LeadController extends Controller
         Access::authorize('CRM_LEAD', 'CREATE');
         $data = $this->data($r);
 
-        return response()->json(['success' => true, 'data' => $service->create(Access::plantId(), $data)->load('mixDesign:id,design_name')], 201);
+        return response()->json(['success' => true, 'data' => $service->create(Access::plantId(), $data)->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])], 201);
     }
 
     public function approve(int $lead, CrmLeadService $service)
@@ -108,7 +110,7 @@ class LeadController extends Controller
 
         return DB::transaction(function () use ($lead, $service) {
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
-            $model = CrmLead::withoutGlobalScope('plant_id')->where('plant_id', Access::plantId())->lockForUpdate()->findOrFail($lead);
+            $model = Access::leads()->lockForUpdate()->findOrFail($lead);
             if ($model->converted_at || ! in_array($model->status, CrmLead::QUOTATION_CONVERTIBLE_STATUSES, true)) {
                 throw ValidationException::withMessages(['status' => 'Only an open, unconverted lead can be approved.']);
             }
@@ -129,7 +131,7 @@ class LeadController extends Controller
         Access::authorize('CRM_LEAD', 'UPDATE');
         $model = Access::leads()->findOrFail($lead);
 
-        return response()->json(['success' => true, 'data' => $service->update($model, $this->data($r, $model))->load('mixDesign:id,design_name')]);
+        return response()->json(['success' => true, 'data' => $service->update($model, $this->data($r, $model))->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])]);
     }
 
     public function destroy(int $lead)

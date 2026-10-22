@@ -23,7 +23,7 @@ class CustomerPOController extends Controller
 
     public function show(int $customer_po)
     {
-        $po = Access::customerPOs()->findOrFail($customer_po)->load(['items', 'salesOrders']);
+        $po = Access::customerPOs()->findOrFail($customer_po)->load(['items', 'salesOrders' => fn ($q) => $q->whereIn('id', Access::orders()->select('id'))]);
         return response()->json(['success' => true, 'data' => $po]);
     }
 

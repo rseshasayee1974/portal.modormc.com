@@ -40,7 +40,25 @@ class MobileAccess
                 $q->whereExists(function ($membership) use ($user) {
                     $membership->selectRaw('1')->from('mm_entity_users')->where('user_id', $user->id)
                         ->whereNull('mm_entity_users.deleted_at')->whereColumn('mm_entity_users.entity_id', 'mm_plants.entity_id')
-                        ->where(fn ($m) => $m->whereNull('mm_entity_users.plant_id')->orWhereColumn('mm_entity_users.plant_id', 'mm_plants.id'));
+                        ->where(function ($scope) use ($user) {
+                            $scope->whereColumn('mm_entity_users.plant_id', 'mm_plants.id')
+                                ->orWhere(function ($entityWide) use ($user) {
+                                    $entityWide->whereNull('mm_entity_users.plant_id')
+                                        ->where(function ($access) use ($user) {
+                                            $access->whereExists(function ($role) {
+                                                $role->selectRaw('1')->from('mm_roles')
+                                                    ->whereColumn('mm_roles.id', 'mm_entity_users.role_id')
+                                                    ->whereNull('mm_roles.deleted_at')
+                                                    ->whereIn('mm_roles.code', ['ADMINISTRATOR', 'SUPER_ADMIN', 'PLATFORM_ADMIN', 'SAAS_OWNER']);
+                                            })->orWhereExists(function ($personnel) use ($user) {
+                                                $personnel->selectRaw('1')->from('mm_personnels')
+                                                    ->where('mm_personnels.user_id', $user->id)
+                                                    ->whereNull('mm_personnels.deleted_at')
+                                                    ->whereColumn('mm_personnels.plant_id', 'mm_plants.id');
+                                            });
+                                        });
+                                });
+                        });
                 });
             });
     }
@@ -181,7 +199,10 @@ class MobileAccess
         // All mobile users receive only sites related to their own business records.
         return self::plantQuery(Site::class)
             ->where(fn (Builder $related) => $related
-                ->whereIn('patron_id', self::customers()->select('id'))
+                ->whereExists(self::customers()->selectRaw('1')->where(function ($customer) {
+                    $customer->whereColumn('mm_patrons.id', 'mm_sites.patron_id')
+                        ->orWhereJsonContains('mm_sites.patron_id', \Illuminate\Support\Facades\DB::raw('mm_patrons.id'));
+                }))
                 ->orWhereIn('id', self::orders()->select('site_id'))
                 ->orWhereIn('id', self::quotations()->select('site_id'))
                 ->orWhereIn('id', self::customerPOs()->select('site_id')));
@@ -189,7 +210,7 @@ class MobileAccess
 
     public static function plantSites(): Builder
     {
-        return self::plantQuery(Site::class);
+        return self::sites();
     }
 
     public static function schedules(): Builder

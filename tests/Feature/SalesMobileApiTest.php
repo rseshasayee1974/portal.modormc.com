@@ -96,7 +96,7 @@ class SalesMobileApiTest extends TestCase
             'mm_contacts' => ['patron_id', 'plant_id', 'name', 'phone', 'mobile', 'contact_type_id', 'is_primary', 'status', 'email'],
             'mm_personnel_contacts' => ['employee_id', 'contact_id', 'contact_value', 'is_primary'],
             'mm_customer_pos' => ['plant_id', 'quotation_id', 'patron_id', 'site_id', 'created_by', 'updated_by', 'deleted_by', 'sales_executive_id', 'is_tax_inclusive', 'reference', 'customer_po_reference', 'status', 'order_date', 'amount_untaxed', 'amount_tax', 'amount_total'],
-            'mm_customer_po_items' => ['customer_po_id', 'mix_design_id', 'rate', 'tax_id', 'quantity', 'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'],
+            'mm_customer_po_items' => ['deleted_by', 'customer_po_id', 'mix_design_id', 'rate', 'tax_id', 'quantity', 'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'],
             'mm_custom_settings' => ['plant_id', 'module_name', 'settings'],
             'mm_batches' => ['plant_id', 'sales_order_id', 'batch_no', 'batch_size', 'status', 'start_time', 'end_time'],
             'mm_sales_orders' => ['plant_id', 'created_by', 'updated_by', 'deleted_by', 'sales_executive_id', 'customer_id', 'site_id', 'mix_design_id', 'total_qty', 'rate', 'tax_id', 'is_tax_inclusive', 'customer_po_id', 'produced_qty', 'status', 'order_no', 'prefix', 'concrete_pump', 'pump_rate', 'scheduled_start', 'scheduled_end'],
@@ -228,6 +228,9 @@ class SalesMobileApiTest extends TestCase
             $this->putJson('/api/mobile/v1/leads/'.$id, array_replace($this->lead(), ['mix_design_id' => $value]))
                 ->assertUnprocessable()->assertJsonValidationErrors('mix_design_id');
         }
+        $this->postJson('/api/mobile/v1/leads', array_replace($this->lead(), ['mix_design_id' => 992]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.mix_design_id.0', 'The selected mix design is unavailable in this plant. Refresh the mix designs for the selected plant and choose an active design.');
         $this->getJson('/api/mobile/v1/leads/'.$id)->assertOk()->assertJsonPath('data.mix_design_id', 991);
     }
 
@@ -452,13 +455,12 @@ class SalesMobileApiTest extends TestCase
         $this->assertSame(2, DB::table('mm_patrons')->count());
     }
 
-    public function test_lead_quotation_reuses_same_name_site_without_user_or_customer_restriction(): void
+    public function test_lead_quotation_does_not_reuse_an_unrelated_same_name_site(): void
     {
         $this->unconvertedQuotationLead();
         DB::table('mm_sites')->insert(['id' => 502, 'plant_id' => 1, 'patron_id' => '[999]', 'name' => ' lead PROJECT ']);
-        $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated()
-            ->assertJsonPath('data.site_id', fn ($id) => (int) $id === 502);
-        $this->assertSame(2, DB::table('mm_sites')->count());
+        $response = $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated();
+        $this->assertNotEquals(502, $response->json('data.site_id'));
         $this->assertEquals('[999]', DB::table('mm_sites')->where('id', 502)->value('patron_id'));
     }
 
@@ -474,21 +476,62 @@ class SalesMobileApiTest extends TestCase
         $this->assertSame(4, DB::table('mm_sites')->count());
     }
 
-    public function test_converted_lead_quotation_can_select_any_site_in_its_plant(): void
+    public function test_converted_lead_quotation_rejects_an_unrelated_site_in_its_plant(): void
     {
         $this->convertedQuotationLead();
         DB::table('mm_sites')->insert(['id' => 502, 'plant_id' => 1, 'patron_id' => null, 'name' => 'Shared site']);
-        $this->postJson('/api/mobile/v1/leads/501/quotation', ['site_id' => 502])->assertCreated()
-            ->assertJsonPath('data.site_id', fn ($id) => (int) $id === 502);
+        $this->postJson('/api/mobile/v1/leads/501/quotation', ['site_id' => 502])
+            ->assertUnprocessable()->assertJsonValidationErrors('site_id');
     }
 
-    public function test_converted_lead_reuses_matching_name_before_default_customer_site(): void
+    public function test_converted_lead_uses_related_site_instead_of_unrelated_same_name_site(): void
     {
         $this->convertedQuotationLead();
         DB::table('mm_sites')->insert(['id' => 502, 'plant_id' => 1, 'patron_id' => 999, 'name' => 'Lead Project']);
-        $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated()
-            ->assertJsonPath('data.site_id', fn ($id) => (int) $id === 502);
-        $this->assertSame(2, DB::table('mm_sites')->count());
+        $response = $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertCreated();
+        $this->assertNotEquals(502, $response->json('data.site_id'));
+    }
+
+    public function test_json_customer_sites_and_nested_po_orders_are_user_and_plant_scoped(): void
+    {
+        DB::table('mm_sites')->insert([
+            ['id' => 700, 'plant_id' => 1, 'patron_id' => '[1]', 'name' => 'Related JSON site'],
+            ['id' => 701, 'plant_id' => 1, 'patron_id' => '[999]', 'name' => 'Other customer site'],
+            ['id' => 702, 'plant_id' => 2, 'patron_id' => '[1]', 'name' => 'Other plant site'],
+        ]);
+        $this->getJson('/api/mobile/v1/sites/700')->assertOk();
+        foreach ([701, 702] as $id) $this->getJson('/api/mobile/v1/sites/'.$id)->assertNotFound();
+        $ids = array_column($this->getJson('/api/mobile/v1/lookups')->assertOk()->json('data.sites'), 'id');
+        $this->assertContains(700, $ids);
+        $this->assertNotContains(701, $ids);
+        $this->assertNotContains(702, $ids);
+        DB::table('mm_customer_pos')->insert(['id' => 700, 'plant_id' => 1, 'sales_executive_id' => 1]);
+        DB::table('mm_sales_orders')->insert([
+            ['id' => 700, 'plant_id' => 1, 'sales_executive_id' => 1, 'customer_po_id' => 700],
+            ['id' => 701, 'plant_id' => 1, 'sales_executive_id' => 2, 'customer_po_id' => 700],
+            ['id' => 702, 'plant_id' => 2, 'sales_executive_id' => 1, 'customer_po_id' => 700],
+        ]);
+        $this->getJson('/api/mobile/v1/customer-pos/700')->assertOk()
+            ->assertJsonCount(1, 'data.sales_orders')->assertJsonPath('data.sales_orders.0.id', 700);
+    }
+
+    public function test_shared_commercial_routes_enforce_the_same_visibility_in_both_apps(): void
+    {
+        $this->seedExecutiveVisibilityRecords();
+        $mainToken = User::find(1)->createToken('web-login')->plainTextToken;
+        foreach (['v1/' => $this->token, '' => $mainToken] as $prefix => $token) {
+            $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Plant-Id' => '1']);
+            foreach (['quotations', 'orders', 'customer-pos', 'batch-schedules'] as $resource) {
+                $response = $this->getJson('/api/mobile/'.$prefix.$resource)->assertOk();
+                $this->assertSame([101], array_column($response->json('data.data'), 'id'));
+                $this->getJson('/api/mobile/'.$prefix.$resource.'/102')->assertNotFound();
+            }
+            $this->getJson('/api/mobile/'.$prefix.'sites/2')->assertNotFound();
+            $this->withHeaders(['X-Plant-Id' => '2']);
+            foreach (['quotations', 'orders', 'customer-pos', 'batch-schedules', 'lookups'] as $resource) {
+                $this->getJson('/api/mobile/'.$prefix.$resource)->assertForbidden();
+            }
+        }
     }
 
     public function test_partial_lead_updates_preserve_omitted_fields_and_allow_status_only_qualification(): void
@@ -945,13 +988,15 @@ class SalesMobileApiTest extends TestCase
         config(['push_notifications.enabled' => false]);
     }
 
-    public function test_admin_can_approve_another_users_plant_lead_and_repeat_is_idempotent(): void
+    public function test_lead_approval_requires_ownership_and_repeat_is_idempotent(): void
     {
         $this->enablePushLogs();
         $id = $this->postJson('/api/mobile/v1/leads', $this->lead())->assertCreated()->json('data.id');
         $this->postJson('/api/mobile/v1/leads/'.$id.'/approve')->assertForbidden();
         $this->postJson('/api/mobile/v1/leads', array_replace($this->lead(), ['phone' => '9876543298', 'status' => 'Approved']))->assertUnprocessable();
         $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
+        $this->postJson('/api/mobile/v1/leads/'.$id.'/approve')->assertNotFound();
+        DB::table('mm_crm_leads')->where('id', $id)->update(['assigned_to' => 2]);
         $this->postJson('/api/mobile/v1/leads/'.$id.'/approve')->assertOk()->assertJsonPath('data.status', 'Approved');
         $this->assertNotNull(DB::table('mm_crm_leads')->where('id', $id)->value('customer_id'));
         $this->assertSame(2, DB::table('mm_patrons')->count());
@@ -1180,17 +1225,17 @@ class SalesMobileApiTest extends TestCase
             $this->assertEquals([101], array_column($response->json('data.data'), 'id'));
         }
         foreach (['customers', 'sites'] as $resource) {
-            $expected = $resource === 'sites' ? [1, 2, 3] : [1, 3];
+            $expected = [1, 3];
             $response = $this->getJson('/api/mobile/v1/'.$resource)->assertOk()->assertJsonPath('data.total', count($expected));
             $this->assertEqualsCanonicalizing($expected, array_column($response->json('data.data'), 'id'));
-            $this->getJson('/api/mobile/v1/'.$resource.'/2')->assertStatus($resource === 'sites' ? 200 : 404);
+            $this->getJson('/api/mobile/v1/'.$resource.'/2')->assertNotFound();
         }
         foreach (['leads', 'quotations', 'orders', 'batch-schedules'] as $resource) {
             $this->getJson('/api/mobile/v1/'.$resource.'/102')->assertNotFound();
         }
         $lookups = $this->getJson('/api/mobile/v1/lookups')->assertOk();
         foreach (['customers', 'sites'] as $key) {
-            $this->assertEqualsCanonicalizing($key === 'sites' ? [1, 2, 3] : [1, 3], array_column($lookups->json('data.'.$key), 'id'));
+            $this->assertEqualsCanonicalizing([1, 3], array_column($lookups->json('data.'.$key), 'id'));
         }
         foreach (['customer_pos', 'sales_orders'] as $key) {
             $this->assertEquals([101], array_column($lookups->json('data.'.$key), 'id'));
@@ -1301,9 +1346,9 @@ class SalesMobileApiTest extends TestCase
         ]);
         foreach (['customers', 'sites'] as $resource) {
             $response = $this->getJson('/api/mobile/v1/'.$resource)->assertOk();
-            $this->assertEqualsCanonicalizing($resource === 'sites' ? [1, 11, 12, 13, 14, 15, 16] : [1, 11, 12, 13, 14], array_column($response->json('data.data'), 'id'));
+            $this->assertEqualsCanonicalizing([1, 11, 12, 13, 14], array_column($response->json('data.data'), 'id'));
             foreach ([15, 16] as $id) {
-                $this->getJson('/api/mobile/v1/'.$resource.'/'.$id)->assertStatus($resource === 'sites' ? 200 : 404);
+                $this->getJson('/api/mobile/v1/'.$resource.'/'.$id)->assertNotFound();
             }
         }
     }
@@ -1336,6 +1381,28 @@ class SalesMobileApiTest extends TestCase
             ->assertJsonPath('data.total', 1)->assertJsonPath('data.data.0.id', 301);
         $this->withHeaders(['X-Plant-Id' => '1'])->getJson('/api/mobile/v1/orders')->assertOk()
             ->assertJsonPath('data.total', 1)->assertJsonPath('data.data.0.id', 101);
+    }
+
+    public function test_entity_wide_sales_membership_only_exposes_assigned_personnel_plant(): void
+    {
+        DB::table('mm_plants')->insert(['id' => 3, 'name' => 'Unassigned plant', 'entity_id' => 1, 'is_active' => 1]);
+        DB::table('mm_entity_users')->where('user_id', 1)->update(['plant_id' => null]);
+        $this->getJson('/api/mobile/v1/plants')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', 1);
+        $this->postJson('/api/mobile/v1/auth/login', ['email' => 'user1@example.test', 'password' => 'Test-password-123'])
+            ->assertOk()->assertJsonCount(1, 'data.plants')->assertJsonPath('data.plants.0.id', 1);
+        $this->withHeaders(['X-Plant-Id' => '3'])->getJson('/api/mobile/v1/quotations')->assertForbidden();
+        DB::table('mm_personnels')->where('user_id', 1)->delete();
+        $this->getJson('/api/mobile/v1/plants')->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    public function test_entity_administrator_can_list_entity_plants_without_personnel_assignment(): void
+    {
+        DB::table('mm_plants')->insert(['id' => 3, 'name' => 'Another entity plant', 'entity_id' => 1, 'is_active' => 1]);
+        DB::table('mm_roles')->where('id', 1)->update(['code' => 'ADMINISTRATOR']);
+        DB::table('mm_entity_users')->where('user_id', 1)->update(['plant_id' => null]);
+        DB::table('mm_personnels')->where('user_id', 1)->delete();
+        $this->getJson('/api/mobile/v1/plants')->assertOk()->assertJsonCount(2, 'data');
+        $this->withHeaders(['X-Plant-Id' => '2'])->getJson('/api/mobile/v1/quotations')->assertForbidden();
     }
 
     public function test_route_group_declares_sales_scope_once_after_plant_context(): void

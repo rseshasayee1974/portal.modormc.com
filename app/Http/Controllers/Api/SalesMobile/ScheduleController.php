@@ -25,6 +25,7 @@ class ScheduleController extends ConcreteBatchingScheduleController
         foreach (['site_id' => 'mm_sites', 'mix_design_id' => 'mm_mix_designs', 'vehicle_id' => 'mm_machines', 'pump_vehicle_id' => 'mm_machines', 'driver_id' => 'mm_personnels'] as $field => $table) {
             $rules[$field] = [in_array($field, ['site_id', 'mix_design_id']) ? 'required' : 'nullable', 'integer', Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')];
         }
+        $rules['site_id'] = ['required', 'integer', Access::exists(Access::sites())];
         $rules['sales_order_id'] = ['required', 'integer', Access::exists(Access::orders()->whereIn('status', [1, 2])->where('site_id', request('site_id'))->where('mix_design_id', request('mix_design_id')))];
         $rules['status'] = 'nullable|in:scheduled';
         $rules['dispatch_id'] = 'prohibited';
@@ -40,7 +41,7 @@ class ScheduleController extends ConcreteBatchingScheduleController
     public function listing(Request $r)
     {
         $r->validate(['schedule_date' => 'nullable|date_format:Y-m-d', 'per_page' => 'nullable|integer|between:1,100']);
-        $q = Access::schedules()->with(['site:id,name', 'mixDesign:id,design_name', 'batch', 'dispatch']);
+        $q = Access::schedules()->with(['site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')), 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId()), 'batch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id')), 'dispatch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id'))]);
         if ($r->filled('schedule_date')) $q->whereDate('schedule_date', $r->schedule_date);
         return response()->json(['success' => true, 'data' => $q->orderBy('schedule_date')->orderBy('id')->paginate($r->integer('per_page', 20))]);
     }
@@ -48,7 +49,7 @@ class ScheduleController extends ConcreteBatchingScheduleController
     {
         $model = Access::schedules()->find($schedule);
         abort_unless($model, 404, 'Batch schedule not found.');
-        return response()->json(['success' => true, 'data' => $model->load(['site', 'mixDesign', 'batch', 'dispatch'])]);
+        return response()->json(['success' => true, 'data' => $model->load(['site' => fn ($q) => $q->whereIn('id', Access::sites()->select('id')), 'mixDesign' => fn ($q) => $q->where('plant_id', Access::plantId()), 'batch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id')), 'dispatch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id'))])]);
     }
     public function change(Request $r, int $schedule)
     {

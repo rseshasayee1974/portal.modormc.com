@@ -26,7 +26,7 @@ class OrderController extends Controller
             'status', 'is_tax_inclusive', 'amount_untaxed', 'amount_tax', 'amount_total'];
         $itemFields = ['id', 'customer_po_id', 'mix_design_id', 'quantity', 'rate', 'tax_id',
             'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'];
-        $q = Access::customerPOs()->select($fields)->with(['patron:id,legal_name', 'site:id,name', 'items' => fn ($items) => $items->select($itemFields)]);
+        $q = Access::customerPOs()->select($fields)->with(['patron' => fn ($q) => $q->select('id', 'legal_name')->whereIn('id', Access::customers()->select('id')), 'site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')), 'items' => fn ($items) => $items->select($itemFields)]);
         if ($r->filled('search')) $q->where(function ($search) use ($r) {
             $search->where('reference', 'like', '%'.$r->search.'%')
                 ->orWhere('customer_po_reference', 'like', '%'.$r->search.'%');
@@ -47,7 +47,7 @@ class OrderController extends Controller
     public function index(Request $r)
     {
         $r->validate(['per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100', 'customer_id' => 'nullable|integer']);
-        $q = Access::orders()->with(['customer:id,legal_name', 'site:id,name', 'mixDesign:id,design_name']);
+        $q = Access::orders()->with(['customer' => fn ($q) => $q->select('id', 'legal_name')->whereIn('id', Access::customers()->select('id')), 'site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')), 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())]);
         if ($r->filled('search')) $q->where('order_no', 'like', '%'.$r->search.'%');
         if ($r->filled('customer_id')) $q->where('customer_id', $r->customer_id);
         $page = $q->latest('id')->paginate($r->integer('per_page', 20));
@@ -59,7 +59,7 @@ class OrderController extends Controller
     }
     public function show(int $order)
     {
-        $model = Access::orders()->findOrFail($order)->load(['customer', 'site', 'mixDesign']);
+        $model = Access::orders()->findOrFail($order)->load(['customer' => fn ($q) => $q->whereIn('id', Access::customers()->select('id')), 'site' => fn ($q) => $q->whereIn('id', Access::sites()->select('id')), 'mixDesign' => fn ($q) => $q->where('plant_id', Access::plantId())]);
         $model->customer?->setAppends([]);
         $model->site?->setAppends([]);
         return response()->json(['success' => true, 'data' => ['order' => $model, 'progress' => self::progress($model)]]);
@@ -94,7 +94,7 @@ class OrderController extends Controller
         $fields = ['id', 'sales_order_id', 'batch_id', 'truck_id', 'prefix', 'dispatch_no',
             'dispatch_time', 'delivery_time', 'delivered_qty', 'dispatch_status'];
         $page = $model->dispatches()->where('plant_id', Access::plantId())->withActiveBatch()
-            ->with(['truck:id,registration', 'batch:id,batch_no,batch_size'])
+            ->with(['truck' => fn ($q) => $q->select('id', 'registration')->where('plant_id', Access::plantId()), 'batch' => fn ($q) => $q->select('id', 'batch_no', 'batch_size')->where('plant_id', Access::plantId())->where('sales_order_id', $model->id)])
             ->select($fields)
             ->orderBy('dispatch_time')->orderBy('id')->paginate($r->integer('per_page', 20));
         $page->getCollection()->each(function ($dispatch) use ($fields) {
