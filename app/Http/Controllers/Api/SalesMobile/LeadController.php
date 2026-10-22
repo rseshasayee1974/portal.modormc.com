@@ -21,11 +21,16 @@ use Illuminate\Validation\ValidationException;
 
 class LeadController extends Controller
 {
+    protected function leads(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Access::leads();
+    }
+
     public function index(Request $r)
     {
         Access::authorize('CRM_LEAD', 'VIEW');
         $r->validate(['search' => 'nullable|string|max:100', 'status' => ['nullable', Rule::in(CrmLead::STATUSES)], 'per_page' => 'nullable|integer|between:1,100']);
-        $q = Access::leads()->with(['owner:id,username', 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])->withMin(['activities as next_follow_up' => fn ($a) => $a->whereIn('id', Access::activities()->select('id'))->whereNull('completed_at')], 'due_at');
+        $q = $this->leads()->with(['owner:id,username', 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])->withMin(['activities as next_follow_up' => fn ($a) => $a->whereIn('id', Access::activities()->select('id'))->whereNull('completed_at')], 'due_at');
         if ($r->filled('search')) {
             $q->where(fn ($q) => $q->where('contact_name', 'like', '%'.$r->search.'%')->orWhere('company_name', 'like', '%'.$r->search.'%')->orWhere('phone', 'like', '%'.$r->search.'%'));
         }
@@ -39,12 +44,17 @@ class LeadController extends Controller
     public function show(int $lead)
     {
         Access::authorize('CRM_LEAD', 'VIEW');
-        $model = Access::leads()->findOrFail($lead)->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId()), 'activities' => fn ($q) => $q->whereIn('id', Access::activities()->select('id'))->latest('id'), 'deal' => fn ($q) => $q->where('plant_id', Access::plantId()), 'customer' => fn ($q) => $q->whereIn('id', Access::customers()->select('id')), 'owner:id,username']);
+        $model = $this->leads()->findOrFail($lead)->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId()), 'activities' => fn ($q) => $q->whereIn('id', Access::activities()->select('id'))->latest('id'), 'deal' => fn ($q) => $q->where('plant_id', Access::plantId()), 'customer' => fn ($q) => $q->whereIn('id', Access::customers()->select('id')), 'owner:id,username']);
         $model->customer?->setAppends([]);
         $model->setAttribute('allowed_statuses', $model->allowedStatuses());
         $model->setAttribute('status_options', $model->statusOptions());
 
         return response()->json(['success' => true, 'data' => $model]);
+    }
+
+    protected function leadOwnerId(?CrmLead $lead): int
+    {
+        return (int) request()->user()->id;
     }
 
     private function data(Request $r, ?CrmLead $lead = null): array
@@ -79,7 +89,7 @@ class LeadController extends Controller
         $data = $r->validate($rules, [
             'mix_design_id.exists' => 'The selected mix design is unavailable in this plant. Refresh the mix designs for the selected plant and choose an active design.',
         ]);
-        abort_if(isset($data['assigned_to']) && (int) $data['assigned_to'] !== (int) $r->user()->id, 403, 'Mobile leads must belong to the logged-in user.');
+        abort_if(isset($data['assigned_to']) && (int) $data['assigned_to'] !== $this->leadOwnerId($lead), 403, 'Mobile leads must belong to the logged-in user.');
         if (! $lead || array_key_exists('assigned_to', $data)) {
             $owner = $data['assigned_to'] ?? $lead?->assigned_to ?? $r->user()->id;
             if ((int) $owner !== (int) ($lead?->assigned_to ?? $r->user()->id)) {
@@ -110,7 +120,7 @@ class LeadController extends Controller
 
         return DB::transaction(function () use ($lead, $service) {
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
-            $model = Access::leads()->lockForUpdate()->findOrFail($lead);
+            $model = $this->leads()->lockForUpdate()->findOrFail($lead);
             if ($model->converted_at || ! in_array($model->status, CrmLead::QUOTATION_CONVERTIBLE_STATUSES, true)) {
                 throw ValidationException::withMessages(['status' => 'Only an open, unconverted lead can be approved.']);
             }
@@ -129,7 +139,7 @@ class LeadController extends Controller
     public function update(Request $r, int $lead, CrmLeadService $service)
     {
         Access::authorize('CRM_LEAD', 'UPDATE');
-        $model = Access::leads()->findOrFail($lead);
+        $model = $this->leads()->findOrFail($lead);
 
         return response()->json(['success' => true, 'data' => $service->update($model, $this->data($r, $model))->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])]);
     }
@@ -137,7 +147,7 @@ class LeadController extends Controller
     public function destroy(int $lead)
     {
         Access::authorize('CRM_LEAD', 'DELETE');
-        $model = Access::leads()->findOrFail($lead);
+        $model = $this->leads()->findOrFail($lead);
         abort_if($model->converted_at, 422, 'Converted leads cannot be deleted.');
         $model->delete();
 
@@ -149,14 +159,14 @@ class LeadController extends Controller
         Access::authorize('CRM_LEAD', 'CONVERT');
         $data = $r->validate(['customer_id' => ['nullable', 'integer', Access::exists(Access::customers())]]);
 
-        return response()->json(['success' => true, 'data' => $service->convert(Access::leads()->findOrFail($lead), $data['customer_id'] ?? null)]);
+        return response()->json(['success' => true, 'data' => $service->convert($this->leads()->findOrFail($lead), $data['customer_id'] ?? null)]);
     }
 
     public function statuses(?int $lead = null)
     {
         Access::authorize('CRM_LEAD', 'VIEW');
         $options = $lead
-            ? Access::leads()->findOrFail($lead)->statusOptions()
+            ? $this->leads()->findOrFail($lead)->statusOptions()
             : CrmLead::defaultStatusOptions();
 
         return response()->json([
@@ -201,7 +211,7 @@ class LeadController extends Controller
         $model = $activity ? $this->activities()->findOrFail($activity) : new CrmActivity;
         abort_if($model->completed_at, 422, 'Completed activities cannot be edited.');
         $data = $r->validate(['lead_id' => 'required|integer', 'type' => ['required', Rule::in(CrmActivity::TYPES)], 'subject' => 'required|string|max:200', 'description' => 'nullable|string|max:10000', 'due_at' => 'nullable|required_unless:type,Note|date']);
-        $lead = Access::leads()->findOrFail($data['lead_id']);
+        $lead = $this->leads()->findOrFail($data['lead_id']);
         $model->fill(array_merge($data, ['plant_id' => Access::plantId(), 'assigned_to' => $lead->assigned_to, 'completed_at' => $data['type'] === 'Note' ? now() : null]))->save();
 
         return response()->json(['success' => true, 'data' => $model], $activity ? 200 : 201);

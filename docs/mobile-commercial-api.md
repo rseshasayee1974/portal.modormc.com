@@ -99,3 +99,49 @@ the existing `vendor/autoload.php`, so PHPUnit rejects its bootstrap before test
 start, although Artisan can require that file successfully.
 
 Site discovery and writes now use customer/document relationships within the selected plant. Unrelated site IDs are rejected. Lead approval also requires a visible owned lead; nested PO orders and production relations are filtered by plant and visible order ownership. Plant-shared catalogs (mix designs, taxes, vehicles and drivers) remain available as form inputs; product units are global reference data.
+
+## Admin lead review and sales lead ownership
+
+Main app administrative lead routes (main-app token and X-Plant-Id required):
+
+- GET `/api/mobile/leads` and `/api/mobile/leads/{lead}`
+- GET `/api/mobile/leads/statuses` and `/api/mobile/leads/{lead}/statuses`
+- PUT/PATCH `/api/mobile/leads/{lead}`; qualify with `{"status":"Qualified"}`
+- POST `/api/mobile/leads/{lead}/approve`; no body required
+
+These require an administrator role in the selected plant (or system admin) and
+the corresponding CRM_LEAD VIEW, UPDATE or APPROVE permission. They can review
+other executives’ leads in that plant. Qualification/approval preserve creator
+and assignment. Unrelated plants remain inaccessible. Admin lead creation,
+deletion, conversion and follow-up routes are not added by this review feature.
+
+Sales `/api/mobile/v1/leads` and its lead actions use `created_by` equal to the
+logged-in user, independent of assignment. Reassignment does not expose someone
+else’s lead or remove the creator’s access. This is distinct from admin review.
+
+## Quotation submission and admin approval
+
+Sales app quotations are scoped by `created_by` to the logged-in executive.
+POST `/api/mobile/v1/quotations/{quotation}/submit` changes the existing record to
+status 1 (`pending`) and records the submitting user/time. Draft quotations do not
+appear in the admin review queue.
+
+Admin main-app token and X-Plant-Id are required:
+
+- GET `/api/mobile/quotations?approval_state=pending` lists submitted quotations in the selected plant.
+- GET `/api/mobile/quotations/{quotation}` displays the submitted quotation, customer/site and priced items.
+- POST `/api/mobile/quotations/{quotation}/review` accepts `{"decision":"approved","comment":"Rates approved"}` or `{"decision":"rejected","comment":"Revise rates"}`.
+
+The review requires an administrator role and QUOTATION.VIEW/APPROVE permissions.
+Only pending quotations can be reviewed; self-review and repeated decisions are
+rejected. Rejection requires a comment. Sales-app review requests return 403.
+Admin reads include submitted, approved and rejected records in the selected
+plant and do not broaden other commercial record endpoints.
+
+After review, GET `/api/mobile/v1/quotations/{quotation}` and its list return the
+same record with status 2 / `approved` or status 3 / `rejected`, plus
+`mobile_approval_comment`, `mobile_reviewed_by`, and `mobile_reviewed_at`.
+Creator and sales executive ownership remain unchanged. Approved records cannot
+be edited; editing a rejected record resets it to draft for resubmission.
+Clients should refresh their list/detail after a review or on returning to the
+screen; this change does not introduce a new realtime subscription.

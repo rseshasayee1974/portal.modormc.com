@@ -157,6 +157,95 @@ class SalesMobileApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => '1']);
     }
 
+    public function test_sales_quotation_submission_admin_approval_and_status_reflection(): void
+    {
+        $id = $this->postJson('/api/mobile/v1/quotations', $this->quote())->assertCreated()->json('data.id');
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $adminToken = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken]);
+        $this->getJson('/api/mobile/quotations?approval_state=pending')->assertOk()->assertJsonPath('data.total', 0);
+        $this->getJson('/api/mobile/quotations/'.$id)->assertNotFound();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token]);
+        $this->postJson('/api/mobile/v1/quotations/'.$id.'/submit')->assertOk()->assertJsonPath('data.mobile_approval_state', 'pending');
+        $this->postJson('/api/mobile/v1/quotations/'.$id.'/review', ['decision' => 'approved'])->assertForbidden();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
+        $this->getJson('/api/mobile/v1/quotations/'.$id)->assertNotFound();
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken]);
+        $this->getJson('/api/mobile/quotations?approval_state=pending')->assertOk()->assertJsonPath('data.total', 1);
+        $this->getJson('/api/mobile/quotations/'.$id)->assertOk()->assertJsonPath('data.patron.id', 1);
+        $this->postJson('/api/mobile/quotations/'.$id.'/review', ['decision' => 'approved', 'comment' => 'Approved rate'])
+            ->assertOk()->assertJsonPath('data.status', fn ($value) => (int) $value === 2)->assertJsonPath('data.mobile_approval_state', 'approved');
+        $this->postJson('/api/mobile/quotations/'.$id.'/review', ['decision' => 'rejected', 'comment' => 'Changed mind'])->assertUnprocessable();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token]);
+        $this->getJson('/api/mobile/v1/quotations/'.$id)->assertOk()
+            ->assertJsonPath('data.status', fn ($value) => (int) $value === 2)->assertJsonPath('data.mobile_approval_state', 'approved')
+            ->assertJsonPath('data.mobile_reviewed_by', fn ($value) => (int) $value === 2)->assertJsonPath('data.mobile_approval_comment', 'Approved rate');
+        $this->putJson('/api/mobile/v1/quotations/'.$id, $this->quote())->assertUnprocessable();
+        $this->assertEquals(1, DB::table('mm_quotations')->where('id', $id)->value('created_by'));
+    }
+
+    public function test_admin_quotation_rejection_plant_scope_and_role_checks(): void
+    {
+        $id = $this->postJson('/api/mobile/v1/quotations', $this->quote())->assertCreated()->json('data.id');
+        $this->postJson('/api/mobile/v1/quotations/'.$id.'/submit')->assertOk();
+        $nonAdminToken = User::find(1)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$nonAdminToken]);
+        $this->getJson('/api/mobile/quotations')->assertForbidden();
+        $this->postJson('/api/mobile/quotations/'.$id.'/review', ['decision' => 'approved'])->assertForbidden();
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $adminToken = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken]);
+        DB::table('mm_quotations')->where('id', $id)->update(['plant_id' => 2]);
+        $this->getJson('/api/mobile/quotations/'.$id)->assertNotFound();
+        $this->postJson('/api/mobile/quotations/'.$id.'/review', ['decision' => 'approved'])->assertNotFound();
+        DB::table('mm_quotations')->where('id', $id)->update(['plant_id' => 1]);
+        $this->postJson('/api/mobile/quotations/'.$id.'/review', ['decision' => 'rejected'])->assertUnprocessable();
+        $this->postJson('/api/mobile/quotations/'.$id.'/review', ['decision' => 'rejected', 'comment' => 'Revise rate'])->assertOk();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token]);
+        $this->getJson('/api/mobile/v1/quotations/'.$id)->assertOk()->assertJsonPath('data.mobile_approval_state', 'rejected')
+            ->assertJsonPath('data.status', fn ($value) => (int) $value === 3)->assertJsonPath('data.mobile_approval_comment', 'Revise rate');
+        $this->putJson('/api/mobile/v1/quotations/'.$id, $this->quote())->assertOk()->assertJsonPath('data.mobile_approval_state', 'draft');
+        $this->postJson('/api/mobile/v1/quotations/'.$id.'/submit')->assertOk();
+    }
+
+    public function test_admin_app_can_qualify_and_approve_executive_leads_only_in_selected_plant(): void
+    {
+        DB::table('mm_permissions')->insert(['id' => 9900, 'name' => 'CRM_LEAD.APPROVE', 'guard_name' => 'web']);
+        DB::table('mm_role_has_permissions')->insert(['role_id' => 2, 'permission_id' => 9900]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $id = $this->postJson('/api/mobile/v1/leads', $this->lead())->assertCreated()->json('data.id');
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $token = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        $this->getJson('/api/mobile/leads')->assertOk()->assertJsonPath('data.total', 1);
+        $this->getJson('/api/mobile/leads/'.$id)->assertOk();
+        $this->patchJson('/api/mobile/leads/'.$id, ['status' => 'Qualified', 'assigned_to' => 1])->assertOk()->assertJsonPath('data.status', 'Qualified');
+        $this->postJson('/api/mobile/leads/'.$id.'/approve')->assertOk()->assertJsonPath('data.status', 'Approved');
+        $this->assertEquals(1, DB::table('mm_crm_leads')->where('id', $id)->value('created_by'));
+        $this->assertEquals(1, DB::table('mm_crm_leads')->where('id', $id)->value('assigned_to'));
+        DB::table('mm_crm_leads')->where('id', $id)->update(['plant_id' => 2]);
+        $this->getJson('/api/mobile/leads/'.$id)->assertNotFound();
+        $this->postJson('/api/mobile/leads/'.$id.'/approve')->assertNotFound();
+    }
+
+    public function test_sales_app_uses_creator_scope_even_when_lead_is_assigned_to_another_user(): void
+    {
+        DB::table('mm_permissions')->insert(['id' => 9900, 'name' => 'CRM_LEAD.APPROVE', 'guard_name' => 'web']);
+        DB::table('mm_role_has_permissions')->insert(['role_id' => 2, 'permission_id' => 9900]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $id = $this->postJson('/api/mobile/v1/leads', $this->lead())->assertCreated()->json('data.id');
+        DB::table('mm_crm_leads')->where('id', $id)->update(['assigned_to' => 2]);
+        $this->getJson('/api/mobile/v1/leads/'.$id)->assertOk();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
+        $this->getJson('/api/mobile/v1/leads')->assertOk()->assertJsonPath('data.total', 0);
+        $this->getJson('/api/mobile/v1/leads/'.$id)->assertNotFound();
+        $this->postJson('/api/mobile/v1/leads/'.$id.'/approve')->assertNotFound();
+        $token = User::find(1)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        $this->getJson('/api/mobile/leads')->assertForbidden();
+        $this->getJson('/api/mobile/leads/statuses')->assertForbidden();
+    }
+
     public function test_main_mobile_commercial_routes_require_their_own_token_and_plant(): void
     {
         $this->getJson('/api/mobile/orders')->assertForbidden();

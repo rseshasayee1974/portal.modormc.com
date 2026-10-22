@@ -35,7 +35,17 @@ class QuotationController extends Controller
         return $quotation;
     }
 
-    private function detailRelations(): array
+    protected function quotations(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Access::quotations();
+    }
+
+    protected function authorizeReview(): void
+    {
+        abort(403, 'Quotation approval is available through the admin app only.');
+    }
+
+    protected function detailRelations(): array
     {
         return [
             'patron' => fn ($q) => $q->whereIn('id', Access::customers()->select('id')),
@@ -69,7 +79,7 @@ class QuotationController extends Controller
     public function index(Request $r)
     {
         $r->validate(['per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100', 'approval_state' => 'nullable|in:draft,pending,approved,rejected']);
-        $q = Access::quotations()->with($this->detailRelations());
+        $q = $this->quotations()->with($this->detailRelations());
         if ($r->filled('search')) {
             $q->where('reference', 'like', '%'.$r->search.'%');
         }
@@ -84,7 +94,7 @@ class QuotationController extends Controller
 
     public function show(int $quotation)
     {
-        $model = $this->details(Access::quotations()->findOrFail($quotation));
+        $model = $this->details($this->quotations()->findOrFail($quotation));
 
         return response()->json(['success' => true, 'data' => $this->details($model)]);
     }
@@ -237,7 +247,7 @@ class QuotationController extends Controller
     public function update(Request $r, int $quotation)
     {
         return DB::transaction(function () use ($r, $quotation) {
-            $model = Access::quotations()->lockForUpdate()->findOrFail($quotation);
+            $model = $this->quotations()->lockForUpdate()->findOrFail($quotation);
             $this->editable($model);
             $model->updateWithItems($this->data($r, $model));
             $model->forceFill(['mobile_approval_state' => 'draft', 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null, 'mobile_submitted_by' => null, 'mobile_submitted_at' => null])->save();
@@ -256,7 +266,7 @@ class QuotationController extends Controller
     public function destroy(int $quotation)
     {
         return DB::transaction(function () use ($quotation) {
-            $model = Access::quotations()->lockForUpdate()->findOrFail($quotation);
+            $model = $this->quotations()->lockForUpdate()->findOrFail($quotation);
             $this->editable($model);
             $model->delete();
 
@@ -267,7 +277,7 @@ class QuotationController extends Controller
     public function submit(int $quotation)
     {
         return DB::transaction(function () use ($quotation) {
-            $model = Access::quotations()->lockForUpdate()->findOrFail($quotation);
+            $model = $this->quotations()->lockForUpdate()->findOrFail($quotation);
             $this->editable($model);
             abort_unless($model->items()->exists(), 422, 'Add quotation items before submission.');
             $model->forceFill(['status' => Quotation::STATUS_SENT, 'mobile_approval_state' => 'pending', 'mobile_submitted_by' => request()->user()->id, 'mobile_submitted_at' => now(), 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null])->save();
@@ -278,18 +288,16 @@ class QuotationController extends Controller
 
     public function review(Request $r, int $quotation)
     {
-        $isSaasOwner = ! Access::isSalesExecutive() && $r->user()->isSystemAdmin();
+        $this->authorizeReview();
         $data = $r->validate(['decision' => 'required|in:approved,rejected', 'comment' => 'nullable|required_if:decision,rejected|string|max:2000']);
 
-        return DB::transaction(function () use ($r, $quotation, $data, $isSaasOwner) {
-            $query = Access::quotations();
+        return DB::transaction(function () use ($r, $quotation, $data) {
+            $query = $this->quotations();
             $model = $query->lockForUpdate()->find($quotation);
             abort_unless($model, 404, 'Quotation not found or you do not have access to it.');
             $this->syncApprovalState($model);
-            if (! $isSaasOwner) {
-                abort_unless($model->mobile_approval_state === 'pending', 422, 'Only submitted quotations can be reviewed.');
-                abort_if((int) $model->mobile_submitted_by === (int) $r->user()->id, 403, 'You cannot review your own quotation submission.');
-            }
+            abort_unless($model->mobile_approval_state === 'pending', 422, 'Only submitted quotations can be reviewed.');
+            abort_if((int) $model->mobile_submitted_by === (int) $r->user()->id, 403, 'You cannot review your own quotation submission.');
             $model->forceFill(['mobile_approval_state' => $data['decision'], 'mobile_approval_comment' => $data['comment'] ?? null, 'mobile_reviewed_by' => $r->user()->id, 'mobile_reviewed_at' => now(), 'status' => $data['decision'] === 'approved' ? Quotation::STATUS_ACCEPTED : Quotation::STATUS_REJECTED])->save();
 
             return response()->json(['success' => true, 'data' => $this->details($model)->setAppends([])]);

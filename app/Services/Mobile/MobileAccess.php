@@ -140,7 +140,7 @@ class MobileAccess
     public static function leads(): Builder
     {
         return self::plantQuery(CrmLead::class)
-            ->where('assigned_to', (int) request()->user()?->id);
+            ->where('created_by', (int) request()->user()?->id);
     }
 
     public static function activities(): Builder
@@ -152,12 +152,7 @@ class MobileAccess
 
     public static function quotations(): Builder
     {
-        return self::plantQuery(Quotation::class)->where(function (Builder $owned) {
-            if (($personnelId = self::personnelId()) !== null) {
-                $owned->where('sales_executive_id', $personnelId);
-            }
-            $owned->orWhereIn('id', self::leadQuotationIds());
-        });
+        return self::plantQuery(Quotation::class)->where('created_by', (int) request()->user()?->id);
     }
 
     public static function leadQuotationIds(): Builder
