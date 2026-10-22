@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MODO Sales Executive Mobile API v1",
-    "description": "Sales app endpoints use /api/mobile/v1. Shared quotations, orders, customer-pos and batch-schedules are also available at /api/mobile using the main app token; sales authentication and app-specific endpoints remain under v1. Customer PO CRUD and PO-to-order conversion are included. See docs/mobile-commercial-api.md for the remaining route gaps. Set an ERP base_url, not the Sites preview URL. Run delete actions individually. Approval and rejection are alternative actions, and require a different reviewer. Author: ragul-onemodo.",
+    "description": "Sales app /api/mobile/v1 uses api_token and shows only creator-owned leads/quotations in the selected plant. Admin app /api/mobile uses admin_token for plant-scoped lead and submitted quotation review. Import the shared environment, set both accounts and plant_id. Run Login, Create lead/quotation, Submit quotation, Admin login/review, then Refresh quotation. Run alternatives and delete actions individually.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -288,182 +288,6 @@
           ]
         },
         {
-          "name": "Reviewer login",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Plant-Id",
-                "value": "{{plant_id}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/mobile/v1/auth/login",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "mobile",
-                "v1",
-                "auth",
-                "login"
-              ]
-            },
-            "description": "Email/password login returns reviewer_token directly. Notification behavior: this request does not directly trigger a business push notification.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{reviewer_email}}\",\n  \"password\": \"{{reviewer_password}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
-                  "const d=pm.response.json().data || {}; if(d.token) pm.environment.set('reviewer_token',d.token); if(d.challenge_id) { pm.environment.set('challenge_id',d.challenge_id); pm.environment.unset('reviewer_token'); pm.environment.unset('otp'); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Reviewer send WhatsApp OTP",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Plant-Id",
-                "value": "{{plant_id}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/mobile/v1/auth/send-otp",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "mobile",
-                "v1",
-                "auth",
-                "send-otp"
-              ]
-            },
-            "description": "Passwordless alternative. Enter reviewer WhatsApp code in otp, then run Reviewer verify OTP. Notification behavior: this request does not directly trigger a business push notification.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"mobile\": \"{{reviewer_mobile}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
-                  "const d=pm.response.json().data || {}; if(d.token) pm.environment.set('reviewer_token',d.token); if(d.challenge_id) { pm.environment.set('challenge_id',d.challenge_id); pm.environment.unset('reviewer_token'); pm.environment.unset('otp'); }",
-                  "pm.test('WhatsApp OTP challenge accepted', () => { pm.expect(pm.response.code).to.eql(202); const d=pm.response.json().data; pm.expect(d.channel).to.eql('whatsapp'); pm.expect(d.challenge_id.length).to.eql(64); pm.expect(d.token).to.eql(undefined); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Reviewer verify OTP",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Plant-Id",
-                "value": "{{plant_id}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/mobile/v1/auth/verify-otp",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "mobile",
-                "v1",
-                "auth",
-                "verify-otp"
-              ]
-            },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\",\n  \"otp\": \"{{otp}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "noauth"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
-                  "const d=pm.response.json().data || {}; if(d.token) pm.environment.set('reviewer_token',d.token); if(d.challenge_id) { pm.environment.set('challenge_id',d.challenge_id); pm.environment.unset('reviewer_token'); pm.environment.unset('otp'); }",
-                  "pm.test('OTP verification issues bearer token', () => { pm.expect(pm.response.code).to.eql(200); const d=pm.response.json().data; pm.expect(d.token_type).to.eql('Bearer'); pm.expect(typeof d.token).to.eql('string'); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Logout this device (run last)",
           "request": {
             "method": "POST",
@@ -575,7 +399,7 @@
                 "lookups"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Shared customer/site reference data is readable by every authorized user in X-Plant-Id, independent of creator or sales assignment. Foreign-plant and deleted records are excluded. Customer/site master routes are GET-only; selecting these IDs in commercial forms grants no master write access. Other commercial records retain their own ownership rules."
           },
           "event": [
             {
@@ -1507,7 +1331,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Shared customer/site reference data is readable by every authorized user in X-Plant-Id, independent of creator or sales assignment. Foreign-plant and deleted records are excluded. Customer/site master routes are GET-only; selecting these IDs in commercial forms grants no master write access. Other commercial records retain their own ownership rules."
           },
           "event": [
             {
@@ -1548,7 +1372,7 @@
                 "{{customer_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Shared customer/site reference data is readable by every authorized user in X-Plant-Id, independent of creator or sales assignment. Foreign-plant and deleted records are excluded. Customer/site master routes are GET-only; selecting these IDs in commercial forms grants no master write access. Other commercial records retain their own ownership rules."
           },
           "event": [
             {
@@ -1599,7 +1423,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token."
           },
           "event": [
             {
@@ -1643,7 +1467,7 @@
                 "leads"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"New\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"project_name\": \"Mobile notification test site\",\n  \"delivery_location\": \"Test site road\"\n}",
@@ -1694,7 +1518,7 @@
                 "{{lead_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token."
           },
           "event": [
             {
@@ -1739,7 +1563,7 @@
                 "{{lead_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"Qualified\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"project_name\": \"Mobile notification test site\",\n  \"delivery_location\": \"Test site road\"\n}",
@@ -1794,7 +1618,7 @@
                 "convert"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customer_id\": null\n}",
@@ -1844,7 +1668,7 @@
                 "statuses"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token."
           },
           "event": [
             {
@@ -1886,7 +1710,7 @@
                 "statuses"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token."
           },
           "event": [
             {
@@ -1928,7 +1752,7 @@
                 "approve"
               ]
             },
-            "description": "Requires CRM_LEAD.APPROVE. Approves an eligible open lead in this plant and prepares customer/site. Converted and Unqualified leads return 422. Repeat approval is idempotent. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity."
+            "description": "Requires CRM_LEAD.APPROVE. Approves an eligible open lead in this plant and prepares customer/site. Converted and Unqualified leads return 422. Repeat approval is idempotent. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token."
           },
           "event": [
             {
@@ -1974,7 +1798,7 @@
                 "quotation"
               ]
             },
-            "description": "Requires CRM_LEAD.CONVERT and an accessible lead with active mix_design_id. Automatically converts an eligible unconverted lead and creates a linked quotation. Do not send items or mix_design_id: these come from the lead. A previously linked quotation blocks another creation. Select a customer-linked site. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+            "description": "Requires CRM_LEAD.CONVERT and an accessible lead with active mix_design_id. Automatically converts an eligible unconverted lead and creates a linked quotation. Do not send items or mix_design_id: these come from the lead. A previously linked quotation blocks another creation. Select a customer-linked site. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"site_id\": \"{{site_id}}\",\n  \"quantity\": 3.55,\n  \"rate\": 546,\n  \"quote_date\": \"{{today}}\",\n  \"validity_date\": \"{{validity_date}}\",\n  \"is_tax_inclusive\": true,\n  \"tax_id\": \"{{sales_tax_id}}\",\n  \"notes\": \"Notification integration test\"\n}",
@@ -2029,7 +1853,7 @@
                 "{{lead_id}}"
               ]
             },
-            "description": "PATCH accepts the same full form as PUT. Existing ownership, permissions and lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+            "description": "PATCH accepts the same full form as PUT. Existing ownership, permissions and lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"Qualified\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"project_name\": \"Mobile notification test site\",\n  \"delivery_location\": \"Test site road\"\n}",
@@ -2513,136 +2337,6 @@
           ]
         },
         {
-          "name": "Approve quotation (different reviewer)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Plant-Id",
-                "value": "{{plant_id}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}/review",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "mobile",
-                "v1",
-                "quotations",
-                "{{quotation_id}}",
-                "review"
-              ]
-            },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"decision\": \"approved\",\n  \"comment\": \"Rates approved\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{reviewer_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Reject quotation (alternative to approve)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Plant-Id",
-                "value": "{{plant_id}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}/review",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "mobile",
-                "v1",
-                "quotations",
-                "{{quotation_id}}",
-                "review"
-              ]
-            },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"decision\": \"rejected\",\n  \"comment\": \"Revise rate before resubmission\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{reviewer_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Edit quotation (PATCH)",
           "request": {
             "method": "PATCH",
@@ -2691,6 +2385,58 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh quotation after admin review",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{api_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations",
+                "{{quotation_id}}"
+              ]
+            },
+            "description": "Run after admin review to see status, mobile_approval_state, mobile_approval_comment and reviewer timestamps. Approved quotations are locked; rejected quotations can be edited and resubmitted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data; pm.test('Approval state is returned', () => pm.expect(['draft','pending','approved','rejected']).to.include(d.mobile_approval_state));"
                 ]
               }
             }
@@ -3282,7 +3028,7 @@
                 "{{lead_id}}"
               ]
             },
-            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity."
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. Sales mobile exposes only leads created_by the logged-in user in X-Plant-Id. Admin review uses /api/mobile/leads with admin_token."
           },
           "event": [
             {
@@ -5144,7 +4890,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Shared customer/site reference data is readable by every authorized user in X-Plant-Id, independent of creator or sales assignment. Foreign-plant and deleted records are excluded. Customer/site master routes are GET-only; selecting these IDs in commercial forms grants no master write access. Other commercial records retain their own ownership rules."
           },
           "event": [
             {
@@ -5185,7 +4931,7 @@
                 "{{site_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Shared customer/site reference data is readable by every authorized user in X-Plant-Id, independent of creator or sales assignment. Foreign-plant and deleted records are excluded. Customer/site master routes are GET-only; selecting these IDs in commercial forms grants no master write access. Other commercial records retain their own ownership rules."
           },
           "event": [
             {
@@ -5571,6 +5317,981 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Admin app authentication",
+      "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+      "item": [
+        {
+          "name": "Admin login (main app)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "login"
+              ]
+            },
+            "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const j=pm.response.json();",
+                  "if (!j.token) { pm.environment.unset('admin_token'); pm.collectionVariables.unset('admin_token'); }",
+                  "pm.test('Main app bearer token returned', () => pm.expect(j.token).to.be.a('string').and.not.empty);",
+                  "if (j.token !== undefined && j.token !== null) { pm.collectionVariables.set('admin_token', j.token); pm.environment.set('admin_token', j.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin send email OTP (alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/send-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "send-otp"
+              ]
+            },
+            "description": "Optional email OTP workflow. Enter the code in admin_otp and run verify. Password login can be used directly.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin verify email OTP (alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/verify-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "verify-otp"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"otp\": \"{{admin_otp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const j=pm.response.json();",
+                  "if (!j.token) { pm.environment.unset('admin_token'); pm.collectionVariables.unset('admin_token'); }",
+                  "pm.test('Main app bearer token returned', () => pm.expect(j.token).to.be.a('string').and.not.empty);",
+                  "if (j.token !== undefined && j.token !== null) { pm.collectionVariables.set('admin_token', j.token); pm.environment.set('admin_token', j.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin authenticated profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "user"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin lead review",
+      "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+      "item": [
+        {
+          "name": "List leads in selected plant",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lead detail for review",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "{{lead_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lead status catalog",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/statuses",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "statuses"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Allowed statuses for lead",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/{{lead_id}}/statuses",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "{{lead_id}}",
+                "statuses"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Qualify executive lead",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "{{lead_id}}"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Qualified\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "pm.test('Lead qualified', () => pm.expect(pm.response.json().data.status).to.eql('Qualified'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve executive lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/{{lead_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "{{lead_id}}",
+                "approve"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "pm.test('Lead approved', () => pm.expect(pm.response.json().data.status).to.eql('Approved'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin quotation review",
+      "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+      "item": [
+        {
+          "name": "Pending quotation approval queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations?approval_state=pending&per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations"
+              ],
+              "query": [
+                {
+                  "key": "approval_state",
+                  "value": "pending"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submitted quotation detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations/{{quotation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations",
+                "{{quotation_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve submitted quotation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations/{{quotation_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations",
+                "{{quotation_id}}",
+                "review"
+              ]
+            },
+            "description": "Run after the executive submits. Requires another user; self-review, non-pending and foreign-plant quotations are rejected.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approved\",\n  \"comment\": \"Rates approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data; pm.test('Approval reflected', () => { pm.expect(d.mobile_approval_state).to.eql('approved'); pm.expect(Number(d.status)).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject submitted quotation (alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations/{{quotation_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations",
+                "{{quotation_id}}",
+                "review"
+              ]
+            },
+            "description": "Alternative to approval. Requires a rejection comment and a pending quotation.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"rejected\",\n  \"comment\": \"Revise rates before resubmitting\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data; pm.test('Rejection reflected', () => { pm.expect(d.mobile_approval_state).to.eql('rejected'); pm.expect(Number(d.status)).to.eql(3); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List approved quotations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations?approval_state=approved&per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations"
+              ],
+              "query": [
+                {
+                  "key": "approval_state",
+                  "value": "approved"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List rejected quotations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations?approval_state=rejected&per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations"
+              ],
+              "query": [
+                {
+                  "key": "approval_state",
+                  "value": "rejected"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "admin_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_otp",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plant_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lead_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "quotation_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "today",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "validity_date",
+      "value": "",
+      "type": "string"
     }
   ]
 }

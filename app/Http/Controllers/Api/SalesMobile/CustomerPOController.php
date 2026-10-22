@@ -54,6 +54,9 @@ class CustomerPOController extends Controller
                 'items.*.tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
                 'items.*.concrete_pump' => 'nullable|string|max:100',
                 'items.*.pump_rate' => 'nullable|numeric|between:0,99999999',
+            ], [
+                'patron_id.exists' => 'The selected customer is unavailable in the selected plant.',
+                'site_id.exists' => 'The selected site is unavailable in the selected plant.',
             ]);
             $quote = empty($data['quotation_id']) ? null : Access::quotations()->lockForUpdate()->findOrFail($data['quotation_id']);
             if ($po) abort_unless($po->quotation_id == ($data['quotation_id'] ?? null), 422, 'The linked quotation cannot be changed.');

@@ -171,36 +171,16 @@ class MobileAccess
         return self::commercial(CustomerPO::class, 'SALES_ORDER');
     }
 
+    /** Shared customer reference data; this query does not grant master-data writes. */
     public static function customers(): Builder
     {
-        return self::plantQuery(Patron::class)->ofType('Customer')
-            ->when(!self::all('PATRON'), function (Builder $query) {
-                $query->where(function (Builder $related) {
-                    // Direct assignments allow the first quotation/order before
-                    // the customer has any commercial history.
-                    if (($personnelId = self::personnelId()) !== null) {
-                        $related->where('sales_executive_id', $personnelId);
-                    }
-                    $related->orWhereIn('id', self::leads()->select('customer_id'))
-                        ->orWhereIn('id', self::orders()->select('customer_id'))
-                        ->orWhereIn('id', self::quotations()->select('patron_id'))
-                        ->orWhereIn('id', self::customerPOs()->select('patron_id'));
-                });
-            });
+        return self::plantQuery(Patron::class)->ofType('Customer');
     }
 
+    /** Sites are shared reference data within the selected plant. */
     public static function sites(): Builder
     {
-        // All mobile users receive only sites related to their own business records.
-        return self::plantQuery(Site::class)
-            ->where(fn (Builder $related) => $related
-                ->whereExists(self::customers()->selectRaw('1')->where(function ($customer) {
-                    $customer->whereColumn('mm_patrons.id', 'mm_sites.patron_id')
-                        ->orWhereJsonContains('mm_sites.patron_id', \Illuminate\Support\Facades\DB::raw('mm_patrons.id'));
-                }))
-                ->orWhereIn('id', self::orders()->select('site_id'))
-                ->orWhereIn('id', self::quotations()->select('site_id'))
-                ->orWhereIn('id', self::customerPOs()->select('site_id')));
+        return self::plantQuery(Site::class);
     }
 
     public static function plantSites(): Builder

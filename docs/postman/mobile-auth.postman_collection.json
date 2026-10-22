@@ -1,8 +1,9 @@
 {
   "info": {
     "_postman_id": "4ce10d2b-7c58-42ce-bd2b-6b8be0fe31b2",
-    "name": "Modor MC Mobile Auth API",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "name": "MODO Mobile Admin Authentication and Reviews",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Import with the sales mobile environment. Use the main-app admin login and admin_token for lead qualification/approval and quotation review. Sales login/token are separate. Set lead_id and quotation_id from sales responses, or use the shared environment to capture them automatically. Run individual requests in workflow order."
   },
   "variable": [
     {
@@ -11,15 +12,15 @@
     },
     {
       "key": "login_email",
-      "value": "demo@modomines.com"
+      "value": ""
     },
     {
       "key": "login_password",
-      "value": "password"
+      "value": ""
     },
     {
       "key": "login_mobile",
-      "value": "6767676767"
+      "value": ""
     },
     {
       "key": "mobile_otp",
@@ -28,210 +29,1184 @@
     {
       "key": "bearer_token",
       "value": ""
+    },
+    {
+      "key": "admin_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_otp",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plant_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lead_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "quotation_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "today",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "validity_date",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
     {
-      "name": "Email Login",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"{{login_email}}\",\n  \"password\": \"{{login_password}}\"\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/login",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "login"
-          ]
-        }
-      },
-      "event": [
+      "name": "Admin app authentication",
+      "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"login returns 200\", function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const response = pm.response.json();",
-              "pm.test(\"response contains bearer token\", function () {",
-              "    pm.expect(response.status).to.eql(true);",
-              "    pm.expect(response.access_token).to.be.a(\"string\").and.not.empty;",
-              "});",
-              "",
-              "pm.collectionVariables.set(\"bearer_token\", response.access_token);"
-            ]
-          }
+          "name": "Admin login (main app)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "login"
+              ]
+            },
+            "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const j=pm.response.json();",
+                  "if (!j.token) { pm.environment.unset('admin_token'); pm.collectionVariables.unset('admin_token'); }",
+                  "pm.test('Main app bearer token returned', () => pm.expect(j.token).to.be.a('string').and.not.empty);",
+                  "if (j.token !== undefined && j.token !== null) { pm.collectionVariables.set('admin_token', j.token); pm.environment.set('admin_token', j.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin send email OTP (alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/send-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "send-otp"
+              ]
+            },
+            "description": "Optional email OTP workflow. Enter the code in admin_otp and run verify. Password login can be used directly.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin verify email OTP (alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/verify-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "verify-otp"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"otp\": \"{{admin_otp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const j=pm.response.json();",
+                  "if (!j.token) { pm.environment.unset('admin_token'); pm.collectionVariables.unset('admin_token'); }",
+                  "pm.test('Main app bearer token returned', () => pm.expect(j.token).to.be.a('string').and.not.empty);",
+                  "if (j.token !== undefined && j.token !== null) { pm.collectionVariables.set('admin_token', j.token); pm.environment.set('admin_token', j.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin authenticated profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "user"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Mobile Send OTP",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"mobile\": \"{{login_mobile}}\"\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/login",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "login"
-          ]
-        }
-      },
-      "event": [
+      "name": "Admin lead review",
+      "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"otp request returns 200\", function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const response = pm.response.json();",
-              "pm.test(\"otp was requested\", function () {",
-              "    pm.expect(response.status).to.eql(true);",
-              "    pm.expect(response.otp_required).to.eql(true);",
-              "});",
-              "",
-              "if (response.debug_otp) {",
-              "    pm.collectionVariables.set(\"mobile_otp\", response.debug_otp);",
-              "}"
-            ]
-          }
+          "name": "List leads in selected plant",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lead detail for review",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "{{lead_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lead status catalog",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/statuses",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "statuses"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Allowed statuses for lead",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/{{lead_id}}/statuses",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "{{lead_id}}",
+                "statuses"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Qualify executive lead",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "{{lead_id}}"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Qualified\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "pm.test('Lead qualified', () => pm.expect(pm.response.json().data.status).to.eql('Qualified'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve executive lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/leads/{{lead_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "leads",
+                "{{lead_id}}",
+                "approve"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "pm.test('Lead approved', () => pm.expect(pm.response.json().data.status).to.eql('Approved'));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Mobile Verify OTP Login",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"mobile\": \"{{login_mobile}}\",\n  \"otp\": \"{{mobile_otp}}\"\n}"
-        },
-        "url": {
-          "raw": "{{base_url}}/api/auth/login",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "login"
-          ]
-        }
-      },
-      "event": [
+      "name": "Admin quotation review",
+      "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"mobile otp login returns 200\", function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const response = pm.response.json();",
-              "pm.test(\"mobile otp login returns token\", function () {",
-              "    pm.expect(response.status).to.eql(true);",
-              "    pm.expect(response.access_token).to.be.a(\"string\").and.not.empty;",
-              "});",
-              "",
-              "pm.collectionVariables.set(\"bearer_token\", response.access_token);"
-            ]
-          }
+          "name": "Pending quotation approval queue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations?approval_state=pending&per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations"
+              ],
+              "query": [
+                {
+                  "key": "approval_state",
+                  "value": "pending"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submitted quotation detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations/{{quotation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations",
+                "{{quotation_id}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve submitted quotation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations/{{quotation_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations",
+                "{{quotation_id}}",
+                "review"
+              ]
+            },
+            "description": "Run after the executive submits. Requires another user; self-review, non-pending and foreign-plant quotations are rejected.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approved\",\n  \"comment\": \"Rates approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data; pm.test('Approval reflected', () => { pm.expect(d.mobile_approval_state).to.eql('approved'); pm.expect(Number(d.status)).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject submitted quotation (alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations/{{quotation_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations",
+                "{{quotation_id}}",
+                "review"
+              ]
+            },
+            "description": "Alternative to approval. Requires a rejection comment and a pending quotation.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"rejected\",\n  \"comment\": \"Revise rates before resubmitting\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data; pm.test('Rejection reflected', () => { pm.expect(d.mobile_approval_state).to.eql('rejected'); pm.expect(Number(d.status)).to.eql(3); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List approved quotations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations?approval_state=approved&per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations"
+              ],
+              "query": [
+                {
+                  "key": "approval_state",
+                  "value": "approved"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List rejected quotations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/quotations?approval_state=rejected&per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "quotations"
+              ],
+              "query": [
+                {
+                  "key": "approval_state",
+                  "value": "rejected"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Mobile Logout",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Accept",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{bearer_token}}"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/api/auth/logout",
-          "host": [
-            "{{base_url}}"
-          ],
-          "path": [
-            "api",
-            "auth",
-            "logout"
-          ]
-        }
-      },
-      "event": [
+      "name": "Legacy /api/auth (optional)",
+      "description": "Existing general authentication endpoints. Use Admin app authentication below for the current mobile review workflow.",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"logout returns 200\", function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "",
-              "const response = pm.response.json();",
-              "pm.test(\"logout succeeded\", function () {",
-              "    pm.expect(response.status).to.eql(true);",
-              "    pm.expect(response.message).to.eql(\"Logged out successfully\");",
-              "});"
-            ]
-          }
+          "name": "Email Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{login_email}}\",\n  \"password\": \"{{login_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"login returns 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "pm.test(\"response contains bearer token\", function () {",
+                  "    pm.expect(response.status).to.eql(true);",
+                  "    pm.expect(response.access_token).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"bearer_token\", response.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mobile Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{login_mobile}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"otp request returns 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "pm.test(\"otp was requested\", function () {",
+                  "    pm.expect(response.status).to.eql(true);",
+                  "    pm.expect(response.otp_required).to.eql(true);",
+                  "});",
+                  "",
+                  "if (response.debug_otp) {",
+                  "    pm.collectionVariables.set(\"mobile_otp\", response.debug_otp);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mobile Verify OTP Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"{{login_mobile}}\",\n  \"otp\": \"{{mobile_otp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"mobile otp login returns 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "pm.test(\"mobile otp login returns token\", function () {",
+                  "    pm.expect(response.status).to.eql(true);",
+                  "    pm.expect(response.access_token).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"bearer_token\", response.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mobile Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"logout returns 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "pm.test(\"logout succeeded\", function () {",
+                  "    pm.expect(response.status).to.eql(true);",
+                  "    pm.expect(response.message).to.eql(\"Logged out successfully\");",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

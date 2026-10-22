@@ -117,6 +117,9 @@ class QuotationController extends Controller
             'items.*.tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
             'items.*.uom_id' => ['nullable', 'integer', Rule::exists('mm_product_units', 'id')->whereNull('deleted_at')],
             'items.*.concrete_pump' => 'nullable|string|max:100', 'items.*.pump_rate' => 'nullable|numeric|min:0',
+        ], [
+            'patron_id.exists' => 'The selected customer is unavailable in the selected plant.',
+            'site_id.exists' => 'The selected site is unavailable in the selected plant.',
         ]);
         $isLeadQuotation = $fromLead || ($quotation && Access::leadQuotationIds()->where('quotation_id', $quotation->id)->exists());
         $data['sales_executive_id'] = $isLeadQuotation

@@ -98,7 +98,7 @@ updates/deletion. PHPUnit could not execute: PHP reports `is_readable` false for
 the existing `vendor/autoload.php`, so PHPUnit rejects its bootstrap before tests
 start, although Artisan can require that file successfully.
 
-Site discovery and writes now use customer/document relationships within the selected plant. Unrelated site IDs are rejected. Lead approval also requires a visible owned lead; nested PO orders and production relations are filtered by plant and visible order ownership. Plant-shared catalogs (mix designs, taxes, vehicles and drivers) remain available as form inputs; product units are global reference data.
+Customer and site discovery is shared within the selected plant. Commercial forms accept those plant-local reference IDs. Customer/site master writes are not exposed by these routes. Lead approval also requires a visible owned lead; nested PO orders and production relations are filtered by plant and visible order ownership. Plant-shared catalogs (mix designs, taxes, vehicles and drivers) remain available as form inputs; product units are global reference data.
 
 ## Admin lead review and sales lead ownership
 
@@ -145,3 +145,40 @@ Creator and sales executive ownership remain unchanged. Approved records cannot
 be edited; editing a rejected record resets it to draft for resubmission.
 Clients should refresh their list/detail after a review or on returning to the
 screen; this change does not introduce a new realtime subscription.
+
+## Import and test with Postman / Apidog
+
+Import `docs/postman/sales-executive-mobile.postman_collection.json`,
+`docs/postman/mobile-auth.postman_collection.json`, and the shared
+`docs/postman/sales-executive-mobile.postman_environment.json`. Select that same
+environment for both collections. Set `base_url`, sales `email`/`password`,
+`admin_email`/`admin_password`, and an accessible `plant_id`. Use lookups from
+that plant to set customer/site/mix-design/tax IDs.
+
+1. Sales Authentication > Login captures `data.token` as `api_token`.
+2. Create a sales lead or quotation; creation captures `lead_id`/`quotation_id`.
+3. Admin app authentication > Admin login captures top-level `token` as `admin_token`.
+4. Admin lead review > Qualify executive lead / Approve executive lead.
+5. Sales Quotations > Submit for approval.
+6. Admin quotation review > Pending queue, detail, then approve **or** reject.
+7. Sales Quotations > Refresh quotation after admin review to see the status/comment.
+
+Run alternative OTP, rejection, deletion and negative tests individually. These
+collections contain independent examples, not a single sequential Runner flow.
+The main-app and sales tokens must not be interchanged. Collection variables allow
+standalone imports, while the shared environment carries captured IDs between
+collections. Refresh imports after regenerating. Apply workflow updates directly
+with `node tools/update-mobile-review-postman.cjs`; the base sales generator also
+runs this updater automatically.
+
+## Shared customer and site reference data
+
+Customers and sites are available to every authorized user of the selected
+plant through GET list/detail and lookup requests. They are shared independently
+of creator, sales executive assignment and commercial history. Foreign-plant and
+soft-deleted IDs remain excluded. The same plant-local IDs are accepted when
+creating/editing quotations, customer POs and orders. Referencing an existing
+customer/site does not grant permission to edit or delete that master record.
+Sales mobile customer/site routes remain GET-only; commercial ownership and
+admin approval rules are unchanged. Customer progress still counts only orders
+visible to the current user.

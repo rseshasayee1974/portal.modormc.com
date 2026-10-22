@@ -157,6 +157,40 @@ class SalesMobileApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => '1']);
     }
 
+    public function test_customers_and_sites_are_shared_read_only_within_the_selected_plant(): void
+    {
+        DB::table('mm_patrons')->insert([
+            ['id' => 700, 'plant_id' => 1, 'sales_executive_id' => 2, 'legal_name' => 'Shared Customer', 'patron_type' => '["Customer"]', 'status' => 1, 'operational_status' => 'active'],
+            ['id' => 701, 'plant_id' => 2, 'sales_executive_id' => 2, 'legal_name' => 'Foreign Customer', 'patron_type' => '["Customer"]', 'status' => 1, 'operational_status' => 'active'],
+        ]);
+        DB::table('mm_sites')->insert([
+            ['id' => 700, 'plant_id' => 1, 'patron_id' => '[700]', 'name' => 'Shared Site'],
+            ['id' => 701, 'plant_id' => 2, 'patron_id' => '[701]', 'name' => 'Foreign Site'],
+        ]);
+        foreach (['customers', 'sites'] as $resource) {
+            $ids = array_column($this->getJson('/api/mobile/v1/'.$resource)->assertOk()->json('data.data'), 'id');
+            $this->assertContains(700, $ids);
+            $this->assertNotContains(701, $ids);
+            $this->getJson('/api/mobile/v1/'.$resource.'/700')->assertOk();
+            $this->getJson('/api/mobile/v1/'.$resource.'/701')->assertNotFound();
+            $this->postJson('/api/mobile/v1/'.$resource, [])->assertStatus(405);
+            $this->putJson('/api/mobile/v1/'.$resource.'/700', [])->assertStatus(405);
+            $this->deleteJson('/api/mobile/v1/'.$resource.'/700')->assertStatus(405);
+        }
+        $lookups = $this->getJson('/api/mobile/v1/lookups')->assertOk();
+        foreach (['customers', 'sites'] as $key) {
+            $ids = array_column($lookups->json('data.'.$key), 'id');
+            $this->assertContains(700, $ids);
+            $this->assertNotContains(701, $ids);
+        }
+        $body = array_replace($this->quote(), ['patron_id' => 700, 'site_id' => 700]);
+        $this->postJson('/api/mobile/v1/quotations', $body)->assertCreated();
+        $this->postJson('/api/mobile/v1/quotations', array_replace($body, ['patron_id' => 701, 'site_id' => 701]))
+            ->assertUnprocessable()->assertJsonValidationErrors(['patron_id', 'site_id'])
+            ->assertJsonPath('errors.patron_id.0', 'The selected customer is unavailable in the selected plant.');
+        $this->assertEquals('Shared Customer', DB::table('mm_patrons')->where('id', 700)->value('legal_name'));
+    }
+
     public function test_sales_quotation_submission_admin_approval_and_status_reflection(): void
     {
         $id = $this->postJson('/api/mobile/v1/quotations', $this->quote())->assertCreated()->json('data.id');
