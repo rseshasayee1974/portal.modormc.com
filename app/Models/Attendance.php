@@ -10,6 +10,8 @@ use App\Traits\PlantScoping;
 
 class Attendance extends Model
 {
+    public const TIMEZONE = 'Asia/Kolkata';
+
         use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_attendances';
@@ -34,9 +36,12 @@ class Attendance extends Model
     protected $casts = [
         'is_late' => 'boolean',
         'is_early_departure' => 'boolean',
-        'check_in' => 'datetime',
-        'check_out' => 'datetime',
+        'check_in' => 'datetime:Y-m-d H:i:s',
+        'check_out' => 'datetime:Y-m-d H:i:s',
         'attendance_date' => 'date',
+        'worked_hours' => 'decimal:2',
+        'overtime_hours' => 'decimal:2',
+        'late_hours' => 'decimal:2',
     ];
 
     public function plant()

@@ -2,19 +2,31 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\Vite;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\ServiceProvider;
-use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use App\Http\Responses\LoginResponse;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Database\Schema\Blueprint;
+use App\Listeners\TrackPushNotificationDelivery;
+use App\Policies\GenericPolicy;
+use App\Services\DropdownCache;
+use App\Services\PlantContextService;
+use App\Services\UserPresenceService;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Notifications\Events\NotificationSending;
+use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
-use App\Services\PlantContextService;
+use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
+use Symfony\Component\Mailer\SentMessage;
+use Symfony\Component\Mailer\Transport\AbstractTransport;
+use Symfony\Component\Mime\MessageConverter;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -36,8 +48,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Illuminate\Support\Facades\DB::listen(function (\Illuminate\Database\Events\QueryExecuted $event) {
-            app(\App\Services\DropdownCache::class)->onQuery($event);
+        Event::listen(NotificationSending::class, [TrackPushNotificationDelivery::class, 'sending']);
+        Event::listen(NotificationSent::class, [TrackPushNotificationDelivery::class, 'sent']);
+        DB::listen(function (QueryExecuted $event) {
+            app(DropdownCache::class)->onQuery($event);
         });
 
         Vite::prefetch(concurrency: 3);
@@ -70,15 +84,16 @@ class AppServiceProvider extends ServiceProvider
                 return null;
             }
 
-            $specificPolicy = 'App\\Policies\\' . $modelName . 'Policy';
+            $specificPolicy = 'App\\Policies\\'.$modelName.'Policy';
 
             if (class_exists($specificPolicy)) {
                 return $specificPolicy;
             }
 
             // Fallback to generic policy if specific policy does not exist
-            \App\Policies\GenericPolicy::$currentModelClass = $modelClass;
-            return \App\Policies\GenericPolicy::class;
+            GenericPolicy::$currentModelClass = $modelClass;
+
+            return GenericPolicy::class;
         });
 
         // Global Auditing Columns Standard macro
@@ -95,7 +110,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, function (Login $event) {
             $ip = request()->ip();
             $location = 'Local / Unknown';
-            
+
             // Try to resolve location for non-local IPs
             if ($ip !== '127.0.0.1' && $ip !== '::1') {
                 try {
@@ -103,7 +118,7 @@ class AppServiceProvider extends ServiceProvider
                     if ($response->successful()) {
                         $data = $response->json();
                         if (($data['status'] ?? '') === 'success') {
-                            $location = ($data['city'] ?? '') . ', ' . ($data['regionName'] ?? '') . ', ' . ($data['country'] ?? '');
+                            $location = ($data['city'] ?? '').', '.($data['regionName'] ?? '').', '.($data['country'] ?? '');
                         }
                     }
                 } catch (\Exception $e) {
@@ -112,14 +127,14 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $event->user->forceFill([
-                'last_login'     => now(),
-                'login_status'   => true,
-                'ip_address'     => $ip,
+                'last_login' => now(),
+                'login_status' => true,
+                'ip_address' => $ip,
                 'login_location' => $location,
             ])->saveQuietly();
             if ($event->guard === 'web' && request()->hasSession()) {
                 request()->session()->put('presence_login_session', request()->session()->getId());
-                app(\App\Services\UserPresenceService::class)->record(
+                app(UserPresenceService::class)->record(
                     (int) $event->user->id, request()->session()->getId(), 'login', 0
                 );
             }
@@ -129,9 +144,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Logout::class, function (Logout $event) {
             if ($event->user) {
                 if ($event->guard === 'web' && request()->hasSession()) {
-                    app(\App\Services\UserPresenceService::class)->logout(
+                    app(UserPresenceService::class)->logout(
                         (int) $event->user->id, request()->session()->getId(), request()->session()->get('presence_login_session')
                     );
+
                     return;
                 }
                 $event->user->forceFill([
@@ -141,13 +157,14 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Register custom ZeptoMail HTTP API mail driver to bypass port blocks on production
-        \Illuminate\Support\Facades\Mail::extend('zeptomail_api', function (array $config = []) {
-            return new class extends \Symfony\Component\Mailer\Transport\AbstractTransport {
-                protected function doSend(\Symfony\Component\Mailer\SentMessage $message): void
+        Mail::extend('zeptomail_api', function (array $config = []) {
+            return new class extends AbstractTransport
+            {
+                protected function doSend(SentMessage $message): void
                 {
-                    $email = \Symfony\Component\Mime\MessageConverter::toEmail($message->getOriginalMessage());
-                    
-                    $token = config('mail.mailers.zeptomail_api.token'); 
+                    $email = MessageConverter::toEmail($message->getOriginalMessage());
+
+                    $token = config('mail.mailers.zeptomail_api.token');
                     $fromAddress = config('mail.from.address', 'noreply@modormc.com');
                     $fromName = config('mail.from.name', 'ModoRmc');
 
@@ -157,7 +174,7 @@ class AppServiceProvider extends ServiceProvider
                             'email_address' => [
                                 'address' => $address->getAddress(),
                                 'name' => $address->getName() ?: null,
-                            ]
+                            ],
                         ];
                     }
 
@@ -167,7 +184,7 @@ class AppServiceProvider extends ServiceProvider
                             'email_address' => [
                                 'address' => $address->getAddress(),
                                 'name' => $address->getName() ?: null,
-                            ]
+                            ],
                         ];
                     }
 
@@ -177,7 +194,7 @@ class AppServiceProvider extends ServiceProvider
                             'email_address' => [
                                 'address' => $address->getAddress(),
                                 'name' => $address->getName() ?: null,
-                            ]
+                            ],
                         ];
                     }
 
@@ -191,21 +208,21 @@ class AppServiceProvider extends ServiceProvider
                         'htmlbody' => $email->getHtmlBody() ?: $email->getTextBody(),
                     ];
 
-                    if (!empty($cc)) {
+                    if (! empty($cc)) {
                         $payload['cc'] = $cc;
                     }
-                    if (!empty($bcc)) {
+                    if (! empty($bcc)) {
                         $payload['bcc'] = $bcc;
                     }
 
-                    $response = \Illuminate\Support\Facades\Http::withHeaders([
-                        'Authorization' => 'Zoho-enczapikey ' . $token,
+                    $response = Http::withHeaders([
+                        'Authorization' => 'Zoho-enczapikey '.$token,
                         'Content-Type' => 'application/json',
                         'Accept' => 'application/json',
                     ])->post('https://api.zeptomail.com/v1.1/email', $payload);
 
-                    if (!$response->successful()) {
-                        throw new \Exception('ZeptoMail API send failed: ' . $response->body());
+                    if (! $response->successful()) {
+                        throw new \Exception('ZeptoMail API send failed: '.$response->body());
                     }
                 }
 

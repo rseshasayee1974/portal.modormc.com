@@ -15,11 +15,16 @@ use Illuminate\Support\Facades\Session;
 
 class MobilePlantContext
 {
+    protected function authorizeToken(Request $request): void
+    {
+        abort_unless($request->user()->currentAccessToken() && $request->user()->tokenCan('sales-mobile'), 403, 'Use a sales mobile device token.');
+    }
+
     public function handle(Request $request, Closure $next)
     {
         $user = $request->user();
         abort_unless($user && $user->is_active, 403, 'Your account is inactive.');
-        abort_unless($user->currentAccessToken() && $user->tokenCan('sales-mobile'), 403, 'Use a sales mobile device token.');
+        $this->authorizeToken($request);
         $data = validator(['plant_id' => $request->header('X-Plant-Id')], ['plant_id' => 'required|integer|min:1'])->validate();
         $plant = MobileAccess::plants($user)->find($data['plant_id']);
         abort_unless($plant, 403, 'No access to this active plant.');

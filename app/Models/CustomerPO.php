@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\LogsPushNotifications;
+use App\Traits\TracksModelChanges;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Traits\TracksModelChanges;
 
 class CustomerPO extends Model
 {
-        use HasFactory, SoftDeletes, TracksModelChanges;
+    use HasFactory, LogsPushNotifications, SoftDeletes, TracksModelChanges;
 
     /** Override auto-derived module name (Str::snake('CustomerPO') produces 'customer_p_o') */
     public static string $permissionModule = 'customer_po';
@@ -63,17 +64,17 @@ class CustomerPO extends Model
 
     public function getAmountUntaxedAttribute($value)
     {
-        return $value !== null ? round((float)$value, 2) : round((float)$this->items->sum('untaxed_amount'), 2);
+        return $value !== null ? round((float) $value, 2) : round((float) $this->items->sum('untaxed_amount'), 2);
     }
 
     public function getAmountTaxAttribute($value)
     {
-        return $value !== null ? round((float)$value, 2) : round((float)$this->items->sum('tax_amount'), 2);
+        return $value !== null ? round((float) $value, 2) : round((float) $this->items->sum('tax_amount'), 2);
     }
 
     public function getAmountTotalAttribute($value)
     {
-        return $value !== null ? round((float)$value, 2) : round((float)$this->items->sum('amount_total'), 2);
+        return $value !== null ? round((float) $value, 2) : round((float) $this->items->sum('amount_total'), 2);
     }
 
     public function updateTotals()
@@ -89,14 +90,16 @@ class CustomerPO extends Model
         }
 
         $this->update([
-            'amount_untaxed' => round((float)$untaxed, 2),
-            'amount_tax' => round((float)$taxAmount, 2),
-            'amount_total' => round((float)$amountTotal, 2),
+            'amount_untaxed' => round((float) $untaxed, 2),
+            'amount_tax' => round((float) $taxAmount, 2),
+            'amount_total' => round((float) $amountTotal, 2),
         ]);
     }
 
     const STATUS_DRAFT = 0;
+
     const STATUS_CONFIRMED = 1;
+
     const STATUS_COMPLETED = 2;
 
     public function plant()
@@ -143,6 +146,7 @@ class CustomerPO extends Model
     {
         return $this->hasMany(CustomerPOItem::class, 'customer_po_id');
     }
+
     public function tax()
     {
         return $this->belongsTo(Tax::class, 'tax_id');
@@ -169,24 +173,24 @@ class CustomerPO extends Model
     {
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
-        $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
-        
+        $fyString = substr($startYear, -2).substr($startYear + 1, -2);
+
         if (empty($customPrefix)) {
             $customPrefix = 'CPO';
-            $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
-            if (!empty($settings['cpo_prefix'])) {
+            $settings = CustomSetting::getForModule($plantId, 'batching');
+            if (! empty($settings['cpo_prefix'])) {
                 $customPrefix = $settings['cpo_prefix'];
             }
         }
-        
+
         $prefix = "{$customPrefix}-{$fyString}-";
 
         $latest = self::where('plant_id', $plantId)
-                      ->where('prefix', $prefix)
-                      ->whereNull('deleted_at')
-                      ->orderBy('id', 'desc')
-                      ->value('reference');
-                      
+            ->where('prefix', $prefix)
+            ->whereNull('deleted_at')
+            ->orderBy('id', 'desc')
+            ->value('reference');
+
         $sequence = 1;
         if ($latest && preg_match('/-(\d{4})$/', $latest, $matches)) {
             $sequence = ((int) $matches[1]) + 1;
@@ -194,7 +198,7 @@ class CustomerPO extends Model
 
         return [
             'prefix' => $prefix,
-            'reference' => sprintf('%s%04d', $prefix, $sequence)
+            'reference' => sprintf('%s%04d', $prefix, $sequence),
         ];
     }
 }

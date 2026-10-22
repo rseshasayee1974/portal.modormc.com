@@ -24,7 +24,16 @@ class PayrollGenerationService
      */
     public function generateForPeriod(int $payrollPeriodId, int $plantId, array $personnelIds = []): int
     {
-        $period = PayrollPeriod::withoutGlobalScope('plant_id')->findOrFail($payrollPeriodId);
+        $period = PayrollPeriod::withoutGlobalScope('plant_id')->where('plant_id', $plantId)->findOrFail($payrollPeriodId);
+        $openMobileAttendance = Attendance::withoutGlobalScope('plant_id')->where('plant_id', $plantId)
+            ->where('source', 'mobile')->whereNotNull('check_in')->whereNull('check_out')
+            ->whereDate('attendance_date', '>=', $period->from_date->toDateString())
+            ->whereDate('attendance_date', '<=', $period->to_date->toDateString())
+            ->whereHas('personnel', fn ($q) => $q->withoutGlobalScope('plant_id')->where('plant_id', $plantId)->where('status', 'active'))
+            ->when($personnelIds, fn ($q) => $q->whereIn('personnel_id', $personnelIds))->exists();
+        if ($openMobileAttendance) {
+            throw new Exception('Close or correct open mobile attendance before generating payroll for this period.');
+        }
 
         $query = Personnel::withoutGlobalScope('plant_id')
             
@@ -65,11 +74,10 @@ class PayrollGenerationService
 
         // Bulk fetch ALL attendances for these employees in ONE query (fixes N+1)
         $allAttendances = Attendance::withoutGlobalScope('plant_id')
+            ->where('plant_id', $plantId)
             ->whereIn('personnel_id', $targetPersonnelIds)
-            ->whereBetween('attendance_date', [
-                $startDate->format('Y-m-d 00:00:00'),
-                $endDate->format('Y-m-d 23:59:59')
-            ])
+            ->whereDate('attendance_date', '>=', $startDate->toDateString())
+            ->whereDate('attendance_date', '<=', $endDate->toDateString())
             ->get()
             ->groupBy('personnel_id');
 

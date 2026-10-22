@@ -1,4 +1,5 @@
 <?php
+
 /*
 Author: Cipher
 Created: 2026-10-12 12:07:12 Asia/Calcutta (UTC+05:30)
@@ -7,10 +8,13 @@ Created: 2026-10-12 12:07:12 Asia/Calcutta (UTC+05:30)
 namespace Tests\Feature\Api;
 
 use App\Models\User;
+use App\Services\Mobile\MobileAccess;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class SalesMobileSitesTest extends TestCase
@@ -34,7 +38,7 @@ class SalesMobileSitesTest extends TestCase
     public function test_saas_owner_can_review_own_draft_without_permission(): void
     {
         $this->reviewContext([], true);
-        DB::table('mm_quotations')->where('id', 1)->update(['sales_executive_id'=>110, 'status' => 0, 'mobile_approval_state' => 'draft', 'mobile_submitted_by' => 10]);
+        DB::table('mm_quotations')->where('id', 1)->update(['sales_executive_id' => 110, 'status' => 0, 'mobile_approval_state' => 'draft', 'mobile_submitted_by' => 10]);
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertOk()
             ->assertJsonPath('data.mobile_approval_state', 'approved')->assertJsonPath('data.mobile_reviewed_by', 10);
     }
@@ -52,7 +56,7 @@ class SalesMobileSitesTest extends TestCase
     public function test_permitted_reviewer_can_approve_and_cannot_review_again(): void
     {
         $this->reviewContext(['QUOTATION.APPROVE', 'QUOTATION.VIEW_ALL']);
-        DB::table('mm_quotations')->where('id',1)->update(['sales_executive_id'=>110]);
+        DB::table('mm_quotations')->where('id', 1)->update(['sales_executive_id' => 110]);
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertOk()->assertJsonPath('data.status', 2);
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertUnprocessable()
             ->assertExactJson(['message' => 'Only submitted quotations can be reviewed.']);
@@ -61,7 +65,7 @@ class SalesMobileSitesTest extends TestCase
     public function test_self_review_foreign_plant_and_rejection_validation(): void
     {
         $this->reviewContext(['QUOTATION.APPROVE', 'QUOTATION.VIEW_ALL']);
-        DB::table('mm_quotations')->where('id', 1)->update(['sales_executive_id'=>110, 'mobile_submitted_by' => 10]);
+        DB::table('mm_quotations')->where('id', 1)->update(['sales_executive_id' => 110, 'mobile_submitted_by' => 10]);
         $this->postJson('/api/mobile/v1/quotations/1/review', ['decision' => 'approved'])->assertForbidden()
             ->assertExactJson(['message' => 'You cannot review your own quotation submission.']);
         DB::table('mm_quotations')->where('id', 1)->update(['mobile_submitted_by' => 99, 'plant_id' => 12]);
@@ -113,25 +117,27 @@ class SalesMobileSitesTest extends TestCase
             ['id' => 4, 'plant_id' => 11, 'name' => 'Deleted', 'site_address_1' => null, 'deleted_at' => now()],
         ]);
         foreach ([
-            'mm_personnels' => ['plant_id','user_id'],
-            'mm_patrons' => ['plant_id','sales_executive_id','patron_type','operational_status'],
-            'mm_crm_leads' => ['plant_id','assigned_to','customer_id'],
-            'mm_crm_deals' => ['plant_id','lead_id','quotation_id'],
-            'mm_sales_orders' => ['plant_id','sales_executive_id','customer_id','site_id'],
-            'mm_customer_pos' => ['plant_id','sales_executive_id','patron_id','site_id','quotation_id'],
-            'mm_quotations' => ['plant_id','created_by','updated_by','sales_executive_id','patron_id','site_id','mobile_approval_state','mobile_submitted_by','mobile_approval_comment','mobile_reviewed_by','mobile_reviewed_at','status'],
-            'mm_quotation_items' => ['quotation_id','mix_design_id','tax_id','uom_id'],
+            'mm_personnels' => ['plant_id', 'user_id'],
+            'mm_patrons' => ['plant_id', 'sales_executive_id', 'patron_type', 'operational_status'],
+            'mm_crm_leads' => ['plant_id', 'assigned_to', 'customer_id'],
+            'mm_crm_deals' => ['plant_id', 'lead_id', 'quotation_id'],
+            'mm_sales_orders' => ['plant_id', 'sales_executive_id', 'customer_id', 'site_id'],
+            'mm_customer_pos' => ['plant_id', 'sales_executive_id', 'patron_id', 'site_id', 'quotation_id'],
+            'mm_quotations' => ['plant_id', 'created_by', 'updated_by', 'sales_executive_id', 'patron_id', 'site_id', 'mobile_approval_state', 'mobile_submitted_by', 'mobile_approval_comment', 'mobile_reviewed_by', 'mobile_reviewed_at', 'status'],
+            'mm_quotation_items' => ['quotation_id', 'mix_design_id', 'tax_id', 'uom_id'],
         ] as $name => $columns) {
             Schema::create($name, function (Blueprint $table) use ($columns) {
                 $table->id();
-                foreach ($columns as $column) $table->text($column)->nullable();
+                foreach ($columns as $column) {
+                    $table->text($column)->nullable();
+                }
                 $table->timestamps();
                 $table->softDeletes();
             });
         }
-        DB::table('mm_personnels')->insert(['id'=>110,'user_id'=>10,'plant_id'=>11]);
-        DB::table('mm_patrons')->insert(['id'=>1,'plant_id'=>11,'sales_executive_id'=>110,'patron_type'=>'["Customer"]','operational_status'=>'active']);
-        DB::table('mm_sites')->whereIn('id',[1,2])->update(['patron_id'=>1]);
+        DB::table('mm_personnels')->insert(['id' => 110, 'user_id' => 10, 'plant_id' => 11]);
+        DB::table('mm_patrons')->insert(['id' => 1, 'plant_id' => 11, 'sales_executive_id' => 110, 'patron_type' => '["Customer"]', 'operational_status' => 'active']);
+        DB::table('mm_sites')->whereIn('id', [1, 2])->update(['patron_id' => 1]);
         $user = \Mockery::mock(User::class)->makePartial();
         $user->id = 10;
         $user->shouldReceive('isSystemAdmin')->andReturn(true);
@@ -162,18 +168,18 @@ class SalesMobileSitesTest extends TestCase
 
     public function test_sites_are_visible_without_customer_or_user_relationships(): void
     {
-        DB::table('mm_sites')->where('id',1)->update(['patron_id'=>999]);
-        DB::table('mm_sites')->where('id',2)->update(['patron_id'=>null]);
+        DB::table('mm_sites')->where('id', 1)->update(['patron_id' => 999]);
+        DB::table('mm_sites')->where('id', 2)->update(['patron_id' => null]);
         DB::table('mm_personnels')->delete();
         Route::matched(function ($event) {
             $event->request->attributes->set('mobile_system_admin', false);
             $event->request->attributes->set('mobile_role', (object) [
-                'code'=>'SALES_EXECUTIVE', 'permissions'=>collect([(object) ['name'=>'SITE.VIEW']]),
+                'code' => 'SALES_EXECUTIVE', 'permissions' => collect([(object) ['name' => 'SITE.VIEW']]),
             ]);
         });
-        $this->getJson('/api/mobile/v1/sites')->assertOk()->assertJsonPath('data.total',2);
-        $this->getJson('/api/mobile/v1/sites/1')->assertOk()->assertJsonPath('data.id',1);
-        $this->getJson('/api/mobile/v1/sites/2')->assertOk()->assertJsonPath('data.id',2);
+        $this->getJson('/api/mobile/v1/sites')->assertOk()->assertJsonPath('data.total', 2);
+        $this->getJson('/api/mobile/v1/sites/1')->assertOk()->assertJsonPath('data.id', 1);
+        $this->getJson('/api/mobile/v1/sites/2')->assertOk()->assertJsonPath('data.id', 2);
         $this->getJson('/api/mobile/v1/sites/3')->assertNotFound();
         $this->getJson('/api/mobile/v1/sites/4')->assertNotFound();
     }
@@ -193,23 +199,23 @@ class SalesMobileSitesTest extends TestCase
         $this->getJson('/api/mobile/v1/sites?search='.str_repeat('a', 101))->assertUnprocessable();
     }
 
-    public function test_site_view_permission_is_required(): void
+    public function test_site_endpoints_do_not_require_module_permissions(): void
     {
         $user = \Mockery::mock(User::class)->makePartial();
         $user->id = 10;
         $user->shouldReceive('getDirectPermissions')->andReturn(collect());
         $this->actingAs($user);
         Route::matched(fn ($event) => $event->request->attributes->set('mobile_system_admin', false));
-        $this->getJson('/api/mobile/v1/sites')->assertForbidden();
-        $this->getJson('/api/mobile/v1/sites/1')->assertForbidden();
+        $this->getJson('/api/mobile/v1/sites')->assertOk();
+        $this->getJson('/api/mobile/v1/sites/1')->assertOk();
     }
 
     public function test_role_checks_support_strings_arrays_pipes_and_guards(): void
     {
         $user = new User;
-        $role = new \Spatie\Permission\Models\Role;
+        $role = new Role;
         $role->forceFill(['id' => 1, 'name' => 'Platform Admin', 'guard_name' => 'web']);
-        $user->setRelation('roles', new \Illuminate\Database\Eloquent\Collection([$role]));
+        $user->setRelation('roles', new Collection([$role]));
 
         $this->assertTrue($user->hasRole('Platform Admin'));
         $this->assertTrue($user->hasAnyRole(['Sales Executive', 'Platform Admin']));
@@ -218,7 +224,7 @@ class SalesMobileSitesTest extends TestCase
         $this->assertFalse($user->hasRole('Platform Admin', 'api'));
         $this->assertFalse($user->hasRole('Sales Executive'));
         $this->assertTrue($user->isSystemAdmin());
-        $user->setRelation('roles', new \Illuminate\Database\Eloquent\Collection);
+        $user->setRelation('roles', new Collection);
         $this->assertFalse($user->isSystemAdmin());
     }
 
@@ -260,19 +266,19 @@ class SalesMobileSitesTest extends TestCase
             ['user_id' => 20, 'entity_id' => 1, 'plant_id' => null, 'deleted_at' => null],
         ]);
         $admin = new User;
-        $role = new \Spatie\Permission\Models\Role;
+        $role = new Role;
         $role->forceFill(['name' => 'Super Admin', 'guard_name' => 'web']);
-        $admin->setRelation('roles', new \Illuminate\Database\Eloquent\Collection([$role]));
-        $this->assertSame([1, 2, 4], \App\Services\Mobile\MobileAccess::plants($admin)->orderBy('id')->pluck('id')->all());
+        $admin->setRelation('roles', new Collection([$role]));
+        $this->assertSame([1, 2, 4], MobileAccess::plants($admin)->orderBy('id')->pluck('id')->all());
 
         $user = new User;
         $user->id = 10;
-        $user->setRelation('roles', new \Illuminate\Database\Eloquent\Collection);
-        $this->assertSame([1], \App\Services\Mobile\MobileAccess::plants($user)->pluck('id')->all());
+        $user->setRelation('roles', new Collection);
+        $this->assertSame([1], MobileAccess::plants($user)->pluck('id')->all());
         $user->id = 20;
-        $this->assertSame([1, 2], \App\Services\Mobile\MobileAccess::plants($user)->orderBy('id')->pluck('id')->all());
+        $this->assertSame([1, 2], MobileAccess::plants($user)->orderBy('id')->pluck('id')->all());
         $user->id = 30;
-        $this->assertSame([], \App\Services\Mobile\MobileAccess::plants($user)->pluck('id')->all());
+        $this->assertSame([], MobileAccess::plants($user)->pluck('id')->all());
     }
 
     public function test_other_users_can_view_sites_with_role_or_direct_permission(): void

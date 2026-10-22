@@ -91,3 +91,5 @@ package-lock.json
 perione.in.pem
 
 !tests/Feature/QuotationDiscountTest.php
+!/tests/Feature/MobileAttendanceTest.php
+!/docs/pending-migrations-2026-10-21.sql

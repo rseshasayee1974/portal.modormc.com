@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MODO Sales Executive Mobile API v1",
-    "description": "ERP APIs for the mobile prototype. Set an ERP base_url, not the Sites preview URL. Run delete actions individually. Approval and rejection are alternative actions, and require a different reviewer. Author: ragul-onemodo.",
+    "description": "Sales app endpoints use /api/mobile/v1. Shared quotations, orders, customer-pos and batch-schedules are also available at /api/mobile using the main app token; sales authentication and app-specific endpoints remain under v1. Customer PO CRUD and PO-to-order conversion are included. See docs/mobile-commercial-api.md for the remaining route gaps. Set an ERP base_url, not the Sites preview URL. Run delete actions individually. Approval and rejection are alternative actions, and require a different reviewer. Author: ragul-onemodo.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -21,7 +21,8 @@
         "type": "text/javascript",
         "exec": [
           "if(!pm.environment.get('today'))pm.environment.set('today',new Date().toISOString().slice(0,10));",
-          "if(!pm.environment.get('validity_date'))pm.environment.set('validity_date',new Date(Date.now()+7*86400000).toISOString().slice(0,10));"
+          "if(!pm.environment.get('validity_date'))pm.environment.set('validity_date',new Date(Date.now()+7*86400000).toISOString().slice(0,10));",
+          "for(const key of ['attendance_from_date','attendance_to_date']) if(!pm.environment.get(key)) pm.environment.set(key,pm.environment.get('today'));"
         ]
       }
     }
@@ -61,7 +62,7 @@
                 "login"
               ]
             },
-            "description": "An administrator must grant mobile app access for this email in Membership > Users first. Email/password login returns the bearer token directly. Alternative: Send WhatsApp OTP and Verify OTP.",
+            "description": "An administrator must grant mobile app access for this email in Membership > Users first. Email/password login returns the bearer token directly. Alternative: Send WhatsApp OTP and Verify OTP. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
@@ -119,7 +120,7 @@
                 "send-otp"
               ]
             },
-            "description": "Passwordless alternative. Mobile app access must be granted by an administrator first. Set mobile to a uniquely registered user number. Returns 202 after WhatsApp provider submission. Enter the received code in otp and run Verify OTP.",
+            "description": "Passwordless alternative. Mobile app access must be granted by an administrator first. Set mobile to a uniquely registered user number. Returns 202 after WhatsApp provider submission. Enter the received code in otp and run Verify OTP. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mobile\": \"{{mobile}}\"\n}",
@@ -178,7 +179,7 @@
                 "verify-otp"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\",\n  \"otp\": \"{{otp}}\"\n}",
@@ -232,7 +233,7 @@
                 "me"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -272,7 +273,7 @@
                 "plants"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -317,7 +318,7 @@
                 "login"
               ]
             },
-            "description": "Email/password login returns reviewer_token directly.",
+            "description": "Email/password login returns reviewer_token directly. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{reviewer_email}}\",\n  \"password\": \"{{reviewer_password}}\"\n}",
@@ -375,7 +376,7 @@
                 "send-otp"
               ]
             },
-            "description": "Passwordless alternative. Enter reviewer WhatsApp code in otp, then run Reviewer verify OTP.",
+            "description": "Passwordless alternative. Enter reviewer WhatsApp code in otp, then run Reviewer verify OTP. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mobile\": \"{{reviewer_mobile}}\"\n}",
@@ -434,7 +435,7 @@
                 "verify-otp"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\",\n  \"otp\": \"{{otp}}\"\n}",
@@ -489,7 +490,7 @@
                 "logout"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -534,7 +535,7 @@
                 "dashboard"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -574,7 +575,7 @@
                 "lookups"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -615,7 +616,7 @@
                 "summary"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -626,6 +627,846 @@
                   "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
                 ]
               }
+            }
+          ]
+        },
+        {
+          "name": "List mix designs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/mix-designs?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "mix-designs"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List sales taxes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/taxes?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "taxes"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Connection settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/notifications/connection",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "notifications",
+                "connection"
+              ]
+            },
+            "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Requires PUSH_NOTIFICATION.RECEIVE to subscribe. Only connect when enabled, configured and can_receive are true. Saves notification_channel; obtain socket_id from a real WebSocket connection before authorizing. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d.channel) pm.environment.set('notification_channel','private-'+d.channel);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/notifications/connection",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "notifications",
+                    "connection"
+                  ]
+                },
+                "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Requires PUSH_NOTIFICATION.RECEIVE to subscribe. Only connect when enabled, configured and can_receive are true. Saves notification_channel; obtain socket_id from a real WebSocket connection before authorizing. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"enabled\": true,\n    \"can_receive\": true,\n    \"configured\": true,\n    \"broadcaster\": \"reverb\",\n    \"key\": \"public-reverb-key\",\n    \"host\": \"reverb.example.com\",\n    \"port\": 443,\n    \"scheme\": \"https\",\n    \"channel\": \"App.Models.User.7\",\n    \"auth_endpoint\": \"https://erp.example.com/api/mobile/v1/notifications/broadcasting/auth\",\n    \"event\": \"Illuminate\\\\Notifications\\\\Events\\\\BroadcastNotificationCreated\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/notifications?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Saves the first real entry ID to notification_id. Generate a notification first if history is empty. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const entries=pm.response.json().data.data || []; if(entries.length) pm.environment.set('notification_id',entries[0].id); else pm.environment.unset('notification_id');"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/notifications?per_page=20&page=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "notifications"
+                  ],
+                  "query": [
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ]
+                },
+                "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Saves the first real entry ID to notification_id. Generate a notification first if history is empty. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"current_page\": 1,\n    \"data\": [\n      {\n        \"id\": 123,\n        \"data\": {\n          \"push_log_id\": 123,\n          \"plant_id\": 1,\n          \"title\": \"CrmLead updated\",\n          \"operation\": \"updated\",\n          \"subject_type\": \"App\\\\Models\\\\CrmLead\",\n          \"subject_id\": 42,\n          \"payload\": {\n            \"reference\": \"LD/2026/00042\",\n            \"changes\": {\n              \"status\": \"Qualified\"\n            }\n          },\n          \"created_at\": \"2026-10-21T12:30:00+05:30\"\n        },\n        \"read_at\": null,\n        \"created_at\": \"2026-10-21T12:30:00+05:30\"\n      }\n    ],\n    \"per_page\": 20,\n    \"total\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "List unread notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/notifications?unread=1&per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "unread",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const entries=pm.response.json().data.data || []; if(entries.length) pm.environment.set('notification_id',entries[0].id); else pm.environment.unset('notification_id');"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/notifications?unread=1&per_page=20&page=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "notifications"
+                  ],
+                  "query": [
+                    {
+                      "key": "unread",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ]
+                },
+                "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"current_page\": 1,\n    \"data\": [\n      {\n        \"id\": 123,\n        \"data\": {\n          \"push_log_id\": 123,\n          \"plant_id\": 1,\n          \"title\": \"CrmLead updated\",\n          \"operation\": \"updated\",\n          \"subject_type\": \"App\\\\Models\\\\CrmLead\",\n          \"subject_id\": 42,\n          \"payload\": {\n            \"reference\": \"LD/2026/00042\",\n            \"changes\": {\n              \"status\": \"Qualified\"\n            }\n          },\n          \"created_at\": \"2026-10-21T12:30:00+05:30\"\n        },\n        \"read_at\": null,\n        \"created_at\": \"2026-10-21T12:30:00+05:30\"\n      }\n    ],\n    \"per_page\": 20,\n    \"total\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Unread count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/notifications/unread-count",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "notifications",
+                "unread-count"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/notifications/unread-count",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "notifications",
+                    "unread-count"
+                  ]
+                },
+                "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"unread_count\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Authorize live private channel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/notifications/broadcasting/auth",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "notifications",
+                "broadcasting",
+                "auth"
+              ]
+            },
+            "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Run Connection settings first. socket_id must come from the WebSocket SDK; an invented value does not establish a subscription. Response is native broadcaster auth, without a success/data wrapper. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"socket_id\": \"{{socket_id}}\",\n  \"channel_name\": \"{{notification_channel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/notifications/broadcasting/auth",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "notifications",
+                    "broadcasting",
+                    "auth"
+                  ]
+                },
+                "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Run Connection settings first. socket_id must come from the WebSocket SDK; an invented value does not establish a subscription. Response is native broadcaster auth, without a success/data wrapper. Notification behavior: this request does not directly trigger a business push notification.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"socket_id\": \"{{socket_id}}\",\n  \"channel_name\": \"{{notification_channel}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"auth\": \"public-reverb-key:generated-signature\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Acknowledge delivered",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/notifications/{{notification_id}}/delivered",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "notifications",
+                "{{notification_id}}",
+                "delivered"
+              ]
+            },
+            "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. No request body. Run List notifications first. Does not downgrade a read notification. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/notifications/{{notification_id}}/delivered",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "notifications",
+                    "{{notification_id}}",
+                    "delivered"
+                  ]
+                },
+                "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. No request body. Run List notifications first. Does not downgrade a read notification. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 123,\n    \"delivered_at\": \"2026-10-21T12:31:00+05:30\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mark notification read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/notifications/{{notification_id}}/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "notifications",
+                "{{notification_id}}",
+                "read"
+              ]
+            },
+            "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. No request body. Run List notifications first. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/notifications/{{notification_id}}/read",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "notifications",
+                    "{{notification_id}}",
+                    "read"
+                  ]
+                },
+                "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. No request body. Run List notifications first. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 123,\n    \"read_at\": \"2026-10-21T12:32:00+05:30\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mark all notifications read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/notifications/read-all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. No request body. Marks all own unread history in the selected plant read. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/notifications/read-all",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "notifications",
+                    "read-all"
+                  ]
+                },
+                "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. No request body. Marks all own unread history in the selected plant read. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"updated_count\": 3\n  }\n}"
             }
           ]
         }
@@ -666,7 +1507,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -707,7 +1548,7 @@
                 "{{customer_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -758,7 +1599,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -802,10 +1643,10 @@
                 "leads"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"New\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\"\n}",
+              "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"New\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"project_name\": \"Mobile notification test site\",\n  \"delivery_location\": \"Test site road\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -853,7 +1694,7 @@
                 "{{lead_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -898,10 +1739,10 @@
                 "{{lead_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"Qualified\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\"\n}",
+              "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"Qualified\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"project_name\": \"Mobile notification test site\",\n  \"delivery_location\": \"Test site road\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -953,10 +1794,245 @@
                 "convert"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customer_id\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Available lead statuses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads/statuses",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads",
+                "statuses"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Statuses for lead",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads/{{lead_id}}/statuses",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads",
+                "{{lead_id}}",
+                "statuses"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads/{{lead_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads",
+                "{{lead_id}}",
+                "approve"
+              ]
+            },
+            "description": "Requires CRM_LEAD.APPROVE. Approves an eligible open lead in this plant and prepares customer/site. Converted and Unqualified leads return 422. Repeat approval is idempotent. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create quotation from lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads/{{lead_id}}/quotation",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads",
+                "{{lead_id}}",
+                "quotation"
+              ]
+            },
+            "description": "Requires CRM_LEAD.CONVERT and an accessible lead with active mix_design_id. Automatically converts an eligible unconverted lead and creates a linked quotation. Do not send items or mix_design_id: these come from the lead. A previously linked quotation blocks another creation. Select a customer-linked site. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"site_id\": \"{{site_id}}\",\n  \"quantity\": 3.55,\n  \"rate\": 546,\n  \"quote_date\": \"{{today}}\",\n  \"validity_date\": \"{{validity_date}}\",\n  \"is_tax_inclusive\": true,\n  \"tax_id\": \"{{sales_tax_id}}\",\n  \"notes\": \"Notification integration test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const j=pm.response.json(); const d=j.data || j.schedule; if(d && d.id) pm.environment.set('quotation_id',d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update lead (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/leads/{{lead_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "leads",
+                "{{lead_id}}"
+              ]
+            },
+            "description": "PATCH accepts the same full form as PUT. Existing ownership, permissions and lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contact_name\": \"Arun Kumar\",\n  \"company_name\": \"Kavin Builders\",\n  \"phone\": \"9876543210\",\n  \"email\": null,\n  \"enquiry_date\": \"{{today}}\",\n  \"source\": \"Referral\",\n  \"status\": \"Qualified\",\n  \"priority\": \"High\",\n  \"requirement\": \"M25 Design\",\n  \"estimated_quantity\": 40,\n  \"expected_value\": 200000,\n  \"remarks\": \"Site enquiry\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"project_name\": \"Mobile notification test site\",\n  \"delivery_location\": \"Test site road\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1017,7 +2093,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -1061,7 +2137,7 @@
                 "follow-ups"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"lead_id\": \"{{lead_id}}\",\n  \"type\": \"Site Visit\",\n  \"subject\": \"Review concrete requirement\",\n  \"description\": \"Confirm site access\",\n  \"due_at\": \"{{today}} 15:00:00\"\n}",
@@ -1116,7 +2192,7 @@
                 "{{activity_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"lead_id\": \"{{lead_id}}\",\n  \"type\": \"Site Visit\",\n  \"subject\": \"Review concrete requirement\",\n  \"description\": \"Confirm site access\",\n  \"due_at\": \"{{today}} 15:00:00\"\n}",
@@ -1171,7 +2247,7 @@
                 "complete"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"description\": \"Site requirement confirmed\"\n}",
@@ -1231,7 +2307,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -1275,7 +2351,7 @@
                 "quotations"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"quote_date\": \"{{today}}\",\n  \"validity_date\": \"{{validity_date}}\",\n  \"is_tax_inclusive\": true,\n  \"notes\": \"Delivery subject to schedule confirmation\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 3.55,\n      \"rate\": 546,\n      \"tax_id\": \"{{sales_tax_id}}\"\n    }\n  ]\n}",
@@ -1326,7 +2402,7 @@
                 "{{quotation_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -1371,7 +2447,7 @@
                 "{{quotation_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"quote_date\": \"{{today}}\",\n  \"validity_date\": \"{{validity_date}}\",\n  \"is_tax_inclusive\": true,\n  \"notes\": \"Delivery subject to schedule confirmation\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 3.55,\n      \"rate\": 546,\n      \"tax_id\": \"{{sales_tax_id}}\"\n    }\n  ]\n}",
@@ -1422,7 +2498,7 @@
                 "submit"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity."
           },
           "event": [
             {
@@ -1468,7 +2544,7 @@
                 "review"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"decision\": \"approved\",\n  \"comment\": \"Rates approved\"\n}",
@@ -1533,7 +2609,7 @@
                 "review"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"decision\": \"rejected\",\n  \"comment\": \"Revise rate before resubmission\"\n}",
@@ -1552,6 +2628,60 @@
                   "type": "string"
                 }
               ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit quotation (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/quotations/{{quotation_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "quotations",
+                "{{quotation_id}}"
+              ]
+            },
+            "description": "PATCH accepts the same full form as PUT. Existing ownership, permissions and lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"quote_date\": \"{{today}}\",\n  \"validity_date\": \"{{validity_date}}\",\n  \"is_tax_inclusive\": true,\n  \"notes\": \"Delivery subject to schedule confirmation\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 3.55,\n      \"rate\": 546,\n      \"tax_id\": \"{{sales_tax_id}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -1603,7 +2733,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -1647,7 +2777,7 @@
                 "orders"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": \"{{customer_po_id}}\",\n  \"total_qty\": 40,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
@@ -1698,7 +2828,7 @@
                 "{{order_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -1743,7 +2873,7 @@
                 "{{order_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": \"{{customer_po_id}}\",\n  \"total_qty\": 40,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
@@ -1800,7 +2930,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -1848,7 +2978,61 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit unstarted order (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "PATCH accepts the same full form as PUT. Existing ownership, permissions and lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": \"{{customer_po_id}}\",\n  \"total_qty\": 40,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "event": [
             {
@@ -1903,7 +3087,7 @@
                 }
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -1947,7 +3131,7 @@
                 "batch-schedules"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"schedule_date\": \"{{today}}\",\n  \"sales_order_id\": \"{{order_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"qty_m3\": 6,\n  \"order_volume_m3\": 40,\n  \"pump_type\": \"direct_pour\",\n  \"vehicle_id\": null,\n  \"driver_id\": null,\n  \"pump_vehicle_id\": null,\n  \"batching_time\": null,\n  \"dispatch_time\": null,\n  \"eta_site\": null,\n  \"unloading_start\": null,\n  \"unloading_end\": null,\n  \"status\": \"scheduled\",\n  \"notes\": \"Requested by sales executive\"\n}",
@@ -1998,7 +3182,7 @@
                 "{{schedule_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules."
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -2043,7 +3227,7 @@
                 "{{schedule_id}}"
               ]
             },
-            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"schedule_date\": \"{{today}}\",\n  \"sales_order_id\": \"{{order_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"qty_m3\": 6,\n  \"order_volume_m3\": 40,\n  \"pump_type\": \"direct_pour\",\n  \"vehicle_id\": null,\n  \"driver_id\": null,\n  \"pump_vehicle_id\": null,\n  \"batching_time\": null,\n  \"dispatch_time\": null,\n  \"eta_site\": null,\n  \"unloading_start\": null,\n  \"unloading_end\": null,\n  \"status\": \"scheduled\",\n  \"notes\": \"Requested by sales executive\"\n}",
@@ -2098,7 +3282,7 @@
                 "{{lead_id}}"
               ]
             },
-            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity."
           },
           "event": [
             {
@@ -2139,7 +3323,7 @@
                 "{{activity_id}}"
               ]
             },
-            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -2180,7 +3364,7 @@
                 "{{quotation_id}}"
               ]
             },
-            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity."
           },
           "event": [
             {
@@ -2221,7 +3405,7 @@
                 "{{order_id}}"
               ]
             },
-            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity."
           },
           "event": [
             {
@@ -2262,7 +3446,7 @@
                 "{{schedule_id}}"
               ]
             },
-            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply."
+            "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: this request does not directly trigger a business push notification."
           },
           "event": [
             {
@@ -2271,6 +3455,2116 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete unallocated customer PO",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customer-pos/{{customer_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customer-pos",
+                "{{customer_po_id}}"
+              ]
+            },
+            "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Deletes its items and releases the linked quotation conversion flag when unused. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "item": [
+        {
+          "name": "Current attendance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/current",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "current"
+              ]
+            },
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const a=pm.response.json().data.attendance; if(a) pm.environment.set('attendance_id',a.id); else pm.environment.unset('attendance_id');"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/current",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "current"
+                  ]
+                },
+                "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"server_time\": \"2026-10-21 09:00:00\",\n    \"timezone\": \"Asia/Kolkata\",\n    \"work_date\": \"2026-10-21\",\n    \"attendance\": {\n      \"id\": 1,\n      \"plant_id\": 1,\n      \"personnel_id\": 1,\n      \"shift_id\": null,\n      \"attendance_date\": \"2026-10-21\",\n      \"check_in\": \"2026-10-21 09:00:00\",\n      \"check_out\": null,\n      \"worked_hours\": \"0.00\",\n      \"overtime_hours\": \"0.00\",\n      \"late_hours\": \"0.00\",\n      \"is_late\": false,\n      \"is_early_departure\": false,\n      \"status\": \"present\",\n      \"source\": \"mobile\",\n      \"notes\": \"Starting work\",\n      \"scheduled_start\": \"2026-10-21 09:00:00\",\n      \"scheduled_end\": \"2026-10-21 17:00:00\",\n      \"scheduled_hours\": \"8.00\",\n      \"grace_seconds\": 0,\n      \"timezone\": \"Asia/Kolkata\",\n      \"is_open\": true\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check in after login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "check-in"
+              ]
+            },
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. First check-in returns 201; retries return the same attendance with 200, even if it was already closed that work date. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Starting work\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const j=pm.response.json(); const d=j.data || j.schedule; if(d && d.id) pm.environment.set('attendance_id',d.id);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "check-in"
+                  ]
+                },
+                "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. First check-in returns 201; retries return the same attendance with 200, even if it was already closed that work date. Notification behavior: this request does not directly trigger a business push notification.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"notes\": \"Starting work\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": null,\n    \"worked_hours\": \"0.00\",\n    \"overtime_hours\": \"0.00\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": \"Starting work\",\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": true\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "My attendance history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances?from_date={{attendance_from_date}}&to_date={{attendance_to_date}}&per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances"
+              ],
+              "query": [
+                {
+                  "key": "from_date",
+                  "value": "{{attendance_from_date}}"
+                },
+                {
+                  "key": "to_date",
+                  "value": "{{attendance_to_date}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Both date filters are optional; remove them for all own history. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances?from_date={{attendance_from_date}}&to_date={{attendance_to_date}}&per_page=20&page=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances"
+                  ],
+                  "query": [
+                    {
+                      "key": "from_date",
+                      "value": "{{attendance_from_date}}"
+                    },
+                    {
+                      "key": "to_date",
+                      "value": "{{attendance_to_date}}"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ]
+                },
+                "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Both date filters are optional; remove them for all own history. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"current_page\": 1,\n    \"data\": [\n      {\n        \"id\": 1,\n        \"plant_id\": 1,\n        \"personnel_id\": 1,\n        \"shift_id\": null,\n        \"attendance_date\": \"2026-10-21\",\n        \"check_in\": \"2026-10-21 09:00:00\",\n        \"check_out\": null,\n        \"worked_hours\": \"0.00\",\n        \"overtime_hours\": \"0.00\",\n        \"late_hours\": \"0.00\",\n        \"is_late\": false,\n        \"is_early_departure\": false,\n        \"status\": \"present\",\n        \"source\": \"mobile\",\n        \"notes\": \"Starting work\",\n        \"scheduled_start\": \"2026-10-21 09:00:00\",\n        \"scheduled_end\": \"2026-10-21 17:00:00\",\n        \"scheduled_hours\": \"8.00\",\n        \"grace_seconds\": 0,\n        \"timezone\": \"Asia/Kolkata\",\n        \"is_open\": true\n      }\n    ],\n    \"per_page\": 20,\n    \"total\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Attendance detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/{{attendance_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "{{attendance_id}}"
+              ]
+            },
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/{{attendance_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "{{attendance_id}}"
+                  ]
+                },
+                "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": null,\n    \"worked_hours\": \"0.00\",\n    \"overtime_hours\": \"0.00\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": \"Starting work\",\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": true\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check out before logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/{{attendance_id}}/check-out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "{{attendance_id}}",
+                "check-out"
+              ]
+            },
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No body. Retry with the same attendance_id after a timeout. Call auth/logout only after this succeeds. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/{{attendance_id}}/check-out",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "{{attendance_id}}",
+                    "check-out"
+                  ]
+                },
+                "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No body. Retry with the same attendance_id after a timeout. Call auth/logout only after this succeeds. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": \"2026-10-21 18:30:00\",\n    \"worked_hours\": \"9.50\",\n    \"overtime_hours\": \"1.50\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": \"Starting work\",\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": false\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check in with empty JSON (alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "check-in"
+              ]
+            },
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Alternative to Check in after login. Empty JSON is valid; notes are optional. Do not expect a new session if attendance already exists. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j=pm.response.json(); const d=j.data || j.schedule; if(d && d.id) pm.environment.set('attendance_id',d.id);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "check-in"
+                  ]
+                },
+                "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Alternative to Check in after login. Empty JSON is valid; notes are optional. Do not expect a new session if attendance already exists. Notification behavior: this request does not directly trigger a business push notification.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": null,\n    \"worked_hours\": \"0.00\",\n    \"overtime_hours\": \"0.00\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": null,\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": true\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "All my attendance history (no date filters)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No date filters or request body; includes all own attendance history. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances?per_page=20&page=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances"
+                  ],
+                  "query": [
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    }
+                  ]
+                },
+                "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No date filters or request body; includes all own attendance history. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"current_page\": 1,\n    \"data\": [\n      {\n        \"id\": 1,\n        \"plant_id\": 1,\n        \"personnel_id\": 1,\n        \"shift_id\": null,\n        \"attendance_date\": \"2026-10-21\",\n        \"check_in\": \"2026-10-21 09:00:00\",\n        \"check_out\": null,\n        \"worked_hours\": \"0.00\",\n        \"overtime_hours\": \"0.00\",\n        \"late_hours\": \"0.00\",\n        \"is_late\": false,\n        \"is_early_departure\": false,\n        \"status\": \"present\",\n        \"source\": \"mobile\",\n        \"notes\": \"Starting work\",\n        \"scheduled_start\": \"2026-10-21 09:00:00\",\n        \"scheduled_end\": \"2026-10-21 17:00:00\",\n        \"scheduled_hours\": \"8.00\",\n        \"grace_seconds\": 0,\n        \"timezone\": \"Asia/Kolkata\",\n        \"is_open\": true\n      }\n    ],\n    \"per_page\": 20,\n    \"total\": 1\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Attendance negative tests (run individually)",
+      "item": [
+        {
+          "name": "Reject employee override",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "check-in"
+              ]
+            },
+            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personnel_id\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([422]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example expected error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "check-in"
+                  ]
+                },
+                "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"personnel_id\": 999\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"This field is managed by the server.\",\n  \"errors\": {\n    \"personnel_id\": [\n      \"This field is managed by the server.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reject client check-in time",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "check-in"
+              ]
+            },
+            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"check_in\": \"2026-10-21 09:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([422]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example expected error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "check-in"
+                  ]
+                },
+                "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"check_in\": \"2026-10-21 09:00:00\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"This field is managed by the server.\",\n  \"errors\": {\n    \"check_in\": [\n      \"This field is managed by the server.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reject calculated hours",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "check-in"
+              ]
+            },
+            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"worked_hours\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([422]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example expected error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "check-in"
+                  ]
+                },
+                "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"worked_hours\": 8\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"This field is managed by the server.\",\n  \"errors\": {\n    \"worked_hours\": [\n      \"This field is managed by the server.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reject attendance status override",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "check-in"
+              ]
+            },
+            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"present\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([422]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example expected error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/check-in",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "check-in"
+                  ]
+                },
+                "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"present\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"This field is managed by the server.\",\n  \"errors\": {\n    \"status\": [\n      \"This field is managed by the server.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reject client check-out time",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/{{attendance_id}}/check-out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "{{attendance_id}}",
+                "check-out"
+              ]
+            },
+            "description": "Use the attendance_id captured from check-in. Expected 422: checkout time must come from the server. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"check_out\": \"2026-10-21 18:30:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([422]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example expected error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/{{attendance_id}}/check-out",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "{{attendance_id}}",
+                    "check-out"
+                  ]
+                },
+                "description": "Use the attendance_id captured from check-in. Expected 422: checkout time must come from the server. Notification behavior: this request does not directly trigger a business push notification.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"check_out\": \"2026-10-21 18:30:00\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"This field is managed by the server.\",\n  \"errors\": {\n    \"check_out\": [\n      \"This field is managed by the server.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Missing attendance checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances/{{missing_attendance_id}}/check-out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances",
+                "{{missing_attendance_id}}",
+                "check-out"
+              ]
+            },
+            "description": "Set missing_attendance_id to an ID that does not exist. Requires a valid mobile token and accessible plant. No request body. Expected 404. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([404]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example expected error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances/{{missing_attendance_id}}/check-out",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances",
+                    "{{missing_attendance_id}}",
+                    "check-out"
+                  ]
+                },
+                "description": "Set missing_attendance_id to an ID that does not exist. Requires a valid mobile token and accessible plant. No request body. Expected 404. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Attendance record not found.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reject reversed history dates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances?from_date=2026-10-22&to_date=2026-10-21",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances"
+              ],
+              "query": [
+                {
+                  "key": "from_date",
+                  "value": "2026-10-22"
+                },
+                {
+                  "key": "to_date",
+                  "value": "2026-10-21"
+                }
+              ]
+            },
+            "description": "Expected 422: to_date cannot precede from_date. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([422]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example expected error",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances?from_date=2026-10-22&to_date=2026-10-21",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances"
+                  ],
+                  "query": [
+                    {
+                      "key": "from_date",
+                      "value": "2026-10-22"
+                    },
+                    {
+                      "key": "to_date",
+                      "value": "2026-10-21"
+                    }
+                  ]
+                },
+                "description": "Expected 422: to_date cannot precede from_date. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"The to date field must be a date after or equal to from date.\",\n  \"errors\": {\n    \"to_date\": [\n      \"The to date field must be a date after or equal to from date.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reject excessive page size",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/attendances?per_page=101",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "attendances"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "101"
+                }
+              ]
+            },
+            "description": "Expected 422: per_page must be between 1 and 100. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([422]));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Example expected error",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Plant-Id",
+                    "value": "{{plant_id}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/mobile/v1/attendances?per_page=101",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "mobile",
+                    "v1",
+                    "attendances"
+                  ],
+                  "query": [
+                    {
+                      "key": "per_page",
+                      "value": "101"
+                    }
+                  ]
+                },
+                "description": "Expected 422: per_page must be between 1 and 100. Notification behavior: this request does not directly trigger a business push notification."
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"The per page field must be between 1 and 100.\",\n  \"errors\": {\n    \"per_page\": [\n      \"The per page field must be between 1 and 100.\"\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Documentation",
+      "item": [
+        {
+          "name": "API documentation page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/docs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "docs"
+              ]
+            },
+            "description": "Public HTML Swagger UI page. Use the OpenAPI JSON request for a machine-readable import. Notification behavior: this request does not directly trigger a business push notification.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OpenAPI specification",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/openapi.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "openapi.json"
+              ]
+            },
+            "description": "Public OpenAPI 3.0.3 specification for importing into Apidog or other API clients. Notification behavior: this request does not directly trigger a business push notification.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sites",
+      "item": [
+        {
+          "name": "List sites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/sites?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "sites"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Site detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/sites/{{site_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "sites",
+                "{{site_id}}"
+              ]
+            },
+            "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Customer POs",
+      "item": [
+        {
+          "name": "List customer POs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customer-pos?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customer-pos"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create direct customer PO",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customer-pos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customer-pos"
+              ]
+            },
+            "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"customer_po_reference\": \"Customer reference\",\n  \"is_tax_inclusive\": false,\n  \"notes\": \"Mobile customer PO\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 40,\n      \"rate\": 546,\n      \"tax_id\": \"{{sales_tax_id}}\",\n      \"concrete_pump\": null,\n      \"pump_rate\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "const d=pm.response.json().data; if(d && d.id) pm.environment.set('customer_po_id',d.id); if(d && d.items && d.items.length) pm.environment.set('customer_po_item_id',d.items[0].id); else pm.environment.unset('customer_po_item_id');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer PO detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customer-pos/{{customer_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customer-pos",
+                "{{customer_po_id}}"
+              ]
+            },
+            "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Saves the first item ID for conversion. Notification behavior: this request does not directly trigger a business push notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d && d.id) pm.environment.set('customer_po_id',d.id); if(d && d.items && d.items.length) pm.environment.set('customer_po_item_id',d.items[0].id); else pm.environment.unset('customer_po_item_id');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update direct customer PO",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customer-pos/{{customer_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customer-pos",
+                "{{customer_po_id}}"
+              ]
+            },
+            "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Items are replaced; their IDs change. Refresh customer_po_item_id from this response. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"customer_po_reference\": \"Customer reference\",\n  \"is_tax_inclusive\": false,\n  \"notes\": \"Mobile customer PO\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 40,\n      \"rate\": 546,\n      \"tax_id\": \"{{sales_tax_id}}\",\n      \"concrete_pump\": null,\n      \"pump_rate\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d && d.id) pm.environment.set('customer_po_id',d.id); if(d && d.items && d.items.length) pm.environment.set('customer_po_item_id',d.items[0].id); else pm.environment.unset('customer_po_item_id');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch direct customer PO (full form alternative)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customer-pos/{{customer_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customer-pos",
+                "{{customer_po_id}}"
+              ]
+            },
+            "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"customer_po_reference\": \"Customer reference\",\n  \"is_tax_inclusive\": false,\n  \"notes\": \"Mobile customer PO\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 40,\n      \"rate\": 546,\n      \"tax_id\": \"{{sales_tax_id}}\",\n      \"concrete_pump\": null,\n      \"pump_rate\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+                  "const d=pm.response.json().data; if(d && d.id) pm.environment.set('customer_po_id',d.id); if(d && d.items && d.items.length) pm.environment.set('customer_po_item_id',d.items[0].id); else pm.environment.unset('customer_po_item_id');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create PO from approved quotation (alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customer-pos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customer-pos"
+              ]
+            },
+            "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Requires an approved accessible quotation with items and matching customer/site. Only one active PO per quotation. Items and tax inclusion are copied from the quotation; omit items. A linked quotation cannot be switched on update. Run individually. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"quotation_id\": \"{{quotation_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"is_tax_inclusive\": false,\n  \"customer_po_reference\": \"Quotation conversion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "const d=pm.response.json().data; if(d && d.id) pm.environment.set('customer_po_id',d.id); if(d && d.items && d.items.length) pm.environment.set('customer_po_item_id',d.items[0].id); else pm.environment.unset('customer_po_item_id');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Convert PO items to sales orders (run individually)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/customer-pos/{{customer_po_id}}/convert-salesorder",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "customer-pos",
+                "{{customer_po_id}}",
+                "convert-salesorder"
+              ]
+            },
+            "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Requires distinct item IDs belonging to this PO and positive quantities within the remaining mix-design allocation. Locks the plant/PO, copies prices and creates scheduled orders. Captures the first order_id. Avoid also creating a direct order for the same allocation. Notification behavior: this request does not directly trigger a business push notification.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"item_id\": \"{{customer_po_item_id}}\",\n      \"quantity\": 6\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected response status', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "const orders=pm.response.json().data; if(Array.isArray(orders) && orders.length) pm.environment.set('order_id',orders[0].id);"
                 ]
               }
             }

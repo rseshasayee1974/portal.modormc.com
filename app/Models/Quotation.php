@@ -2,16 +2,20 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\DB;
+use App\Services\Mobile\QuotationCalculator;
+use App\Traits\LogsPushNotifications;
 use App\Traits\PlantScoping;
 use App\Traits\TracksModelChanges;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Quotation extends Model
 {
-        use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
+    use HasFactory, LogsPushNotifications, PlantScoping, SoftDeletes, TracksModelChanges;
+
     protected $table = 'mm_quotations';
 
     protected $appends = [
@@ -59,8 +63,11 @@ class Quotation extends Model
 
     // Statuses
     const STATUS_DRAFT = 0;
+
     const STATUS_SENT = 1;
+
     const STATUS_ACCEPTED = 2;
+
     const STATUS_REJECTED = 3;
 
     public function items()
@@ -88,14 +95,14 @@ class Quotation extends Model
             $quotationData['plant_id'] = $plantId ?: 1;
 
             // Handle Dynamic Site Creation
-            if (!empty($data['new_site_name'])) {
-                $site = \App\Models\Site::create([
+            if (! empty($data['new_site_name'])) {
+                $site = Site::create([
                     'name' => $data['new_site_name'],
                     'plant_id' => $quotationData['plant_id'],
                     'type' => 'unloading',
                     'status' => 'Active',
                     'is_active' => true,
-                    'created_by' => auth()->id()
+                    'created_by' => auth()->id(),
                 ]);
                 $quotationData['site_id'] = $site->id;
             }
@@ -103,10 +110,10 @@ class Quotation extends Model
             if (empty($quotationData['reference'])) {
                 $quotationData['reference'] = self::generateReference($quotationData['plant_id']);
             }
-            $quotationData['quote_date'] = \Carbon\Carbon::parse($quotationData['quote_date'])->toDateString();
-            
+            $quotationData['quote_date'] = Carbon::parse($quotationData['quote_date'])->toDateString();
+
             if (isset($quotationData['validity_date'])) {
-                $quotationData['validity_date'] = \Carbon\Carbon::parse($quotationData['validity_date'])->toDateString();
+                $quotationData['validity_date'] = Carbon::parse($quotationData['validity_date'])->toDateString();
             }
 
             $quotation = self::create($quotationData);
@@ -121,13 +128,14 @@ class Quotation extends Model
                 $itemPayload['concrete_pump'] = $concretePump;
                 $itemPayload['pump_rate'] = $pumpRate;
                 if (array_key_exists('discount', $itemPayload)) {
-                    $itemPayload = \App\Services\Mobile\QuotationCalculator::items([$itemIndex => $itemPayload], (bool) ($quotationData['is_tax_inclusive'] ?? false))[0];
+                    $itemPayload = QuotationCalculator::items([$itemIndex => $itemPayload], (bool) ($quotationData['is_tax_inclusive'] ?? false))[0];
                 }
 
                 $quotation->items()->create($itemPayload);
             }
 
             $quotation->updateTotals();
+
             return $quotation;
         });
     }
@@ -139,10 +147,10 @@ class Quotation extends Model
     {
         return DB::transaction(function () use ($data) {
             $quotationData = collect($data)->except('items')->toArray();
-            $quotationData['quote_date'] = \Carbon\Carbon::parse($quotationData['quote_date'])->toDateString();
-            
+            $quotationData['quote_date'] = Carbon::parse($quotationData['quote_date'])->toDateString();
+
             if (isset($quotationData['validity_date'])) {
-                $quotationData['validity_date'] = \Carbon\Carbon::parse($quotationData['validity_date'])->toDateString();
+                $quotationData['validity_date'] = Carbon::parse($quotationData['validity_date'])->toDateString();
             }
 
             $this->update($quotationData);
@@ -163,7 +171,7 @@ class Quotation extends Model
                 $itemPayload['concrete_pump'] = $concretePump;
                 $itemPayload['pump_rate'] = $pumpRate;
                 if (array_key_exists('discount', $itemPayload)) {
-                    $itemPayload = \App\Services\Mobile\QuotationCalculator::items([$itemIndex => $itemPayload], (bool) $this->is_tax_inclusive)[0];
+                    $itemPayload = QuotationCalculator::items([$itemIndex => $itemPayload], (bool) $this->is_tax_inclusive)[0];
                 }
 
                 if (isset($itemData['id'])) {
@@ -180,7 +188,6 @@ class Quotation extends Model
         });
     }
 
-   
     public function tax()
     {
         return $this->belongsTo(Tax::class, 'tax_id');
@@ -200,7 +207,7 @@ class Quotation extends Model
     {
         return $this->belongsTo(Site::class);
     }
-    
+
     public function salesExecutive()
     {
         return $this->belongsTo(Personnel::class, 'sales_executive_id', 'id');
@@ -216,21 +223,21 @@ class Quotation extends Model
     {
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
-        $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
-        
+        $fyString = substr($startYear, -2).substr($startYear + 1, -2);
+
         $customPrefix = 'QT';
         $settings = CustomSetting::getForModule($plantId, 'batching');
-        if (!empty($settings['quote_prefix'])) {
+        if (! empty($settings['quote_prefix'])) {
             $customPrefix = $settings['quote_prefix'];
         }
-        
+
         $prefixSearch = "{$customPrefix}-{$fyString}-";
 
         $latest = self::where('plant_id', $plantId)
-                      ->where('reference', 'LIKE', "{$prefixSearch}%")
-                      ->orderBy('id', 'desc')
-                      ->value('reference');
-                      
+            ->where('reference', 'LIKE', "{$prefixSearch}%")
+            ->orderBy('id', 'desc')
+            ->value('reference');
+
         $sequence = 1;
         if ($latest && preg_match('/(\d{4})$/', $latest, $matches)) {
             $sequence = ((int) $matches[1]) + 1;
@@ -243,7 +250,7 @@ class Quotation extends Model
     {
         $untaxed = $this->items()->sum('untaxed_amount');
         $taxAmount = $this->items()->sum('tax_amount');
-        
+
         $this->update([
             'amount_untaxed' => $untaxed,
             'amount_tax' => $taxAmount,

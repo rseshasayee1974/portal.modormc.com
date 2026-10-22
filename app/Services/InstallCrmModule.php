@@ -1,20 +1,25 @@
 <?php
+
 /*
 Author: ragul-onemodo
 Created: 2026-10-09 12:27:48 Asia/Calcutta (UTC+05:30)
 */
+
 namespace App\Services;
 
-use Illuminate\Support\Facades\{DB, Schema};
+use App\Models\EntityUser;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\PermissionRegistrar;
 
 class InstallCrmModule
 {
     public static function run(): void
     {
-        foreach (['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'ASSIGN', 'CONVERT'] as $action) {
-            $name = 'CRM_LEAD.' . $action;
+        foreach (['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'ASSIGN', 'CONVERT', 'APPROVE'] as $action) {
+            $name = 'CRM_LEAD.'.$action;
             self::upsert('mm_permissions', ['name' => $name, 'guard_name' => 'web'], [
-                'module' => 'CRM_LEAD', 'description' => ucfirst(strtolower($action)) . ' CRM leads', 'is_system' => true, 'updated_at' => now(),
+                'module' => 'CRM_LEAD', 'description' => ucfirst(strtolower($action)).' CRM leads', 'is_system' => true, 'updated_at' => now(),
             ]);
             $id = DB::table('mm_permissions')->where('name', $name)->where('guard_name', 'web')->value('id');
             foreach (DB::table('mm_roles')->whereNull('deleted_at')->whereIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR', 'SALES_MANAGER'])->pluck('id') as $role) {
@@ -47,8 +52,8 @@ class InstallCrmModule
 
     private static function clearCache(): void
     {
-        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
-        \App\Models\EntityUser::clearGlobalRolesCache();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        EntityUser::clearGlobalRolesCache();
     }
 
     private static function upsert(string $table, array $lookup, array $data): void

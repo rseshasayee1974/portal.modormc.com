@@ -1,17 +1,17 @@
 <?php
 
 namespace App\Models;
+
+use App\Traits\LogsPushNotifications;
 use App\Traits\PlantScoping;
 use App\Traits\TracksModelChanges;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class SalesOrder extends Model
 {
-        use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
+    use HasFactory, LogsPushNotifications, PlantScoping, SoftDeletes, TracksModelChanges;
 
     protected $table = 'mm_sales_orders';
 
@@ -62,14 +62,20 @@ class SalesOrder extends Model
         if ($value !== null) {
             return (bool) $value;
         }
+
         return (bool) ($this->customerPO?->is_tax_inclusive ?? false);
     }
 
     public const STATUS_DRAFT = 0;
+
     public const STATUS_CONFIRMED = 1;
+
     public const STATUS_SCHEDULED = 1;
+
     public const STATUS_IN_PROGRESS = 2;
+
     public const STATUS_COMPLETED = 3;
+
     public const STATUS_CANCELLED = 4;
 
     public function plant()
@@ -149,14 +155,14 @@ class SalesOrder extends Model
 
     public function getFullNumberAttribute()
     {
-        return sprintf('%s%04d', $this->prefix, (int)$this->order_no);
+        return sprintf('%s%04d', $this->prefix, (int) $this->order_no);
     }
 
     public function getRateAttribute($value)
     {
         // If a rate is stored directly on this record, use it
-        if ($value !== null && (float)$value > 0) {
-            return (float)$value;
+        if ($value !== null && (float) $value > 0) {
+            return (float) $value;
         }
 
         // Fall back to CustomerPO-derived rate
@@ -165,16 +171,17 @@ class SalesOrder extends Model
                 ->where('mix_design_id', $this->mix_design_id)
                 ->first();
             if ($item) {
-                return (float)$item->rate;
+                return (float) $item->rate;
             }
         }
+
         return 0.0;
     }
 
     public function getPumpRateAttribute($value)
     {
-        if ($value !== null && (float)$value > 0) {
-            return (float)$value;
+        if ($value !== null && (float) $value > 0) {
+            return (float) $value;
         }
 
         if ($this->customerPO) {
@@ -182,17 +189,18 @@ class SalesOrder extends Model
                 ->where('mix_design_id', $this->mix_design_id)
                 ->first();
             if ($item && $item->pump_rate) {
-                return (float)$item->pump_rate;
+                return (float) $item->pump_rate;
             }
         }
+
         return 0.0;
     }
 
     public function getTaxIdAttribute($value)
     {
         // If a tax_id is stored directly on this record, use it
-        if ($value !== null && (int)$value > 0) {
-            return (int)$value;
+        if ($value !== null && (int) $value > 0) {
+            return (int) $value;
         }
 
         // Fall back to CustomerPO-derived tax_id
@@ -204,6 +212,7 @@ class SalesOrder extends Model
                 return $item->tax_id;
             }
         }
+
         return null;
     }
 
@@ -213,16 +222,16 @@ class SalesOrder extends Model
         // Financial Year: April to March
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $endYear = $startYear + 1;
-        $fyString = substr($startYear, -2) . substr($endYear, -2);
-        
+        $fyString = substr($startYear, -2).substr($endYear, -2);
+
         $customPrefix = $prefix;
         if ($prefix === 'SO') {
             $settings = CustomSetting::getForModule($plantId, 'batching');
-            if (!empty($settings['so_prefix'])) {
+            if (! empty($settings['so_prefix'])) {
                 $customPrefix = $settings['so_prefix'];
             }
         }
-        
+
         $fullPrefix = "{$customPrefix}/{$fyString}/";
 
         // Get the latest order number for this plant and prefix
@@ -234,13 +243,13 @@ class SalesOrder extends Model
 
         $nextSequence = 1;
         if ($latest) {
-            $nextSequence = (int)$latest + 1;
+            $nextSequence = (int) $latest + 1;
         }
 
         return [
             'prefix' => $fullPrefix,
-            'next_number' => str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT),
-            'full_number' => $fullPrefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT)
+            'next_number' => str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT),
+            'full_number' => $fullPrefix.str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT),
         ];
     }
 
@@ -264,7 +273,7 @@ class SalesOrder extends Model
 
         $this->update([
             'produced_qty' => $producedQty,
-            'status'       => $status,
+            'status' => $status,
         ]);
     }
 }

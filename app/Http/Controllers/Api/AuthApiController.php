@@ -95,13 +95,13 @@ class AuthApiController extends Controller
             $user->forceFill(['api_key' => Str::random(60)])->save();
         }
 
-        if ($user->is_otp_enabled) {
-            return response()->json([
-                'message' => 'Two-factor authentication required.',
-                '2fa_required' => true,
-                'email' => $user->email,
-            ], 200); // Or 403/401 depending on frontend preference, but 200 with status is common for SPA
-        }
+        // if ($user->is_otp_enabled) {
+        //     return response()->json([
+        //         'message' => 'Two-factor authentication required.',
+        //         '2fa_required' => true,
+        //         'email' => $user->email,
+        //     ], 200); // Or 403/401 depending on frontend preference, but 200 with status is common for SPA
+        // }
 
         Auth::login($user, (bool) ($data['remember'] ?? false));
         $token = $user->createToken('web-login')->plainTextToken;

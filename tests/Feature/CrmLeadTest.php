@@ -1,30 +1,54 @@
 <?php
+
 /*
 Author: ragul-onemodo
 Created: 2026-10-09 12:35:50 Asia/Calcutta (UTC+05:30)
 */
+
 namespace Tests\Feature;
 
-use App\Models\{CrmLead, CrmActivity, CrmDeal, Patron, Plant, User, EntityUser, ContactType, AddressType, Permission, Role};
-use App\Services\{CrmLeadService, InstallCrmModule};
-use Illuminate\Foundation\Testing\{RefreshDatabase, TestCase};
-use Illuminate\Support\Facades\{DB, Storage};
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireOtpVerification;
+use App\Http\Middleware\SetEntityContext;
+use App\Http\Middleware\SetEntityTimezone;
+use App\Models\AddressType;
+use App\Models\ContactType;
+use App\Models\CrmDeal;
+use App\Models\CrmLead;
+use App\Models\EntityUser;
+use App\Models\MixDesign;
+use App\Models\Patron;
+use App\Models\Permission;
+use App\Models\Plant;
+use App\Models\Product;
+use App\Models\Quotation;
+use App\Models\Role;
+use App\Models\Site;
+use App\Models\User;
+use App\Services\CrmLeadService;
+use App\Services\InstallCrmModule;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\TestCase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CrmLeadTest extends TestCase
 {
     use RefreshDatabase;
+
     private Plant $plant;
+
     private User $user;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->withoutMiddleware([
-            \App\Http\Middleware\SetEntityContext::class,
-            \App\Http\Middleware\RequireOtpVerification::class,
-            \App\Http\Middleware\SetEntityTimezone::class,
-            \App\Http\Middleware\HandleInertiaRequests::class,
+            SetEntityContext::class,
+            RequireOtpVerification::class,
+            SetEntityTimezone::class,
+            HandleInertiaRequests::class,
         ]);
         $this->plant = Plant::factory()->create();
         // Mirror the seeded Master menu ID used by AuthorizesModule.
@@ -130,16 +154,34 @@ class CrmLeadTest extends TestCase
 
     public function test_conversion_duplicate_customer_and_same_plant_reuse(): void
     {
-        $lead = $this->lead(['status' => 'Qualified']);
         $customer = Patron::factory()->create(['plant_id' => $this->plant->id, 'legal_name' => 'CRM Company', 'patron_type' => ['Customer']]);
-        $this->postJson(route('crm.leads.convert', $lead), [])->assertUnprocessable()->assertJsonValidationErrors('customer_id');
-        $this->assertNull($lead->fresh()->converted_at);
-        $this->assertSame(0, CrmDeal::count());
+        $lead = $this->lead(['status' => 'Qualified']);
+        $this->assertSame($customer->id, $lead->customer_id);
         $foreign = Patron::factory()->create(['plant_id' => Plant::factory()->create()->id, 'patron_type' => ['Customer']]);
         $this->postJson(route('crm.leads.convert', $lead), ['customer_id' => $foreign->id])->assertUnprocessable()->assertJsonValidationErrors('customer_id');
-        $this->postJson(route('crm.leads.convert', $lead), ['customer_id' => $customer->id])->assertRedirect()->assertSessionHasNoErrors();
+        $this->postJson(route('crm.leads.convert', $lead), [])->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame($customer->id, $lead->fresh()->customer_id);
         $this->assertSame(0, $customer->contacts()->count());
+    }
+
+    public function test_site_preparation_uses_persisted_customer_instead_of_stale_or_latest_customer(): void
+    {
+        $lead = $this->lead();
+        $staleLead = $lead->fresh();
+        $customer = Patron::factory()->create(['plant_id' => $this->plant->id, 'patron_type' => ['Customer']]);
+        $lead->update(['customer_id' => $customer->id]);
+        $latest = Patron::factory()->create(['plant_id' => $this->plant->id, 'patron_type' => ['Customer']]);
+        $otherSite = Site::create(['plant_id' => $this->plant->id, 'patron_id' => [$latest->id], 'name' => $lead->project_name, 'type' => 'unloading', 'status' => 'Active']);
+
+        app(CrmLeadService::class)->prepareCustomerAndSite($staleLead);
+        app(CrmLeadService::class)->prepareCustomerAndSite($staleLead);
+
+        $this->assertSame($customer->id, $staleLead->customer_id);
+        $this->assertSame($customer->id, $lead->fresh()->customer_id);
+        $sites = Site::whereJsonContains('patron_id', $customer->id)->get();
+        $this->assertCount(1, $sites);
+        $this->assertSame($otherSite->id, $sites->first()->id);
+        $this->assertSame([$latest->id, $customer->id], $otherSite->fresh()->patron_id);
     }
 
     public function test_followups_completion_note_timeline_and_dashboard(): void
@@ -170,7 +212,7 @@ class CrmLeadTest extends TestCase
         $this->putJson(route('crm.leads.deal', $lead), $dealData)->assertRedirect();
         $this->assertSame('Negotiation', $lead->deal()->first()->stage);
         $this->putJson(route('crm.leads.deal', $lead), array_merge($dealData, ['stage' => 'Lost']))->assertUnprocessable()->assertJsonValidationErrors('lost_reason');
-        $quote = \App\Models\Quotation::factory()->create(['plant_id' => $this->plant->id, 'patron_id' => $lead->customer_id]);
+        $quote = Quotation::factory()->create(['plant_id' => $this->plant->id, 'patron_id' => $lead->customer_id]);
         $this->putJson(route('crm.leads.deal', $lead), array_merge($dealData, ['quotation_id' => $quote->id]))->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame($quote->id, $lead->deal()->first()->quotation_id);
         $quote->update(['patron_id' => Patron::factory()->create(['plant_id' => $this->plant->id])->id]);
@@ -195,8 +237,10 @@ class CrmLeadTest extends TestCase
     public function test_menu_permission_installer_is_idempotent(): void
     {
         InstallCrmModule::run();
+        $permissionCount = Permission::where('module', 'CRM_LEAD')->count();
         InstallCrmModule::run();
-        $this->assertSame(6, Permission::where('module', 'CRM_LEAD')->count());
+        $this->assertSame($permissionCount, Permission::where('module', 'CRM_LEAD')->count());
+        $this->assertSame(1, Permission::where('name', 'CRM_LEAD.APPROVE')->where('guard_name', 'web')->count());
         $this->assertSame(2, DB::table('mm_menus')->whereIn('alias', ['crm', 'crm-leads'])->count());
         $this->assertSame('CRM_LEAD.VIEW', DB::table('mm_menus')->where('alias', 'crm-leads')->value('permission_name'));
     }
@@ -206,7 +250,7 @@ class CrmLeadTest extends TestCase
         $lead = $this->lead(['status' => 'Qualified']);
         foreach ([['CRM_LEAD.UPDATE', 'put', 'update', $this->data()], ['CRM_LEAD.DELETE', 'delete', 'destroy', []], ['CRM_LEAD.CONVERT', 'post', 'convert', []]] as [$permission, $method, $action, $data]) {
             $this->user->revokePermissionTo($permission);
-            $this->json(strtoupper($method), route('crm.leads.' . $action, $lead), $data)->assertForbidden();
+            $this->json(strtoupper($method), route('crm.leads.'.$action, $lead), $data)->assertForbidden();
             $this->user->givePermissionTo($permission);
         }
         $this->assertNull($lead->fresh()->converted_at);
@@ -215,16 +259,17 @@ class CrmLeadTest extends TestCase
 
     public function test_walk_in_source_long_address_and_sales_manager_menu_access(): void
     {
-        $address = str_repeat('A', 200) . str_repeat('B', 180);
+        $address = str_repeat('A', 200).str_repeat('B', 180);
         $this->postJson(route('crm.leads.store'), $this->data(['source' => 'Walk-in', 'address' => $address, 'status' => 'Qualified']))->assertRedirect()->assertSessionHasNoErrors();
         $lead = CrmLead::firstOrFail();
         $this->assertSame('Walk-in', $lead->source);
         $this->postJson(route('crm.leads.convert', $lead), [])->assertRedirect()->assertSessionHasNoErrors();
         $savedAddress = $lead->fresh()->customer->contacts()->first()->addresses()->first();
-        $this->assertSame($lead->address, $savedAddress->line_1 . $savedAddress->line_2);
+        $this->assertSame($lead->address, $savedAddress->line_1.$savedAddress->line_2);
         $role = Role::firstOrCreate(['code' => 'SALES_MANAGER', 'guard_name' => 'web'], ['name' => 'Sales Manager']);
         InstallCrmModule::run();
-        $this->assertSame(6, $role->permissions()->where('module', 'CRM_LEAD')->count());
+        $this->assertSame(7, $role->permissions()->where('module', 'CRM_LEAD')->count());
+        $this->assertTrue($role->hasPermissionTo('CRM_LEAD.APPROVE'));
         $roleUser = User::factory()->create(['is_active' => true]);
         EntityUser::create(['user_id' => $roleUser->id, 'entity_id' => $this->plant->entity_id, 'plant_id' => $this->plant->id, 'role_id' => $role->id]);
         $this->actingAs($roleUser)->getJson(route('crm.leads.show', $lead))->assertOk();
@@ -244,17 +289,17 @@ class CrmLeadTest extends TestCase
     public function test_requirement_dropdown_submits_mix_design_ids_and_preserves_legacy_text(): void
     {
         $plantId = $this->plant->id;
-        \App\Models\Product::factory()->create(['plant_id' => $plantId, 'title' => 'Cement', 'status' => true]);
-        $design = \App\Models\MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'M25 Design', 'is_active' => true]);
-        \App\Models\MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'M25 Design', 'is_active' => true]);
-        \App\Models\Product::factory()->create(['plant_id' => $plantId, 'title' => 'M25 Design', 'status' => true]);
-        \App\Models\Product::factory()->create(['plant_id' => $plantId, 'title' => 'Inactive Product', 'status' => false]);
-        \App\Models\MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'Inactive Mix', 'is_active' => false]);
-        \App\Models\Product::factory()->create(['plant_id' => $plantId, 'title' => 'Deleted Product', 'deleted_at' => now()]);
-        \App\Models\MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'Deleted Mix', 'is_active' => true, 'deleted_at' => now()]);
+        Product::factory()->create(['plant_id' => $plantId, 'title' => 'Cement', 'status' => true]);
+        $design = MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'M25 Design', 'is_active' => true]);
+        MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'M25 Design', 'is_active' => true]);
+        Product::factory()->create(['plant_id' => $plantId, 'title' => 'M25 Design', 'status' => true]);
+        Product::factory()->create(['plant_id' => $plantId, 'title' => 'Inactive Product', 'status' => false]);
+        MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'Inactive Mix', 'is_active' => false]);
+        Product::factory()->create(['plant_id' => $plantId, 'title' => 'Deleted Product', 'deleted_at' => now()]);
+        MixDesign::factory()->create(['plant_id' => $plantId, 'design_name' => 'Deleted Mix', 'is_active' => true, 'deleted_at' => now()]);
         $foreignPlant = Plant::factory()->create();
-        \App\Models\Product::factory()->create(['plant_id' => $foreignPlant->id, 'title' => 'Foreign Product']);
-        \App\Models\MixDesign::factory()->create(['plant_id' => $foreignPlant->id, 'design_name' => 'Foreign Mix', 'is_active' => true]);
+        Product::factory()->create(['plant_id' => $foreignPlant->id, 'title' => 'Foreign Product']);
+        MixDesign::factory()->create(['plant_id' => $foreignPlant->id, 'design_name' => 'Foreign Mix', 'is_active' => true]);
         $response = $this->get(route('crm.leads.index'), ['X-Inertia' => 'true'])->assertOk();
         $choices = $response->json('props.options.requirements');
         $this->assertCount(2, $choices);
@@ -272,11 +317,12 @@ class CrmLeadTest extends TestCase
         $this->assertNull($lead->fresh()->mix_design_id);
         $this->assertNull($lead->fresh()->requirement);
     }
+
     public function test_mix_design_selection_rejects_names_inactive_deleted_and_foreign_ids(): void
     {
-        $inactive = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id, 'is_active' => false]);
-        $deleted = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id, 'is_active' => true, 'deleted_at' => now()]);
-        $foreign = \App\Models\MixDesign::factory()->create(['plant_id' => Plant::factory()->create()->id, 'is_active' => true]);
+        $inactive = MixDesign::factory()->create(['plant_id' => $this->plant->id, 'is_active' => false]);
+        $deleted = MixDesign::factory()->create(['plant_id' => $this->plant->id, 'is_active' => true, 'deleted_at' => now()]);
+        $foreign = MixDesign::factory()->create(['plant_id' => Plant::factory()->create()->id, 'is_active' => true]);
         foreach (['M25 Design', $inactive->id, $deleted->id, $foreign->id, 99999999] as $value) {
             $this->postJson(route('crm.leads.store'), $this->data(['mix_design_id' => $value]))
                 ->assertUnprocessable()->assertJsonValidationErrors('mix_design_id');
@@ -284,5 +330,4 @@ class CrmLeadTest extends TestCase
         $this->postJson(route('crm.leads.store'), $this->data(['requirement' => 'M25 Design']))
             ->assertUnprocessable()->assertJsonValidationErrors('requirement');
     }
-
 }

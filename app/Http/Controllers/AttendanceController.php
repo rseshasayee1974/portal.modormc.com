@@ -50,7 +50,8 @@ class AttendanceController extends Controller
             $request->validate([
                 'attendance_date' => 'required|date',
                 'attendances' => 'required|array|min:1',
-                'attendances.*.personnel_id' => 'required|exists:mm_personnels,id',
+                'attendances.*.personnel_id' => ['required', $this->personnelRule()],
+                'attendances.*.shift_id' => 'nullable|exists:mm_shifts,id',
                 'attendances.*.status' => 'required|in:present,absent,half_day,leave,holiday,weekoff,on_duty',
                 'attendances.*.check_in' => 'nullable|date',
                 'attendances.*.check_out' => 'nullable|date|after_or_equal:attendances.*.check_in',
@@ -63,10 +64,10 @@ class AttendanceController extends Controller
                 foreach ($request->attendances as $item) {
                     $personnelId = $item['personnel_id'];
                     $status = $item['status'] ?? 'present';
-                    $checkInRaw = !empty($item['check_in']) && $status !== 'absent' ? date('Y-m-d H:i:s', strtotime($item['check_in'])) : null;
-                    $checkOutRaw = !empty($item['check_out']) && $status !== 'absent' ? date('Y-m-d H:i:s', strtotime($item['check_out'])) : null;
+                    $checkInRaw = $this->normalizePunchTime($item['check_in'] ?? null, $status);
+                    $checkOutRaw = $this->normalizePunchTime($item['check_out'] ?? null, $status);
 
-                    $metrics = $this->calculateAttendanceMetrics($personnelId, $attendanceDate, $checkInRaw, $checkOutRaw, $status);
+                    $metrics = $this->calculateAttendanceMetrics($personnelId, $attendanceDate, $checkInRaw, $checkOutRaw, $status, $item['shift_id'] ?? null);
 
                     $record = Attendance::withTrashed()->updateOrCreate(
                         [
@@ -74,8 +75,9 @@ class AttendanceController extends Controller
                             'attendance_date' => $attendanceDate,
                         ],
                         [
+                            ...$metrics,
                             'plant_id' => $activePlantId,
-                            'shift_id' => $item['shift_id'] ?? null,
+                            'shift_id' => $metrics['shift_id'],
                             'check_in' => $checkInRaw,
                             'check_out' => $checkOutRaw,
                             'worked_hours' => $metrics['worked_hours'],
@@ -100,7 +102,7 @@ class AttendanceController extends Controller
 
         // Single attendance record store
         $validated = $request->validate([
-            'personnel_id' => 'required|exists:mm_personnels,id',
+            'personnel_id' => ['required', $this->personnelRule()],
             'shift_id' => 'nullable|exists:mm_shifts,id',
             'attendance_date' => 'required|date',
             'check_in' => 'nullable|date',
@@ -118,18 +120,14 @@ class AttendanceController extends Controller
         $validated['plant_id'] = $activePlantId;
         $validated['attendance_date'] = date('Y-m-d', strtotime($validated['attendance_date']));
 
-        $checkInRaw = !empty($validated['check_in']) && $validated['status'] !== 'absent' ? date('Y-m-d H:i:s', strtotime($validated['check_in'])) : null;
-        $checkOutRaw = !empty($validated['check_out']) && $validated['status'] !== 'absent' ? date('Y-m-d H:i:s', strtotime($validated['check_out'])) : null;
+        $checkInRaw = $this->normalizePunchTime($validated['check_in'] ?? null, $validated['status']);
+        $checkOutRaw = $this->normalizePunchTime($validated['check_out'] ?? null, $validated['status']);
 
-        $metrics = $this->calculateAttendanceMetrics($validated['personnel_id'], $validated['attendance_date'], $checkInRaw, $checkOutRaw, $validated['status']);
+        $metrics = $this->calculateAttendanceMetrics($validated['personnel_id'], $validated['attendance_date'], $checkInRaw, $checkOutRaw, $validated['status'], $validated['shift_id'] ?? null);
 
+        $validated = array_merge($validated, $metrics);
         $validated['check_in'] = $checkInRaw;
         $validated['check_out'] = $checkOutRaw;
-        $validated['worked_hours'] = $metrics['worked_hours'];
-        $validated['overtime_hours'] = $metrics['overtime_hours'];
-        $validated['late_hours'] = $metrics['late_hours'];
-        $validated['is_late'] = $metrics['is_late'];
-        $validated['is_early_departure'] = $metrics['is_early_departure'];
 
         $record = Attendance::withTrashed()->updateOrCreate(
             [
@@ -151,7 +149,7 @@ class AttendanceController extends Controller
         $this->authorizeModule('edit');
 
         $validated = $request->validate([
-            'personnel_id' => 'required|exists:mm_personnels,id',
+            'personnel_id' => ['required', $this->personnelRule()],
             'shift_id' => 'nullable|exists:mm_shifts,id',
             'attendance_date' => [
                 'required',
@@ -177,18 +175,14 @@ class AttendanceController extends Controller
 
         $validated['attendance_date'] = date('Y-m-d', strtotime($validated['attendance_date']));
 
-        $checkInRaw = !empty($validated['check_in']) && $validated['status'] !== 'absent' ? date('Y-m-d H:i:s', strtotime($validated['check_in'])) : null;
-        $checkOutRaw = !empty($validated['check_out']) && $validated['status'] !== 'absent' ? date('Y-m-d H:i:s', strtotime($validated['check_out'])) : null;
+        $checkInRaw = $this->normalizePunchTime($validated['check_in'] ?? null, $validated['status']);
+        $checkOutRaw = $this->normalizePunchTime($validated['check_out'] ?? null, $validated['status']);
 
-        $metrics = $this->calculateAttendanceMetrics($validated['personnel_id'], $validated['attendance_date'], $checkInRaw, $checkOutRaw, $validated['status']);
+        $metrics = $this->calculateAttendanceMetrics($validated['personnel_id'], $validated['attendance_date'], $checkInRaw, $checkOutRaw, $validated['status'], $validated['shift_id'] ?? null);
 
+        $validated = array_merge($validated, $metrics);
         $validated['check_in'] = $checkInRaw;
         $validated['check_out'] = $checkOutRaw;
-        $validated['worked_hours'] = $metrics['worked_hours'];
-        $validated['overtime_hours'] = $metrics['overtime_hours'];
-        $validated['late_hours'] = $metrics['late_hours'];
-        $validated['is_late'] = $metrics['is_late'];
-        $validated['is_early_departure'] = $metrics['is_early_departure'];
 
         $attendance->update($validated);
 
@@ -204,73 +198,34 @@ class AttendanceController extends Controller
         return redirect()->back()->with('success', 'Attendance record deleted successfully.');
     }
 
-    /**
-     * Calculate worked_hours, overtime_hours, late_hours, is_late, and is_early_departure
-     * based on shift start/end times defined on the Personnel model.
-     */
-    private function calculateAttendanceMetrics($personnelId, string $attendanceDate, ?string $checkIn, ?string $checkOut, string $status): array
+    private function normalizePunchTime(?string $value, string $status): ?string
     {
-        $metrics = [
-            'worked_hours' => 0.0,
-            'overtime_hours' => 0.0,
-            'late_hours' => 0.0,
-            'is_late' => false,
-            'is_early_departure' => false,
-        ];
-
-        if ($status === 'absent' || !$checkIn) {
-            return $metrics;
+        if (! filled($value) || $status === 'absent') {
+            return null;
         }
 
-        $inTimestamp = strtotime($checkIn);
-        $outTimestamp = $checkOut ? strtotime($checkOut) : null;
+        return \Carbon\CarbonImmutable::parse($value, Attendance::TIMEZONE)
+            ->setTimezone(Attendance::TIMEZONE)->format('Y-m-d H:i:s');
+    }
 
-        if ($outTimestamp && $outTimestamp > $inTimestamp) {
-            $worked = ($outTimestamp - $inTimestamp) / 3600;
-            $metrics['worked_hours'] = round(min(24, max(0, $worked)), 1);
+    private function personnelRule()
+    {
+        return Rule::exists('mm_personnels', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at');
+    }
+
+    private function calculateAttendanceMetrics($personnelId, string $attendanceDate, ?string $checkIn, ?string $checkOut, string $status, ?int $shiftId = null): array
+    {
+        $personnel = Personnel::where('plant_id', session('active_plant_id'))->findOrFail($personnelId);
+        $service = app(\App\Services\AttendanceMetricsService::class);
+        if (! $checkIn || ! in_array($status, ['present', 'on_duty', 'half_day'], true)) {
+            return ['shift_id' => $shiftId] + $service->calculate($checkIn, $checkOut, [
+                'attendance_timezone' => Attendance::TIMEZONE,
+                'scheduled_start' => null, 'scheduled_end' => null, 'scheduled_hours' => null,
+            ], $status);
         }
+        $schedule = $service->schedule($personnel, $attendanceDate,
+            Attendance::TIMEZONE, $shiftId);
 
-        $personnel = Personnel::find($personnelId);
-        if (!$personnel) {
-            return $metrics;
-        }
-
-        // Shift start time check (Late calculation)
-        if (!empty($personnel->shift_start_time)) {
-            $shiftStartTimeStr = date('Y-m-d', $inTimestamp) . ' ' . $personnel->shift_start_time;
-            $shiftStartTimestamp = strtotime($shiftStartTimeStr);
-
-            if ($inTimestamp > $shiftStartTimestamp) {
-                $late = ($inTimestamp - $shiftStartTimestamp) / 3600;
-                $metrics['late_hours'] = round(min(24, max(0, $late)), 1);
-                $metrics['is_late'] = true;
-            }
-        }
-
-        // Overtime & Early Departure check based on shift start & end times
-        if (!empty($personnel->shift_start_time) && !empty($personnel->shift_end_time)) {
-            $sStart = strtotime('1970-01-01 ' . $personnel->shift_start_time);
-            $sEnd = strtotime('1970-01-01 ' . $personnel->shift_end_time);
-            if ($sEnd <= $sStart) {
-                $sEnd += 86400; // overnight shift
-            }
-            $scheduledHrs = ($sEnd - $sStart) / 3600;
-
-            if ($metrics['worked_hours'] > $scheduledHrs) {
-                $ot = $metrics['worked_hours'] - $scheduledHrs;
-                $metrics['overtime_hours'] = round(min(24, max(0, $ot)), 1);
-            }
-
-            if ($outTimestamp) {
-                $shiftEndTimeStr = date('Y-m-d', $outTimestamp) . ' ' . $personnel->shift_end_time;
-                $shiftEndTimestamp = strtotime($shiftEndTimeStr);
-                if ($outTimestamp < $shiftEndTimestamp) {
-                    $metrics['is_early_departure'] = true;
-                }
-            }
-        }
-
-        return $metrics;
+        return ['shift_id' => $schedule['shift_id']] + $service->calculate($checkIn, $checkOut, $schedule, $status);
     }
 }
-

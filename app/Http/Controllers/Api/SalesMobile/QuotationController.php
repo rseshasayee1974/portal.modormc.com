@@ -1,4 +1,5 @@
 <?php
+
 /*
 Author: ragul-onemodo
 Created: 2026-10-09 18:02:55 Asia/Calcutta (UTC+05:30)
@@ -7,13 +8,18 @@ Created: 2026-10-09 18:02:55 Asia/Calcutta (UTC+05:30)
 namespace App\Http\Controllers\Api\SalesMobile;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Quotation, Plant, MixDesign, Site};
+use App\Models\CrmLead;
+use App\Models\MixDesign;
+use App\Models\Plant;
+use App\Models\Quotation;
+use App\Models\Site;
 use App\Services\CrmLeadService;
-use Illuminate\Validation\ValidationException;
-use App\Services\Mobile\{MobileAccess as Access, QuotationCalculator};
+use App\Services\Mobile\MobileAccess as Access;
+use App\Services\Mobile\QuotationCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class QuotationController extends Controller
 {
@@ -25,6 +31,7 @@ class QuotationController extends Controller
     private function syncApprovalState(Quotation $quotation): Quotation
     {
         $quotation->mobile_approval_state = self::APPROVAL_STATES[(int) $quotation->status] ?? 'draft';
+
         return $quotation;
     }
 
@@ -60,17 +67,25 @@ class QuotationController extends Controller
     {
         $r->validate(['per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100', 'approval_state' => 'nullable|in:draft,pending,approved,rejected']);
         $q = Access::quotations()->with($this->detailRelations());
-        if ($r->filled('search')) $q->where('reference', 'like', '%'.$r->search.'%');
-        if ($r->filled('approval_state')) $q->where('status', array_search($r->approval_state, self::APPROVAL_STATES, true));
+        if ($r->filled('search')) {
+            $q->where('reference', 'like', '%'.$r->search.'%');
+        }
+        if ($r->filled('approval_state')) {
+            $q->where('status', array_search($r->approval_state, self::APPROVAL_STATES, true));
+        }
         $page = $q->latest('id')->paginate($r->integer('per_page', 20));
         $page->getCollection()->each(fn ($quotation) => $this->details($quotation));
+
         return response()->json(['success' => true, 'data' => $page]);
     }
+
     public function show(int $quotation)
     {
         $model = $this->details(Access::quotations()->findOrFail($quotation));
+
         return response()->json(['success' => true, 'data' => $this->details($model)]);
     }
+
     private function data(Request $r, ?Quotation $quotation, bool $fromLead = false): array
     {
         $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
@@ -119,9 +134,9 @@ class QuotationController extends Controller
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
             $source = Access::leads()->lockForUpdate()->findOrFail($lead);
             $autoConverted = false;
-            if (!$source->converted_at || !$source->customer_id) {
-                if ($source->converted_at || !in_array($source->status, ['New', 'Contacted', 'Qualified'], true)) {
-                    throw ValidationException::withMessages(['lead_id' => 'Only a new, contacted, or qualified lead can be converted automatically.']);
+            if (! $source->converted_at || ! $source->customer_id) {
+                if ($source->converted_at || ! in_array($source->status, CrmLead::QUOTATION_CONVERTIBLE_STATUSES, true)) {
+                    throw ValidationException::withMessages(['lead_id' => 'Only a new, contacted, qualified, or approved lead can be converted automatically.']);
                 }
                 $customerId = $r->input('patron_id', $source->customer_id);
                 if ($customerId !== null) {
@@ -215,6 +230,7 @@ class QuotationController extends Controller
             return response()->json(['success' => true, 'data' => $this->details($quotation->fresh())], 201);
         });
     }
+
     public function update(Request $r, int $quotation)
     {
         return DB::transaction(function () use ($r, $quotation) {
@@ -222,24 +238,29 @@ class QuotationController extends Controller
             $this->editable($model);
             $model->updateWithItems($this->data($r, $model));
             $model->forceFill(['mobile_approval_state' => 'draft', 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null, 'mobile_submitted_by' => null, 'mobile_submitted_at' => null])->save();
+
             return response()->json(['success' => true, 'data' => $this->details($model->fresh())]);
         });
     }
+
     private function editable(Quotation $model): void
     {
         $this->syncApprovalState($model);
         abort_if($model->is_customer_po || $model->customerPOs()->exists(), 422, 'Quotation already converted into a customer PO.');
         abort_if(in_array($model->mobile_approval_state, ['pending', 'approved']) || (int) $model->status === Quotation::STATUS_ACCEPTED, 422, 'Submitted or approved quotations cannot be edited or deleted.');
     }
+
     public function destroy(int $quotation)
     {
         return DB::transaction(function () use ($quotation) {
             $model = Access::quotations()->lockForUpdate()->findOrFail($quotation);
             $this->editable($model);
             $model->delete();
+
             return response()->json(['success' => true, 'message' => 'Quotation deleted.']);
         });
     }
+
     public function submit(int $quotation)
     {
         return DB::transaction(function () use ($quotation) {
@@ -247,23 +268,27 @@ class QuotationController extends Controller
             $this->editable($model);
             abort_unless($model->items()->exists(), 422, 'Add quotation items before submission.');
             $model->forceFill(['status' => Quotation::STATUS_SENT, 'mobile_approval_state' => 'pending', 'mobile_submitted_by' => request()->user()->id, 'mobile_submitted_at' => now(), 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null])->save();
+
             return response()->json(['success' => true, 'data' => $this->details($model)]);
         });
     }
+
     public function review(Request $r, int $quotation)
     {
-        $isSaasOwner = !Access::isSalesExecutive() && $r->user()->isSystemAdmin();
+        $isSaasOwner = ! Access::isSalesExecutive() && $r->user()->isSystemAdmin();
         $data = $r->validate(['decision' => 'required|in:approved,rejected', 'comment' => 'nullable|required_if:decision,rejected|string|max:2000']);
+
         return DB::transaction(function () use ($r, $quotation, $data, $isSaasOwner) {
             $query = Access::quotations();
             $model = $query->lockForUpdate()->find($quotation);
             abort_unless($model, 404, 'Quotation not found or you do not have access to it.');
             $this->syncApprovalState($model);
-            if (!$isSaasOwner) {
+            if (! $isSaasOwner) {
                 abort_unless($model->mobile_approval_state === 'pending', 422, 'Only submitted quotations can be reviewed.');
                 abort_if((int) $model->mobile_submitted_by === (int) $r->user()->id, 403, 'You cannot review your own quotation submission.');
             }
             $model->forceFill(['mobile_approval_state' => $data['decision'], 'mobile_approval_comment' => $data['comment'] ?? null, 'mobile_reviewed_by' => $r->user()->id, 'mobile_reviewed_at' => now(), 'status' => $data['decision'] === 'approved' ? Quotation::STATUS_ACCEPTED : Quotation::STATUS_REJECTED])->save();
+
             return response()->json(['success' => true, 'data' => $this->details($model)->setAppends([])]);
         });
     }

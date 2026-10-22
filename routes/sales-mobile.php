@@ -1,16 +1,28 @@
 <?php
+
 /*
 Author: ragul-onemodo
 Created: 2026-10-09 18:05:42 Asia/Calcutta (UTC+05:30)
 */
 
+use App\Http\Controllers\Api\SalesMobile\AuthController;
+use App\Http\Controllers\Api\SalesMobile\AttendanceController;
+use App\Http\Controllers\Api\SalesMobile\DocumentationController;
+use App\Http\Controllers\Api\SalesMobile\LeadController;
+use App\Http\Controllers\Api\SalesMobile\NotificationController;
+use App\Http\Controllers\Api\SalesMobile\OrderController;
+use App\Http\Controllers\Api\SalesMobile\QuotationController;
+use App\Http\Controllers\Api\SalesMobile\ScheduleController;
+use App\Http\Controllers\Api\SalesMobile\WorkspaceController;
+use App\Http\Middleware\MobileDeviceToken;
+use App\Http\Middleware\MobilePlantContext;
+use App\Http\Middleware\MobileSalesScope;
+use App\Http\Middleware\TitleCaseInputs;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\SalesMobile\{AuthController, LeadController, QuotationController, OrderController, ScheduleController, WorkspaceController};
-use App\Http\Middleware\{MobileDeviceToken, MobilePlantContext, MobileSalesScope};
 
-Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::class)->group(function () {
-    Route::get('docs', [\App\Http\Controllers\Api\SalesMobile\DocumentationController::class, 'index'])->name('sales-mobile.docs');
-    Route::get('openapi.json', [\App\Http\Controllers\Api\SalesMobile\DocumentationController::class, 'specification'])->name('sales-mobile.openapi');
+Route::prefix('v1')->withoutMiddleware(TitleCaseInputs::class)->group(function () {
+    Route::get('docs', [DocumentationController::class, 'index'])->name('sales-mobile.docs');
+    Route::get('openapi.json', [DocumentationController::class, 'specification'])->name('sales-mobile.openapi');
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1,sales-mobile-login');
     Route::post('auth/send-otp', [AuthController::class, 'sendOtp'])->middleware('throttle:5,1,sales-mobile-send-otp');
     Route::post('auth/verify-otp', [AuthController::class, 'verify'])->middleware('throttle:10,1,sales-mobile-otp');
@@ -18,6 +30,22 @@ Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::cla
         Route::get('me', [AuthController::class, 'me']);
         Route::get('plants', [AuthController::class, 'plants']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
+        Route::middleware(MobilePlantContext::class)->prefix('attendances')->group(function () {
+            Route::get('/', [AttendanceController::class, 'index']);
+            Route::get('current', [AttendanceController::class, 'current']);
+            Route::post('check-in', [AttendanceController::class, 'checkIn']);
+            Route::post('{attendance}/check-out', [AttendanceController::class, 'checkOut'])->whereNumber('attendance');
+            Route::get('{attendance}', [AttendanceController::class, 'show'])->whereNumber('attendance');
+        });
+        Route::middleware(MobilePlantContext::class)->prefix('notifications')->group(function () {
+            Route::get('/', [NotificationController::class, 'index']);
+            Route::get('unread-count', [NotificationController::class, 'unreadCount']);
+            Route::get('connection', [NotificationController::class, 'connection']);
+            Route::post('broadcasting/auth', [NotificationController::class, 'broadcastAuth'])->name('sales-mobile.notifications.broadcast-auth');
+            Route::post('read-all', [NotificationController::class, 'readAll']);
+            Route::post('{notification}/read', [NotificationController::class, 'read'])->whereNumber('notification');
+            Route::post('{notification}/delivered', [NotificationController::class, 'delivered'])->whereNumber('notification');
+        });
         // Personal business-record scope applies to every mobile role, including administrators.
         Route::middleware([MobilePlantContext::class, MobileSalesScope::class])->group(function () {
             Route::get('dashboard', [WorkspaceController::class, 'dashboard']);
@@ -29,26 +57,19 @@ Route::prefix('v1')->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::cla
             Route::get('customers/{customer}', [WorkspaceController::class, 'customer'])->whereNumber('customer');
             Route::get('sites', [WorkspaceController::class, 'sites']);
             Route::get('sites/{site}', [WorkspaceController::class, 'site'])->whereNumber('site');
+            Route::get('leads/statuses', [LeadController::class, 'statuses']);
+            Route::get('leads/{lead}/statuses', [LeadController::class, 'statuses'])->whereNumber('lead');
             Route::apiResource('leads', LeadController::class)->names('sales-mobile.leads')->where(['lead' => '[0-9]+']);
             Route::post('leads/{lead}/convert', [LeadController::class, 'convert'])->whereNumber('lead');
+            Route::post('leads/{lead}/approve', [LeadController::class, 'approve'])->whereNumber('lead');
             Route::get('follow-ups', [LeadController::class, 'followups']);
             Route::post('follow-ups', [LeadController::class, 'saveActivity']);
             Route::put('follow-ups/{activity}', [LeadController::class, 'saveActivity'])->whereNumber('activity');
             Route::post('follow-ups/{activity}/complete', [LeadController::class, 'complete'])->whereNumber('activity');
             Route::delete('follow-ups/{activity}', [LeadController::class, 'deleteActivity'])->whereNumber('activity');
             Route::post('leads/{lead}/quotation', [QuotationController::class, 'createFromLead'])->whereNumber('lead')->name('sales-mobile.leads.quotation');
-            Route::apiResource('quotations', QuotationController::class)->names('sales-mobile.quotations')->where(['quotation' => '[0-9]+']);
-            Route::post('quotations/{quotation}/submit', [QuotationController::class, 'submit'])->whereNumber('quotation');
-            Route::post('quotations/{quotation}/review', [QuotationController::class, 'review'])->whereNumber('quotation');
-            Route::get('customer-pos', [OrderController::class, 'customerPOs']);
-            Route::apiResource('orders', OrderController::class)->names('sales-mobile.orders')->where(['order' => '[0-9]+']);
-            Route::get('orders/{order}/batches', [OrderController::class, 'batches'])->whereNumber('order');
-            Route::get('orders/{order}/dispatches', [OrderController::class, 'dispatches'])->whereNumber('order');
-            Route::get('batch-schedules', [ScheduleController::class, 'listing']);
-            Route::get('batch-schedules/{schedule}', [ScheduleController::class, 'detail'])->whereNumber('schedule');
-            Route::post('batch-schedules', [ScheduleController::class, 'store']);
-            Route::put('batch-schedules/{schedule}', [ScheduleController::class, 'change'])->whereNumber('schedule');
-            Route::delete('batch-schedules/{schedule}', [ScheduleController::class, 'remove'])->whereNumber('schedule');
+            $routeNamePrefix = 'sales-mobile';
+            require __DIR__.'/mobile-commercial.php';
         });
     });
 });

@@ -24,6 +24,15 @@
       "name": "Workspace"
     },
     {
+      "name": "Mix-designs"
+    },
+    {
+      "name": "Taxes"
+    },
+    {
+      "name": "Notifications"
+    },
+    {
       "name": "Customers"
     },
     {
@@ -40,6 +49,21 @@
     },
     {
       "name": "Batch schedules"
+    },
+    {
+      "name": "Customer-pos"
+    },
+    {
+      "name": "Attendances"
+    },
+    {
+      "name": "Docs"
+    },
+    {
+      "name": "Openapi.json"
+    },
+    {
+      "name": "Sites"
     }
   ],
   "paths": {
@@ -50,7 +74,7 @@
         ],
         "summary": "Login",
         "operationId": "post__auth_login",
-        "description": "An administrator must grant mobile app access for this email in Membership > Users first. Email/password login returns the bearer token directly. Alternative: Send WhatsApp OTP and Verify OTP.",
+        "description": "An administrator must grant mobile app access for this email in Membership > Users first. Email/password login returns the bearer token directly. Alternative: Send WhatsApp OTP and Verify OTP. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [],
         "parameters": [],
         "responses": {
@@ -138,7 +162,7 @@
         ],
         "summary": "Send WhatsApp OTP",
         "operationId": "post__auth_send_otp",
-        "description": "Passwordless alternative. Mobile app access must be granted by an administrator first. Set mobile to a uniquely registered user number. Returns 202 after WhatsApp provider submission. Enter the received code in otp and run Verify OTP.",
+        "description": "Passwordless alternative. Mobile app access must be granted by an administrator first. Set mobile to a uniquely registered user number. Returns 202 after WhatsApp provider submission. Enter the received code in otp and run Verify OTP. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [],
         "parameters": [],
         "responses": {
@@ -210,7 +234,7 @@
         ],
         "summary": "Verify OTP",
         "operationId": "post__auth_verify_otp",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [],
         "parameters": [],
         "responses": {
@@ -305,7 +329,7 @@
         ],
         "summary": "Profile",
         "operationId": "get__me",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -348,7 +372,7 @@
         ],
         "summary": "Accessible plants",
         "operationId": "get__plants",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -391,7 +415,7 @@
         ],
         "summary": "Logout this device (run last)",
         "operationId": "post__auth_logout",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -434,7 +458,7 @@
         ],
         "summary": "Dashboard",
         "operationId": "get__dashboard",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -488,7 +512,7 @@
         ],
         "summary": "Dropdown lookups",
         "operationId": "get__lookups",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -542,7 +566,7 @@
         ],
         "summary": "Marketing summary",
         "operationId": "get__marketing_summary",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -589,6 +613,677 @@
         }
       }
     },
+    "/mix-designs": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "List active mix designs",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. The data object contains Laravel pagination fields and the records in data.data."
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or plant access denied"
+          },
+          "422": {
+            "description": "Invalid lookup parameters"
+          }
+        }
+      }
+    },
+    "/taxes": {
+      "get": {
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "List sales taxes",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. The data object contains Laravel pagination fields and the records in data.data."
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or plant access denied"
+          },
+          "422": {
+            "description": "Invalid lookup parameters"
+          }
+        }
+      }
+    },
+    "/notifications/connection": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Connection settings",
+        "operationId": "get__notifications_connection",
+        "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Requires PUSH_NOTIFICATION.RECEIVE to subscribe. Only connect when enabled, configured and can_receive are true. Saves notification_channel; obtain socket_id from a real WebSocket connection before authorizing. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Notification IDs are sequential numeric push-log primary keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "enabled": true,
+                    "can_receive": true,
+                    "configured": true,
+                    "broadcaster": "reverb",
+                    "key": "public-reverb-key",
+                    "host": "reverb.example.com",
+                    "port": 443,
+                    "scheme": "https",
+                    "channel": "App.Models.User.7",
+                    "auth_endpoint": "https://erp.example.com/api/mobile/v1/notifications/broadcasting/auth",
+                    "event": "Illuminate\\Notifications\\Events\\BroadcastNotificationCreated"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List notifications",
+        "operationId": "get__notifications",
+        "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Saves the first real entry ID to notification_id. Generate a notification first if history is empty. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Notification IDs are sequential numeric push-log primary keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "current_page": 1,
+                    "data": [
+                      {
+                        "id": 123,
+                        "data": {
+                          "push_log_id": 123,
+                          "plant_id": 1,
+                          "title": "CrmLead updated",
+                          "operation": "updated",
+                          "subject_type": "App\\Models\\CrmLead",
+                          "subject_id": 42,
+                          "payload": {
+                            "reference": "LD/2026/00042",
+                            "changes": {
+                              "status": "Qualified"
+                            }
+                          },
+                          "created_at": "2026-10-21T12:30:00+05:30"
+                        },
+                        "read_at": null,
+                        "created_at": "2026-10-21T12:30:00+05:30"
+                      }
+                    ],
+                    "per_page": 20,
+                    "total": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Unread count",
+        "operationId": "get__notifications_unread_count",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Notification IDs are sequential numeric push-log primary keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "unread_count": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/notifications/broadcasting/auth": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Authorize live private channel",
+        "operationId": "post__notifications_broadcasting_auth",
+        "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. Run Connection settings first. socket_id must come from the WebSocket SDK; an invented value does not establish a subscription. Response is native broadcaster auth, without a success/data wrapper. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Notification IDs are sequential numeric push-log primary keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "auth": "public-reverb-key:generated-signature"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "description": "Reverb is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "error_code": {
+                      "type": "string",
+                      "description": "WhatsApp failures: WHATSAPP_TLS_ERROR, WHATSAPP_CONNECTION_ERROR or WHATSAPP_SUBMISSION_FAILED."
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "socket_id": {
+                    "type": "string"
+                  },
+                  "channel_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "socket_id",
+                  "channel_name"
+                ]
+              },
+              "example": {
+                "socket_id": "123456.789012",
+                "channel_name": "private-App.Models.User.7"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/{notification_id}/delivered": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Acknowledge delivered",
+        "operationId": "post__notifications_notification_id_delivered",
+        "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. No request body. Run List notifications first. Does not downgrade a read notification. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "notification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Notification IDs are sequential numeric push-log primary keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": 123,
+                    "delivered_at": "2026-10-21T12:31:00+05:30"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/notifications/{notification_id}/read": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark notification read",
+        "operationId": "post__notifications_notification_id_read",
+        "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. No request body. Run List notifications first. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "notification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Notification IDs are sequential numeric push-log primary keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": 123,
+                    "read_at": "2026-10-21T12:32:00+05:30"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark all notifications read",
+        "operationId": "post__notifications_read_all",
+        "description": "Requires sales-mobile bearer token and X-Plant-Id. History is scoped to the user and plant. Use the sequential numeric notification ID (push_log_id). Live delivery uses Reverb while connected; FCM/APNs is not implemented. On tap map subject_type + subject_id to the app screen and load the record through its API; record permissions still apply. CrmLead -> GET /leads/{id}; Quotation -> GET /quotations/{id}; SalesOrder -> GET /orders/{id}; CustomerPO -> GET /customer-pos/{id}. There is no public send-test endpoint: create/update a disposable business record with the normal API, with PUSH_NOTIFICATIONS_ENABLED, Reverb and queue worker running. Filter live events by plant_id and refresh history on reconnect. No request body. Marks all own unread history in the selected plant read. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Notification IDs are sequential numeric push-log primary keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "updated_count": 3
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
     "/customers": {
       "get": {
         "tags": [
@@ -596,7 +1291,7 @@
         ],
         "summary": "List customers",
         "operationId": "get__customers",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -661,7 +1356,7 @@
         ],
         "summary": "Customer and progress",
         "operationId": "get__customers_customer_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -724,7 +1419,7 @@
         ],
         "summary": "List leads",
         "operationId": "get__leads",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -787,7 +1482,7 @@
         ],
         "summary": "Create lead",
         "operationId": "post__leads",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -872,6 +1567,9 @@
                   "priority": {
                     "type": "string"
                   },
+                  "requirement": {
+                    "type": "string"
+                  },
                   "estimated_quantity": {
                     "type": "number"
                   },
@@ -883,8 +1581,13 @@
                   },
                   "mix_design_id": {
                     "type": "integer",
-                    "nullable": true,
-                    "description": "Active mix design ID from the selected plant. Obtain from the mix-design lookup."
+                    "minimum": 1
+                  },
+                  "project_name": {
+                    "type": "string"
+                  },
+                  "delivery_location": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -905,10 +1608,13 @@
                 "source": "Referral",
                 "status": "New",
                 "priority": "High",
+                "requirement": "M25 Design",
                 "estimated_quantity": 40,
                 "expected_value": 200000,
                 "remarks": "Site enquiry",
-                "mix_design_id": 4
+                "mix_design_id": 1,
+                "project_name": "Mobile notification test site",
+                "delivery_location": "Test site road"
               }
             }
           }
@@ -922,7 +1628,7 @@
         ],
         "summary": "Lead detail",
         "operationId": "get__leads_lead_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -983,7 +1689,7 @@
         ],
         "summary": "Update lead",
         "operationId": "put__leads_lead_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -1077,6 +1783,9 @@
                   "priority": {
                     "type": "string"
                   },
+                  "requirement": {
+                    "type": "string"
+                  },
                   "estimated_quantity": {
                     "type": "number"
                   },
@@ -1088,8 +1797,13 @@
                   },
                   "mix_design_id": {
                     "type": "integer",
-                    "nullable": true,
-                    "description": "Active mix design ID from the selected plant. Obtain from the mix-design lookup."
+                    "minimum": 1
+                  },
+                  "project_name": {
+                    "type": "string"
+                  },
+                  "delivery_location": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -1110,10 +1824,13 @@
                 "source": "Referral",
                 "status": "Qualified",
                 "priority": "High",
+                "requirement": "M25 Design",
                 "estimated_quantity": 40,
                 "expected_value": 200000,
                 "remarks": "Site enquiry",
-                "mix_design_id": 4
+                "mix_design_id": 1,
+                "project_name": "Mobile notification test site",
+                "delivery_location": "Test site road"
               }
             }
           }
@@ -1125,7 +1842,7 @@
         ],
         "summary": "Update lead (PATCH)",
         "operationId": "patch__leads_lead_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. PATCH accepts the same full form as PUT.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. PATCH accepts the same full form as PUT.",
         "security": [
           {
             "bearerAuth": []
@@ -1219,6 +1936,9 @@
                   "priority": {
                     "type": "string"
                   },
+                  "requirement": {
+                    "type": "string"
+                  },
                   "estimated_quantity": {
                     "type": "number"
                   },
@@ -1230,8 +1950,13 @@
                   },
                   "mix_design_id": {
                     "type": "integer",
-                    "nullable": true,
-                    "description": "Active mix design ID from the selected plant. Obtain from the mix-design lookup."
+                    "minimum": 1
+                  },
+                  "project_name": {
+                    "type": "string"
+                  },
+                  "delivery_location": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -1252,10 +1977,13 @@
                 "source": "Referral",
                 "status": "Qualified",
                 "priority": "High",
+                "requirement": "M25 Design",
                 "estimated_quantity": 40,
                 "expected_value": 200000,
                 "remarks": "Site enquiry",
-                "mix_design_id": 4
+                "mix_design_id": 1,
+                "project_name": "Mobile notification test site",
+                "delivery_location": "Test site road"
               }
             }
           }
@@ -1267,7 +1995,7 @@
         ],
         "summary": "Delete Lead",
         "operationId": "delete__leads_lead_",
-        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -1330,7 +2058,7 @@
         ],
         "summary": "Convert qualified lead",
         "operationId": "post__leads_lead_convert",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -1405,6 +2133,308 @@
         }
       }
     },
+    "/leads/statuses": {
+      "get": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Available lead statuses",
+        "operationId": "get__leads_statuses",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/leads/{lead}/statuses": {
+      "get": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Statuses for lead",
+        "operationId": "get__leads_lead_statuses",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/leads/{lead}/approve": {
+      "post": {
+        "tags": [
+          "Leads"
+        ],
+        "summary": "Approve lead",
+        "operationId": "post__leads_lead_approve",
+        "description": "Requires CRM_LEAD.APPROVE. Approves an eligible open lead in this plant and prepares customer/site. Converted and Unqualified leads return 422. Repeat approval is idempotent. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/leads/{lead}/quotation": {
+      "post": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Convert owned lead and create draft quotation",
+        "operationId": "post_leads_lead_quotation",
+        "description": "Requires CRM_LEAD.CONVERT and an accessible lead with active mix_design_id. Automatically converts an eligible unconverted lead and creates a linked quotation. Do not send items or mix_design_id: these come from the lead. A previously linked quotation blocks another creation. Select a customer-linked site. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MobileQuotation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "quantity": {
+                    "type": "number"
+                  },
+                  "rate": {
+                    "type": "number"
+                  },
+                  "quote_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "validity_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "is_tax_inclusive": {
+                    "type": "boolean"
+                  },
+                  "tax_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "required": []
+              },
+              "example": {
+                "site_id": 1,
+                "quantity": 3.55,
+                "rate": 546,
+                "quote_date": "2026-10-12",
+                "validity_date": "2026-10-19",
+                "is_tax_inclusive": true,
+                "tax_id": 1,
+                "notes": "Notification integration test"
+              }
+            }
+          }
+        }
+      }
+    },
     "/follow-ups": {
       "get": {
         "tags": [
@@ -1412,7 +2442,7 @@
         ],
         "summary": "List follow ups",
         "operationId": "get__follow_ups",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -1490,7 +2520,7 @@
         ],
         "summary": "Create follow up",
         "operationId": "post__follow_ups",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -1585,7 +2615,7 @@
         ],
         "summary": "Update follow up",
         "operationId": "put__follow_ups_activity_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -1687,7 +2717,7 @@
         ],
         "summary": "Delete Follow up",
         "operationId": "delete__follow_ups_activity_",
-        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -1750,7 +2780,7 @@
         ],
         "summary": "Complete follow up",
         "operationId": "post__follow_ups_activity_complete",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -1831,7 +2861,7 @@
         ],
         "summary": "List quotations",
         "operationId": "get__quotations",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -1919,7 +2949,7 @@
         ],
         "summary": "Create quotation",
         "operationId": "post__quotations",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -2067,7 +3097,7 @@
         ],
         "summary": "Quotation detail",
         "operationId": "get__quotations_quotation_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -2136,7 +3166,7 @@
         ],
         "summary": "Edit quotation",
         "operationId": "put__quotations_quotation_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -2291,7 +3321,7 @@
         ],
         "summary": "Edit quotation (PATCH)",
         "operationId": "patch__quotations_quotation_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. PATCH accepts the same full form as PUT.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. PATCH accepts the same full form as PUT.",
         "security": [
           {
             "bearerAuth": []
@@ -2446,7 +3476,7 @@
         ],
         "summary": "Delete Draft quotation",
         "operationId": "delete__quotations_quotation_",
-        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -2509,7 +3539,7 @@
         ],
         "summary": "Submit for approval",
         "operationId": "post__quotations_quotation_submit",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -2580,7 +3610,7 @@
         ],
         "summary": "Approve quotation (different reviewer)",
         "operationId": "post__quotations_quotation_review",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -2674,109 +3704,6 @@
         }
       }
     },
-    "/customer-pos": {
-      "get": {
-        "tags": [
-          "Sales orders"
-        ],
-        "summary": "List customer POs",
-        "operationId": "get__customer_pos",
-        "description": "No module action permission is required. Requires authenticated mobile access and plant membership. Scoped to the selected plant. Sales executives see only POs assigned to their personnel ID in that plant, regardless of creator or VIEW_ALL grants. Management roles retain owned/assigned access or SALES_ORDER.VIEW_ALL visibility. Includes patron, site and items; newest first. Status: 0 Draft, 1 Confirmed, 2 Completed.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "X-Plant-Id",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
-          },
-          {
-            "name": "per_page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20
-            }
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
-          },
-          {
-            "name": "search",
-            "in": "query",
-            "description": "Search ERP reference or customer PO reference.",
-            "schema": {
-              "type": "string",
-              "maxLength": 100
-            }
-          },
-          {
-            "name": "customer_id",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "name": "site_id",
-            "in": "query",
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "enum": [
-                0,
-                1,
-                2
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success; Laravel pagination under data with customer POs including patron, site and items.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "422": {
-            "$ref": "#/components/responses/ValidationError"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          }
-        }
-      }
-    },
     "/orders": {
       "get": {
         "tags": [
@@ -2784,7 +3711,7 @@
         ],
         "summary": "List orders",
         "operationId": "get__orders",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -2847,7 +3774,7 @@
         ],
         "summary": "Create order against customer PO",
         "operationId": "post__orders",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -2956,7 +3883,7 @@
         ],
         "summary": "Order progress",
         "operationId": "get__orders_order_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -3017,7 +3944,7 @@
         ],
         "summary": "Edit unstarted order",
         "operationId": "put__orders_order_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -3133,7 +4060,7 @@
         ],
         "summary": "Edit unstarted order (PATCH)",
         "operationId": "patch__orders_order_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. PATCH accepts the same full form as PUT.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity. PATCH accepts the same full form as PUT.",
         "security": [
           {
             "bearerAuth": []
@@ -3249,7 +4176,7 @@
         ],
         "summary": "Delete Unstarted order",
         "operationId": "delete__orders_order_",
-        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -3312,7 +4239,7 @@
         ],
         "summary": "Order batches",
         "operationId": "get__orders_order_batches",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -3386,7 +4313,7 @@
         ],
         "summary": "Order dispatches",
         "operationId": "get__orders_order_dispatches",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -3460,7 +4387,7 @@
         ],
         "summary": "List schedules",
         "operationId": "get__batch_schedules",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -3532,7 +4459,7 @@
         ],
         "summary": "Create planned schedule",
         "operationId": "post__batch_schedules",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -3693,7 +4620,7 @@
         ],
         "summary": "Schedule detail",
         "operationId": "get__batch_schedules_schedule_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -3754,7 +4681,7 @@
         ],
         "summary": "Edit unlinked planned schedule",
         "operationId": "put__batch_schedules_schedule_",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -3922,7 +4849,7 @@
         ],
         "summary": "Delete Unlinked schedule",
         "operationId": "delete__batch_schedules_schedule_",
-        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply.",
+        "description": "Soft delete. Run manually against a disposable record. Lifecycle restrictions apply. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
@@ -3978,138 +4905,29 @@
         }
       }
     },
-    "/mix-designs": {
-      "get": {
+    "/customer-pos/{customer_po}": {
+      "delete": {
         "tags": [
-          "Workspace"
+          "Customer-pos"
         ],
-        "summary": "List active mix designs",
-        "description": "Requires MIX_DESIGN.VIEW, CRM_LEAD.VIEW, QUOTATION.VIEW or SALES_ORDER.VIEW. Only active, non-deleted mix designs in the selected plant. Search matches design name or code. Includes grade, unit_id and rate_per_qty.",
-        "parameters": [
-          {
-            "name": "X-Plant-Id",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "name": "search",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "maxLength": 100
-            }
-          },
-          {
-            "name": "per_page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20
-            }
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success. The data object contains Laravel pagination fields and the records in data.data."
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "403": {
-            "description": "Permission or plant access denied"
-          },
-          "422": {
-            "description": "Invalid lookup parameters"
-          }
-        }
-      }
-    },
-    "/taxes": {
-      "get": {
-        "tags": [
-          "Workspace"
-        ],
-        "summary": "List sales taxes",
-        "description": "Requires TAX.VIEW, QUOTATION.VIEW or SALES_ORDER.VIEW. Only active, non-deleted parent Sales taxes in the selected plant, with active non-deleted Sales children from that plant. Search matches tax name.",
-        "parameters": [
-          {
-            "name": "X-Plant-Id",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            }
-          },
-          {
-            "name": "search",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "maxLength": 100
-            }
-          },
-          {
-            "name": "per_page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20
-            }
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success. The data object contains Laravel pagination fields and the records in data.data."
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "403": {
-            "description": "Permission or plant access denied"
-          },
-          "422": {
-            "description": "Invalid lookup parameters"
-          }
-        }
-      }
-    },
-    "/leads/{lead}/quotation": {
-      "post": {
-        "tags": [
-          "Quotations"
-        ],
-        "summary": "Convert owned lead and create draft quotation",
-        "operationId": "post_leads_lead_quotation",
-        "description": "Automatically converts owned New, Contacted or Qualified leads, creating a Customer patron, primary contact, optional address and sales opportunity. An accessible active patron_id may select an existing customer. An explicit site_id can select any non-deleted site in the plant. Otherwise reuses a site matching the lead project/delivery/customer name, ignoring case and surrounding whitespace, regardless of user or customer ownership; then falls back to the sole customer site. Creates an active unloading site with lead delivery/address details when no site exists. Already converted leads with multiple sites and no name match require site_id. Uses the lead mix_design_id and estimated_quantity and the current catalog rate. Already converted leads reuse their customer and opportunity. Links the draft to the opportunity and rejects repeated creation. All creation rolls back on validation failure. All mobile roles remain restricted to their own leads. See docs/sales-executive-mobile-api.md.",
+        "summary": "Delete unallocated customer PO",
+        "operationId": "delete__customer_pos_customer_po_",
+        "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Deletes its items and releases the linked quotation conversion flag when unused. Notification behavior: this request does not directly trigger a business push notification.",
         "security": [
           {
             "bearerAuth": []
           }
         ],
         "parameters": [
+          {
+            "name": "customer_po",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
           {
             "name": "X-Plant-Id",
             "in": "header",
@@ -4119,11 +4937,63 @@
               "type": "integer",
               "minimum": 1
             }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Customer-pos"
+        ],
+        "summary": "Customer PO detail",
+        "operationId": "get__customer_pos_customer_po_",
+        "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Saves the first item ID for conversion. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
           {
-            "name": "lead",
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "customer_po",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
             "schema": {
               "type": "integer",
               "minimum": 1
@@ -4131,20 +5001,73 @@
           }
         ],
         "responses": {
-          "201": {
+          "200": {
             "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {
-                      "$ref": "#/components/schemas/MobileQuotation"
-                    }
-                  }
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Customer-pos"
+        ],
+        "summary": "Update direct customer PO",
+        "operationId": "put__customer_pos_customer_po_",
+        "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Items are replaced; their IDs change. Refresh customer_po_item_id from this response. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "customer_po",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }
@@ -4166,88 +5089,1353 @@
           }
         },
         "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "patron_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "order_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "customer_po_reference": {
+                    "type": "string"
+                  },
+                  "is_tax_inclusive": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "mix_design_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "number"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "tax_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "concrete_pump": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "pump_rate": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "mix_design_id",
+                        "quantity",
+                        "rate"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "patron_id",
+                  "site_id",
+                  "order_date",
+                  "is_tax_inclusive",
+                  "items",
+                  "items"
+                ]
+              },
+              "example": {
+                "patron_id": 1,
+                "site_id": 1,
+                "order_date": "2026-10-12",
+                "customer_po_reference": "Customer reference",
+                "is_tax_inclusive": false,
+                "notes": "Mobile customer PO",
+                "items": [
+                  {
+                    "mix_design_id": 1,
+                    "quantity": 40,
+                    "rate": 546,
+                    "tax_id": 1,
+                    "concrete_pump": null,
+                    "pump_rate": 0
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Customer-pos"
+        ],
+        "summary": "Update direct customer PO (PATCH)",
+        "operationId": "patch__customer_pos_customer_po_",
+        "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Items are replaced; their IDs change. Refresh customer_po_item_id from this response. Notification behavior: this request does not directly trigger a business push notification. PATCH accepts the same full form as PUT.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "customer_po",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "patron_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "order_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "customer_po_reference": {
+                    "type": "string"
+                  },
+                  "is_tax_inclusive": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "mix_design_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "number"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "tax_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "concrete_pump": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "pump_rate": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "mix_design_id",
+                        "quantity",
+                        "rate"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "patron_id",
+                  "site_id",
+                  "order_date",
+                  "is_tax_inclusive",
+                  "items",
+                  "items"
+                ]
+              },
+              "example": {
+                "patron_id": 1,
+                "site_id": 1,
+                "order_date": "2026-10-12",
+                "customer_po_reference": "Customer reference",
+                "is_tax_inclusive": false,
+                "notes": "Mobile customer PO",
+                "items": [
+                  {
+                    "mix_design_id": 1,
+                    "quantity": 40,
+                    "rate": 546,
+                    "tax_id": 1,
+                    "concrete_pump": null,
+                    "pump_rate": 0
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/attendances/current": {
+      "get": {
+        "tags": [
+          "Attendances"
+        ],
+        "summary": "Current attendance",
+        "operationId": "get__attendances_current",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "server_time": "2026-10-21 09:00:00",
+                    "timezone": "Asia/Kolkata",
+                    "work_date": "2026-10-21",
+                    "attendance": {
+                      "id": 1,
+                      "plant_id": 1,
+                      "personnel_id": 1,
+                      "shift_id": null,
+                      "attendance_date": "2026-10-21",
+                      "check_in": "2026-10-21 09:00:00",
+                      "check_out": null,
+                      "worked_hours": "0.00",
+                      "overtime_hours": "0.00",
+                      "late_hours": "0.00",
+                      "is_late": false,
+                      "is_early_departure": false,
+                      "status": "present",
+                      "source": "mobile",
+                      "notes": "Starting work",
+                      "scheduled_start": "2026-10-21 09:00:00",
+                      "scheduled_end": "2026-10-21 17:00:00",
+                      "scheduled_hours": "8.00",
+                      "grace_seconds": 0,
+                      "timezone": "Asia/Kolkata",
+                      "is_open": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Attendance conflicts with HR records, payroll, or employee work date."
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/attendances/check-in": {
+      "post": {
+        "tags": [
+          "Attendances"
+        ],
+        "summary": "Check in after login",
+        "operationId": "post__attendances_check_in",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. First check-in returns 201; retries return the same attendance with 200, even if it was already closed that work date. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Idempotent retry returns the existing attendance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": 1,
+                    "plant_id": 1,
+                    "personnel_id": 1,
+                    "shift_id": null,
+                    "attendance_date": "2026-10-21",
+                    "check_in": "2026-10-21 09:00:00",
+                    "check_out": null,
+                    "worked_hours": "0.00",
+                    "overtime_hours": "0.00",
+                    "late_hours": "0.00",
+                    "is_late": false,
+                    "is_early_departure": false,
+                    "status": "present",
+                    "source": "mobile",
+                    "notes": "Starting work",
+                    "scheduled_start": "2026-10-21 09:00:00",
+                    "scheduled_end": "2026-10-21 17:00:00",
+                    "scheduled_hours": "8.00",
+                    "grace_seconds": 0,
+                    "timezone": "Asia/Kolkata",
+                    "is_open": true
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": 1,
+                    "plant_id": 1,
+                    "personnel_id": 1,
+                    "shift_id": null,
+                    "attendance_date": "2026-10-21",
+                    "check_in": "2026-10-21 09:00:00",
+                    "check_out": null,
+                    "worked_hours": "0.00",
+                    "overtime_hours": "0.00",
+                    "late_hours": "0.00",
+                    "is_late": false,
+                    "is_early_departure": false,
+                    "status": "present",
+                    "source": "mobile",
+                    "notes": "Starting work",
+                    "scheduled_start": "2026-10-21 09:00:00",
+                    "scheduled_end": "2026-10-21 17:00:00",
+                    "scheduled_hours": "8.00",
+                    "grace_seconds": 0,
+                    "timezone": "Asia/Kolkata",
+                    "is_open": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Attendance conflicts with HR records, payroll, or employee work date."
+          },
+          "422": {
+            "description": "Client identity, timestamps, shift, status and hours cannot be supplied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "message": "This field is managed by the server.",
+                  "errors": {
+                    "check_in": [
+                      "This field is managed by the server."
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
           "required": false,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
-                  "site_id": {
-                    "type": "integer",
-                    "nullable": true
-                  },
-                  "quantity": {
-                    "type": "number",
-                    "minimum": 0.01,
-                    "maximum": 999999
-                  },
-                  "rate": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 99999999
-                  },
-                  "tax_id": {
-                    "type": "integer",
-                    "nullable": true
-                  },
-                  "uom_id": {
-                    "type": "integer",
-                    "nullable": true
-                  },
-                  "quote_date": {
-                    "type": "string",
-                    "format": "date"
-                  },
-                  "validity_date": {
-                    "type": "string",
-                    "format": "date",
-                    "nullable": true
-                  },
-                  "reference": {
-                    "type": "string",
-                    "nullable": true,
-                    "maxLength": 100
-                  },
                   "notes": {
                     "type": "string",
                     "nullable": true,
-                    "maxLength": 10000
-                  },
-                  "is_tax_inclusive": {
-                    "type": "boolean",
-                    "default": false
-                  },
-                  "concrete_pump": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "pump_rate": {
-                    "type": "number",
-                    "minimum": 0
-                  },
-                  "discount_type": {
-                    "type": "string",
-                    "nullable": true,
-                    "enum": [
-                      "amount",
-                      "%"
-                    ]
-                  },
-                  "discount": {
-                    "type": "number",
-                    "minimum": 0
-                  },
-                  "patron_id": {
-                    "type": "integer",
-                    "nullable": true,
-                    "description": "Accessible active customer ID, not name. Selects an existing customer during automatic conversion; must match the customer for an already converted lead. Omit to create a customer for an unconverted lead or reuse an already converted lead customer."
+                    "maxLength": 1000
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              },
+              "examples": {
+                "withNotes": {
+                  "summary": "Check in with an optional note",
+                  "value": {
+                    "notes": "Starting work from the plant office"
+                  }
+                },
+                "emptyBody": {
+                  "summary": "Check in without a note",
+                  "value": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/attendances": {
+      "get": {
+        "tags": [
+          "Attendances"
+        ],
+        "summary": "My attendance history",
+        "operationId": "get__attendances",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Both date filters are optional; remove them for all own history. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "current_page": 1,
+                    "data": [
+                      {
+                        "id": 1,
+                        "plant_id": 1,
+                        "personnel_id": 1,
+                        "shift_id": null,
+                        "attendance_date": "2026-10-21",
+                        "check_in": "2026-10-21 09:00:00",
+                        "check_out": null,
+                        "worked_hours": "0.00",
+                        "overtime_hours": "0.00",
+                        "late_hours": "0.00",
+                        "is_late": false,
+                        "is_early_departure": false,
+                        "status": "present",
+                        "source": "mobile",
+                        "notes": "Starting work",
+                        "scheduled_start": "2026-10-21 09:00:00",
+                        "scheduled_end": "2026-10-21 17:00:00",
+                        "scheduled_hours": "8.00",
+                        "grace_seconds": 0,
+                        "timezone": "Asia/Kolkata",
+                        "is_open": true
+                      }
+                    ],
+                    "per_page": 20,
+                    "total": 1
                   }
                 }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Attendance conflicts with HR records, payroll, or employee work date."
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/attendances/{attendance}": {
+      "get": {
+        "tags": [
+          "Attendances"
+        ],
+        "summary": "Attendance detail",
+        "operationId": "get__attendances_attendance_",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendance",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": 1,
+                    "plant_id": 1,
+                    "personnel_id": 1,
+                    "shift_id": null,
+                    "attendance_date": "2026-10-21",
+                    "check_in": "2026-10-21 09:00:00",
+                    "check_out": null,
+                    "worked_hours": "0.00",
+                    "overtime_hours": "0.00",
+                    "late_hours": "0.00",
+                    "is_late": false,
+                    "is_early_departure": false,
+                    "status": "present",
+                    "source": "mobile",
+                    "notes": "Starting work",
+                    "scheduled_start": "2026-10-21 09:00:00",
+                    "scheduled_end": "2026-10-21 17:00:00",
+                    "scheduled_hours": "8.00",
+                    "grace_seconds": 0,
+                    "timezone": "Asia/Kolkata",
+                    "is_open": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Attendance conflicts with HR records, payroll, or employee work date."
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/attendances/{attendance}/check-out": {
+      "post": {
+        "tags": [
+          "Attendances"
+        ],
+        "summary": "Check out before logout",
+        "operationId": "post__attendances_attendance_check_out",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No body. Retry with the same attendance_id after a timeout. Call auth/logout only after this succeeds. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attendance",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": 1,
+                    "plant_id": 1,
+                    "personnel_id": 1,
+                    "shift_id": null,
+                    "attendance_date": "2026-10-21",
+                    "check_in": "2026-10-21 09:00:00",
+                    "check_out": "2026-10-21 18:30:00",
+                    "worked_hours": "9.50",
+                    "overtime_hours": "1.50",
+                    "late_hours": "0.00",
+                    "is_late": false,
+                    "is_early_departure": false,
+                    "status": "present",
+                    "source": "mobile",
+                    "notes": "Starting work",
+                    "scheduled_start": "2026-10-21 09:00:00",
+                    "scheduled_end": "2026-10-21 17:00:00",
+                    "scheduled_hours": "8.00",
+                    "grace_seconds": 0,
+                    "timezone": "Asia/Kolkata",
+                    "is_open": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Attendance conflicts with HR records, payroll, or employee work date."
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "tags": [
+          "Docs"
+        ],
+        "summary": "API documentation page",
+        "operationId": "get__docs",
+        "description": "Public HTML Swagger UI page. Use the OpenAPI JSON request for a machine-readable import. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": [
+          "Openapi.json"
+        ],
+        "summary": "OpenAPI specification",
+        "operationId": "get__openapi_json",
+        "description": "Public OpenAPI 3.0.3 specification for importing into Apidog or other API clients. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/sites": {
+      "get": {
+        "tags": [
+          "Sites"
+        ],
+        "summary": "List sites",
+        "operationId": "get__sites",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/sites/{site}": {
+      "get": {
+        "tags": [
+          "Sites"
+        ],
+        "summary": "Site detail",
+        "operationId": "get__sites_site_",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "site",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/customer-pos": {
+      "get": {
+        "tags": [
+          "Customer-pos"
+        ],
+        "summary": "List customer POs",
+        "operationId": "get__customer_pos",
+        "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Customer-pos"
+        ],
+        "summary": "Create direct customer PO",
+        "operationId": "post__customer_pos",
+        "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "patron_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "site_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "order_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "customer_po_reference": {
+                    "type": "string"
+                  },
+                  "is_tax_inclusive": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "mix_design_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "number"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "tax_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "concrete_pump": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "pump_rate": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "mix_design_id",
+                        "quantity",
+                        "rate"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "patron_id",
+                  "site_id",
+                  "order_date",
+                  "is_tax_inclusive",
+                  "items",
+                  "items"
+                ]
               },
               "example": {
-                "site_id": 10,
-                "tax_id": 36,
-                "is_tax_inclusive": true
+                "patron_id": 1,
+                "site_id": 1,
+                "order_date": "2026-10-12",
+                "customer_po_reference": "Customer reference",
+                "is_tax_inclusive": false,
+                "notes": "Mobile customer PO",
+                "items": [
+                  {
+                    "mix_design_id": 1,
+                    "quantity": 40,
+                    "rate": 546,
+                    "tax_id": 1,
+                    "concrete_pump": null,
+                    "pump_rate": 0
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customer-pos/{customer_po}/convert-salesorder": {
+      "post": {
+        "tags": [
+          "Customer-pos"
+        ],
+        "summary": "Convert PO items to sales orders (run individually)",
+        "operationId": "post__customer_pos_customer_po_convert_salesorder",
+        "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Requires distinct item IDs belonging to this PO and positive quantities within the remaining mix-design allocation. Locks the plant/PO, copies prices and creates scheduled orders. Captures the first order_id. Avoid also creating a direct order for the same allocation. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "customer_po",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "item_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "item_id",
+                        "quantity"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "items"
+                ]
+              },
+              "example": {
+                "items": [
+                  {
+                    "item_id": 1,
+                    "quantity": 6
+                  }
+                ]
               }
             }
           }

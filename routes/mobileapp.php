@@ -35,3 +35,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dispatch-batching-summary', [MobileApiController::class, 'dispatchBatchingSummary']);
     Route::get('/stock-details', [MobileApiController::class, 'stockDetails']);
 });
+
+
+// Commercial workflows shared with the sales app; authentication remains app-specific.
+Route::middleware(['auth:sanctum', \App\Http\Middleware\MobileAppPlantContext::class, \App\Http\Middleware\MobileSalesScope::class])
+    ->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::class)
+    ->group(function () {
+        $routeNamePrefix = 'mobile';
+        require __DIR__.'/mobile-commercial.php';
+        Route::get('lookups', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'lookups']);
+        Route::get('customers', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'customers']);
+        Route::get('sites', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'sites']);
+        Route::get('mix-designs', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'mixDesigns']);
+        Route::get('taxes', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'taxes']);
+    });
