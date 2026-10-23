@@ -48,7 +48,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\MobileAppPlantContext::c
         Route::post('leads/{lead}/approve', [\App\Http\Controllers\Api\MobileAdminLeadController::class, 'approve'])->whereNumber('lead');
         $routeNamePrefix = 'mobile';
         require __DIR__.'/mobile-commercial.php';
-        Route::get('lookups', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'lookups']);
+        Route::get('dropdowns', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'lookups']);
         Route::get('customers', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'customers']);
         Route::get('sites', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'sites']);
         Route::get('mix-designs', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'mixDesigns']);

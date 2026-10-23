@@ -283,3 +283,49 @@ HTTP 404 with `Sales order not found or unavailable in the selected plant.` for
 missing, deleted, foreign-plant, or ownership-restricted orders. Responses do not
 expose the internal model class or distinguish inaccessible records from missing
 records. This applies to both app prefixes.
+
+## Batch schedule form options
+
+Use `GET /api/mobile/batch-schedules/options` in the admin app or
+`GET /api/mobile/v1/batch-schedules/options` in the sales app. Send the matching
+login token and `X-Plant-Id`. No module permissions are required.
+
+```json
+{
+  "success": true,
+  "data": {
+    "vehicles": [{"id": 12, "value": 12, "label": "TN-01-AB-1234", "registration": "TN-01-AB-1234"}],
+    "drivers": [{"id": 45, "value": 45, "label": "Driver Name"}]
+  }
+}
+```
+
+Load once when opening the create/edit form. Submit vehicle `value` as
+`vehicle_id` and driver `value` as `driver_id`. Filters match the web schedule
+form: active Transit Mixer/Truck vehicles and active personnel with Driver or
+Operator in their designation, restricted to the selected plant. Deleted
+records are excluded; empty lists return 200 with empty arrays. These are
+eligible options, not time-slot availability; saving checks assignment conflicts.
+Reload after changing plants.
+
+The existing `GET /lookups` also provides `vehicles` and `drivers` with other
+commercial data. Reuse it if already loaded; otherwise the smaller options
+endpoint avoids unrelated data and two separate network requests. The schedule
+listing continues to return schedules only. Postman collections include
+**Batch schedules > Driver and truck options**; MODORMC keeps it at the root.
+
+## Lookup plant context
+
+Admin `GET /api/mobile/dropdowns` and sales `GET /api/mobile/v1/lookups` return
+reference options for the authenticated user's verified `X-Plant-Id`. The selected
+plant must be in that user's active plant memberships. Missing plant headers
+return 422; inaccessible or revoked plant memberships return 403; missing tokens
+return 401. A query/body `plant_id` cannot override the header.
+
+Sales taxes and their children, vehicles, pumps, and drivers are restricted to
+that selected plant. Dropdown helpers receive the verified plant explicitly;
+lookup cache arguments include that plant. Switching plants reloads those lists.
+These reference options are shared within the accessible plant, rather than
+restricted to records created by the user. Statuses, sources, priorities, activity
+types, and pump types are static application option lists. Commented-out lookup
+sections remain excluded from this response.

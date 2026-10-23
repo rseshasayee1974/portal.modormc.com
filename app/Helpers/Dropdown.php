@@ -166,12 +166,13 @@ if (!function_exists('MachinesDropdown')) {
      * @param  string|array|null $vehicleType  e.g. 'Truck' or ['Truck','JCB']
      * @param  int|null          $excludeId    Exclude machine (edit mode)
      * @param  int|null          $entityId
+     * @param  int|null          $plantId      Explicit verified plant; defaults to the active context
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function MachinesDropdown($vehicleType = null, $excludeId = null, $entityId = null)
+    function MachinesDropdown($vehicleType = null, $excludeId = null, $entityId = null, $plantId = null)
     {
-        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($vehicleType, $excludeId, $entityId) {
-            $query = Machine::where('plant_id', _activePlantId())
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($vehicleType, $excludeId, $entityId, $plantId) {
+            $query = Machine::withoutGlobalScope('plant_id')->where('plant_id', $plantId ?? _activePlantId())
                 ->where('is_active', true)
                 ->select('id', 'registration', 'plant_id');
 
@@ -370,7 +371,7 @@ if (!function_exists('DriversOperatorsDropdown')) {
     {
         return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($excludeId, $plantId) {
             $plantId = $plantId ?: _activePlantId();
-            $query = Personnel::with('designation')
+            $query = Personnel::withoutGlobalScope('plant_id')->with('designation')
                 ->where('plant_id', $plantId);
 
             if ($excludeId) {
@@ -939,13 +940,13 @@ if (!function_exists('ConcretePumpOptions')) {
      *
      * @return array
      */
-    function ConcretePumpOptions(): array
+    function ConcretePumpOptions(?int $plantId = null): array
     {
-       return Machine::whereHas('machineType',function ($q) {
+       return Machine::withoutGlobalScope('plant_id')->whereHas('machineType',function ($q) {
                 $q->where('name', 'LIKE', '%Pump%');
                 //   ->orWhere('name', 'LIKE', '%Boom%');
             })
-            ->where('plant_id', _activePlantId())
+            ->where('plant_id', $plantId ?? _activePlantId())
             ->whereNull('deleted_at')
             ->orderBy('registration')
             ->get(['id', 'registration', 'vehicle_model'])

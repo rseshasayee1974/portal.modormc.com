@@ -19,6 +19,7 @@ Route::apiResource('customer-pos', CustomerPOController::class)->names($routeNam
 Route::apiResource('orders', OrderController::class)->names($routeNamePrefix.'.orders')->where(['order' => '[0-9]+']);
 Route::get('orders/{order}/batches', [OrderController::class, 'batches'])->whereNumber('order');
 Route::get('orders/{order}/dispatches', [OrderController::class, 'dispatches'])->whereNumber('order');
+Route::get('batch-schedules/options', [ScheduleController::class, 'options']);
 Route::get('batch-schedules', [ScheduleController::class, 'listing']);
 Route::get('batch-schedules/{schedule}', [ScheduleController::class, 'detail'])->whereNumber('schedule');
 Route::post('batch-schedules', [ScheduleController::class, 'store']);

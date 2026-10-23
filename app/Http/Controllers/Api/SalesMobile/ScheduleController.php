@@ -38,6 +38,26 @@ class ScheduleController extends ConcreteBatchingScheduleController
             return parent::store($request);
         });
     }
+    public function options(): JsonResponse
+    {
+        $vehicles = MachinesDropdown(['Transit Mixer', 'Truck'], plantId: Access::plantId())->map(fn ($vehicle) => [
+            'id' => (int) $vehicle->id,
+            'value' => (int) $vehicle->id,
+            'label' => $vehicle->registration,
+            'registration' => $vehicle->registration,
+        ])->values();
+        $drivers = DriversOperatorsDropdown(null, Access::plantId())->map(fn ($driver) => [
+            'id' => (int) $driver['id'],
+            'value' => (int) $driver['value'],
+            'label' => $driver['label'],
+        ])->values();
+
+        return response()->json(['success' => true, 'data' => [
+            'vehicles' => $vehicles,
+            'drivers' => $drivers,
+        ]]);
+    }
+
     public function listing(Request $r)
     {
         $r->validate(['schedule_date' => 'nullable|date_format:Y-m-d', 'per_page' => 'nullable|integer|between:1,100']);

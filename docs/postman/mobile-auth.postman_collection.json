@@ -3094,6 +3094,61 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Batch schedules",
+      "item": [
+        {
+          "name": "Driver and truck options",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/mobile/batch-schedules/options",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "batch-schedules",
+                "options"
+              ]
+            },
+            "description": "Load data.vehicles and data.drivers for the schedule form. Submit selected value as vehicle_id and driver_id. Active Transit Mixer/Truck vehicles and Driver/Operator personnel in X-Plant-Id only. No module permissions required; saving still checks assignment conflicts."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Options loaded', () => { pm.response.to.have.status(200); const d=pm.response.json().data; pm.expect(d.vehicles).to.be.an('array'); pm.expect(d.drivers).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [

@@ -463,6 +463,24 @@ class SalesMobileApiTest extends TestCase
         DB::table('mm_crm_deals')->insert(['plant_id' => 1, 'lead_id' => $id, 'stage' => 'Requirement Received']);
     }
 
+    public function test_lead_status_becomes_converted_only_after_quotation_creation_succeeds(): void
+    {
+        $this->convertedQuotationLead();
+        DB::table('mm_crm_leads')->where('id', 501)->update(['created_by' => 1, 'status' => CrmLead::STATUS_APPROVED]);
+        $convertedAt = DB::table('mm_crm_leads')->where('id', 501)->value('converted_at');
+
+        $this->postJson('/api/mobile/v1/leads/501/quotation', ['quantity' => -1])->assertUnprocessable();
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => 501, 'status' => CrmLead::STATUS_APPROVED]);
+        $this->assertDatabaseCount('mm_quotations', 0);
+        $this->assertNull(DB::table('mm_crm_deals')->where('lead_id', 501)->value('quotation_id'));
+
+        $response = $this->postJson('/api/mobile/v1/leads/501/quotation', ['site_id' => 1])->assertCreated();
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => 501, 'status' => CrmLead::STATUS_CONVERTED, 'converted_at' => $convertedAt]);
+        $this->assertDatabaseHas('mm_crm_deals', ['lead_id' => 501, 'quotation_id' => $response->json('data.id')]);
+        $this->postJson('/api/mobile/v1/leads/501/quotation', ['site_id' => 1])->assertUnprocessable();
+        $this->assertDatabaseCount('mm_quotations', 1);
+    }
+
     public function test_create_quotation_from_lead_uses_source_details_and_shared_pricing(): void
     {
         $this->convertedQuotationLead();
@@ -1143,6 +1161,98 @@ class SalesMobileApiTest extends TestCase
         $migration->down();
         $this->assertSame([], app(PushNotificationService::class)->recipients(1));
         $this->assertSame(2, DB::table('mm_users')->count());
+    }
+
+    public function test_lookup_lists_follow_authenticated_plant_access_and_switches(): void
+    {
+        DB::table('mm_users')->where('id', 1)->update(['default_entity_id' => 1, 'default_plant_id' => 1]);
+        DB::table('mm_designations')->insert(['id' => 800, 'name' => 'Driver']);
+        DB::table('mm_machine_types')->insert(['id' => 800, 'name' => 'Concrete Pump']);
+        foreach ([1, 2] as $plant) {
+            DB::table('mm_machines')->insert([
+                ['id' => 800 + $plant, 'plant_id' => $plant, 'vehicle_type' => 'Truck', 'is_active' => 1, 'registration' => 'TRUCK-'.$plant],
+                ['id' => 810 + $plant, 'plant_id' => $plant, 'vehicle_type' => 'Concrete Pump', 'is_active' => 1, 'registration' => 'PUMP-'.$plant],
+            ]);
+            DB::table('mm_personnels')->insert(['id' => 800 + $plant, 'plant_id' => $plant, 'designation_id' => 800,
+                'first_name' => 'Driver '.$plant, 'status' => 'active']);
+        }
+        DB::table('mm_taxes')->insert([
+            ['id' => 800, 'plant_id' => 2, 'tax_name' => 'Plant Two GST', 'tax_group' => 'GST', 'tax_type' => 'Sales', 'tax_rate' => 18, 'parent_id' => null, 'status' => 1],
+            ['id' => 801, 'plant_id' => 2, 'tax_name' => 'Foreign child', 'tax_group' => 'CGST', 'tax_type' => 'Sales', 'tax_rate' => 9, 'parent_id' => 1, 'status' => 1],
+        ]);
+        $assertPlant = function (string $prefix, int $plant): void {
+            // Query parameters never override the plant authorized from the header.
+            $response = $this->withHeaders(['X-Plant-Id' => (string) $plant])->getJson($prefix.($prefix === '/api/mobile' ? '/dropdowns' : '/lookups').'?plant_id='.(3 - $plant))->assertOk();
+            $this->assertEquals([800 + $plant], array_column($response->json('data.vehicles'), 'id'));
+            $this->assertEquals([810 + $plant], array_column($response->json('data.pumps'), 'id'));
+            $this->assertEquals([800 + $plant], array_column($response->json('data.drivers'), 'id'));
+            $this->assertEquals($plant === 1 ? [1] : [800], array_column($response->json('data.sales_taxes'), 'id'));
+            if ($plant === 1) $this->assertEquals([2, 3], array_column($response->json('data.sales_taxes.0.children'), 'id'));
+        };
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            if ($prefix === '/api/mobile') {
+                $token = User::find(1)->createToken('web-login')->plainTextToken;
+                $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+            }
+            $assertPlant($prefix, 1);
+            $this->withHeaders(['X-Plant-Id' => '2'])->getJson($prefix.($prefix === '/api/mobile' ? '/dropdowns' : '/lookups'))->assertForbidden();
+        }
+        DB::table('mm_entity_users')->insert(['user_id' => 1, 'entity_id' => 2, 'plant_id' => 2, 'role_id' => 1]);
+        $assertPlant('/api/mobile', 2);
+        $assertPlant('/api/mobile', 1);
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer, 'X-Plant-Id' => '2'])
+            ->getJson('/api/mobile/v1/lookups')->assertForbidden();
+        DB::table('mm_entity_users')->where('user_id', 1)->where('plant_id', 2)->delete();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => '2'])
+            ->getJson('/api/mobile/v1/lookups')->assertForbidden();
+        $this->withHeaders(['X-Plant-Id' => ''])->getJson('/api/mobile/v1/lookups')->assertUnprocessable();
+        $this->withHeaders(['Authorization' => '', 'X-Plant-Id' => '1'])->getJson('/api/mobile/v1/lookups')->assertUnauthorized();
+    }
+
+    public function test_batch_schedule_options_are_active_plant_scoped_and_need_no_module_permissions(): void
+    {
+        DB::table('mm_role_has_permissions')->where('role_id', 1)->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        DB::table('mm_designations')->insert([
+            ['id' => 800, 'name' => 'Truck Driver'], ['id' => 801, 'name' => 'Pump Operator'], ['id' => 802, 'name' => 'Accountant'],
+        ]);
+        foreach ([
+            [800, 1, 'Truck', 1, null], [801, 1, 'Transit Mixer', 1, null],
+            [802, 2, 'Truck', 1, null], [803, 1, 'Truck', 0, null],
+            [804, 1, 'Car', 1, null], [805, 1, 'Truck', 1, now()],
+        ] as [$id, $plant, $type, $active, $deleted]) {
+            DB::table('mm_machines')->insert(['id' => $id, 'plant_id' => $plant, 'vehicle_type' => $type,
+                'is_active' => $active, 'registration' => 'TN-'.$id, 'deleted_at' => $deleted]);
+        }
+        foreach ([
+            [800, 1, 800, 'active', null], [801, 1, 801, 'active', null],
+            [802, 2, 800, 'active', null], [803, 1, 800, 'inactive', null],
+            [804, 1, 802, 'active', null], [805, 1, 800, 'active', now()],
+        ] as [$id, $plant, $designation, $status, $deleted]) {
+            DB::table('mm_personnels')->insert(['id' => $id, 'plant_id' => $plant, 'designation_id' => $designation,
+                'first_name' => 'Driver '.$id, 'last_name' => 'Test', 'status' => $status, 'deleted_at' => $deleted]);
+        }
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            if ($prefix === '/api/mobile') {
+                $token = User::find(1)->createToken('web-login')->plainTextToken;
+                $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+            }
+            $response = $this->getJson($prefix.'/batch-schedules/options')->assertOk()
+                ->assertJsonStructure(['success', 'data' => ['vehicles' => [['id', 'value', 'label', 'registration']], 'drivers' => [['id', 'value', 'label']]]]);
+            $this->assertEquals([800, 801], array_column($response->json('data.vehicles'), 'id'));
+            $this->assertEquals([800, 801], array_column($response->json('data.drivers'), 'id'));
+            $this->assertSame('TN-800', $response->json('data.vehicles.0.label'));
+            $this->assertSame('Driver 800 Test', $response->json('data.drivers.0.label'));
+            $this->withHeaders(['X-Plant-Id' => ''])->getJson($prefix.'/batch-schedules/options')->assertUnprocessable();
+            $this->withHeaders(['X-Plant-Id' => '2'])->getJson($prefix.'/batch-schedules/options')->assertForbidden();
+            $this->withHeaders(['X-Plant-Id' => '1']);
+        }
+        DB::table('mm_machines')->delete();
+        DB::table('mm_personnels')->where('id', '>=', 800)->delete();
+        $this->getJson('/api/mobile/batch-schedules/options')->assertOk()->assertExactJson([
+            'success' => true, 'data' => ['vehicles' => [], 'drivers' => []],
+        ]);
+        $this->withHeaders(['Authorization' => ''])->getJson('/api/mobile/batch-schedules/options')->assertUnauthorized();
     }
 
     public function test_workspace_endpoints_do_not_require_module_permissions_but_keep_plant_access(): void

@@ -241,6 +241,7 @@ class QuotationController extends Controller
             $quotation = Quotation::createWithItems($data, Access::plantId());
             $this->syncApprovalState($quotation)->save();
             $deal->update(['quotation_id' => $quotation->id]);
+            $source->update(['status' => CrmLead::STATUS_CONVERTED]);
             $service->log($source, 'Quotation created from lead', 'Quotation: '.$quotation->reference);
 
             return response()->json(['success' => true, 'data' => $this->details($quotation->fresh())], 201);
