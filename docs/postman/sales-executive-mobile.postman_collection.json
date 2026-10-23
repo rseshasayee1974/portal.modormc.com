@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MODO Sales Executive Mobile API v1",
-    "description": "Sales app /api/mobile/v1 uses api_token and shows only creator-owned leads/quotations in the selected plant. Admin app /api/mobile uses admin_token for plant-scoped lead and submitted quotation review. Import the shared environment, set both accounts and plant_id. Run Login, Create lead/quotation, Submit quotation, Admin login/review, then Refresh quotation. Run alternatives and delete actions individually.",
+    "description": "Admin customer PO/order CRUD, conversion and negative cases are included and use admin_token without module permissions. Sales app /api/mobile/v1 uses api_token and shows only creator-owned leads/quotations in the selected plant. Admin app /api/mobile uses admin_token for plant-scoped lead and submitted quotation review. Import the shared environment, set both accounts and plant_id. Run Login, Create lead/quotation, Submit quotation, Admin login/review, then Refresh quotation. Run alternatives and delete actions individually.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -2791,6 +2791,203 @@
               }
             }
           ]
+        },
+        {
+          "name": "Create direct sales order (no customer PO)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{api_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders"
+              ]
+            },
+            "description": "Direct order: rate is required and customer_po_id may be null/omitted. Customer/site/mix design must belong to X-Plant-Id. Ownership, reference, status and produced quantity are server-managed. PUT and PATCH require the full form. Completed/cancelled orders and orders with production, dispatch or scheduling activity cannot be edited/deleted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": null,\n  \"total_qty\": 10,\n  \"rate\": 4500,\n  \"tax_id\": \"{{sales_tax_id}}\",\n  \"is_tax_inclusive\": false,\n  \"concrete_pump\": null,\n  \"pump_rate\": 0,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data;",
+                  "if (d.id !== undefined && d.id !== null) { pm.collectionVariables.set('order_id', d.id); pm.environment.set('order_id', d.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update direct sales order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{api_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "Direct order: rate is required and customer_po_id may be null/omitted. Customer/site/mix design must belong to X-Plant-Id. Ownership, reference, status and produced quantity are server-managed. PUT and PATCH require the full form. Completed/cancelled orders and orders with production, dispatch or scheduling activity cannot be edited/deleted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": null,\n  \"total_qty\": 10,\n  \"rate\": 4500,\n  \"tax_id\": \"{{sales_tax_id}}\",\n  \"is_tax_inclusive\": false,\n  \"concrete_pump\": null,\n  \"pump_rate\": 0,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data;",
+                  "if (d.id !== undefined && d.id !== null) { pm.collectionVariables.set('order_id', d.id); pm.environment.set('order_id', d.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch direct sales order (full form)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{api_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/v1/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "v1",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "Direct order: rate is required and customer_po_id may be null/omitted. Customer/site/mix design must belong to X-Plant-Id. Ownership, reference, status and produced quantity are server-managed. PUT and PATCH require the full form. Completed/cancelled orders and orders with production, dispatch or scheduling activity cannot be edited/deleted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": null,\n  \"total_qty\": 10,\n  \"rate\": 4500,\n  \"tax_id\": \"{{sales_tax_id}}\",\n  \"is_tax_inclusive\": false,\n  \"concrete_pump\": null,\n  \"pump_rate\": 0,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data;",
+                  "if (d.id !== undefined && d.id !== null) { pm.collectionVariables.set('order_id', d.id); pm.environment.set('order_id', d.id); }"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -5320,7 +5517,7 @@
     },
     {
       "name": "Admin app authentication",
-      "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+      "description": "Main admin app token; separate from sales api_token. PO/order CRUD and conversion need no module permissions. Lead/quotation review separately requires CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
       "item": [
         {
           "name": "Admin login (main app)",
@@ -5350,7 +5547,7 @@
                 "login"
               ]
             },
-            "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+            "description": "Main admin app token; separate from sales api_token. PO/order CRUD and conversion need no module permissions. Lead/quotation review separately requires CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
@@ -5535,8 +5732,1853 @@
       ]
     },
     {
+      "name": "Admin commercial lookups",
+      "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+      "item": [
+        {
+          "name": "List lookups",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/lookups",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "lookups"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customers"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List sites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/sites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "sites"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List mix-designs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/mix-designs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "mix-designs"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List taxes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/taxes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "taxes"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin customer PO CRUD",
+      "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+      "item": [
+        {
+          "name": "List customer POs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create customer PO",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"is_tax_inclusive\": false,\n  \"customer_po_reference\": \"POSTMAN-{{$timestamp}}\",\n  \"notes\": \"Postman admin API test\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 10,\n      \"rate\": 4500,\n      \"tax_id\": null,\n      \"concrete_pump\": null,\n      \"pump_rate\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data;",
+                  "if (d.id !== undefined && d.id !== null) { pm.collectionVariables.set('admin_po_id', d.id); pm.environment.set('admin_po_id', d.id); }",
+                  "if (d.items?.[0]?.id !== undefined && d.items?.[0]?.id !== null) { pm.collectionVariables.set('admin_po_item_id', d.items?.[0]?.id); pm.environment.set('admin_po_item_id', d.items?.[0]?.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer PO detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_po_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update customer PO",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_po_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"is_tax_inclusive\": false,\n  \"customer_po_reference\": \"POSTMAN-{{$timestamp}}\",\n  \"notes\": \"Postman admin API test\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 10,\n      \"rate\": 4500,\n      \"tax_id\": null,\n      \"concrete_pump\": null,\n      \"pump_rate\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data;",
+                  "if (d.id !== undefined && d.id !== null) { pm.collectionVariables.set('admin_po_id', d.id); pm.environment.set('admin_po_id', d.id); }",
+                  "if (d.items?.[0]?.id !== undefined && d.items?.[0]?.id !== null) { pm.collectionVariables.set('admin_po_item_id', d.items?.[0]?.id); pm.environment.set('admin_po_item_id', d.items?.[0]?.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch customer PO (full form)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_po_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"is_tax_inclusive\": false,\n  \"customer_po_reference\": \"POSTMAN-{{$timestamp}}\",\n  \"notes\": \"Postman admin API test\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 10,\n      \"rate\": 4500,\n      \"tax_id\": null,\n      \"concrete_pump\": null,\n      \"pump_rate\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data;",
+                  "if (d.id !== undefined && d.id !== null) { pm.collectionVariables.set('admin_po_id', d.id); pm.environment.set('admin_po_id', d.id); }",
+                  "if (d.items?.[0]?.id !== undefined && d.items?.[0]?.id !== null) { pm.collectionVariables.set('admin_po_item_id', d.items?.[0]?.id); pm.environment.set('admin_po_item_id', d.items?.[0]?.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create disposable PO for deletion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"is_tax_inclusive\": false,\n  \"customer_po_reference\": \"POSTMAN-{{$timestamp}}\",\n  \"notes\": \"Postman admin API test\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 10,\n      \"rate\": 4500,\n      \"tax_id\": null,\n      \"concrete_pump\": null,\n      \"pump_rate\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data;",
+                  "if (d.id !== undefined && d.id !== null) { pm.collectionVariables.set('admin_delete_po_id', d.id); pm.environment.set('admin_delete_po_id', d.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete disposable PO",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_delete_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_delete_po_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted PO returns 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_delete_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_delete_po_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 404', () => pm.expect(pm.response.code).to.eql(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin sales order CRUD",
+      "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+      "item": [
+        {
+          "name": "List sales orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create direct sales order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": null,\n  \"total_qty\": 5,\n  \"rate\": 4500,\n  \"tax_id\": null,\n  \"is_tax_inclusive\": false,\n  \"concrete_pump\": null,\n  \"pump_rate\": 0,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data;",
+                  "if (d.id !== undefined && d.id !== null) { pm.collectionVariables.set('admin_order_id', d.id); pm.environment.set('admin_order_id', d.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sales order detail and progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders/{{admin_order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders",
+                "{{admin_order_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update direct sales order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders/{{admin_order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders",
+                "{{admin_order_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": null,\n  \"total_qty\": 5,\n  \"rate\": 4500,\n  \"tax_id\": null,\n  \"is_tax_inclusive\": false,\n  \"concrete_pump\": null,\n  \"pump_rate\": 0,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch direct sales order (full form)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders/{{admin_order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders",
+                "{{admin_order_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": null,\n  \"total_qty\": 5,\n  \"rate\": 4500,\n  \"tax_id\": null,\n  \"is_tax_inclusive\": false,\n  \"concrete_pump\": null,\n  \"pump_rate\": 0,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sales order batches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders/{{admin_order_id}}/batches?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders",
+                "{{admin_order_id}}",
+                "batches"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sales order dispatches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders/{{admin_order_id}}/dispatches?per_page=20&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders",
+                "{{admin_order_id}}",
+                "dispatches"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete unstarted sales order",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders/{{admin_order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders",
+                "{{admin_order_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted order returns 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders/{{admin_order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders",
+                "{{admin_order_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 404', () => pm.expect(pm.response.code).to.eql(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin PO conversion and negative cases",
+      "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal. Run after Admin customer PO CRUD. Conversion allocates 4 of 10 m3; excess allocation and allocated PO mutations must return 422.",
+      "item": [
+        {
+          "name": "Reject negative order quantity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": null,\n  \"total_qty\": -1,\n  \"rate\": 4500,\n  \"tax_id\": null,\n  \"is_tax_inclusive\": false,\n  \"concrete_pump\": null,\n  \"pump_rate\": 0,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 422', () => pm.expect(pm.response.code).to.eql(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject PO with no items",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"is_tax_inclusive\": false,\n  \"customer_po_reference\": \"POSTMAN-{{$timestamp}}\",\n  \"notes\": \"Postman admin API test\",\n  \"items\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 422', () => pm.expect(pm.response.code).to.eql(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject excess PO allocation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_po_id}}/convert-salesorder",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_po_id}}",
+                "convert-salesorder"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"item_id\": \"{{admin_po_item_id}}\",\n      \"quantity\": 11\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 422', () => pm.expect(pm.response.code).to.eql(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject duplicate PO item IDs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_po_id}}/convert-salesorder",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_po_id}}",
+                "convert-salesorder"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"item_id\": \"{{admin_po_item_id}}\",\n      \"quantity\": 1\n    },\n    {\n      \"item_id\": \"{{admin_po_item_id}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 422', () => pm.expect(pm.response.code).to.eql(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Convert PO quantity to sales order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_po_id}}/convert-salesorder",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_po_id}}",
+                "convert-salesorder"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"item_id\": \"{{admin_po_item_id}}\",\n      \"quantity\": 4\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));",
+                  "const d=pm.response.json().data;",
+                  "if (d[0]?.id !== undefined && d[0]?.id !== null) { pm.collectionVariables.set('admin_converted_order_id', d[0]?.id); pm.environment.set('admin_converted_order_id', d[0]?.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Converted sales order progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders/{{admin_converted_order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders",
+                "{{admin_converted_order_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200,299));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject direct order exceeding remaining PO quantity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "orders"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"mix_design_id\": \"{{mix_design_id}}\",\n  \"customer_po_id\": \"{{admin_po_id}}\",\n  \"total_qty\": 7,\n  \"rate\": 4500,\n  \"tax_id\": null,\n  \"is_tax_inclusive\": false,\n  \"concrete_pump\": null,\n  \"pump_rate\": 0,\n  \"scheduled_start\": null,\n  \"scheduled_end\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 422', () => pm.expect(pm.response.code).to.eql(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject editing allocated PO",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_po_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patron_id\": \"{{customer_id}}\",\n  \"site_id\": \"{{site_id}}\",\n  \"order_date\": \"{{today}}\",\n  \"is_tax_inclusive\": false,\n  \"customer_po_reference\": \"POSTMAN-{{$timestamp}}\",\n  \"notes\": \"Postman admin API test\",\n  \"items\": [\n    {\n      \"mix_design_id\": \"{{mix_design_id}}\",\n      \"quantity\": 10,\n      \"rate\": 4500,\n      \"tax_id\": null,\n      \"concrete_pump\": null,\n      \"pump_rate\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 422', () => pm.expect(pm.response.code).to.eql(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject deleting allocated PO",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos/{{admin_po_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos",
+                "{{admin_po_id}}"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 422', () => pm.expect(pm.response.code).to.eql(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing login token is rejected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Plant-Id",
+                "value": "{{plant_id}}"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/mobile/customer-pos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "mobile",
+                "customer-pos"
+              ]
+            },
+            "description": "Use admin_token from Admin login and X-Plant-Id. No CUSTOMER_PO or SALES_ORDER module permissions are required. Set customer_id, site_id and mix_design_id from the selected plant lookups. Run CRUD requests in order on disposable records. PUT/PATCH require the full form. Administrators see all records in the selected plant; sales app ownership remains personal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 401', () => pm.expect(pm.response.code).to.eql(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Admin lead review",
-      "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+      "description": "Main admin app token; separate from sales api_token. PO/order CRUD and conversion need no module permissions. Lead/quotation review separately requires CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
       "item": [
         {
           "name": "List leads in selected plant",
@@ -5868,7 +7910,7 @@
     },
     {
       "name": "Admin quotation review",
-      "description": "Main admin app token; separate from sales api_token. Use an administrator account with CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
+      "description": "Main admin app token; separate from sales api_token. PO/order CRUD and conversion need no module permissions. Lead/quotation review separately requires CRM_LEAD VIEW/UPDATE/APPROVE and QUOTATION VIEW/APPROVE permissions. Set plant_id to an accessible plant. Share the same Postman environment between collections so lead_id and quotation_id captured by sales requests are available here. Run requests individually; approval/rejection are alternatives.",
       "item": [
         {
           "name": "Pending quotation approval queue",
@@ -6290,6 +8332,46 @@
     },
     {
       "key": "validity_date",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "customer_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "site_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mix_design_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_po_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_po_item_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_converted_order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_delete_po_id",
       "value": "",
       "type": "string"
     }

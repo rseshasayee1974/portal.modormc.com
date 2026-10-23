@@ -163,12 +163,38 @@ class MobileAccess
 
     public static function orders(): Builder
     {
-        return self::commercial(SalesOrder::class, 'SALES_ORDER');
+        return self::isCommercialAdministrator()
+            ? self::plantQuery(SalesOrder::class)
+            : self::commercial(SalesOrder::class, 'SALES_ORDER');
     }
 
     public static function customerPOs(): Builder
     {
-        return self::commercial(CustomerPO::class, 'SALES_ORDER');
+        return self::isCommercialAdministrator()
+            ? self::plantQuery(CustomerPO::class)
+            : self::commercial(CustomerPO::class, 'SALES_ORDER');
+    }
+
+    public static function orderOwnerId(?int $existingOwner = null, bool $updating = false): ?int
+    {
+        return self::isCommercialAdministrator()
+            ? ($updating ? $existingOwner : self::personnelId())
+            : self::commercialOwnerId($existingOwner);
+    }
+
+    public static function isCommercialAdministrator(): bool
+    {
+        $role = request()->attributes->get('mobile_role');
+        return request()->attributes->get('mobile_app_context') && (
+            request()->attributes->get('mobile_system_admin') || in_array(strtoupper((string) $role?->code), [
+                'ADMINISTRATOR', 'SUPER_ADMIN', 'PLATFORM_ADMIN', 'SAAS_OWNER',
+            ], true)
+        );
+    }
+
+    public static function customerPOQuotations(): Builder
+    {
+        return self::isCommercialAdministrator() ? self::plantQuery(Quotation::class) : self::quotations();
     }
 
     /** Shared customer reference data; this query does not grant master-data writes. */

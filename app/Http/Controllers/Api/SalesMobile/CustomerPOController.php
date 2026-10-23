@@ -10,12 +10,55 @@ use App\Http\Controllers\Controller;
 use App\Models\{CustomerPO, Plant, Quotation, SalesOrder};
 use App\Services\Mobile\MobileAccess as Access;
 use App\Services\Mobile\QuotationCalculator;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Throwable;
 
 class CustomerPOController extends Controller
 {
+    public function callAction($method, $parameters)
+    {
+        try {
+            return parent::callAction($method, $parameters);
+        } catch (ModelNotFoundException $exception) {
+            if ($exception->getModel() !== CustomerPO::class) throw $exception;
+
+            return response()->json(['message' => 'Customer PO not found or unavailable in the selected plant.'], 404);
+        } catch (ValidationException | AuthenticationException | AuthorizationException | HttpResponseException | HttpExceptionInterface $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            $reference = (string) Str::uuid();
+            Log::error('Customer PO API request failed.', [
+                'error_reference' => $reference,
+                'operation' => $method,
+                'plant_id' => Access::plantId(),
+                'exception' => $exception,
+            ]);
+            $operation = match ($method) {
+                'index', 'show' => 'load the customer PO',
+                'store' => 'create the customer PO',
+                'update' => 'update the customer PO',
+                'destroy' => 'delete the customer PO',
+                'convert' => 'convert the customer PO to sales orders',
+                default => 'process the customer PO',
+            };
+
+            return response()->json([
+                'message' => 'Unable to '.$operation.'. Please try again or contact support with the error reference.',
+                'error_reference' => $reference,
+            ], 500);
+        }
+    }
+
     public function index(Request $request)
     {
         return app(OrderController::class)->customerPOs($request);
@@ -29,7 +72,13 @@ class CustomerPOController extends Controller
 
     private function editable(CustomerPO $po): void
     {
-        abort_if((int) $po->status === CustomerPO::STATUS_COMPLETED || $po->salesOrders()->exists() || $po->dispatches()->exists(), 422, 'A completed or allocated customer PO cannot be changed.');
+        abort_if(
+            (int) $po->status === CustomerPO::STATUS_COMPLETED
+                || $po->salesOrders()->exists()
+                || $po->dispatches()->withoutGlobalScope('plant_id')->where('mm_dispatches.plant_id', Access::plantId())->exists(),
+            422,
+            'A completed or allocated customer PO cannot be changed.'
+        );
     }
 
     private function save(Request $request, ?int $id = null)
@@ -42,7 +91,7 @@ class CustomerPOController extends Controller
             $data = $request->validate([
                 'patron_id' => ['required', 'integer', Access::exists(Access::customers())],
                 'site_id' => ['required', 'integer', Access::exists(Access::plantSites())],
-                'quotation_id' => ['nullable', 'integer', Access::exists(Access::quotations())],
+                'quotation_id' => ['nullable', 'integer', Access::exists(Access::customerPOQuotations())],
                 'customer_po_reference' => 'nullable|string|max:150',
                 'order_date' => 'required|date_format:Y-m-d', 'notes' => 'nullable|string|max:10000',
                 'is_tax_inclusive' => 'required|boolean',
@@ -58,7 +107,7 @@ class CustomerPOController extends Controller
                 'patron_id.exists' => 'The selected customer is unavailable in the selected plant.',
                 'site_id.exists' => 'The selected site is unavailable in the selected plant.',
             ]);
-            $quote = empty($data['quotation_id']) ? null : Access::quotations()->lockForUpdate()->findOrFail($data['quotation_id']);
+            $quote = empty($data['quotation_id']) ? null : Access::customerPOQuotations()->lockForUpdate()->findOrFail($data['quotation_id']);
             if ($po) abort_unless($po->quotation_id == ($data['quotation_id'] ?? null), 422, 'The linked quotation cannot be changed.');
             if ($quote) {
                 abort_unless((int) $quote->status === Quotation::STATUS_ACCEPTED, 422, 'Only approved quotations can become customer POs.');
@@ -72,7 +121,7 @@ class CustomerPOController extends Controller
                 $items = QuotationCalculator::items($data['items'], $data['is_tax_inclusive']);
             }
             unset($data['items']);
-            $data['sales_executive_id'] = Access::commercialOwnerId($po?->sales_executive_id);
+            $data['sales_executive_id'] = Access::orderOwnerId($po?->sales_executive_id, $po !== null);
             if (!$po) {
                 $number = CustomerPO::generateReference(Access::plantId());
                 $po = CustomerPO::create(array_merge($data, $number, ['plant_id' => Access::plantId(), 'converted_by_user_id' => $request->user()->id, 'status' => $quote ? CustomerPO::STATUS_CONFIRMED : CustomerPO::STATUS_DRAFT]));
@@ -98,7 +147,7 @@ class CustomerPOController extends Controller
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
             $po = Access::customerPOs()->lockForUpdate()->findOrFail($customer_po);
             $this->editable($po);
-            $quote = $po->quotation_id ? Access::quotations()->lockForUpdate()->findOrFail($po->quotation_id) : null;
+            $quote = $po->quotation_id ? Access::customerPOQuotations()->lockForUpdate()->findOrFail($po->quotation_id) : null;
             $po->delete();
             if ($quote && !$quote->customerPOs()->exists()) $quote->update(['is_customer_po' => false]);
             return response()->json(['success' => true, 'message' => 'Customer PO deleted.']);

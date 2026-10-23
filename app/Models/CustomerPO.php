@@ -124,7 +124,9 @@ class CustomerPO extends Model
 
     public function dispatches()
     {
-        return $this->hasMany(Dispatch::class, 'customer_po_id');
+        // Dispatch history still protects a PO when its sales order was soft-deleted.
+        return $this->hasManyThrough(Dispatch::class, SalesOrder::class, 'customer_po_id', 'sales_order_id')
+            ->withTrashedParents();
     }
 
     public function converter()

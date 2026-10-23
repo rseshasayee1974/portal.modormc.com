@@ -9,6 +9,7 @@ namespace App\Http\Controllers\Api\SalesMobile;
 use App\Http\Controllers\Controller;
 use App\Models\{SalesOrder, Plant, Batch};
 use App\Services\Mobile\MobileAccess as Access;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -16,6 +17,19 @@ use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
+    public function callAction($method, $parameters)
+    {
+        try {
+            return parent::callAction($method, $parameters);
+        } catch (ModelNotFoundException $exception) {
+            if ($exception->getModel() !== SalesOrder::class) throw $exception;
+
+            return response()->json([
+                'message' => 'Sales order not found or unavailable.',
+            ], 404);
+        }
+    }
+
     public function customerPOs(Request $r)
     {
         $r->validate([
@@ -117,8 +131,14 @@ class OrderController extends Controller
             'tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
             'is_tax_inclusive' => 'nullable|boolean', 'concrete_pump' => 'nullable|string|max:100',
             'pump_rate' => 'nullable|numeric|between:0,99999999',
+        ], [
+            'customer_id.exists' => 'The selected customer is unavailable in the selected plant.',
+            'site_id.exists' => 'The selected site is unavailable in the selected plant.',
+            'mix_design_id.exists' => 'The selected mix design is unavailable in the selected plant.',
+            'customer_po_id.exists' => 'The selected customer PO is unavailable to you in the selected plant.',
+            'rate.required_without' => 'A rate is required when no customer PO is selected.',
         ]);
-        $data['sales_executive_id'] = Access::commercialOwnerId($order?->sales_executive_id);
+        $data['sales_executive_id'] = Access::orderOwnerId($order?->sales_executive_id, $order !== null);
         if (empty($data['customer_po_id'])) {
             $data['customer_po_id'] = null;
             $data['tax_id'] = $data['tax_id'] ?? null;
@@ -133,6 +153,13 @@ class OrderController extends Controller
         if (!$item) throw ValidationException::withMessages([
             'mix_design_id' => ['The selected mix design is not available in the selected customer PO. Choose a mix design from its items or remove customer_po_id to use a direct rate.'],
         ]);
+        if (Access::isCommercialAdministrator()) {
+            $quantity = $po->items()->where('mix_design_id', $data['mix_design_id'])->sum('quantity');
+            $allocated = $po->salesOrders()->where('mix_design_id', $data['mix_design_id'])
+                ->where('status', '!=', SalesOrder::STATUS_CANCELLED)
+                ->when($order, fn ($query) => $query->whereKeyNot($order->id))->sum('total_qty');
+            abort_if($allocated + $data['total_qty'] > $quantity + 0.00001, 422, 'Quantity exceeds the remaining customer PO quantity.');
+        }
         $data['rate'] = $item->rate;
         $data['tax_id'] = $item->tax_id;
         $data['is_tax_inclusive'] = $po->is_tax_inclusive;
@@ -142,9 +169,9 @@ class OrderController extends Controller
     }
     public function store(Request $r)
     {
-        $data = $this->data($r);
-        return DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($r) {
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
+            $data = $this->data($r);
             $number = SalesOrder::generateOrderNo(Access::plantId());
             $model = SalesOrder::create(array_merge($data, ['plant_id' => Access::plantId(), 'prefix' => $number['prefix'], 'order_no' => $number['next_number'], 'status' => SalesOrder::STATUS_CONFIRMED, 'produced_qty' => 0]));
             return response()->json(['success' => true, 'data' => $model], 201);
@@ -153,6 +180,7 @@ class OrderController extends Controller
     public function update(Request $r, int $order)
     {
         return DB::transaction(function () use ($r, $order) {
+            Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
             $model = Access::orders()->lockForUpdate()->findOrFail($order);
             $this->editable($model);
             $model->update($this->data($r, $model));
@@ -162,11 +190,12 @@ class OrderController extends Controller
     private function editable(SalesOrder $model): void
     {
         abort_if(in_array((int) $model->status, [SalesOrder::STATUS_COMPLETED, SalesOrder::STATUS_CANCELLED]), 422, 'Completed or cancelled orders cannot be edited or deleted.');
-        abort_if($model->batches()->exists() || $model->dispatches()->exists() || \App\Models\ConcreteBatchingSchedule::where('sales_order_id', $model->id)->exists(), 422, 'Order has production, dispatch or scheduling activity.');
+        abort_if($model->batches()->exists() || $model->dispatches()->exists() || \App\Models\ConcreteBatchingSchedule::where('sales_order_id', $model->id)->exists(), 422, 'Order cannot be edited it has production, dispatch or scheduling activity.');
     }
     public function destroy(int $order)
     {
         return DB::transaction(function () use ($order) {
+            Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
             $model = Access::orders()->lockForUpdate()->findOrFail($order);
             $this->editable($model);
             $model->delete();

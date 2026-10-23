@@ -26,7 +26,7 @@ class MobileAdminQuotationController extends QuotationController
         $this->authorizeAdministrator();
         Access::authorize('QUOTATION', 'VIEW');
         return Quotation::withoutGlobalScope('plant_id')->where('plant_id', Access::plantId())
-            ->whereIn('status', [Quotation::STATUS_SENT, Quotation::STATUS_ACCEPTED, Quotation::STATUS_REJECTED]);
+            ->whereIn('status', [Quotation::STATUS_DRAFT, Quotation::STATUS_SENT, Quotation::STATUS_ACCEPTED, Quotation::STATUS_REJECTED]);
     }
 
     protected function authorizeReview(): void

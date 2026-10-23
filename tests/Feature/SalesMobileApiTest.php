@@ -95,12 +95,12 @@ class SalesMobileApiTest extends TestCase
             'mm_quotation_items' => ['discount_type', 'discount', 'discount_amount', 'quotation_id', 'mix_design_id', 'uom_id', 'quantity', 'rate', 'tax_id', 'tax_amount', 'untaxed_amount', 'amount_total', 'concrete_pump', 'pump_rate', 'created_by', 'updated_by', 'deleted_by'],
             'mm_contacts' => ['patron_id', 'plant_id', 'name', 'phone', 'mobile', 'contact_type_id', 'is_primary', 'status', 'email'],
             'mm_personnel_contacts' => ['employee_id', 'contact_id', 'contact_value', 'is_primary'],
-            'mm_customer_pos' => ['plant_id', 'quotation_id', 'patron_id', 'site_id', 'created_by', 'updated_by', 'deleted_by', 'sales_executive_id', 'is_tax_inclusive', 'reference', 'customer_po_reference', 'status', 'order_date', 'amount_untaxed', 'amount_tax', 'amount_total'],
-            'mm_customer_po_items' => ['deleted_by', 'customer_po_id', 'mix_design_id', 'rate', 'tax_id', 'quantity', 'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'],
+            'mm_customer_pos' => ['plant_id', 'quotation_id', 'patron_id', 'site_id', 'created_by', 'updated_by', 'deleted_by', 'sales_executive_id', 'is_tax_inclusive', 'reference', 'customer_po_reference', 'prefix', 'notes', 'converted_by_user_id', 'status', 'order_date', 'amount_untaxed', 'amount_tax', 'amount_total'],
+            'mm_customer_po_items' => ['created_by', 'updated_by', 'deleted_by', 'customer_po_id', 'mix_design_id', 'rate', 'tax_id', 'quantity', 'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'],
             'mm_custom_settings' => ['plant_id', 'module_name', 'settings'],
             'mm_batches' => ['plant_id', 'sales_order_id', 'batch_no', 'batch_size', 'status', 'start_time', 'end_time'],
             'mm_sales_orders' => ['plant_id', 'created_by', 'updated_by', 'deleted_by', 'sales_executive_id', 'customer_id', 'site_id', 'mix_design_id', 'total_qty', 'rate', 'tax_id', 'is_tax_inclusive', 'customer_po_id', 'produced_qty', 'status', 'order_no', 'prefix', 'concrete_pump', 'pump_rate', 'scheduled_start', 'scheduled_end'],
-            'mm_dispatches' => ['customer_po_id', 'plant_id', 'sales_order_id', 'batch_id', 'truck_id', 'prefix', 'dispatch_no', 'dispatch_status', 'delivered_qty', 'dispatch_time', 'delivery_time'],
+            'mm_dispatches' => ['plant_id', 'sales_order_id', 'batch_id', 'truck_id', 'prefix', 'dispatch_no', 'dispatch_status', 'delivered_qty', 'dispatch_time', 'delivery_time'],
             'mm_machine_types' => ['name'], 'mm_designations' => ['name'],
             'mm_machines' => ['plant_id', 'registration', 'vehicle_model', 'vehicle_type', 'is_active'],
             'mm_dispatch_statuses' => ['dispatch_id', 'is_tax_inclusive'],
@@ -139,7 +139,7 @@ class SalesMobileApiTest extends TestCase
             DB::table('mm_entity_users')->insert(['user_id' => $id, 'entity_id' => 1, 'plant_id' => 1, 'role_id' => $id]);
             DB::table('mm_personnels')->insert(['id' => $id, 'plant_id' => 1, 'user_id' => $id]);
         }
-        foreach (['CRM_LEAD.VIEW', 'CRM_LEAD.CREATE', 'CRM_LEAD.UPDATE', 'CRM_LEAD.DELETE', 'QUOTATION.VIEW', 'QUOTATION.CREATE', 'QUOTATION.UPDATE', 'QUOTATION.DELETE', 'QUOTATION.APPROVE', 'QUOTATION.VIEW_ALL', 'SALES_ORDER.VIEW', 'BATCHING_SCHEDULE.VIEW', 'BATCHING_SCHEDULE.UPDATE', 'PATRON.VIEW', 'SITE.VIEW', 'PUSH_NOTIFICATION.RECEIVE'] as $i => $name) {
+        foreach (['CRM_LEAD.VIEW', 'CRM_LEAD.CREATE', 'CRM_LEAD.UPDATE', 'CRM_LEAD.DELETE', 'QUOTATION.VIEW', 'QUOTATION.CREATE', 'QUOTATION.UPDATE', 'QUOTATION.DELETE', 'QUOTATION.APPROVE', 'QUOTATION.VIEW_ALL', 'SALES_ORDER.VIEW', 'CUSTOMER_PO.VIEW', 'BATCHING_SCHEDULE.VIEW', 'BATCHING_SCHEDULE.UPDATE', 'PATRON.VIEW', 'SITE.VIEW', 'PUSH_NOTIFICATION.RECEIVE'] as $i => $name) {
             DB::table('mm_permissions')->insert(['id' => $i + 1, 'name' => $name, 'guard_name' => 'web']);
             DB::table('mm_role_has_permissions')->insert(['role_id' => 2, 'permission_id' => $i + 1]);
             if (! in_array($name, ['QUOTATION.APPROVE', 'QUOTATION.VIEW_ALL'])) {
@@ -306,6 +306,66 @@ class SalesMobileApiTest extends TestCase
         $this->getJson('/api/mobile/v1/customer-pos/986')->assertOk();
         $this->deleteJson('/api/mobile/v1/customer-pos/986')->assertOk();
         $this->getJson('/api/mobile/v1/customer-pos/986')->assertNotFound();
+    }
+
+    public function test_customer_po_dispatch_guard_uses_sales_orders_without_a_dispatch_po_column(): void
+    {
+        $this->assertFalse(Schema::hasColumn('mm_dispatches', 'customer_po_id'));
+        DB::table('mm_customer_pos')->insert(['id' => 986, 'plant_id' => 1, 'sales_executive_id' => 1, 'status' => 0]);
+        DB::table('mm_sales_orders')->insert(['id' => 986, 'plant_id' => 1, 'customer_po_id' => 986, 'deleted_at' => now()]);
+        DB::table('mm_dispatches')->insert(['id' => 986, 'plant_id' => 1, 'sales_order_id' => 986]);
+        $this->assertTrue(CustomerPO::findOrFail(986)->dispatches()->exists());
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            if ($prefix === '/api/mobile') {
+                $token = User::find(1)->createToken('web-login')->plainTextToken;
+                $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+            }
+            $this->putJson($prefix.'/customer-pos/986', [])->assertUnprocessable()
+                ->assertJsonPath('message', 'A completed or allocated customer PO cannot be changed.');
+            $this->deleteJson($prefix.'/customer-pos/986')->assertUnprocessable();
+        }
+        DB::table('mm_dispatches')->where('id', 986)->update(['deleted_at' => now()]);
+        $this->deleteJson('/api/mobile/customer-pos/986')->assertOk();
+    }
+
+    public function test_customer_po_update_failure_is_logged_safe_and_rolls_back_changes(): void
+    {
+        \Illuminate\Support\Facades\Log::spy();
+        DB::table('mm_customer_pos')->insert(['id' => 986, 'plant_id' => 1, 'sales_executive_id' => 1,
+            'patron_id' => 1, 'site_id' => 1, 'status' => 0, 'customer_po_reference' => 'Original reference']);
+        DB::table('mm_customer_po_items')->insert(['id' => 986, 'customer_po_id' => 986, 'mix_design_id' => 1, 'quantity' => 2, 'rate' => 100]);
+        DB::unprepared("CREATE TRIGGER reject_po_items BEFORE INSERT ON mm_customer_po_items BEGIN SELECT RAISE(ABORT, 'Private database failure'); END");
+        $body = ['patron_id' => 1, 'site_id' => 1, 'order_date' => '2026-10-23',
+            'is_tax_inclusive' => false, 'customer_po_reference' => 'Changed reference',
+            'items' => [['mix_design_id' => 1, 'quantity' => 10, 'rate' => 445500, 'tax_id' => null]]];
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            if ($prefix === '/api/mobile') {
+                $token = User::find(1)->createToken('web-login')->plainTextToken;
+                $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+            }
+            $response = $this->putJson($prefix.'/customer-pos/986', $body)->assertStatus(500)
+                ->assertJsonPath('message', 'Unable to update the customer PO. Please try again or contact support with the error reference.')
+                ->assertJsonStructure(['message', 'error_reference'])
+                ->assertJsonMissingPath('exception')->assertJsonMissingPath('trace');
+            $reference = $response->json('error_reference');
+            $this->assertTrue(Str::isUuid($reference));
+            $this->assertStringNotContainsString('Private database failure', $response->getContent());
+            $this->assertStringNotContainsString('SQLSTATE', $response->getContent());
+            \Illuminate\Support\Facades\Log::shouldHaveReceived('error')->with('Customer PO API request failed.',
+                \Mockery::on(fn ($context) => $context['error_reference'] === $reference && $context['operation'] === 'update' && $context['exception'] instanceof \Throwable));
+            $this->assertDatabaseHas('mm_customer_pos', ['id' => 986, 'customer_po_reference' => 'Original reference']);
+            $this->assertDatabaseHas('mm_customer_po_items', ['id' => 986, 'deleted_at' => null, 'quantity' => 2]);
+            $this->assertDatabaseCount('mm_customer_po_items', 1);
+        }
+    }
+
+    public function test_customer_po_expected_errors_remain_actionable(): void
+    {
+        $this->getJson('/api/mobile/v1/customer-pos/999999')->assertNotFound()
+            ->assertExactJson(['message' => 'Customer PO not found or unavailable in the selected plant.']);
+        $this->postJson('/api/mobile/v1/customer-pos', [])->assertUnprocessable()
+            ->assertJsonValidationErrors(['patron_id', 'site_id', 'order_date', 'is_tax_inclusive', 'items'])
+            ->assertJsonMissingPath('error_reference');
     }
 
     public function test_customer_po_mutations_hide_unowned_records_and_validate_inputs(): void
@@ -1935,6 +1995,134 @@ class SalesMobileApiTest extends TestCase
         $this->postJson('/api/mobile/v1/orders', $missingRate)->assertUnprocessable()->assertJsonValidationErrors(['rate'])
             ->assertJsonMissingValidationErrors(['customer_po_id']);
         $this->postJson('/api/mobile/v1/orders', $body + ['customer_po_id' => 999])->assertUnprocessable()->assertJsonValidationErrors(['customer_po_id']);
+    }
+
+    public function test_main_app_admin_reads_plant_orders_without_personnel_but_sales_stays_personal(): void
+    {
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        DB::table('mm_personnels')->where('user_id', 2)->delete();
+        DB::table('mm_sales_orders')->insert([
+            ['id' => 700, 'plant_id' => 1, 'sales_executive_id' => 1, 'status' => 1],
+            ['id' => 701, 'plant_id' => 1, 'sales_executive_id' => null, 'status' => 1],
+            ['id' => 702, 'plant_id' => 2, 'sales_executive_id' => 1, 'status' => 1],
+        ]);
+        $token = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        $response = $this->getJson('/api/mobile/orders')->assertOk()->assertJsonPath('data.total', 2);
+        $this->assertEqualsCanonicalizing([700, 701], array_column($response->json('data.data'), 'id'));
+        $this->getJson('/api/mobile/orders/700')->assertOk();
+        $this->getJson('/api/mobile/orders/702')->assertNotFound();
+        $this->deleteJson('/api/mobile/orders/700')->assertOk();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
+        $this->getJson('/api/mobile/v1/orders')->assertOk()->assertJsonPath('data.total', 0);
+        $this->getJson('/api/mobile/v1/orders/700')->assertNotFound();
+    }
+
+    public function test_admin_commercial_crud_conversion_and_failure_boundaries(): void
+    {
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        DB::table('mm_personnels')->where('user_id', 2)->delete();
+        DB::table('mm_role_has_permissions')->where('role_id', 2)->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $token = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        $body = ['patron_id' => 1, 'site_id' => 1, 'order_date' => '2026-10-23', 'is_tax_inclusive' => false,
+            'items' => [['mix_design_id' => 1, 'quantity' => 10, 'rate' => 100, 'tax_id' => 1]]];
+        $po = $this->postJson('/api/mobile/customer-pos', $body)->assertCreated()
+            ->assertJsonPath('data.amount_total', 1180)->json('data.id');
+        $this->getJson('/api/mobile/customer-pos')->assertOk()->assertJsonPath('data.total', 1);
+        $item = $this->getJson('/api/mobile/customer-pos/'.$po)->assertOk()->json('data.items.0.id');
+        DB::table('mm_customer_pos')->where('id', $po)->update(['sales_executive_id' => 1]);
+        $this->putJson('/api/mobile/customer-pos/'.$po, $body)->assertOk()->assertJsonPath('data.sales_executive_id', 1);
+        $item = $this->getJson('/api/mobile/customer-pos/'.$po)->assertOk()->json('data.items.0.id');
+        $convert = '/api/mobile/customer-pos/'.$po.'/convert-salesorder';
+        $this->postJson($convert, ['items' => [['item_id' => $item, 'quantity' => 11]]])->assertUnprocessable();
+        $this->postJson($convert, ['items' => [['item_id' => $item, 'quantity' => 1], ['item_id' => $item, 'quantity' => 1]]])->assertUnprocessable();
+        $this->postJson($convert, ['items' => [['item_id' => 999999, 'quantity' => 1]]])->assertUnprocessable();
+        $this->postJson($convert, ['items' => [['item_id' => $item, 'quantity' => 0]]])->assertUnprocessable();
+        $this->assertDatabaseCount('mm_sales_orders', 0);
+        $order = $this->postJson($convert, ['items' => [['item_id' => $item, 'quantity' => 10]]])
+            ->assertCreated()->json('data.0.id');
+        $this->postJson($convert, ['items' => [['item_id' => $item, 'quantity' => 1]]])->assertUnprocessable();
+        $this->putJson('/api/mobile/customer-pos/'.$po, $body)->assertUnprocessable();
+        $this->deleteJson('/api/mobile/customer-pos/'.$po)->assertUnprocessable();
+        $this->getJson('/api/mobile/orders/'.$order)->assertOk();
+        $this->getJson('/api/mobile/orders/'.$order.'/batches')->assertOk()->assertJsonPath('data.total', 0);
+        $this->getJson('/api/mobile/orders/'.$order.'/dispatches')->assertOk()->assertJsonPath('data.total', 0);
+        $direct = ['customer_id' => 1, 'site_id' => 1, 'mix_design_id' => 1, 'total_qty' => 5, 'rate' => 100];
+        $this->postJson('/api/mobile/orders', $direct + ['customer_po_id' => $po])->assertUnprocessable();
+        $id = $this->postJson('/api/mobile/orders', $direct)->assertCreated()->json('data.id');
+        DB::table('mm_personnels')->insert(['id' => 2, 'plant_id' => 1, 'user_id' => 2]);
+        $this->patchJson('/api/mobile/orders/'.$id, array_replace($direct, ['total_qty' => 6]))->assertOk()->assertJsonPath('data.sales_executive_id', null);
+        DB::table('mm_batches')->insert(['plant_id' => 1, 'sales_order_id' => $id, 'batch_size' => 1]);
+        $this->deleteJson('/api/mobile/orders/'.$id)->assertUnprocessable();
+        $this->putJson('/api/mobile/orders/'.$id, $direct)->assertUnprocessable();
+        $deletable = $this->postJson('/api/mobile/orders', $direct)->assertCreated()->json('data.id');
+        $this->deleteJson('/api/mobile/orders/'.$deletable)->assertOk();
+        $this->getJson('/api/mobile/orders/'.$deletable)->assertNotFound();
+        $draft = $this->postJson('/api/mobile/customer-pos', $body)->assertCreated()->json('data.id');
+        $this->deleteJson('/api/mobile/customer-pos/'.$draft)->assertOk();
+        $this->getJson('/api/mobile/customer-pos/'.$draft)->assertNotFound();
+        $this->postJson('/api/mobile/orders', array_replace($direct, ['total_qty' => -1]))->assertUnprocessable();
+        $this->postJson('/api/mobile/customer-pos', array_replace($body, ['items' => []]))->assertUnprocessable();
+        foreach (['orders', 'customer-pos'] as $resource) {
+            DB::table($resource === 'orders' ? 'mm_sales_orders' : 'mm_customer_pos')->insert(['id' => 900, 'plant_id' => 2]);
+            $this->getJson('/api/mobile/'.$resource.'/900')->assertNotFound();
+            $this->putJson('/api/mobile/'.$resource.'/900', [])->assertNotFound();
+            $this->deleteJson('/api/mobile/'.$resource.'/900')->assertNotFound();
+        }
+        DB::table('mm_role_has_permissions')->where('role_id', 2)->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->getJson('/api/mobile/customer-pos')->assertOk();
+        $this->postJson('/api/mobile/orders', $direct)->assertCreated();
+        $this->deleteJson('/api/mobile/orders/'.$id)->assertUnprocessable();
+        $this->withHeaders(['Authorization' => '']);
+        $this->getJson('/api/mobile/customer-pos')->assertUnauthorized();
+        $this->postJson('/api/mobile/orders', $direct)->assertUnauthorized();
+    }
+
+    public function test_sales_order_missing_and_inaccessible_records_return_clear_errors(): void
+    {
+        DB::table('mm_sales_orders')->insert([
+            ['id' => 127, 'plant_id' => 1, 'sales_executive_id' => 2, 'deleted_at' => null],
+            ['id' => 128, 'plant_id' => 2, 'sales_executive_id' => 1, 'deleted_at' => null],
+            ['id' => 129, 'plant_id' => 1, 'sales_executive_id' => 1, 'deleted_at' => now()],
+        ]);
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            if ($prefix === '/api/mobile') {
+                $token = User::find(1)->createToken('web-login')->plainTextToken;
+                $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+            }
+            foreach ([127, 128, 129, 999999] as $id) {
+                foreach (['GET', 'PUT', 'PATCH', 'DELETE'] as $method) {
+                    $this->json($method, $prefix.'/orders/'.$id, [])->assertNotFound()
+                        ->assertExactJson(['message' => 'Sales order not found or unavailable in the selected plant.']);
+                }
+                foreach (['batches', 'dispatches'] as $history) {
+                    $this->getJson($prefix.'/orders/'.$id.'/'.$history)->assertNotFound()
+                        ->assertExactJson(['message' => 'Sales order not found or unavailable in the selected plant.']);
+                }
+            }
+        }
+    }
+
+    public function test_sales_order_api_complete_crud_and_ownership(): void
+    {
+        $body = ['customer_id' => 1, 'site_id' => 1, 'mix_design_id' => 1, 'total_qty' => 10, 'rate' => 4500];
+        $id = $this->postJson('/api/mobile/v1/orders', $body + ['plant_id' => 2, 'sales_executive_id' => 2, 'produced_qty' => 100])
+            ->assertCreated()->assertJsonPath('data.plant_id', 1)->assertJsonPath('data.sales_executive_id', 1)->json('data.id');
+        $this->getJson('/api/mobile/v1/orders')->assertOk()->assertJsonPath('data.total', 1)->assertJsonPath('data.data.0.id', $id);
+        $this->getJson('/api/mobile/v1/orders/'.$id)->assertOk()->assertJsonPath('data.order.id', $id)->assertJsonPath('data.progress.ordered_m3', 10);
+        $this->putJson('/api/mobile/v1/orders/'.$id, array_replace($body, ['total_qty' => 12]))->assertOk();
+        $this->patchJson('/api/mobile/v1/orders/'.$id, array_replace($body, ['total_qty' => 15]))->assertOk();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
+        $this->getJson('/api/mobile/v1/orders/'.$id)->assertNotFound();
+        $this->putJson('/api/mobile/v1/orders/'.$id, $body)->assertNotFound();
+        $this->deleteJson('/api/mobile/v1/orders/'.$id)->assertNotFound();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token]);
+        $this->deleteJson('/api/mobile/v1/orders/'.$id)->assertOk();
+        $this->getJson('/api/mobile/v1/orders/'.$id)->assertNotFound();
+        $this->getJson('/api/mobile/v1/orders')->assertOk()->assertJsonPath('data.total', 0);
     }
 
     public function test_quotation_status_and_approval_state_stay_in_sync(): void

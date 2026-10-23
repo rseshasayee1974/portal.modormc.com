@@ -13,8 +13,11 @@ Send `Authorization: Bearer <token>`, `Accept: application/json`, and
 `X-Plant-Id: <id>`. Main app endpoints accept the wildcard Sanctum token issued
 by its existing login/OTP workflow. Sales endpoints retain their sales device
 validation middleware. Plant membership and active account checks apply to both.
-Commercial records retain the existing personal ownership restrictions for every
-role. A personnel assignment is required for creating commercial records.
+Sales app commercial records retain personal ownership restrictions for every
+role. In the main app, administrators can manage customer POs and sales orders
+throughout the selected plant, including records assigned to other executives.
+Existing ownership is preserved; administrators without personnel can create
+unassigned records. Other roles retain personal ownership restrictions.
 
 ## Shared endpoints (relative to either app prefix)
 
@@ -182,3 +185,101 @@ customer/site does not grant permission to edit or delete that master record.
 Sales mobile customer/site routes remain GET-only; commercial ownership and
 admin approval rules are unchanged. Customer progress still counts only orders
 visible to the current user.
+
+## Sales order CRUD quick test
+
+Use the sales token plus X-Plant-Id with `/api/mobile/v1/orders`:
+GET list, POST create, GET `/{order}` detail/progress, PUT/PATCH `/{order}` update,
+and DELETE `/{order}` soft delete. PUT and PATCH accept the full form.
+
+```json
+{"customer_id":1,"site_id":1,"mix_design_id":1,"customer_po_id":null,"total_qty":10,"rate":4500,"is_tax_inclusive":false}
+```
+
+Replace reference IDs with IDs from the selected plant’s lookups. Direct orders
+require a rate. An accessible customer PO is optional; when selected, its matching
+mix-design line supplies pricing and customer/site must match. Creation assigns
+the current plant/personnel and generates the order number automatically. A newly
+created order appears in its owner’s list. Administrators can also access
+unassigned orders in the main app. Production/schedule/dispatch activity or a completed/cancelled
+state prevents update/delete. Postman includes direct-order POST/PUT/PATCH examples,
+PO-based examples, detail, batches/dispatches and a separate delete action.
+
+## Main-app administrator order reads
+
+GET `/api/mobile/orders` and order detail/batches/dispatches allow authorized
+administrators to read all non-deleted orders in X-Plant-Id, including unassigned
+orders, without requiring a personnel profile or module permissions. The verified
+main-app context is set by MobileAppPlantContext; supplying a query/body field
+cannot enable it. Sales `/api/mobile/v1/orders` retains executive ownership.
+Admin writes use the same token authentication and plant context.
+
+## Admin customer PO and sales order access
+
+The existing `/api/mobile/customer-pos` and `/api/mobile/orders` routes provide
+full CRUD; PUT/PATCH expects the complete editable payload. Customer PO and order
+CRUD, PO conversion, and batch/dispatch history do not require module permissions.
+Access uses the login token and verified plant context; administrator visibility
+and sales-app ownership restrictions still apply.
+
+Admin PO creation can use an approved quotation from any executive in the
+selected plant. PO conversion is transactional and rejects duplicate item IDs,
+foreign items, nonpositive quantities, completed POs, and over-allocation.
+Admin order writes linked to a PO also enforce its remaining mix quantity.
+Orders with production, dispatch, or schedule activity and completed/cancelled
+orders reject edits and deletion. Foreign-plant or deleted IDs return 404;
+invalid payloads and business-rule failures return 422. Tokens and plant context
+remain mandatory.
+
+`SalesMobileApiTest::test_admin_commercial_crud_conversion_and_failure_boundaries`
+covers admin CRUD without personnel, tax totals, conversion, rollback on excess
+quantity, immutable records, validation, plant isolation, access without module permissions, and missing-token rejection.
+
+## Postman admin CRUD workflow
+
+Import `docs/postman/mobile-auth.postman_collection.json` and
+`docs/postman/sales-executive-mobile.postman_environment.json`. The sales collection
+also includes the same admin folders. Select the environment and set `base_url`,
+`admin_email`, `admin_password`, and `plant_id`. Run **Admin login (main app)**;
+it saves `admin_token`. Run **Admin commercial lookups**, then set `customer_id`,
+`site_id`, and `mix_design_id` from the selected plant responses.
+
+Run **Admin customer PO CRUD**, **Admin sales order CRUD**, and **Admin PO conversion
+and negative cases** in that order. These folders need no module permissions.
+Created IDs use separate `admin_*` variables, preserving sales workflow IDs.
+The requests include deletes on disposable records. Conversion allocates 4 of
+10 m3; negative cases assert 422 for invalid quantities, duplicate lines,
+over-allocation and allocated PO changes, 404 after deletion, and 401 without
+a login token. Rerun PO CRUD to create a fresh PO before repeating conversion.
+Lead and quotation review folders retain their separate authorization rules.
+
+Regenerate these admin requests with `node tools/update-mobile-review-postman.cjs`.
+
+## Customer PO errors
+
+Customer PO requests return field-level `errors` with HTTP 422 for invalid
+input and a clear 422 message when a PO is completed or allocated. Missing or
+inaccessible POs return HTTP 404 with `Customer PO not found or unavailable in
+the selected plant.` Authentication and plant checks retain their existing
+HTTP status codes.
+
+Unexpected PO failures return HTTP 500 with an operation-specific `message`
+and an `error_reference` UUID. For example:
+
+```json
+{
+  "message": "Unable to update the customer PO. Please try again or contact support with the error reference.",
+  "error_reference": "b178cd62-ab43-4a46-af94-86b580fa7d09"
+}
+```
+
+Use the reference to locate `Customer PO API request failed.` in the application
+log. Exception details remain in the log. Failed saves roll back header, item,
+and quotation changes. Dispatch guards follow `sales_order_id` through sales
+orders; they do not require a `customer_po_id` column on `mm_dispatches`.
+
+Sales order detail, update, deletion, batch history, and dispatch history return
+HTTP 404 with `Sales order not found or unavailable in the selected plant.` for
+missing, deleted, foreign-plant, or ownership-restricted orders. Responses do not
+expose the internal model class or distinguish inaccessible records from missing
+records. This applies to both app prefixes.

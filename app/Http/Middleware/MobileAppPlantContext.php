@@ -14,5 +14,6 @@ class MobileAppPlantContext extends MobilePlantContext
     {
         $token = $request->user()->currentAccessToken();
         abort_unless($token && in_array('*', $token->abilities ?? [], true), 403, 'Use a main mobile application token.');
+        $request->attributes->set('mobile_app_context', true);
     }
 }
