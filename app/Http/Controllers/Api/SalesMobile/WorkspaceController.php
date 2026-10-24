@@ -14,6 +14,7 @@ use App\Models\CrmActivity;
 use App\Models\CrmLead;
 use App\Models\MixDesign;
 use App\Models\ProductUnit;
+use App\Models\Personnel;
 use App\Models\Tax;
 use App\Models\CustomerPO;
 use App\Models\Quotation;
@@ -23,6 +24,25 @@ use Illuminate\Http\Request;
 
 class WorkspaceController extends Controller
 {
+    public function salesExecutives(Request $r)
+    {
+        $r->validate(['search' => 'nullable|string|max:100']);
+        $query = Personnel::withoutGlobalScope('plant_id')
+            ->where('plant_id', Access::plantId())
+            ->whereHas('designation', fn ($q) => $q->where(fn ($designation) => $designation
+                ->where('code', 'SE')->orWhere('name', 'Sales Executive')));
+        if ($r->filled('search')) {
+            $query->where(fn ($q) => $q->where('first_name', 'like', '%'.$r->search.'%')
+                ->orWhere('last_name', 'like', '%'.$r->search.'%')
+                ->orWhere('employee_code', 'like', '%'.$r->search.'%'));
+        }
+
+        return response()->json(['success' => true, 'data' => $query
+            ->orderBy('first_name')->orderBy('id')
+            ->get(['id', 'first_name', 'last_name','plant_id','employee_code'])
+            ->map(fn ($personnel) => ['id' => $personnel->id, 'label' => $personnel->label, 'plant_id' => $personnel->plant_id, 'employee_code' => $personnel->employee_code])]);
+    }
+
     public function mixDesigns(Request $r)
     {
         $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);

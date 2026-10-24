@@ -20,7 +20,6 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
@@ -54,7 +53,6 @@ class AppServiceProvider extends ServiceProvider
             app(DropdownCache::class)->onQuery($event);
         });
 
-        Vite::prefetch(concurrency: 3);
         Schema::defaultStringLength(191);
 
         // Define global password defaults for "strong" format

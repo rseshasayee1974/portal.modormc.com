@@ -40,26 +40,7 @@ export default defineConfig({
         },
         cssCodeSplit: true,
         sourcemap: false,
-        rollupOptions: {
-            output: {
-                manualChunks(id) {
-                    if (id.includes('node_modules')) {
-                        const parts = id.toString().split('node_modules/');
-                        if (parts[1]) {
-                            const name = parts[1].split('/')[0];
-                            // Group Vue and Inertia core components
-                            if (name.includes('vue') || name.includes('inertia')) {
-                                return 'framework-core';
-                            }
-                            // Group apexcharts and its Vue wrapper together
-                            if (name.includes('apexcharts')) {
-                                return 'vendor-apexcharts';
-                            }
-                            return 'vendor-' + name.replace('@', '').replace('/', '-');
-                        }
-                    }
-                }
-            }
-        }
+        // Let Rollup preserve dynamic-import boundaries. Grouping every package
+        // containing "vue" also grouped PrimeVue and chart wrappers into startup.
     }
 });

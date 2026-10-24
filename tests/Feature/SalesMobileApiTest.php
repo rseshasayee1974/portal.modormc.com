@@ -101,7 +101,7 @@ class SalesMobileApiTest extends TestCase
             'mm_batches' => ['plant_id', 'sales_order_id', 'batch_no', 'batch_size', 'status', 'start_time', 'end_time'],
             'mm_sales_orders' => ['plant_id', 'created_by', 'updated_by', 'deleted_by', 'sales_executive_id', 'customer_id', 'site_id', 'mix_design_id', 'total_qty', 'rate', 'tax_id', 'is_tax_inclusive', 'customer_po_id', 'produced_qty', 'status', 'order_no', 'prefix', 'concrete_pump', 'pump_rate', 'scheduled_start', 'scheduled_end'],
             'mm_dispatches' => ['plant_id', 'sales_order_id', 'batch_id', 'truck_id', 'prefix', 'dispatch_no', 'dispatch_status', 'delivered_qty', 'dispatch_time', 'delivery_time'],
-            'mm_machine_types' => ['name'], 'mm_designations' => ['name'],
+            'mm_machine_types' => ['name'], 'mm_designations' => ['name', 'code'],
             'mm_machines' => ['plant_id', 'registration', 'vehicle_model', 'vehicle_type', 'is_active'],
             'mm_dispatch_statuses' => ['dispatch_id', 'is_tax_inclusive'],
             'mm_concrete_batching_schedules' => ['plant_id', 'sales_order_id', 'status', 'batch_id', 'dispatch_id', 'schedule_date', 'site_id', 'mix_design_id', 'qty_m3', 'order_volume_m3', 'remaining_volume_m3', 'vehicle_id', 'driver_id', 'pump_vehicle_id', 'pump_type', 'pour_reference', 'batching_time', 'dispatch_time', 'eta_site', 'unloading_start', 'unloading_end', 'notes', 'created_by', 'updated_by', 'deleted_by'],
@@ -155,6 +155,33 @@ class SalesMobileApiTest extends TestCase
         DB::table('mm_taxes')->insert([['id' => 1, 'plant_id' => 1, 'tax_name' => 'GST18', 'tax_group' => 'GST', 'tax_type' => 'Sales', 'tax_rate' => 18, 'parent_id' => null, 'status' => 1], ['id' => 2, 'plant_id' => 1, 'tax_name' => 'CGST9', 'tax_group' => 'CGST', 'tax_type' => 'Sales', 'tax_rate' => 9, 'parent_id' => 1, 'status' => 1], ['id' => 3, 'plant_id' => 1, 'tax_name' => 'SGST9', 'tax_group' => 'SGST', 'tax_type' => 'Sales', 'tax_rate' => 9, 'parent_id' => 1, 'status' => 1]]);
         $this->customerProvisioningSchema();
         $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => '1']);
+    }
+
+    public function test_main_mobile_sales_executives_are_scoped_to_the_selected_plant(): void
+    {
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        DB::table('mm_designations')->insert([
+            ['id' => 1, 'code' => 'SE', 'name' => 'Sales Executive'],
+            ['id' => 2, 'code' => 'OTHER', 'name' => 'Driver'],
+        ]);
+        DB::table('mm_personnels')->insert([
+            ['id' => 700, 'plant_id' => 1, 'first_name' => 'Alice', 'last_name' => 'Sales', 'employee_code' => 'EMP-700', 'designation_id' => 1, 'deleted_at' => null],
+            ['id' => 701, 'plant_id' => 2, 'first_name' => 'Foreign', 'last_name' => 'Sales', 'employee_code' => 'EMP-701', 'designation_id' => 1, 'deleted_at' => null],
+            ['id' => 702, 'plant_id' => 1, 'first_name' => 'Other', 'last_name' => 'Staff', 'employee_code' => 'EMP-702', 'designation_id' => 2, 'deleted_at' => null],
+            ['id' => 703, 'plant_id' => 1, 'first_name' => 'Deleted', 'last_name' => 'Sales', 'employee_code' => 'EMP-703', 'designation_id' => 1, 'deleted_at' => now()],
+        ]);
+        $token = User::find(2)->createToken('mobile-admin-test', ['*'])->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Plant-Id' => '1']);
+        $url = '/api/mobile/sales-executives';
+        $this->getJson($url)->assertOk()->assertExactJson([
+            'success' => true, 'data' => [['id' => 700, 'label' => 'Alice Sales']],
+        ]);
+        $this->getJson($url.'?search=EMP-700')->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($url.'?search=Foreign')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson($url.'?search='.str_repeat('a', 101))->assertUnprocessable();
+        $this->withHeaders(['X-Plant-Id' => '2'])->getJson($url)->assertForbidden();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => '1'])
+            ->getJson($url)->assertForbidden();
     }
 
     public function test_customers_and_sites_are_shared_read_only_within_the_selected_plant(): void

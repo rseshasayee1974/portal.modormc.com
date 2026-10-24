@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onUnmounted, defineAsyncComponent } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 import Swal from 'sweetalert2';
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
@@ -16,7 +16,7 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import BaseActionButton from '@/Components/Base/BaseActionButton.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
-import UserEditForm from './UserEditForm.vue';
+const UserEditForm = defineAsyncComponent(() => import('./UserEditForm.vue'));
 
 const props = defineProps<{
     users: any;
@@ -70,7 +70,7 @@ const confirmDelete = (id: number) => {
 // ── Pagination / search ───────────────────────────────────────────────────
 const fetchUsers = (params: any) => {
     router.get(route('users.index'), params, {
-        preserveState: true,
+        only: ['users', 'filters'], preserveState: true,
         replace: true,
         onStart:  () => (tableLoading.value = true),
         onFinish: () => (tableLoading.value = false),
@@ -78,7 +78,12 @@ const fetchUsers = (params: any) => {
 };
 
 const handleSearch = debounce(() => fetchUsers({ search: searchQuery.value }), 300);
-const onPage = (event: any) => fetchUsers({ page: event.page + 1, search: searchQuery.value });
+
+onUnmounted(() => handleSearch.cancel());
+const onPage = (event: any) => {
+    handleSearch.cancel();
+    fetchUsers({ page: event.page + 1, search: searchQuery.value });
+};
 
 const onUpdated = (userId: number) => {
     closeRow(userId);

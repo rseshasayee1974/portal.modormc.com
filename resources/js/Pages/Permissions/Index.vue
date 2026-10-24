@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onUnmounted } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -92,12 +92,15 @@ const confirmDelete = (id: number) => {
 };
 
 const onPage = (event: any) => {
-    router.get('/settings/permissions', { page: event.page + 1, search: searchQuery.value }, { preserveState: true, preserveScroll: true });
+    handleSearch.cancel();
+    router.get('/settings/permissions', { page: event.page + 1, search: searchQuery.value }, { only: ['permissions', 'filters'], preserveState: true, preserveScroll: true });
 };
 
 const handleSearch = debounce(() => {
-    router.get('/settings/permissions', { search: searchQuery.value }, { preserveState: true, replace: true, preserveScroll: true });
+    router.get('/settings/permissions', { search: searchQuery.value }, { only: ['permissions', 'filters'], preserveState: true, replace: true, preserveScroll: true });
 }, 300);
+
+onUnmounted(() => handleSearch.cancel());
 
 const firstRecord = computed(() => (props.permissions.current_page - 1) * props.permissions.per_page);
 </script>

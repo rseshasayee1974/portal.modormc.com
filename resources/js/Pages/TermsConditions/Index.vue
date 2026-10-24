@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, onUnmounted, defineAsyncComponent } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useTermsConditionStore } from './useTermsConditionStore';
@@ -12,9 +12,14 @@ import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import BaseInput from '@/Components/Base/BaseInput.vue';
-import Editor from 'primevue/editor';
+const Editor = defineAsyncComponent(async () => {
+    const [component] = await Promise.all([
+        import('primevue/editor'),
+        import('quill/dist/quill.snow.css'),
+    ]);
+    return component;
+});
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import 'quill/dist/quill.snow.css';
 import Tag from 'primevue/tag';
 import { useToast } from 'primevue/usetoast';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
@@ -50,6 +55,7 @@ const filters = ref({
 });
 
 let searchTimeout: any = null;
+onUnmounted(() => clearTimeout(searchTimeout));
 watch(() => filters.value.global.value, (newVal) => {
     search.value = newVal || '';
     currentPage.value = 1;
@@ -191,7 +197,7 @@ const deleteTerms = (id: number) => {
 const fetchTerms = () => router.get(route('termsconditions.index'), {
     search: search.value, 
     page: currentPage.value,
-}, { preserveState: true, preserveScroll: true });
+}, { only: ['termsConditions', 'filters'], preserveState: true, preserveScroll: true });
 
 const onPageChange = (event: any) => {
     currentPage.value = event.page + 1;
@@ -285,7 +291,7 @@ const onSearch = () => {
                             @click="handleManualClean"
                         />
                     </div>
-                    <Editor v-model="form.terms_condition" editorStyle="height: 320px" placeholder="Enter the full text for these terms..." />
+                    <Editor v-if="showModal" v-model="form.terms_condition" editorStyle="height: 320px" placeholder="Enter the full text for these terms..." />
                     <small v-if="form.errors.terms_condition" class="text-red-500">{{ form.errors.terms_condition[0] }}</small>
                 </div>
             </div>

@@ -104,6 +104,16 @@ class ConcreteBatchingScheduleController extends Controller
         ];
     }
 
+    protected function getValidationMessages(): array
+    {
+        return [];
+    }
+
+    protected function serializeSchedule(ConcreteBatchingSchedule $schedule): array|ConcreteBatchingSchedule
+    {
+        return $schedule;
+    }
+
     /**
      * Validate chronological time order and normalize timestamps to Y-m-d H:i:s.
      */
@@ -393,7 +403,7 @@ class ConcreteBatchingScheduleController extends Controller
         $plantId = $this->getActivePlantId();
         $this->normalizePumpTypeInput($request);
 
-        $validated = $request->validate($this->getValidationRules());
+        $validated = $request->validate($this->getValidationRules(), $this->getValidationMessages());
 
         if (empty($validated['pour_reference'])) {
             $month = now()->month;
@@ -470,7 +480,7 @@ class ConcreteBatchingScheduleController extends Controller
             return response()->json([
                 'success'  => true,
                 'message'  => $message,
-                'schedule' => $schedule->load(['site', 'mixDesign', 'vehicle', 'driver', 'pumpVehicle', 'batch', 'dispatch']),
+                'schedule' => $this->serializeSchedule($schedule->load(['site', 'mixDesign', 'vehicle', 'driver', 'pumpVehicle', 'batch', 'dispatch'])),
             ]);
         });
     }
@@ -485,7 +495,7 @@ class ConcreteBatchingScheduleController extends Controller
         $plantId = $schedule->plant_id ?? $this->getActivePlantId();
         $this->normalizePumpTypeInput($request);
 
-        $validated = $request->validate($this->getValidationRules());
+        $validated = $request->validate($this->getValidationRules(), $this->getValidationMessages());
         $this->validateAndNormalizeTimes($validated);
 
         $this->validateSalesOrderCapacity($plantId, $validated, $schedule->id, $schedule->dispatch_id);
@@ -535,7 +545,7 @@ class ConcreteBatchingScheduleController extends Controller
             return response()->json([
                 'success'  => true,
                 'message'  => "Schedule slot #{$schedule->id} updated successfully.",
-                'schedule' => $schedule->fresh(['site', 'mixDesign', 'vehicle', 'driver', 'pumpVehicle', 'batch', 'dispatch']),
+                'schedule' => $this->serializeSchedule($schedule->fresh(['site', 'mixDesign', 'vehicle', 'driver', 'pumpVehicle', 'batch', 'dispatch'])),
             ]);
         });
     }

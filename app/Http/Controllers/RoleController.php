@@ -26,30 +26,33 @@ class RoleController extends Controller
         }
         $roles = $query->paginate(15)->withQueryString();
 
-        // Dynamically extract all available permissions and group them by the prefix (module)
-        // e.g., 'users.create', 'users.edit' becomes ['users' => ['create', 'edit']]
-        $allPermissions = Permission::orderBy('name')->get();
-        $groupedPermissions = [];
-        
-        foreach ($allPermissions as $perm) {
-            $parts = explode('.', $perm->name);
-            $module = count($parts) > 1 ? $parts[0] : 'general';
-            $action = count($parts) > 1 ? implode('.', array_slice($parts, 1)) : $perm->name;
-            if (str_starts_with($module, 'REPORT_')) {
-                $reportId = strtolower(substr($module, 7));
-                $label = \App\Services\Reports\ReportPermissions::REPORTS[$reportId] ?? null;
-                if ($label) $module = 'Report: '.$label;
+        $groupedPermissions = function () {
+            // Dynamically extract all available permissions and group them by the prefix (module)
+            // e.g., 'users.create', 'users.edit' becomes ['users' => ['create', 'edit']]
+            $allPermissions = Permission::orderBy('name')->get();
+            $groupedPermissions = [];
+
+            foreach ($allPermissions as $perm) {
+                $parts = explode('.', $perm->name);
+                $module = count($parts) > 1 ? $parts[0] : 'general';
+                $action = count($parts) > 1 ? implode('.', array_slice($parts, 1)) : $perm->name;
+                if (str_starts_with($module, 'REPORT_')) {
+                    $reportId = strtolower(substr($module, 7));
+                    $label = \App\Services\Reports\ReportPermissions::REPORTS[$reportId] ?? null;
+                    if ($label) $module = 'Report: '.$label;
+                }
+
+                if (!isset($groupedPermissions[$module])) {
+                    $groupedPermissions[$module] = [];
+                }
+                $groupedPermissions[$module][] = [
+                    'id' => $perm->id,
+                    'name' => $perm->name,
+                    'action_label' => ucfirst($action)
+                ];
             }
-            
-            if (!isset($groupedPermissions[$module])) {
-                $groupedPermissions[$module] = [];
-            }
-            $groupedPermissions[$module][] = [
-                'id' => $perm->id,
-                'name' => $perm->name,
-                'action_label' => ucfirst($action)
-            ];
-        }
+            return $groupedPermissions;
+        };
 
         return Inertia::render('Roles/Index', [
             'roles' => $roles,
@@ -96,7 +99,7 @@ class RoleController extends Controller
     public function destroy(Role $role)
     {
         $this->authorizeModule('delete');
-        
+
         if ($role->is_system) {
             return response()->json(['message' => 'System protected roles cannot be deleted.'], 403);
         }

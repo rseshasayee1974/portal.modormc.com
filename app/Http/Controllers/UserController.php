@@ -30,8 +30,8 @@ class UserController extends Controller
         /** @var User $user */
         $user = $request->user();
         $isSuperUser = $user && method_exists($user, 'hasRole') && (
-            $user->hasRole('Saas Owner') || 
-            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Saas Owner') ||
+            $user->hasRole('Platform Admin') ||
             $user->hasRole('Super Admin')
         );
 
@@ -81,60 +81,66 @@ class UserController extends Controller
         }
 
         $users = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
-        
-        // Load dropdown collections for Form
-        if ($isSuperUser) {
-            $availableEntities = Entity::all();
-        } else {
-            // Get entities from EntityUser mapping
-            $availableEntities = $user->entityUsers()->with('entity')->get()->pluck('entity')->filter(function ($entity) {
-                return $entity && $entity->is_active == 1;
-            });
-        }
 
-        $entities = $availableEntities->map(function ($entity) {
-            return [
-                'value' => $entity->id,
-                'label' => $entity->legal_name . ($entity->alias ? " ({$entity->alias})" : ''),
-            ];
-        })->values();
+        $dropdownData = null;
+        $dropdowns = function () use ($isSuperUser, $user, &$dropdownData) {
+            if ($dropdownData !== null) return $dropdownData;
+            // Load dropdown collections for Form
+            if ($isSuperUser) {
+                $availableEntities = Entity::all();
+            } else {
+                // Get entities from EntityUser mapping
+                $availableEntities = $user->entityUsers()->with('entity')->get()->pluck('entity')->filter(function ($entity) {
+                    return $entity && $entity->is_active == 1;
+                });
+            }
 
-        if ($isSuperUser) {
-            $userGroups = Role::all()->map(function ($group) {
+            $entities = $availableEntities->map(function ($entity) {
                 return [
-                    'value' => $group->id,
-                    'label' => $group->name,
+                    'value' => $entity->id,
+                    'label' => $entity->legal_name . ($entity->alias ? " ({$entity->alias})" : ''),
                 ];
             })->values();
-        } else {
-            $spatieLevel = $user->roles->max('level');
-            $entityLevel = $user->entityUsers()->with('role')->get()->max('role.level');
-            $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
-            $userLevel = empty($levels) ? 0 : max($levels);
-            
-            $userGroups = Role::where('level', '<', $userLevel)
-                ->whereNotIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'])
-                ->get()
-                ->map(function ($group) {
+
+            if ($isSuperUser) {
+                $userGroups = Role::all()->map(function ($group) {
                     return [
                         'value' => $group->id,
                         'label' => $group->name,
                     ];
                 })->values();
-        }
+            } else {
+                $spatieLevel = $user->roles->max('level');
+                $entityLevel = $user->entityUsers()->with('role')->get()->max('role.level');
+                $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
+                $userLevel = empty($levels) ? 0 : max($levels);
 
-        $plantsQuery = Plant::where('is_active', 1);
-        $activePlantId = app(\App\Services\PlantContextService::class)->plantId();
-        if ($activePlantId && !$isSuperUser) {
-            $plantsQuery->where('id', $activePlantId);
-        }
-        $plants = $plantsQuery->get()->map(fn($p) => [
-            'value' => $p->id, 
-            'label' => $p->name,
-            'entity_id' => $p->entity_id
-        ]);
+                $userGroups = Role::where('level', '<', $userLevel)
+                    ->whereNotIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'])
+                    ->get()
+                    ->map(function ($group) {
+                        return [
+                            'value' => $group->id,
+                            'label' => $group->name,
+                        ];
+                    })->values();
+            }
+
+            $plantsQuery = Plant::where('is_active', 1);
+            $activePlantId = app(\App\Services\PlantContextService::class)->plantId();
+            if ($activePlantId && !$isSuperUser) {
+                $plantsQuery->where('id', $activePlantId);
+            }
+            $plants = $plantsQuery->get()->map(fn($p) => [
+                'value' => $p->id,
+                'label' => $p->name,
+                'entity_id' => $p->entity_id
+            ]);
+            return $dropdownData = compact('entities', 'plants', 'userGroups');
+        };
 
         if ($request->wantsJson() || $request->is('api/*')) {
+            extract($dropdowns());
             $currentUser = User::with(['entityUsers.entity', 'entityUsers.plant', 'entityUsers.role'])
                 ->find($user->id);
 
@@ -151,9 +157,9 @@ class UserController extends Controller
 
         return Inertia::render('Users/Index', [
             'users' => $users,
-            'entities' => $entities,
-            'plants' => $plants,
-            'userGroups' => $userGroups,
+            'entities' => fn () => $dropdowns()['entities'],
+            'plants' => fn () => $dropdowns()['plants'],
+            'userGroups' => fn () => $dropdowns()['userGroups'],
             'canManageMobileAccess' => \App\Services\Mobile\MobileAccess::canManageUserAccess($user),
             'filters' => $request->only('search')
         ]);
@@ -340,8 +346,8 @@ class UserController extends Controller
         }
 
         $isSuperUser = method_exists($currentUser, 'hasRole') && (
-            $currentUser->hasRole('Saas Owner') || 
-            $currentUser->hasRole('Platform Admin') || 
+            $currentUser->hasRole('Saas Owner') ||
+            $currentUser->hasRole('Platform Admin') ||
             $currentUser->hasRole('Super Admin')
         );
 

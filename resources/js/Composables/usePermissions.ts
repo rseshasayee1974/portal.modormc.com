@@ -15,6 +15,9 @@ export function usePermissions() {
     const permissions = computed<string[]>(() =>
         (page.props.user_permissions as string[]) ?? []
     );
+    const permissionIndex = computed(() =>
+        new Set(permissions.value.map(permission => permission.toLowerCase()))
+    );
 
     const userRole = computed<string>(() =>
         (page.props.user_role as string) ?? ''
@@ -44,7 +47,7 @@ export function usePermissions() {
         // console.log('permissions', permissions.value);
         // console.log('isSuperAdmin', isSuperAdmin.value);
 
-        return permissions.value.some(p => p.toLowerCase() === normalized);
+        return permissionIndex.value.has(normalized);
     };
 
     return { can, isSuperAdmin, isAdmin, permissions, userRole, isSassOwner };

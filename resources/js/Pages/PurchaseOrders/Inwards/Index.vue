@@ -21,6 +21,16 @@ const props = defineProps<{ inwards: any[]; purchaseOrders: any[]; vehicles: any
 // --- List Logic ---
 const entriesPerPage = ref(30);
 const expandedRows = ref<Record<string, boolean>>({});
+
+const closeExpandedRow = (id?: number | string) => {
+    if (Array.isArray(expandedRows.value)) {
+        expandedRows.value = id !== undefined
+            ? expandedRows.value.filter((row: any) => (row?.id ?? row) !== id)
+            : [];
+    } else {
+        expandedRows.value = {};
+    }
+};
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
 });
@@ -91,43 +101,38 @@ const deleteInward = (inward: any) => {
                 <div class="space-y-4">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
                         <div class="flex items-center gap-2">
-                             <div class="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
-                             <h2 class="text-sm font-black text-slate-700 uppercase tracking-widest">Historical Inward Registry</h2>
+                            <div class="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
+                            <h2 class="text-sm font-black text-slate-700 uppercase tracking-widest">Historical Inward
+                                Registry
+                            </h2>
                         </div>
                     </div>
 
                     <div class="bg-white rounded-sm shadow-sm border border-slate-200 overflow-hidden">
-                        <BaseDataTable
-                            :value="filteredInwards"
-                            v-model:filters="filters"
-                            v-model:rows="entriesPerPage"
-                            v-model:dateFrom="dateFrom"
-                            v-model:dateTo="dateTo"
-                            v-model:expandedRows="expandedRows"
-                            dataKey="id"
-                            :rowsPerPageOptions="[30, 50, 100, 200]"
+                        <BaseDataTable :value="filteredInwards" v-model:filters="filters" v-model:rows="entriesPerPage"
+                            v-model:dateFrom="dateFrom" v-model:dateTo="dateTo" v-model:expandedRows="expandedRows"
+                            dataKey="id" :rowsPerPageOptions="[30, 50, 100, 200]"
                             :globalFilterFields="['inward_no', 'order.po_number', 'product.title', 'order.vendor.legal_name']"
-                            showSearch
-                            showSerial
-                            stripedRows
-                            heading="Stock Inward Registry"
-                            headingIcon="ArchiveBoxIcon"
-                            showExport
-                            exportFilename="stock-inward-report"
-                        >
+                            showSearch showSerial stripedRows heading="Stock Inward Registry"
+                            headingIcon="ArchiveBoxIcon" showExport exportFilename="stock-inward-report">
                             <template #toolbar>
-                                <div class="flex items-center gap-2 px-3 py-1 bg-indigo-50 rounded-lg border border-indigo-100">
-                                    <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{{ filteredInwards.length }} arrivals recorded</span>
+                                <div
+                                    class="flex items-center gap-2 px-3 py-1 bg-indigo-50 rounded-lg border border-indigo-100">
+                                    <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{{
+                                        filteredInwards.length }} arrivals recorded</span>
                                 </div>
                             </template>
 
                             <!-- <Column expander style="width: 3.5rem" /> -->
 
-                            <Column header="Inward #" sortable field="inward_no" style="min-width: 160px" class="py-4 px-4">
+                            <Column header="Inward #" sortable field="inward_no" style="min-width: 160px"
+                                class="py-4 px-4">
                                 <template #body="slotProps">
                                     <div class="flex flex-col">
-                                        <span class="text-[11px] font-bold text-slate-700 font-inter tracking-tight">{{ slotProps.data.inward_no }}</span>
-                                        <div class="flex items-center gap-1.5 mt-1 text-[9px] text-slate-400 font-bold uppercase">
+                                        <span class="text-[11px] font-bold text-slate-700 font-inter tracking-tight">{{
+                                            slotProps.data.inward_no }}</span>
+                                        <div
+                                            class="flex items-center gap-1.5 mt-1 text-[9px] text-slate-400 font-bold uppercase">
                                             <CalendarDaysIcon class="w-3 h-3" />
                                             {{ formatDate(slotProps.data.received_date) }}
                                         </div>
@@ -140,11 +145,8 @@ const deleteInward = (inward: any) => {
                                     <div class="text-[11px] font-bold text-slate-600 uppercase tracking-tight">
                                         {{ slotProps.data.order?.vendor?.legal_name || '--' }}
                                     </div>
-                                    <button
-                                        type="button"
-                                        @click="viewOrder(slotProps.data.order)"
-                                        class="inline-flex items-center text-[10px] font-black px-2.5 py-1 bg-indigo-50/50 text-indigo-700 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors uppercase cursor-pointer"
-                                    >
+                                    <button type="button" @click="viewOrder(slotProps.data.order)"
+                                        class="inline-flex items-center text-[10px] font-black px-2.5 py-1 bg-indigo-50/50 text-indigo-700 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors uppercase cursor-pointer">
                                         {{ slotProps.data.order?.po_number }}
                                     </button>
                                 </template>
@@ -153,8 +155,12 @@ const deleteInward = (inward: any) => {
                             <Column header="Product" sortable field="product.title" style="min-width: 140px">
                                 <template #body="slotProps">
                                     <div class="flex flex-col">
-                                        <span class="text-[11px] font-bold text-slate-700 uppercase tracking-tight leading-tight">{{ slotProps.data.product?.title }}</span>
-                                        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">{{ slotProps.data.product?.hsn_code || 'No HSN' }}</span>
+                                        <span
+                                            class="text-[11px] font-bold text-slate-700 uppercase tracking-tight leading-tight">{{
+                                                slotProps.data.product?.title }}</span>
+                                        <span
+                                            class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">{{
+                                                slotProps.data.product?.hsn_code || 'No HSN' }}</span>
                                     </div>
                                 </template>
                             </Column>
@@ -169,30 +175,42 @@ const deleteInward = (inward: any) => {
                                 <template #body="slotProps">
                                     <div class="flex flex-col gap-1.5 px-1">
                                         <div class="flex items-center gap-2">
-                                            <div class="w-2 h-2 rounded-full" :class="slotProps.data.truck_id ? 'bg-indigo-500' : 'bg-slate-300'"></div>
-                                            <span class="text-[10px] font-black text-slate-700 uppercase tracking-tight">{{ slotProps.data.truck?.registration || 'External Vehicle' }}</span>
+                                            <div class="w-2 h-2 rounded-full"
+                                                :class="slotProps.data.truck_id ? 'bg-indigo-500' : 'bg-slate-300'">
+                                            </div>
+                                            <span
+                                                class="text-[10px] font-black text-slate-700 uppercase tracking-tight">{{
+                                                    slotProps.data.truck?.registration || 'External Vehicle' }}</span>
                                         </div>
-                                        <div v-if="slotProps.data.truck?.code" class="text-[8px] text-slate-400 font-bold uppercase tracking-widest pl-4">
+                                        <div v-if="slotProps.data.truck?.code"
+                                            class="text-[8px] text-slate-400 font-bold uppercase tracking-widest pl-4">
                                             V-REF: {{ slotProps.data.truck?.code }}
                                         </div>
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column header="Price" sortable field="unit_price" style="min-width: 110px" class="text-right">
+                            <Column header="Price" sortable field="unit_price" style="min-width: 110px"
+                                class="text-right">
                                 <template #body="slotProps">
                                     <div class="flex flex-col items-center px-1 bg-slate-50/50 py-1.5 rounded">
-                                        <span class="text-[12px] font-black text-slate-500">{{ Number(slotProps.data.unit_price) }}</span>
+                                        <span class="text-[12px] font-black text-slate-500">{{
+                                            Number(slotProps.data.unit_price) }}</span>
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column header="Received" sortable field="received_qty" style="min-width: 120px" class="text-right">
+                            <Column header="Received" sortable field="received_qty" style="min-width: 120px"
+                                class="text-right">
                                 <template #body="slotProps">
                                     <div class=" bg-emerald-50/20 py-1.5 rounded border border-emerald-100/30">
-                                        <span class="text-[13px] font-black text-emerald-600">{{ Number(slotProps.data.received_qty) }} /</span>
-                                        <span class="text-[12px] font-black text-slate-500">{{ Number(slotProps.data.item.product_quantity) }} </span>
-                                        <span class="text-[11px] text-gray-400 font-black uppercase tracking-widest">{{'  ' + slotProps.data.uom?.unit_code }}</span>
+                                        <span class="text-[13px] font-black text-emerald-600">{{
+                                            Number(slotProps.data.received_qty) }} /</span>
+                                        <span class="text-[12px] font-black text-slate-500">{{
+                                            Number(slotProps.data.item.product_quantity) }} </span>
+                                        <span class="text-[11px] text-gray-400 font-black uppercase tracking-widest">
+                                            {{ slotProps.data.uom?.unit_code }}
+                                        </span>
                                     </div>
                                 </template>
                             </Column>
@@ -200,45 +218,40 @@ const deleteInward = (inward: any) => {
                             <Column header="" style="width: 120px" class="text-right">
                                 <template #body="slotProps">
                                     <div class="flex items-center justify-end gap-1">
-                                        <a
-                                            :href="route('inwards.receipt', slotProps.data.id)"
-                                            target="_blank"
+                                        <a :href="route('inwards.receipt', slotProps.data.id)" target="_blank"
                                             class="w-8 h-8 rounded-full text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 transition-colors inline-flex items-center justify-center cursor-pointer"
-                                            title="Print Receipt (PDF Style with Print Button)"
-                                        >
+                                            title="Print Receipt (PDF Style with Print Button)">
                                             <i class="pi pi-print text-sm"></i>
                                         </a>
 
-                                        <a
-                                            :href="route('inwards.download-receipt', slotProps.data.id)"
+                                        <a :href="route('inwards.download-receipt', slotProps.data.id)"
                                             class="w-8 h-8 rounded-full text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 transition-colors inline-flex items-center justify-center cursor-pointer"
-                                            title="Download GRN as PDF"
-                                        >
+                                            title="Download GRN as PDF">
                                             <i class="pi pi-download text-sm"></i>
                                         </a>
 
-                                        <Button
-                                            icon="pi pi-trash"
-                                            severity="danger"
-                                            variant="text"
-                                            size="small"
-                                            rounded
+                                        <Button icon="pi pi-trash" severity="danger" variant="text" size="small" rounded
                                             class="!text-red-400 hover:!text-red-500 h-8 w-8"
-                                            @click.stop="deleteInward(slotProps.data)"
-                                        />
+                                            @click.stop="deleteInward(slotProps.data)" />
                                     </div>
                                 </template>
                             </Column>
 
                             <template #expansion="{ data }">
-                                <InwardEditForm :key="data.id" :inward="data" :vehicles="vehicles" :units="units" :accounts="accounts" :can-generate-bill="canGenerateBill" />
+                                <InwardEditForm :key="data.id" :inward="data" :vehicles="vehicles" :units="units"
+                                    :accounts="accounts" :can-generate-bill="canGenerateBill"
+                                    :on-save-success="() => closeExpandedRow(data.id)"
+                                    @saved="closeExpandedRow(data.id)" @close="closeExpandedRow(data.id)"
+                                    @cancel="closeExpandedRow(data.id)" />
                             </template>
 
                             <template #empty>
                                 <div class="py-24 text-center">
                                     <ArchiveBoxIcon class="w-12 h-12 text-slate-100 mx-auto mb-4" />
-                                    <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Inward registry is empty</h3>
-                                    <p class="text-[10px] text-slate-300 mt-1">Confirmed goods receipts will appear here.</p>
+                                    <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Inward
+                                        registry is empty</h3>
+                                    <p class="text-[10px] text-slate-300 mt-1">Confirmed goods receipts will appear
+                                        here.</p>
                                 </div>
                             </template>
                         </BaseDataTable>
@@ -252,6 +265,4 @@ const deleteInward = (inward: any) => {
     </AppLayout>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

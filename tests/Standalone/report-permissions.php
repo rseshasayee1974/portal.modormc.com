@@ -65,6 +65,17 @@ $roleController = new class extends App\Http\Controllers\RoleController {
 };
 $rolePage = $roleController->index(Request::create('/settings/roles'));
 $roleProps = (new ReflectionProperty(Inertia\Response::class, 'props'))->getValue($rolePage);
+$partialRequest = Request::create('/settings/roles', 'GET', [], [], [], [
+    'HTTP_X_INERTIA' => 'true',
+    'HTTP_X_INERTIA_PARTIAL_COMPONENT' => 'Roles/Index',
+    'HTTP_X_INERTIA_PARTIAL_DATA' => 'roles,filters',
+]);
+DB::connection()->enableQueryLog();
+$partialProps = $rolePage->resolveProperties($partialRequest, $roleProps);
+checkAccess(!array_key_exists('groupedPermissions', $partialProps), 'Role search resends permission matrix.');
+checkAccess(count(DB::getQueryLog()) === 0, 'Role search evaluates excluded permission queries.');
+DB::connection()->disableQueryLog();
+$roleProps['groupedPermissions'] = app()->call($roleProps['groupedPermissions']);
 $reportGroups = array_filter(array_keys($roleProps['groupedPermissions']), fn ($label) => str_starts_with($label, 'Report: '));
 checkAccess(count($reportGroups) === $reportCount && isset($roleProps['groupedPermissions']['REPORT']), 'Role matrix missing report rows or REPORT permissions.');
 $ledgerPermission = DB::table('mm_permissions')->where('name', 'REPORT_LEDGER.VIEW')->value('id');

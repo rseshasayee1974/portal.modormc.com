@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import InwardEditForm from './components/InwardEditForm.vue';
 
 defineProps<{ inward: any; vehicles?: any[]; units?: any[]; accounts?: any[]; canGenerateBill?: boolean }>();
@@ -12,7 +12,16 @@ defineProps<{ inward: any; vehicles?: any[]; units?: any[]; accounts?: any[]; ca
         <template #header><ModuleSubTopNav /></template>
         <div class="py-6 px-4 max-w-7xl mx-auto space-y-4">
             <Link :href="route('inwards.index')" class="text-sm text-indigo-600 hover:underline">Back to registry</Link>
-            <InwardEditForm :inward="inward" :vehicles="vehicles" :units="units" :accounts="accounts" :can-generate-bill="canGenerateBill" />
+            <InwardEditForm
+                :inward="inward"
+                :vehicles="vehicles"
+                :units="units"
+                :accounts="accounts"
+                :can-generate-bill="canGenerateBill"
+                @saved="router.visit(route('inwards.index'))"
+                @close="router.visit(route('inwards.index'))"
+                @cancel="router.visit(route('inwards.index'))"
+            />
         </div>
     </AppLayout>
 </template>

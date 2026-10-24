@@ -15,12 +15,19 @@ import InwardTruckSelect from './InwardTruckSelect.vue';
 import { CheckCircleIcon, ScaleIcon, PrinterIcon, ArrowDownTrayIcon, ExclamationCircleIcon } from '@heroicons/vue/24/outline';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 
-const props = withDefaults(defineProps<{ inward: any; vehicles?: any[]; units?: any[]; accounts?: any[]; canGenerateBill?: boolean }>(), {
+const props = withDefaults(defineProps<{ inward: any; vehicles?: any[]; units?: any[]; accounts?: any[]; canGenerateBill?: boolean; onSaveSuccess?: () => void }>(), {
     vehicles: () => [],
     units: () => [],
     accounts: () => [],
     canGenerateBill: false,
 });
+
+const emit = defineEmits<{
+    (e: 'saved', inward?: any): void;
+    (e: 'close'): void;
+    (e: 'cancel'): void;
+}>();
+
 const data = ref({ ...props.inward });
 const createdTrucks = ref<any[]>([]);
 const truckOptions = computed(() => [
@@ -276,15 +283,25 @@ const saveInwardDetails = () => {
         payload.generate_bill = true;
         payload.bill = { ...billForm.value };
     }
-    if (!Object.keys(payload).length) return;
+    if (!Object.keys(payload).length) {
+        emit('saved', data.value);
+        emit('close');
+        return;
+    }
     detailsErrors.value = {};
     detailsSaving.value = true;
+    // The refreshed table can unmount this form before Inertia calls onSuccess.
+    // Capture the table owner's callback while this instance is still mounted.
+    const onSaveSuccess = props.onSaveSuccess;
     router.post(route('inwards.update-weight', data.value.id), payload, {
         preserveScroll: true,
         preserveState: true,
         onSuccess: () => {
             data.value = { ...props.inward };
             generateBill.value = false;
+            onSaveSuccess?.();
+            emit('saved', data.value);
+            emit('close');
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: payload.generate_bill ? 'Inward saved and purchase bill generated' : 'Inward details saved', showConfirmButton: false, timer: 1500 });
         },
         onError: (errors) => { detailsErrors.value = errors; },
@@ -301,10 +318,18 @@ const saveInwardDetails = () => {
         <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
             <h4 class="text-xs font-bold text-slate-700">Edit vehicle and units</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck" class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving" :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
-                <BaseSelect v-model="data.uom_id" :disabled="isBilled || formBusy" :options="units" label="Actual UOM" optionLabel="label" optionValue="value" required :error="detailsErrors.uom_id" />
-                <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label" optionValue="value" showClear :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_uom_id" />
-                <BaseInputNumber :model-value="Number(data.conversion_quantity || 0)" @update:model-value="data.conversion_quantity = $event" label="Converted quantity" :min="0" :minFractionDigits="2" :maxFractionDigits="2" :disabled="isBilled || detailsSaving" :error="detailsErrors.conversion_quantity" />
+                <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck"
+                    class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving"
+                    :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
+                <BaseSelect v-model="data.uom_id" :disabled="isBilled || formBusy" :options="units" label="Actual UOM"
+                    optionLabel="label" optionValue="value" required :error="detailsErrors.uom_id" />
+                <BaseSelect v-model="data.conversion_uom_id" :options="units" label="Conversion UOM" optionLabel="label"
+                    optionValue="value" showClear :disabled="isBilled || detailsSaving"
+                    :error="detailsErrors.conversion_uom_id" />
+                <BaseInputNumber :model-value="Number(data.conversion_quantity || 0)"
+                    @update:model-value="data.conversion_quantity = $event" label="Converted quantity" :min="0"
+                    :minFractionDigits="2" :maxFractionDigits="2" :disabled="isBilled || detailsSaving"
+                    :error="detailsErrors.conversion_quantity" />
             </div>
             <!-- <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <p class="text-xs text-slate-500">Received UOM changes also update the stock unit. <span v-if="isBilled">Void the linked bills before changing receipt quantities or conversion units.</span></p>
@@ -331,7 +356,12 @@ const saveInwardDetails = () => {
                         :minFractionDigits="2" :maxFractionDigits="2" required :disabled="formBusy"
                         :error="detailsErrors['bill.unit_price']" />
                 </div>
-                <p class="text-xs text-indigo-600">Bill quantity: {{ Number(billsConvertedQuantity ? data.conversion_quantity : data.received_qty).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{ billingUomLabel }} ({{ billsConvertedQuantity ? 'converted quantity' : 'received quantity' }}).</p>
+                <p class="text-xs text-indigo-600">Bill quantity: {{ Number(billsConvertedQuantity ?
+                    data.conversion_quantity : data.received_qty).toLocaleString(APP_LOCALE, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) }} {{ billingUomLabel }} ({{ billsConvertedQuantity ? `converted quantity` :
+                        `received quantity` }}).</p>
                 <!-- <p class="text-xs text-indigo-600">{{ data.order?.tax_inclusive ? 'The rate includes tax.' : 'Tax is added to the rate.' }} Purchase order discounts and charges apply.</p> -->
             </template>
         </div>
@@ -347,12 +377,14 @@ const saveInwardDetails = () => {
             <!-- Panel 1: Gross & Tare Inputs (9 Cols) -->
             <div class="lg:col-span-9 flex flex-col md:flex-row gap-3">
                 <!-- Gross (Loaded) Card -->
-                <div class="w-full flex-1 flex flex-col justify-between bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs min-h-[115px]">
+                <div
+                    class="w-full flex-1 flex flex-col justify-between bg-white p-3.5 rounded-lg border border-slate-200 shadow-2xs min-h-[115px]">
                     <div class="flex items-center justify-between h-5">
                         <div class="flex items-center gap-1.5">
                             <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                             <label for="gross-input"
-                                class="text-[10px] font-black uppercase tracking-wider text-slate-600">1. Gross (Loaded)</label>
+                                class="text-[10px] font-black uppercase tracking-wider text-slate-600">1.
+                                Gross (Loaded)</label>
                         </div>
                         <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Locked</span>
                     </div>
@@ -373,7 +405,8 @@ const saveInwardDetails = () => {
                                     class="w-20 h-10 object-cover rounded-md border border-slate-300 shadow-xs cursor-pointer hover:opacity-90 transition-opacity shrink-0"
                                     alt="Gross Snap" />
                                 <span
-                                    class="text-[9px] text-slate-500 font-bold uppercase tracking-wider leading-tight w-8">Gross Snap</span>
+                                    class="text-[9px] text-slate-500 font-bold uppercase tracking-wider leading-tight w-8">Gross
+                                    Snap</span>
                             </div>
                         </div>
                     </div>
@@ -386,18 +419,21 @@ const saveInwardDetails = () => {
                 ]">
                     <div class="flex items-center justify-between h-5">
                         <div class="flex items-center gap-1.5">
-                            <span :class="['w-1.5 h-1.5 rounded-full', tareError ? 'bg-red-500' : 'bg-amber-500']"></span>
+                            <span
+                                :class="['w-1.5 h-1.5 rounded-full', tareError ? 'bg-red-500' : 'bg-amber-500']"></span>
                             <label for="tare-input"
                                 :class="['text-[10px] font-black uppercase tracking-wider', tareError ? 'text-red-700' : 'text-amber-700']">
                                 2. Tare (Empty)
                             </label>
                         </div>
-                        <span v-if="Number(data.truck_loaded || 0) > 0"
-                            :class="[
-                                'text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider border',
-                                tareError ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200/70'
-                            ]">
-                            Must be &lt; {{ Number(data.truck_loaded).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                        <span v-if="Number(data.truck_loaded || 0) > 0" :class="[
+                            'text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider border',
+                            tareError ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200/70'
+                        ]">
+                            Must be &lt; {{ Number(data.truck_loaded).toLocaleString(APP_LOCALE, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) }}
                         </span>
                     </div>
 
@@ -412,8 +448,7 @@ const saveInwardDetails = () => {
                                         tareError
                                             ? 'bg-red-50 border border-red-400 text-red-900 focus:bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500'
                                             : 'bg-white border border-slate-300 hover:border-amber-400 focus:border-amber-500 text-slate-900 focus:ring-1 focus:ring-amber-500'
-                                    ]"
-                                    placeholder="0.00" />
+                                    ]" placeholder="0.00" />
 
                                 <button v-if="page.props.custom_settings?.batching?.manual_weight == 0"
                                     @click.stop="captureTareWeight(data)" type="button" :disabled="isBilled || formBusy"
@@ -444,12 +479,14 @@ const saveInwardDetails = () => {
                                     class="w-20 h-10 object-cover rounded-md border border-slate-300 shadow-xs cursor-pointer hover:opacity-90 transition-opacity shrink-0"
                                     alt="Tare Snap" />
                                 <span
-                                    class="text-[9px] text-amber-700 font-bold uppercase tracking-wider leading-tight w-8">Tare Snap</span>
+                                    class="text-[9px] text-amber-700 font-bold uppercase tracking-wider leading-tight w-8">Tare
+                                    Snap</span>
                             </div>
                         </div>
 
                         <!-- Tare Validation Error Message -->
-                        <p v-if="tareError" class="text-[11px] font-bold text-red-600 flex items-center gap-1 mt-1 leading-tight">
+                        <p v-if="tareError"
+                            class="text-[11px] font-bold text-red-600 flex items-center gap-1 mt-1 leading-tight">
                             <ExclamationCircleIcon class="w-3.5 h-3.5 shrink-0" />
                             <span>{{ tareError }}</span>
                         </p>
@@ -463,12 +500,19 @@ const saveInwardDetails = () => {
                 <div
                     class="flex-1 bg-emerald-50/90 p-3 rounded-lg border border-emerald-200/90 flex items-center justify-between shadow-2xs min-h-[52px]">
                     <div class="flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full" :class="tareError ? 'bg-red-500' : 'bg-emerald-500'"></span>
-                        <span class="text-[10px] font-black uppercase tracking-wider" :class="tareError ? 'text-red-800' : 'text-emerald-800'">Net Weight</span>
+                        <span class="w-1.5 h-1.5 rounded-full"
+                            :class="tareError ? 'bg-red-500' : 'bg-emerald-500'"></span>
+                        <span class="text-[10px] font-black uppercase tracking-wider"
+                            :class="tareError ? 'text-red-800' : 'text-emerald-800'">Net Weight</span>
                     </div>
                     <div class="flex items-baseline gap-1">
-                        <span :class="['text-xl font-black font-mono', tareError ? 'text-red-600' : 'text-emerald-700']">
-                            {{ tareValidationError ? '0.00' : Math.max(0, Number(data.truck_loaded || 0) - Number(data.truck_empty || 0)).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                        <span
+                            :class="['text-xl font-black font-mono', tareError ? 'text-red-600' : 'text-emerald-700']">
+                            {{ tareValidationError ? '0.00' : Math.max(0, Number(data.truck_loaded || 0) -
+                                Number(data.truck_empty || 0)).toLocaleString(APP_LOCALE, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                }) }}
                         </span>
                         <span class="text-[9px] font-extrabold text-emerald-600 uppercase">{{ receivedUomLabel }}</span>
                     </div>
@@ -479,7 +523,8 @@ const saveInwardDetails = () => {
                     class="flex-1 bg-indigo-50/90 p-3 rounded-lg border border-indigo-200/90 flex items-center justify-between shadow-2xs min-h-[52px]">
                     <div class="flex items-center gap-1.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                        <span class="text-[10px] font-black uppercase tracking-wider text-indigo-800">Converted Qty</span>
+                        <span class="text-[10px] font-black uppercase tracking-wider text-indigo-800">Converted
+                            Qty</span>
                     </div>
                     <div class="flex items-baseline gap-1">
                         <span class="text-xl font-black text-indigo-800 font-mono">
@@ -495,24 +540,34 @@ const saveInwardDetails = () => {
         </div>
     </form>
     <!-- Action Buttons -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-3 bg-white rounded-lg border border-slate-200 shadow-2xs">
+    <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between p-3 gap-3 bg-white rounded-lg border border-slate-200 shadow-2xs">
         <div class="flex-1 min-w-0">
             <p v-if="tareError" class="text-xs font-bold text-red-600 flex items-center gap-1.5">
                 <ExclamationCircleIcon class="w-4 h-4 shrink-0 text-red-500" />
                 <span>{{ tareError }}</span>
             </p>
-            <p v-else-if="remainingOrderedQty !== null && Number(data.truck_loaded || 0) > 0" class="text-xs text-slate-500 flex items-center gap-1.5">
+            <p v-else-if="remainingOrderedQty !== null && Number(data.truck_loaded || 0) > 0"
+                class="text-xs text-slate-500 flex items-center gap-1.5">
                 <span class="text-slate-400 font-medium">Remaining ordered quantity:</span>
-                <span class="font-bold text-slate-700 font-mono">{{ remainingOrderedQty.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} {{ receivedUomLabel }}</span>
+                <span class="font-bold text-slate-700 font-mono">{{ remainingOrderedQty.toLocaleString(APP_LOCALE, {
+                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                }) }} {{ receivedUomLabel }}</span>
             </p>
         </div>
 
-        <button type="submit" :form="`inward-edit-${data.id}`" :disabled="formBusy || Boolean(tareValidationError)"
-            class="px-5 py-2 rounded-md font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer border-0 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-            :title="tareValidationError ? tareValidationError : 'Save Changes'">
-            <CheckCircleIcon class="w-4 h-4" />
-            <span>{{ detailsSaving ? 'Saving…' : generateBill ? 'Save & Generate Bill' : 'Save' }}</span>
-        </button>
+        <div class="flex items-center gap-2 shrink-0">
+            <button type="button" @click="emit('close')" :disabled="formBusy"
+                class="px-4 py-2 rounded-md font-black text-xs uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 transition-all cursor-pointer border-0 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                Cancel
+            </button>
+            <button type="submit" :form="`inward-edit-${data.id}`" :disabled="formBusy || Boolean(tareValidationError)"
+                class="px-5 py-2 rounded-md font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer border-0 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                :title="tareValidationError ? tareValidationError : 'Save Changes'">
+                <CheckCircleIcon class="w-4 h-4" />
+                <span>{{ detailsSaving ? 'Saving…' : generateBill ? 'Save & Generate Bill' : 'Save' }}</span>
+            </button>
+        </div>
     </div>
     <Dialog v-model:visible="imageModalVisible" modal :header="imageModalTitle"
         :style="{ width: '750px', maxWidth: '95vw' }" class="p-fluid rounded-2xl overflow-hidden shadow-2xl border-0">

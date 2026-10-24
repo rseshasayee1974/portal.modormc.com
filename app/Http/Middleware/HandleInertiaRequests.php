@@ -199,12 +199,14 @@ class HandleInertiaRequests extends Middleware
             };
 
             $isSassOwnerOnly = $user->hasAnyRole(['Saas Owner', 'Platform Admin']);
+            $permissionIndex = array_fill_keys($tenantPermissions->map(fn ($permission) => strtolower($permission))->all(), true);
+            $parentsWithChildren = array_fill_keys(\App\Models\Menu::where('menutype', 2)->distinct()->pluck('parent_id')->all(), true);
 
             $sideNav = \App\Models\Menu::where('menutype', 2)
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions, $reportMenuAllowed, $isMasterMenu, $isSassOwnerOnly) {
+                ->filter(function ($item) use ($isSuper, $permissionIndex, $reportMenuAllowed, $isMasterMenu, $isSassOwnerOnly) {
                    
                     $reportAllowed = $reportMenuAllowed($item);
                     if ($reportAllowed !== null) return $reportAllowed;
@@ -214,7 +216,7 @@ class HandleInertiaRequests extends Middleware
 
                     if ($isSuper) return true;
                     if (!$item->permission_name) return true;
-                    return $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name));
+                    return isset($permissionIndex[strtolower($item->permission_name)]);
                 })
                 ->values()
                 ->groupBy('parent_id');
@@ -223,7 +225,7 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions, $sideNav, $reportPermissions, $isMasterMenu, $isSassOwnerOnly) {
+                ->filter(function ($item) use ($isSuper, $permissionIndex, $parentsWithChildren, $sideNav, $reportPermissions, $isMasterMenu, $isSassOwnerOnly) {
                     if ($item->alias === 'report') {
                         return (bool) array_filter($reportPermissions, fn ($actions) => $actions['view']);
                     }
@@ -234,10 +236,10 @@ class HandleInertiaRequests extends Middleware
                     if ($isSuper) return true;
 
                     $hasDirectPerm = $item->permission_name
-                        ? $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name))
+                        ? isset($permissionIndex[strtolower($item->permission_name)])
                         : false;
 
-                    $hasChildrenInDb = \App\Models\Menu::where('menutype', 2)->where('parent_id', $item->id)->count() > 0;
+                    $hasChildrenInDb = isset($parentsWithChildren[$item->id]);
                     $hasChildSubNav = isset($sideNav[$item->id]) && $sideNav[$item->id]->isNotEmpty();
 
                     if ($hasChildrenInDb) {

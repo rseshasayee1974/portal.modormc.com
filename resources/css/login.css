@@ -1,0 +1,8 @@
+/* Author: Cipher
+Created: 2026-10-23 17:11:53 Asia/Calcutta (UTC+05:30) */
+@config "../../tailwind.login.config.js";
+@tailwind components;
+@tailwind utilities;
+
+#login-page { font-family: 'Inter', system-ui, sans-serif; }
+#login-page :is(h1, h2, h3, h4) { font-family: 'Outfit', system-ui, sans-serif; }

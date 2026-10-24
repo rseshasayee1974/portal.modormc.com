@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 import Swal from 'sweetalert2';
 import { useToast } from 'primevue/usetoast';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
@@ -26,12 +26,15 @@ const toast = useToast();
 const searchQuery = ref(props.filters.search || '');
 
 const onPage = (event: any) => {
-    router.get('/settings/roles', { page: event.page + 1, search: searchQuery.value }, { preserveState: true });
+    handleSearch.cancel();
+    router.get('/settings/roles', { page: event.page + 1, search: searchQuery.value }, { only: ['roles', 'filters'], preserveState: true });
 };
 
 const handleSearch = debounce(() => {
-    router.get('/settings/roles', { search: searchQuery.value }, { preserveState: true, replace: true });
+    router.get('/settings/roles', { search: searchQuery.value }, { only: ['roles', 'filters'], preserveState: true, replace: true });
 }, 300);
+
+onUnmounted(() => handleSearch.cancel());
 
 const confirmDelete = (role: any) => {
     if (role.is_system) {

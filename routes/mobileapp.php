@@ -49,6 +49,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\MobileAppPlantContext::c
         $routeNamePrefix = 'mobile';
         require __DIR__.'/mobile-commercial.php';
         Route::get('dropdowns', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'lookups']);
+        Route::get('sales-executives', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'salesExecutives']);
         Route::get('customers', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'customers']);
         Route::get('sites', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'sites']);
         Route::get('mix-designs', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'mixDesigns']);
