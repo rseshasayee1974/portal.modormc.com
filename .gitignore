@@ -57,6 +57,11 @@ Homestead.yaml
 Thumbs.db
 composer.lock
 
+#scripts
+scripts/
+scripts/*
+
+#testsprite_tests
 testsprite_tests\tmp\config.json
 testsprite_tests/standard_prd.json
 testsprite_tests/TC001_Sign_in_and_reach_the_next_authenticated_step.py
