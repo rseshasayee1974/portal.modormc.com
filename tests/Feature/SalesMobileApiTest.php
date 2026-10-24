@@ -245,6 +245,36 @@ class SalesMobileApiTest extends TestCase
         $this->assertEquals(1, DB::table('mm_quotations')->where('id', $id)->value('created_by'));
     }
 
+    public function test_admin_can_update_another_users_draft_quotation_only_in_selected_plant(): void
+    {
+        $id = $this->postJson('/api/mobile/v1/quotations', $this->quote())->assertCreated()->json('data.id');
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $adminToken = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken]);
+        $url = '/api/mobile/quotations/'.$id;
+        $this->getJson($url)->assertOk();
+        $this->putJson($url, array_replace($this->quote(), ['notes' => 'Admin revision']))
+            ->assertOk()->assertJsonPath('data.notes', 'Admin revision');
+        $this->patchJson($url, $this->quote())->assertOk();
+        $this->assertEquals(1, DB::table('mm_quotations')->where('id', $id)->value('created_by'));
+        DB::table('mm_quotations')->where('id', $id)->update(['status' => Quotation::STATUS_SENT]);
+        $this->putJson($url, $this->quote())->assertUnprocessable();
+        DB::table('mm_quotations')->where('id', $id)->update(['status' => Quotation::STATUS_DRAFT, 'plant_id' => 2]);
+        $this->putJson($url, $this->quote())->assertNotFound();
+        DB::table('mm_quotations')->where('id', $id)->update(['plant_id' => 1, 'deleted_at' => now()]);
+        $this->putJson($url, $this->quote())->assertNotFound()
+            ->assertJsonPath('message', 'Quotation '.$id.' has been deleted and cannot be updated.');
+        DB::table('mm_quotations')->where('id', $id)->update(['deleted_at' => null]);
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
+        $this->putJson('/api/mobile/v1/quotations/'.$id, $this->quote())->assertNotFound()
+            ->assertJsonPath('message', 'Quotation '.$id.' is not accessible: sales users can update only quotations they created.');
+        $this->putJson('/api/mobile/v1/quotations/99999', $this->quote())->assertNotFound()
+            ->assertJsonPath('message', 'Quotation 99999 does not exist or is outside your accessible plants.');
+        $nonAdminToken = User::find(1)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$nonAdminToken]);
+        $this->putJson($url, $this->quote())->assertForbidden();
+    }
+
     public function test_admin_quotation_rejection_plant_scope_and_role_checks(): void
     {
         $id = $this->postJson('/api/mobile/v1/quotations', $this->quote())->assertCreated()->json('data.id');
@@ -2385,7 +2415,7 @@ class SalesMobileApiTest extends TestCase
         $this->putJson('/api/mobile/v1/quotations/'.$id, $this->quote())->assertOk();
         $this->postJson('/api/mobile/v1/quotations/'.$id.'/submit')->assertOk();
         $this->putJson('/api/mobile/v1/quotations/'.$id, $this->quote())->assertUnprocessable()
-            ->assertExactJson(['message' => 'Submitted or approved quotations cannot be edited or deleted.']);
+            ->assertExactJson(['message' => 'Quotation is pending approval and cannot be edited or deleted.']);
         Route::get('/api/mobile/v1/testing-server-error', fn () => throw new \RuntimeException('Private database details'));
         $this->getJson('/api/mobile/v1/testing-server-error')->assertStatus(500)->assertExactJson(['message' => 'Server error.']);
         $this->postJson('/api/mobile/v1/auth/login', [])->assertUnprocessable()->assertJsonValidationErrors(['email', 'password'])

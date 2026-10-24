@@ -251,7 +251,7 @@ class QuotationController extends Controller
     public function update(Request $r, int $quotation)
     {
         return DB::transaction(function () use ($r, $quotation) {
-            $model = $this->quotations()->lockForUpdate()->findOrFail($quotation);
+            $model = $this->quotationForUpdate($quotation);
             $this->editable($model);
             $model->updateWithItems($this->data($r, $model));
             $model->forceFill(['mobile_approval_state' => 'draft', 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null, 'mobile_submitted_by' => null, 'mobile_submitted_at' => null])->save();
@@ -260,11 +260,34 @@ class QuotationController extends Controller
         });
     }
 
+    private function quotationForUpdate(int $id): Quotation
+    {
+        // Run the endpoint's authorization and visibility query before diagnostics.
+        $model = $this->quotations()->lockForUpdate()->find($id);
+        if ($model) {
+            return $model;
+        }
+
+        // Diagnose only within plants the caller can access; do not expose other tenants.
+        $record = Quotation::withoutGlobalScope('plant_id')->withTrashed()
+            ->whereIn('plant_id', Access::plants(request()->user())->select('mm_plants.id'))
+            ->find($id);
+        abort_unless($record, 404, 'Quotation '.$id.' does not exist or is outside your accessible plants.');
+        abort_if((int) $record->plant_id !== Access::plantId(), 404,
+            'Quotation '.$id.' belongs to a different plant. Select its plant before updating.');
+        // Sales users must not learn the state of another creator\'s quotation.
+        abort_if(!Access::isCommercialAdministrator() && (int) $record->created_by !== (int) request()->user()->id,
+            404, 'Quotation '.$id.' is not accessible: sales users can update only quotations they created.');
+        abort_if($record->trashed(), 404, 'Quotation '.$id.' has been deleted and cannot be updated.');
+        abort(422, 'Quotation '.$id.' has an unsupported status and cannot be updated.');
+    }
+
     private function editable(Quotation $model): void
     {
         $this->syncApprovalState($model);
         abort_if($model->is_customer_po || $model->customerPOs()->exists(), 422, 'Quotation already converted into a customer PO.');
-        abort_if(in_array($model->mobile_approval_state, ['pending', 'approved']) || (int) $model->status === Quotation::STATUS_ACCEPTED, 422, 'Submitted or approved quotations cannot be edited or deleted.');
+        abort_if($model->mobile_approval_state === 'pending', 422, 'Quotation is pending approval and cannot be edited or deleted.');
+        abort_if($model->mobile_approval_state === 'approved', 422, 'Quotation has been approved and cannot be edited or deleted.');
     }
 
     public function destroy(int $quotation)

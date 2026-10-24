@@ -11,7 +11,8 @@ $quotationReviewController = $routeNamePrefix === 'mobile'
     : QuotationController::class;
 Route::get('quotations', [$quotationReviewController, 'index'])->name($routeNamePrefix.'.quotations.index');
 Route::get('quotations/{quotation}', [$quotationReviewController, 'show'])->whereNumber('quotation')->name($routeNamePrefix.'.quotations.show');
-Route::apiResource('quotations', QuotationController::class)->except(['index', 'show'])->names($routeNamePrefix.'.quotations')->where(['quotation' => '[0-9]+']);
+Route::match(['put', 'patch'], 'quotations/{quotation}', [$quotationReviewController, 'update'])->whereNumber('quotation')->name($routeNamePrefix.'.quotations.update');
+Route::apiResource('quotations', QuotationController::class)->except(['index', 'show', 'update'])->names($routeNamePrefix.'.quotations')->where(['quotation' => '[0-9]+']);
 Route::post('quotations/{quotation}/submit', [QuotationController::class, 'submit'])->whereNumber('quotation');
 Route::post('quotations/{quotation}/review', [$quotationReviewController, 'review'])->whereNumber('quotation');
 Route::post('quotations/{quotation}/convert-customer-po', [CustomerPOController::class, 'convertQuotation'])->whereNumber('quotation')->name($routeNamePrefix.'.quotations.convert-customer-po');
