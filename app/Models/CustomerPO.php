@@ -102,6 +102,15 @@ class CustomerPO extends Model
 
     const STATUS_COMPLETED = 2;
 
+    public static function statusOptions(): array
+    {
+        return [
+            ['label' => 'Draft', 'value' => self::STATUS_DRAFT],
+            ['label' => 'Confirmed', 'value' => self::STATUS_CONFIRMED],
+            ['label' => 'Completed', 'value' => self::STATUS_COMPLETED],
+        ];
+    }
+
     public function plant()
     {
         return $this->belongsTo(Plant::class);

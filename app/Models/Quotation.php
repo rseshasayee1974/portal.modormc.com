@@ -70,6 +70,16 @@ class Quotation extends Model
 
     const STATUS_REJECTED = 3;
 
+    public static function statusOptions(): array
+    {
+        return [
+            ['label' => 'Draft', 'value' => self::STATUS_DRAFT],
+            ['label' => 'Sent', 'value' => self::STATUS_SENT],
+            ['label' => 'Accepted', 'value' => self::STATUS_ACCEPTED],
+            ['label' => 'Rejected', 'value' => self::STATUS_REJECTED],
+        ];
+    }
+
     public function items()
     {
         return $this->hasMany(QuotationItem::class);

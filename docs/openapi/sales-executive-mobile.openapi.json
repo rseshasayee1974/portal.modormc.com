@@ -64,6 +64,9 @@
     },
     {
       "name": "Sites"
+    },
+    {
+      "name": "Customer POs"
     }
   ],
   "paths": {
@@ -512,7 +515,7 @@
         ],
         "summary": "Dropdown lookups",
         "operationId": "get__lookups",
-        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification.",
+        "description": "See docs/sales-executive-mobile-api.md for permissions and field rules. Notification behavior: this request does not directly trigger a business push notification. Status dropdowns are included under data.customer_po_statuses, data.quotation_statuses and data.sales_order_statuses as label/value arrays.",
         "security": [
           {
             "bearerAuth": []
@@ -6438,6 +6441,107 @@
                 ]
               }
             }
+          }
+        }
+      }
+    },
+    "/quotations/{quotation}/convert-customer-po": {
+      "post": {
+        "tags": [
+          "Quotations"
+        ],
+        "summary": "Convert an approved quotation directly to a customer PO",
+        "operationId": "post_quotation_convert_customer_po",
+        "description": "Available under /api/mobile/v1 and /api/mobile. Copies customer, site, salesperson, tax mode and all line items from an accessible approved quotation in the selected plant. Duplicate conversions are rejected. Defaults order_date to today and notes to quotation notes. Other request fields cannot override quotation values.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quotation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "order_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "customer_po_reference": {
+                    "type": "string",
+                    "maxLength": 150,
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 10000,
+                    "nullable": true
+                  }
+                }
+              },
+              "example": {
+                "order_date": "2026-10-24",
+                "customer_po_reference": "CLIENT-PO-001",
+                "notes": "Confirmed by customer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Customer PO created; the new PO and copied line items are returned under data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }

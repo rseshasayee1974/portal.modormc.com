@@ -2022,6 +2022,8 @@ class SalesMobileApiTest extends TestCase
         }
         $response = $this->getJson('/api/mobile/v1/orders/1/dispatches?per_page=1')->assertOk()
             ->assertJsonPath('data.total', 2)->assertJsonPath('data.data.0.id', 1)
+            ->assertJsonPath('data.data.0.dispatch_time', '2026-10-14 10:00:00')
+            ->assertJsonPath('data.data.0.delivery_time', null)
             ->assertJsonPath('data.data.0.truck.registration', 'TN-TEST')->assertJsonPath('data.data.0.batch.id', 1);
         $this->assertEqualsCanonicalizing(['id', 'sales_order_id', 'batch_id', 'truck_id', 'prefix', 'dispatch_no',
             'dispatch_time', 'delivery_time', 'delivered_qty', 'dispatch_status', 'truck', 'batch'], array_keys($response->json('data.data.0')));
@@ -2126,6 +2128,92 @@ class SalesMobileApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
         $this->getJson('/api/mobile/v1/orders')->assertOk()->assertJsonPath('data.total', 0);
         $this->getJson('/api/mobile/v1/orders/700')->assertNotFound();
+    }
+
+    public function test_commercial_status_dropdowns_are_available_in_both_mobile_apps(): void
+    {
+        $catalogs = [
+            'customer-pos' => ['key' => 'customer_po_statuses', 'options' => [
+                ['label' => 'Draft', 'value' => 0], ['label' => 'Confirmed', 'value' => 1], ['label' => 'Completed', 'value' => 2],
+            ]],
+            'quotations' => ['key' => 'quotation_statuses', 'options' => [
+                ['label' => 'Draft', 'value' => 0], ['label' => 'Sent', 'value' => 1], ['label' => 'Accepted', 'value' => 2], ['label' => 'Rejected', 'value' => 3],
+            ]],
+            'orders' => ['key' => 'sales_order_statuses', 'options' => [
+                ['label' => 'Scheduled', 'value' => 1], ['label' => 'In Progress', 'value' => 2], ['label' => 'Completed', 'value' => 3], ['label' => 'Cancelled', 'value' => 4],
+            ]],
+        ];
+        DB::table('mm_role_has_permissions')->where('role_id', 1)->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $token = $prefix === '/api/mobile/v1' ? $this->token : User::find(1)->createToken('mobile-status-test')->plainTextToken;
+            $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Plant-Id' => '1']);
+            $url = $prefix.($prefix === '/api/mobile/v1' ? '/lookups' : '/dropdowns');
+            $lookups = $this->getJson($url)->assertOk();
+            foreach ($catalogs as $resource => $catalog) {
+                $this->assertSame($catalog['options'], $lookups->json('data.'.$catalog['key']));
+                $this->getJson($prefix.'/'.$resource.'/statuses')->assertNotFound();
+            }
+            $this->withHeaders(['X-Plant-Id' => '2'])->getJson($url)->assertForbidden();
+            $this->withHeaders(['X-Plant-Id' => ''])->getJson($url)->assertUnprocessable();
+            $this->withHeaders(['X-Plant-Id' => '1', 'Authorization' => ''])->getJson($url)->assertUnauthorized();
+        }
+    }
+
+    public function test_direct_quotation_to_customer_po_conversion_in_both_mobile_apps(): void
+    {
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => '1']);
+            $quote = $this->postJson('/api/mobile/v1/quotations', array_replace($this->quote(), ['reference' => 'QT-CONVERT-'.str_replace('/', '-', $prefix), 'notes' => 'From quotation']))
+                ->assertCreated()->json('data');
+            $id = $quote['id'];
+            DB::table('mm_quotations')->where('id', $id)->update(['status' => Quotation::STATUS_ACCEPTED, 'mobile_approval_state' => 'approved']);
+            if ($prefix === '/api/mobile') {
+                DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+                app(PermissionRegistrar::class)->forgetCachedPermissions();
+                $admin = User::find(2)->createToken('mobile-conversion-test')->plainTextToken;
+                $this->withHeaders(['Authorization' => 'Bearer '.$admin]);
+            }
+            $url = $prefix.'/quotations/'.$id.'/convert-customer-po';
+            $payload = $prefix === '/api/mobile' ? [] : ['customer_po_reference' => 'CLIENT-PO-1', 'order_date' => '2026-10-24',
+                'patron_id' => 999, 'site_id' => 999, 'is_tax_inclusive' => false, 'items' => [['rate' => 1]]];
+            $response = $this->postJson($url, $payload)
+                ->assertCreated()->assertJsonPath('success', true)->assertJsonPath('data.quotation_id', fn ($value) => (int) $value === (int) $id)
+                ->assertJsonPath('data.patron_id', fn ($value) => (int) $value === 1)->assertJsonPath('data.site_id', fn ($value) => (int) $value === 1)
+                ->assertJsonPath('data.sales_executive_id', 1)
+                ->assertJsonPath('data.notes', 'From quotation');
+            $po = $response->json('data');
+            $stored = DB::table('mm_customer_pos')->where('id', $po['id'])->first();
+            $this->assertEquals($payload['order_date'] ?? now()->toDateString(), substr($stored->order_date, 0, 10));
+            $this->assertEquals($payload['customer_po_reference'] ?? null, $stored->customer_po_reference);
+            $this->assertTrue((bool) $po['is_tax_inclusive']);
+            foreach (['mix_design_id', 'quantity', 'rate', 'tax_id', 'untaxed_amount', 'tax_amount', 'amount_total'] as $field) {
+                $this->assertEquals($quote['items'][0][$field], $po['items'][0][$field]);
+            }
+            $this->assertEquals(CustomerPO::STATUS_CONFIRMED, $po['status']);
+            $this->assertEquals(1, DB::table('mm_quotations')->where('id', $id)->value('is_customer_po'));
+            $this->postJson($url)->assertUnprocessable();
+            $this->assertEquals(1, DB::table('mm_customer_pos')->where('quotation_id', $id)->count());
+        }
+    }
+
+    public function test_direct_quotation_conversion_rejects_unapproved_and_inaccessible_quotes(): void
+    {
+        $id = $this->postJson('/api/mobile/v1/quotations', $this->quote())->assertCreated()->json('data.id');
+        $url = '/api/mobile/v1/quotations/'.$id.'/convert-customer-po';
+        $this->postJson($url)->assertUnprocessable()->assertJsonPath('message', 'Only approved quotations can become customer POs.');
+        $this->assertEquals(0, DB::table('mm_customer_pos')->count());
+        DB::table('mm_quotations')->where('id', $id)->update(['status' => Quotation::STATUS_ACCEPTED]);
+        $this->postJson($url, ['order_date' => 'not-a-date'])->assertUnprocessable()->assertJsonValidationErrors('order_date');
+        DB::table('mm_quotations')->where('id', $id)->update(['created_by' => 2]);
+        $this->postJson($url)->assertNotFound();
+        DB::table('mm_quotations')->where('id', $id)->update(['created_by' => 1, 'plant_id' => 2]);
+        $this->postJson($url)->assertNotFound();
+        DB::table('mm_quotations')->where('id', $id)->update(['plant_id' => 1, 'deleted_at' => now()]);
+        $this->postJson($url)->assertNotFound();
+        $this->postJson('/api/mobile/v1/quotations/99999/convert-customer-po')->assertNotFound();
+        $this->assertEquals(0, DB::table('mm_customer_pos')->count());
+        $this->withHeaders(['Authorization' => ''])->postJson($url)->assertUnauthorized();
     }
 
     public function test_admin_commercial_crud_conversion_and_failure_boundaries(): void
@@ -2438,6 +2526,12 @@ class SalesMobileApiTest extends TestCase
         $this->assertArrayHasKey('202', $spec['paths']['/auth/send-otp']['post']['responses']);
         $this->assertArrayHasKey('bearerAuth', $spec['components']['securitySchemes']);
         $this->assertArrayHasKey('/quotations/{quotation}/review', $spec['paths']);
+        $conversion = $spec['paths']['/quotations/{quotation}/convert-customer-po']['post'];
+        $this->assertArrayHasKey('201', $conversion['responses']);
+        $this->assertFalse($conversion['requestBody']['required']);
+        foreach (['customer-pos', 'quotations', 'orders'] as $resource) {
+            $this->assertArrayNotHasKey('/'.$resource.'/statuses', $spec['paths']);
+        }
     }
 
     public function test_changed_or_inactive_mobile_account_cannot_verify(): void
@@ -2494,12 +2588,28 @@ class SalesMobileApiTest extends TestCase
         DB::table('mm_sales_orders')->insert(['id' => 1, 'plant_id' => 1, 'created_by' => 1, 'sales_executive_id' => 1, 'site_id' => 1, 'mix_design_id' => 1, 'total_qty' => 40, 'status' => 1]);
         DB::table('mm_mix_designs')->insert(['id' => 2, 'plant_id' => 1, 'design_name' => 'M30', 'is_active' => 1]);
         $body = ['sales_order_id' => 1, 'site_id' => 1, 'mix_design_id' => 2, 'qty_m3' => 6, 'order_volume_m3' => 40, 'schedule_date' => '2026-10-10', 'pump_type' => 'direct_pour'];
-        $this->postJson('/api/mobile/v1/batch-schedules', $body)->assertUnprocessable()->assertJsonValidationErrors('sales_order_id');
+        $orderError = 'Select an accessible scheduled or in-progress sales order in the active plant that matches the selected site and mix design.';
+        $this->postJson('/api/mobile/v1/batch-schedules', $body)->assertUnprocessable()
+            ->assertJsonValidationErrors('sales_order_id')->assertJsonPath('errors.sales_order_id.0', $orderError);
+        DB::table('mm_sites')->insert(['id' => 2, 'plant_id' => 1, 'name' => 'Other site', 'patron_id' => 1]);
+        $this->postJson('/api/mobile/v1/batch-schedules', array_replace($body, ['mix_design_id' => 1, 'site_id' => 2]))
+            ->assertUnprocessable()->assertJsonPath('errors.sales_order_id.0', $orderError);
         $body['mix_design_id'] = 1;
+        $statusError = 'Status must be "scheduled". Omit status to use the default when creating a schedule.';
+        foreach ([1, 'in_progress', 'completed'] as $invalidStatus) {
+            $this->postJson('/api/mobile/v1/batch-schedules', array_replace($body, ['status' => $invalidStatus]))
+                ->assertUnprocessable()->assertJsonPath('errors.status.0', $statusError);
+        }
         $schedule = $this->postJson('/api/mobile/v1/batch-schedules', $body)->assertOk()->assertJsonPath('schedule.remaining_volume_m3', '34.000')->json('schedule.id');
         $this->getJson('/api/mobile/v1/batch-schedules')->assertOk()->assertJsonPath('data.total', 1);
         $this->getJson('/api/mobile/v1/batch-schedules/'.$schedule)->assertOk()->assertJsonPath('data.id', $schedule);
         $this->putJson('/api/mobile/v1/batch-schedules/'.$schedule, $body)->assertOk();
+        $this->putJson('/api/mobile/v1/batch-schedules/'.$schedule, array_replace($body, ['status' => 'scheduled']))
+            ->assertOk()->assertJsonPath('schedule.status', 'scheduled');
+        $this->putJson('/api/mobile/v1/batch-schedules/'.$schedule, array_replace($body, ['status' => 'completed']))
+            ->assertUnprocessable()->assertJsonPath('errors.status.0', $statusError);
+        $this->putJson('/api/mobile/v1/batch-schedules/'.$schedule, array_replace($body, ['mix_design_id' => 2]))
+            ->assertUnprocessable()->assertJsonPath('errors.sales_order_id.0', $orderError);
         $this->postJson('/api/mobile/v1/batch-schedules', array_replace($body, ['qty_m3' => 35]))->assertUnprocessable()->assertJsonValidationErrors('qty_m3');
         DB::table('mm_concrete_batching_schedules')->where('id', $schedule)->update(['batch_id' => 1]);
         $this->putJson('/api/mobile/v1/batch-schedules/'.$schedule, $body)->assertUnprocessable();
@@ -2508,6 +2618,47 @@ class SalesMobileApiTest extends TestCase
         $this->deleteJson('/api/mobile/v1/batch-schedules/'.$schedule)->assertOk();
         $this->deleteJson('/api/mobile/v1/batch-schedules/'.$schedule)->assertNotFound()
             ->assertExactJson(['message' => 'Batch schedule not found.']);
+    }
+
+    public function test_schedule_dates_are_returned_exactly_as_stored(): void
+    {
+        DB::table('mm_sales_orders')->insert(['id' => 1, 'plant_id' => 1, 'created_by' => 1, 'sales_executive_id' => 1,
+            'site_id' => 1, 'mix_design_id' => 1, 'total_qty' => 40, 'status' => 1]);
+        $body = ['sales_order_id' => 1, 'site_id' => 1, 'mix_design_id' => 1, 'qty_m3' => 6, 'order_volume_m3' => 40,
+            'schedule_date' => '2026-12-01', 'pump_type' => 'direct_pour',
+            'batching_time' => '2026-12-01T10:00:00', 'dispatch_time' => '2026-12-01T10:30:00',
+            'eta_site' => '2026-12-01T11:00:00', 'unloading_start' => null, 'unloading_end' => null];
+        $created = $this->postJson('/api/mobile/v1/batch-schedules', $body)->assertOk();
+        $id = $created->json('schedule.id');
+        $assertDates = function ($response, string $path) use ($id) {
+            $stored = DB::table('mm_concrete_batching_schedules')->find($id);
+            foreach (['schedule_date', 'batching_time', 'dispatch_time', 'eta_site', 'unloading_start', 'unloading_end', 'created_at', 'updated_at', 'deleted_at'] as $field) {
+                $response->assertJsonPath($path.'.'.$field, $stored->$field);
+            }
+        };
+        $assertDates($created, 'schedule');
+        $created->assertJsonPath('schedule.batching_time', '2026-12-01 10:00:00')
+            ->assertJsonPath('schedule.dispatch_time', '2026-12-01 10:30:00');
+        $assertDates($this->getJson('/api/mobile/v1/batch-schedules')->assertOk(), 'data.data.0');
+        $assertDates($this->getJson('/api/mobile/v1/batch-schedules/'.$id)->assertOk(), 'data');
+        $body['dispatch_time'] = '2026-12-01T10:45:00';
+        $updated = $this->putJson('/api/mobile/v1/batch-schedules/'.$id, $body)->assertOk();
+        $assertDates($updated, 'schedule');
+        $updated->assertJsonPath('schedule.dispatch_time', '2026-12-01 10:45:00');
+
+        DB::table('mm_dispatches')->insert(['id' => 1, 'plant_id' => 1, 'sales_order_id' => 1,
+            'dispatch_time' => '2026-12-01 10:45:00', 'delivery_time' => null, 'created_at' => '2026-11-30 08:00:00']);
+        DB::table('mm_concrete_batching_schedules')->where('id', $id)->update(['dispatch_id' => 1]);
+        $this->getJson('/api/mobile/v1/batch-schedules/'.$id)->assertOk()
+            ->assertJsonPath('data.dispatch.dispatch_time', '2026-12-01 10:45:00')
+            ->assertJsonPath('data.dispatch.delivery_time', null)
+            ->assertJsonPath('data.dispatch.created_at', '2026-11-30 08:00:00')
+            ->assertJsonMissingPath('data.dispatch.deleted_at');
+
+        $model = \App\Models\ConcreteBatchingSchedule::findOrFail($id);
+        \App\Support\StoredDateSerializer::model($model);
+        $this->assertInstanceOf(\Carbon\Carbon::class, $model->batching_time);
+        $this->assertEquals('2026-12-01 10:00:00', $model->getRawOriginal('batching_time'));
     }
 
     public function test_missing_and_inaccessible_schedules_return_concise_errors(): void

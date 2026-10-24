@@ -30,6 +30,9 @@ class CustomerPOController extends Controller
         try {
             return parent::callAction($method, $parameters);
         } catch (ModelNotFoundException $exception) {
+            if ($exception->getModel() === Quotation::class) {
+                return response()->json(['message' => 'Quotation not found or unavailable in the selected plant.'], 404);
+            }
             if ($exception->getModel() !== CustomerPO::class) throw $exception;
 
             return response()->json(['message' => 'Customer PO not found or unavailable in the selected plant.'], 404);
@@ -49,6 +52,7 @@ class CustomerPOController extends Controller
                 'update' => 'update the customer PO',
                 'destroy' => 'delete the customer PO',
                 'convert' => 'convert the customer PO to sales orders',
+                'convertQuotation' => 'convert the quotation to a customer PO',
                 default => 'process the customer PO',
             };
 
@@ -121,7 +125,7 @@ class CustomerPOController extends Controller
                 $items = QuotationCalculator::items($data['items'], $data['is_tax_inclusive']);
             }
             unset($data['items']);
-            $data['sales_executive_id'] = Access::orderOwnerId($po?->sales_executive_id, $po !== null);
+            $data['sales_executive_id'] = $quote ? $quote->sales_executive_id : Access::orderOwnerId($po?->sales_executive_id, $po !== null);
             if (!$po) {
                 $number = CustomerPO::generateReference(Access::plantId());
                 $po = CustomerPO::create(array_merge($data, $number, ['plant_id' => Access::plantId(), 'converted_by_user_id' => $request->user()->id, 'status' => $quote ? CustomerPO::STATUS_CONFIRMED : CustomerPO::STATUS_DRAFT]));
@@ -140,6 +144,29 @@ class CustomerPOController extends Controller
 
     public function store(Request $request) { return $this->save($request); }
     public function update(Request $request, int $customer_po) { return $this->save($request, $customer_po); }
+
+    public function convertQuotation(Request $request, int $quotation)
+    {
+        return DB::transaction(function () use ($request, $quotation) {
+            Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
+            $quote = Access::customerPOQuotations()->lockForUpdate()->findOrFail($quotation);
+            $data = $request->validate([
+                'order_date' => ['sometimes', 'required', 'date_format:Y-m-d'],
+                'customer_po_reference' => ['nullable', 'string', 'max:150'],
+                'notes' => ['nullable', 'string', 'max:10000'],
+            ]);
+            $conversion = clone $request;
+            $conversion->replace(array_merge($data, [
+                'quotation_id' => $quote->id,
+                'patron_id' => $quote->patron_id,
+                'site_id' => $quote->site_id,
+                'order_date' => $data['order_date'] ?? now()->toDateString(),
+                'is_tax_inclusive' => (bool) $quote->is_tax_inclusive,
+                'notes' => array_key_exists('notes', $data) ? $data['notes'] : $quote->notes,
+            ]));
+            return $this->save($conversion);
+        });
+    }
 
     public function destroy(int $customer_po)
     {

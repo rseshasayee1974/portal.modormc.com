@@ -8,6 +8,8 @@ namespace App\Http\Controllers\Api\SalesMobile;
 
 use App\Http\Controllers\ConcreteBatchingScheduleController;
 use App\Services\Mobile\MobileAccess as Access;
+use App\Support\StoredDateSerializer;
+use App\Models\ConcreteBatchingSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,11 @@ use Illuminate\Validation\Rule;
 
 class ScheduleController extends ConcreteBatchingScheduleController
 {
+    protected function serializeSchedule(ConcreteBatchingSchedule $schedule): array|ConcreteBatchingSchedule
+    {
+        return StoredDateSerializer::model($schedule);
+    }
+
     protected function authorizeModule(string $action, ?string $module = null): void
     {
         // Mobile routes enforce authentication and plant access; module permissions are not required.
@@ -27,10 +34,20 @@ class ScheduleController extends ConcreteBatchingScheduleController
         }
         $rules['site_id'] = ['required', 'integer', Access::exists(Access::sites())];
         $rules['sales_order_id'] = ['required', 'integer', Access::exists(Access::orders()->whereIn('status', [1, 2])->where('site_id', request('site_id'))->where('mix_design_id', request('mix_design_id')))];
-        $rules['status'] = 'nullable|in:scheduled';
+        $rules['status'] = ['nullable', Rule::in(['scheduled'])];
         $rules['dispatch_id'] = 'prohibited';
         return $rules;
     }
+    protected function getValidationMessages(): array
+    {
+        return [
+            'sales_order_id.exists' => 'Select an accessible scheduled or in-progress sales order in the active plant that matches the selected site and mix design.',
+            'site_id.exists' => 'Select an accessible site in the active plant.',
+            'mix_design_id.exists' => 'Select a mix design in the active plant.',
+            'status.in' => 'Status must be "scheduled". Omit status to use the default when creating a schedule.',
+        ];
+    }
+
     public function store(Request $request): JsonResponse
     {
         return DB::transaction(function () use ($request) {
@@ -63,13 +80,13 @@ class ScheduleController extends ConcreteBatchingScheduleController
         $r->validate(['schedule_date' => 'nullable|date_format:Y-m-d', 'per_page' => 'nullable|integer|between:1,100']);
         $q = Access::schedules()->with(['site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')), 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId()), 'batch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id')), 'dispatch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id'))]);
         if ($r->filled('schedule_date')) $q->whereDate('schedule_date', $r->schedule_date);
-        return response()->json(['success' => true, 'data' => $q->orderBy('schedule_date')->orderBy('id')->paginate($r->integer('per_page', 20))]);
+        return response()->json(['success' => true, 'data' => $q->orderBy('schedule_date')->orderBy('id')->paginate($r->integer('per_page', 20))->through(fn ($schedule) => $this->serializeSchedule($schedule))]);
     }
     public function detail(int $schedule)
     {
         $model = Access::schedules()->find($schedule);
         abort_unless($model, 404, 'Batch schedule not found.');
-        return response()->json(['success' => true, 'data' => $model->load(['site' => fn ($q) => $q->whereIn('id', Access::sites()->select('id')), 'mixDesign' => fn ($q) => $q->where('plant_id', Access::plantId()), 'batch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id')), 'dispatch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id'))])]);
+        return response()->json(['success' => true, 'data' => $this->serializeSchedule($model->load(['site' => fn ($q) => $q->whereIn('id', Access::sites()->select('id')), 'mixDesign' => fn ($q) => $q->where('plant_id', Access::plantId()), 'batch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id')), 'dispatch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id'))]))]);
     }
     public function change(Request $r, int $schedule)
     {

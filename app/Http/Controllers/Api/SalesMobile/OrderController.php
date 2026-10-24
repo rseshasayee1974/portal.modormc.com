@@ -9,6 +9,7 @@ namespace App\Http\Controllers\Api\SalesMobile;
 use App\Http\Controllers\Controller;
 use App\Models\{SalesOrder, Plant, Batch};
 use App\Services\Mobile\MobileAccess as Access;
+use App\Support\StoredDateSerializer;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -116,6 +117,7 @@ class OrderController extends Controller
             $dispatch->truck?->setAppends([])->setVisible(['id', 'registration']);
             $dispatch->batch?->setAppends([])->setVisible(['id', 'batch_no', 'batch_size']);
         });
+        $page->through(fn ($dispatch) => StoredDateSerializer::model($dispatch));
         return response()->json(['success' => true, 'data' => $page]);
     }
     private function data(Request $r, ?SalesOrder $order = null): array

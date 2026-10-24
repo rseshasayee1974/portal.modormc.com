@@ -14,6 +14,7 @@ Route::get('quotations/{quotation}', [$quotationReviewController, 'show'])->wher
 Route::apiResource('quotations', QuotationController::class)->except(['index', 'show'])->names($routeNamePrefix.'.quotations')->where(['quotation' => '[0-9]+']);
 Route::post('quotations/{quotation}/submit', [QuotationController::class, 'submit'])->whereNumber('quotation');
 Route::post('quotations/{quotation}/review', [$quotationReviewController, 'review'])->whereNumber('quotation');
+Route::post('quotations/{quotation}/convert-customer-po', [CustomerPOController::class, 'convertQuotation'])->whereNumber('quotation')->name($routeNamePrefix.'.quotations.convert-customer-po');
 Route::post('customer-pos/{customer_po}/convert-salesorder', [CustomerPOController::class, 'convert'])->whereNumber('customer_po');
 Route::apiResource('customer-pos', CustomerPOController::class)->names($routeNamePrefix.'.customer-pos')->where(['customer_po' => '[0-9]+']);
 Route::apiResource('orders', OrderController::class)->names($routeNamePrefix.'.orders')->where(['order' => '[0-9]+']);

@@ -15,6 +15,9 @@ use App\Models\CrmLead;
 use App\Models\MixDesign;
 use App\Models\ProductUnit;
 use App\Models\Tax;
+use App\Models\CustomerPO;
+use App\Models\Quotation;
+use App\Models\SalesOrder;
 use App\Services\Mobile\MobileAccess as Access;
 use Illuminate\Http\Request;
 
@@ -112,6 +115,9 @@ class WorkspaceController extends Controller
     {
         $plantId = Access::plantId();
         $data = ['lead_statuses' => CrmLead::STATUSES, 'lead_status_options' => CrmLead::defaultStatusOptions(), 'lead_sources' => CrmLead::SOURCES, 'priorities' => CrmLead::PRIORITIES, 'activity_types' => CrmActivity::TYPES, 'pump_types' => ConcreteBatchingSchedule::PUMP_TYPES];
+        $data['customer_po_statuses'] = CustomerPO::statusOptions();
+        $data['quotation_statuses'] = Quotation::statusOptions();
+        $data['sales_order_statuses'] = SalesOrder::statusOptions();
         // $data['mix_designs'] = MixDesign::where('plant_id', Access::plantId())->where('is_active', 1)->get(['id', 'design_name', 'design_code']);
         $data['sales_taxes'] = Tax::withoutGlobalScope('plant_id')->where('plant_id', $plantId)->where('status', 1)->ofTaxType('Sales')->ofGroup(['GST', 'IGST'])->parentOnly()->with(['children' => fn ($q) => $q->withoutGlobalScope('plant_id')->where('plant_id', $plantId)->where('status', 1)->ofTaxType('Sales')->ofGroup(['GST', 'CGST', 'SGST', 'IGST'])])->get();
         // $data['sites'] = Access::plantSites()->get(['id', 'name']);
