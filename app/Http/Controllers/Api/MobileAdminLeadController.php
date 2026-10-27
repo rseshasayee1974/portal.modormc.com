@@ -8,6 +8,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\SalesMobile\LeadController;
 use App\Models\CrmLead;
+use App\Models\User;
+use App\Services\CrmLeadService;
+use Illuminate\Http\Request;
 use App\Services\Mobile\MobileAccess as Access;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -25,7 +28,21 @@ class MobileAdminLeadController extends LeadController
 
     protected function leadOwnerId(?CrmLead $lead): int
     {
-        return (int) ($lead?->assigned_to ?? request()->user()->id);
+        // Apply the same administrator gate used by list/detail before accepting assignment.
+        $this->leads();
+        $owner = (int) request()->input('assigned_to', $lead?->assigned_to ?? request()->user()->id);
+        if ($owner !== (int) ($lead?->assigned_to ?? request()->user()->id)) {
+            Access::authorize('CRM_LEAD', 'ASSIGN');
+        }
+        $user = User::where('is_active', 1)->find($owner);
+        abort_unless($user && Access::plants($user)->whereKey(Access::plantId())->exists(), 422, 'Owner must belong to this plant.');
+        return $owner;
+    }
+
+    public function store(Request $request, CrmLeadService $service)
+    {
+        $this->leads();
+        return parent::store($request, $service);
     }
 
     public function statuses(?int $lead = null)

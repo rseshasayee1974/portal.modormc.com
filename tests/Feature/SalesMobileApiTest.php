@@ -1728,6 +1728,152 @@ class SalesMobileApiTest extends TestCase
         $this->assertEqualsCanonicalizing([1, 2], DB::table('mm_push_notification_logs')->where('subject_type', Quotation::class)->where('operation', 'created')->pluck('recipient_user_id')->all());
     }
 
+    private function useAdminLeadCrud(): void
+    {
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $id = DB::table('mm_permissions')->insertGetId(['name' => 'CRM_LEAD.ASSIGN', 'guard_name' => 'web']);
+        DB::table('mm_role_has_permissions')->insert(['role_id' => 2, 'permission_id' => $id]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->withHeaders(['Authorization' => 'Bearer '.User::find(2)->createToken('web-login')->plainTextToken]);
+    }
+
+    public function test_admin_lead_crud_persists_all_editable_fields_and_clears_optional_values(): void
+    {
+        $this->useAdminLeadCrud();
+        $payload = array_replace($this->lead(), [
+            'contact_name' => 'Admin Contact', 'company_name' => 'Admin Company', 'phone' => '9876543201',
+            'email' => 'contact@example.test', 'address' => 'Initial address', 'assigned_to' => 1,
+            'project_name' => 'Initial project', 'requirement' => 'Legacy requirement', 'mix_design_id' => null,
+            'estimated_quantity' => 25.5, 'delivery_location' => 'Initial site', 'expected_purchase_date' => '2026-12-01',
+            'remarks' => 'Initial notes', 'lost_reason' => null,
+        ]);
+        $created = $this->postJson('/api/mobile/leads', $payload)->assertCreated();
+        $id = $created->json('data.id');
+        $this->assertDatabaseHas('mm_crm_leads', $payload + ['id' => $id, 'plant_id' => 1]);
+        $this->getJson('/api/mobile/leads/'.$id)->assertOk()->assertJsonPath('data.contact_name', 'Admin Contact');
+        $this->getJson('/api/mobile/leads?search=Admin%20Contact')->assertOk()->assertJsonPath('data.total', 1);
+        $updated = array_replace($payload, [
+            'contact_name' => 'Updated Contact', 'company_name' => 'Updated Company', 'phone' => '9876543202',
+            'email' => 'updated@example.test', 'enquiry_date' => '2026-10-27', 'source' => 'Website',
+            'priority' => 'Low', 'status' => 'Contacted', 'address' => 'Updated address', 'assigned_to' => 2,
+            'project_name' => 'Updated project', 'requirement' => 'Updated requirement', 'estimated_quantity' => 45.75,
+            'delivery_location' => 'Updated site', 'expected_value' => 123456.75,
+            'expected_purchase_date' => '2026-12-15', 'remarks' => 'Updated notes',
+        ]);
+        $this->putJson('/api/mobile/leads/'.$id, $updated)->assertOk();
+        $this->assertDatabaseHas('mm_crm_leads', $updated + ['id' => $id]);
+        $detail = $this->getJson('/api/mobile/leads/'.$id)->assertOk();
+        foreach (['contact_name', 'company_name', 'phone', 'email', 'address', 'project_name', 'requirement', 'delivery_location', 'remarks', 'status', 'source', 'priority'] as $field) {
+            $detail->assertJsonPath('data.'.$field, $updated[$field]);
+        }
+        $this->patchJson('/api/mobile/leads/'.$id, ['mix_design_id' => 1])->assertOk()->assertJsonPath('data.mix_design_id', 1);
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'mix_design_id' => 1, 'requirement' => null]);
+        $clear = array_fill_keys(['company_name', 'phone', 'address', 'project_name', 'requirement', 'mix_design_id',
+            'estimated_quantity', 'delivery_location', 'expected_purchase_date', 'remarks', 'lost_reason'], null);
+        $this->patchJson('/api/mobile/leads/'.$id, $clear)->assertOk();
+        $this->assertDatabaseHas('mm_crm_leads', $clear + ['id' => $id, 'email' => 'updated@example.test']);
+        $this->deleteJson('/api/mobile/leads/'.$id)->assertOk();
+        $this->assertSoftDeleted('mm_crm_leads', ['id' => $id]);
+        $this->getJson('/api/mobile/leads/'.$id)->assertNotFound();
+    }
+
+    public function test_admin_lead_assignment_requires_permission_and_active_plant_membership(): void
+    {
+        $this->useAdminLeadCrud();
+        $id = $this->postJson('/api/mobile/leads', $this->lead())->assertCreated()->json('data.id');
+        $permission = DB::table('mm_permissions')->where('name', 'CRM_LEAD.ASSIGN')->value('id');
+        DB::table('mm_role_has_permissions')->where('role_id', 2)->where('permission_id', $permission)->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->patchJson('/api/mobile/leads/'.$id, ['assigned_to' => 1])->assertForbidden();
+        $this->postJson('/api/mobile/leads', array_replace($this->lead(), ['phone' => '9876543203', 'assigned_to' => 1]))->assertForbidden();
+        DB::table('mm_role_has_permissions')->insert(['role_id' => 2, 'permission_id' => $permission]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        DB::table('mm_users')->where('id', 1)->update(['is_active' => 0]);
+        $this->patchJson('/api/mobile/leads/'.$id, ['assigned_to' => 1])->assertUnprocessable();
+        DB::table('mm_users')->where('id', 1)->update(['is_active' => 1]);
+        DB::table('mm_entity_users')->where('user_id', 1)->update(['entity_id' => 2, 'plant_id' => 2]);
+        $this->patchJson('/api/mobile/leads/'.$id, ['assigned_to' => 1])->assertUnprocessable();
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'assigned_to' => 2]);
+        $this->withHeaders(['Authorization' => 'Bearer '.User::find(1)->createToken('web-login')->plainTextToken, 'X-Plant-Id' => 2]);
+        $this->postJson('/api/mobile/leads', $this->lead())->assertForbidden();
+    }
+
+    public function test_admin_lead_crud_rejects_invalid_field_values_and_protects_system_fields(): void
+    {
+        $this->useAdminLeadCrud();
+        $id = $this->postJson('/api/mobile/leads', $this->lead() + [
+            'plant_id' => 2, 'lead_number' => 'FORGED', 'created_by' => 1, 'customer_id' => 999, 'converted_at' => now(),
+        ])->assertCreated()->json('data.id');
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'plant_id' => 1, 'created_by' => 2, 'customer_id' => null, 'converted_at' => null]);
+        $this->assertNotEquals('FORGED', DB::table('mm_crm_leads')->where('id', $id)->value('lead_number'));
+        foreach ([
+            'contact_name' => '', 'company_name' => str_repeat('x', 201), 'phone' => 'abc', 'email' => 'bad-email',
+            'enquiry_date' => 'not-a-date', 'source' => 'Invalid', 'priority' => 'Invalid', 'status' => 'Invalid',
+            'assigned_to' => 999999, 'address' => str_repeat('x', 401), 'project_name' => str_repeat('x', 201),
+            'requirement' => ['invalid'], 'mix_design_id' => 999999, 'estimated_quantity' => -1,
+            'delivery_location' => str_repeat('x', 501), 'expected_value' => -1,
+            'expected_purchase_date' => 'not-a-date', 'remarks' => str_repeat('x', 10001), 'lost_reason' => str_repeat('x', 2001),
+        ] as $field => $value) {
+            $response = $this->patchJson('/api/mobile/leads/'.$id, [$field => $value])->assertUnprocessable();
+            // Assignment uses a plant-membership error, not a validation-array error.
+            if ($field !== 'assigned_to') $response->assertJsonValidationErrors($field);
+        }
+        $this->patchJson('/api/mobile/leads/'.$id, ['phone' => null, 'email' => null])->assertUnprocessable();
+        $this->patchJson('/api/mobile/leads/'.$id, ['status' => 'Unqualified'])->assertUnprocessable()->assertJsonValidationErrors('lost_reason');
+        $this->patchJson('/api/mobile/leads/'.$id, ['status' => 'Unqualified', 'lost_reason' => 'Project cancelled'])
+            ->assertOk()->assertJsonPath('data.lost_reason', 'Project cancelled');
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'status' => 'Unqualified', 'lost_reason' => 'Project cancelled']);
+    }
+
+    public function test_admin_lead_crud_respects_permissions_other_plants_and_converted_records(): void
+    {
+        $this->useAdminLeadCrud();
+        $id = $this->postJson('/api/mobile/leads', $this->lead())->assertCreated()->json('data.id');
+        foreach (['CREATE' => ['POST', '/api/mobile/leads'], 'VIEW' => ['GET', '/api/mobile/leads/'.$id],
+            'UPDATE' => ['PATCH', '/api/mobile/leads/'.$id], 'DELETE' => ['DELETE', '/api/mobile/leads/'.$id]] as $action => [$method, $url]) {
+            $permission = DB::table('mm_permissions')->where('name', 'CRM_LEAD.'.$action)->value('id');
+            DB::table('mm_role_has_permissions')->where('role_id', 2)->where('permission_id', $permission)->delete();
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+            $this->json($method, $url, $this->lead())->assertForbidden();
+            DB::table('mm_role_has_permissions')->insert(['role_id' => 2, 'permission_id' => $permission]);
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+        }
+        DB::table('mm_crm_leads')->where('id', $id)->update(['plant_id' => 2]);
+        $this->getJson('/api/mobile/leads')->assertOk()->assertJsonPath('data.total', 0);
+        foreach (['GET', 'PUT', 'PATCH', 'DELETE'] as $method) $this->json($method, '/api/mobile/leads/'.$id, $this->lead())->assertNotFound();
+        DB::table('mm_crm_leads')->where('id', $id)->update(['plant_id' => 1, 'converted_at' => now(), 'status' => 'Converted']);
+        $this->deleteJson('/api/mobile/leads/'.$id)->assertUnprocessable();
+        $this->patchJson('/api/mobile/leads/'.$id, ['status' => 'New'])->assertUnprocessable();
+        $this->patchJson('/api/mobile/leads/'.$id, ['remarks' => 'Converted lead notes'])->assertOk();
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'deleted_at' => null, 'status' => 'Converted', 'remarks' => 'Converted lead notes']);
+    }
+
+    public function test_admin_lead_status_catalog_and_approval_preserve_access_checks(): void
+    {
+        $this->useAdminLeadCrud();
+        $id = $this->postJson('/api/mobile/leads', $this->lead())->assertCreated()->json('data.id');
+        $this->getJson('/api/mobile/leads/statuses')->assertOk()->assertJsonStructure(['data', 'statuses']);
+        $this->getJson('/api/mobile/leads/'.$id.'/statuses')->assertOk()->assertJsonStructure(['data', 'statuses']);
+        $this->postJson('/api/mobile/leads/'.$id.'/approve')->assertForbidden();
+        $permission = DB::table('mm_permissions')->insertGetId(['name' => 'CRM_LEAD.APPROVE', 'guard_name' => 'web']);
+        DB::table('mm_role_has_permissions')->insert(['role_id' => 2, 'permission_id' => $permission]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->postJson('/api/mobile/leads/'.$id.'/approve')->assertOk()->assertJsonPath('data.status', 'Approved');
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'status' => 'Approved']);
+        DB::table('mm_crm_leads')->where('id', $id)->update(['plant_id' => 2]);
+        $this->getJson('/api/mobile/leads/'.$id.'/statuses')->assertNotFound();
+        $this->postJson('/api/mobile/leads/'.$id.'/approve')->assertNotFound();
+    }
+
+    public function test_admin_crud_changes_do_not_broaden_sales_lead_ownership(): void
+    {
+        $id = $this->postJson('/api/mobile/v1/leads', $this->lead())->assertCreated()->json('data.id');
+        $this->patchJson('/api/mobile/v1/leads/'.$id, ['assigned_to' => 2])->assertForbidden();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
+        foreach (['GET', 'PATCH', 'DELETE'] as $method) $this->json($method, '/api/mobile/v1/leads/'.$id, $this->lead())->assertNotFound();
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'assigned_to' => 1, 'deleted_at' => null]);
+    }
+
     private function lead(): array
     {
         return ['contact_name' => 'Arun', 'phone' => '9876543210', 'email' => null, 'enquiry_date' => '2026-10-09', 'source' => 'Referral', 'priority' => 'High', 'status' => 'New', 'expected_value' => 10000];

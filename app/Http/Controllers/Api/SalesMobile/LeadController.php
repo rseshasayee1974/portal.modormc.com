@@ -72,7 +72,7 @@ class LeadController extends Controller
             'enquiry_date' => 'required|date_format:Y-m-d', 'source' => ['required', Rule::in(CrmLead::SOURCES)],
             'priority' => ['required', Rule::in(CrmLead::PRIORITIES)], 'status' => ['required', Rule::in($lead ? $lead->allowedStatuses() : CrmLead::STANDARD_STATUSES)],
             'assigned_to' => 'nullable|integer', 'address' => 'nullable|string|max:400', 'project_name' => 'nullable|string|max:200',
-            'requirement' => 'nullable', 'mix_design_id' => ['nullable', 'integer', Rule::exists('mm_mix_designs', 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')->where(fn ($q) => $q->where('is_active', 1)->when($lead?->mix_design_id, fn ($q) => $q->orWhere('id', $lead->mix_design_id)))], 'estimated_quantity' => 'nullable|numeric|min:0|max:99999999999',
+            'requirement' => 'nullable|string|max:500', 'mix_design_id' => ['nullable', 'integer', Rule::exists('mm_mix_designs', 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')->where(fn ($q) => $q->where('is_active', 1)->when($lead?->mix_design_id, fn ($q) => $q->orWhere('id', $lead->mix_design_id)))], 'estimated_quantity' => 'nullable|numeric|min:0|max:99999999999',
             'delivery_location' => 'nullable|string|max:500', 'expected_value' => 'required|numeric|min:0|max:99999999999999',
             'expected_purchase_date' => 'nullable|date_format:Y-m-d', 'remarks' => 'nullable|string|max:10000',
             'lost_reason' => 'nullable|required_if:status,'.CrmLead::STATUS_UNQUALIFIED.'|string|max:2000',

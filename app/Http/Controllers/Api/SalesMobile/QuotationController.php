@@ -192,10 +192,10 @@ class QuotationController extends Controller
                 'tax_id' => 'nullable|integer', 'uom_id' => 'nullable|integer',
                 'concrete_pump' => 'nullable|string|max:100', 'pump_rate' => 'nullable|numeric|min:0',
                 'discount_type' => 'nullable|in:amount,%', 'discount' => 'nullable|numeric|min:0',
-                'items' => 'prohibited',
+                'items' => 'nullable',
                 'patron_id' => ['nullable', 'integer', Access::exists(Access::customers())],
-                'sales_executive_id' => 'prohibited',
-                'mix_design_id' => 'prohibited',
+                'sales_executive_id' => 'nullable',
+                'mix_design_id' => 'nullable',
             ]);
             if (isset($input['patron_id']) && (int) $input['patron_id'] !== (int) $customer->id) {
                 throw ValidationException::withMessages(['patron_id' => 'The selected customer must match the lead customer.']);

@@ -44,7 +44,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\MobileAppPlantContext::c
         Route::get('leads/statuses', [\App\Http\Controllers\Api\MobileAdminLeadController::class, 'statuses']);
         Route::get('leads/{lead}/statuses', [\App\Http\Controllers\Api\MobileAdminLeadController::class, 'statuses'])->whereNumber('lead');
         Route::apiResource('leads', \App\Http\Controllers\Api\MobileAdminLeadController::class)
-            ->only(['index', 'show', 'update'])->names('mobile.leads')->where(['lead' => '[0-9]+']);
+            ->names('mobile.leads')->where(['lead' => '[0-9]+']);
         Route::post('leads/{lead}/approve', [\App\Http\Controllers\Api\MobileAdminLeadController::class, 'approve'])->whereNumber('lead');
         $routeNamePrefix = 'mobile';
         require __DIR__.'/mobile-commercial.php';
