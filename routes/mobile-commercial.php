@@ -12,8 +12,8 @@ $quotationReviewController = $routeNamePrefix === 'mobile'
 Route::get('quotations', [$quotationReviewController, 'index'])->name($routeNamePrefix.'.quotations.index');
 Route::get('quotations/{quotation}', [$quotationReviewController, 'show'])->whereNumber('quotation')->name($routeNamePrefix.'.quotations.show');
 Route::match(['put', 'patch'], 'quotations/{quotation}', [$quotationReviewController, 'update'])->whereNumber('quotation')->name($routeNamePrefix.'.quotations.update');
-Route::apiResource('quotations', QuotationController::class)->except(['index', 'show', 'update'])->names($routeNamePrefix.'.quotations')->where(['quotation' => '[0-9]+']);
-Route::post('quotations/{quotation}/submit', [QuotationController::class, 'submit'])->whereNumber('quotation');
+Route::apiResource('quotations', $quotationReviewController)->except(['index', 'show', 'update'])->names($routeNamePrefix.'.quotations')->where(['quotation' => '[0-9]+']);
+Route::post('quotations/{quotation}/submit', [$quotationReviewController, 'submit'])->whereNumber('quotation');
 Route::post('quotations/{quotation}/review', [$quotationReviewController, 'review'])->whereNumber('quotation');
 Route::post('quotations/{quotation}/convert-customer-po', [CustomerPOController::class, 'convertQuotation'])->whereNumber('quotation')->name($routeNamePrefix.'.quotations.convert-customer-po');
 Route::post('customer-pos/{customer_po}/convert-salesorder', [CustomerPOController::class, 'convert'])->whereNumber('customer_po');
@@ -27,3 +27,4 @@ Route::get('batch-schedules/{schedule}', [ScheduleController::class, 'detail'])-
 Route::post('batch-schedules', [ScheduleController::class, 'store']);
 Route::put('batch-schedules/{schedule}', [ScheduleController::class, 'change'])->whereNumber('schedule');
 Route::delete('batch-schedules/{schedule}', [ScheduleController::class, 'remove'])->whereNumber('schedule');
+

@@ -24,6 +24,7 @@ class MobilePlantContext
     {
         $user = $request->user();
         abort_unless($user && $user->is_active, 403, 'Your account is inactive.');
+        abort_if($user->lockout_until && $user->lockout_until->isFuture(), 403, 'Your account is locked. Try again after the lockout expires.');
         $this->authorizeToken($request);
         $data = validator(['plant_id' => $request->header('X-Plant-Id')], ['plant_id' => 'required|integer|min:1'])->validate();
         $plant = MobileAccess::plants($user)->find($data['plant_id']);

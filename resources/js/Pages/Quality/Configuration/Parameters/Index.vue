@@ -47,14 +47,14 @@ const changeTestType = () => {
 };
 
 // Row Expansion Management
-const expandedRows = ref<any[]>([]);
+const expandedRows = ref<Record<string | number, boolean>>({});
 
 const isRowExpanded = (row: any) => {
     if (!row || row.id === undefined) return false;
     if (Array.isArray(expandedRows.value)) {
-        return expandedRows.value.some((r: any) => (r?.id !== undefined ? r.id === row.id : r === row.id));
+        return (expandedRows.value as any[]).some((r: any) => (r?.id !== undefined ? r.id === row.id : r === row.id));
     }
-    return Boolean(expandedRows.value && (expandedRows.value as any)[row.id]);
+    return Boolean(expandedRows.value && expandedRows.value[row.id]);
 };
 
 const toggleRowEdit = (row: any) => {
@@ -62,21 +62,21 @@ const toggleRowEdit = (row: any) => {
     if (isRowExpanded(row)) {
         closeExpansion(row);
     } else {
-        expandedRows.value = [row];
+        expandedRows.value = { [row.id]: true };
     }
 };
 
 const closeExpansion = (row?: any) => {
     if (row && row.id !== undefined) {
         if (Array.isArray(expandedRows.value)) {
-            expandedRows.value = expandedRows.value.filter((r: any) => (r?.id !== undefined ? r.id !== row.id : r !== row.id));
+            expandedRows.value = (expandedRows.value as any[]).filter((r: any) => (r?.id !== undefined ? r.id !== row.id : r !== row.id));
         } else {
             const newExp = { ...expandedRows.value };
-            delete (newExp as any)[row.id];
+            delete newExp[row.id];
             expandedRows.value = newExp;
         }
     } else {
-        expandedRows.value = [];
+        expandedRows.value = {};
     }
 };
 
@@ -297,9 +297,6 @@ const formatParamRule = (param: any) => {
                     </div>
                 </template>
 
-                <!-- Expander Column for Inline Edit -->
-                <Column expander style="width: 3.5rem; text-align: center" />
-
                 <!-- Display Order -->
                 <Column field="display_order" header="#" sortable style="width: 65px;">
                     <template #body="{ data }">
@@ -409,7 +406,7 @@ const formatParamRule = (param: any) => {
                                         ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
                                         : 'text-gray-500 hover:text-amber-600 hover:bg-gray-100 dark:hover:bg-gray-800'
                                 ]"
-                                title="Edit Parameter Inline"
+                                :title="isRowExpanded(data) ? 'Close Inline Editor' : 'Edit Parameter Inline'"
                             >
                                 <i class="pi pi-pencil text-xs"></i>
                             </button>

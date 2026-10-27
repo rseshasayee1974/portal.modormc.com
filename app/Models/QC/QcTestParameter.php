@@ -9,6 +9,23 @@ use App\Models\User;
 
 class QcTestParameter extends Model
 {
+    public function testAgeDays(): ?int
+    {
+        if ($this->is_active === false) return null;
+        foreach ([$this->name, $this->code, $this->default_value] as $value) {
+            if (preg_match('/(?:^|[^\d])(\d+)\s*[-_]?\s*(?:days?|d)\b/i', (string) $value, $match)) {
+                $age = (int) $match[1];
+                return $age > 0 && $age <= 36500 ? $age : null;
+            }
+        }
+        $context = $this->name.' '.$this->code.' '.$this->unit;
+        if (preg_match('/\bage\b|days?|^d$/i', $context) && is_numeric($this->default_value)) {
+            $age = (float) $this->default_value;
+            return $age > 0 && $age <= 36500 && floor($age) === $age ? (int) $age : null;
+        }
+        return null;
+    }
+
     use HasFactory, SoftDeletes;
 
     public const RULE_TYPE_RANGE = 'RANGE';

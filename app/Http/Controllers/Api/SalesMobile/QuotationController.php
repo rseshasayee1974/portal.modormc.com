@@ -17,7 +17,10 @@ use App\Services\CrmLeadService;
 use App\Services\Mobile\MobileAccess as Access;
 use App\Services\Mobile\QuotationCalculator;
 use Illuminate\Http\Request;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -78,7 +81,7 @@ class QuotationController extends Controller
 
     public function index(Request $r)
     {
-        $r->validate(['per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100', 'approval_state' => 'nullable|in:draft,pending,approved,rejected']);
+        $r->validate(['per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1', 'search' => 'nullable|string|max:100', 'approval_state' => 'nullable|in:draft,pending,approved,rejected']);
         $q = $this->quotations()->with($this->detailRelations());
         if ($r->filled('search')) {
             $q->where('reference', 'like', '%'.$r->search.'%');
@@ -304,7 +307,35 @@ class QuotationController extends Controller
     public function submit(int $quotation)
     {
         return DB::transaction(function () use ($quotation) {
-            $model = $this->quotations()->lockForUpdate()->findOrFail($quotation);
+            $query = $this->quotations()->lockForUpdate();
+            $model = (clone $query)->find($quotation);
+            if (! $model) {
+                $reference = (string) Str::uuid();
+                // Probe only the selected plant on the writer; never broaden submission access.
+                $record = Quotation::withoutGlobalScope('plant_id')->withTrashed()->useWritePdo()
+                    ->where('plant_id', Access::plantId())->find($quotation);
+                $lookup = (clone $query)->whereKey($quotation);
+                Log::warning('Quotation submission lookup failed.', [
+                    'error_reference' => $reference,
+                    'quotation_id' => $quotation,
+                    'user_id' => request()->user()?->id,
+                    'plant_id' => Access::plantId(),
+                    'route' => request()->route()?->uri(),
+                    'controller' => request()->route()?->getActionName(),
+                    'method' => request()->method(),
+                    'connection' => $query->getModel()->getConnection()->getName(),
+                    'query' => $lookup->toSql(),
+                    'bindings' => $lookup->getBindings(),
+                    'record_in_selected_plant' => $record !== null,
+                    'record_created_by' => $record?->created_by,
+                    'record_status' => $record?->status,
+                    'record_deleted' => $record?->trashed(),
+                ]);
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Quotation not found or unavailable to you in the selected plant. Confirm the plant and account used for submission.',
+                    'error_reference' => $reference,
+                ], 404));
+            }
             $this->editable($model);
             abort_unless($model->items()->exists(), 422, 'Add quotation items before submission.');
             $model->forceFill(['status' => Quotation::STATUS_SENT, 'mobile_approval_state' => 'pending', 'mobile_submitted_by' => request()->user()->id, 'mobile_submitted_at' => now(), 'mobile_approval_comment' => null, 'mobile_reviewed_by' => null, 'mobile_reviewed_at' => null])->save();

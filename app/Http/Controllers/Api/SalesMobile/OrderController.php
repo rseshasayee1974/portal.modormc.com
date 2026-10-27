@@ -26,7 +26,7 @@ class OrderController extends Controller
             if ($exception->getModel() !== SalesOrder::class) throw $exception;
 
             return response()->json([
-                'message' => 'Sales order not found or unavailable.',
+                'message' => 'Sales order not found or unavailable in the selected plant.',
             ], 404);
         }
     }
@@ -34,7 +34,7 @@ class OrderController extends Controller
     public function customerPOs(Request $r)
     {
         $r->validate([
-            'per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100',
+            'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1', 'search' => 'nullable|string|max:100',
             'customer_id' => 'nullable|integer', 'site_id' => 'nullable|integer', 'status' => 'nullable|integer|in:0,1,2',
         ]);
         $fields = ['id', 'reference', 'customer_po_reference', 'patron_id', 'site_id', 'order_date',
@@ -61,10 +61,30 @@ class OrderController extends Controller
 
     public function index(Request $r)
     {
-        $r->validate(['per_page' => 'nullable|integer|between:1,100', 'search' => 'nullable|string|max:100', 'customer_id' => 'nullable|integer']);
+        $statuses = [];
+        $r->validate([
+            'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1',
+            'search' => 'nullable|string|max:100', 'customer_id' => 'nullable|integer',
+            'status' => ['nullable', function ($attribute, $value, $fail) use (&$statuses) {
+                $values = is_array($value) ? $value : (is_string($value) || is_int($value) ? explode(',', (string) $value) : []);
+                if (!$values || count($values) > 100) {
+                    $fail('Status must contain one or more values from 0 to 4.');
+                    return;
+                }
+                foreach ($values as $status) {
+                    if ((!is_string($status) && !is_int($status)) || !preg_match('/^[0-4]$/', trim((string) $status))) {
+                        $fail('Status must contain only 0 (Draft), 1 (Scheduled), 2 (In Progress), 3 (Completed), or 4 (Cancelled).');
+                        return;
+                    }
+                    $statuses[] = (int) trim((string) $status);
+                }
+                $statuses = array_values(array_unique($statuses));
+            }],
+        ]);
         $q = Access::orders()->with(['customer' => fn ($q) => $q->select('id', 'legal_name')->whereIn('id', Access::customers()->select('id')), 'site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')), 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())]);
         if ($r->filled('search')) $q->where('order_no', 'like', '%'.$r->search.'%');
         if ($r->filled('customer_id')) $q->where('customer_id', $r->customer_id);
+        if ($statuses) $q->whereIn('status', $statuses);
         $page = $q->latest('id')->paginate($r->integer('per_page', 20));
         $page->getCollection()->each(function ($order) {
             $order->customer?->setAppends([]);

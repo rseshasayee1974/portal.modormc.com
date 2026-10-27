@@ -67,7 +67,6 @@ Route::prefix('v1')->withoutMiddleware(TitleCaseInputs::class)->group(function (
             Route::put('follow-ups/{activity}', [LeadController::class, 'saveActivity'])->whereNumber('activity');
             Route::post('follow-ups/{activity}/complete', [LeadController::class, 'complete'])->whereNumber('activity');
             Route::delete('follow-ups/{activity}', [LeadController::class, 'deleteActivity'])->whereNumber('activity');
-            Route::post('leads/{lead}/quotation', [QuotationController::class, 'createFromLead'])->whereNumber('lead')->name('sales-mobile.leads.quotation');
             $routeNamePrefix = 'sales-mobile';
             require __DIR__.'/mobile-commercial.php';
         });

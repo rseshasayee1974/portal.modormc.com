@@ -93,7 +93,7 @@ class QCSampleController extends Controller
             ->limit(60)
             ->get(['id', 'dispatch_no', 'customer_id', 'unload_site_id', 'truck_id', 'batch_id', 'mixdesign_id', 'delivered_qty', 'dispatch_time']);
 
-        $testTypesQuery = QcTestType::where('is_active', true);
+        $testTypesQuery = QcTestType::with('parameters')->where('is_active', true);
         if ($plantId) {
             $testTypesQuery->where(function ($q) use ($plantId) {
                 $q->where('plant_id', $plantId)
@@ -203,8 +203,8 @@ class QCSampleController extends Controller
             'specimen_count' => 'nullable|integer|min:1|max:30',
             'curing_tank_id' => 'nullable|string|max:100',
             'sample_quantity' => 'nullable|string|max:50',
-            'schedule_milestones' => 'sometimes|required|array|min:1|max:3',
-            'schedule_milestones.*' => ['required', 'integer', 'distinct', Rule::in([7, 15, 28])],
+            'schedule_milestones' => 'sometimes|required|array|min:1|max:100',
+            'schedule_milestones.*' => ['required', 'integer', 'distinct', 'between:1,36500'],
             'test_type_ids' => 'nullable|array|max:100',
             'test_type_ids.*' => ['integer', 'distinct', Rule::exists('mm_qc_test_types', 'id')->where('is_active', true)->whereNull('deleted_at')
                 ->where(fn ($q) => $q->where('plant_id', $plantId)->orWhereNull('plant_id'))],
@@ -323,6 +323,10 @@ class QCSampleController extends Controller
                 foreach ($targetTestTypeIds as $testTypeId) {
                     $testType = QcTestType::with('parameters')->find($testTypeId);
                     if (!$testType) continue;
+                    $configuredAges = $testType->parameters->map(fn ($parameter) => $parameter->testAgeDays())->filter()->unique()->values()->all();
+                    if (!empty($chosenMilestones) && !empty($configuredAges) && array_diff($chosenMilestones, $configuredAges)) {
+                        throw ValidationException::withMessages(['schedule_milestones' => 'Select ages configured in the selected test type parameters.']);
+                    }
 
                     if (!empty($chosenMilestones)) {
                         // Create scheduled test for each chosen milestone (7d, 15d, 28d)
@@ -334,7 +338,7 @@ class QCSampleController extends Controller
                             if ($age <= 7) {
                                 $targetVal = round($fck * 0.70, 2);
                                 $minVal = round($fck * 0.65, 2);
-                            } elseif ($age <= 15) {
+                            } elseif ($age <= 14) {
                                 $targetVal = round($fck * 0.90, 2);
                                 $minVal = round($fck * 0.85, 2);
                             } else {
@@ -344,7 +348,7 @@ class QCSampleController extends Controller
 
                             // Check if a matching parameter exists in test type config
                             $matchingParam = $testType->parameters->first(function ($p) use ($age) {
-                                return preg_match('/' . $age . '\s*(day|d)/i', (string)($p->name . ' ' . $p->default_value));
+                                return $p->testAgeDays() === $age;
                             });
 
                             QcTest::create([
@@ -366,9 +370,8 @@ class QCSampleController extends Controller
                         }
                     } else {
                         $ageParams = $testType->parameters->mapWithKeys(function ($parameter) {
-                            $age = is_numeric($parameter->default_value) ? (int) $parameter->default_value : null;
-                            if ($age === null && preg_match('/\b(7|15|28)\s*(?:days?|d)\b/i', $parameter->name, $match)) $age = (int) $match[1];
-                            return in_array($age, [7, 15, 28], true) ? [$age => $parameter] : [];
+                            $age = $parameter->testAgeDays();
+                            return $age !== null ? [$age => $parameter] : [];
                         });
 
                         if ($ageParams->isNotEmpty()) {
@@ -434,8 +437,8 @@ class QCSampleController extends Controller
             'sales_order_id' => 'nullable|integer',
             'source_keys' => 'required_with:sales_order_id|array|min:1',
             'source_keys.*' => ['required', 'string', 'distinct', 'regex:/^(batch|dispatch):[0-9]+$/'],
-            'schedule_milestones' => 'sometimes|required|array|min:1|max:3',
-            'schedule_milestones.*' => ['required', 'integer', 'distinct', Rule::in([7, 15, 28])],
+            'schedule_milestones' => 'sometimes|required|array|min:1|max:100',
+            'schedule_milestones.*' => ['required', 'integer', 'distinct', 'between:1,36500'],
             'sample_date' => 'required|date',
             'tested_by' => ['nullable', 'integer', Rule::exists('mm_personnels', 'id')->whereNull('deleted_at')->where(fn ($q) => $q->where('plant_id', app(PlantContextService::class)->requirePlantId())->orWhereNull('plant_id'))],
             'concrete_grade_id' => 'nullable|exists:mm_concrete_grades,id',
@@ -473,13 +476,10 @@ class QCSampleController extends Controller
                 throw ValidationException::withMessages(['source_keys' => 'Select one production row when editing a sample.']);
             }
             $castingChanged = \Carbon\Carbon::parse($validated['sample_date'])->toDateString() !== $sample->sample_date->toDateString();
-            if ($castingChanged && $sample->tests()->where(fn ($q) => $q->where('overall_status', '!=', 'pending')->orWhereNotNull('evaluated_at'))->exists()) {
-                throw ValidationException::withMessages(['sample_date' => 'Casting date cannot change after a test has been executed.']);
-            }
             unset($validated['sales_order_id'], $validated['source_keys']);
             $sample->update(array_merge($validated, $sources[0], ['updated_by' => auth()->id()]));
             if ($castingChanged) {
-                foreach ($sample->tests()->where('overall_status', 'pending')->whereNotNull('age_days')->get() as $test) {
+                foreach ($sample->tests()->whereNotNull('age_days')->get() as $test) {
                     $date = $sample->scheduledTestDate((int) $test->age_days);
                     $test->update(['scheduled_date' => $date]);
                     $test->sets()->update(['casting_date' => $sample->sample_date->toDateString(), 'scheduled_testing_date' => $date]);

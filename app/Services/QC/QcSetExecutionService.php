@@ -17,6 +17,7 @@ class QcSetExecutionService
     public function processExecution(QcTest $test, array $payload): QcTest
     {
         return DB::transaction(function () use ($test, $payload) {
+            $test->fill(['approval_status' => 'draft', 'reviewed_by' => null, 'reviewed_at' => null]);
             // 1. Snapshot configuration if not already locked
             if (empty($test->configuration_snapshot) && $test->config) {
                 $test->configuration_snapshot = $test->config->generateConfigurationSnapshot();
@@ -91,14 +92,14 @@ class QcSetExecutionService
                 }
 
                 $stored = $testSet->specimens()->get();
-                $complete = $stored->count() >= 3 && $stored->every(fn ($specimen) => $specimen->weight_kg > 0 && $specimen->load_kn > 0 && $specimen->strength_mpa !== null);
+                $complete = $stored->count() >= 1 && $stored->every(fn ($specimen) => $specimen->weight_kg > 0 && $specimen->load_kn > 0 && $specimen->strength_mpa !== null);
                 $testSet->average_strength = $complete ? round($stored->avg('strength_mpa'), 2) : null;
                 $testSet->status = 'pending';
                 $testSet->error_reason = null;
                 if ($complete) {
                     $minimum = $testSet->min_strength ?? $testSet->target_strength;
                     $testSet->status = $minimum === null ? 'completed' : ($testSet->average_strength >= $minimum ? 'pass' : 'fail');
-                    $outlier = $stored->contains(fn ($specimen) => abs((float) $specimen->strength_mpa - (float) $testSet->average_strength) > (float) $testSet->average_strength * 0.15 + 0.000001);
+                    $outlier = $stored->count() >= 3 && $stored->contains(fn ($specimen) => abs((float) $specimen->strength_mpa - (float) $testSet->average_strength) > (float) $testSet->average_strength * 0.15 + 0.000001);
                     if ($outlier) {
                         $testSet->status = 'retest';
                         $testSet->error_reason = 'Specimen strength differs from the set average by more than 15%.';

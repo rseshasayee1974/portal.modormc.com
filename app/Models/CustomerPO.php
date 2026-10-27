@@ -40,6 +40,9 @@ class CustomerPO extends Model
     ];
 
     protected $casts = [
+        'status' => 'integer',
+        'patron_id' => 'integer',
+        'site_id' => 'integer',
         'order_date' => 'date',
         'sales_executive_id' => 'integer',
         'is_tax_inclusive' => 'boolean',

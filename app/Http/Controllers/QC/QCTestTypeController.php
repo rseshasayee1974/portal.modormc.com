@@ -72,7 +72,7 @@ class QCTestTypeController extends Controller
     {
         $this->authorizeModule('create');
 
-        \Log::info('QCTestTypeController store payload parameters:', $request->input('parameters', []));
+        // \Log::info('QCTestTypeController store payload parameters:', $request->input('parameters', []));
         
         $validated = $request->validate([
             'name' => 'nullable|string|max:150',
@@ -115,7 +115,7 @@ class QCTestTypeController extends Controller
         $qcTestType = $request->input('grid_config.qc_test_type') ?: 'Compressive';
         $category = $request->category ?: ($request->input('grid_config.category') ?: 'Concrete');
         $plantId = session('active_plant_id');
-        $name = $request->name ?: "{$materialType} {$qcTestType}";
+        $name = $request->name ?: "{$qcTestType}";
         $isActive = $request->has('is_active') ? (bool)$request->is_active : true;
 
         if ($isActive) {
@@ -135,7 +135,7 @@ class QCTestTypeController extends Controller
             }
         }
 
-        $code = $request->code ?: strtoupper(\Illuminate\Support\Str::slug("{$materialType}_{$qcTestType}", '_'));
+        $code = $request->code ?: strtoupper(\Illuminate\Support\Str::slug("{$qcTestType}", '_'));
         if (strlen($code) > 50) {
             $code = substr($code, 0, 50);
         }

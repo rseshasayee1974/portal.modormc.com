@@ -140,9 +140,9 @@ class QCTestExecutionController extends Controller
             'sample_id' => ['required', 'integer', Rule::exists('mm_qc_samples', 'id')->where('plant_id', $plantId)->whereNull('deleted_at')],
             'test_type_id' => ['required', 'integer', Rule::exists('mm_qc_test_types', 'id')->where('is_active', true)->whereNull('deleted_at')
                 ->where(fn ($q) => $q->where('plant_id', $plantId)->orWhereNull('plant_id'))],
-            'age_days' => ['required_without:schedule_milestones', 'prohibits:schedule_milestones', 'integer', Rule::in([7, 15, 28])],
-            'schedule_milestones' => 'required_without:age_days|array|min:1|max:3',
-            'schedule_milestones.*' => ['required', 'integer', 'distinct', Rule::in([7, 15, 28])],
+            'age_days' => ['required_without:schedule_milestones', 'prohibits:schedule_milestones', 'integer', 'between:1,36500'],
+            'schedule_milestones' => 'required_without:age_days|array|min:1|max:100',
+            'schedule_milestones.*' => ['required', 'integer', 'distinct', 'between:1,36500'],
             'remarks' => 'nullable|string|max:10000',
         ]);
 
@@ -157,13 +157,16 @@ class QCTestExecutionController extends Controller
                 throw ValidationException::withMessages([isset($data['schedule_milestones']) ? 'schedule_milestones' : 'age_days' => 'A test already exists at one of the selected ages. Select only new ages or open the existing test.']);
             }
             $type = QcTestType::with('parameters')->findOrFail($data['test_type_id']);
+            $configuredAges = $type->parameters->map(fn ($parameter) => $parameter->testAgeDays())->filter()->unique()->values()->all();
+            if ($configuredAges && array_diff($ages, $configuredAges)) {
+                throw ValidationException::withMessages(['schedule_milestones' => 'Select ages configured in the selected test type parameters.']);
+            }
             $firstTest = null;
             foreach ($ages as $age) {
-                $parameter = $type->parameters->first(fn ($p) => (is_numeric($p->default_value) && (int) $p->default_value === $age)
-                    || preg_match('/\b'.$age.'[\s-]*(days?|d)\b/i', $p->name.' '.$p->default_value));
+                $parameter = $type->parameters->first(fn ($p) => $p->testAgeDays() === (int) $age);
                 $fck = preg_match('/(\d+)/', $sample->concreteGrade?->name ?? '', $matches) ? (float) $matches[1] : 25.0;
-                $target = $age <= 7 ? 0.70 : ($age <= 15 ? 0.90 : 1.00);
-                $minimum = $age <= 7 ? 0.65 : ($age <= 15 ? 0.85 : 0.95);
+                $target = $age <= 7 ? 0.70 : ($age <= 14 ? 0.90 : 1.00);
+                $minimum = $age <= 7 ? 0.65 : ($age <= 14 ? 0.85 : 0.95);
                 $test = $sample->tests()->create([
                     'plant_id' => $plantId, 'test_type_id' => $type->id,
                     'test_no' => 'TST-'.Str::ulid().'-'.$age.'D',
@@ -241,7 +244,7 @@ class QCTestExecutionController extends Controller
         }
 
         return Inertia::render('Quality/Tests/Execute', [
-            'readOnly' => $request->boolean('view') || $test->approval_status === 'approved',
+            'readOnly' => $request->boolean('view'),
             'test' => $test,
             'rules' => $mergedRules,
             'isConcreteCubeTest' => $isConcrete,
@@ -252,7 +255,6 @@ class QCTestExecutionController extends Controller
     public function destroy(QcTest $test)
     {
         $this->authorizeTest($test, 'delete');
-        abort_if($test->approval_status === 'approved', 422, 'Approved tests cannot be deleted.');
 
         DB::transaction(function () use ($test) {
             $sample = $test->sample;
@@ -267,7 +269,6 @@ class QCTestExecutionController extends Controller
     public function submitExecution(Request $request, QcTest $test)
     {
         $this->authorizeTest($test, 'edit');
-        abort_if($test->approval_status === 'approved', 422, 'Approved tests cannot be changed.');
         if ($request->filled('concrete_specimens') || $request->filled('sets')) {
             abort_unless(app(\App\Services\QC\ConcreteCubeCalculator::class)->supports($test), 422, 'Use the configured execution form for this test type.');
         }
@@ -315,7 +316,7 @@ class QCTestExecutionController extends Controller
                 ->count();
 
             if ($test->sample) {
-                $test->sample->status = $pendingRemaining === 0 && $test->overall_status !== 'pending' ? 'completed' : 'in_progress';
+                $test->sample->status = $pendingRemaining === 0 && $test->overall_status !== 'pending' ? 'completed' : 'testing';
                 $test->sample->save();
             }
 
@@ -343,7 +344,7 @@ class QCTestExecutionController extends Controller
             'measurements.*.value_text' => 'nullable|string|max:255',
             'remarks' => 'nullable|string',
             'photos.*' => 'nullable|image|max:10240',
-            'concrete_specimens' => 'nullable|array|min:3|max:30',
+            'concrete_specimens' => 'nullable|array|min:1|max:30',
             'concrete_specimens.*.ident_mark' => 'nullable|string|max:100',
             'concrete_specimens.*.weight_kg' => 'required_with:concrete_specimens|numeric|min:0.01',
             'concrete_specimens.*.load_kn' => 'required_with:concrete_specimens|numeric|min:0.01',
@@ -353,6 +354,7 @@ class QCTestExecutionController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated, $test, $request) {
+            $test->fill(['approval_status' => 'draft', 'reviewed_by' => null, 'reviewed_at' => null]);
             $test->test_date = $validated['test_date'];
             $test->remarks = $validated['remarks'] ?? null;
             $test->tested_by = auth()->id() ?: 1;
@@ -524,7 +526,7 @@ class QCTestExecutionController extends Controller
                     ->where('overall_status', 'pending')
                     ->count();
 
-                $test->sample->status = $pendingRemaining === 0 ? 'completed' : 'in_progress';
+                $test->sample->status = $pendingRemaining === 0 ? 'completed' : 'testing';
                 $test->sample->save();
 
                 return redirect()->route('quality.tests.index', ['status' => 'all'])->with('success', "Concrete Test {$test->test_no} executed: Avg {$avgStrength} MPa (" . strtoupper($overallStatus) . ")");
@@ -746,12 +748,12 @@ class QCTestExecutionController extends Controller
     public function markRetest(Request $request, QcTest $test)
     {
         $this->authorizeTest($test, 'edit');
-        abort_if($test->approval_status === 'approved', 422, 'Approved tests cannot be marked for retest.');
         $validated = $request->validate([
             'retest_reason' => 'required|string|max:500',
         ]);
 
         $test->overall_status = 'retest';
+        $test->fill(['approval_status' => 'draft', 'reviewed_by' => null, 'reviewed_at' => null]);
         $test->retest_reason = $validated['retest_reason'];
         $test->save();
 

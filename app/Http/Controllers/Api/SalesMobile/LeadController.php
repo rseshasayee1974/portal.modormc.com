@@ -29,7 +29,7 @@ class LeadController extends Controller
     public function index(Request $r)
     {
         Access::authorize('CRM_LEAD', 'VIEW');
-        $r->validate(['search' => 'nullable|string|max:100', 'status' => ['nullable', Rule::in(CrmLead::STATUSES)], 'per_page' => 'nullable|integer|between:1,100']);
+        $r->validate(['search' => 'nullable|string|max:100', 'status' => ['nullable', Rule::in(CrmLead::STATUSES)], 'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
         $q = $this->leads()->with(['owner:id,username', 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])->withMin(['activities as next_follow_up' => fn ($a) => $a->whereIn('id', Access::activities()->select('id'))->whereNull('completed_at')], 'due_at');
         if ($r->filled('search')) {
             $q->where(fn ($q) => $q->where('contact_name', 'like', '%'.$r->search.'%')->orWhere('company_name', 'like', '%'.$r->search.'%')->orWhere('phone', 'like', '%'.$r->search.'%'));
@@ -184,7 +184,7 @@ class LeadController extends Controller
     public function followups(Request $r)
     {
         Access::authorize('CRM_LEAD', 'VIEW');
-        $r->validate(['view' => 'nullable|in:today,upcoming,overdue,completed,all', 'per_page' => 'nullable|integer|between:1,100']);
+        $r->validate(['view' => 'nullable|in:today,upcoming,overdue,completed,all', 'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
         $q = $this->activities()->with('lead:id,contact_name,company_name');
         $view = $r->input('view', 'today');
         if ($view === 'completed') {

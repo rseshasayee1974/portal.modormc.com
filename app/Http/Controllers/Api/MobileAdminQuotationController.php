@@ -13,6 +13,20 @@ use Illuminate\Database\Eloquent\Builder;
 
 class MobileAdminQuotationController extends QuotationController
 {
+    public function callAction($method, $parameters)
+    {
+        $this->authorizeAdministrator();
+        Access::authorize('QUOTATION', match ($method) {
+            'store' => 'CREATE',
+            'update', 'submit' => 'UPDATE',
+            'destroy' => 'DELETE',
+            'review' => 'APPROVE',
+            default => 'VIEW',
+        });
+
+        return parent::callAction($method, $parameters);
+    }
+
     private function authorizeAdministrator(): void
     {
         $role = request()->attributes->get('mobile_role');

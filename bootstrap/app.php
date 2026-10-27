@@ -57,6 +57,52 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->shouldRenderJsonWhen(fn (Request $request, \Throwable $e) =>
+            $request->is('api/mobile/*') || $request->expectsJson());
+
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, Request $request) {
+            if (!$request->is('api/mobile/*')) return;
+            $previous = $e->getPrevious();
+            if (!$previous instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) return;
+
+            $label = match ($previous->getModel()) {
+                \App\Models\Quotation::class => 'Quotation',
+                \App\Models\CrmLead::class => 'Lead',
+                \App\Models\CrmActivity::class => 'Follow-up',
+                \App\Models\SalesOrder::class => 'Sales order',
+                \App\Models\CustomerPO::class => 'Customer PO',
+                \App\Models\Site::class => 'Site',
+                \App\Models\Patron::class => 'Customer',
+                \App\Models\Attendance::class => 'Attendance record',
+                \Illuminate\Notifications\DatabaseNotification::class => 'Notification',
+                \App\Models\User::class => 'User',
+                default => 'Record',
+            };
+            return response()->json(['message' => $label.' not found or unavailable to you in the selected plant.'], 404);
+        });
+
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if (!$request->is('api/mobile/*')
+                || $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                || $e instanceof \Illuminate\Validation\ValidationException
+                || $e instanceof AccountingException
+                || $e instanceof TokenMismatchException
+                || $e instanceof AuthenticationException
+                || $e instanceof \Illuminate\Auth\Access\AuthorizationException
+                || $e instanceof \Illuminate\Http\Exceptions\HttpResponseException) return;
+
+            $reference = (string) \Illuminate\Support\Str::uuid();
+            \Illuminate\Support\Facades\Log::error('Mobile API request failed.', [
+                'error_reference' => $reference,
+                'route' => $request->route()?->uri(),
+                'method' => $request->method(),
+                'user_id' => $request->user()?->id,
+                'plant_id' => $request->attributes->get('mobile_plant_id'),
+                'exception' => $e,
+            ]);
+            return response()->json(['message' => 'Server error.', 'error_reference' => $reference], 500);
+        });
+
         $exceptions->render(function (TokenMismatchException $e, Request $request) {
             if ($request->inertia()) {
                 return Inertia::location(route('login'));
@@ -73,7 +119,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (AccountingException $e, Request $request) {
-            if ($request->expectsJson() && ! $request->inertia()) {
+            if (($request->is('api/mobile/*') || $request->expectsJson()) && ! $request->inertia()) {
                 return response()->json([
                     'success' => false,
                     'message' => $e->getMessage(),
@@ -89,7 +135,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return Inertia::location(route('login'));
             }
 
-            if ($request->expectsJson()) {
+            if ($request->is('api/mobile/*') || $request->expectsJson()) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }
 
@@ -145,6 +191,28 @@ return Application::configure(basePath: dirname(__DIR__))
                 $status = $response->getStatusCode();
                 $decoded = json_decode((string) $response->getContent(), true);
                 $payload = ['message' => $status >= 500 ? 'Server error.' : ($decoded['message'] ?? 'Request failed.')];
+                if (isset($decoded['error_reference']) && \Illuminate\Support\Str::isUuid($decoded['error_reference'])) {
+                    $payload['message'] = $decoded['message'] ?? 'Server error.';
+                    $payload['error_reference'] = $decoded['error_reference'];
+                }
+                if (in_array($decoded['error_code'] ?? null, ['WHATSAPP_TLS_ERROR', 'WHATSAPP_CONNECTION_ERROR', 'WHATSAPP_CONFIG_ERROR', 'WHATSAPP_SEND_FAILED'], true)) {
+                    $payload['message'] = $decoded['message'];
+                    $payload['error_code'] = $decoded['error_code'];
+                }
+                if ($status === 503 && ($decoded['message'] ?? null) === 'Reverb is not configured.') {
+                    $payload['message'] = $decoded['message'];
+                }
+                if ($status >= 500 && !isset($payload['error_reference']) && !isset($payload['error_code'])
+                    && $payload['message'] === 'Server error.') {
+                    $payload['error_reference'] = (string) \Illuminate\Support\Str::uuid();
+                    \Illuminate\Support\Facades\Log::error('Mobile API error response.', [
+                        'error_reference' => $payload['error_reference'],
+                        'route' => request()->route()?->uri(),
+                        'method' => request()->method(),
+                        'status' => $status,
+                        'response_message' => $decoded['message'] ?? null,
+                    ]);
+                }
                 if ($status === 422 && isset($decoded['errors'])) {
                     $payload['errors'] = $decoded['errors'];
                 }

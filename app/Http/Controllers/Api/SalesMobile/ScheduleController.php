@@ -77,7 +77,7 @@ class ScheduleController extends ConcreteBatchingScheduleController
 
     public function listing(Request $r)
     {
-        $r->validate(['schedule_date' => 'nullable|date_format:Y-m-d', 'per_page' => 'nullable|integer|between:1,100']);
+        $r->validate(['schedule_date' => 'nullable|date_format:Y-m-d', 'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
         $q = Access::schedules()->with(['site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')), 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId()), 'batch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id')), 'dispatch' => fn ($q) => $q->where('plant_id', Access::plantId())->whereIn('sales_order_id', Access::orders()->select('id'))]);
         if ($r->filled('schedule_date')) $q->whereDate('schedule_date', $r->schedule_date);
         return response()->json(['success' => true, 'data' => $q->orderBy('schedule_date')->orderBy('id')->paginate($r->integer('per_page', 20))->through(fn ($schedule) => $this->serializeSchedule($schedule))]);

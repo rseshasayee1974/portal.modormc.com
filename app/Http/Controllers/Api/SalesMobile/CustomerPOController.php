@@ -85,12 +85,10 @@ class CustomerPOController extends Controller
         );
     }
 
-    private function save(Request $request, ?int $id = null)
+    private function save(Request $request)
     {
-        return DB::transaction(function () use ($request, $id) {
+        return DB::transaction(function () use ($request) {
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
-            $po = $id === null ? null : Access::customerPOs()->lockForUpdate()->findOrFail($id);
-            if ($po) $this->editable($po);
             $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
             $data = $request->validate([
                 'patron_id' => ['required', 'integer', Access::exists(Access::customers())],
@@ -108,14 +106,19 @@ class CustomerPOController extends Controller
                 'items.*.concrete_pump' => 'nullable|string|max:100',
                 'items.*.pump_rate' => 'nullable|numeric|between:0,99999999',
             ], [
+                'required' => 'The :attribute field is required.',
+                'required_without' => 'The :attribute field is required when :values is not provided.',
+                'items.min' => 'Add at least one customer PO item.',
+                'items.array' => 'The items field must be an array.',
+                'order_date.date_format' => 'The order date must use YYYY-MM-DD format.',
+                'is_tax_inclusive.boolean' => 'The tax inclusive field must be true or false.',
                 'patron_id.exists' => 'The selected customer is unavailable in the selected plant.',
                 'site_id.exists' => 'The selected site is unavailable in the selected plant.',
             ]);
             $quote = empty($data['quotation_id']) ? null : Access::customerPOQuotations()->lockForUpdate()->findOrFail($data['quotation_id']);
-            if ($po) abort_unless($po->quotation_id == ($data['quotation_id'] ?? null), 422, 'The linked quotation cannot be changed.');
             if ($quote) {
                 abort_unless((int) $quote->status === Quotation::STATUS_ACCEPTED, 422, 'Only approved quotations can become customer POs.');
-                abort_if($quote->customerPOs()->when($po, fn ($q) => $q->whereKeyNot($po->id))->exists(), 422, 'Quotation already converted.');
+                abort_if($quote->customerPOs()->exists(), 422, 'Quotation already converted.');
                 abort_unless((int) $quote->patron_id === (int) $data['patron_id'] && (int) $quote->site_id === (int) $data['site_id'], 422, 'Customer and site must match the quotation.');
                 $data['is_tax_inclusive'] = (bool) $quote->is_tax_inclusive;
                 $items = $quote->items->map(fn ($item) => $item->only(['mix_design_id', 'quantity', 'rate', 'tax_id', 'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total']))->all();
@@ -125,25 +128,118 @@ class CustomerPOController extends Controller
                 $items = QuotationCalculator::items($data['items'], $data['is_tax_inclusive']);
             }
             unset($data['items']);
-            $data['sales_executive_id'] = $quote ? $quote->sales_executive_id : Access::orderOwnerId($po?->sales_executive_id, $po !== null);
-            if (!$po) {
-                $number = CustomerPO::generateReference(Access::plantId());
-                $po = CustomerPO::create(array_merge($data, $number, ['plant_id' => Access::plantId(), 'converted_by_user_id' => $request->user()->id, 'status' => $quote ? CustomerPO::STATUS_CONFIRMED : CustomerPO::STATUS_DRAFT]));
-            } else {
-                $po->update($data);
-                $po->items()->get()->each->delete();
-            }
+            $data['sales_executive_id'] = $quote ? $quote->sales_executive_id : Access::orderOwnerId();
+            $number = CustomerPO::generateReference(Access::plantId());
+            $po = CustomerPO::create(array_merge($data, $number, ['plant_id' => Access::plantId(), 'converted_by_user_id' => $request->user()->id, 'status' => $quote ? CustomerPO::STATUS_CONFIRMED : CustomerPO::STATUS_DRAFT]));
             foreach ($items as $item) {
                 unset($item['discount_type'], $item['discount'], $item['discount_amount']);
                 $po->items()->create($item);
             }
             $po->updateTotals();
-            return response()->json(['success' => true, 'data' => $po->fresh()->load('items')], $id === null ? 201 : 200);
+            return response()->json(['success' => true, 'data' => $po->fresh()->load('items')], 201);
         });
     }
 
     public function store(Request $request) { return $this->save($request); }
-    public function update(Request $request, int $customer_po) { return $this->save($request, $customer_po); }
+    public function update(Request $request, int $customer_po)
+    {
+        return DB::transaction(function () use ($request, $customer_po) {
+            Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
+            $po = Access::customerPOs()->lockForUpdate()->findOrFail($customer_po);
+            $this->editable($po);
+            $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
+            $data = $request->validate([
+                'prefix' => 'sometimes|nullable|string|max:20',
+                'reference' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('mm_customer_pos', 'reference')->where('plant_id', Access::plantId())->whereNull('deleted_at')->ignore($po->id)],
+                'patron_id' => ['sometimes', 'required', 'integer', Access::exists(Access::customers())],
+                'site_id' => ['sometimes', 'required', 'integer', Access::exists(Access::plantSites())],
+                'quotation_id' => ['nullable', 'integer', Access::exists(Access::customerPOQuotations())],
+                'customer_po_reference' => 'nullable|string|max:150',
+                'order_date' => 'sometimes|required|date_format:Y-m-d', 'notes' => 'nullable|string|max:10000',
+                'is_tax_inclusive' => 'sometimes|required|boolean',
+                'status' => ['sometimes', 'required', 'integer', Rule::in([CustomerPO::STATUS_DRAFT, CustomerPO::STATUS_CONFIRMED, CustomerPO::STATUS_COMPLETED])],
+                'total_qty' => 'sometimes|required|numeric|between:0.001,99999900',
+                'items' => 'sometimes|required|array|min:1|max:100',
+                'items.*' => 'required|array:id,mix_design_id,quantity,rate,tax_id,concrete_pump,pump_rate,untaxed_amount,tax_amount,amount_total',
+                'items.*.id' => ['sometimes', 'required', 'integer', 'distinct', Rule::exists('mm_customer_po_items', 'id')->where('customer_po_id', $po->id)->whereNull('deleted_at')],
+                'items.*.mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')],
+                'items.*.quantity' => 'required|numeric|between:0.001,999999',
+                'items.*.rate' => 'required|numeric|between:0,99999999',
+                'items.*.tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
+                'items.*.concrete_pump' => 'nullable|string|max:100',
+                'items.*.pump_rate' => 'nullable|numeric|between:0,99999999',
+                'items.*.untaxed_amount' => 'sometimes|nullable|numeric|min:0',
+                'items.*.tax_amount' => 'sometimes|nullable|numeric|min:0',
+                'items.*.amount_total' => 'sometimes|nullable|numeric|min:0',
+            ], [
+                'status.in' => 'Status must be 0 (Draft), 1 (Confirmed), or 2 (Completed).',
+                'reference.unique' => 'This customer PO reference is already used in the selected plant.',
+                'items.*.id.exists' => 'The selected item does not belong to this customer PO or has been deleted.',
+                'items.*.id.distinct' => 'Each customer PO item ID must appear only once.',
+                'required' => 'The :attribute field is required.',
+                'required_without' => 'The :attribute field is required when :values is not provided.',
+                'items.min' => 'Add at least one customer PO item.',
+                'items.array' => 'The items field must be an array.',
+                'order_date.date_format' => 'The order date must use YYYY-MM-DD format.',
+                'is_tax_inclusive.boolean' => 'The tax inclusive field must be true or false.',
+                'patron_id.exists' => 'The selected customer is unavailable in the selected plant.',
+                'site_id.exists' => 'The selected site is unavailable in the selected plant.',
+            ]);
+            $replaceItems = array_key_exists('items', $data)
+                || (array_key_exists('is_tax_inclusive', $data) && (bool) $data['is_tax_inclusive'] !== (bool) $po->is_tax_inclusive);
+            // Omitted fields retain their saved values; explicit nulls still undergo validation.
+            $data = array_replace([
+                'patron_id' => $po->patron_id,
+                'site_id' => $po->site_id,
+                'quotation_id' => $po->quotation_id,
+                'order_date' => $po->order_date?->format('Y-m-d'),
+                'is_tax_inclusive' => (bool) $po->is_tax_inclusive,
+            ], $data);
+            if ($replaceItems && !array_key_exists('items', $data)) {
+                $data['items'] = $po->items()->get()->map(fn ($item) => $item->only([
+                    'id', 'mix_design_id', 'quantity', 'rate', 'tax_id', 'concrete_pump', 'pump_rate',
+                ]))->all();
+            }
+            $quote = empty($data['quotation_id']) ? null : Access::customerPOQuotations()->lockForUpdate()->findOrFail($data['quotation_id']);
+            abort_unless($po->quotation_id == ($data['quotation_id'] ?? null), 422, 'The linked quotation cannot be changed.');
+            if ($quote) {
+                abort_unless((int) $quote->status === Quotation::STATUS_ACCEPTED, 422, 'Only approved quotations can become customer POs.');
+                abort_if($quote->customerPOs()->whereKeyNot($po->id)->exists(), 422, 'Quotation already converted.');
+                abort_unless((int) $quote->patron_id === (int) $data['patron_id'] && (int) $quote->site_id === (int) $data['site_id'], 422, 'Customer and site must match the quotation.');
+                $data['is_tax_inclusive'] = (bool) $quote->is_tax_inclusive;
+                $items = $quote->items->map(fn ($item) => $item->only(['mix_design_id', 'quantity', 'rate', 'tax_id', 'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total']))->all();
+                abort_if(empty($items), 422, 'Quotation has no items.');
+                $quote->update(['is_customer_po' => true]);
+            } else {
+                $items = $replaceItems ? QuotationCalculator::items($data['items'], $data['is_tax_inclusive']) : [];
+            }
+            $totalQuantity = $replaceItems ? array_sum(array_column($items, 'quantity')) : (float) $po->items()->sum('quantity');
+            if (array_key_exists('total_qty', $data) && abs((float) $data['total_qty'] - $totalQuantity) > 0.00001) {
+                throw ValidationException::withMessages(['total_qty' => 'Total quantity must equal the sum of item quantities ('.$totalQuantity.').']);
+            }
+            unset($data['items'], $data['total_qty']);
+            $data['sales_executive_id'] = $quote ? $quote->sales_executive_id : Access::orderOwnerId($po->sales_executive_id, true);
+            $po->update($data);
+            if ($replaceItems) {
+                $retainedIds = [];
+                foreach ($items as $item) {
+                    $itemId = $item['id'] ?? null;
+                    unset($item['id'], $item['discount_type'], $item['discount'], $item['discount_amount']);
+                    if ($itemId !== null) {
+                        $existing = $po->items()->findOrFail($itemId);
+                        $existing->update($item);
+                        $retainedIds[] = $existing->id;
+                    } else {
+                        $retainedIds[] = $po->items()->create($item)->id;
+                    }
+                }
+                // A supplied item list replaces the list; omitted existing lines are removed.
+                $po->items()->whereNotIn('id', $retainedIds)->get()->each->delete();
+            }
+            $po->updateTotals();
+            return response()->json(['success' => true, 'data' => $po->fresh()->load('items')], 200);
+        });
+    }
 
     public function convertQuotation(Request $request, int $quotation)
     {

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\MobileApiController;
+use App\Http\Controllers\Api\SalesMobile\QuotationController;
 
 require __DIR__.'/sales-mobile.php';
 
@@ -22,7 +23,7 @@ Route::post('/send-otp', [MobileApiController::class, 'sendOtp'])->middleware('t
 Route::post('/verify-otp', [MobileApiController::class, 'verifyOtp'])->middleware('throttle:10,1');
 
 // Authenticated routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', \App\Http\Middleware\MobileAccountActive::class])->group(function () {
     Route::apiResource('users', \App\Http\Controllers\UserController::class);
     Route::get('/user', [MobileApiController::class, 'user']);
     Route::get('/dashboard', [MobileApiController::class, 'dashboard']);
@@ -46,6 +47,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\MobileAppPlantContext::c
         Route::apiResource('leads', \App\Http\Controllers\Api\MobileAdminLeadController::class)
             ->only(['index', 'show', 'update'])->names('mobile.leads')->where(['lead' => '[0-9]+']);
         Route::post('leads/{lead}/approve', [\App\Http\Controllers\Api\MobileAdminLeadController::class, 'approve'])->whereNumber('lead');
+        Route::post('leads/{lead}/quotation', [QuotationController::class, 'createFromLead'])->whereNumber('lead')->name('sales-mobile.leads.quotation');
         $routeNamePrefix = 'mobile';
         require __DIR__.'/mobile-commercial.php';
         Route::get('dropdowns', [\App\Http\Controllers\Api\SalesMobile\WorkspaceController::class, 'lookups']);

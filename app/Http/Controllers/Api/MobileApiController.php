@@ -29,12 +29,18 @@ class MobileApiController extends Controller
 
     private function getFilters(Request $request)
     {
-        return $request->validate([
+        $filters = $request->validate([
             'from_date' => 'nullable|date_format:Y-m-d',
             'to_date' => 'nullable|date_format:Y-m-d|after_or_equal:from_date',
             'plant_id' => 'nullable|integer|min:1',
             'type' => 'nullable|string|max:100',
         ]);
+        if (isset($filters['plant_id'])) {
+            abort_unless($this->getPlantsForUser($request->user())->contains('id', (int) $filters['plant_id']),
+                403, 'The requested plant does not exist or is not accessible to your account.');
+        }
+
+        return $filters;
     }
 
     /**
@@ -79,6 +85,7 @@ class MobileApiController extends Controller
         if (!$user->is_active) {
             return response()->json(['message' => 'Your account is inactive. Please contact support.'], 403);
         }
+        abort_if($user->lockout_until && $user->lockout_until->isFuture(), 403, 'Your account is locked. Try again after the lockout expires.');
 
         if (!$user->api_key) {
             $user->forceFill(['api_key' => Str::random(60)])->save();

@@ -54,7 +54,7 @@ const hasMeasurements = computed(() => props.test.measurements?.length > 0
     || props.test.sets?.some((set: any) => set.specimens?.some((specimen: any) => specimen.strength_mpa != null)));
 const hasSavedResults = computed(() => hasMeasurements.value && !!props.test.evaluated_at && props.test.overall_status !== 'pending');
 const resultLabel = computed(() => !hasSavedResults.value ? 'Awaiting results' : ({ pass: 'Passed', fail: 'Failed', retest: 'Retest required' } as Record<string, string>)[props.test.overall_status] || props.test.overall_status);
-const mode = ref<'entry' | 'certificate'>(hasMeasurements.value && props.test.overall_status !== 'pending' ? 'certificate' : 'entry');
+const mode = ref<'entry' | 'certificate'>(readOnly.value && hasMeasurements.value ? 'certificate' : 'entry');
 
 const parameters = computed(() => props.test.test_type?.parameters || []);
 const layoutType = computed<string>(() => (props.test.test_type?.layout_type || 'SINGLE_TRIAL').toUpperCase());
@@ -223,7 +223,7 @@ const outlierAnalysis = computed(() => {
 });
 
 const concreteStatus = computed(() => {
-    if (concreteSpecimens.value.length < 3 || concreteSpecimens.value.some(specimen => !(Number(specimen.weight_kg) > 0 && Number(specimen.load_kn) > 0))) return 'pending';
+    if (concreteSpecimens.value.length < 1 || concreteSpecimens.value.some(specimen => !(Number(specimen.weight_kg) > 0 && Number(specimen.load_kn) > 0))) return 'pending';
     if (concreteAvgStrength.value <= 0) return 'pending';
     if (outlierAnalysis.value.hasOutlier) return 'retest';
     if (minStrength.value > 0) {
@@ -705,11 +705,11 @@ const submitExecution = () => {
     if (isConcreteCubeTest.value) concreteSpecimens.value.forEach(normalizeCubeInputs);
     if (isConcreteCubeTest.value) {
         const valid = concreteSpecimens.value.filter(s => Number(s.load_kn) > 0 && Number(s.weight_kg) > 0);
-        if (valid.length < 3 || valid.length !== concreteSpecimens.value.length) {
+        if (valid.length < 1 || valid.length !== concreteSpecimens.value.length) {
             toast.add({
                 severity: 'error',
                 summary: 'Incomplete specimens',
-                detail: 'Enter weight in kg and failure load in kN for every specimen, with at least three specimens per set.',
+                detail: 'Enter weight in kg and failure load in kN for every specimen, with at least one specimen.',
                 life: 3000
             });
             return;
@@ -866,7 +866,7 @@ const printCertificate = () => {
         <Toast />
 
         <div
-            class="qc-execute mx-auto w-full min-w-0 space-y-5 px-3 py-3 text-sm text-slate-700 sm:px-5 dark:text-slate-200">
+            class="qc-execute mx-auto w-full min-w-0 space-y-6 p-4 text-sm text-slate-700 sm:p-6 dark:text-slate-200">
             <section
                 class="rounded-xl border border-slate-200 bg-white shadow-sm print:hidden dark:border-slate-700 dark:bg-slate-900">
                 <header class="flex flex-wrap items-center justify-between gap-4 p-5">
@@ -874,11 +874,13 @@ const printCertificate = () => {
                         <Link :href="route('quality.samples.index')"
                             class="group flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/80 transition-all shadow-2xs"
                             aria-label="Back to concrete samples">
-                            <i class="pi pi-arrow-left text-sm transition-transform group-hover:-translate-x-0.5" aria-hidden="true"></i>
+                            <i class="pi pi-arrow-left text-sm transition-transform group-hover:-translate-x-0.5"
+                                aria-hidden="true"></i>
                         </Link>
                         <div class="min-w-0">
                             <div class="flex items-center gap-2">
-                                <h1 class="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                                <h1
+                                    class="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100">
                                     {{ readOnly ? 'View Quality Test' : 'Execute Quality Test' }}
                                 </h1>
                             </div>
@@ -887,60 +889,94 @@ const printCertificate = () => {
                                     {{ test.test_type?.name || 'Quality test' }}
                                 </span>
                                 <span class="text-slate-300 dark:text-slate-600">/</span>
-                                <span class="font-mono text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/60 px-2 py-0.5 rounded-md">
+                                <span
+                                    class="tabular-nums text-xxs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/60 px-2 py-0.5 rounded-md">
                                     {{ test.test_no }}
                                 </span>
                             </div>
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
-                        <span class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider shadow-2xs"
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xxs font-bold uppercase tracking-wider shadow-2xs"
                             :class="test.overall_status === 'pass'
                                 ? 'border-emerald-200 bg-emerald-50/90 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
                                 : test.overall_status === 'fail'
-                                ? 'border-rose-200 bg-rose-50/90 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                                : test.overall_status === 'retest'
-                                ? 'border-amber-200 bg-amber-50/90 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-                                : 'border-indigo-100 bg-indigo-50/90 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300'">
+                                    ? 'border-rose-200 bg-rose-50/90 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                                    : test.overall_status === 'retest'
+                                        ? 'border-amber-200 bg-amber-50/90 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                                        : 'border-indigo-100 bg-indigo-50/90 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300'">
                             <span class="h-1.5 w-1.5 rounded-full"
                                 :class="test.overall_status === 'pass' ? 'bg-emerald-500' : test.overall_status === 'fail' ? 'bg-rose-500' : test.overall_status === 'retest' ? 'bg-amber-500' : 'bg-indigo-500 animate-pulse'"></span>
                             {{ test.overall_status || 'pending' }}
                         </span>
-                        <div class="flex rounded-lg border border-slate-200 bg-slate-100/80 p-1 dark:border-slate-700 dark:bg-slate-800">
+                        <div
+                            class="flex rounded-lg border border-slate-200 bg-slate-100/80 p-1 dark:border-slate-700 dark:bg-slate-800">
                             <button type="button" @click="mode = 'entry'" :aria-pressed="mode === 'entry'"
                                 class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
                                 :class="mode === 'entry' ? 'bg-white text-indigo-700 shadow-2xs dark:bg-slate-700 dark:text-indigo-300' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'">
-                                <i class="pi pi-pencil text-[11px]" aria-hidden="true"></i>
+                                <i class="pi pi-pencil text-xxs" aria-hidden="true"></i>
                                 {{ readOnly ? 'View Data' : 'Data Entry' }}
                             </button>
                             <button type="button" @click="mode = 'certificate'" :aria-pressed="mode === 'certificate'"
                                 class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition-all cursor-pointer"
                                 :class="mode === 'certificate' ? 'bg-white text-indigo-700 shadow-2xs dark:bg-slate-700 dark:text-indigo-300' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'">
-                                <i class="pi pi-file text-[11px]" aria-hidden="true"></i>
+                                <i class="pi pi-file text-xxs" aria-hidden="true"></i>
                                 Results
                             </button>
                         </div>
-                        <BaseButton v-if="mode === 'certificate' && can('QC_TEST.PDF')" type="button" label="Print Results" icon="pi pi-print"
-                            :disabled="!hasSavedResults" @click="printCertificate" />
+                        <BaseButton v-if="mode === 'certificate' && can('QC_TEST.PDF')" type="button"
+                            label="Print Results" icon="pi pi-print" :disabled="!hasSavedResults"
+                            @click="printCertificate" />
                     </div>
                 </header>
 
                 <div class="border-t border-slate-100 px-5 py-4 dark:border-slate-800">
                     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-                        <h2 class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sample &amp; dispatch details</h2>
-                        <button type="button" class="flex items-center gap-1.5 text-xxs font-medium text-indigo-600 dark:text-indigo-300" :aria-expanded="showTestDetails" aria-controls="execution-details" @click="showTestDetails = !showTestDetails"><i :class="showTestDetails ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>{{ showTestDetails ? 'Less details' : 'All details' }}</button>
+                        <h2 class="text-xxs font-bold uppercase tracking-wider text-slate-400">Sample &amp; dispatch
+                            details
+                        </h2>
+                        <button type="button"
+                            class="flex items-center gap-1.5 text-xxs font-medium text-indigo-600 dark:text-indigo-300"
+                            :aria-expanded="showTestDetails" aria-controls="execution-details"
+                            @click="showTestDetails = !showTestDetails"><i
+                                :class="showTestDetails ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                                aria-hidden="true"></i>{{
+                                    showTestDetails ? 'Less details' : 'All details' }}</button>
                     </div>
                     <dl class="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-5">
-                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Account</dt><dd class="mt-1 break-words text-sm font-medium">{{ testSummary.accountName }}</dd></div>
-                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Project / Site</dt><dd class="mt-1 break-words text-sm font-medium">{{ testSummary.siteName }}</dd></div>
-                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Grade / Test age</dt><dd class="mt-1 text-sm font-medium">{{ testSummary.gradeMaterial }} &middot; {{ testSummary.testAge }}</dd></div>
-                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Dispatch</dt><dd class="mt-1 break-words text-sm font-medium">{{ testSummary.dispatchNo }}</dd></div>
-                        <div class="min-w-0"><dt class="text-[10px] text-slate-500">Dispatch date</dt><dd class="mt-1 text-sm font-medium">{{ testSummary.dispatchDate }}</dd></div>
+                        <div class="min-w-0">
+                            <dt class="text-xxs text-slate-500">Account</dt>
+                            <dd class="mt-1 break-words text-sm font-medium">{{ testSummary.accountName }}</dd>
+                        </div>
+                        <div class="min-w-0">
+                            <dt class="text-xxs text-slate-500">Project / Site</dt>
+                            <dd class="mt-1 break-words text-sm font-medium">{{ testSummary.siteName }}</dd>
+                        </div>
+                        <div class="min-w-0">
+                            <dt class="text-xxs text-slate-500">Grade / Test age</dt>
+                            <dd class="mt-1 text-sm font-medium">{{ testSummary.gradeMaterial }} &middot; {{
+                                testSummary.testAge
+                            }}</dd>
+                        </div>
+                        <div class="min-w-0">
+                            <dt class="text-xxs text-slate-500">Dispatch</dt>
+                            <dd class="mt-1 break-words text-sm font-medium">{{ testSummary.dispatchNo }}</dd>
+                        </div>
+                        <div class="min-w-0">
+                            <dt class="text-xxs text-slate-500">Dispatch date</dt>
+                            <dd class="mt-1 text-sm font-medium">{{ testSummary.dispatchDate }}</dd>
+                        </div>
                     </dl>
-                    <dl v-if="showTestDetails" id="execution-details" class="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-5 dark:border-slate-800">
-                        <div v-for="item in testDetails" :key="item.label" class="min-w-0"><dt class="text-[10px] text-slate-500">{{ item.label }}</dt><dd class="mt-1 break-words text-sm font-medium">{{ item.value }}</dd></div>
+                    <dl v-if="showTestDetails" id="execution-details"
+                        class="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-5 dark:border-slate-800">
+                        <div v-for="item in testDetails" :key="item.label" class="min-w-0">
+                            <dt class="text-xxs text-slate-500">{{ item.label }}</dt>
+                            <dd class="mt-1 break-words text-sm font-medium">{{ item.value }}</dd>
+                        </div>
                     </dl>
-                    <p v-if="mode === 'certificate'" class="mt-3 text-xxs text-slate-500">Tested: {{ test.test_date ? entityLocaleDate(test.test_date) : 'Not tested' }}</p>
+                    <p v-if="mode === 'certificate'" class="mt-3 text-xxs text-slate-500">Tested: {{ test.test_date ?
+                        entityLocaleDate(test.test_date) : 'Not tested' }}</p>
                 </div>
             </section>
 
@@ -950,9 +986,13 @@ const printCertificate = () => {
             <fieldset v-if="mode === 'entry'" :disabled="readOnly" class="min-w-0 space-y-4">
                 <div
                     class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 sm:p-6 shadow-sm space-y-5">
-                    <div class="grid grid-cols-1 items-end gap-4 border-b border-slate-100 pb-4 sm:grid-cols-2 lg:grid-cols-5 dark:border-slate-800">
-                        <BaseDatePicker v-model="form.test_date" label="Test date" dateFormat="yy-mm-dd" :disabled="readOnly" :error="form.errors.test_date" size="small" />
-                        <p class="text-xxs text-slate-500 sm:col-span-1 lg:col-span-4">{{ readOnly ? 'Saved measurements are shown below.' : 'Enter the test date, cube measurements and remarks below.' }}</p>
+                    <div
+                        class="grid grid-cols-1 items-end gap-4 border-b border-slate-100 pb-4 sm:grid-cols-2 lg:grid-cols-5 dark:border-slate-800">
+                        <BaseDatePicker v-model="form.test_date" label="Test date" dateFormat="yy-mm-dd"
+                            :disabled="readOnly" :error="form.errors.test_date" size="small" />
+                        <p class="text-xxs text-slate-500 sm:col-span-1 lg:col-span-4">{{ readOnly ? `Saved measurements
+                            are
+                            shown below.` : `Enter the test date, cube measurements and remarks below.` }}</p>
                     </div>
                     <!-- Mode/Header inside card -->
                     <div
@@ -963,10 +1003,10 @@ const printCertificate = () => {
                                 <i class="pi pi-sliders-h text-xs"></i>
                             </div>
                             <div>
-                                <h2 class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                <h2 class="text-xxs font-black uppercase tracking-[0.2em] text-slate-400">
                                     Laboratory test information
                                 </h2>
-                                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                <p class="text-xxs text-slate-500 dark:text-slate-400">
                                     Enter raw specimen observations. Calculated fields and compliance are evaluated
                                     automatically.
                                 </p>
@@ -1021,44 +1061,44 @@ const printCertificate = () => {
                                         <th class="py-3 px-3 w-12 text-center">#</th>
                                         <th class="py-3 px-3 min-w-[130px]">
                                             <span>Cube Mark / ID</span>
-                                            <span class="text-[10px] text-slate-400 block font-normal">Specimen
+                                            <span class="text-xxs text-slate-400 block font-normal">Specimen
                                                 Tag</span>
                                         </th>
                                         <th class="py-3 px-3 min-w-[110px]">
                                             <span>Weight (kg)</span>
-                                            <span class="text-[10px] text-slate-400 block font-normal">Air-dry
+                                            <span class="text-xxs text-slate-400 block font-normal">Air-dry
                                                 mass</span>
                                         </th>
                                         <th v-if="showCubeDetails" class="py-3 px-3 min-w-[105px]">
                                             <span>Density (kg/m³)</span>
-                                            <span class="text-[10px] text-slate-400 block font-normal">Vol: {{
+                                            <span class="text-xxs text-slate-400 block font-normal">Vol: {{
                                                 cubeDimensions?.volume_m3 || 0.003375 }}
                                                 m³</span>
                                         </th>
                                         <th class="py-3 px-3 min-w-[130px]">
                                             <span class="text-indigo-600 dark:text-indigo-400 font-black">CTM Load (kN)
                                                 *</span>
-                                            <span class="text-[10px] text-slate-400 block font-normal">Failure
+                                            <span class="text-xxs text-slate-400 block font-normal">Failure
                                                 Load</span>
                                         </th>
                                         <th class="py-3 px-3 min-w-[125px]">
                                             <span class="text-indigo-600 dark:text-indigo-400 font-black">Strength
                                                 (MPa)</span>
-                                            <span class="text-[10px] text-slate-400 block font-normal">Load /
+                                            <span class="text-xxs text-slate-400 block font-normal">Load /
                                                 {{ (cubeDimensions?.area_mm2 || 22500) / 1000 }}</span>
                                         </th>
                                         <th v-if="showCubeDetails" class="py-3 px-3 min-w-[180px]">
                                             <span>Fracture Pattern</span>
-                                            <span class="text-[10px] text-slate-400 block font-normal">IS 516
+                                            <span class="text-xxs text-slate-400 block font-normal">IS 516
                                                 Failure</span>
                                         </th>
                                         <th v-if="showCubeDetails" class="py-3 px-3 min-w-[100px] text-center">
                                             <span>IS 516 Dev</span>
-                                            <span class="text-[10px] text-slate-400 block font-normal">±15% Limit</span>
+                                            <span class="text-xxs text-slate-400 block font-normal">±15% Limit</span>
                                         </th>
                                         <th class="py-3 px-2 text-center w-12 min-w-[48px]">
                                             <span>Option</span>
-                                            <span class="text-[10px] text-slate-400 block font-normal">Action</span>
+                                            <span class="text-xxs text-slate-400 block font-normal">Action</span>
                                         </th>
                                     </tr>
                                 </thead>
@@ -1068,28 +1108,30 @@ const printCertificate = () => {
                                         <td class="py-2.5 px-3 text-center font-bold text-slate-500">{{ sIdx + 1 }}</td>
                                         <td class="py-2.5 px-3">
                                             <input v-model="spec.ident_mark" type="text" placeholder="Specimen #"
-                                                class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" />
+                                                class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs tabular-nums font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" />
                                         </td>
                                         <td class="py-2.5 px-3">
-                                            <input v-model.number="spec.weight_kg" @input="recalculateSpecimen(spec)" @blur="normalizeCubeInputs(spec)"
-                                                type="number" step="0.01" min="0.01" placeholder="e.g. 8.25"
-                                                class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" />
+                                            <input v-model.number="spec.weight_kg" @input="recalculateSpecimen(spec)"
+                                                @blur="normalizeCubeInputs(spec)" type="number" step="0.01" min="0.01"
+                                                placeholder="e.g. 8.25"
+                                                class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" />
                                         </td>
                                         <td v-if="showCubeDetails"
-                                            class="py-2.5 px-3 font-mono font-bold text-xs text-slate-700 dark:text-slate-300">
+                                            class="py-2.5 px-3 tabular-nums font-bold text-xs text-slate-700 dark:text-slate-300">
                                             {{ spec.density ? `${spec.density}` : '-' }}
                                         </td>
                                         <td class="py-2.5 px-3">
-                                            <input v-model.number="spec.load_kn" @input="recalculateSpecimen(spec)" @blur="normalizeCubeInputs(spec)"
-                                                type="number" step="0.01" min="0.01" placeholder="e.g. 510.00"
-                                                class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border-2 border-indigo-300 dark:border-indigo-700/60 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 rounded-xl text-xs font-mono font-black text-indigo-700 dark:text-indigo-300 transition-colors" />
+                                            <input v-model.number="spec.load_kn" @input="recalculateSpecimen(spec)"
+                                                @blur="normalizeCubeInputs(spec)" type="number" step="0.01" min="0.01"
+                                                placeholder="e.g. 510.00"
+                                                class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border-2 border-indigo-300 dark:border-indigo-700/60 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 rounded-xl text-xs tabular-nums font-black text-indigo-700 dark:text-indigo-300 transition-colors" />
                                         </td>
                                         <td class="py-2.5 px-3">
                                             <span v-if="spec.strength_mpa"
-                                                class="inline-block px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono font-black text-indigo-700 dark:text-indigo-300 text-xs">
+                                                class="inline-block px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-lg tabular-nums font-black text-indigo-700 dark:text-indigo-300 text-xs">
                                                 {{ Number(spec.strength_mpa).toFixed(2) }}
                                             </span>
-                                            <span v-else class="text-slate-300 dark:text-slate-700 font-mono">-</span>
+                                            <span v-else class="text-slate-300 dark:text-slate-700 tabular-nums">-</span>
                                         </td>
                                         <td v-if="showCubeDetails" class="py-2.5 px-3">
                                             <BaseSelect v-model="spec.failure_type" :options="fracturePatternOptions"
@@ -1097,7 +1139,7 @@ const printCertificate = () => {
                                                 size="small" :filter="false" class="w-full" />
                                         </td>
                                         <td v-if="showCubeDetails"
-                                            class="py-2.5 px-3 text-center font-mono text-[11px]">
+                                            class="py-2.5 px-3 text-center tabular-nums text-xxs">
                                             <template v-if="concreteAvgStrength > 0 && spec.strength_mpa">
                                                 <span :class="[
                                                     'font-bold px-2 py-0.5 rounded-md inline-block',
@@ -1128,37 +1170,46 @@ const printCertificate = () => {
                         <!-- Elevated KPI Summary Dashboard -->
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <!-- KPI 1: Average Strength -->
-                            <div class="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-indigo-50/20 p-3.5 dark:border-indigo-900/50 dark:from-indigo-950/40 dark:to-transparent">
-                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                            <div
+                                class="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 to-indigo-50/20 p-3.5 dark:border-indigo-900/50 dark:from-indigo-950/40 dark:to-transparent">
+                                <div
+                                    class="flex items-center justify-between text-xxs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                                     <span>Average Strength</span>
-                                    <span class="font-mono text-slate-400">{{ concreteSpecimens.length }} Specimen{{ concreteSpecimens.length > 1 ? 's' : '' }}</span>
+                                    <span class="tabular-nums text-slate-400">{{ concreteSpecimens.length }} Specimen{{
+                                        concreteSpecimens.length > 1 ? 's' : '' }}</span>
                                 </div>
                                 <div class="mt-1 flex items-baseline gap-1.5">
-                                    <span class="font-mono text-2xl font-black text-indigo-700 dark:text-indigo-300">
+                                    <span class="tabular-nums text-2xl font-black text-indigo-700 dark:text-indigo-300">
                                         {{ concreteAvgStrength > 0 ? concreteAvgStrength : '-' }}
                                     </span>
                                     <span class="text-xs font-bold text-indigo-500">MPa</span>
                                 </div>
                                 <p class="mt-1 text-xxs text-slate-500">
-                                    Avg Density: <span class="font-mono font-semibold">{{ concreteAvgDensity > 0 ? concreteAvgDensity + ' kg/m³' : '-' }}</span>
+                                    Avg Density: <span class="tabular-nums font-semibold">{{ concreteAvgDensity > 0 ?
+                                        concreteAvgDensity + ' kg/m³' : '-' }}</span>
                                 </p>
                             </div>
 
                             <!-- KPI 2: Target Compliance -->
-                            <div class="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 dark:border-slate-700 dark:bg-slate-800/40">
-                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                            <div
+                                class="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 dark:border-slate-700 dark:bg-slate-800/40">
+                                <div
+                                    class="flex items-center justify-between text-xxs font-bold uppercase tracking-wider text-slate-500">
                                     <span>Target Benchmark</span>
-                                    <span v-if="percentTargetAchieved > 0" class="font-bold text-xs" :class="percentTargetAchieved >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
+                                    <span v-if="percentTargetAchieved > 0" class="font-bold text-xs"
+                                        :class="percentTargetAchieved >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
                                         {{ percentTargetAchieved }}% Achieved
                                     </span>
                                 </div>
                                 <div class="mt-1 flex items-baseline gap-1.5">
-                                    <span class="font-mono text-2xl font-black text-slate-800 dark:text-slate-100">
-                                        {{ targetStrength > 0 ? targetStrength : (minStrength > 0 ? minStrength : '-') }}
+                                    <span class="tabular-nums text-2xl font-black text-slate-800 dark:text-slate-100">
+                                        {{ targetStrength > 0 ? targetStrength : (minStrength > 0 ? minStrength : '-')
+                                        }}
                                     </span>
                                     <span class="text-xs font-bold text-slate-400">MPa Required</span>
                                 </div>
-                                <div v-if="targetStrength > 0" class="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                <div v-if="targetStrength > 0"
+                                    class="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                                     <div class="h-full rounded-full transition-all duration-500"
                                         :style="{ width: `${Math.min(100, percentTargetAchieved)}%` }"
                                         :class="concreteStatus === 'pass' ? 'bg-emerald-500' : 'bg-amber-500'"></div>
@@ -1166,13 +1217,13 @@ const printCertificate = () => {
                             </div>
 
                             <!-- KPI 3: IS 516 Outlier Analysis -->
-                            <div class="rounded-xl border p-3.5 transition-colors"
-                                :class="outlierAnalysis.hasOutlier
-                                    ? 'border-rose-200 bg-rose-50/60 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                                    : concreteAvgStrength > 0
+                            <div class="rounded-xl border p-3.5 transition-colors" :class="outlierAnalysis.hasOutlier
+                                ? 'border-rose-200 bg-rose-50/60 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                                : concreteAvgStrength > 0
                                     ? 'border-emerald-200 bg-emerald-50/60 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
                                     : 'border-slate-200/80 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-800/40'">
-                                <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
+                                <div
+                                    class="flex items-center justify-between text-xxs font-bold uppercase tracking-wider">
                                     <span>IS 516 Consistency</span>
                                     <span class="font-bold">±15% Limit</span>
                                 </div>
@@ -1180,11 +1231,11 @@ const printCertificate = () => {
                                     <i class="text-base"
                                         :class="outlierAnalysis.hasOutlier ? 'pi pi-exclamation-triangle text-rose-600' : concreteAvgStrength > 0 ? 'pi pi-check-circle text-emerald-600' : 'pi pi-info-circle text-slate-400'"></i>
                                     <span class="text-xs font-bold">
-                                        {{ outlierAnalysis.hasOutlier ? 'Outlier detected (> 15%)' : concreteAvgStrength > 0 ? 'Cubes within tolerance' : 'Awaiting 3 specimens' }}
+                                        {{ outlierAnalysis.hasOutlier ? 'Outlier detected (> 15%)' : concreteAvgStrength > 0 ? 'Cubes within tolerance' : 'Awaiting specimens' }}
                                     </span>
                                 </div>
                                 <p class="mt-1 text-xxs opacity-80">
-                                    {{ outlierAnalysis.hasOutlier ? 'Max deviation ' + outlierAnalysis.maxDeviationPct + '%. Retest is recommended.' : 'Individual deviation from average must not exceed ±15%.' }}
+                                    {{ outlierAnalysis.hasOutlier ? `Max deviation ${outlierAnalysis.maxDeviationPct}%. Retest is recommended.` : 'Individual deviation from average must not exceed ±15%.' }}
                                 </p>
                             </div>
                         </div>
@@ -1199,27 +1250,27 @@ const printCertificate = () => {
                             class="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                             <div class="flex flex-wrap items-center gap-1.5">
                                 <span
-                                    class="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Presets:</span>
+                                    class="text-xxs font-black uppercase tracking-wider text-slate-400 mr-1">Presets:</span>
                                 <button type="button" @click="loadGaugePreset('20mm')"
-                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-bold transition-colors cursor-pointer">
+                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-xxs font-bold transition-colors cursor-pointer">
                                     20mm Nominal
                                 </button>
                                 <button type="button" @click="loadGaugePreset('40mm')"
-                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-bold transition-colors cursor-pointer">
+                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-xxs font-bold transition-colors cursor-pointer">
                                     40mm Coarse
                                 </button>
                                 <button type="button" @click="loadGaugePreset('10mm')"
-                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-bold transition-colors cursor-pointer">
+                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-xxs font-bold transition-colors cursor-pointer">
                                     10mm Fine
                                 </button>
                                 <button type="button" @click="loadGaugePreset('clear')"
-                                    class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-rose-50 text-rose-600 dark:text-rose-400 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-bold transition-colors cursor-pointer">
+                                    class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-rose-50 text-rose-600 dark:text-rose-400 border border-slate-200 dark:border-slate-600 rounded-lg text-xxs font-bold transition-colors cursor-pointer">
                                     Clear
                                 </button>
                             </div>
                             <button type="button" @click="addGaugeRow"
                                 class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
-                                <i class="pi pi-plus text-[10px]"></i> Add Fraction
+                                <i class="pi pi-plus text-xxs"></i> Add Fraction
                             </button>
                         </div>
 
@@ -1240,12 +1291,12 @@ const printCertificate = () => {
                                         <th class="py-2.5 px-2 w-10"></th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 tabular-nums">
                                     <tr v-for="(r, idx) in gaugeRows" :key="idx"
                                         class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                         <td class="py-2 px-3 text-left">
                                             <input v-model="r.fraction_label" type="text" placeholder="e.g. 25-20 mm"
-                                                class="w-32 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-sans font-bold text-slate-800 dark:text-slate-200 text-xs" />
+                                                class="w-32 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-slate-800 dark:text-slate-200 text-xs" />
                                         </td>
                                         <td class="py-2 px-3">
                                             <input v-model.number="r.thickness_mm" type="number" step="0.01"
@@ -1288,30 +1339,30 @@ const printCertificate = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div
                                 class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <span class="text-[10px] uppercase font-bold text-slate-400">Total Sample Weight</span>
-                                <div class="text-base font-mono font-black text-slate-900 dark:text-white mt-0.5">{{
+                                <span class="text-xxs uppercase font-bold text-slate-400">Total Sample Weight</span>
+                                <div class="text-base tabular-nums font-black text-slate-900 dark:text-white mt-0.5">{{
                                     gaugeTotalWeight.toFixed(2) }} g</div>
                             </div>
                             <div
                                 class="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70">
                                 <span
-                                    class="text-[10px] uppercase font-bold text-indigo-800 dark:text-indigo-300">Flakiness
+                                    class="text-xxs uppercase font-bold text-indigo-800 dark:text-indigo-300">Flakiness
                                     Index (FI)</span>
-                                <div class="text-base font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
+                                <div class="text-base tabular-nums font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
                                     {{
                                         flakinessIndex }}%</div>
-                                <span class="text-[10px] text-indigo-600/80 dark:text-indigo-400/80">IS 383 Spec: &le;
+                                <span class="text-xxs text-indigo-600/80 dark:text-indigo-400/80">IS 383 Spec: &le;
                                     40%</span>
                             </div>
                             <div
                                 class="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70">
                                 <span
-                                    class="text-[10px] uppercase font-bold text-indigo-800 dark:text-indigo-300">Elongation
+                                    class="text-xxs uppercase font-bold text-indigo-800 dark:text-indigo-300">Elongation
                                     Index (EI)</span>
-                                <div class="text-base font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
+                                <div class="text-base tabular-nums font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
                                     {{
                                         elongationIndex }}%</div>
-                                <span class="text-[10px] text-indigo-600/80 dark:text-indigo-400/80">IS 383 Spec: &le;
+                                <span class="text-xxs text-indigo-600/80 dark:text-indigo-400/80">IS 383 Spec: &le;
                                     40%</span>
                             </div>
                         </div>
@@ -1326,23 +1377,23 @@ const printCertificate = () => {
                             class="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                             <div class="flex flex-wrap items-center gap-1.5">
                                 <span
-                                    class="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Presets:</span>
+                                    class="text-xxs font-black uppercase tracking-wider text-slate-400 mr-1">Presets:</span>
                                 <button type="button" @click="loadSievePreset('coarse')"
-                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-bold transition-colors cursor-pointer">
+                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-xxs font-bold transition-colors cursor-pointer">
                                     Coarse (40/20/10)
                                 </button>
                                 <button type="button" @click="loadSievePreset('fine')"
-                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-bold transition-colors cursor-pointer">
+                                    class="px-2.5 py-1 bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg text-xxs font-bold transition-colors cursor-pointer">
                                     Fine / M-Sand
                                 </button>
                                 <button type="button" @click="loadSievePreset('clear')"
-                                    class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-rose-50 text-rose-600 dark:text-rose-400 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-bold transition-colors cursor-pointer">
+                                    class="px-2 py-1 bg-white dark:bg-slate-700 hover:bg-rose-50 text-rose-600 dark:text-rose-400 border border-slate-200 dark:border-slate-600 rounded-lg text-xxs font-bold transition-colors cursor-pointer">
                                     Clear
                                 </button>
                             </div>
                             <button type="button" @click="addSieveRow"
                                 class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
-                                <i class="pi pi-plus text-[10px]"></i> Add Sieve Row
+                                <i class="pi pi-plus text-xxs"></i> Add Sieve Row
                             </button>
                         </div>
 
@@ -1361,12 +1412,12 @@ const printCertificate = () => {
                                         <th class="py-2.5 px-2 w-10"></th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 tabular-nums">
                                     <tr v-for="(r, idx) in sieveRows" :key="idx"
                                         class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                         <td class="py-2 px-3 text-left">
                                             <input v-model="r.sieve_label" type="text" placeholder="e.g. 20.00 mm"
-                                                class="w-28 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-sans font-bold text-slate-800 dark:text-slate-200 text-xs" />
+                                                class="w-28 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-slate-800 dark:text-slate-200 text-xs" />
                                         </td>
                                         <td class="py-2 px-3">
                                             <input @input="calculateSieveTable" v-model.number="r.weight_retained_gms"
@@ -1382,7 +1433,7 @@ const printCertificate = () => {
                                             r.cum_pct_passing.toFixed(1) }}%</td>
                                         <td class="py-2 px-3">
                                             <input v-model="r.is_limit" type="text" placeholder="e.g. 85-100"
-                                                class="w-24 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-center text-amber-700 dark:text-amber-400 text-xs" />
+                                                class="w-24 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg tabular-nums text-center text-amber-700 dark:text-amber-400 text-xs" />
                                         </td>
                                         <td class="py-2 px-2 text-center">
                                             <button type="button" @click="removeSieveRow(idx)"
@@ -1400,16 +1451,16 @@ const printCertificate = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div
                                 class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <span class="text-[10px] uppercase font-bold text-slate-400">Total Retained Mass</span>
-                                <div class="text-base font-mono font-black text-slate-900 dark:text-white mt-0.5">{{
+                                <span class="text-xxs uppercase font-bold text-slate-400">Total Retained Mass</span>
+                                <div class="text-base tabular-nums font-black text-slate-900 dark:text-white mt-0.5">{{
                                     sieveTotalWeight.toFixed(2) }} g</div>
                             </div>
                             <div
                                 class="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70">
                                 <span
-                                    class="text-[10px] uppercase font-bold text-indigo-800 dark:text-indigo-300">Fineness
+                                    class="text-xxs uppercase font-bold text-indigo-800 dark:text-indigo-300">Fineness
                                     Modulus (FM)</span>
-                                <div class="text-base font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
+                                <div class="text-base tabular-nums font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
                                     {{
                                         finenessModulus }}</div>
                             </div>
@@ -1423,35 +1474,35 @@ const printCertificate = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div
                                 class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 uppercase">Water Addition
+                                <label class="text-xxs font-bold text-slate-400 uppercase">Water Addition
                                     Time</label>
                                 <input v-model="timedData.water_added_time" type="time"
-                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
+                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold" />
                             </div>
                             <div
                                 class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 uppercase">Consistency (%)</label>
+                                <label class="text-xxs font-bold text-slate-400 uppercase">Consistency (%)</label>
                                 <input v-model.number="timedData.consistency_pct" type="number" step="any"
                                     placeholder="28.5"
-                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
+                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold" />
                             </div>
                             <div
                                 class="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70 space-y-1">
                                 <label
-                                    class="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase">Initial
+                                    class="text-xxs font-bold text-indigo-800 dark:text-indigo-300 uppercase">Initial
                                     Setting (min)</label>
                                 <input v-model.number="timedData.initial_setting_mins" type="number" step="1"
                                     placeholder="e.g. 135"
-                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-xs font-mono font-black text-indigo-700 dark:text-indigo-300" />
+                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-xs tabular-nums font-black text-indigo-700 dark:text-indigo-300" />
                             </div>
                             <div
                                 class="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70 space-y-1">
                                 <label
-                                    class="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase">Final
+                                    class="text-xxs font-bold text-indigo-800 dark:text-indigo-300 uppercase">Final
                                     Setting (min)</label>
                                 <input v-model.number="timedData.final_setting_mins" type="number" step="1"
                                     placeholder="e.g. 240"
-                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-xs font-mono font-black text-indigo-700 dark:text-indigo-300" />
+                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-xs tabular-nums font-black text-indigo-700 dark:text-indigo-300" />
                             </div>
                         </div>
 
@@ -1462,7 +1513,7 @@ const printCertificate = () => {
                                 <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Vicat Penetration
                                     Chronology</span>
                                 <button type="button" @click="addObservationLog"
-                                    class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer">
+                                    class="text-xxs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer">
                                     <i class="pi pi-plus text-[9px]"></i> Add Time Point
                                 </button>
                             </div>
@@ -1477,7 +1528,7 @@ const printCertificate = () => {
                                         <th class="py-2 px-2 text-center w-8"></th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 tabular-nums">
                                     <tr v-for="(obs, oIdx) in timedData.observations" :key="oIdx"
                                         class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                         <td class="py-1.5 px-3">
@@ -1499,7 +1550,7 @@ const printCertificate = () => {
                                         <td class="py-1.5 px-2 text-center">
                                             <button @click="removeObservationLog(oIdx)" type="button"
                                                 class="text-slate-400 hover:text-rose-600 p-1 cursor-pointer">
-                                                <i class="pi pi-times text-[10px]"></i>
+                                                <i class="pi pi-times text-xxs"></i>
                                             </button>
                                         </td>
                                     </tr>
@@ -1521,16 +1572,16 @@ const printCertificate = () => {
                                         class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Initial
                                         State (W1)</span>
                                     <span
-                                        class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">Wet
+                                        class="text-xxs font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">Wet
                                         / Saturated</span>
                                 </div>
-                                <div class="text-[11px] text-slate-500 dark:text-slate-400">Mass of Saturated
+                                <div class="text-xxs text-slate-500 dark:text-slate-400">Mass of Saturated
                                     Surface-Dry (SSD)
                                     Sample:</div>
                                 <div class="relative">
                                     <input v-model.number="beforeAfterData.initial_mass_g" type="number" step="0.01"
                                         placeholder="0.00"
-                                        class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-mono font-bold" />
+                                        class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm tabular-nums font-bold" />
                                     <span class="absolute right-3 top-2 text-xs text-slate-400 font-bold">g</span>
                                 </div>
                             </div>
@@ -1543,15 +1594,15 @@ const printCertificate = () => {
                                         class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Final
                                         State (W2)</span>
                                     <span
-                                        class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">Oven
+                                        class="text-xxs font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">Oven
                                         Dry (110°C)</span>
                                 </div>
-                                <div class="text-[11px] text-slate-500 dark:text-slate-400">Mass of Oven-Dried Sample:
+                                <div class="text-xxs text-slate-500 dark:text-slate-400">Mass of Oven-Dried Sample:
                                 </div>
                                 <div class="relative">
                                     <input v-model.number="beforeAfterData.final_mass_g" type="number" step="0.01"
                                         placeholder="0.00"
-                                        class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-mono font-bold" />
+                                        class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm tabular-nums font-bold" />
                                     <span class="absolute right-3 top-2 text-xs text-slate-400 font-bold">g</span>
                                 </div>
                             </div>
@@ -1563,14 +1614,14 @@ const printCertificate = () => {
                                     <span
                                         class="text-xs font-black uppercase tracking-wider text-indigo-950 dark:text-indigo-200">Water
                                         Absorption %</span>
-                                    <div class="text-[10px] text-indigo-700/80 dark:text-indigo-300/80 mt-0.5">Formula:
+                                    <div class="text-xxs text-indigo-700/80 dark:text-indigo-300/80 mt-0.5">Formula:
                                         ((W1 -
                                         W2) / W2) * 100</div>
                                 </div>
                                 <div class="space-y-1">
                                     <div class="flex items-baseline justify-between">
                                         <span class="text-xs text-slate-500">Loss / Gain:</span>
-                                        <span class="font-mono font-bold text-xs">{{ deltaMass ? `${deltaMass} g` : '-'
+                                        <span class="tabular-nums font-bold text-xs">{{ deltaMass ? `${deltaMass} g` : '-'
                                         }}</span>
                                     </div>
                                     <div
@@ -1578,7 +1629,7 @@ const printCertificate = () => {
                                         <span
                                             class="text-xs font-bold text-indigo-950 dark:text-indigo-200">Result:</span>
                                         <span
-                                            class="text-xl font-mono font-black text-indigo-700 dark:text-indigo-300">{{
+                                            class="text-xl tabular-nums font-black text-indigo-700 dark:text-indigo-300">{{
                                                 absorptionPercentage }}%</span>
                                     </div>
                                 </div>
@@ -1593,33 +1644,33 @@ const printCertificate = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div
                                 class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 uppercase">Container Tare (g)</label>
+                                <label class="text-xxs font-bold text-slate-400 uppercase">Container Tare (g)</label>
                                 <input v-model.number="densityData.container_tare_g" type="number" step="any"
                                     placeholder="e.g. 1250"
-                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
+                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold" />
                             </div>
                             <div
                                 class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 uppercase">Gross Weight (g)</label>
+                                <label class="text-xxs font-bold text-slate-400 uppercase">Gross Weight (g)</label>
                                 <input v-model.number="densityData.gross_mass_g" type="number" step="any"
                                     placeholder="e.g. 6150"
-                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
+                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold" />
                             </div>
                             <div
                                 class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 uppercase">Cylinder Volume
+                                <label class="text-xxs font-bold text-slate-400 uppercase">Cylinder Volume
                                     (cc)</label>
                                 <input v-model.number="densityData.cylinder_volume_cc" type="number" step="any"
                                     placeholder="3000"
-                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold" />
+                                    class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold" />
                             </div>
                             <div
                                 class="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/70 space-y-1">
-                                <label class="text-[10px] font-bold text-indigo-800 dark:text-indigo-300 uppercase">Bulk
+                                <label class="text-xxs font-bold text-indigo-800 dark:text-indigo-300 uppercase">Bulk
                                     Density
                                     (kg/m³)</label>
                                 <div
-                                    class="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-sm font-mono font-black text-indigo-700 dark:text-indigo-300">
+                                    class="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-lg text-sm tabular-nums font-black text-indigo-700 dark:text-indigo-300">
                                     {{ bulkDensityKgM3 }}
                                 </div>
                             </div>
@@ -1694,21 +1745,21 @@ const printCertificate = () => {
                                 <div class="flex items-center justify-between text-xs">
                                     <span class="font-bold text-slate-800 dark:text-slate-200">{{ m.name }}</span>
                                     <span v-if="m.unit"
-                                        class="text-indigo-600 font-mono font-bold text-[11px] bg-indigo-50 dark:bg-indigo-950 px-1.5 py-0.5 rounded">{{
+                                        class="text-indigo-600 tabular-nums font-bold text-xxs bg-indigo-50 dark:bg-indigo-950 px-1.5 py-0.5 rounded">{{
                                             m.unit }}</span>
                                 </div>
                                 <div v-if="m.is_calculated"
-                                    class="px-3 py-2 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 rounded-lg font-mono font-black text-indigo-700 dark:text-indigo-300 text-sm flex items-center justify-between">
+                                    class="px-3 py-2 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 rounded-lg tabular-nums font-black text-indigo-700 dark:text-indigo-300 text-sm flex items-center justify-between">
                                     <span>{{ getTrialCalculatedVal(0, m.code, m.formula) ?? '-' }}</span>
                                     <span v-if="m.unit" class="text-xs font-bold text-indigo-600/80">{{ m.unit }}</span>
                                 </div>
                                 <div v-else-if="m.data_type === 'time'">
                                     <input v-model="m.value_text" type="time"
-                                        class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-indigo-500" />
+                                        class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold focus:ring-2 focus:ring-indigo-500" />
                                 </div>
                                 <div v-else>
                                     <input v-model.number="m.value_numeric" type="number" step="any" placeholder="0.00"
-                                        class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-indigo-500" />
+                                        class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold focus:ring-2 focus:ring-indigo-500" />
                                 </div>
                             </div>
                         </div>
@@ -1731,18 +1782,18 @@ const printCertificate = () => {
                                         <th class="py-2.5 px-3 font-bold">Specimen #</th>
                                         <th v-for="p in parameters" :key="p.id" class="py-2.5 px-3">
                                             <span>{{ p.name }}</span>
-                                            <span v-if="p.unit" class="text-indigo-600 font-mono font-normal ml-1">({{
+                                            <span v-if="p.unit" class="text-indigo-600 tabular-nums font-normal ml-1">({{
                                                 p.unit
                                             }})</span>
                                         </th>
                                         <th class="py-2.5 px-2 text-center w-10"></th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 tabular-nums">
                                     <tr v-for="(trialRow, rIdx) in trialsData" :key="rIdx"
                                         class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                         <td
-                                            class="py-2 px-3 font-sans font-bold text-slate-700 dark:text-slate-300 text-xs">
+                                            class="py-2 px-3 font-bold text-slate-700 dark:text-slate-300 text-xs">
                                             Specimen #{{ rIdx + 1 }}</td>
                                         <td v-for="m in trialRow" :key="m.parameter_id" class="py-2 px-3">
                                             <span v-if="m.is_calculated"
@@ -1750,26 +1801,26 @@ const printCertificate = () => {
                                                 {{ getTrialCalculatedVal(rIdx, m.code, m.formula) ?? '-' }}
                                             </span>
                                             <input v-else-if="m.data_type === 'time'" v-model="m.value_text" type="time"
-                                                class="w-28 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-indigo-500" />
+                                                class="w-28 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold focus:ring-2 focus:ring-indigo-500" />
                                             <input v-else v-model.number="m.value_numeric" type="number" step="any"
                                                 placeholder="0.00"
-                                                class="w-24 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-indigo-500" />
+                                                class="w-24 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs tabular-nums font-bold focus:ring-2 focus:ring-indigo-500" />
                                         </td>
                                         <td class="py-2 px-2 text-center">
                                             <button @click="removeTrialRow(rIdx)" type="button"
                                                 class="text-slate-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
                                                 title="Remove row">
-                                                <i class="pi pi-times text-[10px]"></i>
+                                                <i class="pi pi-times text-xxs"></i>
                                             </button>
                                         </td>
                                     </tr>
                                     <tr
                                         class="bg-indigo-50/80 dark:bg-indigo-950/60 font-bold border-t-2 border-indigo-200 dark:border-indigo-800 text-xs">
                                         <td
-                                            class="py-2.5 px-3 font-sans text-indigo-900 dark:text-indigo-200 font-black">
+                                            class="py-2.5 px-3 text-indigo-900 dark:text-indigo-200 font-black">
                                             Average Result</td>
                                         <td v-for="p in parameters" :key="p.id"
-                                            class="py-2.5 px-3 font-mono font-black text-indigo-700 dark:text-indigo-300 text-sm">
+                                            class="py-2.5 px-3 tabular-nums font-black text-indigo-700 dark:text-indigo-300 text-sm">
                                             {{ getParameterAverage(p.id, Boolean(p.is_calculated), p.formula, p.code) }}
                                         </td>
                                         <td></td>
@@ -1780,7 +1831,7 @@ const printCertificate = () => {
 
                         <button type="button" @click="addTrialRow"
                             class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 pt-1 cursor-pointer">
-                            <i class="pi pi-plus text-[10px]"></i> Add Specimen Trial
+                            <i class="pi pi-plus text-xxs"></i> Add Specimen Trial
                         </button>
                     </div>
 
@@ -1811,7 +1862,7 @@ const printCertificate = () => {
                         class="bg-indigo-50/30 border border-indigo-100 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 p-5 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:bg-white print:text-black print:p-0 print:border-b-2 print:border-black print:rounded-none">
                         <div>
                             <div
-                                class="text-[10px] font-black uppercase tracking-widest text-indigo-300 print:text-slate-600">
+                                class="text-xxs font-black uppercase tracking-widest text-indigo-300 print:text-slate-600">
                                 Quality Assurance & Materials Testing Laboratory
                             </div>
                             <h2
@@ -1827,10 +1878,10 @@ const printCertificate = () => {
 
                         <div class="sm:text-right shrink-0">
                             <div
-                                class="text-[10px] font-bold text-indigo-300 print:text-slate-600 uppercase tracking-wider">
+                                class="text-xxs font-bold text-indigo-300 print:text-slate-600 uppercase tracking-wider">
                                 Report Number</div>
                             <div
-                                class="text-sm font-mono font-bold text-indigo-700 dark:text-indigo-300 print:text-black">
+                                class="text-sm tabular-nums font-bold text-indigo-700 dark:text-indigo-300 print:text-black">
                                 {{
                                     test.test_no }}
                             </div>
@@ -1858,7 +1909,7 @@ const printCertificate = () => {
                             class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700 space-y-1.5 print:bg-transparent print:border print:border-slate-300">
                             <div class="flex justify-between">
                                 <span class="text-slate-500">Sample Number:</span>
-                                <span class="font-mono font-bold text-slate-800 dark:text-slate-200">{{
+                                <span class="tabular-nums font-bold text-slate-800 dark:text-slate-200">{{
                                     test.sample?.sample_no
                                     || 'N/A' }}</span>
                             </div>
@@ -1920,17 +1971,17 @@ const printCertificate = () => {
                             <div
                                 class="grid grid-cols-1 gap-4 rounded-lg bg-slate-50 p-4 sm:grid-cols-3 dark:bg-slate-800">
                                 <div>
-                                    <p class="text-[10px] font-semibold text-slate-500">Average strength</p>
+                                    <p class="text-xxs font-semibold text-slate-500">Average strength</p>
                                     <p class="mt-1 text-lg font-semibold text-indigo-700 dark:text-indigo-300">{{
                                         concreteAvgStrength }} <span class="text-xs font-normal">MPa</span></p>
                                 </div>
                                 <div>
-                                    <p class="text-[10px] font-semibold text-slate-500">Target strength</p>
+                                    <p class="text-xxs font-semibold text-slate-500">Target strength</p>
                                     <p class="mt-1 text-sm font-medium">{{ test.target_strength != null ?
                                         test.target_strength + ' MPa' : '-' }}</p>
                                 </div>
                                 <div>
-                                    <p class="text-[10px] font-semibold text-slate-500">Cube variation</p>
+                                    <p class="text-xxs font-semibold text-slate-500">Cube variation</p>
                                     <p class="mt-1 text-sm font-medium">{{ outlierAnalysis.hasOutlier ? `Review
                                         required` : `Within limits` }}</p>
                                 </div>
@@ -1956,10 +2007,10 @@ const printCertificate = () => {
                                     <th class="py-2.5 px-3">Elongation Pass (g)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 tabular-nums">
                                 <tr v-for="(r, idx) in gaugeRows" :key="idx">
                                     <td
-                                        class="py-2 px-3 text-left font-sans font-bold text-slate-800 dark:text-slate-200">
+                                        class="py-2 px-3 text-left font-bold text-slate-800 dark:text-slate-200">
                                         {{
                                             r.fraction_label }}</td>
                                     <td class="py-2 px-3 text-slate-500">{{ Number(r.thickness_mm).toFixed(2) }} mm</td>
@@ -1973,13 +2024,13 @@ const printCertificate = () => {
                                 <tr
                                     class="bg-indigo-50/80 dark:bg-indigo-950/60 font-bold border-t-2 border-indigo-200 dark:border-indigo-800 text-xs">
                                     <td colspan="3"
-                                        class="py-2.5 px-3 text-left font-sans text-indigo-950 dark:text-indigo-200 font-black">
+                                        class="py-2.5 px-3 text-left text-indigo-950 dark:text-indigo-200 font-black">
                                         Evaluated Indices (IS: 383 &le; 40%)</td>
                                     <td class="py-2.5 px-3 font-semibold">{{ gaugeTotalWeight.toFixed(2) }} g</td>
-                                    <td class="py-2.5 px-3 font-mono font-black text-indigo-700 dark:text-indigo-300">
+                                    <td class="py-2.5 px-3 tabular-nums font-black text-indigo-700 dark:text-indigo-300">
                                         Flakiness:
                                         {{ flakinessIndex }}%</td>
-                                    <td class="py-2.5 px-3 font-mono font-black text-indigo-700 dark:text-indigo-300">
+                                    <td class="py-2.5 px-3 tabular-nums font-black text-indigo-700 dark:text-indigo-300">
                                         Elongation: {{ elongationIndex }}%</td>
                                 </tr>
                             </tbody>
@@ -2004,10 +2055,10 @@ const printCertificate = () => {
                                     <th class="py-2.5 px-3 text-center">Status</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 tabular-nums">
                                 <tr v-for="(r, idx) in sieveRows" :key="idx">
                                     <td
-                                        class="py-2 px-3 text-left font-sans font-bold text-slate-800 dark:text-slate-200">
+                                        class="py-2 px-3 text-left font-bold text-slate-800 dark:text-slate-200">
                                         {{
                                             r.sieve_label }}</td>
                                     <td class="py-2 px-3 font-semibold">{{ (r.weight_retained_gms || 0).toFixed(2) }}
@@ -2017,7 +2068,7 @@ const printCertificate = () => {
                                     </td>
                                     <td class="py-2 px-3 font-black text-indigo-600 dark:text-indigo-400">{{
                                         r.cum_pct_passing.toFixed(1) }}%</td>
-                                    <td class="py-2 px-3 font-sans text-amber-700 dark:text-amber-300 font-bold">{{
+                                    <td class="py-2 px-3 text-amber-700 dark:text-amber-300 font-bold">{{
                                         r.is_limit
                                     }}</td>
                                     <td class="py-2 px-3 text-center font-sans">
@@ -2030,11 +2081,11 @@ const printCertificate = () => {
                                 <tr
                                     class="bg-indigo-50/80 dark:bg-indigo-950/60 font-bold border-t-2 border-indigo-200 dark:border-indigo-800 text-xs">
                                     <td
-                                        class="py-2.5 px-3 text-left font-sans text-indigo-950 dark:text-indigo-200 font-black">
+                                        class="py-2.5 px-3 text-left text-indigo-950 dark:text-indigo-200 font-black">
                                         Total Sample Mass: {{ sieveTotalWeight.toFixed(2) }} g</td>
                                     <td colspan="2"></td>
                                     <td colspan="3"
-                                        class="py-2.5 px-3 font-mono font-black text-indigo-700 dark:text-indigo-300">
+                                        class="py-2.5 px-3 tabular-nums font-black text-indigo-700 dark:text-indigo-300">
                                         Fineness
                                         Modulus (FM): {{ finenessModulus }}</td>
                                 </tr>
@@ -2050,30 +2101,30 @@ const printCertificate = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                             <div
                                 class="p-3 bg-indigo-50/60 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900">
-                                <div class="text-[10px] uppercase font-bold text-indigo-800 dark:text-indigo-300">Normal
+                                <div class="text-xxs uppercase font-bold text-indigo-800 dark:text-indigo-300">Normal
                                     Consistency</div>
-                                <div class="text-base font-mono font-black text-indigo-950 dark:text-white mt-0.5">{{
+                                <div class="text-base tabular-nums font-black text-indigo-950 dark:text-white mt-0.5">{{
                                     timedData.consistency_pct }}%</div>
                             </div>
                             <div
                                 class="p-3 bg-indigo-50/60 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900">
-                                <div class="text-[10px] uppercase font-bold text-indigo-800 dark:text-indigo-300">
+                                <div class="text-xxs uppercase font-bold text-indigo-800 dark:text-indigo-300">
                                     Initial
                                     Setting Time (IST)</div>
-                                <div class="text-base font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
+                                <div class="text-base tabular-nums font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
                                     {{
                                         timedData.initial_setting_mins || '135' }} mins</div>
-                                <div class="text-[10px] text-slate-500 mt-0.5">IS 269 Req: &ge; 30 mins (Pass)</div>
+                                <div class="text-xxs text-slate-500 mt-0.5">IS 269 Req: &ge; 30 mins (Pass)</div>
                             </div>
                             <div
                                 class="p-3 bg-indigo-50/60 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900">
-                                <div class="text-[10px] uppercase font-bold text-indigo-800 dark:text-indigo-300">Final
+                                <div class="text-xxs uppercase font-bold text-indigo-800 dark:text-indigo-300">Final
                                     Setting
                                     Time (FST)</div>
-                                <div class="text-base font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
+                                <div class="text-base tabular-nums font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
                                     {{
                                         timedData.final_setting_mins || '240' }} mins</div>
-                                <div class="text-[10px] text-slate-500 mt-0.5">IS 269 Req: &le; 600 mins (Pass)</div>
+                                <div class="text-xxs text-slate-500 mt-0.5">IS 269 Req: &le; 600 mins (Pass)</div>
                             </div>
                         </div>
                     </div>
@@ -2086,29 +2137,29 @@ const printCertificate = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                             <div
                                 class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold">Wet / SSD Mass (W1)</div>
-                                <div class="text-sm font-mono font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
+                                <div class="text-xxs text-slate-500 uppercase font-bold">Wet / SSD Mass (W1)</div>
+                                <div class="text-sm tabular-nums font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
                                     beforeAfterData.initial_mass_g ?? '2000.00' }} g</div>
                             </div>
                             <div
                                 class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold">Oven Dry Mass (W2)</div>
-                                <div class="text-sm font-mono font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
+                                <div class="text-xxs text-slate-500 uppercase font-bold">Oven Dry Mass (W2)</div>
+                                <div class="text-sm tabular-nums font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
                                     beforeAfterData.final_mass_g ?? '1980.00' }} g</div>
                             </div>
                             <div
                                 class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold">Net Difference</div>
-                                <div class="text-sm font-mono font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
+                                <div class="text-xxs text-slate-500 uppercase font-bold">Net Difference</div>
+                                <div class="text-sm tabular-nums font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
                                     deltaMass
                                     ?? '20.00' }} g</div>
                             </div>
                             <div
                                 class="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800">
-                                <div class="text-[10px] text-indigo-800 dark:text-indigo-300 uppercase font-bold">
+                                <div class="text-xxs text-indigo-800 dark:text-indigo-300 uppercase font-bold">
                                     Evaluated
                                     Absorption</div>
-                                <div class="text-base font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
+                                <div class="text-base tabular-nums font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
                                     {{
                                         absorptionPercentage }}%</div>
                             </div>
@@ -2123,28 +2174,28 @@ const printCertificate = () => {
                         <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                             <div
                                 class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold">Container Tare</div>
-                                <div class="text-sm font-mono font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
+                                <div class="text-xxs text-slate-500 uppercase font-bold">Container Tare</div>
+                                <div class="text-sm tabular-nums font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
                                     densityData.container_tare_g ?? '1250' }} g</div>
                             </div>
                             <div
                                 class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold">Gross Mass</div>
-                                <div class="text-sm font-mono font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
+                                <div class="text-xxs text-slate-500 uppercase font-bold">Gross Mass</div>
+                                <div class="text-sm tabular-nums font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
                                     densityData.gross_mass_g ?? '6150' }} g</div>
                             </div>
                             <div
                                 class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <div class="text-[10px] text-slate-500 uppercase font-bold">Net Sample Mass</div>
-                                <div class="text-sm font-mono font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
+                                <div class="text-xxs text-slate-500 uppercase font-bold">Net Sample Mass</div>
+                                <div class="text-sm tabular-nums font-black text-slate-900 dark:text-slate-100 mt-0.5">{{
                                     netSampleMass || '4900' }} g</div>
                             </div>
                             <div
                                 class="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800">
-                                <div class="text-[10px] text-indigo-800 dark:text-indigo-300 uppercase font-bold">
+                                <div class="text-xxs text-indigo-800 dark:text-indigo-300 uppercase font-bold">
                                     Calculated
                                     Bulk Density</div>
-                                <div class="text-base font-mono font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
+                                <div class="text-base tabular-nums font-black text-indigo-700 dark:text-indigo-300 mt-0.5">
                                     {{
                                         bulkDensityKgM3 }} kg/m³</div>
                             </div>
@@ -2161,10 +2212,10 @@ const printCertificate = () => {
                                 class="p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
                                 <div>
                                     <div class="font-bold text-slate-800 dark:text-slate-200">{{ item.item }}</div>
-                                    <div class="text-slate-500 text-[11px]">{{ item.notes }}</div>
+                                    <div class="text-slate-500 text-xxs">{{ item.notes }}</div>
                                 </div>
                                 <span
-                                    class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    class="text-xxs font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                                     {{ item.rating }}
                                 </span>
                             </div>
@@ -2193,9 +2244,9 @@ const printCertificate = () => {
                                     class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                                     <td class="py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100">{{ p.name }}
                                     </td>
-                                    <td class="py-2.5 px-3 font-mono text-slate-500">{{ p.unit || '-' }}</td>
+                                    <td class="py-2.5 px-3 tabular-nums text-slate-500">{{ p.unit || '-' }}</td>
                                     <td
-                                        class="py-2.5 px-4 font-mono font-black text-slate-900 dark:text-slate-100 text-sm">
+                                        class="py-2.5 px-4 tabular-nums font-black text-slate-900 dark:text-slate-100 text-sm">
                                         {{ getParameterAverage(p.id, Boolean(p.is_calculated), p.formula, p.code) }}
                                     </td>
                                     <td class="py-2.5 px-4 text-slate-500 font-semibold text-xs">
@@ -2203,7 +2254,7 @@ const printCertificate = () => {
                                     </td>
                                     <td class="py-2.5 px-3 text-center">
                                         <span
-                                            class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 uppercase">
+                                            class="text-xxs font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 uppercase">
                                             Pass
                                         </span>
                                     </td>
@@ -2213,7 +2264,7 @@ const printCertificate = () => {
                     </div>
 
                     <div v-if="test.remarks" class="border-t border-slate-100 pt-4 dark:border-slate-700">
-                        <h3 class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Remarks</h3>
+                        <h3 class="text-xxs font-semibold uppercase tracking-wider text-slate-500">Remarks</h3>
                         <p class="mt-2 whitespace-pre-line text-sm">{{ test.remarks }}</p>
                     </div>
                 </div>
@@ -2229,7 +2280,7 @@ const printCertificate = () => {
     }
 
     .qc-execute :deep(thead th) {
-        @apply bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800 dark:text-slate-400;
+        @apply bg-slate-50 px-4 py-3 text-xxs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800 dark:text-slate-400;
     }
 
     .qc-execute :deep(tbody td) {

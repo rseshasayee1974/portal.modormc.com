@@ -12,6 +12,7 @@ use App\Http\Controllers\UserMobileAccessController;
 use App\Http\Middleware\EnforceBrowserSession;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\MobilePlantContext;
+use App\Http\Middleware\MobileAppPlantContext;
 use App\Http\Middleware\MobileSalesScope;
 use App\Http\Middleware\SetEntityContext;
 use App\Models\CrmLead;
@@ -273,6 +274,184 @@ class SalesMobileApiTest extends TestCase
         $nonAdminToken = User::find(1)->createToken('web-login')->plainTextToken;
         $this->withHeaders(['Authorization' => 'Bearer '.$nonAdminToken]);
         $this->putJson($url, $this->quote())->assertForbidden();
+    }
+
+    public function test_admin_quotation_create_submit_and_delete_use_consistent_access_and_permissions(): void
+    {
+        $id = $this->postJson('/api/mobile/v1/quotations', $this->quote())->assertCreated()->json('data.id');
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $adminToken = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken]);
+        $url = '/api/mobile/quotations/'.$id;
+        $this->getJson($url)->assertOk();
+        $this->postJson($url.'/submit')->assertOk()->assertJsonPath('data.mobile_submitted_by', 2);
+        $this->deleteJson($url)->assertUnprocessable();
+        DB::table('mm_quotations')->where('id', $id)->update(['status' => Quotation::STATUS_REJECTED]);
+        $this->deleteJson($url)->assertOk();
+        $this->getJson($url)->assertNotFound()->assertJsonMissingPath('exception');
+        $created = $this->postJson('/api/mobile/quotations', $this->quote())->assertCreated()->json('data.id');
+        $this->getJson('/api/mobile/quotations/'.$created)->assertOk();
+        $permission = DB::table('mm_permissions')->where('name', 'QUOTATION.UPDATE')->value('id');
+        DB::table('mm_role_has_permissions')->where('role_id', 2)->where('permission_id', $permission)->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->putJson('/api/mobile/quotations/'.$created, $this->quote())->assertForbidden()
+            ->assertJsonPath('message', 'Required permission: QUOTATION.UPDATE');
+        $this->postJson('/api/mobile/quotations/'.$created.'/submit')->assertForbidden();
+        $nonAdminToken = User::find(1)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$nonAdminToken]);
+        $this->postJson('/api/mobile/quotations', $this->quote())->assertForbidden();
+        $this->deleteJson('/api/mobile/quotations/'.$created)->assertForbidden();
+    }
+
+    public function test_submit_lookup_failures_have_safe_responses_and_correlated_diagnostics(): void
+    {
+        \Illuminate\Support\Facades\Log::spy();
+        config(['app.debug' => true]);
+        $id = $this->postJson('/api/mobile/v1/quotations', $this->quote())->assertCreated()->json('data.id');
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
+        $response = $this->postJson('/api/mobile/v1/quotations/'.$id.'/submit')->assertNotFound()
+            ->assertJsonStructure(['message', 'error_reference'])
+            ->assertJsonMissingPath('exception')->assertJsonMissingPath('trace')
+            ->assertJsonMissingPath('record_created_by')->assertJsonMissingPath('query');
+        $reference = $response->json('error_reference');
+        $this->assertTrue(Str::isUuid($reference));
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')->with('Quotation submission lookup failed.',
+            \Mockery::on(fn ($context) => $context['error_reference'] === $reference
+                && $context['quotation_id'] === $id
+                && $context['record_in_selected_plant'] === true
+                && (int) $context['record_created_by'] === 1
+                && str_contains($context['query'], 'created_by')
+                && !isset($context['authorization'])))->once();
+        $this->assertEquals(Quotation::STATUS_DRAFT, DB::table('mm_quotations')->where('id', $id)->value('status'));
+        $this->postJson('/api/mobile/v1/quotations/99999/submit')->assertNotFound()
+            ->assertJsonStructure(['error_reference']);
+    }
+
+    public function test_mobile_errors_are_json_without_accept_header_and_hide_model_details(): void
+    {
+        $this->withHeaders(['Accept' => 'text/html', 'Authorization' => '']);
+        $this->get('/api/mobile/v1/orders/999')->assertUnauthorized()->assertJsonPath('message', 'Unauthenticated.');
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token]);
+        foreach (['leads' => 'Lead', 'quotations' => 'Quotation', 'customers' => 'Customer', 'sites' => 'Site'] as $resource => $label) {
+            $this->get('/api/mobile/v1/'.$resource.'/999')->assertNotFound()
+                ->assertJsonPath('message', $label.' not found or unavailable to you in the selected plant.')
+                ->assertJsonMissingPath('exception')->assertJsonMissingPath('trace');
+        }
+        $this->post('/api/mobile/v1/quotations', [])->assertUnprocessable()
+            ->assertJsonValidationErrors(['patron_id', 'site_id', 'items']);
+    }
+
+    public function test_mobile_unexpected_failures_have_a_logged_reference_without_private_details(): void
+    {
+        \Illuminate\Support\Facades\Log::spy();
+        Route::get('/api/mobile/testing-audit-failure', fn () => throw new \RuntimeException('Private SQL credentials'));
+        config(['app.debug' => true]);
+        $response = $this->getJson('/api/mobile/testing-audit-failure')->assertStatus(500)
+            ->assertJsonPath('message', 'Server error.')->assertJsonStructure(['error_reference']);
+        $reference = $response->json('error_reference');
+        $this->assertTrue(Str::isUuid($reference));
+        $this->assertStringNotContainsString('Private SQL credentials', $response->getContent());
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('error')->with('Mobile API request failed.',
+            \Mockery::on(fn ($context) => $context['error_reference'] === $reference && $context['exception'] instanceof \RuntimeException));
+        Route::get('/api/mobile/testing-audit-http-error', fn () => abort(500, 'Private HTTP failure'));
+        $httpError = $this->getJson('/api/mobile/testing-audit-http-error')->assertStatus(500)
+            ->assertJsonPath('message', 'Server error.')->assertJsonStructure(['error_reference']);
+        $this->assertTrue(Str::isUuid($httpError->json('error_reference')));
+        $this->assertStringNotContainsString('Private HTTP failure', $httpError->getContent());
+        Route::get('/api/mobile/testing-audit-accounting-error', fn () => throw new \App\Exceptions\AccountingException('Configure the accounting period.'));
+        $this->getJson('/api/mobile/testing-audit-accounting-error')->assertUnprocessable()
+            ->assertJsonPath('message', 'Configure the accounting period.')->assertJsonMissingPath('error_reference');
+    }
+
+    public function test_whatsapp_connection_failure_returns_specific_safe_error(): void
+    {
+        $this->app->instance(AuthController::class, new class extends AuthController
+        {
+            protected function sendWhatsAppTemplate(string $licenseNumber, string $apiKey, string $contact, string $template, string $paramString): array
+            {
+                return ['error' => true, 'error_code' => 'WHATSAPP_CONNECTION_ERROR'];
+            }
+        });
+        $this->postJson('/api/mobile/v1/auth/send-otp', ['mobile' => '9876543210'])->assertStatus(503)
+            ->assertJsonPath('message', 'Unable to connect to the WhatsApp provider. Try again shortly.')
+            ->assertJsonPath('error_code', 'WHATSAPP_CONNECTION_ERROR')->assertJsonMissingPath('data.challenge_id');
+    }
+
+    public function test_mobile_route_targets_exist_and_malformed_record_ids_return_safe_json(): void
+    {
+        $checked = 0;
+        foreach (app('router')->getRoutes() as $route) {
+            if (!str_starts_with($route->uri(), 'api/mobile/')) continue;
+            $action = $route->getAction('controller');
+            if ($action) {
+                [$controller, $method] = explode('@', $action);
+                $this->assertTrue(method_exists($controller, $method), $action);
+                $this->assertTrue((new \ReflectionMethod($controller, $method))->isPublic(), $action);
+            }
+            if (!$route->parameterNames()) continue;
+            Cache::flush();
+            $url = '/'.preg_replace('/\{[^}]+\}/', 'not-a-number', $route->uri());
+            foreach (array_diff($route->methods(), ['HEAD']) as $method) {
+                $this->json($method, $url)->assertNotFound()
+                    ->assertJsonMissingPath('exception')->assertJsonMissingPath('trace');
+                $checked++;
+            }
+        }
+        $this->assertGreaterThan(30, $checked);
+    }
+
+    public function test_paginated_mobile_endpoints_reject_invalid_page_numbers(): void
+    {
+        foreach (['leads', 'follow-ups', 'quotations', 'orders', 'customer-pos', 'batch-schedules',
+            'customers', 'sites', 'mix-designs', 'taxes', 'notifications', 'attendances'] as $path) {
+            foreach (['0', '-1', 'abc', '1.5'] as $page) {
+                $this->getJson('/api/mobile/v1/'.$path.'?page='.$page)->assertUnprocessable()
+                    ->assertJsonValidationErrors('page');
+            }
+        }
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $token = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        foreach (['leads', 'quotations', 'orders', 'customer-pos', 'batch-schedules', 'customers', 'sites', 'mix-designs', 'taxes'] as $path) {
+            $this->getJson('/api/mobile/'.$path.'?page=abc')->assertUnprocessable()->assertJsonValidationErrors('page');
+        }
+    }
+
+    public function test_failed_quotation_update_rolls_back_and_returns_support_reference(): void
+    {
+        $id = $this->postJson('/api/mobile/v1/quotations', array_replace($this->quote(), ['notes' => 'Original']))
+            ->assertCreated()->json('data.id');
+        $items = DB::table('mm_quotation_items')->where('quotation_id', $id)->get()->toArray();
+        DB::unprepared("CREATE TRIGGER reject_quote_items BEFORE INSERT ON mm_quotation_items BEGIN SELECT RAISE(ABORT, 'Private database failure'); END");
+        $response = $this->putJson('/api/mobile/v1/quotations/'.$id, array_replace($this->quote(), ['notes' => 'Changed']))
+            ->assertStatus(500)->assertJsonStructure(['message', 'error_reference'])
+            ->assertJsonMissingPath('exception')->assertJsonMissingPath('trace');
+        $this->assertTrue(Str::isUuid($response->json('error_reference')));
+        $this->assertStringNotContainsString('Private database failure', $response->getContent());
+        $this->assertDatabaseHas('mm_quotations', ['id' => $id, 'notes' => 'Original']);
+        $this->assertEquals($items, DB::table('mm_quotation_items')->where('quotation_id', $id)->get()->toArray());
+    }
+
+    public function test_reporting_rejects_inaccessible_plant_and_locked_accounts_cannot_log_in(): void
+    {
+        $service = \Mockery::mock(DashboardService::class);
+        $this->app->instance(DashboardService::class, $service);
+        foreach (['dashboard', 'sales-summary', 'sales-details', 'customer-details', 'top-mix-designs',
+            'truck-dispatch-details', 'dispatch-details', 'dispatch-batching-summary', 'stock-details'] as $path) {
+            $this->getJson('/api/mobile/'.$path.'?plant_id=2')->assertForbidden()
+                ->assertJsonPath('message', 'The requested plant does not exist or is not accessible to your account.');
+        }
+        DB::table('mm_users')->where('id', 1)->update(['lockout_until' => now()->addHour()]);
+        $this->postJson('/api/mobile/login', ['email' => 'user1@example.test', 'password' => 'Test-password-123'])
+            ->assertForbidden()->assertJsonPath('message', 'Your account is locked. Try again after the lockout expires.');
+        $token = User::find(1)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        $this->getJson('/api/mobile/orders')->assertForbidden();
+        $this->getJson('/api/mobile/user')->assertForbidden();
+        $this->getJson('/api/mobile/users')->assertForbidden();
+        DB::table('mm_users')->where('id', 1)->update(['lockout_until' => null, 'is_active' => 0]);
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        $this->getJson('/api/mobile/user')->assertForbidden()->assertJsonPath('message', 'Your account is inactive.');
     }
 
     public function test_admin_quotation_rejection_plant_scope_and_role_checks(): void
@@ -1757,10 +1936,11 @@ class SalesMobileApiTest extends TestCase
 
     public function test_route_group_declares_sales_scope_once_after_plant_context(): void
     {
-        $plantMiddleware = MobilePlantContext::class;
         $scopeMiddleware = MobileSalesScope::class;
         $scopedRoutes = 0;
         foreach ($this->mobileEndpoints() as [$method, $url, $middleware]) {
+            $plantMiddleware = in_array(MobileAppPlantContext::class, $middleware, true)
+                ? MobileAppPlantContext::class : MobilePlantContext::class;
             if (! in_array($plantMiddleware, $middleware, true)) {
                 $this->assertNotContains($scopeMiddleware, $middleware, $url);
 
@@ -1877,7 +2057,8 @@ class SalesMobileApiTest extends TestCase
         }
         config(['app.debug' => true]);
         $service->shouldReceive('getSalesSummary')->once()->andThrow(new \RuntimeException('Private database details'));
-        $this->getJson('/api/mobile/sales-summary')->assertStatus(500)->assertExactJson(['message' => 'Server error.']);
+        $this->getJson('/api/mobile/sales-summary')->assertStatus(500)->assertJsonPath('message', 'Server error.')
+            ->assertJsonStructure(['error_reference'])->assertJsonMissingPath('exception')->assertJsonMissingPath('trace');
     }
 
     public function test_mobile_user_management_valid_crud_and_invalid_input(): void
@@ -1931,10 +2112,13 @@ class SalesMobileApiTest extends TestCase
     public function test_every_plant_scoped_route_rejects_missing_and_foreign_plant(): void
     {
         foreach ($this->mobileEndpoints() as [$method,$url,$middleware]) {
-            if (! in_array(MobilePlantContext::class, $middleware)) {
+            if (! in_array(MobilePlantContext::class, $middleware) && ! in_array(MobileAppPlantContext::class, $middleware)) {
                 continue;
             }
-            $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => ''])->json($method, $url, [])
+            Cache::flush();
+            $token = in_array(MobileAppPlantContext::class, $middleware)
+                ? User::find(1)->createToken('web-login')->plainTextToken : $this->token;
+            $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Plant-Id' => ''])->json($method, $url, [])
                 ->assertUnprocessable()->assertJsonValidationErrors('plant_id');
             $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => '2'])->json($method, $url, [])->assertForbidden();
         }
@@ -2273,6 +2457,94 @@ class SalesMobileApiTest extends TestCase
         $this->withHeaders(['Authorization' => ''])->postJson($url)->assertUnauthorized();
     }
 
+    public function test_order_status_filters_support_single_csv_and_array_values_without_broadening_access(): void
+    {
+        foreach (range(0, 4) as $status) {
+            DB::table('mm_sales_orders')->insert([
+                'id' => 800 + $status, 'plant_id' => 1, 'sales_executive_id' => 1,
+                'customer_id' => 1, 'order_no' => 'FILTER-'.$status, 'status' => $status,
+            ]);
+        }
+        DB::table('mm_sales_orders')->insert([
+            ['id' => 900, 'plant_id' => 2, 'sales_executive_id' => 1, 'status' => 0],
+            ['id' => 901, 'plant_id' => 1, 'sales_executive_id' => 2, 'status' => 0],
+        ]);
+        foreach (['/api/mobile/v1/orders', '/api/mobile/orders'] as $url) {
+            if ($url === '/api/mobile/orders') {
+                DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+                $this->withHeaders(['Authorization' => 'Bearer '.User::find(2)->createToken('web-login')->plainTextToken]);
+            }
+            foreach ([['0', [800]], ['0,1,2,3', [800, 801, 802, 803]], [' 1, 3,1 ', [801, 803]], [[2, 4], [802, 804]]] as [$status, $expected]) {
+                if ($url === '/api/mobile/orders' && in_array(800, $expected)) $expected[] = 901;
+                $response = $this->getJson($url.'?'.http_build_query(['status' => $status, 'per_page' => 2]))->assertOk();
+                $this->assertSame(count($expected), $response->json('data.total'));
+                $ids = $response->json('data.data.*.id');
+                $this->assertEmpty(array_diff($ids, $expected));
+                $this->assertNotContains(900, $ids);
+            }
+            foreach (['5', '1,nope', '0,', '1.5', ['1', 'nope'], [['1']]] as $invalid) {
+                $this->getJson($url.'?'.http_build_query(['status' => $invalid]))->assertUnprocessable()->assertJsonValidationErrors('status');
+            }
+        }
+    }
+
+    public function test_customer_po_update_persists_screenshot_fields_and_recalculates_client_totals(): void
+    {
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $adminToken = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken]);
+        $body = ['patron_id' => 1, 'site_id' => 1, 'order_date' => '2026-10-23', 'is_tax_inclusive' => false,
+            'items' => [['mix_design_id' => 1, 'quantity' => 1, 'rate' => 100, 'tax_id' => 1]]];
+        $id = $this->postJson('/api/mobile/customer-pos', $body)->assertCreated()->json('data.id');
+        $url = '/api/mobile/customer-pos/'.$id;
+        $itemId = $this->getJson($url)->assertOk()->json('data.items.0.id');
+        $payload = array_replace($body, [
+            'reference' => 'CPO-UPDATED-0056', 'prefix' => 'CPO-UPDATED-',
+            'order_date' => '2026-12-24', 'status' => CustomerPO::STATUS_COMPLETED,
+            'customer_po_reference' => 'POSTMAN-UPDATED', 'notes' => 'Postman admin API test', 'total_qty' => 2,
+            'items' => [['id' => $itemId, 'mix_design_id' => 1, 'quantity' => '2.00', 'rate' => '12.00',
+                'tax_id' => 1, 'concrete_pump' => 'pump', 'pump_rate' => '123.00',
+                'untaxed_amount' => 999999, 'tax_amount' => 999999, 'amount_total' => 999999]],
+        ]);
+        $this->putJson($url, $payload)->assertOk()
+            ->assertJsonPath('data.reference', 'CPO-UPDATED-0056')
+            ->assertJsonPath('data.prefix', 'CPO-UPDATED-')
+            ->assertJsonPath('data.customer_po_reference', 'POSTMAN-UPDATED')
+            ->assertJsonPath('data.notes', 'Postman admin API test')
+            ->assertJsonPath('data.status', CustomerPO::STATUS_COMPLETED)
+            ->assertJsonPath('data.items.0.id', $itemId)
+            ->assertJsonPath('data.items.0.concrete_pump', 'pump')
+            ->assertJsonPath('data.amount_untaxed', 147)
+            ->assertJsonPath('data.amount_tax', 26.46)
+            ->assertJsonPath('data.amount_total', 173.46);
+        $this->assertDatabaseHas('mm_customer_pos', [
+            'id' => $id, 'reference' => 'CPO-UPDATED-0056', 'customer_po_reference' => 'POSTMAN-UPDATED',
+            'notes' => 'Postman admin API test', 'status' => CustomerPO::STATUS_COMPLETED,
+        ]);
+        $this->assertSame('2026-12-24', CustomerPO::findOrFail($id)->order_date->format('Y-m-d'));
+        $this->assertDatabaseHas('mm_customer_po_items', [
+            'id' => $itemId, 'quantity' => '2.00', 'rate' => '12.00', 'pump_rate' => '123.00', 'amount_total' => '173.46',
+        ]);
+        $this->getJson($url)->assertOk()->assertJsonPath('data.notes', 'Postman admin API test')
+            ->assertJsonPath('data.status', CustomerPO::STATUS_COMPLETED);
+        $this->patchJson($url, ['notes' => 'Cannot revise completed PO'])->assertUnprocessable();
+    }
+
+    public function test_customer_po_reference_validation_and_nullable_fields_are_persisted(): void
+    {
+        $body = ['patron_id' => 1, 'site_id' => 1, 'order_date' => '2026-10-23', 'is_tax_inclusive' => false,
+            'items' => [['mix_design_id' => 1, 'quantity' => 1, 'rate' => 100, 'tax_id' => 1]]];
+        $first = $this->postJson('/api/mobile/v1/customer-pos', $body)->assertCreated()->json('data');
+        $second = $this->postJson('/api/mobile/v1/customer-pos', $body)->assertCreated()->json('data');
+        $url = '/api/mobile/v1/customer-pos/'.$second['id'];
+        $this->putJson($url, ['reference' => $first['reference']])->assertUnprocessable()->assertJsonValidationErrors('reference');
+        $this->putJson($url, ['reference' => $second['reference'], 'notes' => 'Edit me', 'customer_po_reference' => 'External PO'])
+            ->assertOk()->assertJsonPath('data.notes', 'Edit me')->assertJsonPath('data.customer_po_reference', 'External PO');
+        $this->patchJson($url, ['notes' => null, 'customer_po_reference' => null])
+            ->assertOk()->assertJsonPath('data.notes', null)->assertJsonPath('data.customer_po_reference', null);
+        $this->assertDatabaseHas('mm_customer_pos', ['id' => $second['id'], 'notes' => null, 'customer_po_reference' => null]);
+    }
+
     public function test_admin_commercial_crud_conversion_and_failure_boundaries(): void
     {
         DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
@@ -2287,6 +2559,32 @@ class SalesMobileApiTest extends TestCase
             ->assertJsonPath('data.amount_total', 1180)->json('data.id');
         $this->getJson('/api/mobile/customer-pos')->assertOk()->assertJsonPath('data.total', 1);
         $item = $this->getJson('/api/mobile/customer-pos/'.$po)->assertOk()->json('data.items.0.id');
+        $this->patchJson('/api/mobile/customer-pos/'.$po, ['status' => CustomerPO::STATUS_CONFIRMED])
+            ->assertOk()->assertJsonPath('data.status', CustomerPO::STATUS_CONFIRMED);
+        $this->patchJson('/api/mobile/customer-pos/'.$po, ['status' => 99])->assertUnprocessable()
+            ->assertJsonValidationErrors(['status']);
+        $this->patchJson('/api/mobile/customer-pos/'.$po, ['total_qty' => 5])->assertUnprocessable()
+            ->assertJsonValidationErrors(['total_qty']);
+        $this->patchJson('/api/mobile/customer-pos/'.$po, [
+            'total_qty' => 10, 'items' => [array_merge($body['items'][0], ['id' => $item])],
+        ])->assertOk()->assertJsonPath('data.items.0.id', $item);
+        $this->patchJson('/api/mobile/customer-pos/'.$po, [
+            'items' => [array_merge($body['items'][0], ['id' => 999999])],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['items.0.id']);
+        $this->patchJson('/api/mobile/customer-pos/'.$po, ['notes' => 'Updated delivery instructions'])
+            ->assertOk()->assertJsonPath('data.notes', 'Updated delivery instructions')
+            ->assertJsonPath('data.patron_id', 1)->assertJsonPath('data.site_id', 1)
+            ->assertJsonPath('data.items.0.id', $item)->assertJsonPath('data.amount_total', 1180);
+        $this->putJson('/api/mobile/customer-pos/'.$po, ['customer_po_reference' => 'REVISED-PO'])
+            ->assertOk()->assertJsonPath('data.customer_po_reference', 'REVISED-PO')
+            ->assertJsonPath('data.items.0.id', $item);
+        $this->patchJson('/api/mobile/customer-pos/'.$po, ['patron_id' => null])->assertUnprocessable()
+            ->assertJsonPath('errors.patron_id.0', 'The patron id field is required.');
+        $this->patchJson('/api/mobile/customer-pos/'.$po, ['items' => []])->assertUnprocessable();
+        $this->patchJson('/api/mobile/customer-pos/'.$po, ['is_tax_inclusive' => true])
+            ->assertOk()->assertJsonPath('data.amount_total', 1000);
+        $this->patchJson('/api/mobile/customer-pos/'.$po, ['is_tax_inclusive' => false])
+            ->assertOk()->assertJsonPath('data.amount_total', 1180);
         DB::table('mm_customer_pos')->where('id', $po)->update(['sales_executive_id' => 1]);
         $this->putJson('/api/mobile/customer-pos/'.$po, $body)->assertOk()->assertJsonPath('data.sales_executive_id', 1);
         $item = $this->getJson('/api/mobile/customer-pos/'.$po)->assertOk()->json('data.items.0.id');
@@ -2417,7 +2715,8 @@ class SalesMobileApiTest extends TestCase
         $this->putJson('/api/mobile/v1/quotations/'.$id, $this->quote())->assertUnprocessable()
             ->assertExactJson(['message' => 'Quotation is pending approval and cannot be edited or deleted.']);
         Route::get('/api/mobile/v1/testing-server-error', fn () => throw new \RuntimeException('Private database details'));
-        $this->getJson('/api/mobile/v1/testing-server-error')->assertStatus(500)->assertExactJson(['message' => 'Server error.']);
+        $this->getJson('/api/mobile/v1/testing-server-error')->assertStatus(500)->assertJsonPath('message', 'Server error.')
+            ->assertJsonStructure(['error_reference'])->assertJsonMissingPath('exception')->assertJsonMissingPath('trace');
         $this->postJson('/api/mobile/v1/auth/login', [])->assertUnprocessable()->assertJsonValidationErrors(['email', 'password'])
             ->assertJsonMissingPath('trace')->assertJsonMissingPath('exception')->assertJsonMissingPath('file');
     }

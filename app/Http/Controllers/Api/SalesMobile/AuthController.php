@@ -52,6 +52,7 @@ class AuthController extends Controller
             $errorCode = $result['error_code'] ?? 'WHATSAPP_SEND_FAILED';
             $message = match ($errorCode) {
                 'WHATSAPP_TLS_ERROR' => 'The WhatsApp provider HTTPS certificate does not validate.',
+                'WHATSAPP_CONNECTION_ERROR' => 'Unable to connect to the WhatsApp provider. Try again shortly.',
                 'WHATSAPP_CONFIG_ERROR' => 'WhatsApp OTP endpoint, credentials or template are not configured.',
                 default => 'Unable to submit WhatsApp verification code. Contact your administrator.',
             };

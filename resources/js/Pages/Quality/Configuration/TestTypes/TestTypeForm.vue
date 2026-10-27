@@ -168,7 +168,7 @@ const concreteGradeOptions = computed(() => {
 // Product Options
 const productOptions = computed(() => {
     return (props.products || []).map((p: any) => ({
-        label: p.title ? `${p.title}${p.code ? ' (' + p.code + ')' : ''}` : (p.name || p.code),
+        label: p.title ? `${p.title}` : (p.name),
         value: p.id,
         raw: p
     }));
@@ -450,7 +450,7 @@ const onConcreteGradeChange = () => {
 
     // Auto-select corresponding product if available and not already set
     if (!form.product_id && props.products?.length) {
-        const found = props.products.find((p: any) => 
+        const found = props.products.find((p: any) =>
             p.title?.toLowerCase().includes(form.concrete_grade.toLowerCase()) ||
             p.code?.toLowerCase().includes(form.concrete_grade.toLowerCase())
         );
@@ -458,8 +458,8 @@ const onConcreteGradeChange = () => {
             form.product_id = found.id;
         } else {
             // Pick first RMC product
-            const rmc = props.products.find((p: any) => 
-                p.title?.toLowerCase().includes('rmc') || 
+            const rmc = props.products.find((p: any) =>
+                p.title?.toLowerCase().includes('rmc') ||
                 p.title?.toLowerCase().includes('ready mix')
             );
             if (rmc) form.product_id = rmc.id;
@@ -855,16 +855,15 @@ const submit = () => {
 </script>
 
 <template>
-    <div
-        :class="[
-            'transition-all bg-white dark:bg-gray-900 border rounded-2xl shadow-xs overflow-hidden',
-            isExpansion
-                ? 'border-amber-300/80 dark:border-amber-800/80 border-l-4 border-l-amber-500 dark:border-l-amber-400'
-                : 'border-gray-200/90 dark:border-gray-800'
-        ]"
-    >
+    <div :class="[
+        'transition-all bg-white dark:bg-gray-900 border rounded-2xl shadow-xs overflow-hidden',
+        isExpansion
+            ? 'border-amber-300/80 dark:border-amber-800/80 border-l-4 border-l-amber-500 dark:border-l-amber-400'
+            : 'border-gray-200/90 dark:border-gray-800'
+    ]">
         <!-- CARD HEADER -->
-        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-gray-50/70 via-white to-white dark:from-gray-800/60 dark:via-gray-900 dark:to-gray-900">
+        <div
+            class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-gray-50/70 via-white to-white dark:from-gray-800/60 dark:via-gray-900 dark:to-gray-900">
             <div>
                 <h2 class="text-base font-bold text-gray-900 dark:text-gray-100 tracking-tight">
                     {{ isEditing ? 'Edit Product Grade QC Master' : 'Define Product Grade QC Master' }}
@@ -875,13 +874,12 @@ const submit = () => {
             </div>
 
             <!-- Active Switch -->
-            <div class="flex items-center gap-2.5 px-3 py-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200/80 dark:border-gray-700/80 shadow-2xs self-start sm:self-auto">
+            <div
+                class="flex items-center gap-2.5 px-3 py-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200/80 dark:border-gray-700/80 shadow-2xs self-start sm:self-auto">
                 <ToggleSwitch v-model="form.is_active" class="scale-80 origin-left" />
-                <span
-                    class="text-xs font-bold select-none cursor-pointer"
+                <span class="text-xs font-bold select-none cursor-pointer"
                     :class="form.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'"
-                    @click="form.is_active = !form.is_active"
-                >
+                    @click="form.is_active = !form.is_active">
                     {{ form.is_active ? 'Active' : 'Inactive' }}
                 </span>
             </div>
@@ -898,7 +896,8 @@ const submit = () => {
                 </div>
 
                 <!-- Validation Error Alert Banner -->
-                <div v-if="form.errors.name" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-center gap-2.5 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+                <div v-if="form.errors.name"
+                    class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-center gap-2.5 text-rose-700 dark:text-rose-300 text-xs font-semibold">
                     <i class="pi pi-exclamation-circle text-rose-500 text-sm"></i>
                     <span>{{ form.errors.name }}</span>
                 </div>
@@ -907,50 +906,26 @@ const submit = () => {
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     <!-- Category * -->
                     <div>
-                        <BaseSelect
-                            v-model="form.category"
-                            label="Category"
-                            required
-                            :options="categoryOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Category"
-                            :error="form.errors.category"
-                            panelWidth="13rem"
-                        />
+                        <BaseSelect v-model="form.category" label="Category" required :options="categoryOptions"
+                            optionLabel="label" optionValue="value" placeholder="Select Category"
+                            :error="form.errors.category" panelWidth="13rem" />
                     </div>
 
                     <!-- If Category is Concrete: Show material_type (Concrete Grade) -->
                     <div v-if="isConcrete">
-                        <BaseSelect
-                            v-model="form.concrete_grade"
-                            label="Material Type"
-                            required
-                            :options="concreteGradeOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Material Type (e.g. M30)"
-                            @change="onConcreteGradeChange"
-                            :error="form.errors.concrete_grade || form.errors.material_type"
-                            panelWidth="14rem"
-                        />
+                        <BaseSelect v-model="form.concrete_grade" label="Material Type" required
+                            :options="concreteGradeOptions" optionLabel="label" optionValue="value"
+                            placeholder="Select Material Type (e.g. M30)" @change="onConcreteGradeChange"
+                            :error="form.errors.concrete_grade || form.errors.material_type" panelWidth="14rem" />
                     </div>
 
                     <!-- If Category is Raw Material: Show Product Dropdown & Raw Material Type Switcher -->
                     <template v-else-if="isRawMaterial">
                         <div>
-                            <BaseSelect
-                                v-model="form.product_id"
-                                label="Product"
-                                required
-                                :options="productOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="Select Product"
-                                @change="onProductChange"
-                                :error="form.errors.product_id || form.errors.material_type"
-                                panelWidth="15rem"
-                            />
+                            <BaseSelect v-model="form.product_id" label="Product" required :options="productOptions"
+                                optionLabel="label" optionValue="value" placeholder="Select Product"
+                                @change="onProductChange" :error="form.errors.product_id || form.errors.material_type"
+                                panelWidth="15rem" />
                         </div>
 
                         <!-- Raw Material Subtype (Aggregate / Cement) -->
@@ -958,22 +933,17 @@ const submit = () => {
                             <label class="block text-[10px] font-bold text-gray-700 dark:text-gray-200 mb-1">
                                 Raw Material Type
                             </label>
-                            <div class="flex items-center p-0.5 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 h-[38px]">
-                                <button
-                                    type="button"
-                                    @click="rawMaterialType = 'Aggregate'"
+                            <div
+                                class="flex items-center p-0.5 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 h-[38px]">
+                                <button type="button" @click="rawMaterialType = 'Aggregate'"
                                     :class="rawMaterialType === 'Aggregate' ? 'bg-white dark:bg-gray-700 text-amber-700 dark:text-amber-300 font-bold shadow-2xs' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 font-medium'"
-                                    class="flex-1 py-1.5 px-2 text-xs rounded-lg transition-all text-center cursor-pointer flex items-center justify-center gap-1.5"
-                                >
+                                    class="flex-1 py-1.5 px-2 text-xs rounded-lg transition-all text-center cursor-pointer flex items-center justify-center gap-1.5">
                                     <!-- <i class="pi pi-box text-[10px]"></i> -->
                                     <span>Aggregate</span>
                                 </button>
-                                <button
-                                    type="button"
-                                    @click="rawMaterialType = 'Cement'"
+                                <button type="button" @click="rawMaterialType = 'Cement'"
                                     :class="rawMaterialType === 'Cement' ? 'bg-white dark:bg-gray-700 text-amber-700 dark:text-amber-300 font-bold shadow-2xs' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 font-medium'"
-                                    class="flex-1 py-1.5 px-2 text-xs rounded-lg transition-all text-center cursor-pointer flex items-center justify-center gap-1.5"
-                                >
+                                    class="flex-1 py-1.5 px-2 text-xs rounded-lg transition-all text-center cursor-pointer flex items-center justify-center gap-1.5">
                                     <!-- <i class="pi pi-filter text-[10px]"></i> -->
                                     <span>Cement</span>
                                 </button>
@@ -983,56 +953,31 @@ const submit = () => {
 
                     <!-- If Category is Other: Show Material / Item Name Input -->
                     <div v-else>
-                        <BaseInput
-                            v-model="form.concrete_grade"
-                            label="Material / Item Name"
-                            required
+                        <BaseInput v-model="form.concrete_grade" label="Material / Item Name" required
                             placeholder="Enter Material Name"
-                            :error="form.errors.concrete_grade || form.errors.material_type"
-                        />
+                            :error="form.errors.concrete_grade || form.errors.material_type" />
                     </div>
 
                     <!-- QC Test Type * -->
                     <div>
-                        <BaseSelect
-                            v-model="form.qc_test_type"
-                            label="QC Test Type"
-                            required
-                            :options="qcTestTypeOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Test Type"
-                            @change="onQcTestTypeChange"
-                            :error="form.errors.qc_test_type || form.errors.name"
-                            panelWidth="19rem"
-                        />
+                        <BaseSelect v-model="form.qc_test_type" label="QC Test Type" required
+                            :options="qcTestTypeOptions" optionLabel="label" optionValue="value"
+                            placeholder="Select Test Type" @change="onQcTestTypeChange"
+                            :error="form.errors.qc_test_type || form.errors.name" panelWidth="19rem" />
                     </div>
 
                     <!-- Grade Strength (Only for Concrete) -->
                     <div v-if="isConcrete">
-                        <BaseInput
-                            v-model="form.grade_strength"
-                            label="Grade Strength"
-                            placeholder="30.00"
-                            @blur="onGradeStrengthChange"
-                            :error="form.errors.grade_strength"
-                        />
+                        <BaseInput v-model="form.grade_strength" label="Grade Strength" placeholder="30.00"
+                            @blur="onGradeStrengthChange" :error="form.errors.grade_strength" />
                     </div>
 
                     <!-- Standard -->
                     <div>
-                        <BaseSelect
-                            v-model="form.standard"
-                            label="Standard"
-                            :options="standardOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Standard"
-                            :filter="true"
+                        <BaseSelect v-model="form.standard" label="Standard" :options="standardOptions"
+                            optionLabel="label" optionValue="value" placeholder="Select Standard" :filter="true"
                             filterPlaceholder="Search IS / ASTM / DIN..."
-                            :error="form.errors.standard || form.errors.standard_reference"
-                            panelWidth="26rem"
-                        />
+                            :error="form.errors.standard || form.errors.standard_reference" panelWidth="26rem" />
                     </div>
 
                     <!-- Unit -->
@@ -1041,55 +986,35 @@ const submit = () => {
                             <label class="block text-[10px] font-bold text-gray-700 dark:text-gray-200">
                                 Unit
                             </label>
-                            <button  v-if="$page.props.auth.user.roles[0].id<=3"
-                                type="button"
+                            <button v-if="$page.props.auth.user.roles[0].id <= 3" type="button"
                                 @click="openAddUnitModal"
                                 class="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline cursor-pointer"
-                                title="Add new unit to qc_units"
-                            >
+                                title="Add new unit to qc_units">
                                 <i class="pi pi-plus text-[9px]"></i>
                                 <span>Add Unit</span>
                             </button>
                         </div>
-                        <BaseSelect
-                            v-model="form.unit"
-                            :options="unitOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Unit (e.g. MPa)"
-                            :filter="true"
-                            :error="form.errors.unit"
-                            panelWidth="14rem"
-                        />
+                        <BaseSelect v-model="form.unit" :options="unitOptions" optionLabel="label" optionValue="value"
+                            placeholder="Select Unit (e.g. MPa)" :filter="true" :error="form.errors.unit"
+                            panelWidth="14rem" />
                     </div>
                 </div>
 
                 <!-- Specimen Configuration Row (Dynamic ERP Architecture) -->
-                <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div
+                    class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                        <BaseInput step="1"
-                            v-model.number="form.specimen_count"
-                            type="number"
-                            label="Specimen Count (Trials)"
-                            placeholder="e.g. 3"
-                            :error="form.errors.specimen_count"
-                        />
+                        <BaseInput step="1" v-model.number="form.specimen_count" type="number"
+                            label="Specimen Count (Trials)" placeholder="e.g. 3" :error="form.errors.specimen_count" />
                     </div>
                     <div>
-                        <BaseInput
-                            v-model="form.specimen_shape"
-                            label="Specimen Shape"
-                            placeholder="Cube / Cylinder / Prism"
-                            :error="form.errors.specimen_shape"
-                        />
+                        <BaseInput v-model="form.specimen_shape" label="Specimen Shape"
+                            placeholder="Cube / Cylinder / Prism" :error="form.errors.specimen_shape" />
                     </div>
                     <div>
-                        <BaseInput
-                            v-model="form.specimen_dimensions"
-                            label="Specimen Dimensions"
+                        <BaseInput v-model="form.specimen_dimensions" label="Specimen Dimensions"
                             placeholder="e.g. 150 × 150 × 150 mm or 70.6 × 70.6 mm"
-                            :error="form.errors.specimen_dimensions"
-                        />
+                            :error="form.errors.specimen_dimensions" />
                     </div>
                 </div>
             </div>
@@ -1100,29 +1025,24 @@ const submit = () => {
                         <span class="text-xs font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             QC Parameters
                         </span>
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
                             {{ parameters.length }}
                         </span>
                     </div>
 
                     <div class="flex items-center gap-2">
                         <!-- Load Standard IS Preset Button -->
-                        <button
-                            type="button"
-                            @click="loadStandardPreset()"
+                        <button type="button" @click="loadStandardPreset()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200/80 dark:border-amber-800/80 transition-all cursor-pointer shadow-2xs"
-                            title="Load standard IS 4031 / IS 516 parameters and formulas"
-                        >
+                            title="Load standard IS 4031 / IS 516 parameters and formulas">
                             <i class="pi pi-bolt text-[11px] text-amber-600"></i>
                             <span>Load Standard IS Preset</span>
                         </button>
 
                         <!-- Add Parameter Button -->
-                        <button
-                            type="button"
-                            @click="openAddParameter"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/80 transition-all cursor-pointer shadow-2xs"
-                        >
+                        <button type="button" @click="openAddParameter"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/80 transition-all cursor-pointer shadow-2xs">
                             <i class="pi pi-plus text-[10px]"></i>
                             <span>Add Parameter</span>
                         </button>
@@ -1133,7 +1053,8 @@ const submit = () => {
                 <div class="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-2xs">
                     <table class="w-full text-left text-xs">
                         <thead>
-                            <tr class="bg-gray-50/80 dark:bg-gray-800/60 border-b border-gray-200/80 dark:border-gray-800 text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider text-[11px]">
+                            <tr
+                                class="bg-gray-50/80 dark:bg-gray-800/60 border-b border-gray-200/80 dark:border-gray-800 text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider text-[11px]">
                                 <th class="py-3 px-4 w-10 text-center">#</th>
                                 <th class="py-3 px-4">Parameter & Variable Code</th>
                                 <th class="py-3 px-4 w-28">Scope</th>
@@ -1143,82 +1064,76 @@ const submit = () => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
-                            <tr
-                                v-for="(param, idx) in parameters"
-                                :key="idx"
-                                class="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors"
-                            >
+                            <tr v-for="(param, idx) in parameters" :key="idx"
+                                class="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors">
                                 <td class="py-3 px-4 text-center font-mono text-gray-400 font-semibold">
                                     {{ idx + 1 }}
                                 </td>
                                 <td class="py-3 px-4">
                                     <div class="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                                         <span>{{ param.name }}</span>
-                                        <span v-if="param.is_required" class="text-rose-500 font-bold" title="Required">*</span>
+                                        <span v-if="param.is_required" class="text-rose-500 font-bold"
+                                            title="Required">*</span>
                                     </div>
                                     <div class="text-[10px] font-mono text-gray-400 font-semibold mt-0.5">
                                         {{ param.code }}
                                     </div>
                                 </td>
                                 <td class="py-3 px-4">
-                                    <span
-                                        v-if="param.scope === 'specimen'"
-                                        class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/80"
-                                    >
+                                    <span v-if="param.scope === 'specimen'"
+                                        class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/80">
                                         Specimen Level
                                     </span>
-                                    <span
-                                        v-else-if="param.scope === 'summary'"
-                                        class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/80"
-                                    >
+                                    <span v-else-if="param.scope === 'summary'"
+                                        class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/80">
                                         Summary Level
                                     </span>
-                                    <span
-                                        v-else
-                                        class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/80"
-                                    >
+                                    <span v-else
+                                        class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/80">
                                         Test Level
                                     </span>
                                 </td>
                                 <td class="py-3 px-4">
                                     <div class="flex items-center gap-1.5">
-                                        <span class="font-mono text-[11px] text-gray-500 capitalize">{{ param.data_type || 'decimal' }}</span>
-                                        <span v-if="param.unit" class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono font-bold text-[10px] text-gray-700 dark:text-gray-300">
+                                        <span class="font-mono text-[11px] text-gray-500 capitalize">{{ param.data_type
+                                            || 'decimal'
+                                        }}</span>
+                                        <span v-if="param.unit"
+                                            class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono font-bold text-[10px] text-gray-700 dark:text-gray-300">
                                             {{ param.unit }}
                                         </span>
                                     </div>
                                 </td>
                                 <td class="py-3 px-4">
                                     <!-- Calculated Formula -->
-                                    <div v-if="param.is_calculated && param.formula" class="inline-flex items-center gap-1.5 font-mono text-[11px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-md border border-purple-200/80 dark:border-purple-800/80 mb-1">
+                                    <div v-if="param.is_calculated && param.formula"
+                                        class="inline-flex items-center gap-1.5 font-mono text-[11px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-md border border-purple-200/80 dark:border-purple-800/80 mb-1">
                                         <i class="pi pi-calculator text-[10px]"></i>
                                         <span>{{ param.formula }}</span>
                                     </div>
                                     <!-- Acceptance rule / targets -->
-                                    <div v-if="param.target || param.min || param.max" class="text-[11px] font-mono text-gray-600 dark:text-gray-300 flex flex-wrap gap-2">
-                                        <span v-if="param.target" class="text-indigo-600 dark:text-indigo-400 font-bold">Target: {{ param.target }}</span>
+                                    <div v-if="param.target || param.min || param.max"
+                                        class="text-[11px] font-mono text-gray-600 dark:text-gray-300 flex flex-wrap gap-2">
+                                        <span v-if="param.target"
+                                            class="text-indigo-600 dark:text-indigo-400 font-bold">Target: {{
+                                                param.target }}</span>
                                         <span v-if="param.min">Min: <strong>{{ param.min }}</strong></span>
                                         <span v-if="param.max">Max: <strong>{{ param.max }}</strong></span>
                                         <span v-if="param.age" class="text-gray-400 font-sans">({{ param.age }})</span>
                                     </div>
-                                    <span v-if="!param.is_calculated && !param.target && !param.min && !param.max" class="text-gray-400 text-xs">
+                                    <span v-if="!param.is_calculated && !param.target && !param.min && !param.max"
+                                        class="text-gray-400 text-xs">
                                         —
                                     </span>
                                 </td>
                                 <td class="py-3 px-4 text-right">
                                     <div class="inline-flex items-center gap-1">
-                                        <button
-                                            type="button"
-                                            @click="openEditParameter(idx)"
-                                            class="px-2 py-1 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
-                                        >
+                                        <button type="button" @click="openEditParameter(idx)"
+                                            class="px-2 py-1 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer">
                                             Edit
                                         </button>
-                                        <button
-                                            type="button"
-                                            @click="deleteParameter(idx)"
-                                            class="px-2 py-1 text-xs font-semibold rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer"
-                                        >
+                                        <button type="button" @click="deleteParameter(idx)"
+                                            class="px-2 py-1 text-xs font-semibold rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer">
                                             Delete
                                         </button>
                                     </div>
@@ -1229,7 +1144,11 @@ const submit = () => {
                             <tr v-if="parameters.length === 0">
                                 <td colspan="6" class="py-8 text-center text-gray-400 text-xs">
                                     <i class="pi pi-inbox text-lg mb-1 block"></i>
-                                    No parameters added yet. Click <span class="font-bold text-amber-600 dark:text-amber-400 cursor-pointer" @click="loadStandardPreset()">[⚡ Load Standard IS Preset]</span> or <span class="font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer" @click="openAddParameter">[+ Add Parameter]</span>.
+                                    No parameters added yet. Click <span
+                                        class="font-bold text-amber-600 dark:text-amber-400 cursor-pointer"
+                                        @click="loadStandardPreset()">[⚡ Load Standard IS Preset]</span> or <span
+                                        class="font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer"
+                                        @click="openAddParameter">[+ Add Parameter]</span>.
                                 </td>
                             </tr>
                         </tbody>
@@ -1238,38 +1157,28 @@ const submit = () => {
             </div>
 
             <!-- FOOTER ACTIONS -->
-            <div class="px-6 py-4 bg-gray-50/80 dark:bg-gray-800/60 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <div
+                class="px-6 py-4 bg-gray-50/80 dark:bg-gray-800/60 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
                 <!-- Left: Reset -->
-                <button
-                    type="button"
-                    @click="resetForm"
-                    class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors cursor-pointer shadow-2xs"
-                >
+                <button type="button" @click="resetForm"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors cursor-pointer shadow-2xs">
                     <i class="pi pi-refresh text-xs"></i>
                     <span>Reset</span>
                 </button>
 
                 <!-- Right: Cancel & Save Master -->
                 <div class="flex items-center gap-2.5">
-                    <button
-                        v-if="isExpansion"
-                        type="button"
-                        @click="onCancel"
-                        class="px-4 py-2 text-xs font-semibold rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                    >
+                    <button v-if="isExpansion" type="button" @click="onCancel"
+                        class="px-4 py-2 text-xs font-semibold rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-200/60 dark:hover:bg-gray-700 transition-colors cursor-pointer">
                         Cancel
                     </button>
 
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        :class="[
-                            'px-5 py-2 text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 text-white',
-                            isEditing
-                                ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-amber-500/20'
-                                : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-indigo-600/20'
-                        ]"
-                    >
+                    <button type="submit" :disabled="form.processing" :class="[
+                        'px-5 py-2 text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 text-white',
+                        isEditing
+                            ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-amber-500/20'
+                            : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-indigo-600/20'
+                    ]">
                         <i v-if="form.processing" class="pi pi-spin pi-spinner text-xs"></i>
                         <i v-else :class="isEditing ? 'pi pi-check' : 'pi pi-save'" class="text-xs"></i>
                         <span>{{ isEditing ? 'Update Master' : 'Save Master' }}</span>
@@ -1279,32 +1188,19 @@ const submit = () => {
         </form>
 
         <!-- ADD / EDIT PARAMETER MODAL (Dynamic Industrial QC Architecture) -->
-        <Dialog
-            v-model:visible="showParamModal"
-            modal
+        <Dialog v-model:visible="showParamModal" modal
             :header="editingParamIndex !== null ? 'Edit QC Parameter' : 'Add QC Parameter'"
-            :style="{ width: '600px', maxWidth: '95vw' }"
-            class="rounded-2xl"
-        >
+            :style="{ width: '600px', maxWidth: '95vw' }" class="rounded-2xl">
             <div class="space-y-4 py-2 text-xs">
                 <!-- 1. Identification -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <BaseInput
-                            v-model="paramForm.name"
-                            label="Parameter Name"
-                            required
-                            placeholder="e.g. Residue Weight, Crushing Load"
-                            @input="onParamNameInput"
-                        />
+                        <BaseInput v-model="paramForm.name" label="Parameter Name" required
+                            placeholder="e.g. Residue Weight, Crushing Load" @input="onParamNameInput" />
                     </div>
                     <div>
-                        <BaseInput
-                            v-model="paramForm.code"
-                            label="Variable Code"
-                            required
-                            placeholder="e.g. RESIDUE_WT, CRUSHING_LOAD"
-                        />
+                        <BaseInput v-model="paramForm.code" label="Variable Code" required
+                            placeholder="e.g. RESIDUE_WT, CRUSHING_LOAD" />
                         <span class="text-[10px] text-gray-400">Used in formulas as token</span>
                     </div>
                 </div>
@@ -1312,73 +1208,60 @@ const submit = () => {
                 <!-- 2. Scope & Measurement -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                        <BaseSelect
-                            v-model="paramForm.scope"
-                            label="Parameter Scope"
-                            required
-                            :options="scopeOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                        />
+                        <BaseSelect v-model="paramForm.scope" label="Parameter Scope" required :options="scopeOptions"
+                            optionLabel="label" optionValue="value" />
                     </div>
                     <div>
-                        <BaseSelect
-                            v-model="paramForm.data_type"
-                            label="Data Type"
-                            :options="dataTypeOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                        />
+                        <BaseSelect v-model="paramForm.data_type" label="Data Type" :options="dataTypeOptions"
+                            optionLabel="label" optionValue="value" />
                     </div>
                     <div>
-                        <BaseInput
-                            v-model="paramForm.unit"
-                            label="Unit"
-                            placeholder="e.g. g, kN, MPa, min, %"
-                        />
+                        <BaseInput v-model="paramForm.unit" label="Unit" placeholder="e.g. g, kN, MPa, min, %" />
                     </div>
                 </div>
 
                 <!-- 3. Behavior Toggles -->
-                <div class="flex items-center gap-6 p-2.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <label class="inline-flex items-center gap-2 font-bold text-gray-700 dark:text-gray-300 cursor-pointer">
-                        <input type="checkbox" v-model="paramForm.is_required" class="rounded text-indigo-600 focus:ring-indigo-500" />
+                <div
+                    class="flex items-center gap-6 p-2.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <label
+                        class="inline-flex items-center gap-2 font-bold text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input type="checkbox" v-model="paramForm.is_required"
+                            class="rounded text-indigo-600 focus:ring-indigo-500" />
                         <span>Mandatory Input</span>
                     </label>
 
-                    <label class="inline-flex items-center gap-2 font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer">
-                        <input type="checkbox" v-model="paramForm.is_calculated" class="rounded text-indigo-600 focus:ring-indigo-500" />
+                    <label
+                        class="inline-flex items-center gap-2 font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer">
+                        <input type="checkbox" v-model="paramForm.is_calculated"
+                            class="rounded text-indigo-600 focus:ring-indigo-500" />
                         <span>Calculated Parameter (Formula)</span>
                     </label>
                 </div>
 
                 <!-- 4. Calculation Configuration & Formula Builder -->
-                <div v-if="paramForm.is_calculated" class="p-3.5 bg-purple-50/60 dark:bg-purple-950/40 rounded-xl border border-purple-200/80 dark:border-purple-800/80 space-y-2.5">
+                <div v-if="paramForm.is_calculated"
+                    class="p-3.5 bg-purple-50/60 dark:bg-purple-950/40 rounded-xl border border-purple-200/80 dark:border-purple-800/80 space-y-2.5">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-extrabold uppercase tracking-wider text-purple-900 dark:text-purple-200">
+                        <span
+                            class="text-[11px] font-extrabold uppercase tracking-wider text-purple-900 dark:text-purple-200">
                             Calculation Formula
                         </span>
-                        <span class="text-[10px] text-purple-600 dark:text-purple-300 font-medium">Click variable/operator to append</span>
+                        <span class="text-[10px] text-purple-600 dark:text-purple-300 font-medium">Click
+                            variable/operator to
+                            append</span>
                     </div>
 
-                    <BaseInput
-                        v-model="paramForm.formula"
-                        label="Formula Expression"
-                        placeholder="e.g. (RESIDUE_WT / SAMPLE_WT) * 100 or TIMEDIFF_MINUTES(START_TIME, INITIAL_SET_TIME)"
-                    />
+                    <BaseInput v-model="paramForm.formula" label="Formula Expression"
+                        placeholder="e.g. (RESIDUE_WT / SAMPLE_WT) * 100 or TIMEDIFF_MINUTES(START_TIME, INITIAL_SET_TIME)" />
 
                     <!-- Variable Chips -->
                     <div v-if="availableVariables.length > 0" class="space-y-1">
                         <span class="text-[10px] font-bold text-gray-500">Insert Variable Token:</span>
                         <div class="flex flex-wrap gap-1">
-                            <button
-                                v-for="v in availableVariables"
-                                :key="v.code"
-                                type="button"
+                            <button v-for="v in availableVariables" :key="v.code" type="button"
                                 @click="insertVariableIntoFormula(v.code)"
                                 class="px-2 py-0.5 bg-white dark:bg-gray-800 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700 rounded text-[10px] font-mono font-bold transition-colors cursor-pointer"
-                                :title="`${v.name} (${v.unit || 'no unit'})`"
-                            >
+                                :title="`${v.name} (${v.unit || 'no unit'})`">
                                 {{ v.code }}
                             </button>
                         </div>
@@ -1387,84 +1270,69 @@ const submit = () => {
                     <!-- Operator Chips -->
                     <div class="flex flex-wrap items-center gap-1 pt-1">
                         <span class="text-[10px] font-bold text-gray-500 mr-1">Operators:</span>
-                        <button type="button" @click="insertVariableIntoFormula('+')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">+</button>
-                        <button type="button" @click="insertVariableIntoFormula('-')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">-</button>
-                        <button type="button" @click="insertVariableIntoFormula('*')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">×</button>
-                        <button type="button" @click="insertVariableIntoFormula('/')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">÷</button>
-                        <button type="button" @click="insertVariableIntoFormula('(')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">(</button>
-                        <button type="button" @click="insertVariableIntoFormula(')')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">)</button>
-                        <button type="button" @click="insertVariableIntoFormula('100')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">100</button>
-                        <button type="button" @click="insertVariableIntoFormula('1000')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">1000</button>
-                        <button type="button" @click="insertVariableIntoFormula('AVG(')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">AVG(</button>
-                        <button type="button" @click="insertVariableIntoFormula('TIMEDIFF_MINUTES(')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">TIMEDIFF_MINUTES(</button>
+                        <button type="button" @click="insertVariableIntoFormula('+')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">+</button>
+                        <button type="button" @click="insertVariableIntoFormula('-')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">-</button>
+                        <button type="button" @click="insertVariableIntoFormula('*')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">×</button>
+                        <button type="button" @click="insertVariableIntoFormula('/')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">÷</button>
+                        <button type="button" @click="insertVariableIntoFormula('(')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">(</button>
+                        <button type="button" @click="insertVariableIntoFormula(')')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">)</button>
+                        <button type="button" @click="insertVariableIntoFormula('100')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">100</button>
+                        <button type="button" @click="insertVariableIntoFormula('1000')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">1000</button>
+                        <button type="button" @click="insertVariableIntoFormula('AVG(')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">AVG(</button>
+                        <button type="button" @click="insertVariableIntoFormula('TIMEDIFF_MINUTES(')"
+                            class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">TIMEDIFF_MINUTES(</button>
                     </div>
                 </div>
 
                 <!-- 5. Acceptance Criteria -->
                 <div class="space-y-2.5 pt-2 border-t border-gray-100 dark:border-gray-800">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                        <span
+                            class="text-[11px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-gray-300">
                             Acceptance Criteria & Limits
                         </span>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                         <div>
-                            <BaseSelect
-                                v-model="paramForm.rule_type"
-                                label="Rule Type"
-                                :options="ruleTypeOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                            />
+                            <BaseSelect v-model="paramForm.rule_type" label="Rule Type" :options="ruleTypeOptions"
+                                optionLabel="label" optionValue="value" />
                         </div>
                         <div>
-                            <BaseInput
-                                v-model="paramForm.target"
-                                label="Target Value"
-                                placeholder="e.g. 20.0"
-                            />
+                            <BaseInput v-model="paramForm.target" label="Target Value" placeholder="e.g. 20.0" />
                         </div>
                         <div>
-                            <BaseInput
-                                v-model="paramForm.min"
-                                label="Min Allowed"
-                                placeholder="e.g. 18.0"
-                            />
+                            <BaseInput v-model="paramForm.min" label="Min Allowed" placeholder="e.g. 18.0" />
                         </div>
                         <div>
-                            <BaseInput
-                                v-model="paramForm.max"
-                                label="Max Allowed"
-                                placeholder="e.g. 10.0 (Soundness)"
-                            />
+                            <BaseInput v-model="paramForm.max" label="Max Allowed"
+                                placeholder="e.g. 10.0 (Soundness)" />
                         </div>
                     </div>
 
                     <div v-if="isConcrete" class="w-1/3">
-                        <BaseInput
-                            v-model="paramForm.age"
-                            label="Age (Days)"
-                            placeholder="e.g. 7 d or 28 d"
-                        />
+                        <BaseInput v-model="paramForm.age" label="Age (Days)" placeholder="e.g. 7 d or 28 d" />
                     </div>
                 </div>
             </div>
 
             <template #footer>
                 <div class="flex items-center justify-end gap-2 pt-3">
-                    <button
-                        type="button"
-                        @click="showParamModal = false"
-                        class="px-3.5 py-1.5 text-xs font-semibold rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                    >
+                    <button type="button" @click="showParamModal = false"
+                        class="px-3.5 py-1.5 text-xs font-semibold rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer">
                         Cancel
                     </button>
-                    <button
-                        type="button"
-                        @click="saveParameter"
-                        class="px-4 py-1.5 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
-                    >
+                    <button type="button" @click="saveParameter"
+                        class="px-4 py-1.5 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer">
                         {{ editingParamIndex !== null ? 'Update Parameter' : 'Add Parameter' }}
                     </button>
                 </div>
@@ -1472,74 +1340,40 @@ const submit = () => {
         </Dialog>
 
         <!-- ADD QC UNIT MODAL (qc_units) -->
-        <Dialog
-            v-model:visible="showAddUnitModal"
-            modal
-            header="Add QC Unit (qc_units)"
-            :style="{ width: '420px' }"
-            class="rounded-2xl"
-        >
+        <Dialog v-model:visible="showAddUnitModal" modal header="Add QC Unit (qc_units)" :style="{ width: '420px' }"
+            class="rounded-2xl">
             <form @submit.prevent="saveUnit" class="space-y-3.5 py-2">
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <BaseInput
-                            v-model="unitForm.name"
-                            label="Unit Name"
-                            required
-                            placeholder="e.g. Megapascal"
-                            :error="unitErrors.name"
-                            @input="onUnitSymbolOrNameInput"
-                        />
+                        <BaseInput v-model="unitForm.name" label="Unit Name" required placeholder="e.g. Megapascal"
+                            :error="unitErrors.name" @input="onUnitSymbolOrNameInput" />
                     </div>
                     <div>
-                        <BaseInput
-                            v-model="unitForm.symbol"
-                            label="Symbol"
-                            required
-                            placeholder="e.g. MPa"
-                            :error="unitErrors.symbol"
-                            @input="onUnitSymbolOrNameInput"
-                        />
+                        <BaseInput v-model="unitForm.symbol" label="Symbol" required placeholder="e.g. MPa"
+                            :error="unitErrors.symbol" @input="onUnitSymbolOrNameInput" />
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <BaseInput
-                            v-model="unitForm.code"
-                            label="Code"
-                            required
-                            placeholder="e.g. MPA"
-                            :error="unitErrors.code"
-                        />
+                        <BaseInput v-model="unitForm.code" label="Code" required placeholder="e.g. MPA"
+                            :error="unitErrors.code" />
                     </div>
                     <div>
-                        <BaseSelect
-                            v-model="unitForm.dimension"
-                            label="Dimension"
-                            :options="dimensionOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                        />
+                        <BaseSelect v-model="unitForm.dimension" label="Dimension" :options="dimensionOptions"
+                            optionLabel="label" optionValue="value" />
                     </div>
                 </div>
             </form>
 
             <template #footer>
                 <div class="flex items-center justify-end gap-2 pt-3">
-                    <button
-                        type="button"
-                        @click="showAddUnitModal = false"
-                        class="px-3.5 py-1.5 text-xs font-semibold rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                    >
+                    <button type="button" @click="showAddUnitModal = false"
+                        class="px-3.5 py-1.5 text-xs font-semibold rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer">
                         Cancel
                     </button>
-                    <button
-                        type="button"
-                        :disabled="addingUnit"
-                        @click="saveUnit"
-                        class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-                    >
+                    <button type="button" :disabled="addingUnit" @click="saveUnit"
+                        class="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer disabled:opacity-50">
                         <i v-if="addingUnit" class="pi pi-spin pi-spinner text-xs"></i>
                         <i v-else class="pi pi-plus text-xs"></i>
                         <span>Save to qc_units</span>

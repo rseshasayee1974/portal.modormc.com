@@ -35,7 +35,7 @@ class CubeReportDataService
                 // is completed. Legacy measurements use the test's status.
                 $status = strtolower((string) ($set->status ?? $test->overall_status));
                 if (!in_array($status, ['pass', 'fail', 'completed', 'retest'], true)
-                    || $set->specimens->count() < 3
+                    || $set->specimens->isEmpty()
                     || $set->specimens->contains(fn ($specimen) => $specimen->strength_mpa === null || $specimen->weight_kg <= 0 || $specimen->load_kn <= 0)) {
                     continue;
                 }
@@ -47,6 +47,24 @@ class CubeReportDataService
                     $group->age_days = (int) \Carbon\Carbon::parse($group->casting_date)->startOfDay()
                         ->diffInDays(\Carbon\Carbon::parse($group->testing_date)->startOfDay());
                 }
+                $gradeName = $test->sample?->concreteGrade?->name;
+                $gradeStrength = preg_match('/\bM\s*(\d+(?:\.\d+)?)\b/i', (string) $gradeName, $match)
+                    ? (float) $match[1] : null;
+                $group->grade_strength_mpa = $gradeStrength > 0 ? $gradeStrength : null;
+                $group->grade_strength_percentage = $group->grade_strength_mpa !== null
+                    ? round($group->average_strength / $group->grade_strength_mpa * 100, 2) : null;
+                $group->age_reference_percentage = match ((int) $group->age_days) {
+                    7 => 67, 14 => 90, 28 => 100, default => null,
+                };
+                $benchmark = collect([$set->target_strength ?? null, $test->target_strength, $set->min_strength ?? null, $test->min_strength])
+                    ->first(fn ($value) => is_numeric($value) && (float) $value > 0);
+                if ($benchmark === null) {
+                    $benchmark = $group->grade_strength_mpa !== null && $group->age_reference_percentage !== null
+                        ? $group->grade_strength_mpa * $group->age_reference_percentage / 100 : null;
+                }
+                $group->required_strength_mpa = $benchmark !== null ? round((float) $benchmark, 2) : null;
+                $group->target_achieved_percentage = $group->required_strength_mpa > 0
+                    ? round($group->average_strength / $group->required_strength_mpa * 100, 1) : null;
                 $group->report_remarks = match ($status) {
                     'retest' => $set->error_reason ?? $test->retest_reason ?? 'Retest required.',
                     'fail' => 'Below the configured acceptance strength.',

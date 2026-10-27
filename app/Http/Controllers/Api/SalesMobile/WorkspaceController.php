@@ -45,7 +45,7 @@ class WorkspaceController extends Controller
 
     public function mixDesigns(Request $r)
     {
-        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);
+        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
         $q = MixDesign::where('plant_id', Access::plantId())->where('is_active', 1);
         if ($r->filled('search')) {
             $q->where(fn ($q) => $q->where('design_name', 'like', '%'.$r->search.'%')
@@ -58,7 +58,7 @@ class WorkspaceController extends Controller
 
     public function taxes(Request $r)
     {
-        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);
+        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
         $q = Tax::where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')->ofGroup(['GST', 'IGST'])->parentOnly()
             ->with(['children' => fn ($q) => $q->where('plant_id', Access::plantId())->where('status', 1)->ofTaxType('Sales')->ofGroup(['GST', 'CGST', 'SGST', 'IGST'])]);
         if ($r->filled('search')) {
@@ -70,7 +70,7 @@ class WorkspaceController extends Controller
 
     public function sites(Request $r)
     {
-        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);
+        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
         $q = Access::plantSites();
         if ($r->filled('search')) {
             $q->where('name', 'like', '%'.$r->search.'%');
@@ -90,7 +90,7 @@ class WorkspaceController extends Controller
 
     public function customers(Request $r)
     {
-        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100']);
+        $r->validate(['search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
         $q = Access::customers()->select(['id', 'legal_name', 'plant_id'])->with('contacts');
         if ($r->filled('search')) {
             $q->where('legal_name', 'like', '%'.$r->search.'%');

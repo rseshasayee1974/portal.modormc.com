@@ -68,7 +68,7 @@ const form = useForm({
     specimen_count: props.sample?.specimen_count || 3,
     curing_tank_id: props.sample?.curing_tank_id || 'Tank-1 (27±2°C)',
     sample_quantity: props.sample?.sample_quantity || '3 Cubes',
-    schedule_milestones: [7],
+    schedule_milestones: [] as number[],
     test_type_ids: props.sample?.tests ? props.sample.tests.map((t: any) => t.test_type_id) : [],
     status: props.sample?.status || 'pending_test',
     remarks: props.sample?.remarks || '',
@@ -85,24 +85,43 @@ const personnelOptions = computed(() => {
         };
     });
 });
-const supportedTestAges = computed(() => props.supportedTestAges || [7, 15, 28]);
+const parameterAge = (parameter: any): number | null => {
+    if (parameter.is_active === false || parameter.is_active === 0 || parameter.is_active === '0') return null;
+    for (const value of [parameter.name, parameter.code, parameter.default_value]) {
+        const match = String(value ?? '').match(/(?:^|[^\d])(\d+)\s*[-_]?\s*(?:days?|d)\b/i);
+        if (match) {
+            const age = Number(match[1]);
+            return age > 0 && age <= 36500 ? age : null;
+        }
+    }
+    const context = `${parameter.name ?? ''} ${parameter.code ?? ''} ${parameter.unit ?? ''}`;
+    const age = Number(parameter.default_value);
+    return /\bage\b|days?|^d$/i.test(context) && Number.isInteger(age) && age > 0 && age <= 36500 ? age : null;
+};
+const testAges = (type: any): number[] => [...new Set<number>((type?.parameters || [])
+    .map(parameterAge).filter((age: number | null): age is number => age !== null))].sort((a, b) => a - b);
+const supportedTestAges = computed(() => [...new Set<number>([
+    ...(props.supportedTestAges || []),
+    ...(props.testTypes || []).flatMap(testAges),
+])].sort((a, b) => a - b));
 const ageFilter = ref<number | null>(null);
 const statusFilter = ref('All');
 const statusOptions = [
     { label: 'All statuses', value: 'All' },
     { label: 'Not sampled', value: 'not_sampled' },
     { label: 'Pending', value: 'pending' },
+    { label: 'Passed', value: 'pass' },
+    { label: 'Failed', value: 'fail' },
+    { label: 'Hold', value: 'hold' },
     { label: 'Retest', value: 'retest' },
 ];
 const loadSearch = ref('');
 const tableFirst = ref(0);
 watch([ageFilter, statusFilter, loadSearch], () => { tableFirst.value = 0; });
-const ageOptions = [
+const ageOptions = computed(() => [
     { label: 'All ages', value: null },
-    { label: '7 days', value: 7 },
-    { label: '15 days', value: 15 },
-    { label: '28 days', value: 28 },
-];
+    ...supportedTestAges.value.map(age => ({ label: `${age} ${age === 1 ? 'day' : 'days'}`, value: age })),
+]);
 const currentAge = (value?: string) => {
     if (!value) return null;
     const calendarDay = (date: string) => {
@@ -134,16 +153,16 @@ const productionRows = computed(() => [...(props.salesOrders || []).flatMap(orde
 }))]);
 const filteredSources = computed(() => productionRows.value.filter((row: any) => {
     const age = ageFilter.value;
+    if (row.sample) return true;
     if (row.cancelled || !isDispatched(row.dispatch) || !supportedTestAges.value.includes(row.age)) return false;
     if (age !== null && row.age !== age) return false;
     return true;
 }));
 const filteredRows = computed(() => filteredSources.value.flatMap((row: any) => {
-    const matchingTests = (row.sample?.tests || []).filter((test: any) => Number(test.age_days) === row.age);
-    const tests = matchingTests.filter((test: any) => ['pending', 'retest'].includes(test.overall_status) && test.approval_status !== 'approved');
-    if (matchingTests.length && !tests.length) return [];
+    const tests = row.sample?.tests || [];
     return tests.length ? tests.map((test: any) => ({ ...row, sourceKey: row.key, key: `${row.key}:test:${test.id}`, test })) : [{ ...row, sourceKey: row.key, test: null }];
 }).filter((row: any) => {
+    if (ageFilter.value !== null && Number(row.test?.age_days ?? row.age) !== ageFilter.value) return false;
     if (statusFilter.value !== 'All' && (row.test?.overall_status || (row.sample ? 'pending' : 'not_sampled')) !== statusFilter.value) return false;
     const search = loadSearch.value.trim().toLowerCase();
     return !search || [row.order.order_no, row.order.customer?.legal_name, row.order.site?.name,
@@ -171,9 +190,16 @@ const defaults = form.data();
 const preferredTestType = () => (props.testTypes || []).find(type => /compressive/i.test(type.name))?.id || props.testTypes?.[0]?.id || null;
 form.test_type_id = preferredTestType();
 const testTypeOptions = computed(() => (props.testTypes || []).map(type => ({ label: type.name, value: type.id })));
-const ageOptionsForTest = [{ label: '7 days', value: 7 }, { label: '15 days', value: 15 }, { label: '28 days', value: 28 }];
+const ageOptionsForTest = computed(() => testAges((props.testTypes || []).find(type => type.id == form.test_type_id))
+    .map(age => ({ label: `${age} ${age === 1 ? 'day' : 'days'}`, value: age })));
+watch(ageOptionsForTest, options => {
+    if (editing.value) return;
+    const valid = form.schedule_milestones.filter(age => options.some(option => option.value === age));
+    form.schedule_milestones = valid.length ? valid : options.length ? [options[0].value] : [];
+}, { immediate: true });
 const sourceOptions = computed(() => productionRows.value.filter(row => !row.cancelled).map(row => ({
-    value: row.key, label: (row.dispatch.dispatch_no || row.sample?.sample_no) + ' - ' + (row.order.customer?.legal_name || ''),
+    value: row.key,
+    label: 'DP-' + (row.dispatch?.dispatch_no || row.sample?.sample_no || '') + ' (' + (row.order?.customer?.legal_name || '') + ')',
 })));
 const existingSample = computed(() => editorSource.value?.sample);
 const metadataReadOnly = computed(() => !editing.value && !!existingSample.value);
@@ -210,14 +236,16 @@ const sourceDetails = computed(() => [
     { label: 'Grade / Material', value: (props.concreteGrades || []).find(grade => grade.id == form.concrete_grade_id)?.name || editingSample.value?.material?.title || '-', icon: 'pi pi-box', accent: true },
     { label: 'Project / Site', value: form.site_name || '-', icon: 'pi pi-map-marker', accent: false },
     { label: 'Truck number', value: form.truck_no || '-', icon: 'pi pi-truck', accent: false },
-    { label: 'Sample number', value: editingSample.value?.sample_no || 'Generated on save', icon: 'pi pi-hashtag', accent: true },
+    // { label: 'Sample number', value: editingSample.value?.sample_no || 'Generated on save', icon: 'pi pi-hashtag', accent: true },
     ...(!editing.value ? [{ label: 'Scheduled testing dates', value: scheduledDate.value || '-', icon: 'pi pi-calendar', accent: true }] : []),
 ]);
 const loadSource = (row?: any) => {
     form.reset();
     form.clearErrors();
     form.test_type_id = preferredTestType();
-    form.schedule_milestones = [row?.test?.age_days || ageFilter.value || (supportedTestAges.value.includes(row?.age) ? row.age : 7)];
+    const preferredAge = Number(row?.test?.age_days || ageFilter.value || row?.age);
+    const ages = ageOptionsForTest.value.map(option => option.value);
+    form.schedule_milestones = ages.includes(preferredAge) ? [preferredAge] : ages.length ? [ages[0]] : [];
     editorSource.value = row || null;
     editingSample.value = row?.sample || null;
     if (!row) return;
@@ -337,7 +365,7 @@ const submit = () => {
                         <BaseInput v-model="loadSearch" placeholder="Search dispatch, sample or customer"
                             aria-label="Search concrete tests" class="w-full sm:w-64" />
                         <BaseSelect v-model="ageFilter" :options="ageOptions" optionLabel="label" optionValue="value"
-                            placeholder="Current age" aria-label="Filter current age" class="w-36" />
+                            placeholder="Test age" aria-label="Filter test age" class="w-36" />
                         <BaseSelect v-model="statusFilter" :options="statusOptions" optionLabel="label"
                             optionValue="value" aria-label="Filter status" class="w-36" />
                         <!-- <BaseButton type="button" v-if="canCreateTests" label="New test" icon="pi pi-plus" @click="openCreateTest()" /> -->
@@ -349,7 +377,7 @@ const submit = () => {
                             class="block font-medium text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200">
                             {{ data.test.test_no }}</Link>
                         <span v-else class="text-slate-500">{{ data.sample?.sample_no || data.dispatch.dispatch_no
-                            }}</span>
+                        }}</span>
                         <span class="mt-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize"
                             :class="statusClass(data)">{{ rowStatus(data) }}</span>
 
@@ -374,10 +402,12 @@ const submit = () => {
                 <Column header="Dispatch / Due date" style="min-width: 180px">
                     <template #body="{ data }">
                         <p>{{ entityLocaleDate(data.dispatch.dispatch_time) }}</p>
-                        <p class="mt-1 text-xxs text-slate-500">Due today <span
-                                class="text-indigo-600 font-bold text-xs">{{
-                                    data.age
-                                }}D</span></p>
+                        <p v-if="data.test" class="mt-1 text-xxs text-slate-500">Scheduled {{
+                            entityLocaleDate(data.test.scheduled_date) }}</p>
+                        <p v-else-if="supportedTestAges.includes(data.age)" class="mt-1 text-xxs text-slate-500">Due
+                            today <span class="text-indigo-600 font-bold text-xs">{{
+                                data.age
+                            }}D</span></p>
                     </template>
                 </Column>
                 <Column header="Field / Lab technician" style="min-width: 180px">
@@ -385,7 +415,7 @@ const submit = () => {
                         <p>{{ fieldTechnician(data) }}</p>
                         <p class="mt-1 text-xxs text-slate-500">{{ data.test && (data.test.evaluated_at ||
                             data.test.overall_status !== 'pending') ? data.test.tester?.username || '-' : 'Not tested'
-                            }}</p>
+                        }}</p>
                     </template>
                 </Column>
                 <Column header="Actions" style="width: 60px">
@@ -415,7 +445,7 @@ const submit = () => {
                     {{
                         actionRow.test?.test_no || actionRow.sample?.sample_no || actionRow.dispatch.dispatch_no }}</p>
                 <button type="button" class="qc-menu-item" :disabled="!actionRow.sample || !can('QC_SAMPLE.UPDATE')"
-                    @click="editAction"><i class="pi pi-pencil" aria-hidden="true"></i>Edit</button>
+                    @click="editAction"><i class="pi pi-pencil" aria-hidden="true"></i>Edit sample</button>
                 <Link v-if="actionRow.test && can('QC_TEST.VIEW')"
                     :href="route('quality.tests.execute', { test: actionRow.test.id, view: 1 })" class="qc-menu-item"
                     @click="actionPopover?.hide()"><i class="pi pi-eye" aria-hidden="true"></i>View
@@ -424,8 +454,9 @@ const submit = () => {
                         aria-hidden="true"></i>View</button>
                 <Link v-if="actionRow.test && can('QC_TEST.UPDATE')"
                     :href="route('quality.tests.execute', actionRow.test.id)" class="qc-menu-item"
-                    @click="actionPopover?.hide()"><i class="pi pi-play" aria-hidden="true"></i>Execute
-                    test</Link>
+                    @click="actionPopover?.hide()"><i
+                        :class="actionRow.test.evaluated_at ? 'pi pi-pencil' : 'pi pi-play'" aria-hidden="true"></i>{{
+                            actionRow.test.evaluated_at ? 'Edit results' : 'Execute test' }}</Link>
                 <button v-else type="button"
                     :disabled="!!actionRow.test || !canCreateTests || (!actionRow.sample && !canCreateSamples)"
                     class="qc-menu-item" @click="executeAction"><i class="pi pi-play" aria-hidden="true"></i>Execute
@@ -486,11 +517,12 @@ const submit = () => {
                                 :options="testTypeOptions" optionLabel="label" optionValue="value"
                                 :error="form.errors.test_type_id || form.errors.test_type_ids" />
                             <BaseField label="Test ages" required :error="milestoneError"
-                                hint="Select one or more: 7, 15 and 28 days.">
+                                :hint="ageOptionsForTest.length ? 'Select ages configured for this test type.' : 'No test ages configured in this test type’s active parameters.'">
                                 <template #default="{ invalid, inputId }">
                                     <MultiSelect :inputId="inputId" v-model="form.schedule_milestones"
                                         :options="ageOptionsForTest" optionLabel="label" optionValue="value"
                                         display="chip" placeholder="Select test ages" :invalid="invalid"
+                                        :disabled="!ageOptionsForTest.length"
                                         :maxSelectedLabels="3" class="w-full" />
                                 </template>
                             </BaseField>
@@ -598,8 +630,8 @@ const submit = () => {
                                 </div>
                                 <Link :href="route('quality.tests.execute', test.id)"
                                     class="text-indigo-600 hover:text-indigo-700 hover:underline dark:text-indigo-300 dark:hover:text-indigo-200">
-                                    {{ ['pending', 'retest'].includes(test.overall_status) ? `Enter cube results` :
-                                        `View cube
+                                    {{ [`pending`, `retest`].includes(test.overall_status) ? `Enter cube results` :
+                                        `Edit cube
                                     results` }}</Link>
                             </div>
                         </div>
@@ -612,7 +644,7 @@ const submit = () => {
                         Use the row's Edit sample action to change them.</p>
                     <p v-else-if="!editing && sourceKey" class="text-xs text-slate-500">Scheduled testing dates: {{
                         scheduledDate
-                        }}. After saving, enter the specimen weights and loads to execute the test.</p>
+                    }}. After saving, enter the specimen weights and loads to execute the test.</p>
                     <p v-if="existingTest" role="alert" class="text-xs text-tangerine-700 dark:text-tangerine-300">This
                         test
                         already exists at one of the selected ages. Remove that age to schedule the others.
