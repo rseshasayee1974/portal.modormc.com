@@ -43,6 +43,11 @@ class QuotationController extends Controller
         return Access::quotations();
     }
 
+    protected function quotationLeads(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Access::leads();
+    }
+
     protected function authorizeReview(): void
     {
         abort(403, 'Quotation approval is available through the admin app only.');
@@ -151,7 +156,7 @@ class QuotationController extends Controller
         Access::authorize('CRM_LEAD', 'CONVERT');
         return DB::transaction(function () use ($r, $lead, $service) {
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
-            $source = Access::leads()->lockForUpdate()->findOrFail($lead);
+            $source = $this->quotationLeads()->lockForUpdate()->findOrFail($lead);
             $autoConverted = false;
             if (! $source->converted_at || ! $source->customer_id) {
                 if ($source->converted_at || ! in_array($source->status, CrmLead::QUOTATION_CONVERTIBLE_STATUSES, true)) {

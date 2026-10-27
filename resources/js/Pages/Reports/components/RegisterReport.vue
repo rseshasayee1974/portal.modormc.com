@@ -33,7 +33,7 @@ const total = (column) => column.total ? Number(value(props.reportData.totals ||
                 { key: 'grand_total', label: 'Net Amount' }
             ]" :key="metric.key" class="rounded border border-slate-200 bg-slate-50 p-4">
                 <span class="block text-xs text-slate-500 font-semibold">{{ metric.label }}</span>
-                <span class="block mt-1 text-xl font-bold text-slate-800">{{
+                <span class="block mt-1 text-xs font-bold text-slate-800">{{
                     formatCurrency(reportData.totals?.[metric.key] || 0) }}</span>
             </div>
         </div>

@@ -15,6 +15,29 @@ const perPage = ref(25);
 const currentPage = ref(1);
 
 const trackerList = computed(() => props.reportData?.transactions || []);
+const columnGroups = [
+    { label: 'Log Details', fields: { date: 'Date', machine_registration: 'Machine / Vehicle', operator_name: 'Operator' } },
+    { label: 'Odometer', fields: { odometer_start: 'Start (KM)', odometer_end: 'End (KM)', odometer_diff: 'KM Run', odo_mileage: 'Mileage (KM/L)' } },
+    { label: 'Hourmeter', fields: { hourmeter_start: 'Start (Hrs)', hourmeter_end: 'End (Hrs)', hourmeter_diff: 'Hours Run', hm_mileage: 'Mileage (Hrs/L)', hm_consumption: 'Fuel / Hour (L/Hr)' } },
+    { label: 'Electricity', fields: { eb_start: 'EB Start', eb_close: 'EB Close', eb_units: 'Consumption (Units)' } },
+    { label: 'Fuel', fields: { fuel: 'Filled (L)', fuel_amount: 'Cost (₹)' } },
+    { label: 'Remarks', fields: { pump_name: 'Pump Name', notes: 'Notes' } },
+];
+const reportColumns = computed(() => columnGroups.flatMap(group => Object.entries(group.fields)));
+const calculatedFields = ['odometer_diff', 'odo_mileage', 'hourmeter_diff', 'hm_mileage', 'hm_consumption', 'eb_units'];
+const numericFields = ['odometer_start', 'odometer_end', 'hourmeter_start', 'hourmeter_end', 'eb_start', 'eb_close', 'fuel', 'fuel_amount', ...calculatedFields];
+const columnTotals = computed(() => ({
+    odometer_diff: props.reportData.total_km_run,
+    odo_mileage: props.reportData.avg_km_per_liter,
+    hourmeter_diff: props.reportData.total_hours_run,
+    hm_mileage: props.reportData.avg_hrs_per_liter,
+    hm_consumption: props.reportData.avg_liters_per_hour,
+    eb_units: props.reportData.total_eb_units,
+    fuel: props.reportData.total_fuel_liters,
+    fuel_amount: props.reportData.total_fuel_amount,
+}));
+const cellValue = (field, value) => field === 'fuel_amount' ? formatCurrency(value || 0)
+    : numericFields.includes(field) ? (value === null || value === undefined || value === '' ? '—' : formatNum(value)) : value ?? '-';
 const totalRows = computed(() => trackerList.value.length);
 const totalPages = computed(() => Math.max(1, Math.ceil(totalRows.value / perPage.value)));
 
@@ -149,124 +172,42 @@ const formatNum = (val) => {
 
             <!-- Table Container -->
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse min-w-[1500px]">
-                    <thead>
-                        <tr
-                            class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f8fafc]">
-                            <th class="py-3 px-3 text-center" width="3%">#</th>
-                            <th class="py-3 px-3 text-center" width="9%">Date & Time</th>
-                            <th class="py-3 px-3" width="10%">Machine / Vehicle</th>
-                            <!-- <th class="py-3 px-3 text-center" width="7%">Shift</th> -->
-                            <th class="py-3 px-3" width="10%">Operator</th>
-                            <th class="py-3 px-3 text-center" width="9%">Odometer (KM)</th>
-                            <th class="py-3 px-3 text-right" width="8%">Odometer Mileage (KM/L)</th>
-                            <th class="py-3 px-3 text-center" width="9%">Hourmeter (Hrs)</th>
-                            <th class="py-3 px-3 text-right" width="8%">Hourmeter Mileage (Hrs/L)</th>
-                            <th class="py-3 px-3 text-center" width="7%">EB Units</th>
-                            <th class="py-3 px-3 text-right" width="6%">Fuel (L)</th>
-                            <th class="py-3 px-3 text-right" width="7%">Cost (₹)</th>
-                            <th class="py-3 px-3" width="7%">Pump Name</th>
-                            <th class="py-3 px-3" width="7%">Notes</th>
+                <table class="w-full min-w-[2300px] text-left border-collapse">
+                    <thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-600 border-b border-slate-200">
+                        <tr class="border-b border-slate-200 bg-slate-100">
+                            <th rowspan="2" scope="col" class="px-3 py-3">#</th>
+                            <th v-for="group in columnGroups" :key="group.label" :colspan="Object.keys(group.fields).length"
+                                scope="colgroup" class="border-l border-slate-200 px-3 py-2 text-center font-bold">
+                                {{ group.label }}
+                            </th>
+                        </tr>
+                        <tr>
+                            <th v-for="[field, label] in reportColumns" :key="field" scope="col" class="px-3 py-3"
+                                :class="calculatedFields.includes(field) ? 'bg-indigo-50 text-indigo-800 text-right' : numericFields.includes(field) ? 'text-right' : ''">
+                                {{ label }}
+                            </th>
                         </tr>
                     </thead>
-                    <tbody class="text-[11px] font-semibold text-slate-700 divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 text-xs text-slate-700">
                         <tr v-if="!paginatedList.length">
-                            <td colspan="13" class="py-8 text-center text-slate-400">
+                            <td :colspan="reportColumns.length + 1" class="py-8 text-center text-slate-400">
                                 No machine tracker logs found for the selected filter criteria.
                             </td>
                         </tr>
-                        <tr v-for="(row, idx) in paginatedList" :key="row.id || idx"
-                            class="hover:bg-slate-50/80 transition-all">
-                            <td class="py-2.5 px-3 text-center text-slate-400">{{ (sanitizedPage - 1) * perPage + idx +
-                                1 }}</td>
-                            <td class="py-2.5 px-3 text-center font-mono text-[10px] whitespace-nowrap">
-                                <span class="block font-bold text-slate-800">{{ row.date_only || row.date }}</span>
-                                <span v-if="row.time_only" class="block text-[9px] text-slate-400 font-normal mt-0.5">{{ row.time_only }}</span>
-                            </td>
-                            <td class="py-2.5 px-3">
-                                <span class="font-bold text-slate-800 block">{{ row.machine_registration }}</span>
-                                <span class="text-[10px] text-slate-400 block font-normal">{{ row.machine_model
-                                    }}</span>
-                            </td>
-                            <!-- <td class="py-2.5 px-3 text-center">
-                                <span
-                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 inline-block border border-slate-200">
-                                    {{ row.shift_label }}
-                                </span>
-                            </td> -->
-                            <td class="py-2.5 px-3 text-slate-800 font-bold">{{ row.operator_name }}</td>
-
-                            <!-- Odometer -->
-                            <td class="py-2.5 px-3 text-center font-mono text-[10px]">
-                                <div class="text-slate-400">{{ formatNum(row.odometer_start) }} &rarr; {{
-                                    formatNum(row.odometer_end) }}</div>
-                                <div class="font-bold text-slate-800">
-                                    +{{ formatNum(row.odometer_diff) }} KM
-                                </div>
-                            </td>
-                            <td class="py-2.5 px-3 text-right font-mono text-emerald-700 whitespace-nowrap">
-                                {{ formatNum(row.odo_mileage) }}
-                            </td>
-
-                            <!-- Hourmeter -->
-                            <td class="py-2.5 px-3 text-center font-mono text-[10px]">
-                                <div class="text-slate-400">{{ formatNum(row.hourmeter_start) }} &rarr; {{
-                                    formatNum(row.hourmeter_end) }}</div>
-                                <div class="font-bold text-slate-800">
-                                    +{{ formatNum(row.hourmeter_diff) }} Hrs
-                                </div>
-                            </td>
-                            <td class="py-2.5 px-3 text-right font-mono text-indigo-700 whitespace-nowrap">
-                                {{ formatNum(row.hm_mileage) }}
-                            </td>
-
-                            <!-- EB Units -->
-                            <td class="py-2.5 px-3 text-center font-mono text-[10px]">
-                                <div class="text-slate-400">{{ formatNum(row.eb_start) }} &rarr; {{
-                                    formatNum(row.eb_close) }}</div>
-                                <div class="font-bold text-slate-800">+{{ formatNum(row.eb_units) }} U</div>
-                            </td>
-
-                            <!-- Fuel -->
-                            <td class="py-2.5 px-3 text-right font-bold text-slate-800">
-                                {{ row.fuel > 0 ? `${formatNum(row.fuel)} ` : '-' }}
-                            </td>
-                            <td class="py-2.5 px-3 text-right font-bold text-slate-800">
-                                {{ row.fuel_amount > 0 ? formatCurrency(row.fuel_amount) : '-' }}
-                            </td>
-                            <td class="py-2.5 px-3 text-left font-normal text-slate-600">
-                                {{ row.pump_name && row.pump_name !== '-' ? row.pump_name : '-' }}
-                            </td>
-                            <td class="py-2.5 px-3 text-left font-normal text-slate-500 italic">
-                                {{ row.notes && row.notes !== '-' ? row.notes : '-' }}
+                        <tr v-for="(row, idx) in paginatedList" :key="row.id || idx" class="hover:bg-slate-50">
+                            <td class="px-3 py-3 text-slate-400">{{ (sanitizedPage - 1) * perPage + idx + 1 }}</td>
+                            <td v-for="[field] in reportColumns" :key="field" class="px-3 py-3"
+                                :class="calculatedFields.includes(field) ? 'bg-indigo-50/40 text-right font-semibold tabular-nums text-indigo-800' : numericFields.includes(field) ? 'text-right tabular-nums' : ''">
+                                {{ cellValue(field, row[field]) }}
                             </td>
                         </tr>
                     </tbody>
-                    <tfoot v-if="trackerList.length > 0"
-                        class="bg-[#f2f4f7] font-bold text-xs text-[#1d2d3e] border-t border-slate-300">
-                        <tr class="text-[0.65rem]">
-                            <td colspan="4"
-                                class="py-3 px-3 text-center uppercase tracking-wider font-bold text-[#1d2d3e]">Grand
-                                Total</td>
-                            <td class="py-3 px-3 text-center font-black">
-                                +{{ formatNum(reportData.total_km_run) }} KM
+                    <tfoot v-if="trackerList.length" class="border-t border-slate-300 bg-slate-100 text-xs font-bold text-slate-800">
+                        <tr>
+                            <td class="px-3 py-3">Total / Avg</td>
+                            <td v-for="[field] in reportColumns" :key="field" class="px-3 py-3 text-right tabular-nums">
+                                {{ field in columnTotals ? cellValue(field, columnTotals[field]) : '' }}
                             </td>
-                            <td class="py-3 px-3 text-right font-black text-emerald-800 whitespace-nowrap">
-                                Avg {{ formatNum(reportData.avg_km_per_liter) }}
-                            </td>
-                            <td class="py-3 px-3 text-center font-black">
-                                +{{ formatNum(reportData.total_hours_run) }} Hrs
-                            </td>
-                            <td class="py-3 px-3 text-right font-black text-indigo-800 whitespace-nowrap">
-                                Avg {{ formatNum(reportData.avg_hrs_per_liter) }}
-                            </td>
-                            <td class="py-3 px-3 text-center font-black">+{{ formatNum(reportData.total_eb_units) }} U
-                            </td>
-                            <td class="py-3 px-3 text-right font-black">{{ formatNum(reportData.total_fuel_liters) }} L
-                            </td>
-                            <td class="py-3 px-3 text-right font-black">{{ formatCurrency(reportData.total_fuel_amount
-                                || 0) }}</td>
-                            <td colspan="2" class="py-3 px-3"></td>
                         </tr>
                     </tfoot>
                 </table>

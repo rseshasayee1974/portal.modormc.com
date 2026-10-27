@@ -570,7 +570,7 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'machine_tracker') {
-                $headersList = ['Date', 'Machine / Vehicle', 'Vehicle Model', 'Shift', 'Operator', 'Odometer Start', 'Odometer End', 'KM Run', 'Odometer Mileage (KM/L)', 'Hourmeter Start', 'Hourmeter End', 'Hours Run', 'Hourmeter Mileage (Hrs/L)', 'EB Start', 'EB Close', 'EB Units', 'Fuel (Ltrs)', 'Fuel Amount (₹)', 'Pump Name', 'Notes'];
+                $headersList = ['Date', 'Machine / Vehicle', 'Vehicle Model', 'Shift', 'Operator', 'Odometer Start', 'Odometer End', 'KM Run', 'Odometer Mileage (KM/L)', 'Hourmeter Start', 'Hourmeter End', 'Hours Run', 'Hourmeter Mileage (Hrs/L)', 'Fuel / Hour (L/Hr)', 'EB Start', 'EB Close', 'EB Units', 'Fuel (Ltrs)', 'Fuel Amount (₹)', 'Pump Name', 'Notes'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
                         $row['date'] ?? '',
@@ -586,6 +586,7 @@ class ExcelExportService
                         (float)($row['hourmeter_end'] ?? 0),
                         (float)($row['hourmeter_diff'] ?? 0),
                         (float)($row['hm_mileage'] ?? 0),
+                        (float)($row['hm_consumption'] ?? 0),
                         (float)($row['eb_start'] ?? 0),
                         (float)($row['eb_close'] ?? 0),
                         (float)($row['eb_units'] ?? 0),
@@ -602,6 +603,7 @@ class ExcelExportService
                     '', '',
                     (float)($data['total_hours_run'] ?? 0),
                     (float)($data['avg_hrs_per_liter'] ?? 0),
+                    (float)($data['avg_liters_per_hour'] ?? 0),
                     '', '',
                     (float)($data['total_eb_units'] ?? 0),
                     (float)($data['total_fuel_liters'] ?? 0),

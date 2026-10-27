@@ -89,11 +89,8 @@
         </tbody>
     </table>
 
-    <!-- Page Break for Cleanliness -->
-    <div style="page-break-before: always;"></div>
-
     <!-- Section 2: Product wise Consolidated Summary -->
-    <div class="statement-title-container" style="margin-top: 15px; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px;">
+    <div class="statement-title-container" style="margin-top: 15px; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; page-break-after: avoid;">
         <h3 style="font-size: 11pt; font-weight: bold; color: #334155; margin: 0; text-transform: uppercase;">2. Product wise Consolidated Summary</h3>
     </div>
 

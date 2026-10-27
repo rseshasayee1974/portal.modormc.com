@@ -514,12 +514,14 @@ const isSupplierReport = computed(() => {
 });
 
 const patronLabel = computed(() => {
+    if (reportType.value === 'inventory_inward') return 'Select Customer / Supplier';
     if (isCustomerReport.value) return 'Select Customer';
     if (isSupplierReport.value) return 'Select Supplier';
     return 'Select Partner';
 });
 
 const patronPlaceholder = computed(() => {
+    if (reportType.value === 'inventory_inward') return '-- All Customers / Suppliers --';
     if (isCustomerReport.value) return '-- All Customers --';
     if (isSupplierReport.value) return '-- All Suppliers --';
     return '-- All Partners --';
@@ -1314,7 +1316,7 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Patron / Customer Dropdown -->
-                                    <div v-if="['overall', 'ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
+                                    <div v-if="['overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                             {{ patronLabel }}

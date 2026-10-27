@@ -10,6 +10,12 @@ class PurchaseRegisterService extends RegisterReportService
     protected function query(array $filters): Builder { return $this->repository->getPurchaseRegisterQuery($filters); }
     protected function mapRow($item): array { return $this->mapPurchaseRow($item); }
 
+    public function buildReportFromQuery(Builder $query, array $filters = [], bool $allRows = true): array
+    {
+        // Legacy exports may supply their own query instead of using the repository.
+        return parent::buildReportFromQuery((clone $query)->forPurchaseRegister(), $filters, $allRows);
+    }
+
     public function mapPurchaseRow($item): array
     {
         $order = $item->order;

@@ -699,6 +699,37 @@ class SalesMobileApiTest extends TestCase
         DB::table('mm_crm_deals')->insert(['plant_id' => 1, 'lead_id' => $id, 'stage' => 'Requirement Received']);
     }
 
+    public function test_admin_can_create_quotation_for_a_visible_lead_created_by_another_user(): void
+    {
+        $this->convertedQuotationLead();
+        DB::table('mm_crm_leads')->where('id', 501)->update(['created_by' => 1]);
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $token = User::find(2)->createToken('web-login')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        $this->getJson('/api/mobile/leads/501')->assertOk();
+        $quotation = $this->postJson('/api/mobile/leads/501/quotation', ['site_id' => 1])->assertCreated()->json('data.id');
+        $this->assertDatabaseHas('mm_crm_deals', ['lead_id' => 501, 'quotation_id' => $quotation]);
+        $this->assertDatabaseHas('mm_quotations', ['id' => $quotation, 'plant_id' => 1, 'created_by' => 2]);
+        $this->postJson('/api/mobile/leads/501/quotation', ['site_id' => 1])->assertUnprocessable();
+        $this->assertDatabaseCount('mm_quotations', 1);
+    }
+
+    public function test_lead_quotation_conversion_keeps_plant_role_and_creator_restrictions(): void
+    {
+        $this->convertedQuotationLead();
+        DB::table('mm_crm_leads')->where('id', 501)->update(['created_by' => 2]);
+        $this->postJson('/api/mobile/v1/leads/501/quotation', [])->assertNotFound();
+        $this->withHeaders(['Authorization' => 'Bearer '.User::find(1)->createToken('web-login')->plainTextToken]);
+        $this->postJson('/api/mobile/leads/501/quotation', [])->assertForbidden();
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $this->withHeaders(['Authorization' => 'Bearer '.User::find(2)->createToken('web-login')->plainTextToken]);
+        DB::table('mm_crm_leads')->where('id', 501)->update(['plant_id' => 2]);
+        $this->postJson('/api/mobile/leads/501/quotation', [])->assertNotFound();
+        DB::table('mm_crm_leads')->where('id', 501)->update(['plant_id' => 1, 'deleted_at' => now()]);
+        $this->postJson('/api/mobile/leads/501/quotation', [])->assertNotFound();
+        $this->assertDatabaseCount('mm_quotations', 0);
+    }
+
     public function test_lead_status_becomes_converted_only_after_quotation_creation_succeeds(): void
     {
         $this->convertedQuotationLead();

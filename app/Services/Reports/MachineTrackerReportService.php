@@ -8,6 +8,31 @@ use Carbon\Carbon;
 
 class MachineTrackerReportService implements ReportServiceInterface
 {
+    public const COLUMNS = [
+        'date' => 'Date', 'machine_registration' => 'Machine / Vehicle', 'operator_name' => 'Operator',
+        'odometer_start' => 'Odometer Start (KM)', 'odometer_end' => 'Odometer End (KM)',
+        'odometer_diff' => 'KM Run', 'odo_mileage' => 'Mileage (KM/L)',
+        'hourmeter_start' => 'Hourmeter Start (Hrs)', 'hourmeter_end' => 'Hourmeter End (Hrs)', 'hourmeter_diff' => 'Hours Run',
+        'hm_mileage' => 'Mileage (Hrs/L)', 'hm_consumption' => 'Fuel / Hour (L/Hr)',
+        'eb_start' => 'EB Start', 'eb_close' => 'EB Close', 'eb_units' => 'EB Consumption (Units)',
+        'fuel' => 'Fuel Filled (L)', 'fuel_amount' => 'Fuel Cost (₹)', 'pump_name' => 'Pump Name', 'notes' => 'Notes',
+    ];
+
+    public static function pdfColumns(array $data): array
+    {
+        return [
+            'headers' => array_values(self::COLUMNS), 'fields' => array_keys(self::COLUMNS),
+            'alignments' => array_map(fn ($field) => in_array($field, ['date', 'machine_registration', 'operator_name', 'pump_name', 'notes']) ? 'left' : 'right', array_keys(self::COLUMNS)),
+            'totals' => [
+                'odometer_diff' => $data['total_km_run'] ?? 0,
+                'hourmeter_diff' => $data['total_hours_run'] ?? 0,
+                'eb_units' => $data['total_eb_units'] ?? 0,
+                'fuel' => $data['total_fuel_liters'] ?? 0,
+                'fuel_amount' => $data['total_fuel_amount'] ?? 0,
+            ],
+        ];
+    }
+
     public function __construct(private readonly PlantContextService $ctx) {}
 
     public function generate(array $params): array
@@ -108,16 +133,19 @@ class MachineTrackerReportService implements ReportServiceInterface
                 'odometer_diff'        => $odoDiff,
                 'odo_mileage'          => $odoMileage,
                 'odometer_display'     => $odoDispStr,
+                'odometer_readings'    => "{$odoStart} → {$odoEnd}",
                 'hourmeter_start'      => $hmStart,
                 'hourmeter_end'        => $hmEnd,
                 'hourmeter_diff'       => $hmDiff,
                 'hm_mileage'           => $hmMileage,
                 'hm_consumption'       => $hmConsumption,
                 'hourmeter_display'    => $hmDispStr,
+                'hourmeter_readings'   => "{$hmStart} → {$hmEnd}",
                 'eb_start'             => $ebStart,
                 'eb_close'             => $ebClose,
                 'eb_units'             => $ebUnits,
                 'eb_display'           => "{$ebStart} - {$ebClose} ({$ebUnits} U)",
+                'eb_readings'          => "{$ebStart} → {$ebClose}",
                 'opening_hsd'          => (float)($t->opening_hsd ?? 0),
                 'closing_hsd'          => (float)($t->closing_hsd ?? 0),
                 'fuel'                 => $fuel,
@@ -140,6 +168,7 @@ class MachineTrackerReportService implements ReportServiceInterface
         $avgLitersPerHour  = $totalHoursRun > 0 ? round($totalFuelLiters / $totalHoursRun, 2) : 0;
 
         return [
+            'columns' => self::COLUMNS,
             'transactions'        => $transactions,
             'total_entries'       => $transactions->count(),
             'total_km_run'        => round($totalKmRun, 2),

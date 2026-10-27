@@ -14,6 +14,12 @@ class PurchaseOrderItem extends Model
 
     protected $table = 'mm_purchase_order_items';
 
+    public function scopeForPurchaseRegister(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->whereHas('order', fn ($order) => $order
+            ->whereRaw("LOWER(TRIM(state)) IN ('billed')"));
+    }
+
     public string $auditTransactionType = 'purchase_order_item';
 
     protected $fillable = [

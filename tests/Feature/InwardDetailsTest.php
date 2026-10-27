@@ -46,6 +46,63 @@ class InwardDetailsTest extends TestCase
         $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
     }
 
+    public function test_inward_report_party_filter_is_shared_by_view_excel_and_pdf(): void
+    {
+        $vendor = Patron::factory()->create(['plant_id' => $this->plant->id, 'legal_name' => 'Selected Vendor']);
+        $this->inward->order->update(['vendor_id' => $vendor->id]);
+        $otherVendor = Patron::factory()->create(['plant_id' => $this->plant->id, 'legal_name' => 'Excluded Vendor']);
+        $otherOrder = PurchaseOrder::factory()->create(['plant_id' => $this->plant->id, 'vendor_id' => $otherVendor->id]);
+        $otherInward = $this->inward->replicate();
+        $otherInward->fill(['order_id' => $otherOrder->id, 'inward_no' => 'INW-EXCLUDED', 'received_qty' => 25]);
+        $otherInward->save();
+        $filters = ['plant_id' => $this->plant->id, 'patron_id' => $vendor->id,
+            'start' => '2026-10-01 00:00:00', 'end' => '2026-10-31 23:59:59'];
+        $service = app(\App\Services\Reports\InventoryInwardReportService::class);
+        $report = $service->generate($filters);
+        $this->assertSame(['INW-EDIT'], $report['transactions']->pluck('inward_no')->all());
+        $this->assertSame(10.0, $report['total_quantity']);
+        $all = $service->generate(array_replace($filters, ['patron_id' => null]));
+        $this->assertCount(2, $all['transactions']);
+        $this->assertSame(35.0, $all['total_quantity']);
+        $empty = $service->generate(array_replace($filters, ['patron_id' => 999999]));
+        $this->assertCount(0, $empty['transactions']);
+        $this->assertSame(0.0, $empty['total_quantity']);
+
+        // Check the actual queued Excel path, then inspect the generated workbook.
+        $excelKey = 'inward-filter-excel-test';
+        (new \App\Jobs\QueueReportExportJob('inventory_inward', $filters, $excelKey, 'excel'))
+            ->handle(app(\App\Repositories\ReportRepository::class));
+        $export = \Illuminate\Support\Facades\Cache::get($excelKey);
+        $this->assertSame('completed', $export['status']);
+        $path = storage_path('app/private/reports/'.$export['filename']);
+        try {
+            $workbook = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+            $cells = json_encode($workbook->getActiveSheet()->toArray());
+            $this->assertStringContainsString('INW-EDIT', $cells);
+            $this->assertStringNotContainsString('INW-EXCLUDED', $cells);
+            $this->assertStringNotContainsString('Excluded Vendor', $cells);
+            $workbook->disconnectWorksheets();
+        } finally {
+            \Illuminate\Support\Facades\File::delete($path);
+        }
+
+        // Verify the queued PDF renderer receives the same filtered rows and total.
+        $pdf = \Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+        $pdf->shouldReceive('setPaper')->once()->andReturnSelf();
+        $pdf->shouldReceive('setOption')->once()->andReturnSelf();
+        $pdf->shouldReceive('save')->once()->andReturnSelf();
+        \Barryvdh\DomPDF\Facade\Pdf::shouldReceive('loadView')->once()
+            ->withArgs(function ($view, $data) {
+                $this->assertSame(['INW-EDIT'], collect($data['transactions'])->pluck('inward_no')->all());
+                $this->assertSame(10.0, $data['total_quantity']);
+                $this->assertSame(10.0, $data['totals']['quantity']);
+                return true;
+            })->andReturn($pdf);
+        (new \App\Jobs\QueueReportExportJob('inventory_inward', $filters, 'inward-filter-pdf-test', 'pdf'))
+            ->handle(app(\App\Repositories\ReportRepository::class));
+        $this->assertSame('completed', \Illuminate\Support\Facades\Cache::get('inward-filter-pdf-test')['status']);
+    }
+
     private function updateDetails(array $payload)
     {
         return $this->post(route('inwards.update-weight', $this->inward), $payload);

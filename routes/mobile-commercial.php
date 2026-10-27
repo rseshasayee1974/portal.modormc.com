@@ -9,6 +9,7 @@ $routeNamePrefix = $routeNamePrefix ?? 'mobile';
 $quotationReviewController = $routeNamePrefix === 'mobile'
     ? \App\Http\Controllers\Api\MobileAdminQuotationController::class
     : QuotationController::class;
+Route::post('leads/{lead}/quotation', [$quotationReviewController, 'createFromLead'])->whereNumber('lead')->name($routeNamePrefix.'.leads.quotation');
 Route::get('quotations', [$quotationReviewController, 'index'])->name($routeNamePrefix.'.quotations.index');
 Route::get('quotations/{quotation}', [$quotationReviewController, 'show'])->whereNumber('quotation')->name($routeNamePrefix.'.quotations.show');
 Route::match(['put', 'patch'], 'quotations/{quotation}', [$quotationReviewController, 'update'])->whereNumber('quotation')->name($routeNamePrefix.'.quotations.update');

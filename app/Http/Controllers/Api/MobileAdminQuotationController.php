@@ -8,6 +8,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\SalesMobile\QuotationController;
 use App\Models\Quotation;
+use App\Models\CrmLead;
 use App\Services\Mobile\MobileAccess as Access;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -17,7 +18,7 @@ class MobileAdminQuotationController extends QuotationController
     {
         $this->authorizeAdministrator();
         Access::authorize('QUOTATION', match ($method) {
-            'store' => 'CREATE',
+            'store', 'createFromLead' => 'CREATE',
             'update', 'submit' => 'UPDATE',
             'destroy' => 'DELETE',
             'review' => 'APPROVE',
@@ -41,6 +42,12 @@ class MobileAdminQuotationController extends QuotationController
         Access::authorize('QUOTATION', 'VIEW');
         return Quotation::withoutGlobalScope('plant_id')->where('plant_id', Access::plantId())
             ->whereIn('status', [Quotation::STATUS_DRAFT, Quotation::STATUS_SENT, Quotation::STATUS_ACCEPTED, Quotation::STATUS_REJECTED]);
+    }
+
+    protected function quotationLeads(): Builder
+    {
+        $this->authorizeAdministrator();
+        return CrmLead::withoutGlobalScope('plant_id')->where('plant_id', Access::plantId());
     }
 
     protected function authorizeReview(): void

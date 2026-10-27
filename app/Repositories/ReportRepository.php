@@ -210,6 +210,7 @@ class ReportRepository
     public function getPurchaseRegisterQuery(array $filters): Builder
     {
         $query = PurchaseOrderItem::query()
+            ->forPurchaseRegister()
             ->whereNull('mm_purchase_order_items.deleted_at')
             ->whereHas('order', function ($q) {
                 $q->whereNull('deleted_at');

@@ -15,8 +15,11 @@ const props = defineProps({
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
                 <div>
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Inward Quantity</span>
-                    <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ reportData.total_quantity }}</span>
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Inward
+                        Quantity</span>
+                    <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{
+                        parseFloat(reportData.total_quantity).toFixed(2)
+                    }}</span>
                 </div>
                 <InboxIcon class="w-5 h-5 text-slate-400" />
             </div>
@@ -26,7 +29,8 @@ const props = defineProps({
         <div class="overflow-x-auto border border-slate-200 rounded">
             <table class="w-full text-left border-collapse min-w-[800px]">
                 <thead>
-                    <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                    <tr
+                        class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
                         <th class="py-3 px-4 text-center" width="5%">#</th>
                         <th class="py-3 px-4 text-center" width="12%">Received Date</th>
                         <th class="py-3 px-4 text-center" width="12%">Inward No</th>
@@ -38,7 +42,8 @@ const props = defineProps({
                     </tr>
                 </thead>
                 <tbody class="text-[11px] font-semibold text-slate-700">
-                    <tr v-for="(row, idx) in reportData.transactions" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                    <tr v-for="(row, idx) in reportData.transactions" :key="idx"
+                        class="border-b border-slate-100 hover:bg-slate-50 transition-all">
                         <td class="py-3 px-4 text-center text-slate-400">{{ idx + 1 }}</td>
                         <td class="py-3 px-4 text-center text-slate-500">{{ row.date }}</td>
                         <td class="py-3 px-4 text-center font-bold text-slate-750">{{ row.inward_no }}</td>
@@ -52,7 +57,8 @@ const props = defineProps({
                     </tr>
                     <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                         <td colspan="6" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Goods Inward</td>
-                        <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ reportData.total_quantity }}</td>
+                        <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ reportData.total_quantity }}
+                        </td>
                         <td></td>
                     </tr>
                 </tbody>

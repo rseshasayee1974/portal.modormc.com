@@ -272,15 +272,7 @@ class QueueReportExportJob implements ShouldQueue
                 'alignments' => ['center', 'left', 'center', 'center', 'right', 'left']
             ];
         } elseif (str_contains(strtolower($type), 'machine_tracker')) {
-            $extraParams = [
-                'headers'    => ['Date', 'Machine / Vehicle', 'Shift', 'Operator', 'Odometer (KM | KM/L)', 'Hourmeter (Hrs | Hrs/L)', 'EB Units', 'Fuel (L)', 'Fuel Cost (₹)'],
-                'fields'     => ['date', 'machine_registration', 'shift_label', 'operator_name', 'odometer_display', 'hourmeter_display', 'eb_display', 'fuel', 'fuel_amount'],
-                'alignments' => ['center', 'left', 'center', 'left', 'center', 'center', 'center', 'right', 'right'],
-                'totals'     => [
-                    'fuel'        => $data['total_fuel_liters'] ?? 0,
-                    'fuel_amount' => $data['total_fuel_amount'] ?? 0,
-                ]
-            ];
+            $extraParams = \App\Services\Reports\MachineTrackerReportService::pdfColumns($data);
         } elseif (str_contains(strtolower($type), 'payroll_personnel')) {
             $extraParams = [
                 'headers'    => ['Emp Code', 'Employee Name', 'Department / Role', 'Month / Period', 'Attendance', 'Gross Pay', 'Deductions', 'Net Salary', 'Status'],
@@ -313,6 +305,11 @@ class QueueReportExportJob implements ShouldQueue
         }
         if (strtoupper($type) === 'INVENTORY_INWARD') {
             $paperSize = 'a5';
+        }
+
+        if (strtolower($type) === 'machine_tracker') {
+            $paperSize = 'a3';
+            $orientation = 'landscape';
         }
 
         $startLabel = !empty($params['start']) ? (str_contains($params['start'], ':') ? \Carbon\Carbon::parse($params['start'])->format('d-m-Y H:i') : \Carbon\Carbon::parse($params['start'])->format('d-m-Y')) : '';
