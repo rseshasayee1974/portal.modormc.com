@@ -1777,6 +1777,71 @@ class SalesMobileApiTest extends TestCase
         $this->getJson('/api/mobile/leads/'.$id)->assertNotFound();
     }
 
+    public function test_admin_lead_crud_handles_aliased_fields_unassignment_and_status_approval(): void
+    {
+        $this->useAdminLeadCrud();
+
+        // 1. Creation with aliased fields, YYYY-MM-DD timestamp strings, phone with country code, case-insensitive enums
+        $payload = [
+            'customer_name' => 'Alias Contact',
+            'company_name' => 'Alias Company',
+            'phone' => '+91 98765 43210',
+            'email' => 'ALIAS@example.test',
+            'enquiry_date' => '2026-10-28T10:00:00.000000Z',
+            'source' => 'website',
+            'priority' => 'high',
+            'status' => 'new',
+            'notes' => 'Some notes here',
+            'location' => 'Delivery site location',
+            'quantity' => '50.500',
+            'sales_executive_id' => 1,
+            'mix_design_id' => 1,
+            'requirement' => 'Special aggregate mix requirement',
+            'expected_value' => '50000.00',
+            'expected_purchase_date' => '2026-11-15T00:00:00.000Z',
+        ];
+
+        $response = $this->postJson('/api/mobile/leads', $payload)->assertCreated();
+        $id = $response->json('data.id');
+
+        $this->assertDatabaseHas('mm_crm_leads', [
+            'id' => $id,
+            'contact_name' => 'Alias Contact',
+            'company_name' => 'Alias Company',
+            'phone' => '9876543210',
+            'email' => 'alias@example.test',
+            'enquiry_date' => '2026-10-28',
+            'source' => 'Website',
+            'priority' => 'High',
+            'status' => 'New',
+            'remarks' => 'Some notes here',
+            'delivery_location' => 'Delivery site location',
+            'estimated_quantity' => '50.500',
+            'assigned_to' => 1,
+            'mix_design_id' => 1,
+            'requirement' => 'Special aggregate mix requirement',
+            'expected_purchase_date' => '2026-11-15',
+        ]);
+
+        // 2. Unassigning lead by setting assigned_to to null
+        $this->patchJson('/api/mobile/leads/'.$id, ['assigned_to' => null])->assertOk();
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'assigned_to' => null]);
+
+        // 3. Admin can update status directly to Approved via PUT/PATCH
+        $this->patchJson('/api/mobile/leads/'.$id, ['status' => 'Approved'])->assertOk()->assertJsonPath('data.status', 'Approved');
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'status' => 'Approved']);
+
+        // 4. Moving from Unqualified to Contacted clears lost_reason
+        $this->patchJson('/api/mobile/leads/'.$id, [
+            'status' => 'Unqualified',
+            'lost_reason' => 'Rate too high',
+        ])->assertOk();
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'status' => 'Unqualified', 'lost_reason' => 'Rate too high']);
+
+        $this->patchJson('/api/mobile/leads/'.$id, ['status' => 'Contacted'])->assertOk();
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => $id, 'status' => 'Contacted', 'lost_reason' => null]);
+    }
+
     public function test_admin_lead_assignment_requires_permission_and_active_plant_membership(): void
     {
         $this->useAdminLeadCrud();

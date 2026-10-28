@@ -20,7 +20,7 @@ const form = reactive({
     patron_id: props.record.patron_id, account_id: props.record.account_id,
     cutover_date: props.record.cutover_date?.slice(0, 10),
     side: line.side || 'Dr', amount: line.amount || '',
-    clearing_account_id: props.record.clearing_account_id,
+    // clearing_account_id: props.record.clearing_account_id,
     reference: line.reference || '', notes: props.record.notes || '', reason: '',
 });
 const busy = ref(false);
@@ -72,22 +72,31 @@ async function remove() {
 </script>
 
 <template>
-    <section :id="'opening-balance-edit-' + record.id" aria-label="Edit opening balance" class="space-y-4 bg-slate-50 p-5 sm:p-6 dark:bg-slate-900">
+    <section :id="'opening-balance-edit-' + record.id" aria-label="Edit opening balance"
+        class="space-y-4 bg-slate-50 p-5 sm:p-6 dark:bg-slate-900">
         <div class="flex items-start justify-between gap-4">
             <div>
-                <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">{{ canUpdate ? 'Edit' : 'View' }} Opening Balance · Record #{{ record.id }}</h3>
-                <p v-if="canUpdate" class="mt-1 text-xs text-slate-500">Save a replacement balance with a reason. The previous version remains in the audit history.</p>
+                <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">{{ canUpdate ? 'Edit' : 'View' }}
+                    Opening Balance · Record #{{ record.id }}</h3>
+                <p v-if="canUpdate" class="mt-1 text-xs text-slate-500">Save a replacement balance with a reason. The
+                    previous version remains in the audit history.</p>
             </div>
-            <button type="button" :disabled="busy" @click="emit('close')" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Close</button>
+            <button type="button" :disabled="busy" @click="emit('close')"
+                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Close</button>
         </div>
         <form class="space-y-5" @submit.prevent="save">
             <p v-if="error" role="alert" class="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{{ error }}</p>
-            <OpeningBalanceFormFields :form="form" :kind="kind" :ledgers="ledgers" :patrons="patrons" :busy="busy || !canUpdate" />
+            <OpeningBalanceFormFields :form="form" :kind="kind" :ledgers="ledgers" :patrons="patrons"
+                :busy="busy || !canUpdate" />
             <div class="flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                <button v-if="can('OPENING_BALANCE.DELETE')" type="button" :disabled="busy" @click="remove" class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 disabled:opacity-50">Remove Balance</button>
+                <button v-if="can('OPENING_BALANCE.DELETE')" type="button" :disabled="busy" @click="remove"
+                    class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 disabled:opacity-50">Remove
+                    Balance</button>
                 <div class="flex gap-3">
-                    <button type="button" :disabled="busy" @click="emit('close')" class="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold disabled:opacity-50">Cancel</button>
-                    <button v-if="canUpdate" type="submit" :disabled="busy || !form.amount || Number(form.amount) <= 0 || !form.clearing_account_id || form.reason.trim().length < 5"
+                    <button type="button" :disabled="busy" @click="emit('close')"
+                        class="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold disabled:opacity-50">Cancel</button>
+                    <button v-if="canUpdate" type="submit"
+                        :disabled="busy || !form.amount || Number(form.amount) <= 0 || form.reason.trim().length < 2"
                         class="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
                         {{ busy ? 'Saving...' : 'Replace & Post Balance' }}
                     </button>

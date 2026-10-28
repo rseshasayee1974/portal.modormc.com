@@ -1933,13 +1933,23 @@ class BatchController extends Controller
         if ((int) $batch->status === Batch::STATUS_CANCELLED) {
             throw ValidationException::withMessages(['batch_id' => 'A cancelled batch cannot be dispatched.']);
         }
-        if ((float) $dispatch->loaded_weight_truck <= (float) $dispatch->empty_weight_truck
-            || $dispatch->empty_weight_truck === null || (float) $dispatch->empty_weight_truck < 0) {
-            throw ValidationException::withMessages(['weights.loaded_weight_truck' => 'Full Weight must be greater than Empty Weight.']);
+        $settings = \App\Models\CustomSetting::getForModule($batch->plant_id, 'batching');
+        $isWeightMandatory = !isset($settings['weight_mandatory']) || filter_var($settings['weight_mandatory'], FILTER_VALIDATE_BOOLEAN);
+
+        if ($isWeightMandatory) {
+            if ((float) $dispatch->loaded_weight_truck <= (float) $dispatch->empty_weight_truck
+                || $dispatch->empty_weight_truck === null || (float) $dispatch->empty_weight_truck < 0) {
+                throw ValidationException::withMessages(['weights.loaded_weight_truck' => 'Full Weight must be greater than Empty Weight.']);
+            }
+        } else {
+            if ((float) ($dispatch->loaded_weight_truck ?? 0) > 0 && (float) ($dispatch->empty_weight_truck ?? 0) > 0) {
+                if ((float) $dispatch->loaded_weight_truck <= (float) $dispatch->empty_weight_truck) {
+                    throw ValidationException::withMessages(['weights.loaded_weight_truck' => 'Full Weight must be greater than Empty Weight.']);
+                }
+            }
         }
         if (!in_array((int) $batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED], true)) {
             $materials = $batch->materials()->get()->toArray();
-            $settings = \App\Models\CustomSetting::getForModule($batch->plant_id, 'batching');
             if (filter_var($settings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN)) {
                 $this->checkStock($batch, $materials);
                 $this->adjustStock($batch, $materials);

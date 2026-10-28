@@ -29,6 +29,7 @@ class StoreBatchRequest extends FormRequest
     {
         $plantId = session('active_plant_id');
         $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
+        $isWeightMandatory = !isset($settings['weight_mandatory']) || filter_var($settings['weight_mandatory'], FILTER_VALIDATE_BOOLEAN);
 
         $user = $this->user() ?? auth()->user();
         $canEditBatchNo = BatchNumberAccess::allows($user);
@@ -38,6 +39,21 @@ class StoreBatchRequest extends FormRequest
             $batchNoRules[] = Rule::unique('mm_batches', 'batch_no')
                 ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at'));
         }
+
+        $emptyWeightRules = $isWeightMandatory
+            ? ['required', 'numeric', 'gt:0']
+            : ['nullable', 'numeric', 'gte:0'];
+
+        $loadedWeightRules = $isWeightMandatory
+            ? ['nullable', 'numeric', 'gt:empty_weight_truck']
+            : ['nullable', 'numeric', function ($attribute, $value, $fail) {
+                if ($value !== null && $value !== '' && (float) $value > 0) {
+                    $emptyWeight = $this->input('empty_weight_truck');
+                    if ($emptyWeight !== null && $emptyWeight !== '' && (float) $emptyWeight > 0 && (float) $value <= (float) $emptyWeight) {
+                        $fail('Loaded Weight must be greater than Empty Weight.');
+                    }
+                }
+            }];
 
         return [
             'batching_schedule_id' => ['nullable', 'integer', Rule::exists('mm_concrete_batching_schedules', 'id')
@@ -57,8 +73,8 @@ class StoreBatchRequest extends FormRequest
             'transport_id' => ['nullable', 'integer', 'exists:mm_patrons,id'],
             'driver_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'sales_executive_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
-            'empty_weight_truck' => ['required', 'numeric', 'gt:0'],
-            'loaded_weight_truck' => ['nullable', 'numeric', 'gt:empty_weight_truck'],
+            'empty_weight_truck' => $emptyWeightRules,
+            'loaded_weight_truck' => $loadedWeightRules,
             'empty_weight_photo' => ['nullable', 'string'],
             'loaded_weight_photo' => ['nullable', 'string'],
             'net_weight' => ['nullable', 'numeric'],

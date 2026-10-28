@@ -128,6 +128,8 @@ const setBatchActiveTab = (batchId: number, tabIndex: number) => {
 };
 
 const page = usePage();
+const customSettings = page.props.custom_settings as any;
+const isWeightMandatory = computed(() => customSettings?.batching?.weight_mandatory === undefined || customSettings?.batching?.weight_mandatory === 1 || customSettings?.batching?.weight_mandatory === true || customSettings?.batching?.weight_mandatory === 'true' || customSettings?.batching?.weight_mandatory === '1');
 const isRefreshing = ref(false);
 
 // Fallback REST polling via Inertia reload
@@ -380,6 +382,9 @@ const isBatchCancelled = (data: any): boolean => {
 };
 
 const canAccessDispatchTab = (batch: any, detailedBatch?: any): boolean => {
+    if (!isWeightMandatory.value) {
+        return true;
+    }
     const detailedDispatch = detailedBatch?.dispatches?.[0] || detailedBatch?.dispatch;
     const dispatch = batch?.dispatches?.[0] || batch?.dispatch;
     const fullWeight = Number(detailedDispatch?.loaded_weight_truck
@@ -635,7 +640,6 @@ const submitCancelDispatch = async () => {
 };
 
 // ── Page Settings ────────────────────────────────────────────────────────────
-const customSettings = page.props.custom_settings as any;
 const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form);
 
 // const lastShownBatchId = ref<number | null>(null);
@@ -811,8 +815,8 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                     :transporters="transporters" :drivers="drivers" :sales_executives="sales_executives"
                     :products="products" :uoms="uoms" :unloading_sites="unloading_sites" :loading_sites="loading_sites"
                     :taxes="taxes" :statuses="statuses" :nextBatchNo="nextBatchNo"
-                    :concretePumpOptions="concretePumpOptions" :existingBatches="localBatches" @created="handleBatchCreated"
-                    @offline-batch-added="handleOfflineBatchAdded" />
+                    :concretePumpOptions="concretePumpOptions" :existingBatches="localBatches"
+                    @created="handleBatchCreated" @offline-batch-added="handleOfflineBatchAdded" />
 
                 <hr class="border-slate-200 border-dashed" />
 
@@ -1291,7 +1295,8 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                                     @deleteInvoice="handleInvoiceGenerated"
                                                     @cancel="collapseExpandedRows()" />
                                                 <div v-else class="text-center py-8 text-slate-400 font-medium">
-                                                    Save a full truck weight greater than the empty weight to enable Dispatch &amp; Invoicing.
+                                                    Save a full truck weight greater than the empty weight to enable
+                                                    Dispatch &amp; Invoicing.
                                                 </div>
                                             </div>
                                         </TabPanel>

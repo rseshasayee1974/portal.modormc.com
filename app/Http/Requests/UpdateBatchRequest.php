@@ -21,6 +21,22 @@ class UpdateBatchRequest extends FormRequest
         $salesOrderId = (int) ($this->input('sales_order_id') ?? $batch?->sales_order_id);
         
         $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
+        $isWeightMandatory = !isset($settings['weight_mandatory']) || filter_var($settings['weight_mandatory'], FILTER_VALIDATE_BOOLEAN);
+
+        $emptyWeightRules = $isWeightMandatory
+            ? ['required', 'numeric', 'gt:0']
+            : ['nullable', 'numeric', 'gte:0'];
+
+        $loadedWeightRules = $isWeightMandatory
+            ? ['required', 'numeric', 'gt:empty_weight_truck']
+            : ['nullable', 'numeric', function ($attribute, $value, $fail) {
+                if ($value !== null && $value !== '' && (float) $value > 0) {
+                    $emptyWeight = $this->input('empty_weight_truck');
+                    if ($emptyWeight !== null && $emptyWeight !== '' && (float) $emptyWeight > 0 && (float) $value <= (float) $emptyWeight) {
+                        $fail('Loaded Weight must be greater than Empty Weight.');
+                    }
+                }
+            }];
 
         return [
             'sales_order_id' => ['nullable', 'integer', 'exists:mm_sales_orders,id'],
@@ -43,8 +59,8 @@ class UpdateBatchRequest extends FormRequest
             'transport_id' => ['nullable', 'integer', 'exists:mm_patrons,id'],
             'driver_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'sales_executive_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
-            'empty_weight_truck' => ['required', 'numeric', 'gt:0'],
-            'loaded_weight_truck' => ['required', 'numeric', 'gt:empty_weight_truck'],
+            'empty_weight_truck' => $emptyWeightRules,
+            'loaded_weight_truck' => $loadedWeightRules,
             'empty_weight_photo' => ['nullable', 'string'],
             'loaded_weight_photo' => ['nullable', 'string'],
             'net_weight' => ['nullable', 'numeric'],

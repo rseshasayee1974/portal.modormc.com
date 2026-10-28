@@ -1217,6 +1217,7 @@ class PlantInitializationService
                 'settings' => [
                     'newweight' => 1,
                     'manual_weight' => 1,
+                    'weight_mandatory' => 1,
                     'camera' => 1,
                     'camera_url' => "",
                     'camera_url_1' => "",

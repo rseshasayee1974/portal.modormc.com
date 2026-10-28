@@ -30,7 +30,9 @@ class CrmLeadService
             Plant::whereKey($plantId)->lockForUpdate()->firstOrFail();
             $this->ensureUniqueContact($plantId, $data);
             if (! empty($data['mix_design_id'])) {
-                $data['requirement'] = null;
+                if (! array_key_exists('requirement', $data) || $data['requirement'] === null) {
+                    $data['requirement'] = null;
+                }
             }
             $lead = new CrmLead(array_merge($data, ['plant_id' => $plantId]));
             $lead->save();
@@ -54,7 +56,9 @@ class CrmLeadService
             }
             $this->ensureUniqueContact($lead->plant_id, $data, $lead->id);
             if (array_key_exists('mix_design_id', $data) && ($data['mix_design_id'] !== null || $lead->mix_design_id !== null)) {
-                $data['requirement'] = null;
+                if (! array_key_exists('requirement', $data) || $data['requirement'] === null) {
+                    $data['requirement'] = null;
+                }
             }
             $lead->fill($data);
             if ((array_key_exists('phone', $data) || array_key_exists('email', $data)) && ! filled($lead->phone) && ! filled($lead->email)) {

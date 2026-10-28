@@ -209,6 +209,7 @@ const runSizes = computed(() => {
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
+const isWeightMandatory = computed(() => customSettings?.batching?.weight_mandatory === undefined || customSettings?.batching?.weight_mandatory === 1 || customSettings?.batching?.weight_mandatory === true || customSettings?.batching?.weight_mandatory === 'true' || customSettings?.batching?.weight_mandatory === '1');
 
 const isUploadFetchEnabled = computed(() => {
     return !!customSettings?.batching?.sheet_upload;
@@ -879,20 +880,31 @@ const submit = (onSuccessCallback?: () => void) => {
     }
 
     let hasErrors = false;
-    if (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck === '' || Number(form.empty_weight_truck) <= 0) {
-        form.setError('empty_weight_truck', 'Empty Weight must be greater than 0');
-        hasErrors = true;
-    }
-    if (form.loaded_weight_truck === null || form.loaded_weight_truck === undefined || form.loaded_weight_truck === '' || Number(form.loaded_weight_truck) <= 0) {
-        form.setError('loaded_weight_truck', 'Full Weight is required');
-        hasErrors = true;
-    } else if (Number(form.loaded_weight_truck) <= Number(form.empty_weight_truck)) {
-        form.setError('loaded_weight_truck', 'Loaded Weight must be greater than Empty Weight');
-        hasErrors = true;
-    }
-    if (!form.empty_time) {
-        form.setError('empty_time', 'Empty Time is required');
-        hasErrors = true;
+    if (isWeightMandatory.value) {
+        if (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck === '' || Number(form.empty_weight_truck) <= 0) {
+            form.setError('empty_weight_truck', 'Empty Weight must be greater than 0');
+            hasErrors = true;
+        }
+        if (form.loaded_weight_truck === null || form.loaded_weight_truck === undefined || form.loaded_weight_truck === '' || Number(form.loaded_weight_truck) <= 0) {
+            form.setError('loaded_weight_truck', 'Full Weight is required');
+            hasErrors = true;
+        } else if (Number(form.loaded_weight_truck) <= Number(form.empty_weight_truck)) {
+            form.setError('loaded_weight_truck', 'Loaded Weight must be greater than Empty Weight');
+            hasErrors = true;
+        }
+        if (!form.empty_time) {
+            form.setError('empty_time', 'Empty Time is required');
+            hasErrors = true;
+        }
+    } else {
+        if (form.loaded_weight_truck !== null && form.loaded_weight_truck !== undefined && form.loaded_weight_truck !== '' && Number(form.loaded_weight_truck) > 0) {
+            if (form.empty_weight_truck !== null && form.empty_weight_truck !== undefined && form.empty_weight_truck !== '' && Number(form.empty_weight_truck) > 0) {
+                if (Number(form.loaded_weight_truck) <= Number(form.empty_weight_truck)) {
+                    form.setError('loaded_weight_truck', 'Loaded Weight must be greater than Empty Weight');
+                    hasErrors = true;
+                }
+            }
+        }
     }
     if (canEditBatchNo.value) {
         if (!form.batch_no || Number(form.batch_no) <= 0) {
@@ -1116,7 +1128,7 @@ console.log('test');
                                         <div class="flex-1">
                                             <BaseInputNumber v-model="form.empty_weight_truck" :minFractionDigits="0"
                                                 :maxFractionDigits="3" :disabled="isLocked" label="Empty Weight"
-                                                required :error="form.errors.empty_weight_truck" />
+                                                :required="isWeightMandatory" :error="form.errors.empty_weight_truck" />
                                         </div>
                                     </div>
                                 </div>
@@ -1126,7 +1138,7 @@ console.log('test');
                                             <BaseInputNumber v-model="form.loaded_weight_truck" :minFractionDigits="0"
                                                 :maxFractionDigits="3"
                                                 :disabled="isLocked || customSettings?.batching?.manual_weight === 0"
-                                                label="Full Weight" required :error="form.errors.loaded_weight_truck" />
+                                                label="Full Weight" :required="isWeightMandatory" :error="form.errors.loaded_weight_truck" />
                                         </div>
                                         <button
                                             v-if="!isLocked && !customSettings?.batching?.manual_weight && form.net_weight <= 0"

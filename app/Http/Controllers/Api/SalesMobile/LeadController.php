@@ -10,10 +10,12 @@ namespace App\Http\Controllers\Api\SalesMobile;
 use App\Http\Controllers\Controller;
 use App\Models\CrmActivity;
 use App\Models\CrmLead;
+use App\Models\Personnel;
 use App\Models\Plant;
 use App\Models\User;
 use App\Services\CrmLeadService;
 use App\Services\Mobile\MobileAccess as Access;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -21,7 +23,7 @@ use Illuminate\Validation\ValidationException;
 
 class LeadController extends Controller
 {
-    protected function leads(): \Illuminate\Database\Eloquent\Builder
+    protected function leads(): Builder
     {
         return Access::leads();
     }
@@ -30,7 +32,7 @@ class LeadController extends Controller
     {
         Access::authorize('CRM_LEAD', 'VIEW');
         $r->validate(['search' => 'nullable|string|max:100', 'status' => ['nullable', Rule::in(CrmLead::STATUSES)], 'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1']);
-        $q = $this->leads()->with(['owner:id,username', 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])->withMin(['activities as next_follow_up' => fn ($a) => $a->whereIn('id', Access::activities()->select('id'))->whereNull('completed_at')], 'due_at');
+        $q = $this->leads()->with(['owner:id,username', 'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])->withMin(['activities as next_follow_up' => fn ($a) => $a->whereIn('id', $this->activities()->select('id'))->whereNull('completed_at')], 'due_at');
         if ($r->filled('search')) {
             $q->where(fn ($q) => $q->where('contact_name', 'like', '%'.$r->search.'%')->orWhere('company_name', 'like', '%'.$r->search.'%')->orWhere('phone', 'like', '%'.$r->search.'%'));
         }
@@ -44,63 +46,210 @@ class LeadController extends Controller
     public function show(int $lead)
     {
         Access::authorize('CRM_LEAD', 'VIEW');
-        $model = $this->leads()->findOrFail($lead)->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId()), 'activities' => fn ($q) => $q->whereIn('id', Access::activities()->select('id'))->latest('id'), 'deal' => fn ($q) => $q->where('plant_id', Access::plantId()), 'customer' => fn ($q) => $q->whereIn('id', Access::customers()->select('id')), 'owner:id,username']);
+        $model = $this->leads()->findOrFail($lead)->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId()), 'activities' => fn ($q) => $q->whereIn('id', $this->activities()->select('id'))->latest('id'), 'deal' => fn ($q) => $q->where('plant_id', Access::plantId()), 'customer' => fn ($q) => $q->whereIn('id', Access::customers()->select('id')), 'owner:id,username']);
         $model->customer?->setAppends([]);
-        $model->setAttribute('allowed_statuses', $model->allowedStatuses());
-        $model->setAttribute('status_options', $model->statusOptions());
+        $model->setAttribute('allowed_statuses', $this->allowedStatuses($model));
+        $model->setAttribute('status_options', $this->statusOptions($model));
 
         return response()->json(['success' => true, 'data' => $model]);
     }
 
-    protected function leadOwnerId(?CrmLead $lead): int
+    public function allowedStatuses(?CrmLead $lead = null): array
+    {
+        return $lead ? $lead->allowedStatuses() : CrmLead::STANDARD_STATUSES;
+    }
+
+    public function statusOptions(?CrmLead $lead = null): array
+    {
+        return array_map(fn ($status) => [
+            'label' => $status,
+            'value' => $status,
+        ], $this->allowedStatuses($lead));
+    }
+
+    protected function leadOwnerId(?CrmLead $lead): ?int
     {
         return (int) request()->user()->id;
     }
 
-    private function data(Request $r, ?CrmLead $lead = null): array
+    protected function loadLeadDetails(CrmLead $lead): CrmLead
     {
-        foreach (['email', 'phone'] as $field) {
-            if (array_key_exists($field, $r->all())) {
-                $r->merge([$field => $r->filled($field) && is_string($r->input($field))
-                    ? ($field === 'email' ? strtolower(trim($r->input($field))) : preg_replace('/[^0-9]/', '', $r->input($field)))
-                    : $r->input($field)]);
+        $lead->load([
+            'mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId()),
+            'customer' => fn ($q) => $q->whereIn('id', Access::customers()->select('id')),
+            'owner:id,username',
+        ]);
+        $lead->customer?->setAppends([]);
+        $lead->setAttribute('allowed_statuses', $this->allowedStatuses($lead));
+        $lead->setAttribute('status_options', $this->statusOptions($lead));
+
+        return $lead;
+    }
+
+    protected function data(Request $r, ?CrmLead $lead = null): array
+    {
+        // 1. Alias mapping
+        if (! $r->has('customer_id') && $r->has('patron_id')) {
+            $r->merge(['customer_id' => $r->input('patron_id')]);
+        }
+        if (! $r->has('contact_name') && $r->has('customer_name')) {
+            $r->merge(['contact_name' => $r->input('customer_name')]);
+        }
+        if (! $r->has('remarks') && $r->has('notes')) {
+            $r->merge(['remarks' => $r->input('notes')]);
+        }
+        if (! $r->has('delivery_location') && $r->has('location')) {
+            $r->merge(['delivery_location' => $r->input('location')]);
+        }
+        if (! $r->has('estimated_quantity') && $r->has('quantity')) {
+            $r->merge(['estimated_quantity' => $r->input('quantity')]);
+        }
+        if (! $r->has('assigned_to') && $r->has('sales_executive_id')) {
+            $personnelId = $r->input('sales_executive_id');
+            if ($personnelId) {
+                $userId = Personnel::where('id', $personnelId)->value('user_id');
+                $r->merge(['assigned_to' => $userId ?: $personnelId]);
+            } else {
+                $r->merge(['assigned_to' => null]);
             }
         }
+
+        // 2. Normalization: empty string to null for nullable fields
+        $nullableFields = [
+            'mix_design_id', 'customer_id', 'assigned_to', 'estimated_quantity',
+            'expected_purchase_date', 'lost_reason', 'requirement', 'company_name',
+            'address', 'project_name', 'delivery_location', 'remarks', 'phone', 'email',
+        ];
+        foreach ($nullableFields as $field) {
+            if ($r->has($field) && $r->input($field) === '') {
+                $r->merge([$field => null]);
+            }
+        }
+
+        // 3. Normalization: dates (extract Y-m-d if ISO string provided)
+        foreach (['enquiry_date', 'expected_purchase_date'] as $dateField) {
+            if ($r->has($dateField) && is_string($r->input($dateField)) && strlen($r->input($dateField)) >= 10) {
+                $val = substr($r->input($dateField), 0, 10);
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) {
+                    $r->merge([$dateField => $val]);
+                }
+            }
+        }
+
+        // 4. Normalization: expected_value defaults to 0 if empty/null
+        if ($r->has('expected_value') && ($r->input('expected_value') === '' || $r->input('expected_value') === null)) {
+            $r->merge(['expected_value' => 0]);
+        }
+
+        // 5. Normalization: phone and email
+        foreach (['email', 'phone'] as $field) {
+            if (array_key_exists($field, $r->all())) {
+                if ($r->filled($field) && is_string($r->input($field))) {
+                    if ($field === 'email') {
+                        $r->merge([$field => strtolower(trim($r->input($field)))]);
+                    } else {
+                        $phone = preg_replace('/[^0-9]/', '', $r->input($field));
+                        if (strlen($phone) === 12 && str_starts_with($phone, '91')) {
+                            $phone = substr($phone, 2);
+                        }
+                        $r->merge([$field => $phone]);
+                    }
+                } else {
+                    $r->merge([$field => $r->input($field)]);
+                }
+            }
+        }
+
+        // 6. Normalization: source, priority, status casing
+        if ($r->has('source') && is_string($r->input('source'))) {
+            $sourceLower = strtolower(trim($r->input('source')));
+            foreach (CrmLead::SOURCES as $source) {
+                if (strtolower($source) === $sourceLower) {
+                    $r->merge(['source' => $source]);
+                    break;
+                }
+            }
+        }
+        if ($r->has('priority') && is_string($r->input('priority'))) {
+            $priorityLower = strtolower(trim($r->input('priority')));
+            foreach (CrmLead::PRIORITIES as $priority) {
+                if (strtolower($priority) === $priorityLower) {
+                    $r->merge(['priority' => $priority]);
+                    break;
+                }
+            }
+        }
+        if ($r->has('status') && is_string($r->input('status'))) {
+            $statusLower = strtolower(trim($r->input('status')));
+            foreach (CrmLead::STATUSES as $status) {
+                if (strtolower($status) === $statusLower) {
+                    $r->merge(['status' => $status]);
+                    break;
+                }
+            }
+        }
+
         $rules = [
-            'contact_name' => 'required|string|max:200', 'company_name' => 'nullable|string|max:200',
-            'phone' => 'nullable|required_without:email|regex:/^[0-9]{7,15}$/', 'email' => 'nullable|required_without:phone|email|max:150',
-            'enquiry_date' => 'required|date_format:Y-m-d', 'source' => ['required', Rule::in(CrmLead::SOURCES)],
-            'priority' => ['required', Rule::in(CrmLead::PRIORITIES)], 'status' => ['required', Rule::in($lead ? $lead->allowedStatuses() : CrmLead::STANDARD_STATUSES)],
-            'assigned_to' => 'nullable|integer', 'address' => 'nullable|string|max:400', 'project_name' => 'nullable|string|max:200',
-            'requirement' => 'nullable|string|max:500', 'mix_design_id' => ['nullable', 'integer', Rule::exists('mm_mix_designs', 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')->where(fn ($q) => $q->where('is_active', 1)->when($lead?->mix_design_id, fn ($q) => $q->orWhere('id', $lead->mix_design_id)))], 'estimated_quantity' => 'nullable|numeric|min:0|max:99999999999',
-            'delivery_location' => 'nullable|string|max:500', 'expected_value' => 'required|numeric|min:0|max:99999999999999',
-            'expected_purchase_date' => 'nullable|date_format:Y-m-d', 'remarks' => 'nullable|string|max:10000',
+            'contact_name' => 'required|string|max:200',
+            'company_name' => 'nullable|string|max:200',
+            'phone' => 'nullable|required_without:email|regex:/^[0-9]{7,15}$/',
+            'email' => 'nullable|required_without:phone|email|max:150',
+            'enquiry_date' => 'required|date_format:Y-m-d',
+            'source' => ['required', Rule::in(CrmLead::SOURCES)],
+            'priority' => ['required', Rule::in(CrmLead::PRIORITIES)],
+            'status' => ['required', Rule::in($this->allowedStatuses($lead))],
+            'assigned_to' => 'nullable|integer',
+            'address' => 'nullable|string|max:400',
+            'project_name' => 'nullable|string|max:200',
+            'requirement' => 'nullable|string|max:500',
+            'mix_design_id' => ['nullable', 'integer', Rule::exists('mm_mix_designs', 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')->where(fn ($q) => $q->where('is_active', 1)->when($lead?->mix_design_id, fn ($q) => $q->orWhere('id', $lead->mix_design_id)))],
+            'estimated_quantity' => 'nullable|numeric|min:0|max:99999999999',
+            'delivery_location' => 'nullable|string|max:500',
+            'expected_value' => 'required|numeric|min:0|max:99999999999999',
+            'expected_purchase_date' => 'nullable|date_format:Y-m-d',
+            'remarks' => 'nullable|string|max:10000',
             'lost_reason' => 'nullable|required_if:status,'.CrmLead::STATUS_UNQUALIFIED.'|string|max:2000',
         ];
+
         if ($lead) {
             $rules['phone'] = ['nullable', 'regex:/^[0-9]{7,15}$/'];
             $rules['email'] = ['nullable', 'email', 'max:150'];
             $rules['lost_reason'] = ['nullable', 'string', 'max:2000'];
-            $rules['assigned_to'] = ['required', 'integer'];
+            $rules['assigned_to'] = ['nullable', 'integer'];
             foreach ($rules as $field => $rule) {
                 $rules[$field] = array_merge(['sometimes'], is_array($rule) ? $rule : explode('|', $rule));
             }
         }
+
         $data = $r->validate($rules, [
             'mix_design_id.exists' => 'The selected mix design is unavailable in this plant. Refresh the mix designs for the selected plant and choose an active design.',
         ]);
-        abort_if(isset($data['assigned_to']) && (int) $data['assigned_to'] !== $this->leadOwnerId($lead), 403, 'Mobile leads must belong to the logged-in user.');
+
+        $resolvedOwnerId = $this->leadOwnerId($lead);
+        if ($resolvedOwnerId !== null) {
+            abort_if(isset($data['assigned_to']) && (int) $data['assigned_to'] !== $resolvedOwnerId, 403, 'Mobile leads must belong to the logged-in user.');
+        }
+
         if (! $lead || array_key_exists('assigned_to', $data)) {
-            $owner = $data['assigned_to'] ?? $lead?->assigned_to ?? $r->user()->id;
-            if ((int) $owner !== (int) ($lead?->assigned_to ?? $r->user()->id)) {
+            $owner = array_key_exists('assigned_to', $data) ? $data['assigned_to'] : ($lead ? $lead->assigned_to : $r->user()->id);
+            if ($owner !== null && (int) $owner !== (int) ($lead?->assigned_to ?? $r->user()->id)) {
+                Access::authorize('CRM_LEAD', 'ASSIGN');
+            } elseif ($owner === null && $lead?->assigned_to !== null) {
                 Access::authorize('CRM_LEAD', 'ASSIGN');
             }
-            $user = User::where('is_active', 1)->find($owner);
-            abort_unless($user && Access::plants($user)->whereKey(Access::plantId())->exists(), 422, 'Owner must belong to this plant.');
+            if ($owner !== null) {
+                $user = User::where('is_active', 1)->find($owner);
+                abort_unless($user && Access::plants($user)->whereKey(Access::plantId())->exists(), 422, 'Owner must belong to this plant.');
+            }
             $data['assigned_to'] = $owner;
         }
+
         if (! $lead) {
-            $data['lost_reason'] = $data['status'] === CrmLead::STATUS_UNQUALIFIED ? ($data['lost_reason'] ?? null) : null;
+            $data['lost_reason'] = ($data['status'] ?? null) === CrmLead::STATUS_UNQUALIFIED ? ($data['lost_reason'] ?? null) : null;
+        } else {
+            if (isset($data['status']) && $data['status'] !== CrmLead::STATUS_UNQUALIFIED) {
+                $data['lost_reason'] = null;
+            }
         }
 
         return $data;
@@ -110,8 +259,9 @@ class LeadController extends Controller
     {
         Access::authorize('CRM_LEAD', 'CREATE');
         $data = $this->data($r);
+        $lead = $service->create(Access::plantId(), $data);
 
-        return response()->json(['success' => true, 'data' => $service->create(Access::plantId(), $data)->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])], 201);
+        return response()->json(['success' => true, 'data' => $this->loadLeadDetails($lead)], 201);
     }
 
     public function approve(int $lead, CrmLeadService $service)
@@ -132,7 +282,7 @@ class LeadController extends Controller
                 $service->prepareCustomerAndSite($model);
             }
 
-            return response()->json(['success' => true, 'data' => $model]);
+            return response()->json(['success' => true, 'data' => $this->loadLeadDetails($model)]);
         });
     }
 
@@ -140,8 +290,9 @@ class LeadController extends Controller
     {
         Access::authorize('CRM_LEAD', 'UPDATE');
         $model = $this->leads()->findOrFail($lead);
+        $updated = $service->update($model, $this->data($r, $model));
 
-        return response()->json(['success' => true, 'data' => $service->update($model, $this->data($r, $model))->load(['mixDesign' => fn ($q) => $q->select('id', 'design_name')->where('plant_id', Access::plantId())])]);
+        return response()->json(['success' => true, 'data' => $this->loadLeadDetails($updated)]);
     }
 
     public function destroy(int $lead)
@@ -166,8 +317,8 @@ class LeadController extends Controller
     {
         Access::authorize('CRM_LEAD', 'VIEW');
         $options = $lead
-            ? $this->leads()->findOrFail($lead)->statusOptions()
-            : CrmLead::defaultStatusOptions();
+            ? $this->statusOptions($this->leads()->findOrFail($lead))
+            : $this->statusOptions();
 
         return response()->json([
             'success' => true,
@@ -176,7 +327,7 @@ class LeadController extends Controller
         ]);
     }
 
-    private function activities()
+    protected function activities()
     {
         return Access::activities()->where('type', '!=', 'System');
     }

@@ -85,6 +85,7 @@ const form = useForm({
 
 
 const customSettings = page.props.custom_settings as any;
+const isWeightMandatory = computed(() => customSettings?.batching?.weight_mandatory === undefined || customSettings?.batching?.weight_mandatory === 1 || customSettings?.batching?.weight_mandatory === true || customSettings?.batching?.weight_mandatory === 'true' || customSettings?.batching?.weight_mandatory === '1');
 const creationMode = computed(() => props.batchCreationSource || 'sales_order');
 const creationSource = ref(creationMode.value === 'batch_schedule' ? 'batch_schedule' : 'sales_order');
 const selectedSchedule = computed(() => props.batchingSchedules.find(schedule => Number(schedule.id) === Number(form.batching_schedule_id)));
@@ -475,8 +476,10 @@ const submit = () => {
             field: 'batch_size',
             message: `Batch Quantity cannot exceed remaining order quantity (${currentRemaining.toFixed(3)} m³)`
         },
-        { condition: (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck === '' || Number(form.empty_weight_truck) <= 0), field: 'empty_weight_truck', message: 'Empty Weight must be greater than 0' },
-        { condition: !form.empty_time, field: 'empty_time', message: 'Empty Time is required' },
+        ...(isWeightMandatory.value ? [
+            { condition: (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck === '' || Number(form.empty_weight_truck) <= 0), field: 'empty_weight_truck', message: 'Empty Weight must be greater than 0' },
+            { condition: !form.empty_time, field: 'empty_time', message: 'Empty Time is required' },
+        ] : []),
         // { condition: form.sales_order_id && form.batch_size > maxAllowed, field: 'batch_size', message: `Batch Quantity cannot exceed remaining order quantity (${maxAllowed.toFixed(3)} m³)` }
     ];
 
@@ -761,7 +764,7 @@ const submit = () => {
                             <div class="flex-1">
                                 <BaseInputNumber v-model="form.empty_weight_truck" :minFractionDigits="0"
                                     :maxFractionDigits="3" :disabled="customSettings?.batching?.manual_weight === 0"
-                                    label="Empty Weight (MT)" :required="customSettings?.batching?.manual_weight === 1"
+                                    label="Empty Weight (MT)" :required="isWeightMandatory && customSettings?.batching?.manual_weight === 1"
                                     :error="form.errors.empty_weight_truck" />
                             </div>
 

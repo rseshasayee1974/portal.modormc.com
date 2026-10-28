@@ -43,6 +43,7 @@ const form = useForm({
         new_weight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
         newweight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
         manual_weight: props.batchingSettings?.manual_weight == 1,
+        weight_mandatory: props.batchingSettings?.weight_mandatory !== undefined ? (props.batchingSettings?.weight_mandatory == 1 || props.batchingSettings?.weight_mandatory === true || props.batchingSettings?.weight_mandatory === "true") : true,
         with_inventory: props.batchingSettings?.with_inventory !== undefined ? (props.batchingSettings?.with_inventory == 1 || props.batchingSettings?.with_inventory === true || props.batchingSettings?.with_inventory === "true") : true,
         camera: props.batchingSettings?.camera == 1,
         camera_url: props.batchingSettings?.camera_url || '',
@@ -102,6 +103,7 @@ const settingRows = computed(() => [
         type: 'text'
     },
     { section: 'Weighbridge', key: 'manual_weight', label: 'Manual Weight Entry', value: form.settings.manual_weight, type: 'bool' },
+    { section: 'Weighbridge', key: 'weight_mandatory', label: 'Weighbridge Mandatory', value: form.settings.weight_mandatory, type: 'bool' },
     { section: 'Weighbridge', key: 'with_inventory', label: 'Stock Deduction', value: form.settings.with_inventory, type: 'bool' },
     // Camera
     { section: 'Camera', key: 'camera', label: 'Enable Snapshots', value: form.settings.camera, type: 'bool' },
@@ -143,6 +145,7 @@ const submit = () => {
         new_weight: Number(form.settings.new_weight ?? 1),
         newweight: Number(form.settings.new_weight ?? 1),
         manual_weight: form.settings.manual_weight ? 1 : 0,
+        weight_mandatory: form.settings.weight_mandatory ? 1 : 0,
         with_inventory: form.settings.with_inventory ? 1 : 0,
         camera: form.settings.camera ? 1 : 0,
         sheet_upload: form.settings.sheet_upload ? 1 : 0,
@@ -407,6 +410,18 @@ const deleteModule = (id: number) => {
                                     </p>
                                 </div>
                                 <InputSwitch v-model="form.settings.manual_weight" />
+                            </div>
+
+                            <div
+                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div>
+                                    <h4 class="font-bold text-slate-700 text-sm">Weighbridge Mandatory <code
+                                            class="text-[9px] text-slate-400 ml-1 font-normal">[weight_mandatory]</code>
+                                    </h4>
+                                    <p class="text-xs text-slate-500 mt-0.5">Make empty and full truck weights mandatory during batch creation and editing
+                                    </p>
+                                </div>
+                                <InputSwitch v-model="form.settings.weight_mandatory" />
                             </div>
 
 

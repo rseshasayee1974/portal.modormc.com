@@ -1,0 +1,1 @@
+import{k as s,o,c as t,b as a}from"./app-B8dQeaZp.js";import{_ as e}from"./ActionSection-DGDsNh4L.js";const n={__name:"DeleteUserForm",setup:n=>(s({password:""}),(s,n)=>(o(),t(e,null,{content:a(()=>[...n[0]||(n[0]=[])]),_:1})))};export{n as default};
