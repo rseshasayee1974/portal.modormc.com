@@ -89,6 +89,7 @@ class OrderController extends Controller
         $page->getCollection()->each(function ($order) {
             $order->customer?->setAppends([]);
             $order->site?->setAppends([]);
+            $order->progress = self::progress($order);
         });
         return response()->json(['success' => true, 'data' => $page]);
     }
@@ -103,13 +104,15 @@ class OrderController extends Controller
     {
         $batches = $order->batches()->where('plant_id', Access::plantId())->get(['id', 'status', 'batch_size']);
         $trips = $order->dispatches()->where('plant_id', Access::plantId())->withActiveBatch()->with('batch:id,batch_size')->whereNotIn('dispatch_status', ['Draft', 'Cancelled', 'Loading'])->get();
-        $delivered = $trips->whereIn('dispatch_status', ['Delivered', 'Completed']);
+        $delivered = $trips->whereIn('dispatch_status', ['Delivered', 'Completed', 'Invoiced']);
+        $dispatchedQty = round((float) $trips->sum('delivered_qty'), 3);
+        $deliveredQty = round((float) $delivered->sum('delivered_qty'), 3);
         return ['ordered_m3' => (float) $order->total_qty, 'batch_count' => $batches->count(),
             'completed_batches' => $batches->where('status', Batch::STATUS_COMPLETED)->count(),
             'cancelled_batches' => $batches->where('status', Batch::STATUS_CANCELLED)->count(),
-            'committed_m3' => (float) $batches->where('status', '!=', Batch::STATUS_CANCELLED)->sum('batch_size'),
-            'dispatched_m3' => (float) $trips->sum('delivered_qty'), 'delivered_m3' => (float) $delivered->sum('delivered_qty'),
-            'remaining_delivery_m3' => max(0, round((float) $order->total_qty - $delivered->sum('delivered_qty'), 3))];
+            'committed_m3' => round((float) $batches->where('status', '!=', Batch::STATUS_CANCELLED)->sum('batch_size'), 3),
+            'dispatched_m3' => $dispatchedQty, 'delivered_m3' => $deliveredQty,
+            'remaining_delivery_m3' => max(0, round((float) $order->total_qty - $deliveredQty, 3))];
     }
     public function batches(Request $r, int $order)
     {

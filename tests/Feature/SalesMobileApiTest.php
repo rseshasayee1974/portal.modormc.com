@@ -3093,6 +3093,24 @@ class SalesMobileApiTest extends TestCase
         $this->getJson('/api/mobile/v1/orders/1')->assertOk()->assertJsonPath('data.progress.delivered_m3', 0);
     }
 
+    public function test_order_progress_counts_invoiced_deliveries_and_keeps_transit_separate(): void
+    {
+        DB::table('mm_sales_orders')->insert(['id' => 1, 'plant_id' => 1, 'created_by' => 1, 'sales_executive_id' => 1, 'total_qty' => 3]);
+        foreach ([1 => 'Invoiced', 2 => 'Delivered', 3 => 'Completed', 4 => 'In Transit', 5 => 'Loading', 6 => 'Draft', 7 => 'Cancelled'] as $id => $status) {
+            DB::table('mm_batches')->insert(['id' => $id, 'plant_id' => 1, 'sales_order_id' => 1, 'batch_size' => 0.1, 'status' => $id === 7 ? 5 : 4]);
+            DB::table('mm_dispatches')->insert(['id' => $id, 'plant_id' => 1, 'sales_order_id' => 1, 'batch_id' => $id, 'delivered_qty' => null, 'dispatch_status' => $status]);
+        }
+        $expected = ['ordered_m3' => 3, 'batch_count' => 7, 'completed_batches' => 6, 'cancelled_batches' => 1,
+            'committed_m3' => 0.6, 'dispatched_m3' => 0.4, 'delivered_m3' => 0.3, 'remaining_delivery_m3' => 2.7];
+        $this->getJson('/api/mobile/v1/orders/1')->assertOk()->assertJsonPath('data.progress', $expected);
+        $this->getJson('/api/mobile/v1/orders')->assertOk()->assertJsonPath('data.data.0.progress', $expected);
+
+        DB::table('mm_dispatches')->where('id', 1)->update(['delivered_qty' => 4]);
+        $this->getJson('/api/mobile/v1/orders/1')->assertOk()
+            ->assertJsonPath('data.progress.delivered_m3', 4.2)
+            ->assertJsonPath('data.progress.remaining_delivery_m3', 0);
+    }
+
     public function test_dashboard_customers_and_order_mutation_guards(): void
     {
         foreach (['SALES_ORDER.CREATE', 'SALES_ORDER.UPDATE', 'SALES_ORDER.DELETE'] as $name) {
