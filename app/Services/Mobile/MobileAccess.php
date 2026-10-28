@@ -175,11 +175,17 @@ class MobileAccess
             : self::commercial(CustomerPO::class, 'SALES_ORDER');
     }
 
-    public static function orderOwnerId(?int $existingOwner = null, bool $updating = false): ?int
+    public static function orderOwnerId(?int $existingOwner = null, bool $updating = false, mixed $requestedOwner = null, bool $hasRequested = false): ?int
     {
-        return self::isCommercialAdministrator()
-            ? ($updating ? $existingOwner : self::personnelId())
-            : self::commercialOwnerId($existingOwner);
+        if (self::isCommercialAdministrator()) {
+            if ($hasRequested) {
+                return $requestedOwner ? (int) $requestedOwner : null;
+            }
+
+            return $updating ? $existingOwner : self::personnelId();
+        }
+
+        return self::commercialOwnerId($existingOwner);
     }
 
     public static function isCommercialAdministrator(): bool

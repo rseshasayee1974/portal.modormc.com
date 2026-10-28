@@ -2527,6 +2527,91 @@ class SalesMobileApiTest extends TestCase
         $this->postJson('/api/mobile/v1/orders', $body + ['customer_po_id' => 999])->assertUnprocessable()->assertJsonValidationErrors(['customer_po_id']);
     }
 
+    public function test_order_update_updates_status_sales_executive_and_all_passed_fields(): void
+    {
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        DB::table('mm_personnels')->insert([
+            'id' => 10,
+            'plant_id' => 1,
+            'user_id' => 2,
+            'first_name' => 'Admin',
+            'last_name' => 'Personnel',
+            'status' => 'Active',
+            'employee_code' => 'EMP-0010',
+        ]);
+        $adminToken = User::find(2)->createToken('admin-order-test')->plainTextToken;
+
+        $initial = [
+            'customer_id' => 1,
+            'site_id' => 1,
+            'mix_design_id' => 1,
+            'total_qty' => 10,
+            'rate' => 4500,
+            'tax_id' => 1,
+            'status' => 1,
+            'sales_executive_id' => 1,
+        ];
+        $id = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken, 'X-Plant-Id' => '1'])
+            ->postJson('/api/mobile/orders', $initial)
+            ->assertCreated()
+            ->assertJsonPath('data.status', 1)
+            ->assertJsonPath('data.sales_executive_id', 1)
+            ->json('data.id');
+
+        $updatePayload = [
+            'customer_id' => 1,
+            'site_id' => 1,
+            'mix_design_id' => 1,
+            'customer_po_id' => null,
+            'total_qty' => 70,
+            'rate' => 8500,
+            'tax_id' => 1,
+            'is_tax_inclusive' => false,
+            'concrete_pump' => 'boom_pump',
+            'pump_rate' => 2780,
+            'scheduled_start' => '2026-10-28 11:38:00',
+            'scheduled_end' => '2026-10-28 13:30:00',
+            'sales_executive_id' => 10,
+            'status' => 2,
+        ];
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken, 'X-Plant-Id' => '1'])
+            ->putJson('/api/mobile/orders/'.$id, $updatePayload)
+            ->assertOk();
+
+        $response->assertJsonPath('data.id', $id)
+            ->assertJsonPath('data.status', 2)
+            ->assertJsonPath('data.sales_executive_id', 10)
+            ->assertJsonPath('data.concrete_pump', 'boom_pump')
+            ->assertJsonPath('data.pump_rate', 2780)
+            ->assertJsonPath('data.rate', 8500)
+            ->assertJsonPath('data.is_tax_inclusive', false);
+
+        $order = DB::table('mm_sales_orders')->where('id', $id)->first();
+        $this->assertEquals(2, (int) $order->status);
+        $this->assertEquals(10, (int) $order->sales_executive_id);
+        $this->assertEquals('boom_pump', $order->concrete_pump);
+        $this->assertEquals(2780, (float) $order->pump_rate);
+        $this->assertEquals(8500, (float) $order->rate);
+        $this->assertEquals(70, (float) $order->total_qty);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken, 'X-Plant-Id' => '1'])
+            ->putJson('/api/mobile/orders/'.$id, array_replace($updatePayload, ['sales_executive_id' => null]))
+            ->assertOk()
+            ->assertJsonPath('data.sales_executive_id', null);
+        $this->assertNull(DB::table('mm_sales_orders')->where('id', $id)->value('sales_executive_id'));
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken, 'X-Plant-Id' => '1'])
+            ->putJson('/api/mobile/orders/'.$id, array_replace($updatePayload, ['status' => 99]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['status']);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken, 'X-Plant-Id' => '1'])
+            ->putJson('/api/mobile/orders/'.$id, array_replace($updatePayload, ['sales_executive_id' => 9999]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['sales_executive_id']);
+    }
+
     public function test_main_app_admin_reads_plant_orders_without_personnel_but_sales_stays_personal(): void
     {
         DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);

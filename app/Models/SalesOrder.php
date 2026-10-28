@@ -34,12 +34,21 @@ class SalesOrder extends Model
         'customer_po_id',
         'concrete_pump',
         'pump_rate',
+        'pump_type',
+        'uom_id',
         'created_by',
         'updated_by',
         'deleted_by',
     ];
 
     protected $casts = [
+        'plant_id' => 'integer',
+        'customer_id' => 'integer',
+        'site_id' => 'integer',
+        'mix_design_id' => 'integer',
+        'customer_po_id' => 'integer',
+        'status' => 'integer',
+        'uom_id' => 'integer',
         'scheduled_start' => 'datetime',
         'scheduled_end' => 'datetime',
         'total_qty' => 'decimal:3',

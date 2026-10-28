@@ -145,25 +145,58 @@ class OrderController extends Controller
     }
     private function data(Request $r, ?SalesOrder $order = null): array
     {
+        if ($r->filled('pump_type') && !$r->filled('concrete_pump')) {
+            $r->merge(['concrete_pump' => $r->input('pump_type')]);
+        }
         if ($order && !$r->exists('customer_po_id')) $r->merge(['customer_po_id' => $order->customer_po_id]);
         $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
         $data = $r->validate([
             'customer_id' => ['required', 'integer', Access::exists(Access::customers())], 'site_id' => ['required', 'integer', Access::exists(Access::sites())],
             'mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')], 'customer_po_id' => ['nullable', 'integer', Access::exists(Access::customerPOs())],
+            'sales_executive_id' => ['nullable', 'integer', Rule::exists('mm_personnels', 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')],
+            'status' => ['nullable', 'integer', 'in:0,1,2,3,4'],
             'total_qty' => 'required|numeric|between:0.01,999999', 'scheduled_start' => 'nullable|date',
             'scheduled_end' => 'nullable|date|after_or_equal:scheduled_start',
             'rate' => 'required_without:customer_po_id|numeric|between:0,99999999',
             'tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
             'is_tax_inclusive' => 'nullable|boolean', 'concrete_pump' => 'nullable|string|max:100',
+            'pump_type' => 'nullable|string|max:100',
             'pump_rate' => 'nullable|numeric|between:0,99999999',
+            'uom_id' => ['nullable', 'integer', Rule::exists('mm_product_units', 'id')->whereNull('deleted_at')],
         ], [
             'customer_id.exists' => 'The selected customer is unavailable in the selected plant.',
             'site_id.exists' => 'The selected site is unavailable in the selected plant.',
             'mix_design_id.exists' => 'The selected mix design is unavailable in the selected plant.',
             'customer_po_id.exists' => 'The selected customer PO is unavailable to you in the selected plant.',
+            'sales_executive_id.exists' => 'The selected sales executive is unavailable in the selected plant.',
             'rate.required_without' => 'A rate is required when no customer PO is selected.',
+            'status.in' => 'Status must contain only 0 (Draft), 1 (Scheduled), 2 (In Progress), 3 (Completed), or 4 (Cancelled).',
         ]);
-        $data['sales_executive_id'] = Access::orderOwnerId($order?->sales_executive_id, $order !== null);
+        $data['sales_executive_id'] = Access::orderOwnerId(
+            $order?->sales_executive_id,
+            $order !== null,
+            $r->has('sales_executive_id') ? $r->input('sales_executive_id') : null,
+            $r->has('sales_executive_id')
+        );
+        if ($r->has('status') && $data['status'] !== null) {
+            $data['status'] = (int) $data['status'];
+        } elseif ($order) {
+            $data['status'] = (int) $order->status;
+        } else {
+            $data['status'] = SalesOrder::STATUS_CONFIRMED;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('mm_sales_orders', 'pump_type')) {
+            $data['pump_type'] = $data['concrete_pump'] ?? null;
+        } else {
+            unset($data['pump_type']);
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('mm_sales_orders', 'uom_id')) {
+            if (!array_key_exists('uom_id', $data)) {
+                $data['uom_id'] = $order?->uom_id ?? null;
+            }
+        } else {
+            unset($data['uom_id']);
+        }
         if (empty($data['customer_po_id'])) {
             $data['customer_po_id'] = null;
             $data['tax_id'] = $data['tax_id'] ?? null;
@@ -185,11 +218,20 @@ class OrderController extends Controller
                 ->when($order, fn ($query) => $query->whereKeyNot($order->id))->sum('total_qty');
             abort_if($allocated + $data['total_qty'] > $quantity + 0.00001, 422, 'Quantity exceeds the remaining customer PO quantity.');
         }
+        if (!$r->has('sales_executive_id') && (!$order || $order->sales_executive_id === null)) {
+            $data['sales_executive_id'] = $po->sales_executive_id ?? $data['sales_executive_id'];
+        }
         $data['rate'] = $item->rate;
         $data['tax_id'] = $item->tax_id;
         $data['is_tax_inclusive'] = $po->is_tax_inclusive;
         $data['concrete_pump'] = $item->concrete_pump;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('mm_sales_orders', 'pump_type')) {
+            $data['pump_type'] = $item->concrete_pump;
+        }
         $data['pump_rate'] = $item->pump_rate ?? 0;
+        if (\Illuminate\Support\Facades\Schema::hasColumn('mm_sales_orders', 'uom_id') && (!array_key_exists('uom_id', $data) || $data['uom_id'] === null)) {
+            $data['uom_id'] = $item->uom_id ?? $order?->uom_id ?? null;
+        }
         return $data;
     }
     public function store(Request $r)
@@ -198,8 +240,8 @@ class OrderController extends Controller
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
             $data = $this->data($r);
             $number = SalesOrder::generateOrderNo(Access::plantId());
-            $model = SalesOrder::create(array_merge($data, ['plant_id' => Access::plantId(), 'prefix' => $number['prefix'], 'order_no' => $number['next_number'], 'status' => SalesOrder::STATUS_CONFIRMED, 'produced_qty' => 0]));
-            return response()->json(['success' => true, 'data' => $model], 201);
+            $model = SalesOrder::create(array_merge($data, ['plant_id' => Access::plantId(), 'prefix' => $number['prefix'], 'order_no' => $number['next_number'], 'status' => $data['status'] ?? SalesOrder::STATUS_CONFIRMED, 'produced_qty' => 0]));
+            return response()->json(['success' => true, 'data' => $model->fresh()], 201);
         });
     }
     public function update(Request $r, int $order)
@@ -209,7 +251,7 @@ class OrderController extends Controller
             $model = Access::orders()->lockForUpdate()->findOrFail($order);
             $this->editable($model);
             $model->update($this->data($r, $model));
-            return response()->json(['success' => true, 'data' => $model]);
+            return response()->json(['success' => true, 'data' => $model->fresh()]);
         });
     }
     private function editable(SalesOrder $model): void
