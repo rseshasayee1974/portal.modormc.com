@@ -1,7 +1,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -9,6 +9,9 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
 import Tag from 'primevue/tag';
 import ProductEditForm from './ProductEditForm.vue';
+import Dialog from 'primevue/dialog';
+import Button from 'primevue/button';
+import { useToast } from 'primevue/usetoast';
 import { usePermissions } from '@/Composables/usePermissions';
 
 const { can, isSuperAdmin, isAdmin, isSassOwner } = usePermissions();
@@ -36,6 +39,9 @@ interface Product {
     is_service?: boolean;
     product_type?: string;
     is_in_use?: boolean;
+    opening_quantity?: number;
+    current_quantity?: number;
+    can_update?: boolean;
 }
 
 interface Option {
@@ -69,6 +75,31 @@ const filteredProducts = computed(() => {
 
 const unitLabel = (product: Product) => product.unit?.unit_code ?? product.unit?.title ?? '—';
 const categoryLabel = (product: Product) => product.category?.name ?? product.category?.title ?? '—';
+
+const toast = useToast();
+const openingProduct = ref<Product | null>(null);
+const openingDialogVisible = ref(false);
+const openingForm = useForm({ opening_quantity: 0 });
+const projectedQuantity = computed(() => Number(openingProduct.value?.current_quantity ?? 0)
+    + Number(openingForm.opening_quantity || 0) - Number(openingProduct.value?.opening_quantity ?? 0));
+
+const editOpeningQuantity = (product: Product) => {
+    openingProduct.value = product;
+    openingForm.opening_quantity = Number(product.opening_quantity ?? 0);
+    openingForm.clearErrors();
+    openingDialogVisible.value = true;
+};
+
+const saveOpeningQuantity = () => {
+    if (!openingProduct.value || openingForm.processing) return;
+    openingForm.patch(route('products.opening-quantity', openingProduct.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            openingDialogVisible.value = false;
+            toast.add({ severity: 'success', summary: 'Updated', detail: 'Opening quantity updated successfully.', life: 2000 });
+        },
+    });
+};
 
 const onSaved = () => {
     expandedRows.value = {};
@@ -146,6 +177,23 @@ const watchFilters = watch([filters, filterCategory], () => {
                 </template>
             </Column>
 
+            <Column field="opening_quantity" header="Opening Qty" sortable style="width: 160px">
+                <template #body="{ data }">
+                    <span v-if="data.is_service">—</span>
+                    <div v-else class="flex flex-col items-start gap-1">
+                        <span>{{ Number(data.opening_quantity ?? 0).toFixed(2) }} {{ unitLabel(data) }}</span>
+                        <Button
+                            v-if="can('PRODUCT.update') && data.can_update"
+                            label="Set Opening Qty"
+                            icon="pi pi-pencil"
+                            text size="small"
+                            :disabled="!data.unit_id"
+                            @click.stop="editOpeningQuantity(data)"
+                        />
+                    </div>
+                </template>
+            </Column>
+
             <Column field="status" header="Status" sortable style="width: 120px">
                 <template #body="{ data }">
                     <Tag
@@ -200,6 +248,26 @@ const watchFilters = watch([filters, filterCategory], () => {
                 </div>
             </template>
         </BaseDataTable>
+        <Dialog v-model:visible="openingDialogVisible" header="Set Opening Quantity" modal
+            :style="{ width: '28rem' }" :breakpoints="{ '640px': '95vw' }"
+            :closable="!openingForm.processing" :closeOnEscape="!openingForm.processing">
+            <form @submit.prevent="saveOpeningQuantity" class="flex flex-col gap-4">
+                <p class="font-semibold">{{ openingProduct?.title }}</p>
+                <p class="text-sm text-slate-500">
+                    Enter the opening stock in {{ openingProduct ? unitLabel(openingProduct) : '' }}.
+                    Available stock changes by the difference from the previous opening quantity.
+                </p>
+                <BaseInput v-model="openingForm.opening_quantity" label="Opening Quantity"
+                    type="number" :min="0" step="0.01" required
+                    :disabled="openingForm.processing" :error="openingForm.errors.opening_quantity" />
+                <p class="text-sm text-slate-600">Available stock after saving: {{ projectedQuantity.toFixed(2) }}</p>
+                <div class="flex justify-end gap-2">
+                    <Button label="Cancel" text severity="secondary" :disabled="openingForm.processing"
+                        @click="openingDialogVisible = false" />
+                    <Button label="Save Opening Quantity" type="submit" :loading="openingForm.processing" />
+                </div>
+            </form>
+        </Dialog>
     </div>
 </template>
 

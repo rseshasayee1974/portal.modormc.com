@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\Quantity;
 use App\Models\ProductCategory;
 use App\Models\ProductUnit;
 use App\Models\Tax;
 use App\Models\Entity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Validation\Rule;
@@ -24,8 +26,13 @@ class ProductController extends Controller
         $this->authorize('viewAny', Product::class);
 
         $plantId = session('active_plant_id');
-        $products = Product::forPlant($plantId)->withDetails()->get()->map(function ($product) {
+        $stockBalances = Quantity::where('plant_id', $plantId)
+            ->where('is_warehouse', false)->orderBy('id')->get()->groupBy('product_id');
+        $products = Product::forPlant($plantId)->withDetails()->get()->map(function ($product) use ($stockBalances) {
+            $stock = $stockBalances->get($product->id, collect())->firstWhere('uom_id', $product->unit_id);
             return array_merge($product->toArray(), [
+                'opening_quantity' => (float) ($stock?->opening_quantity ?? 0),
+                'current_quantity' => (float) ($stock?->quantity ?? 0),
                 'can_delete' => auth()->user()->can('delete', $product),
                 'can_update' => auth()->user()->can('update', $product),
                 // 'is_in_use' => $product->is_in_use,
@@ -42,6 +49,54 @@ class ProductController extends Controller
         ]);
     }
 
+
+    public function setOpeningQuantity(Request $request, Product $product)
+    {
+        $this->authorizeModule('edit');
+        $this->authorize('update', $product);
+        $plantId = session('active_plant_id');
+        abort_unless($plantId && (int) $product->plant_id === (int) $plantId, 403);
+
+        $validated = $request->validate([
+            'opening_quantity' => 'required|numeric|decimal:0,2|min:0|max:999999999999999.99',
+        ]);
+
+        DB::transaction(function () use ($product, $plantId, $validated) {
+            $product = Product::where('plant_id', $plantId)->lockForUpdate()->findOrFail($product->id);
+            if ($product->is_service || !$product->unit_id) {
+                throw ValidationException::withMessages([
+                    'opening_quantity' => 'Opening quantity requires a stock product with a unit.',
+                ]);
+            }
+
+            $stock = Quantity::where('plant_id', $plantId)
+                ->where('product_id', $product->id)->where('uom_id', $product->unit_id)
+                ->where('is_warehouse', false)->orderBy('id')->lockForUpdate()->first();
+            $opening = (float) $validated['opening_quantity'];
+            // Replace the opening balance while retaining subsequent stock movements.
+            $available = round((float) ($stock?->quantity ?? 0)
+                + $opening - (float) ($stock?->opening_quantity ?? 0), 2);
+            if ($available < 0 || $available >= 1000000000000000) {
+                throw ValidationException::withMessages([
+                    'opening_quantity' => 'This opening quantity would put available stock outside the allowed range.',
+                ]);
+            }
+
+            if (!$stock) {
+                $stock = new Quantity([
+                    'plant_id' => $plantId, 'product_id' => $product->id,
+                    'uom_id' => $product->unit_id, 'is_warehouse' => false,
+                    'status' => 1, 'date' => today(), 'created_by' => auth()->id(),
+                ]);
+            }
+            $stock->fill([
+                'opening_quantity' => $opening, 'quantity' => $available,
+                'updated_by' => auth()->id(),
+            ])->save();
+        });
+
+        return redirect()->back()->with('success', 'Opening quantity updated successfully.');
+    }
 
     public function store(Request $request)
     {

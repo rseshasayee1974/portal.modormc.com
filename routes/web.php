@@ -439,6 +439,7 @@ Route::middleware([
         Route::get('inwards/{inward}/receipt', [PurchaseOrderInwardController::class, 'receipt'])->name('inwards.receipt');
         Route::get('inwards/{inward}/download-receipt', [PurchaseOrderInwardController::class, 'downloadReceipt'])->name('inwards.download-receipt');
 
+        Route::patch('products/{product}/opening-quantity', [ProductController::class, 'setOpeningQuantity'])->name('products.opening-quantity');
         Route::resource('products', ProductController::class);
         Route::post('products/batch', [ProductController::class, 'batchStore'])->name('products.batchstore');
         Route::resource('inventory-audit-logs', InventoryAuditLogController::class);
