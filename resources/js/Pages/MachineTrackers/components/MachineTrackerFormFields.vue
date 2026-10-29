@@ -97,7 +97,8 @@ const formatValue = (value: number | null): string => value === null || !Number.
                         placeholder="Select Closing Time" :error="form.errors?.closing" />
                     <p v-if="elapsed !== null" class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         Elapsed: {{ formatValue(elapsed) }} hrs
-                        <span v-if="elapsed < 0" class="text-rose-500 font-normal text-[10px] ml-1">(Closing &lt; Opening)</span>
+                        <span v-if="elapsed < 0" class="text-rose-500 font-normal text-[10px] ml-1">(Closing &lt;
+                            Opening)</span>
                     </p>
                 </div>
             </div>
@@ -110,51 +111,55 @@ const formatValue = (value: number | null): string => value === null || !Number.
             </h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div>
-                    <BaseInputNumber v-model="form.odometer_start" @input="form.odometer_start = $event.value" label="Odometer Start" placeholder="0.00"
-                        :error="form.errors?.odometer_start" />
+                    <BaseInputNumber v-model="form.odometer_start" @input="form.odometer_start = $event.value"
+                        label="Odometer Start" placeholder="0.00" :error="form.errors?.odometer_start" />
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.odometer_end" @input="form.odometer_end = $event.value" label="Odometer End" placeholder="0.00"
-                        :error="form.errors?.odometer_end" />
+                    <BaseInputNumber v-model="form.odometer_end" @input="form.odometer_end = $event.value"
+                        label="Odometer End" placeholder="0.00" :error="form.errors?.odometer_end" />
                     <p v-if="distance !== null" class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         Distance: {{ formatValue(distance) }} km
-                        <span v-if="distance < 0" class="text-rose-500 font-normal text-[10px] ml-1">(End &lt; Start)</span>
+                        <span v-if="distance < 0" class="text-rose-500 font-normal text-[10px] ml-1">(End &lt;
+                            Start)</span>
                     </p>
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.hourmeter_start" @input="form.hourmeter_start = $event.value" label="Hourmeter Start" placeholder="0.00"
-                        :error="form.errors?.hourmeter_start" />
+                    <BaseInputNumber v-model="form.hourmeter_start" @input="form.hourmeter_start = $event.value"
+                        label="Hourmeter Start" placeholder="0.00" :error="form.errors?.hourmeter_start" />
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.hourmeter_end" @input="form.hourmeter_end = $event.value" label="Hourmeter End" placeholder="0.00"
-                        :error="form.errors?.hourmeter_end" />
+                    <BaseInputNumber v-model="form.hourmeter_end" @input="form.hourmeter_end = $event.value"
+                        label="Hourmeter End" placeholder="0.00" :error="form.errors?.hourmeter_end" />
                     <p v-if="hours !== null" class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         Running: {{ formatValue(hours) }} hrs
-                        <span v-if="hours < 0" class="text-rose-500 font-normal text-[10px] ml-1">(End &lt; Start)</span>
+                        <span v-if="hours < 0" class="text-rose-500 font-normal text-[10px] ml-1">(End &lt;
+                            Start)</span>
                     </p>
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.eb_start" @input="form.eb_start = $event.value" label="EB Start" placeholder="0.00"
-                        :error="form.errors?.eb_start" />
+                    <BaseInputNumber v-model="form.eb_start" @input="form.eb_start = $event.value" label="EB Start"
+                        placeholder="0.00" :error="form.errors?.eb_start" />
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.eb_close" @input="form.eb_close = $event.value" label="EB Close" placeholder="0.00"
-                        :error="form.errors?.eb_close" />
+                    <BaseInputNumber v-model="form.eb_close" @input="form.eb_close = $event.value" label="EB Close"
+                        placeholder="0.00" :error="form.errors?.eb_close" />
                     <p v-if="energy !== null" class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         EB: {{ formatValue(energy) }} units
-                        <span v-if="energy < 0" class="text-rose-500 font-normal text-[10px] ml-1">(Close &lt; Start)</span>
+                        <span v-if="energy < 0" class="text-rose-500 font-normal text-[10px] ml-1">(Close &lt;
+                            Start)</span>
                     </p>
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.opening_hsd" @input="form.opening_hsd = $event.value" label="Opening HSD" placeholder="0.00"
-                        :error="form.errors?.opening_hsd" />
+                    <BaseInputNumber v-model="form.opening_hsd" @input="form.opening_hsd = $event.value"
+                        label="Opening HSD" placeholder="0.00" :error="form.errors?.opening_hsd" />
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.closing_hsd" @input="form.closing_hsd = $event.value" label="Closing HSD" placeholder="0.00"
-                        :error="form.errors?.closing_hsd" />
+                    <BaseInputNumber v-model="form.closing_hsd" @input="form.closing_hsd = $event.value"
+                        label="Closing HSD" placeholder="0.00" :error="form.errors?.closing_hsd" />
                     <p v-if="consumed !== null" class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         Fuel Consumed: {{ formatValue(consumed) }} L
-                        <span v-if="consumed < 0" class="text-rose-500 font-normal text-[10px] ml-1">(Check readings)</span>
+                        <span v-if="consumed < 0" class="text-rose-500 font-normal text-[10px] ml-1">(Check
+                            readings)</span>
                     </p>
                 </div>
                 <div class="sm:col-span-2 lg:col-span-2">
@@ -171,29 +176,33 @@ const formatValue = (value: number | null): string => value === null || !Number.
             </h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div>
-                    <BaseInputNumber v-model="form.fuel" @input="form.fuel = $event.value" label="Fuel Filled (Liters)" placeholder="0.00"
-                        :error="form.errors?.fuel" />
+                    <BaseInputNumber v-model="form.fuel" @input="form.fuel = $event.value" label="Fuel Filled (Liters)"
+                        placeholder="0.00" :error="form.errors?.fuel" />
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.amount" @input="form.amount = $event.value" label="Fuel Cost Amount" mode="currency" currency="INR"
-                        :locale="APP_LOCALE" placeholder="₹0.00" :error="form.errors?.amount" />
-                    <p v-if="fuelPrice !== null" class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                    <BaseInputNumber v-model="form.amount" @input="form.amount = $event.value" label="Fuel Cost Amount"
+                        mode="currency" currency="INR" :locale="APP_LOCALE" placeholder="₹0.00"
+                        :error="form.errors?.amount" />
+                    <p v-if="fuelPrice !== null"
+                        class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         Rate: ₹{{ formatValue(fuelPrice) }} / L
                     </p>
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.last_fuel_filled_km" @input="form.last_fuel_filled_km = $event.value" label="Last Fuel KM" required placeholder="0.00"
-                        :error="form.errors?.last_fuel_filled_km" />
+                    <BaseInputNumber v-model="form.last_fuel_filled_km" @input="form.last_fuel_filled_km = $event.value"
+                        label="Last Fuel KM" required placeholder="0.00" :error="form.errors?.last_fuel_filled_km" />
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.fuel_filled_km" @input="form.fuel_filled_km = $event.value" label="Fuel Filled KM" placeholder="0.00"
-                        :error="form.errors?.fuel_filled_km" />
-                    <div v-if="refillDistance !== null" class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 space-y-0.5">
+                    <BaseInputNumber v-model="form.fuel_filled_km" @input="form.fuel_filled_km = $event.value"
+                        label="Fuel Filled KM" placeholder="0.00" :error="form.errors?.fuel_filled_km" />
+                    <div v-if="refillDistance !== null"
+                        class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 space-y-0.5">
                         <p>
                             Distance: {{ formatValue(refillDistance) }} km
-                            <span v-if="refillDistance < 0" class="text-rose-500 font-normal text-[10px] ml-1">(End &lt; Last)</span>
+                            <span v-if="refillDistance < 0" class="text-rose-500 font-normal text-[10px] ml-1">(End &lt;
+                                Last)</span>
                         </p>
-                        <p v-if="refillMileage !== null">Mileage: {{ formatValue(refillMileage) }} km/L</p>
+                        <!-- <p v-if="refillMileage !== null">Mileage: {{ formatValue(refillMileage) }} km/L</p> -->
                     </div>
                 </div>
                 <div>

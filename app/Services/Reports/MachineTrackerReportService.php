@@ -13,8 +13,9 @@ class MachineTrackerReportService implements ReportServiceInterface
         'odometer_start' => 'Odometer Start (KM)', 'odometer_end' => 'Odometer End (KM)',
         'odometer_diff' => 'KM Run', 'odo_mileage' => 'Mileage (KM/L)',
         'hourmeter_start' => 'Hourmeter Start (Hrs)', 'hourmeter_end' => 'Hourmeter End (Hrs)', 'hourmeter_diff' => 'Hours Run',
-        'hm_mileage' => 'Mileage (Hrs/L)', 'hm_consumption' => 'Fuel / Hour (L/Hr)',
+        'hm_mileage' => 'Mileage (Hrs/L)',
         'eb_start' => 'EB Start', 'eb_close' => 'EB Close', 'eb_units' => 'EB Consumption (Units)',
+        'last_fuel_filled_km' => 'Last Fuel Filled (KM)', 'fuel_filled_km' => 'Fuel Filled (KM)', 'fuel_distance' => 'Distance (KM)',
         'fuel' => 'Fuel Filled (L)', 'fuel_amount' => 'Fuel Cost (₹)', 'pump_name' => 'Pump Name', 'notes' => 'Notes',
     ];
 
@@ -109,6 +110,13 @@ class MachineTrackerReportService implements ReportServiceInterface
             };
 
             $fuel = (float)($t->fuel ?? 0);
+            $lastFuelKm = $t->last_fuel_filled_km;
+            $filledFuelKm = $t->fuel_filled_km;
+            // Match the refill-distance indicator: missing readings stay blank, reversals retain their sign.
+            $fuelDistance = is_numeric($lastFuelKm) && is_numeric($filledFuelKm)
+                && is_finite((float) $lastFuelKm) && is_finite((float) $filledFuelKm)
+                && (float) $lastFuelKm >= 0 && (float) $filledFuelKm >= 0
+                ? round((float) $filledFuelKm - (float) $lastFuelKm, 2) : null;
             $odoMileage = ($fuel > 0 && $odoDiff > 0) ? round($odoDiff / $fuel, 2) : 0;
             $hmMileage  = ($fuel > 0 && $hmDiff > 0)  ? round($hmDiff / $fuel, 2)  : 0;
             $hmConsumption = ($hmDiff > 0 && $fuel > 0) ? round($fuel / $hmDiff, 2) : 0;
@@ -152,6 +160,7 @@ class MachineTrackerReportService implements ReportServiceInterface
                 'fuel_amount'          => (float)($t->amount ?? 0),
                 'last_fuel_filled_km'  => (float)($t->last_fuel_filled_km ?? 0),
                 'fuel_filled_km'       => (float)($t->fuel_filled_km ?? 0),
+                'fuel_distance'        => $fuelDistance,
                 'pump_name'            => $t->pump_name ?? '-',
                 'notes'                => $t->notes ?? '-',
             ];

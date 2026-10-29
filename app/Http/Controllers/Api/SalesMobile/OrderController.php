@@ -37,8 +37,10 @@ class OrderController extends Controller
             'per_page' => 'nullable|integer|between:1,100', 'page' => 'nullable|integer|min:1', 'search' => 'nullable|string|max:100',
             'customer_id' => 'nullable|integer', 'site_id' => 'nullable|integer', 'status' => 'nullable|integer|in:0,1,2',
         ]);
-        $fields = ['id', 'reference', 'customer_po_reference', 'patron_id', 'site_id', 'order_date',
-            'status', 'is_tax_inclusive', 'amount_untaxed', 'amount_tax', 'amount_total'];
+        $fields = ['id', 'prefix', 'reference', 'customer_po_reference', 'quotation_id', 'patron_id', 'site_id',
+            'order_date', 'due_date', 'notes', 'sales_executive_id', 'concrete_pump', 'pump_rate', 'adjustment',
+            'status', 'is_sales_order', 'is_tax_inclusive', 'amount_untaxed', 'amount_tax', 'amount_total',
+            'converted_by_user_id', 'created_at', 'updated_at'];
         $itemFields = ['id', 'customer_po_id', 'mix_design_id', 'quantity', 'rate', 'tax_id',
             'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'];
         $q = Access::customerPOs()->select($fields)->with(['patron' => fn ($q) => $q->select('id', 'legal_name')->whereIn('id', Access::customers()->select('id')), 'site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')), 'items' => fn ($items) => $items->select($itemFields)]);

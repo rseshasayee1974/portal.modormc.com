@@ -1,4 +1,3 @@
-
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
@@ -116,33 +115,13 @@ const watchFilters = watch([filters, filterCategory], () => {
 
 <template>
     <div class="unit-table-card">
-        <BaseDataTable
-            v-model:expandedRows="expandedRows"
-            v-model:filters="filters"
-            :value="filteredProducts"
-            dataKey="id"
-            v-model:rows="perPage"
-            :rowsPerPageOptions="[30, 50, 100, 200]"
-            stripedRows
-            class="unit-datatable"
-            showSearch
-            :globalFilterFields="['title', 'code', 'hsn_code', 'product_type']"
-            showSerial
-            heading="Products Directory"
-            headingIcon="CubeIcon"
-            showExport
-            exportFilename="products-catalog"
-        >
+        <BaseDataTable v-model:expandedRows="expandedRows" v-model:filters="filters" :value="filteredProducts"
+            dataKey="id" v-model:rows="perPage" :rowsPerPageOptions="[30, 50, 100, 200]" stripedRows
+            class="unit-datatable" showSearch :globalFilterFields="['title', 'code', 'hsn_code', 'product_type']"
+            showSerial heading="Products Directory" headingIcon="CubeIcon" showExport exportFilename="products-catalog">
             <template #toolbar>
-                <BaseSelect
-                    v-model="filterCategory"
-                    :options="categories"
-                    optionLabel="name"
-                    optionValue="id"
-                    placeholder="All Categories"
-                    class="!h-9 !text-xs !w-48"
-                    clearable
-                />
+                <BaseSelect v-model="filterCategory" :options="categories" optionLabel="name" optionValue="id"
+                    placeholder="All Categories" class="!h-9 !text-xs !w-48" clearable />
             </template>
             <Column field="code" header="Code" sortable style="width: 120px">
                 <template #body="{ data }">
@@ -154,17 +133,19 @@ const watchFilters = watch([filters, filterCategory], () => {
                 <template #body="{ data }">
                     <div class="flex flex-col">
                         <span class="font-semibold text-gray-800 text-sm">{{ data.title }}</span>
-                        <span class="text-[10px] text-gray-400 bg-gray-100 p-1 rounded w-fit font-black uppercase tracking-widest">{{data.hsn_code }}</span>
+                        <span
+                            class="text-[10px] text-gray-400 bg-gray-100 p-1 rounded w-fit font-black uppercase tracking-widest">{{ data.hsn_code
+                            }}</span>
                     </div>
                 </template>
             </Column>
             <Column field="category_id" header="Category" sortable style="width: 120px">
                 <template #body="{ data }">
-                    <span class="text-md  text-gray-800">{{  categoryLabel(data)  }}</span>
+                    <span class="text-md  text-gray-800">{{ categoryLabel(data) }}</span>
                 </template>
             </Column>
 
-             <Column field="product_type" header="Type" sortable style="width: 120px">
+            <Column field="product_type" header="Type" sortable style="width: 120px">
                 <template #body="{ data }">
                     <span class="text-md  text-gray-800">{{ data.product_type }}</span>
                 </template>
@@ -172,8 +153,9 @@ const watchFilters = watch([filters, filterCategory], () => {
             <Column field="sales_price" header="Sale Price" sortable style="width: 170px">
                 <template #body="{ data }">
                     <span class=" text-gray-800">₹{{ Number(data.sales_price).toFixed(2) }}</span>
-                    <span class="text-[10px] text-gray-400 ml-1">/ {{ unitLabel(data) }}</span><br/>
-                    <span class="text-[10px] bg-indigo-100 uppercase p-1 rounded w-fit text-indigo-800">{{ data.tax_mode ? 'Inclusive' : 'Exclusive' }}</span>
+                    <span class="text-[10px] text-gray-400 ml-1">/ {{ unitLabel(data) }}</span><br />
+                    <span class="text-[10px] bg-indigo-100 uppercase p-1 rounded w-fit text-indigo-800">{{ data.tax_mode
+                        ? 'Inclusive' : 'Exclusive' }}</span>
                 </template>
             </Column>
 
@@ -182,40 +164,28 @@ const watchFilters = watch([filters, filterCategory], () => {
                     <span v-if="data.is_service">—</span>
                     <div v-else class="flex flex-col items-start gap-1">
                         <span>{{ Number(data.opening_quantity ?? 0).toFixed(2) }} {{ unitLabel(data) }}</span>
-                        <Button
-                            v-if="can('PRODUCT.update') && data.can_update"
-                            label="Set Opening Qty"
-                            icon="pi pi-pencil"
-                            text size="small"
-                            :disabled="!data.unit_id"
-                            @click.stop="editOpeningQuantity(data)"
-                        />
+                        <Button v-if="can('PRODUCT.update') && data.can_update" label="Set Opening Qty"
+                            icon="pi pi-pencil" text size="small" :disabled="!data.unit_id"
+                            @click.stop="editOpeningQuantity(data)" />
                     </div>
                 </template>
             </Column>
 
             <Column field="status" header="Status" sortable style="width: 120px">
                 <template #body="{ data }">
-                    <Tag
-                        :value="Boolean(data.status) ? 'Active' : 'Inactive'"
-                        :severity="Boolean(data.status) ? 'success' : 'secondary'"
-                        rounded
-                        pt:root:style="font-size:10px; font-weight:700"
-                    />
+                    <Tag :value="Boolean(data.status) ? 'Active' : 'Inactive'"
+                        :severity="Boolean(data.status) ? 'success' : 'secondary'" rounded
+                        pt:root:style="font-size:10px; font-weight:700" />
                 </template>
             </Column>
 
             <Column header="Action" style="width: 26px; text-align: right">
                 <template #body="{ data }">
-                    <BaseDeleteButton
-                        v-if="can('PRODUCT.delete')"
-                        :url="route('products.destroy', data.id)"
-                        :title="data.is_in_use && isSystemAdmin ? 'Force Delete Product?' : 'Delete product?'"
-                        :text="data.is_in_use && isSystemAdmin 
-                            ? 'Warning: This product is used in an active mix design associated with a batch. Deleting it will affect related production records.' 
+                    <BaseDeleteButton v-if="can('PRODUCT.delete')" :url="route('products.destroy', data.id)"
+                        :title="data.is_in_use && isSystemAdmin ? 'Force Delete Product?' : 'Delete product?'" :text="data.is_in_use && isSystemAdmin
+                            ? 'Warning: This product is used in an active mix design associated with a batch. Deleting it will affect related production records.'
                             : `${data.title} will be permanently removed.`"
-                        :disabled="Boolean(data.is_in_use && !isSystemAdmin)"
-                    />
+                        :disabled="Boolean(data.is_in_use && !isSystemAdmin)" />
                 </template>
             </Column>
 
@@ -225,16 +195,9 @@ const watchFilters = watch([filters, filterCategory], () => {
                         <i class="pi pi-pen-to-square text-indigo-500 text-xs"></i>
                         <span>Editing — <strong>{{ data.title }}</strong></span>
                     </div>
-                    <ProductEditForm
-                        :product="data"
-                        :categories="categories"
-                        :units="units"
-                        :purchaseTaxes="purchaseTaxes"
-                        :saleTaxes="saleTaxes"
-                        :productTypes="productTypes"
-                        @cancel="onRowCollapse"
-                        @saved="onSaved"
-                    />
+                    <ProductEditForm :product="data" :categories="categories" :units="units"
+                        :purchaseTaxes="purchaseTaxes" :saleTaxes="saleTaxes" :productTypes="productTypes"
+                        @cancel="onRowCollapse" @saved="onSaved" />
                 </div>
             </template>
 
@@ -248,18 +211,18 @@ const watchFilters = watch([filters, filterCategory], () => {
                 </div>
             </template>
         </BaseDataTable>
-        <Dialog v-model:visible="openingDialogVisible" header="Set Opening Quantity" modal
-            :style="{ width: '28rem' }" :breakpoints="{ '640px': '95vw' }"
-            :closable="!openingForm.processing" :closeOnEscape="!openingForm.processing">
+        <Dialog v-model:visible="openingDialogVisible" header="Set Opening Quantity" modal :style="{ width: '28rem' }"
+            :breakpoints="{ '640px': '95vw' }" :closable="!openingForm.processing"
+            :closeOnEscape="!openingForm.processing">
             <form @submit.prevent="saveOpeningQuantity" class="flex flex-col gap-4">
                 <p class="font-semibold">{{ openingProduct?.title }}</p>
                 <p class="text-sm text-slate-500">
                     Enter the opening stock in {{ openingProduct ? unitLabel(openingProduct) : '' }}.
                     Available stock changes by the difference from the previous opening quantity.
                 </p>
-                <BaseInput v-model="openingForm.opening_quantity" label="Opening Quantity"
-                    type="number" :min="0" step="0.01" required
-                    :disabled="openingForm.processing" :error="openingForm.errors.opening_quantity" />
+                <BaseInput v-model="openingForm.opening_quantity" label="Opening Quantity" type="number" :min="0"
+                    step="0.01" required :disabled="openingForm.processing"
+                    :error="openingForm.errors.opening_quantity" />
                 <p class="text-sm text-slate-600">Available stock after saving: {{ projectedQuantity.toFixed(2) }}</p>
                 <div class="flex justify-end gap-2">
                     <Button label="Cancel" text severity="secondary" :disabled="openingForm.processing"
@@ -271,5 +234,4 @@ const watchFilters = watch([filters, filterCategory], () => {
     </div>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

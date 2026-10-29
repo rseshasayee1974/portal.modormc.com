@@ -96,7 +96,7 @@ class SalesMobileApiTest extends TestCase
             'mm_quotation_items' => ['discount_type', 'discount', 'discount_amount', 'quotation_id', 'mix_design_id', 'uom_id', 'quantity', 'rate', 'tax_id', 'tax_amount', 'untaxed_amount', 'amount_total', 'concrete_pump', 'pump_rate', 'created_by', 'updated_by', 'deleted_by'],
             'mm_contacts' => ['patron_id', 'plant_id', 'name', 'phone', 'mobile', 'contact_type_id', 'is_primary', 'status', 'email'],
             'mm_personnel_contacts' => ['employee_id', 'contact_id', 'contact_value', 'is_primary'],
-            'mm_customer_pos' => ['plant_id', 'quotation_id', 'patron_id', 'site_id', 'created_by', 'updated_by', 'deleted_by', 'sales_executive_id', 'is_tax_inclusive', 'reference', 'customer_po_reference', 'prefix', 'notes', 'converted_by_user_id', 'status', 'order_date', 'amount_untaxed', 'amount_tax', 'amount_total'],
+            'mm_customer_pos' => ['plant_id', 'quotation_id', 'patron_id', 'site_id', 'created_by', 'updated_by', 'deleted_by', 'sales_executive_id', 'is_tax_inclusive', 'reference', 'customer_po_reference', 'prefix', 'notes', 'converted_by_user_id', 'status', 'order_date', 'due_date', 'concrete_pump', 'pump_rate', 'adjustment', 'is_sales_order', 'amount_untaxed', 'amount_tax', 'amount_total'],
             'mm_customer_po_items' => ['created_by', 'updated_by', 'deleted_by', 'customer_po_id', 'mix_design_id', 'rate', 'tax_id', 'quantity', 'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'],
             'mm_custom_settings' => ['plant_id', 'module_name', 'settings'],
             'mm_batches' => ['plant_id', 'sales_order_id', 'batch_no', 'batch_size', 'status', 'start_time', 'end_time'],
@@ -2465,8 +2465,10 @@ class SalesMobileApiTest extends TestCase
             ->assertJsonPath('data.total', 1)->assertJsonPath('data.data.0.id', 2)
             ->assertJsonPath('data.data.0.patron.legal_name', 'Customer')->assertJsonPath('data.data.0.site.name', 'Site')
             ->assertJsonCount(1, 'data.data.0.items');
-        $this->assertEqualsCanonicalizing(['id', 'reference', 'customer_po_reference', 'patron_id', 'site_id', 'order_date',
-            'status', 'is_tax_inclusive', 'amount_untaxed', 'amount_tax', 'amount_total', 'patron', 'site', 'items'],
+        $this->assertEqualsCanonicalizing(['id', 'prefix', 'reference', 'customer_po_reference', 'quotation_id', 'patron_id', 'site_id',
+            'order_date', 'due_date', 'notes', 'sales_executive_id', 'concrete_pump', 'pump_rate', 'adjustment',
+            'status', 'is_sales_order', 'is_tax_inclusive', 'amount_untaxed', 'amount_tax', 'amount_total',
+            'converted_by_user_id', 'created_at', 'updated_at', 'patron', 'site', 'items'],
             array_keys($listing->json('data.data.0')));
         $this->assertEqualsCanonicalizing(['id', 'mix_design_id', 'quantity', 'rate', 'tax_id', 'concrete_pump', 'pump_rate',
             'untaxed_amount', 'tax_amount', 'amount_total'], array_keys($listing->json('data.data.0.items.0')));
@@ -2748,9 +2750,10 @@ class SalesMobileApiTest extends TestCase
             $response = $this->postJson($url, $payload)
                 ->assertCreated()->assertJsonPath('success', true)->assertJsonPath('data.quotation_id', fn ($value) => (int) $value === (int) $id)
                 ->assertJsonPath('data.patron_id', fn ($value) => (int) $value === 1)->assertJsonPath('data.site_id', fn ($value) => (int) $value === 1)
-                ->assertJsonPath('data.sales_executive_id', 1)
+                ->assertJsonPath('data.sales_executive_id', $quote['sales_executive_id'] ?? ($prefix === '/api/mobile' ? 2 : 1))
                 ->assertJsonPath('data.notes', 'From quotation');
             $po = $response->json('data');
+            $this->getJson($prefix.'/customer-pos/'.$po['id'])->assertOk();
             $stored = DB::table('mm_customer_pos')->where('id', $po['id'])->first();
             $this->assertEquals($payload['order_date'] ?? now()->toDateString(), substr($stored->order_date, 0, 10));
             $this->assertEquals($payload['customer_po_reference'] ?? null, $stored->customer_po_reference);
@@ -2812,6 +2815,192 @@ class SalesMobileApiTest extends TestCase
             foreach (['5', '1,nope', '0,', '1.5', ['1', 'nope'], [['1']]] as $invalid) {
                 $this->getJson($url.'?'.http_build_query(['status' => $invalid]))->assertUnprocessable()->assertJsonValidationErrors('status');
             }
+        }
+    }
+
+    public function test_customer_po_all_database_fields_are_saved_or_server_controlled_on_create(): void
+    {
+        $mainToken = User::find(1)->createToken('main-field-persistence', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $this->withHeaders(['Authorization' => 'Bearer '.($prefix === '/api/mobile' ? $mainToken : $this->token)]);
+            $payload = [
+                'patron_id' => 1, 'site_id' => 1, 'quotation_id' => null, 'order_date' => '2026-10-29',
+                'due_date' => '2026-11-15', 'customer_po_reference' => 'CLIENT-'.$prefix,
+                'notes' => 'Full field persistence', 'is_tax_inclusive' => false,
+                'concrete_pump' => 'boom_pump', 'pump_rate' => 45.5, 'adjustment' => 2.2,
+                'sales_executive_id' => 2,
+                // Generated identifiers, money totals and audit fields must resist spoofing.
+                'id' => 900, 'plant_id' => 2, 'prefix' => 'FORGED', 'reference' => 'FORGED', 'status' => 2,
+                'converted_by_user_id' => 2, 'created_by' => 2, 'updated_by' => 2, 'deleted_by' => 2,
+                'created_at' => '2000-01-01 00:00:00', 'updated_at' => '2000-01-01 00:00:00',
+                'deleted_at' => '2000-01-01 00:00:00', 'is_sales_order' => 1,
+                'amount_untaxed' => 9999, 'amount_tax' => 9999, 'amount_total' => 9999,
+                'items' => [['mix_design_id' => 1, 'quantity' => 2, 'rate' => 100, 'tax_id' => 1,
+                    'concrete_pump' => 'line_pump', 'pump_rate' => 10]],
+            ];
+            $response = $this->postJson($prefix.'/customer-pos', $payload)->assertCreated();
+            $id = $response->json('data.id');
+            $row = DB::table('mm_customer_pos')->where('id', $id)->first();
+            $this->assertNotEquals(900, $id);
+            $this->assertNotEquals('FORGED', $row->prefix);
+            $this->assertNotEquals('FORGED', $row->reference);
+            foreach (['order_date' => '2026-10-29', 'due_date' => '2026-11-15'] as $field => $value) {
+                $this->assertSame($value, substr((string) $row->$field, 0, 10), $prefix.' '.$field);
+            }
+            $this->assertDatabaseHas('mm_customer_pos', [
+                'id' => $id, 'plant_id' => 1, 'quotation_id' => null, 'patron_id' => 1, 'site_id' => 1,
+                'status' => 0, 'converted_by_user_id' => 1, 'sales_executive_id' => 1,
+                'customer_po_reference' => $payload['customer_po_reference'], 'notes' => $payload['notes'],
+                'concrete_pump' => 'boom_pump', 'pump_rate' => 45.5, 'adjustment' => 2.2, 'is_tax_inclusive' => 0,
+                'amount_untaxed' => 210, 'amount_tax' => 37.8, 'amount_total' => 250, 'is_sales_order' => 0,
+                'created_by' => 1, 'updated_by' => 1, 'deleted_by' => null, 'deleted_at' => null,
+            ]);
+            foreach (['created_at', 'updated_at'] as $field) {
+                $this->assertNotNull($row->$field);
+                $this->assertNotSame('2000-01-01 00:00:00', $row->$field);
+            }
+            $this->assertDatabaseHas('mm_customer_po_items', [
+                'id' => $response->json('data.items.0.id'), 'customer_po_id' => $id, 'mix_design_id' => 1,
+                'quantity' => 2, 'rate' => 100, 'tax_id' => 1, 'concrete_pump' => 'line_pump', 'pump_rate' => 10,
+                'untaxed_amount' => 210, 'tax_amount' => 37.8, 'amount_total' => 247.8,
+                'created_by' => 1, 'updated_by' => 1, 'deleted_at' => null, 'deleted_by' => null,
+            ]);
+            $this->getJson($prefix.'/customer-pos/'.$id)->assertOk()
+                ->assertJsonPath('data.concrete_pump', 'boom_pump')->assertJsonPath('data.amount_total', 250);
+            $list = $this->getJson($prefix.'/customer-pos')->assertOk()->json('data.data');
+            $listed = collect($list)->firstWhere('id', $id);
+            $this->assertEquals(250, $listed['amount_total']);
+            $this->assertEquals(45.5, $listed['pump_rate']);
+            $this->assertSame('boom_pump', $listed['concrete_pump']);
+            $this->assertSame('2026-11-15', substr($listed['due_date'], 0, 10));
+            $item = DB::table('mm_customer_po_items')->where('customer_po_id', $id)->first();
+            $this->assertNotNull($item->created_at);
+            $this->assertNotNull($item->updated_at);
+        }
+    }
+
+    public function test_customer_po_all_writable_fields_update_with_put_and_patch_in_both_apps(): void
+    {
+        DB::table('mm_patrons')->insert(['id' => 2, 'plant_id' => 1, 'sales_executive_id' => 1, 'legal_name' => 'Second customer', 'patron_type' => '["Customer"]', 'status' => 1, 'operational_status' => 'active']);
+        DB::table('mm_sites')->insert(['id' => 2, 'plant_id' => 1, 'patron_id' => 2, 'name' => 'Second site']);
+        DB::table('mm_mix_designs')->insert(['id' => 2, 'plant_id' => 1, 'design_name' => 'M30']);
+        DB::table('mm_taxes')->insert(['id' => 4, 'plant_id' => 1, 'tax_name' => 'GST5', 'tax_type' => 'Sales', 'tax_rate' => 5, 'status' => 1]);
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $admin = User::find(2)->createToken('full-field-admin')->plainTextToken;
+        $mainToken = User::find(1)->createToken('main-field-update', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            foreach (['putJson', 'patchJson'] as $method) {
+                $this->withHeaders(['Authorization' => 'Bearer '.($prefix === '/api/mobile' ? $mainToken : $this->token)]);
+                $body = ['patron_id' => 1, 'site_id' => 1, 'order_date' => '2026-10-29', 'is_tax_inclusive' => false,
+                    'items' => [['mix_design_id' => 1, 'quantity' => 1, 'rate' => 100, 'tax_id' => 1]]];
+                $original = $this->postJson($prefix.'/customer-pos', $body)->assertCreated()->json('data');
+                $id = $original['id']; $itemId = $original['items'][0]['id'];
+                $originalRow = DB::table('mm_customer_pos')->where('id', $id)->first();
+                if ($prefix === '/api/mobile') $this->withHeaders(['Authorization' => 'Bearer '.$admin]);
+                $actor = $prefix === '/api/mobile' ? 2 : 1;
+                $reference = 'ALL-'.$id;
+                $payload = [
+                    'prefix' => 'ALL-', 'reference' => $reference, 'patron_id' => 2, 'site_id' => 2, 'quotation_id' => null,
+                    'order_date' => '2026-11-01', 'due_date' => '2026-11-20', 'customer_po_reference' => 'EXTERNAL-'.$id,
+                    'notes' => 'Changed every writable field', 'is_tax_inclusive' => false, 'status' => 1,
+                    'concrete_pump' => 'crane_bucket', 'pump_rate' => 75.25, 'adjustment' => -6.25, 'sales_executive_id' => 2,
+                    'total_qty' => 3, 'plant_id' => 2, 'created_by' => 99, 'updated_by' => 99, 'converted_by_user_id' => 99,
+                    'created_at' => '2000-01-01 00:00:00', 'updated_at' => '2000-01-01 00:00:00',
+                    'deleted_at' => '2000-01-01 00:00:00', 'deleted_by' => 99, 'is_sales_order' => 1,
+                    'amount_untaxed' => 999, 'amount_tax' => 999, 'amount_total' => 999,
+                    'items' => [['id' => $itemId, 'mix_design_id' => 2, 'quantity' => 3, 'rate' => 200, 'tax_id' => 4,
+                        'concrete_pump' => 'stationary_pump', 'pump_rate' => 25,
+                        'untaxed_amount' => 999, 'tax_amount' => 999, 'amount_total' => 999]],
+                ];
+                $this->$method($prefix.'/customer-pos/'.$id, $payload)->assertOk();
+                $row = DB::table('mm_customer_pos')->where('id', $id)->first();
+                $this->assertSame('2026-11-01', substr($row->order_date, 0, 10));
+                $this->assertSame('2026-11-20', substr((string) $row->due_date, 0, 10));
+                $this->assertDatabaseHas('mm_customer_pos', [
+                    'id' => $id, 'plant_id' => 1, 'quotation_id' => null, 'prefix' => 'ALL-', 'reference' => $reference,
+                    'patron_id' => 2, 'site_id' => 2, 'status' => 1, 'customer_po_reference' => 'EXTERNAL-'.$id,
+                    'notes' => $payload['notes'], 'sales_executive_id' => $actor, 'is_tax_inclusive' => 0,
+                    'concrete_pump' => 'crane_bucket', 'pump_rate' => 75.25, 'adjustment' => -6.25,
+                    'amount_untaxed' => 625, 'amount_tax' => 31.25, 'amount_total' => 650,
+                    'converted_by_user_id' => 1, 'created_by' => 1, 'updated_by' => $actor,
+                    'deleted_at' => null, 'deleted_by' => null, 'is_sales_order' => 0,
+                ]);
+                $this->assertDatabaseHas('mm_customer_po_items', [
+                    'id' => $itemId, 'customer_po_id' => $id, 'mix_design_id' => 2, 'quantity' => 3, 'rate' => 200, 'tax_id' => 4,
+                    'concrete_pump' => 'stationary_pump', 'pump_rate' => 25, 'untaxed_amount' => 625,
+                    'tax_amount' => 31.25, 'amount_total' => 656.25, 'created_by' => 1, 'updated_by' => $actor,
+                    'deleted_by' => null, 'deleted_at' => null,
+                ]);
+                $this->assertSame($originalRow->created_at, $row->created_at);
+                $this->assertNotSame('2000-01-01 00:00:00', $row->updated_at);
+                $this->getJson($prefix.'/customer-pos/'.$id)->assertOk()->assertJsonPath('data.amount_total', 650);
+            }
+        }
+    }
+
+    public function test_customer_po_nullable_fields_clear_and_omitted_fields_and_item_ids_are_preserved(): void
+    {
+        $mainToken = User::find(1)->createToken('main-null-fields', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $this->withHeaders(['Authorization' => 'Bearer '.($prefix === '/api/mobile' ? $mainToken : $this->token)]);
+            $original = $this->postJson($prefix.'/customer-pos', [
+                'patron_id' => 1, 'site_id' => 1, 'order_date' => '2026-10-29', 'due_date' => '2026-11-10',
+                'is_tax_inclusive' => false, 'notes' => 'Keep until cleared', 'customer_po_reference' => 'EXTERNAL',
+                'concrete_pump' => 'boom_pump', 'pump_rate' => 50, 'adjustment' => 2,
+                'items' => [['mix_design_id' => 1, 'quantity' => 1, 'rate' => 118, 'tax_id' => 1]],
+            ])->assertCreated()->json('data');
+            $id = $original['id']; $itemId = $original['items'][0]['id']; $url = $prefix.'/customer-pos/'.$id;
+            $this->patchJson($url, ['notes' => 'Only notes changed'])->assertOk();
+            $this->assertDatabaseHas('mm_customer_pos', ['id' => $id, 'due_date' => '2026-11-10', 'concrete_pump' => 'boom_pump', 'pump_rate' => 50, 'adjustment' => 2]);
+            $this->assertSame($itemId, (int) DB::table('mm_customer_po_items')->where('customer_po_id', $id)->whereNull('deleted_at')->value('id'));
+            $this->patchJson($url, ['due_date' => null, 'concrete_pump' => null, 'pump_rate' => null,
+                'prefix' => null, 'customer_po_reference' => null, 'notes' => null, 'adjustment' => 0,
+                'is_tax_inclusive' => true])->assertOk()->assertJsonPath('data.amount_total', 118);
+            $this->assertDatabaseHas('mm_customer_pos', ['id' => $id, 'due_date' => null, 'concrete_pump' => null,
+                'pump_rate' => null, 'prefix' => null, 'customer_po_reference' => null, 'notes' => null,
+                'adjustment' => 0, 'is_tax_inclusive' => 1, 'amount_untaxed' => 100, 'amount_tax' => 18, 'amount_total' => 118]);
+            $this->patchJson($url, ['items' => [['id' => $itemId, 'mix_design_id' => 1, 'quantity' => 1, 'rate' => 118,
+                'tax_id' => null, 'concrete_pump' => null, 'pump_rate' => null]]])->assertOk();
+            $this->assertDatabaseHas('mm_customer_po_items', ['id' => $itemId, 'tax_id' => null,
+                'concrete_pump' => null, 'pump_rate' => null, 'untaxed_amount' => 118, 'tax_amount' => 0, 'amount_total' => 118]);
+        }
+    }
+
+    public function test_customer_po_new_header_fields_reject_invalid_values_without_partial_writes(): void
+    {
+        $created = $this->postJson('/api/mobile/v1/customer-pos', [
+            'patron_id' => 1, 'site_id' => 1, 'order_date' => '2026-10-29', 'is_tax_inclusive' => false,
+            'notes' => 'Original', 'items' => [['mix_design_id' => 1, 'quantity' => 1, 'rate' => 100]],
+        ])->assertCreated()->json('data');
+        DB::table('mm_personnels')->insert(['id' => 700, 'plant_id' => 2, 'user_id' => null]);
+        $before = (array) DB::table('mm_customer_pos')->where('id', $created['id'])->first();
+        foreach ([['due_date' => 'invalid'], ['concrete_pump' => str_repeat('x', 192)], ['pump_rate' => -1],
+            ['adjustment' => null], ['adjustment' => 100000000], ['sales_executive_id' => 700],
+            ['reference' => str_repeat('X', 51)]] as $invalid) {
+            $this->patchJson('/api/mobile/v1/customer-pos/'.$created['id'], [...$invalid, 'notes' => 'Must roll back'])
+                ->assertUnprocessable()->assertJsonValidationErrors(array_keys($invalid));
+            $this->assertSame($before, (array) DB::table('mm_customer_pos')->where('id', $created['id'])->first());
+        }
+    }
+
+    public function test_customer_po_conversion_and_deletion_write_lifecycle_and_audit_columns(): void
+    {
+        $mainToken = User::find(1)->createToken('main-lifecycle-fields', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $this->withHeaders(['Authorization' => 'Bearer '.($prefix === '/api/mobile' ? $mainToken : $this->token)]);
+            $body = ['patron_id' => 1, 'site_id' => 1, 'order_date' => '2026-10-29', 'is_tax_inclusive' => false,
+                'items' => [['mix_design_id' => 1, 'quantity' => 2, 'rate' => 100]]];
+            $po = $this->postJson($prefix.'/customer-pos', $body)->assertCreated()->json('data');
+            $this->postJson($prefix.'/customer-pos/'.$po['id'].'/convert-salesorder', [
+                'items' => [['item_id' => $po['items'][0]['id'], 'quantity' => 1]],
+            ])->assertCreated();
+            $this->assertDatabaseHas('mm_customer_pos', ['id' => $po['id'], 'is_sales_order' => 1, 'status' => 1]);
+            $draft = $this->postJson($prefix.'/customer-pos', $body)->assertCreated()->json('data');
+            $this->deleteJson($prefix.'/customer-pos/'.$draft['id'])->assertOk();
+            $this->assertDatabaseHas('mm_customer_pos', ['id' => $draft['id'], 'created_by' => 1, 'deleted_by' => 1]);
+            $this->assertNotNull(DB::table('mm_customer_pos')->where('id', $draft['id'])->value('deleted_at'));
+            $this->assertDatabaseHas('mm_customer_po_items', ['id' => $draft['items'][0]['id'], 'deleted_by' => 1]);
+            $this->assertNotNull(DB::table('mm_customer_po_items')->where('id', $draft['items'][0]['id'])->value('deleted_at'));
         }
     }
 
@@ -3280,6 +3469,56 @@ class SalesMobileApiTest extends TestCase
         $this->putJson('/api/mobile/v1/orders/'.$id, $body)->assertUnprocessable();
         $this->deleteJson('/api/mobile/v1/orders/'.$id)->assertUnprocessable();
         $this->getJson('/api/mobile/v1/orders/not-a-number')->assertNotFound();
+    }
+
+    private function scheduleUpdatePayload(): array
+    {
+        DB::table('mm_sites')->insert(['id' => 28, 'plant_id' => 1, 'patron_id' => 1, 'name' => 'Schedule site']);
+        DB::table('mm_mix_designs')->insert(['id' => 18, 'plant_id' => 1, 'design_name' => 'Schedule mix', 'is_active' => 1]);
+        DB::table('mm_sales_orders')->insert(['id' => 118, 'plant_id' => 1, 'created_by' => 1, 'sales_executive_id' => 1,
+            'site_id' => 28, 'mix_design_id' => 18, 'total_qty' => 40, 'status' => 1]);
+        DB::table('mm_concrete_batching_schedules')->insert(['id' => 7, 'plant_id' => 1, 'sales_order_id' => 118,
+            'site_id' => 28, 'mix_design_id' => 18, 'schedule_date' => '2026-09-06', 'qty_m3' => 4,
+            'order_volume_m3' => 40, 'status' => 'scheduled', 'pump_type' => 'boom_pump', 'notes' => 'Old notes',
+            'batching_time' => '2026-09-06 10:00:00', 'dispatch_time' => '2026-09-06 10:30:00']);
+
+        return ['schedule_date' => '2026-09-07', 'sales_order_id' => 118, 'site_id' => 28, 'mix_design_id' => 18,
+            'qty_m3' => 6, 'order_volume_m3' => 40, 'pump_type' => 'direct_pour',
+            'vehicle_id' => null, 'driver_id' => null, 'pump_vehicle_id' => null, 'batching_time' => null,
+            'dispatch_time' => null, 'eta_site' => null, 'unloading_start' => null, 'unloading_end' => null,
+            'status' => 'scheduled', 'notes' => 'Requested by sales executive'];
+    }
+
+    public function test_schedule_update_accepts_the_complete_top_level_json_payload_in_both_apps(): void
+    {
+        $payload = $this->scheduleUpdatePayload();
+        $mainToken = User::find(1)->createToken('main-schedule-update', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $this->withHeaders(['Authorization' => 'Bearer '.($prefix === '/api/mobile' ? $mainToken : $this->token)]);
+            $this->putJson($prefix.'/batch-schedules/7', $payload)->assertOk()
+                ->assertJsonPath('schedule.id', 7)->assertJsonPath('schedule.schedule_date', '2026-09-07')
+                ->assertJsonPath('schedule.qty_m3', '6.000')->assertJsonPath('schedule.status', 'scheduled');
+            foreach ($payload as $field => $value) {
+                $stored = DB::table('mm_concrete_batching_schedules')->where('id', 7)->value($field);
+                $this->assertEquals($value, $stored, $prefix.' persisted '.$field);
+            }
+        }
+    }
+
+    public function test_schedule_update_reproduces_missing_fields_for_unparsed_or_nested_json(): void
+    {
+        $payload = $this->scheduleUpdatePayload();
+        $url = '/api/mobile/v1/batch-schedules/7';
+        $required = ['schedule_date', 'site_id', 'mix_design_id', 'qty_m3', 'order_volume_m3', 'pump_type', 'sales_order_id'];
+        $raw = json_encode($payload, JSON_THROW_ON_ERROR);
+        $server = $this->transformHeadersToServerVars($this->defaultHeaders);
+        $this->call('PUT', $url, [], [], [], [...$server, 'CONTENT_TYPE' => 'text/plain', 'HTTP_ACCEPT' => 'application/json'], $raw)
+            ->assertUnprocessable()->assertJsonValidationErrors($required);
+        // A trailing closing brace/comma makes an otherwise valid body undecodable.
+        $this->call('PUT', $url, [], [], [], [...$server, 'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'], $raw.'},')
+            ->assertUnprocessable()->assertJsonValidationErrors($required);
+        $this->putJson($url, ['data' => $payload])->assertUnprocessable()->assertJsonValidationErrors($required);
+        $this->assertDatabaseHas('mm_concrete_batching_schedules', ['id' => 7, 'schedule_date' => '2026-09-06', 'qty_m3' => 4, 'notes' => 'Old notes']);
     }
 
     public function test_schedule_rejects_wrong_order_mix_and_linked_edits(): void

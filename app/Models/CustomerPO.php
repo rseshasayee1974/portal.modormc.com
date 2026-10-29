@@ -32,6 +32,11 @@ class CustomerPO extends Model
         'amount_tax',
         'amount_total',
         'order_date',
+        'due_date',
+        'concrete_pump',
+        'pump_rate',
+        'adjustment',
+        'is_sales_order',
         'status',
         'converted_by_user_id',
         'created_by',
@@ -44,6 +49,10 @@ class CustomerPO extends Model
         'patron_id' => 'integer',
         'site_id' => 'integer',
         'order_date' => 'date',
+        'due_date' => 'date:Y-m-d',
+        'pump_rate' => 'decimal:2',
+        'adjustment' => 'decimal:2',
+        'is_sales_order' => 'integer',
         'sales_executive_id' => 'integer',
         'is_tax_inclusive' => 'boolean',
         'amount_untaxed' => 'decimal:2',
@@ -77,7 +86,7 @@ class CustomerPO extends Model
 
     public function getAmountTotalAttribute($value)
     {
-        return $value !== null ? round((float) $value, 2) : round((float) $this->items->sum('amount_total'), 2);
+        return $value !== null ? round((float) $value, 2) : round((float) $this->items->sum('amount_total') + (float) ($this->adjustment ?? 0), 2);
     }
 
     public function updateTotals()
@@ -95,7 +104,7 @@ class CustomerPO extends Model
         $this->update([
             'amount_untaxed' => round((float) $untaxed, 2),
             'amount_tax' => round((float) $taxAmount, 2),
-            'amount_total' => round((float) $amountTotal, 2),
+            'amount_total' => round((float) $amountTotal + (float) ($this->adjustment ?? 0), 2),
         ]);
     }
 

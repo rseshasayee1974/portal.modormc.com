@@ -18,20 +18,19 @@ const trackerList = computed(() => props.reportData?.transactions || []);
 const columnGroups = [
     { label: 'Log Details', fields: { date: 'Date', machine_registration: 'Machine / Vehicle', operator_name: 'Operator' } },
     { label: 'Odometer', fields: { odometer_start: 'Start (KM)', odometer_end: 'End (KM)', odometer_diff: 'KM Run', odo_mileage: 'Mileage (KM/L)' } },
-    { label: 'Hourmeter', fields: { hourmeter_start: 'Start (Hrs)', hourmeter_end: 'End (Hrs)', hourmeter_diff: 'Hours Run', hm_mileage: 'Mileage (Hrs/L)', hm_consumption: 'Fuel / Hour (L/Hr)' } },
+    { label: 'Hourmeter', fields: { hourmeter_start: 'Start (Hrs)', hourmeter_end: 'End (Hrs)', hourmeter_diff: 'Hours Run', hm_mileage: 'Mileage (Hrs/L)' } },
     { label: 'Electricity', fields: { eb_start: 'EB Start', eb_close: 'EB Close', eb_units: 'Consumption (Units)' } },
-    { label: 'Fuel', fields: { fuel: 'Filled (L)', fuel_amount: 'Cost (₹)' } },
+    { label: 'Fuel', fields: { last_fuel_filled_km: 'Last Fuel Filled (KM)', fuel_filled_km: 'Fuel Filled (KM)', fuel_distance: 'Distance (KM)', fuel: 'Filled (L)', fuel_amount: 'Cost (₹)' } },
     { label: 'Remarks', fields: { pump_name: 'Pump Name', notes: 'Notes' } },
 ];
 const reportColumns = computed(() => columnGroups.flatMap(group => Object.entries(group.fields)));
-const calculatedFields = ['odometer_diff', 'odo_mileage', 'hourmeter_diff', 'hm_mileage', 'hm_consumption', 'eb_units'];
-const numericFields = ['odometer_start', 'odometer_end', 'hourmeter_start', 'hourmeter_end', 'eb_start', 'eb_close', 'fuel', 'fuel_amount', ...calculatedFields];
+const calculatedFields = ['odometer_diff', 'odo_mileage', 'hourmeter_diff', 'hm_mileage', 'eb_units', 'fuel_distance'];
+const numericFields = ['odometer_start', 'odometer_end', 'hourmeter_start', 'hourmeter_end', 'eb_start', 'eb_close', 'last_fuel_filled_km', 'fuel_filled_km', 'fuel', 'fuel_amount', ...calculatedFields];
 const columnTotals = computed(() => ({
     odometer_diff: props.reportData.total_km_run,
     odo_mileage: props.reportData.avg_km_per_liter,
     hourmeter_diff: props.reportData.total_hours_run,
     hm_mileage: props.reportData.avg_hrs_per_liter,
-    hm_consumption: props.reportData.avg_liters_per_hour,
     eb_units: props.reportData.total_eb_units,
     fuel: props.reportData.total_fuel_liters,
     fuel_amount: props.reportData.total_fuel_amount,

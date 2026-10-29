@@ -570,7 +570,7 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'machine_tracker') {
-                $headersList = ['Date', 'Machine / Vehicle', 'Vehicle Model', 'Shift', 'Operator', 'Odometer Start', 'Odometer End', 'KM Run', 'Odometer Mileage (KM/L)', 'Hourmeter Start', 'Hourmeter End', 'Hours Run', 'Hourmeter Mileage (Hrs/L)', 'Fuel / Hour (L/Hr)', 'EB Start', 'EB Close', 'EB Units', 'Fuel (Ltrs)', 'Fuel Amount (₹)', 'Pump Name', 'Notes'];
+                $headersList = ['Date', 'Machine / Vehicle', 'Vehicle Model', 'Shift', 'Operator', 'Odometer Start', 'Odometer End', 'KM Run', 'Odometer Mileage (KM/L)', 'Hourmeter Start', 'Hourmeter End', 'Hours Run', 'Hourmeter Mileage (Hrs/L)', 'EB Start', 'EB Close', 'EB Units', 'Last Fuel Filled (KM)', 'Fuel Filled (KM)', 'Distance (KM)', 'Fuel (Ltrs)', 'Fuel Amount (₹)', 'Pump Name', 'Notes'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
                         $row['date'] ?? '',
@@ -586,10 +586,12 @@ class ExcelExportService
                         (float)($row['hourmeter_end'] ?? 0),
                         (float)($row['hourmeter_diff'] ?? 0),
                         (float)($row['hm_mileage'] ?? 0),
-                        (float)($row['hm_consumption'] ?? 0),
                         (float)($row['eb_start'] ?? 0),
                         (float)($row['eb_close'] ?? 0),
                         (float)($row['eb_units'] ?? 0),
+                        (float)($row['last_fuel_filled_km'] ?? 0),
+                        (float)($row['fuel_filled_km'] ?? 0),
+                        $row['fuel_distance'] ?? null,
                         (float)($row['fuel'] ?? 0),
                         (float)($row['fuel_amount'] ?? 0),
                         $row['pump_name'] ?? '',
@@ -603,9 +605,9 @@ class ExcelExportService
                     '', '',
                     (float)($data['total_hours_run'] ?? 0),
                     (float)($data['avg_hrs_per_liter'] ?? 0),
-                    (float)($data['avg_liters_per_hour'] ?? 0),
                     '', '',
                     (float)($data['total_eb_units'] ?? 0),
+                    '', '', '',
                     (float)($data['total_fuel_liters'] ?? 0),
                     (float)($data['total_fuel_amount'] ?? 0),
                     '', ''

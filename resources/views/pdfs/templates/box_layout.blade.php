@@ -305,7 +305,7 @@
                     <div class="kv-line">PO : <strong>{{ $data['meta']['po_number'] ?? '-' }}</strong></div>
                     <div class="kv-line">Sales Person : <strong>{{ $data['meta']['sales_person'] ?? '-' }}</strong></div>
                     <div class="kv-line">Pump : <strong>{{ $data['meta']['pump'] ?? '-' }}</strong></div>
-                    <div class="kv-line">Quality InCharge :-</div>
+                    {{-- <div class="kv-line">Quality InCharge :-</div> --}}
                     <div class="kv-line">Concrete Grade : <strong>{{ $data['meta']['design_mix_ref'] ?? '-' }}</strong></div>
                 @endif
             </td>
@@ -353,8 +353,8 @@
                 <th style="width: 12%;">Grade</th>
                 @if($showDesc) <th style="width: 16%;">Description</th> @endif
                 @if($showPump) <th style="width: 8%;">Op. Type</th> @endif
-                @if($showQty) <th style="width: 9%;">QTY.in CU.M</th> @endif
-                @if($showUnit) <th style="width: 9%;">Unit Price</th> @endif
+                @if($showQty) <th style="width: 9%;">QTY </br>(CBM)</th> @endif
+                @if($showUnit) <th style="width: 9%;">Unit Price (CBM)</th> @endif
                 @if($showDiscount) <th style="width: 8%;">Discount</th> @endif
                 @if($showPump) <th style="width: 8%;">Pump Chg</th> @endif
                 <th style="width: 11%;">Taxable Amount</th>

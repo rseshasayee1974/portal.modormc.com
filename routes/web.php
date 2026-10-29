@@ -448,53 +448,176 @@ Route::middleware([
         Route::post('mixdesigns/{mixdesign}/toggle-active', [MixDesignController::class, 'toggleActive'])->name('mixdesigns.toggle-active');
         Route::resource('mixdesigns', MixDesignController::class);
         Route::resource('concretegrades', ConcreteGradeController::class);
-        Route::get('concrete-quality-tests/lookup/invoices', [ConcreteQualityTestController::class, 'lookupInvoices'])->name('concrete-quality-tests.lookup.invoices');
-        Route::resource('concrete-quality-tests', ConcreteQualityTestController::class);
     });
 
-    // 7b. Quality Control (QC Engine & Operational System)
-    Route::prefix('quality')->group(function () {
-        Route::get('dashboard', [QCDashboardController::class, 'index'])->name('quality.dashboard');
-
-        // Configuration
-        Route::prefix('configuration')->group(function () {
-            Route::resource('units', QCUnitController::class)->names('quality.config.units');
-            Route::post('units/{unit}/toggle', [QCUnitController::class, 'toggleActive'])->name('quality.config.units.toggle');
-            Route::resource('test-types', QCTestTypeController::class)->names('quality.config.test-types');
-            Route::post('test-types/{test_type}/toggle', [QCTestTypeController::class, 'toggleActive'])->name('quality.config.test-types.toggle');
-
-            Route::resource('test-parameters', QCTestParameterController::class)->names('quality.config.test-parameters');
-
-            Route::get('material-mapping', [QCMaterialTestMappingController::class, 'index'])->name('quality.config.material-mapping.index');
-            Route::post('material-mapping', [QCMaterialTestMappingController::class, 'save'])->name('quality.config.material-mapping.save');
-
-            Route::resource('test-schedules', QCTestScheduleController::class)->names('quality.config.test-schedules');
-            Route::resource('product-grade-configs', QcProductGradeConfigController::class)->names('quality.config.product-grade-configs');
+    // 7b. Quality Control (QC Engine & Testing Modules)
+    Route::prefix('quality')->name('quality.')->group(function () {
+        // Unified Dashboard & Multi-Test Analytics
+        Route::prefix('unified')->name('unified.')->controller(\App\Http\Controllers\QC\QualityTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('analytics', 'analytics')->name('analytics');
+            Route::get('analytics/data', 'getAnalytics')->middleware('throttle:60,1')->name('analytics.data');
         });
 
-        // Operations
-        Route::resource('samples', QCSampleController::class)->names('quality.samples');
-
-        Route::prefix('tests')->group(function () {
-            Route::get('/', [QCTestExecutionController::class, 'index'])->name('quality.tests.index');
-            Route::get('pending', [QCTestExecutionController::class, 'pending'])->name('quality.tests.pending');
-            Route::get('completed', [QCTestExecutionController::class, 'completed'])->name('quality.tests.completed');
-            Route::get('failed', [QCTestExecutionController::class, 'failed'])->name('quality.tests.failed');
-
-            Route::post('/', [QCTestExecutionController::class, 'store'])->name('quality.tests.store');
-
-            Route::delete('{test}', [QCTestExecutionController::class, 'destroy'])->name('quality.tests.destroy');
-            Route::get('{test}/execute', [QCTestExecutionController::class, 'executeForm'])->name('quality.tests.execute');
-            Route::post('{test}/execute', [QCTestExecutionController::class, 'submitExecution'])->name('quality.tests.submit');
-
-            Route::post('{test}/approve', [QCTestExecutionController::class, 'approve'])->name('quality.tests.approve');
-            Route::post('{test}/retest', [QCTestExecutionController::class, 'markRetest'])->name('quality.tests.retest');
-            Route::get('{test}/cube-report-pdf', [QCReportController::class, 'downloadCubeReportPdf'])->name('quality.tests.cube-report-pdf');
+        // Dedicated Test Type Routes & Controllers
+        // 1. Raw Material Tests
+        Route::prefix('sieve-analysis')->name('sieve.')->controller(\App\Http\Controllers\QC\Tests\SieveAnalysisTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('moisture-content')->name('moisture.')->controller(\App\Http\Controllers\QC\MoistureContentTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('silt-content')->name('silt.')->controller(\App\Http\Controllers\QC\Tests\SiltContentTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('specific-gravity-absorption')->name('sp-gravity.')->controller(\App\Http\Controllers\QC\Tests\SpecificGravityAbsorptionTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('flakiness-elongation')->name('flakiness.')->controller(\App\Http\Controllers\QC\Tests\FlakinessElongationTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('mechanical-values')->name('mechanical.')->controller(\App\Http\Controllers\QC\Tests\MechanicalValuesTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('bulk-density-voids')->name('bulk-density.')->controller(\App\Http\Controllers\QC\Tests\BulkDensityVoidsTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('standard-consistency')->name('consistency.')->controller(\App\Http\Controllers\QC\Tests\StandardConsistencyTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('setting-time')->name('setting-time.')->controller(\App\Http\Controllers\QC\Tests\SettingTimeTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('blaine-fineness')->name('blaine.')->controller(\App\Http\Controllers\QC\Tests\BlaineFinenessTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('soundness')->name('soundness.')->controller(\App\Http\Controllers\QC\Tests\SoundnessTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('mortar-strength')->name('mortar-strength.')->controller(\App\Http\Controllers\QC\Tests\MortarCompressiveStrengthTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('water-analysis')->name('water-analysis.')->controller(\App\Http\Controllers\QC\Tests\WaterChemicalAnalysisTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('admixture-verification')->name('admixture.')->controller(\App\Http\Controllers\QC\Tests\AdmixtureVerificationTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
         });
 
-        // Reports
-        Route::get('reports', [QCReportController::class, 'index'])->name('quality.reports.index');
-        Route::get('reports/pdf', [QCReportController::class, 'downloadPdf'])->name('quality.reports.pdf');
+        // 2. Concrete Fresh Tests
+        Route::prefix('slump-cone')->name('slump-cone.')->controller(\App\Http\Controllers\QC\Tests\SlumpConeTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('temperature-measurement')->name('temperature.')->controller(\App\Http\Controllers\QC\Tests\TemperatureMeasurementTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('air-content')->name('air-content.')->controller(\App\Http\Controllers\QC\Tests\AirContentTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('unit-weight-yield')->name('unit-weight.')->controller(\App\Http\Controllers\QC\Tests\UnitWeightYieldTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('bleeding-segregation')->name('bleeding.')->controller(\App\Http\Controllers\QC\Tests\BleedingSegregationTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('scc-tests')->name('scc.')->controller(\App\Http\Controllers\QC\Tests\SccTestsController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+
+        // 3. Concrete Hardened Tests
+        Route::prefix('compressive-strength')->name('compressive.')->controller(\App\Http\Controllers\QC\CompressiveStrengthTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('flexural-strength')->name('flexural.')->controller(\App\Http\Controllers\QC\Tests\FlexuralStrengthTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('split-tensile')->name('split-tensile.')->controller(\App\Http\Controllers\QC\Tests\SplitTensileStrengthTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('drying-shrinkage')->name('drying-shrinkage.')->controller(\App\Http\Controllers\QC\Tests\DryingShrinkageTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('water-permeability')->name('water-permeability.')->controller(\App\Http\Controllers\QC\Tests\WaterPermeabilityTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+
+        // 4. Others (Special & Non-Destructive Tests)
+        Route::prefix('slump-observation')->name('slump.')->controller(\App\Http\Controllers\QC\SlumpObservationTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('rebound-hammer')->name('rebound-hammer.')->controller(\App\Http\Controllers\QC\Tests\ReboundHammerTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('windsor-probe')->name('windsor-probe.')->controller(\App\Http\Controllers\QC\Tests\WindsorProbeTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('upv')->name('upv.')->controller(\App\Http\Controllers\QC\Tests\UpvTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
+        Route::prefix('core-extraction')->name('core-extraction.')->controller(\App\Http\Controllers\QC\Tests\CoreExtractionTestController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->middleware('throttle:60,1')->name('store');
+            Route::get('/analytics', 'analytics')->name('analytics');
+        });
     });
 
     // 8. Fleet & Personnel Logistics
