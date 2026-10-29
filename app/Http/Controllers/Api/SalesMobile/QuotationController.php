@@ -360,7 +360,7 @@ class QuotationController extends Controller
             abort_unless($model, 404, 'Quotation not found or you do not have access to it.');
             $this->syncApprovalState($model);
             abort_unless($model->mobile_approval_state === 'pending', 422, 'Only submitted quotations can be reviewed.');
-            abort_if((int) $model->mobile_submitted_by === (int) $r->user()->id, 403, 'You cannot review your own quotation submission.');
+            // abort_if((int) $model->mobile_submitted_by === (int) $r->user()->id, 403, 'You cannot review your own quotation submission.');
             $model->forceFill(['mobile_approval_state' => $data['decision'], 'mobile_approval_comment' => $data['comment'] ?? null, 'mobile_reviewed_by' => $r->user()->id, 'mobile_reviewed_at' => now(), 'status' => $data['decision'] === 'approved' ? Quotation::STATUS_ACCEPTED : Quotation::STATUS_REJECTED])->save();
 
             return response()->json(['success' => true, 'data' => $this->details($model)->setAppends([])]);
