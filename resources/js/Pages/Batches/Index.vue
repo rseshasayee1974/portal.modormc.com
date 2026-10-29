@@ -640,7 +640,10 @@ const submitCancelDispatch = async () => {
 };
 
 // ── Page Settings ────────────────────────────────────────────────────────────
-const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form);
+const hideBatchForm = computed(() => {
+    const value = props.batchingSettings?.hide_batch_form ?? (page.props.custom_settings as any)?.batching?.hide_batch_form;
+    return value === true || value === 1 || value === '1' || value === 'true';
+});
 
 // const lastShownBatchId = ref<number | null>(null);
 // watch(() => page.props.flash?.new_batch_id, (newVal) => {
