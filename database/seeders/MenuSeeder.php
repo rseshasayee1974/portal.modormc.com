@@ -155,6 +155,7 @@ class MenuSeeder extends Seeder
             'icon' => 'DocumentChartBarIcon', 'published' => 1, 'parent_id' => 9,
             'level' => 1, 'ordering' => 9, 'permission_name' => 'OPENING_BALANCE.VIEW',
         ]);
+        $this->call(GstComplianceSeeder::class);
         foreach (['sales' => 'Sales Register', 'purchase' => 'Purchase Register'] as $kind => $title) {
             Menu::updateOrCreate(['alias' => $kind.'-register-report'], [
                 'menutype' => 2, 'title' => $title, 'link' => 'reports/report?type='.$kind.'_register',

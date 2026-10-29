@@ -411,6 +411,11 @@ class DispatchController extends Controller
                         ->where('ref_id', $invoice->id)
                         ->get()
                         ->each(function ($entry) {
+                            if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) {
+                                if (\Illuminate\Support\Facades\DB::table('mm_accounting_journals')->where('reversal_of', $entry->id)->exists()) return;
+                                app(\App\Services\Finance\SourceJournalService::class)->reverse((int) $entry->plant_id, (int) auth()->id(), (int) $entry->id, now()->toDateString(), 'Dispatch and associated invoice cancelled', 'dispatch-cancel:'.$entry->id);
+                                return;
+                            }
                             // Update lines via query builder to bypass fillable and fire no events
                             \App\Models\JournalEntryLine::query()->where('journal_entry_id', $entry->id)->update([
                                 'is_deleted' => 1,

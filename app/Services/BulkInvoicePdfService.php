@@ -43,7 +43,8 @@ class BulkInvoicePdfService
             if ($pdf->getDomPDF()->getCanvas()->get_page_count() === count($documents)) {
                 return $pdf->output();
             }
-            unset($pdf);
+            unset($pdf, $pages, $html);
+            gc_collect_cycles();
         }
         throw ValidationException::withMessages(['invoice_ids' => 'An invoice contains too much content to fit on one A4 page without making it unreadable. Export that invoice separately or reduce its content. No content has been truncated.']);
     }

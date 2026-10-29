@@ -47,12 +47,31 @@ class JournalEntryBuilder
         $this->addTaxLines();
         $this->addAdjustmentLines();
         $this->balanceRoundingDifference();
+        $this->normaliseLines();
         $this->assertBalanced();
 
         return $this->lines;
     }
 
     // -------------------------------------------------------------------------
+
+    /** Collapse offsets within a single line, including an existing round-off line. */
+    private function normaliseLines(): void
+    {
+        $normalised = [];
+        $this->totalDebitCents = 0;
+        $this->totalCreditCents = 0;
+        foreach ($this->lines as $line) {
+            $net = $line['debit_cents'] - $line['credit_cents'];
+            if ($net === 0) continue;
+            $line['debit_cents'] = max($net, 0);
+            $line['credit_cents'] = max(-$net, 0);
+            $this->totalDebitCents += $line['debit_cents'];
+            $this->totalCreditCents += $line['credit_cents'];
+            $normalised[] = $line;
+        }
+        $this->lines = $normalised;
+    }
 
     private function addPartnerLine(): void
     {

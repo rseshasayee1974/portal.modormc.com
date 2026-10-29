@@ -21,7 +21,7 @@ class PrintBrandHeader
                 $document = $context[$key] ?? $context['data'][$key] ?? null;
                 if (!$document instanceof Model) continue;
                 if ($key === 'batch') {
-                    $plant = $document->salesOrder?->plant ?? $document->workOrder?->plant;
+                    $plant = $document->plant ?? $document->salesOrder?->plant ?? $document->workOrder?->plant;
                 } elseif ($key === 'inward') {
                     $plant = $document->order?->plant;
                 } else {
@@ -42,7 +42,9 @@ class PrintBrandHeader
             $entity = $plant->entity()->first();
         }
         $logo = null;
-        foreach ([$plant?->logo_path, $entity?->logo_file, $company['logo_path'] ?? null] as $path) {
+        $batchSheetLogo = !empty($context['batchSheetBrand']) && $plant
+            ? (\App\Models\CustomSetting::getForModule($plant->id, 'batching')['batch_sheet_logo_path'] ?? null) : null;
+        foreach ([$batchSheetLogo, $plant?->logo_path, $entity?->logo_file, $company['logo_path'] ?? null] as $path) {
             if ($logo = PdfLogo::dataUri($path)) break;
         }
         $address = $plant?->addresses?->firstWhere('is_primary', true) ?? $plant?->addresses?->first();

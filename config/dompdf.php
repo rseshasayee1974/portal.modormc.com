@@ -2,6 +2,9 @@
 
 return [
 
+    // Applied only when resolving a PDF renderer; normal requests keep their PHP limit.
+    'memory_limit' => env('PDF_MEMORY_LIMIT', '512M'),
+
     /*
     |--------------------------------------------------------------------------
     | Settings

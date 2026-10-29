@@ -254,7 +254,9 @@ class BankReconciliationController extends Controller
         $userId = Auth::id() ?? 1;
 
         return DB::transaction(function () use ($statementLineId, $oppositeLedgerId, $customNarration, $plantId, $entityId, $userId) {
-            $statementLine = BankStatementLine::lockForUpdate()->findOrFail($statementLineId);
+            abort_unless($plantId && DB::table('mm_plants')->where('id', $plantId)->lockForUpdate()->first(), 403, 'Select a plant first');
+            abort_unless(DB::table('mm_ledgers')->where('plant_id', $plantId)->where('id', $oppositeLedgerId)->whereNull('deleted_at')->where('status', 1)->exists(), 422, 'Select an active offset ledger in this plant');
+            $statementLine = BankStatementLine::where('plant_id', $plantId)->lockForUpdate()->findOrFail($statementLineId);
 
             if ($statementLine->reconciled_line_id) {
                 return response()->json([
@@ -270,7 +272,7 @@ class BankReconciliationController extends Controller
             $vType = VoucherType::where('short_code', 'JOURNAL')->first();
             $prefix = $vType ? $vType->prefix : 'JV-';
 
-            $lastEntry = JournalEntry::where('entity_id', $entityId)
+            $lastEntry = JournalEntry::where('plant_id', $plantId)
                 ->where('voucher_type', 'JOURNAL')
                 ->orderBy('id', 'desc')
                 ->first();
@@ -324,6 +326,7 @@ class BankReconciliationController extends Controller
             ]);
 
             // 5. Update Statement Line
+            if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) app(\App\Services\Finance\AccountingWorkspace::class)->sealExisting((int) $plantId, (int) $userId, (int) $journalEntry->id);
             $statementLine->update([
                 'reconciled_line_id' => $bankLine->id,
                 'reconciled_at' => now(),

@@ -18,14 +18,14 @@ class UpdateLedgerRequest extends FormRequest
         $id = $this->route('ledger');
 
         return [
-            'account_type_id' => ['required', 'integer', 'exists:mm_account_types,id'],
+            'account_type_id' => ['required', 'integer', Rule::exists('mm_account_types', 'id')->where('plant_id', $plantId)->whereNull('deleted_at')],
             'title'           => ['required', 'string', 'max:255'],
             'code'            => [
                 'nullable', 
                 'string', 
                 'max:50',
                 Rule::unique('mm_ledgers')->ignore($id)->where(fn ($q) => 
-                    $q->where('plant_id', $plantId)->whereNull('deleted_at')
+                    $q->where('plant_id', $plantId)
                 )
             ],
             'is_pnl'          => ['required', 'boolean'],

@@ -260,7 +260,7 @@
     @endif
 
     <div class="sheet">
-@include('pdfs.partials._brand_header')
+@include('pdfs.partials._brand_header', ['batchSheetBrand' => true])
 
         <div class="report-title">BATCH SHEET REPORT</div>
 

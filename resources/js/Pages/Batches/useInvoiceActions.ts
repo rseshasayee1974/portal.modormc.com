@@ -202,7 +202,8 @@ export function useInvoiceActions(
                 didOpen: () => { Swal.showLoading(); },
             });
 
-            const response = await axios.post(route('dispatches.whatsapp-send', dispatch.id));
+            // Keep the POST on the current origin; canonical URL redirects can turn it into a GET.
+            const response = await axios.post(route('dispatches.whatsapp-send', dispatch.id, false));
             Swal.close();
 
             Swal.fire('WhatsApp', response.data.message || 'Dispatch details submitted to WhatsApp.', 'success');

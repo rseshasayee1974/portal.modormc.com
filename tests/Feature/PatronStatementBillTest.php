@@ -176,11 +176,13 @@ class PatronStatementBillTest extends TestCase
 
     public function test_notes_link_to_invoice_and_bill_and_post_correct_ledger_sides(): void
     {
+        $this->actingAs(\App\Models\User::factory()->create());
         $this->assertNotesPosting();
     }
 
     public function test_notes_can_be_generated_without_purchase_history_column(): void
     {
+        $this->actingAs(\App\Models\User::factory()->create());
         \Illuminate\Support\Facades\Schema::table('mm_invoice_items', function (\Illuminate\Database\Schema\Blueprint $table) {
             $table->dropIndex(['purchase_order_history_id']);
             $table->dropColumn('purchase_order_history_id');
@@ -340,7 +342,11 @@ class PatronStatementBillTest extends TestCase
         $this->assertSame('Tax Correction', $note->fresh()->notes);
         $this->assertSame($number, $note->fresh()->full_number);
         $this->assertEquals(1180, $note->fresh()->total_amount);
-        $this->assertSame('2026-10-08', $entry->fresh()->voucher_date->toDateString());
+        $this->assertSame('2026-10-07', $entry->fresh()->voucher_date->toDateString());
+        $replacement = \App\Models\JournalEntry::where('ref_id', $note->id)->where('ref_module', $note->getDocumentType())->latest('id')->firstOrFail();
+        $this->assertNotEquals($entry->id, $replacement->id);
+        $this->assertSame('2026-10-08', $replacement->voucher_date->toDateString());
+        $this->assertDatabaseHas('mm_journal_entries', ['reversal_of_id' => $entry->id, 'is_status' => 'POSTED']);
         $this->assertEquals($lines, $entry->lines()->count());
         $this->assertSame('2026-10-07', $this->bill->fresh()->invoice_date->toDateString());
         $this->put(route('crdrnote.update', $this->bill->encrypted_id), ['note_date' => '2026-10-08', 'reason' => 'Test'])->assertNotFound();
@@ -433,12 +439,16 @@ class PatronStatementBillTest extends TestCase
             $this->assertEquals(212, $note->total_amount);
             $this->assertEquals(212, $note->balance_amount);
             $this->assertEquals(-0.40, $note->round_off);
+            $originalEntry = $entry;
+            $this->assertEquals(118, $originalEntry->fresh()->total_debit);
+            $this->assertDatabaseHas('mm_journal_entries', ['reversal_of_id' => $originalEntry->id, 'total_debit' => 118]);
+            $entry = \App\Models\JournalEntry::where('ref_id', $note->id)->where('ref_module', $note->getDocumentType())->latest('id')->firstOrFail();
             $this->assertEquals($entry->fresh()->total_debit, $entry->fresh()->total_credit);
             $partnerLine = $entry->lines()->where('partner_id', $this->patron->id)->firstOrFail();
             $this->assertEquals(212, (float) $partnerLine->debit_amount + (float) $partnerLine->credit_amount);
-            $this->assertSame($entryId, $entry->fresh()->id);
-            $this->assertSame($note->full_number, $entry->fresh()->voucher_number);
-            $this->assertSame(1, \App\Models\JournalEntry::where('ref_id', $note->id)->where('voucher_type', strtoupper($noteType))->count());
+            $this->assertNotEquals($entryId, $entry->fresh()->id);
+            $this->assertStringStartsWith($note->full_number.'/R', $entry->fresh()->voucher_number);
+            $this->assertSame(2, \App\Models\JournalEntry::where('ref_id', $note->id)->where('voucher_type', strtoupper($noteType))->count());
             $this->assertEquals(1180, $source->fresh()->total_amount);
             $this->assertEquals(1000, $item->fresh()->price_unit);
             $invalid = $update;
@@ -475,11 +485,12 @@ class PatronStatementBillTest extends TestCase
             $this->delete(route('crdrnote.destroy', $note->encrypted_id))->assertRedirect(route('crdrnote.index'))->assertSessionHasNoErrors();
             $this->assertSoftDeleted('mm_invoices', ['id' => $note->id]);
             $this->assertSoftDeleted('mm_invoice_items', ['id' => $noteItem->id]);
-            $this->assertSoftDeleted('mm_journal_entries', ['id' => $entryId, 'is_deleted' => 1, 'deleted_by' => $user->id]);
+            $this->assertDatabaseHas('mm_journal_entries', ['id' => $entryId, 'is_deleted' => 0, 'deleted_at' => null]);
             foreach ($lineIds as $lineId) {
-                $this->assertSoftDeleted('mm_journal_entry_lines', ['id' => $lineId, 'is_deleted' => 1, 'deleted_by' => $user->id]);
+                $this->assertDatabaseHas('mm_journal_entry_lines', ['id' => $lineId, 'is_deleted' => 0, 'deleted_at' => null]);
             }
-            $this->assertSame(0, $entry->lines()->count());
+            $this->assertGreaterThan(0, $entry->lines()->count());
+            $this->assertDatabaseHas('mm_journal_entries', ['reversal_of_id' => $entry->id, 'is_status' => 'POSTED']);
             $this->assertFalse($source->fresh()->trashed());
             $this->assertEquals(1180, $source->fresh()->total_amount);
             $this->assertSame(0, $source->adjustmentNotes()->count());
@@ -734,6 +745,7 @@ class PatronStatementBillTest extends TestCase
         $this->journal('manual', 'PURCHASE', 50);
         $this->journal('manual', 'INVOICE', 100);
         $this->journal('legacy', 'SALES', 200);
+        DB::table('mm_journal_entries')->where('plant_id', $this->plant->id)->update(['is_status' => 'POSTED']);
         $service = app(\App\Services\Reports\LedgerReportService::class);
         foreach (['BILL' => ['BILL', 'PURCHASE'], 'PURCHASE' => ['BILL', 'PURCHASE'], 'INVOICE' => ['INVOICE', 'SALES'], 'SALES' => ['INVOICE', 'SALES']] as $filter => $expected) {
             $report = $service->generate(['id' => $this->ledger->id, 'start' => '2026-10-07', 'end' => '2026-10-31', 'voucher_type_filter' => $filter]);
@@ -743,6 +755,7 @@ class PatronStatementBillTest extends TestCase
 
     public function test_ledger_report_returns_the_ledger_name_separately_from_narration(): void
     {
+        DB::table('mm_journal_entries')->where('plant_id', $this->plant->id)->update(['is_status' => 'POSTED']);
         $report = app(\App\Services\Reports\LedgerReportService::class)->generate([
             'start' => '2026-10-07',
             'end' => '2026-10-31',

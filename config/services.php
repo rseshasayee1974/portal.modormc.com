@@ -8,7 +8,7 @@ return [
     'tendigit' => [
         'endpoint' => env('TENDIGIT_ENDPOINT', 'https://login.tendigit.in/api/sendtemplate.php'),
         'license_number' => env('TENDIGIT_LICENSE_NUMBER'),
-        'api_key' => env('TENDIGIT_API_KEY'),
+        'api_key' => env('TENDIGIT_API_KEY', 'OVEfLmX6NtRvMlIsYauJ5KrZq'),
     ],
 
     /*
@@ -43,7 +43,7 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-      'openai' => [
+    'openai' => [
         'key' => env('OPENAI_API_KEY'),
     ],
 

@@ -73,7 +73,7 @@ class LedgerController extends Controller
     public function show($id)
     {
         $this->authorizeModule('show');
-        return response()->json(['ledger' => Ledger::with('accountType')->findOrFail($id)]);
+        return response()->json(['ledger' => Ledger::with('accountType')->where('plant_id', app(\App\Services\PlantContextService::class)->requirePlantId())->findOrFail($id)]);
     }
 
     /**
@@ -82,6 +82,8 @@ class LedgerController extends Controller
     public function update(UpdateLedgerRequest $request, Ledger $ledger)
     {
         $this->authorizeModule('edit');
+        abort_unless((int) $ledger->plant_id === app(\App\Services\PlantContextService::class)->requirePlantId(), 404);
+        abort_if(\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_accounts') && \Illuminate\Support\Facades\DB::table('mm_accounting_accounts')->where('ledger_id', $ledger->id)->exists(), 409, 'Maintain classified accounts through Accounting & GST');
         $validated = $request->validated();
         
         $accountType = AccountsType::with('account')->findOrFail($validated['account_type_id']);
@@ -107,6 +109,9 @@ class LedgerController extends Controller
     public function destroy(Request $request, Ledger $ledger)
     {
         $this->authorizeModule('delete');
+        abort_unless((int) $ledger->plant_id === app(\App\Services\PlantContextService::class)->requirePlantId(), 404);
+        abort_if(\Illuminate\Support\Facades\DB::table('mm_journal_entry_lines')->where('account_id', $ledger->id)->exists(), 409, 'A ledger with journal history cannot be deleted');
+        abort_if(\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_accounts') && \Illuminate\Support\Facades\DB::table('mm_accounting_accounts')->where('ledger_id', $ledger->id)->exists(), 409, 'Deactivate classified accounts through Accounting & GST');
         $ledger->delete();
 
         if ($request->wantsJson() && !$request->header('X-Inertia')) {

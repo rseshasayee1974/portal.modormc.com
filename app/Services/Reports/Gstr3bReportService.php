@@ -4,9 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\Invoice;
 use App\Models\OrderTax;
-use App\Models\PurchaseOrder;
 use App\Services\PlantContextService;
-use Illuminate\Support\Facades\DB;
 
 class Gstr3bReportService implements ReportServiceInterface
 {
@@ -17,9 +15,6 @@ class Gstr3bReportService implements ReportServiceInterface
         $plantId = $this->ctx->requirePlantId();
         $start   = $params['start'];
         $end     = $params['end'];
-
-        $plantGstin = DB::table('mm_plants')->where('id', $plantId)->value('gstin');
-        $plantState = $plantGstin && strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
 
         // 1. OUTWARD SUPPLIES (Sales Invoices)
         $salesInvoices = Invoice::where('plant_id', $plantId)
@@ -59,12 +54,9 @@ class Gstr3bReportService implements ReportServiceInterface
             }
         }
 
-        // 2. INWARD SUPPLIES & ELIGIBLE ITC (Purchase Orders/Bills)
-        $purchases = PurchaseOrder::where('plant_id', $plantId)
-            ->with(['vendor'])
-            ->whereNull('deleted_at')
-            ->whereBetween('date_order', [$start, $end])
-            ->get();
+        // Purchase orders and supplier state do not establish either GST heads or ITC eligibility.
+        // Keep this legacy report a provisional book view; the compliance workspace handles review.
+        $purchases = app(\App\Services\Gst\GstBooks::class)->range($plantId, substr($start, 0, 10), substr($end, 0, 10));
 
         $table4 = [
             'import_goods'    => ['igst' => 0.0, 'cgst' => 0.0, 'sgst' => 0.0],
@@ -74,20 +66,11 @@ class Gstr3bReportService implements ReportServiceInterface
             'other_itc'       => ['igst' => 0.0, 'cgst' => 0.0, 'sgst' => 0.0], // All other ITC
         ];
 
-        foreach ($purchases as $po) {
-            $vendorGstin = $po->vendor ? trim($po->vendor->gstin) : '';
-            $totalTax    = (float)$po->amount_tax;
-
-            if ($totalTax <= 0) continue;
-
-            $isInterstate = !empty($vendorGstin) && substr($vendorGstin, 0, 2) !== $plantState;
-
-            if ($isInterstate) {
-                $table4['other_itc']['igst'] += $totalTax;
-            } else {
-                $table4['other_itc']['cgst'] += $totalTax / 2;
-                $table4['other_itc']['sgst'] += $totalTax / 2;
-            }
+        $warnings = ['Draft book summary only. ITC eligibility, reversals, notes, RCM and payment setoff require the GST Reconciliation workspace.'];
+        foreach ($purchases as $book) {
+            if ($book['direction'] !== 'purchase') continue;
+            foreach (['igst', 'cgst', 'sgst'] as $head) $table4['other_itc'][$head] += $book['amounts'][$head] / 100;
+            foreach ($book['issues'] as $issue) $warnings[] = $book['source_key'].': '.$issue;
         }
 
         return [
@@ -97,6 +80,8 @@ class Gstr3bReportService implements ReportServiceInterface
             ],
             'table31'         => $table31,
             'table4'          => $table4,
+            'is_provisional'  => true,
+            'warnings'        => array_values(array_unique($warnings)),
             'opening_balance' => 0
         ];
     }
