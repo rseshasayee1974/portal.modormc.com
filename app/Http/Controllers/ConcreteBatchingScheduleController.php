@@ -44,7 +44,7 @@ class ConcreteBatchingScheduleController extends Controller
      */
     protected function getActivePlantId(): int
     {
-        return (int) (session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1);
+        return app(\App\Services\PlantContextService::class)->requirePlantId();
     }
 
     /**
@@ -246,41 +246,45 @@ class ConcreteBatchingScheduleController extends Controller
         $pourReference = $request->input('pour_reference');
         $siteId        = $request->input('site_id');
 
-        $query = ConcreteBatchingSchedule::where('plant_id', $plantId)
+        $payload = app(\App\Services\ProductionReadCache::class)->remember('schedules', $plantId, [$scheduleDate, $status, $pourReference, $siteId], function () use ($plantId, $status, $pourReference, $siteId) {
+            $query = ConcreteBatchingSchedule::where('plant_id', $plantId)
 
-            ->with($this->getScheduleRelations());
+                ->with($this->getScheduleRelations());
 
 
 
-        if ($status && $status !== 'all') {
-            $query->where('status', $status);
-        }
+            if ($status && $status !== 'all') {
+                $query->where('status', $status);
+            }
 
-        if ($pourReference) {
-            $query->where('pour_reference', 'like', "%{$pourReference}%");
-        }
+            if ($pourReference) {
+                $query->where('pour_reference', 'like', "%{$pourReference}%");
+            }
 
-        if ($siteId) {
-            $query->where('site_id', $siteId);
-        }
+            if ($siteId) {
+                $query->where('site_id', $siteId);
+            }
 
-        $schedules = $query->orderBy('schedule_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->get();
+            $schedules = $query->orderBy('schedule_date', 'desc')
+                ->orderBy('id', 'desc')
+                ->get();
 
-        $metrics = [
-            'total_scheduled_m3'      => round((float) $schedules->sum('qty_m3'), 3),
-            'total_delivered_m3'      => round((float) $schedules->where('status', 'completed')->sum('qty_m3'), 3),
-            'active_in_transit_tms'   => $schedules->where('status', 'in_transit')->count(),
-            'active_pouring_tms'      => $schedules->where('status', 'pouring')->count(),
-            'hydration_warning_count' => $schedules->filter(fn($s) => in_array($s->hydration_status, ['warning', 'critical']))->count(),
-        ];
+            $metrics = [
+                'total_scheduled_m3'      => round((float) $schedules->sum('qty_m3'), 3),
+                'total_delivered_m3'      => round((float) $schedules->where('status', 'completed')->sum('qty_m3'), 3),
+                'active_in_transit_tms'   => $schedules->where('status', 'in_transit')->count(),
+                'active_pouring_tms'      => $schedules->where('status', 'pouring')->count(),
+                'hydration_warning_count' => $schedules->filter(fn($s) => in_array($s->hydration_status, ['warning', 'critical']))->count(),
+            ];
 
-        return response()->json([
-            'schedules' => $schedules,
-            'pours'     => $this->aggregatePourTracking($schedules),
-            'metrics'   => $metrics,
-        ]);
+            return [
+                'schedules' => $schedules->toArray(),
+                'pours'     => $this->aggregatePourTracking($schedules),
+                'metrics'   => $metrics,
+            ];
+        }, $request->boolean('refresh'));
+
+        return response()->json($payload);
     }
 
     /**

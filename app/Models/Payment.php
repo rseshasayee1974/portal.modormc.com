@@ -212,6 +212,29 @@ class Payment extends Model
      */
     public function postToAccounting(): \App\Models\JournalEntry
     {
+        if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) {
+            return \Illuminate\Support\Facades\DB::transaction(function () {
+                $this->refresh();
+                $plant = (int) $this->plant_id;
+                $patron = \Illuminate\Support\Facades\DB::table('mm_patrons')->where('plant_id', $plant)->where('id', $this->patron_id)->whereNull('deleted_at')->first();
+                abort_unless($patron, 422, 'Payment patron must belong to its plant');
+                $receipt = $this->transaction_type === 'receipt';
+                $partyLedger = $receipt ? $patron->debit_ledger_id : $patron->credit_ledger_id;
+                if (! $partyLedger) $partyLedger = \Illuminate\Support\Facades\DB::table('mm_ledgers')->where('plant_id', $plant)->whereNull('deleted_at')->where('title', 'like', $receipt ? '%Sundry Debtor%' : '%Sundry Creditor%')->value('id');
+                abort_unless($partyLedger, 422, 'Configure the payment patron ledger in this plant');
+                $amount = \App\Services\Finance\AccountingMoney::decimal(\App\Services\Finance\AccountingMoney::units((string) $this->amount));
+                $number = $this->reference ?: strtoupper(substr($this->transaction_type, 0, 3)).'-'.$this->id;
+                $date = substr((string) $this->transaction_date, 0, 10);
+                $entry = app(\App\Services\Finance\SourceJournalService::class)->post($plant, (int) (auth()->id() ?? $this->created_by), [
+                    'voucher_type' => $receipt ? 'RECEIPT' : 'PAYMENT', 'voucher_number' => $number, 'ref_module' => 'payment', 'ref_id' => $this->id,
+                    'voucher_date' => $date, 'posting_date' => $date, 'narration' => ucfirst($this->transaction_type).' '.$number.' | '.$patron->legal_name,
+                ], [
+                    ['account_id' => $this->ledger_id, 'debit_amount' => $receipt ? $amount : '0', 'credit_amount' => $receipt ? '0' : $amount],
+                    ['account_id' => $partyLedger, 'debit_amount' => $receipt ? '0' : $amount, 'credit_amount' => $receipt ? $amount : '0', 'partner_type' => 'Patron', 'partner_id' => $this->patron_id],
+                ]);
+                return \App\Models\JournalEntry::findOrFail($entry->id);
+            });
+        }
         return \Illuminate\Support\Facades\DB::transaction(function () {
             $this->refresh();
             $plantId = $this->plant_id ?? session('active_plant_id', 1);

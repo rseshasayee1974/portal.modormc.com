@@ -36,12 +36,14 @@ class BatchController extends Controller
     public function index()
     {
         $this->authorizeModule('menu');
-        $activePlantId = session('active_plant_id');
+        $activePlantId = app(\App\Services\PlantContextService::class)->requirePlantId();
 
-        $batches = DB::table('mm_batches as b')
+        $batches = app(\App\Services\ProductionReadCache::class)->remember('batch-grid', $activePlantId, [], function () use ($activePlantId) {
+            return DB::table('mm_batches as b')
             ->join('mm_sales_orders as so', 'so.id', '=', 'b.sales_order_id')
             ->leftJoin('mm_dispatches as d', function ($join) {
                 $join->on('d.batch_id', '=', 'b.id')
+                     ->on('d.plant_id', '=', 'b.plant_id')
                      ->whereNull('d.deleted_at');
             })
             ->leftJoin('mm_patrons as dp', 'dp.id', '=', 'd.customer_id')
@@ -60,6 +62,7 @@ class BatchController extends Controller
                      ->whereIn('ewb.generation_type', ['invoice', 'batch', 'Invoice', 'Batch']);
             })
             ->where('so.plant_id', $activePlantId)
+            ->where('b.plant_id', $activePlantId)
             ->whereNull('b.deleted_at')
             ->whereNull('so.deleted_at')
             ->select([
@@ -219,7 +222,8 @@ class BatchController extends Controller
                         ]
                     ] : [],
                 ];
-            }); 
+            });
+        }, request()->boolean('refresh'));
 
         $batchingSettings = CustomSetting::getForModule($activePlantId, 'batching');
         $autoCarryPump = !empty($batchingSettings['auto_carry_pump']);
@@ -699,6 +703,7 @@ class BatchController extends Controller
         $this->authorizeModule('menu');
 
         $batchId = $batch instanceof Batch ? $batch->id : (int)$batch;
+        $activePlantId = app(\App\Services\PlantContextService::class)->requirePlantId();
 
         $batchRow = DB::table('mm_batches as b')
             ->join('mm_sales_orders as so', function ($join) {
@@ -722,6 +727,8 @@ class BatchController extends Controller
                      ->whereNull('cg.deleted_at');
             })
             ->where('b.id', $batchId)
+            ->where('b.plant_id', $activePlantId)
+            ->where('so.plant_id', $activePlantId)
             ->whereNull('b.deleted_at')
             ->select([
                 'b.id',
@@ -855,106 +862,109 @@ class BatchController extends Controller
                 });
         }
 
-        $dispatches = DB::table('mm_dispatches as d')
-            ->leftJoin('mm_machines as t', 't.id', '=', 'd.truck_id')
-            ->leftJoin('mm_patrons as tr', 'tr.id', '=', 'd.transport_id')
-            ->leftJoin('mm_personnels as dr', 'dr.id', '=', 'd.driver_id')
-            ->leftJoin('mm_personnels as op', 'op.id', '=', 'd.operator_id')
-            ->leftJoin('mm_personnels as se', 'se.id', '=', 'd.sales_executive_id')
-            ->leftJoin('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
-            ->leftJoin('mm_invoices as inv', 'inv.id', '=', 'ds.invoice_id')
-            ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
-            ->leftJoin('mm_ewaybill_details as ewb', function ($join) {
-                $join->on('ewb.origin_id', '=', 'inv.id')
-                     ->whereIn('ewb.generation_type', ['invoice', 'batch', 'Invoice', 'Batch']);
-            })
-            ->leftJoin('mm_users as inv_user', 'inv_user.id', '=', 'inv.created_by')
-            ->where('d.batch_id', $batchId)
-            ->whereNull('d.deleted_at')
-            ->select([
-                'd.id',
-                'd.batch_id',
-                'd.sales_order_id',
-                'd.plant_id',
-                'd.customer_id',
-                'd.mixdesign_id',
-                'd.unload_site_id',
-                'd.load_site_id',
-                'd.uom_id',
-                'd.truck_id',
-                'd.transport_id',
-                'd.driver_id',
-                'd.operator_id',
-                'd.sales_executive_id',
-                'd.concrete_pump',
-                'd.pump_charges',
-                'd.pump_charge_with_tax',
-                'd.empty_weight_truck',
-                'd.loaded_weight_truck',
-                'd.net_weight',
-                'd.empty_time',
-                'd.load_time',
-                'd.dispatch_status',
-                'd.prefix',
-                'd.dispatch_no',
-                'd.dispatch_reference',
-                'd.dispatch_time',
-                'd.delivered_qty',
-                'd.load_rate',
-                'd.load_tax_id',
-                'd.load_untax_amount',
-                'd.load_tax_amount',
-                'd.load_total_amount',
-                'd.pass_amount',
-                'd.discount_amount',
-                'd.transport_expenses',
-                'd.adjustment_amount',
-                'd.round_off',
-                'd.payment_mode',
-                'd.created_at',
-                'd.updated_at',
-                't.registration as truck_registration',
-                'tr.legal_name as transport_legal_name',
-                'dr.first_name as driver_first_name',
-                'dr.last_name as driver_last_name',
-                'op.first_name as operator_first_name',
-                'op.last_name as operator_last_name',
-                'se.first_name as sales_executive_first_name',
-                'se.last_name as sales_executive_last_name',
-                'ds.id as dispatch_status_id',
-                'ds.invoice_id',
-                'ds.invoice_status',
-                'ds.invoice_date as status_invoice_date',
-                'ds.invoice_number as status_invoice_number',
-                'ds.is_tax_inclusive as dispatch_is_tax_inclusive',
-                'ds.transport_units as status_transport_units',
-                'ds.transport_rate as status_transport_rate',
-                'ds.transport_tax_id as status_transport_tax_id',
-                'ds.transport_tax_amount as status_transport_tax_amount',
-                'ds.transport_total_amount as status_transport_total_amount',
-                'ds.total_amount as status_total_amount',
-                'ds.transport_reference as status_transport_reference',
-                'ds.transport_km as status_transport_km',
-                'ds.receiver_name as status_receiver_name',
-                'ds.receive_mobile as status_receive_mobile',
-                'ds.note as status_note',
-                'inv.prefix as invoice_prefix',
-                'inv.invoice_number',
-                'inv.notes as invoice_notes',
-                'inv.status as invoice_status_text',
-                'inv.total_amount as invoice_total_amount',
-                'inv_user.username as invoice_creator_username',
-                'inv_user.email as invoice_creator_email',
-                'einv_rel.einv_irn as invoice_einvoice_irn',
-                'einv_rel.einv_status as invoice_einvoice_status',
-                'einv_rel.einv_ackno as invoice_einvoice_ack_no',
-                'einv_rel.einv_ack_date as invoice_einvoice_ack_date',
-                'einv_rel.einv_signed_qrcode as invoice_einvoice_qr_code',
-                'ewb.ewaybill_no as invoice_eway_bill_no',
-                'ewb.ewaybill_date as invoice_eway_bill_date',
-                'ewb.valid_upto as invoice_eway_bill_valid_until',
-            ])
-            ->get();
+        $dispatches = app(\App\Services\ProductionReadCache::class)->remember('dispatch-grid', $activePlantId, ['batch_id' => $batchId], function () use ($batchId, $activePlantId) {
+            return DB::table('mm_dispatches as d')
+                ->leftJoin('mm_machines as t', 't.id', '=', 'd.truck_id')
+                ->leftJoin('mm_patrons as tr', 'tr.id', '=', 'd.transport_id')
+                ->leftJoin('mm_personnels as dr', 'dr.id', '=', 'd.driver_id')
+                ->leftJoin('mm_personnels as op', 'op.id', '=', 'd.operator_id')
+                ->leftJoin('mm_personnels as se', 'se.id', '=', 'd.sales_executive_id')
+                ->leftJoin('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
+                ->leftJoin('mm_invoices as inv', 'inv.id', '=', 'ds.invoice_id')
+                ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
+                ->leftJoin('mm_ewaybill_details as ewb', function ($join) {
+                    $join->on('ewb.origin_id', '=', 'inv.id')
+                         ->whereIn('ewb.generation_type', ['invoice', 'batch', 'Invoice', 'Batch']);
+                })
+                ->leftJoin('mm_users as inv_user', 'inv_user.id', '=', 'inv.created_by')
+                ->where('d.batch_id', $batchId)
+                ->where('d.plant_id', $activePlantId)
+                ->whereNull('d.deleted_at')
+                ->select([
+                    'd.id',
+                    'd.batch_id',
+                    'd.sales_order_id',
+                    'd.plant_id',
+                    'd.customer_id',
+                    'd.mixdesign_id',
+                    'd.unload_site_id',
+                    'd.load_site_id',
+                    'd.uom_id',
+                    'd.truck_id',
+                    'd.transport_id',
+                    'd.driver_id',
+                    'd.operator_id',
+                    'd.sales_executive_id',
+                    'd.concrete_pump',
+                    'd.pump_charges',
+                    'd.pump_charge_with_tax',
+                    'd.empty_weight_truck',
+                    'd.loaded_weight_truck',
+                    'd.net_weight',
+                    'd.empty_time',
+                    'd.load_time',
+                    'd.dispatch_status',
+                    'd.prefix',
+                    'd.dispatch_no',
+                    'd.dispatch_reference',
+                    'd.dispatch_time',
+                    'd.delivered_qty',
+                    'd.load_rate',
+                    'd.load_tax_id',
+                    'd.load_untax_amount',
+                    'd.load_tax_amount',
+                    'd.load_total_amount',
+                    'd.pass_amount',
+                    'd.discount_amount',
+                    'd.transport_expenses',
+                    'd.adjustment_amount',
+                    'd.round_off',
+                    'd.payment_mode',
+                    'd.created_at',
+                    'd.updated_at',
+                    't.registration as truck_registration',
+                    'tr.legal_name as transport_legal_name',
+                    'dr.first_name as driver_first_name',
+                    'dr.last_name as driver_last_name',
+                    'op.first_name as operator_first_name',
+                    'op.last_name as operator_last_name',
+                    'se.first_name as sales_executive_first_name',
+                    'se.last_name as sales_executive_last_name',
+                    'ds.id as dispatch_status_id',
+                    'ds.invoice_id',
+                    'ds.invoice_status',
+                    'ds.invoice_date as status_invoice_date',
+                    'ds.invoice_number as status_invoice_number',
+                    'ds.is_tax_inclusive as dispatch_is_tax_inclusive',
+                    'ds.transport_units as status_transport_units',
+                    'ds.transport_rate as status_transport_rate',
+                    'ds.transport_tax_id as status_transport_tax_id',
+                    'ds.transport_tax_amount as status_transport_tax_amount',
+                    'ds.transport_total_amount as status_transport_total_amount',
+                    'ds.total_amount as status_total_amount',
+                    'ds.transport_reference as status_transport_reference',
+                    'ds.transport_km as status_transport_km',
+                    'ds.receiver_name as status_receiver_name',
+                    'ds.receive_mobile as status_receive_mobile',
+                    'ds.note as status_note',
+                    'inv.prefix as invoice_prefix',
+                    'inv.invoice_number',
+                    'inv.notes as invoice_notes',
+                    'inv.status as invoice_status_text',
+                    'inv.total_amount as invoice_total_amount',
+                    'inv_user.username as invoice_creator_username',
+                    'inv_user.email as invoice_creator_email',
+                    'einv_rel.einv_irn as invoice_einvoice_irn',
+                    'einv_rel.einv_status as invoice_einvoice_status',
+                    'einv_rel.einv_ackno as invoice_einvoice_ack_no',
+                    'einv_rel.einv_ack_date as invoice_einvoice_ack_date',
+                    'einv_rel.einv_signed_qrcode as invoice_einvoice_qr_code',
+                    'ewb.ewaybill_no as invoice_eway_bill_no',
+                    'ewb.ewaybill_date as invoice_eway_bill_date',
+                    'ewb.valid_upto as invoice_eway_bill_valid_until',
+                ])
+                ->get();
+        }, $request->boolean('refresh'));
 
         $dispatchIds = $dispatches->pluck('id')->filter()->toArray();
         $paymentsByDispatch = [];

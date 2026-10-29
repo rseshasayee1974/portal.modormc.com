@@ -3,6 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "test:accounting:frontend": "node --experimental-vm-modules --test tests/Frontend/accounting.test.mjs",
         "build": "vite build",
         "dev": "vite",
         "reverb": "php artisan reverb:start"

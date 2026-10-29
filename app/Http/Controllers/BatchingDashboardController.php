@@ -42,12 +42,7 @@ class BatchingDashboardController extends Controller
         $start = $startDateInput ? Carbon::parse($startDateInput)->startOfDay() : now()->subDays(29)->startOfDay();
         $end = $endDateInput ? Carbon::parse($endDateInput)->endOfDay() : now()->endOfDay();
 
-        $cacheKey = "batching.dashboard.data." . auth()->id() . "." . $plantId . "." . $start->toDateString() . "." . $end->toDateString();
-        if ($request->boolean('refresh')) {
-            Cache::forget($cacheKey);
-        }
-
-        $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plantId, $start, $end) {
+        $payload = app(\App\Services\ProductionReadCache::class)->remember('dashboard', $plantId, [$start->toDateString(), $end->toDateString()], function () use ($plantId, $start, $end) {
             // 1. Core KPIs
             $kpis = $this->getCoreKPIs($plantId, $start, $end);
 
@@ -82,18 +77,14 @@ class BatchingDashboardController extends Controller
                 'ledger' => $ledger,
                 'recipes' => $recipes,
             ];
-        });
+        }, $request->boolean('refresh'));
 
         return response()->json($payload);
     }
 
     private function resolvePlantId(): ?int
     {
-        $plantId = session('active_plant_id');
-        if ($plantId) {
-            return (int) $plantId;
-        }
-        return Plant::where('is_active', true)->value('id') ?? Plant::value('id');
+        return app(\App\Services\PlantContextService::class)->requirePlantId();
     }
 
     private function getCoreKPIs(?int $plantId, Carbon $start, Carbon $end): array

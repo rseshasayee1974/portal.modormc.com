@@ -136,6 +136,7 @@ class IndividualOpeningBalanceService
             $entry->lines()->create(['plant_id'=>$plant->id,'account_id'=>$data['clearing_account_id'],
                 'debit_amount'=>$dr?0:$amount,'credit_amount'=>$dr?$amount:0,'line_narration'=>'Opening balance offset','created_by'=>$userId]);
             $record->update(['journal_entry_id'=>$entry->id,'posted_at'=>now()]);
+            if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) app(\App\Services\Finance\AccountingWorkspace::class)->sealExisting((int) $plant->id, $userId, (int) $entry->id);
         }
         $this->audit($record,$userId,$replaces?'REPLACE':'CREATE',$before,$entry,$reason);
         return $record->fresh();
@@ -152,6 +153,10 @@ class IndividualOpeningBalanceService
 
     private function softDeleteJournal(JournalEntry $entry, int $userId): void
     {
+        if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) {
+            app(\App\Services\Finance\SourceJournalService::class)->reverse((int) $entry->plant_id, $userId, (int) $entry->id, now()->toDateString(), 'Opening balance corrected or retired through the audited opening workflow', 'opening-reversal:'.$entry->id);
+            return;
+        }
         $values=['deleted_at'=>now(),'deleted_by'=>$userId,'is_deleted'=>1];
         // Opening journal deletion is deliberately restricted to this transaction path.
         DB::table('mm_journal_entry_lines')->where('journal_entry_id',$entry->id)->where('plant_id',$entry->plant_id)->whereNull('deleted_at')->update($values);

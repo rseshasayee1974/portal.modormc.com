@@ -106,7 +106,8 @@ DateTimeHelper::inTimezone('Asia/Kolkata', function () {
     checkWhatsApp($query['text'] === $expected, 'WhatsApp URL must preserve Unicode, newlines, and punctuation');
 
     // Provider calls are mocked; this test never sends a real WhatsApp message.
-    config(['services.tendigit.license_number' => 'test-license', 'services.tendigit.api_key' => 'test-key',
+    config(['services.tendigit.endpoint' => 'https://app.tendigit.in/api/sendtemplate.php',
+        'services.tendigit.license_number' => 'test-license', 'services.tendigit.api_key' => 'test-key',
         'services.tendigit.dispatch_template' => 'modormc_dispatch']);
     DB::table('mm_dispatches')->insert(['id' => 1]);
     session(['active_entity_id' => 11]);

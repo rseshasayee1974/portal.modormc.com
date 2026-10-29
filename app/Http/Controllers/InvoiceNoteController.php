@@ -79,7 +79,7 @@ class InvoiceNoteController extends Controller
             $oldNumber = $note->full_number;
             $note->update(['invoice_date' => $data['note_date'], 'due_date' => $data['note_date'],
                 'notes' => $data['reason'], 'updated_by' => auth()->id()] + $numberFields);
-            if ($numberFields && $oldNumber !== $note->full_number) {
+            if ($numberFields && $oldNumber !== $note->full_number && ! \Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) {
                 \App\Models\JournalEntry::where('plant_id', $note->plant_id)
                     ->where('ref_id', $note->id)->where('voucher_type', strtoupper($note->invoice_type))
                     ->where('voucher_number', $oldNumber)->update(['voucher_number' => $note->full_number]);

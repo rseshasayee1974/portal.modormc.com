@@ -164,6 +164,7 @@ class OpeningBalanceService
             foreach ($lines as $line) {
                 $entry->lines()->create($line + ['plant_id' => $plantId, 'created_by' => $userId]);
             }
+            if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) app(\App\Services\Finance\AccountingWorkspace::class)->sealExisting($plantId, $userId, (int) $entry->id);
             $batch->update(['status' => 'POSTED', 'journal_entry_id' => $entry->id, 'posted_at' => now(), 'updated_by' => $userId, 'version' => $version + 1]);
             $this->audit($batch, $userId, $repost ? 'REPOST' : 'POST', $before, $entry);
             return $batch->fresh();
@@ -194,6 +195,7 @@ class OpeningBalanceService
                     'line_narration' => 'Reversal of '.$original->voucher_number, 'created_by' => $userId,
                 ]);
             }
+            if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) app(\App\Services\Finance\AccountingWorkspace::class)->sealExisting($plantId, $userId, (int) $entry->id);
             $batch->update(['status' => 'DRAFT', 'journal_entry_id' => null, 'posted_at' => null, 'updated_by' => $userId, 'version' => $version + 1]);
             $this->audit($batch, $userId, 'REVERSE', $before, $entry, $reason);
             return $batch->fresh();

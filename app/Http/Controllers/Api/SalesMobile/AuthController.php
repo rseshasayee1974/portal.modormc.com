@@ -29,12 +29,12 @@ class AuthController extends Controller
     {
         $data = $request->validate(['mobile' => ['required', 'string', 'regex:/^\+?[0-9][0-9 ()-]{8,23}$/']]);
         $mobile = $this->normalizeMobile($data['mobile']);
-        $numberKey = 'sales-mobile:number:'.hash('sha256', $mobile);
+        $numberKey = 'sales-mobile:number:' . hash('sha256', $mobile);
         abort_if(RateLimiter::tooManyAttempts($numberKey, 3), 429, 'Too many OTP requests. Try again in a minute.');
         RateLimiter::hit($numberKey, 60);
 
         $matches = User::whereNotNull('mobile')->get(['id', 'mobile'])
-            ->filter(fn (User $user) => $this->normalizeMobile($user->mobile) === $mobile);
+            ->filter(fn(User $user) => $this->normalizeMobile($user->mobile) === $mobile);
         abort_if($matches->count() > 1, 422, 'Multiple users have this mobile number. Contact your administrator.');
         $user = User::whereIn('id', $matches->pluck('id'))->where('is_active', 1)->where('is_otp_enabled', 1)->first();
         abort_unless($user, 403, 'Mobile app access has not been granted or the account is inactive. Contact your administrator.');
@@ -42,10 +42,10 @@ class AuthController extends Controller
 
         $otp = (string) random_int(100000, 999999);
         $result = $this->sendWhatsAppTemplate(
-            (string) config('services.tendigit.license_number'),
-            (string) config('services.tendigit.api_key'),
+            (string) '76484572302',
+            (string) 'OVEfLmX6NtRvMlIsYauJ5KrZq',
             substr($mobile, 1),
-            (string) config('services.mobile_otp.template', 'sales_executive_login'),
+            (string) 'sales_executive_login',
             $otp
         );
         if (!$this->isWhatsAppAccepted($result)) {
@@ -60,20 +60,25 @@ class AuthController extends Controller
         }
 
         $challenge = Str::random(64);
-        Cache::put('sales-mobile:'.$challenge, [
-            'user_id' => $user->id, 'mobile' => $mobile,
-            'access_revision' => (int) $user->mobile_access_revision, 'otp' => Hash::make($otp),
+        Cache::put('sales-mobile:' . $challenge, [
+            'user_id' => $user->id,
+            'mobile' => $mobile,
+            'access_revision' => (int) $user->mobile_access_revision,
+            'otp' => Hash::make($otp),
         ], now()->addMinutes(5));
         return response()->json(['success' => true, 'data' => [
-            'otp_required' => true, 'channel' => 'whatsapp', 'challenge_id' => $challenge, 'expires_in' => 300,
+            'otp_required' => true,
+            'channel' => 'whatsapp',
+            'challenge_id' => $challenge,
+            'expires_in' => 300,
         ]], 202);
     }
 
     private function normalizeMobile(string $mobile): string
     {
-        $digits=preg_replace('/\D/','',$mobile);
-        if (strlen($digits)===10) $digits=(string)config('services.mobile_otp.country_code','91').$digits;
-        return '+'.$digits;
+        $digits = preg_replace('/\D/', '', $mobile);
+        if (strlen($digits) === 10) $digits = (string)config('services.mobile_otp.country_code', '91') . $digits;
+        return '+' . $digits;
     }
 
     protected function sendWhatsAppTemplate(string $licenseNumber, string $apiKey, string $contact, string $template, string $paramString): array
@@ -82,9 +87,14 @@ class AuthController extends Controller
         if (!$licenseNumber || !$apiKey || !$template || parse_url($url, PHP_URL_SCHEME) !== 'https' || !parse_url($url, PHP_URL_HOST)) {
             return ['error' => true, 'error_code' => 'WHATSAPP_CONFIG_ERROR'];
         }
-        $params = ['LicenseNumber' => $licenseNumber, 'APIKey' => $apiKey,
-            'Contact' => $contact, 'Template' => $template, 'Param' => $paramString];
-        $curl = curl_init($url.'?'.http_build_query($params));
+        $params = [
+            'LicenseNumber' => $licenseNumber,
+            'APIKey' => $apiKey,
+            'Contact' => $contact,
+            'Template' => $template,
+            'Param' => $paramString
+        ];
+        $curl = curl_init($url . '?' . http_build_query($params));
         curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 30]);
         $response = curl_exec($curl);
         $errno = curl_errno($curl);
@@ -120,11 +130,11 @@ class AuthController extends Controller
     public function verify(Request $request)
     {
         $data = $request->validate(['challenge_id' => 'required|string|size:64', 'otp' => 'required|digits:6']);
-        $key = 'sales-mobile:'.$data['challenge_id'];
-        $lock = Cache::lock($key.':verification', 10);
+        $key = 'sales-mobile:' . $data['challenge_id'];
+        $lock = Cache::lock($key . ':verification', 10);
         abort_unless($lock->get(), 409, 'Verification already in progress. Try again shortly.');
         try {
-            $attemptKey = $key.':attempts';
+            $attemptKey = $key . ':attempts';
             abort_if(RateLimiter::tooManyAttempts($attemptKey, 5), 429, 'Too many verification attempts. Sign in again.');
             RateLimiter::hit($attemptKey, 300);
             $challenge = Cache::get($key);
@@ -143,21 +153,21 @@ class AuthController extends Controller
 
     private function issue(User $user)
     {
-        $revision=(int)$user->mobile_access_revision;
-        return DB::transaction(function () use ($user,$revision) {
-            $user=User::whereKey($user->id)->lockForUpdate()->firstOrFail();
-            abort_unless($user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()),403,'Account inactive or locked.');
-            abort_unless($user->is_otp_enabled && (int)$user->mobile_access_revision===$revision,403,'Mobile app access changed. Sign in again.');
-            $expires=now()->addDays(30);
-            $token=$user->createToken('sales-mobile:app',['sales-mobile'],$expires);
-            $user->forceFill(['last_login'=>now()])->save();
-            return response()->json(['success'=>true,'data'=>['token'=>$token->plainTextToken,'token_type'=>'Bearer','expires_at'=>$expires->toIso8601String(),'user'=>$this->profile($user),'plants'=>$this->plantList($user)]]);
+        $revision = (int)$user->mobile_access_revision;
+        return DB::transaction(function () use ($user, $revision) {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            abort_unless($user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()), 403, 'Account inactive or locked.');
+            abort_unless($user->is_otp_enabled && (int)$user->mobile_access_revision === $revision, 403, 'Mobile app access changed. Sign in again.');
+            $expires = now()->addDays(30);
+            $token = $user->createToken('sales-mobile:app', ['sales-mobile'], $expires);
+            $user->forceFill(['last_login' => now()])->save();
+            return response()->json(['success' => true, 'data' => ['token' => $token->plainTextToken, 'token_type' => 'Bearer', 'expires_at' => $expires->toIso8601String(), 'user' => $this->profile($user), 'plants' => $this->plantList($user)]]);
         });
     }
 
     private function profile(User $user): array
     {
-        return ['id' => $user->id, 'name' => $user->username, 'email' => $user->email, 'personnel_id' => $user->personnel?->id , 'mobile' => $user->mobile];
+        return ['id' => $user->id, 'name' => $user->username, 'email' => $user->email, 'personnel_id' => $user->personnel?->id, 'mobile' => $user->mobile];
     }
 
     private function plantList(User $user)
@@ -165,8 +175,14 @@ class AuthController extends Controller
         return MobileAccess::plants($user)->orderBy('name')->get(['id', 'name', 'entity_id']);
     }
 
-    public function me(Request $request) { return response()->json(['success' => true, 'data' => $this->profile($request->user())]); }
-    public function plants(Request $request) { return response()->json(['success' => true, 'data' => $this->plantList($request->user())]); }
+    public function me(Request $request)
+    {
+        return response()->json(['success' => true, 'data' => $this->profile($request->user())]);
+    }
+    public function plants(Request $request)
+    {
+        return response()->json(['success' => true, 'data' => $this->plantList($request->user())]);
+    }
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

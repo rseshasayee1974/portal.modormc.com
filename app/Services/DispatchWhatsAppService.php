@@ -39,9 +39,9 @@ class DispatchWhatsAppService
 
             $contact = $dispatch->getWhatsAppContact();
             if (!$contact) $this->fail('A valid primary customer mobile number is required.');
-            $license = config('services.tendigit.license_number');
-            $apiKey = config('services.tendigit.api_key');
-            $template = 'modormc_dispatch';
+            $license = '76484572302';
+            $apiKey = 'OVEfLmX6NtRvMlIsYauJ5KrZq';
+            $template = 'modormc_dispatch_v1';
             if (!$license || !$apiKey || !$template) $this->fail('Tendigit WhatsApp credentials and dispatch template must be configured.');
 
             $values = (new DispatchCompletedNotification($dispatch))->toWhatsAppTemplateParameters();

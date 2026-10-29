@@ -33,11 +33,14 @@ const props = defineProps<{
     customSettings: any[];
     plantId: number;
     plantName: string;
+    batchSheetLogoUrl?: string | null;
 }>();
 
 // ─── Form state ───────────────────────────────────────────────────────────────
 const form = useForm({
     module: 'batching',
+    batch_sheet_logo: null as File | null,
+    remove_batch_sheet_logo: false,
     settings: {
         batch_creation_source: props.batchingSettings?.batch_creation_source || 'sales_order',
         new_weight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
@@ -163,12 +166,21 @@ const submit = () => {
         .post(route('settings.customsetting.update'), {
             preserveScroll: true,
             onSuccess: () => {
+                form.batch_sheet_logo = null;
+                form.remove_batch_sheet_logo = false;
+                if (batchSheetLogoInput.value) batchSheetLogoInput.value.value = '';
                 Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Settings saved', showConfirmButton: false, timer: 1500 });
             }
         });
 };
 
 // ─── New Module Dialog ────────────────────────────────────────────────────────
+const batchSheetLogoInput = ref<HTMLInputElement | null>(null);
+const selectBatchSheetLogo = (event: Event) => {
+    form.batch_sheet_logo = (event.target as HTMLInputElement).files?.[0] ?? null;
+    form.remove_batch_sheet_logo = false;
+};
+
 const showNewDialog = ref(false);
 const newModuleForm = useForm({
     module: '',
@@ -765,6 +777,17 @@ const deleteModule = (id: number) => {
                         </button>
 
                         <div v-if="expanded.print" class="p-6 space-y-4 animate-fade-in">
+                            <div class="p-4 bg-purple-50 rounded-xl border border-purple-100 space-y-3">
+                                <h4 class="font-bold text-purple-700 text-sm">Batch Sheet Logo</h4>
+                                <p class="text-xs text-purple-500">Upload a PNG or JPG (maximum 2 MB) for this plant's batch sheet previews, PDFs and email attachments. Without a custom logo, the plant or entity logo is used.</p>
+                                <img v-if="batchSheetLogoUrl && !form.remove_batch_sheet_logo" :src="batchSheetLogoUrl" alt="Current batch sheet logo" class="max-h-20 max-w-48 object-contain bg-white rounded p-2" />
+                                <input ref="batchSheetLogoInput" type="file" accept="image/png,image/jpeg" @change="selectBatchSheetLogo" class="block text-sm w-full" />
+                                <p v-if="form.errors.batch_sheet_logo" class="text-xs text-red-600">{{ form.errors.batch_sheet_logo }}</p>
+                                <label v-if="batchSheetLogoUrl" class="flex items-center gap-2 text-sm text-purple-700">
+                                    <input v-model="form.remove_batch_sheet_logo" type="checkbox" @change="form.batch_sheet_logo = null; if (batchSheetLogoInput) batchSheetLogoInput.value = ''" />
+                                    Remove custom batch sheet logo
+                                </label>
+                            </div>
                             <!-- print_delivery_ingredients -->
                             <div
                                 class="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-100">

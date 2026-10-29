@@ -28,6 +28,8 @@ class CustomSettingController extends Controller
 
         return Inertia::render('Settings/CustomSetting', [
             'batchingSettings' => $batchingSettings ? $batchingSettings->settings : [],
+            'batchSheetLogoUrl' => !empty($batchingSettings?->settings['batch_sheet_logo_path'])
+                ? \Illuminate\Support\Facades\Storage::disk('public')->url($batchingSettings->settings['batch_sheet_logo_path']) : null,
             'customSettings' => $customSettings->toArray(),
             'plantId' => $plantId,
             'plantName' => $plant ? $plant->name : 'Unknown Plant'
@@ -69,12 +71,26 @@ class CustomSettingController extends Controller
         $request->validate([
             'settings' => ['required', 'array'],
             'settings.batch_creation_source' => ['sometimes', 'in:sales_order,batch_schedule,both'],
+            'batch_sheet_logo' => ['nullable', 'file', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
+            'remove_batch_sheet_logo' => ['sometimes', 'boolean'],
         ]);
         $settings = $request->input('settings', []);
 
         $customSetting = CustomSetting::where('plant_id', $plantId)
             ->where('module_name', $module)
             ->first();
+
+        // File paths belong to the server; ordinary settings saves preserve the current logo.
+        unset($settings['batch_sheet_logo_path']);
+        $logoPath = $customSetting?->settings['batch_sheet_logo_path'] ?? null;
+        if ($module === 'batching') {
+            if ($request->hasFile('batch_sheet_logo')) {
+                $logoPath = $request->file('batch_sheet_logo')->store("batch-sheet-logos/{$plantId}", 'public');
+            } elseif ($request->boolean('remove_batch_sheet_logo')) {
+                $logoPath = null;
+            }
+        }
+        if ($logoPath) $settings['batch_sheet_logo_path'] = $logoPath;
 
         if ($customSetting) {
             $oldSettings = $customSetting->settings;

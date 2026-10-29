@@ -34,6 +34,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->resolving('dompdf.wrapper', function () {
+            $limit = (string) config('dompdf.memory_limit', '512M');
+            $current = ini_parse_quantity((string) ini_get('memory_limit'));
+            $target = ini_parse_quantity($limit);
+            if ($current !== -1 && $target > $current) {
+                if (ini_set('memory_limit', $limit) === false) {
+                    \Illuminate\Support\Facades\Log::warning('PDF memory limit could not be increased; update the hosting PHP memory_limit setting.', ['requested' => $limit]);
+                }
+            }
+        });
+
         // Bind our custom LoginResponse so Fortify uses it after successful login
         $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
 
@@ -51,6 +62,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(NotificationSent::class, [TrackPushNotificationDelivery::class, 'sent']);
         DB::listen(function (QueryExecuted $event) {
             app(DropdownCache::class)->onQuery($event);
+            app(\App\Services\ProductionReadCache::class)->onQuery($event);
         });
 
         Schema::defaultStringLength(191);

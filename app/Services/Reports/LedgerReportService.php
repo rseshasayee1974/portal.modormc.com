@@ -43,7 +43,7 @@ class LedgerReportService implements ReportServiceInterface
         $query = JournalEntryLine::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->where(fn($q) => $q->where('is_deleted', 0)->orWhereNull('is_deleted'))
-            ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')));
+            ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->whereRaw("UPPER(is_status) = 'POSTED'")->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')));
 
         if ($ledgerId) {
             $query->where('account_id', $ledgerId);

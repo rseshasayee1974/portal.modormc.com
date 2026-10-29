@@ -41,6 +41,10 @@ const netTaxLiability = computed(() => {
 
 <template>
     <div>
+        <div class="mb-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <p v-for="warning in (reportData.warnings || ['Draft book summary. Verify ITC eligibility before filing.'])" :key="warning">{{ warning }}</p>
+            <a :href="route('gst-compliance.index')" class="font-semibold underline">Open GST Reconciliation and reviewed worksheets</a>
+        </div>
         <!-- KPI Block Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
@@ -52,14 +56,14 @@ const netTaxLiability = computed(() => {
             </div>
             <div class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
                 <div>
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Eligible ITC (Table 4)</span>
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Book input tax (review required)</span>
                     <span class="text-lg font-black text-emerald-600 mt-1 block">{{ formatCurrency(table4Total.igst + table4Total.cgst + table4Total.sgst) }}</span>
                 </div>
                 <ShieldCheckIcon class="w-5 h-5 text-emerald-500" />
             </div>
             <div class="border border-slate-200 rounded p-4 bg-[#f2f7fc] border-[#d2e4f9] flex justify-between items-center">
                 <div>
-                    <span class="text-[9px] font-bold text-[#0064d2] uppercase tracking-wider block">Net Payable Tax (Output - ITC)</span>
+                    <span class="text-[9px] font-bold text-[#0064d2] uppercase tracking-wider block">Book difference (before eligibility and setoff)</span>
                     <span class="text-lg font-black text-[#0064d2] mt-1 block">{{ formatCurrency(netTaxLiability) }}</span>
                 </div>
                 <BanknotesIcon class="w-5 h-5 text-[#0064d2]" />
@@ -136,7 +140,7 @@ const netTaxLiability = computed(() => {
         <div>
             <div class="bg-slate-50 px-4 py-3 border border-slate-200 border-b-0 rounded-t flex justify-between items-center">
                 <h4 class="text-xs font-black uppercase text-[#1d2d3e] tracking-wider">
-                    Table 4: Eligible Input Tax Credit (ITC)
+                    Table 4: Provisional book input tax
                 </h4>
             </div>
             <div class="overflow-x-auto border border-slate-200 rounded-b">
@@ -184,7 +188,7 @@ const netTaxLiability = computed(() => {
                             <td class="py-3 px-4 text-right text-slate-600">{{ formatCurrency(reportData.table4?.other_itc?.sgst) }}</td>
                         </tr>
                         <tr class="bg-slate-100 font-bold text-xs text-slate-800">
-                            <td class="py-3.5 px-4 uppercase font-bold text-center">Total Table 4 Eligible ITC</td>
+                            <td class="py-3.5 px-4 uppercase font-bold text-center">Total book input tax — review required</td>
                             <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(table4Total.igst) }}</td>
                             <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(table4Total.cgst) }}</td>
                             <td class="py-3.5 px-4 text-right font-black bg-slate-150">{{ formatCurrency(table4Total.sgst) }}</td>
