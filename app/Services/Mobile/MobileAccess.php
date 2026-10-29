@@ -21,7 +21,6 @@ class MobileAccess
         if (!$entity) return false;
         $role = EntityUser::forContext($user->id, $entity, session('active_plant_id'))?->role;
         return in_array(strtoupper((string) $role?->code), [
-            'ADMINISTRATOR',
             'SUPER_ADMIN',
             'PLATFORM_ADMIN',
             'SAAS_OWNER',

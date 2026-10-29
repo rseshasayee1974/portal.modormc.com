@@ -19,6 +19,24 @@ class MachineTracker extends Model
     public const CREATED_AT = 'created';
     public const UPDATED_AT = 'modified';
 
+    protected $appends = ['running_km', 'log_date'];
+
+    public static function meterDifference($start, $end): float
+    {
+        if (!is_numeric($start) || !is_numeric($end) || (float) $start < 0 || (float) $end < (float) $start) return 0.0;
+        return round((float) $end - (float) $start, 2);
+    }
+
+    public function getRunningKmAttribute(): float
+    {
+        return self::meterDifference($this->odometer_start, $this->odometer_end);
+    }
+
+    public function getLogDateAttribute(): ?string
+    {
+        return ($this->opening ?? $this->created)?->toDateString();
+    }
+
     protected $fillable = [
         'plant_id',
         'machine_id',

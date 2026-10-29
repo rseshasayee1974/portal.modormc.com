@@ -18,7 +18,7 @@ import {
 // Components
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import BaseCreatableSelect from '@/Components/Base/BaseCreatableSelect.vue';
+import PatronQuickCreateSelect from '@/Components/PatronQuickCreateSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
@@ -491,35 +491,7 @@ const submit = async () => {
 };
 
 const isInstantPartnerEnabled = computed(() => Number(props.instant_invoice_patron) === 1);
-const isCreatingPartner = ref(false);
 
-const handleCreatePartner = async (name: string) => {
-    isCreatingPartner.value = true;
-    try {
-        const response = await axios.post(route('patrons.store'), {
-            legal_name: name,
-            patron_type: ['Customer'],
-            operational_status: 'active',
-            status: true,
-            displayed: true,
-        });
-        
-        const newPatron = response.data.patron;
-        
-        toast.add({ severity: 'success', summary: 'Partner Created', detail: `${name} is now available`, life: 1500 });
-
-        router.reload({
-            only: ['patrons'],
-            onSuccess: () => {
-                form.partner_id = newPatron.id;
-            }
-        });
-    } catch (error: any) {
-        toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Failed to create partner', life: 1500 });
-    } finally {
-        isCreatingPartner.value = false;
-    }
-};
 
 const invoiceTypeOptions = [
     { label: 'Sales Invoice', value: 'sales' },
@@ -580,7 +552,7 @@ const taxOptions = computed(() => props.taxes);
                     <!-- Top Info Grid -->
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4 px-1">
                         <div class="col-span-12 md:col-span-3">
-                            <BaseCreatableSelect
+                            <PatronQuickCreateSelect
                                 v-if="isInstantPartnerEnabled"
                                 v-model="form.partner_id" 
                                 label="Partner / Customer"
@@ -590,8 +562,6 @@ const taxOptions = computed(() => props.taxes);
                                 placeholder="Select Partner"
                                 :error="form.errors.partner_id"
                                 required
-                                :creating="isCreatingPartner"
-                                @create="handleCreatePartner"
                             />
                             <BaseSelect 
                                 v-else

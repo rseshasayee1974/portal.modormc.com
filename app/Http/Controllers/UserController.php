@@ -174,7 +174,7 @@ class UserController extends Controller
 
         $data = $request->validated();
         if (!empty($data['is_otp_enabled'])) {
-            abort_unless(\App\Services\Mobile\MobileAccess::canManageUserAccess($request->user()), 403, 'Only administrators can manage mobile app access.');
+            abort_unless(\App\Services\Mobile\MobileAccess::canManageUserAccess($request->user()), 403, 'Only Super Admin and higher roles can manage mobile app access.');
         }
 
         if (array_key_exists('profile_photo_path', $data) && $data['profile_photo_path'] === '') {
@@ -222,7 +222,7 @@ class UserController extends Controller
 
         $data = $request->validated();
         if (array_key_exists('is_otp_enabled', $data) && (bool)$data['is_otp_enabled'] !== (bool)$user->is_otp_enabled) {
-            abort_unless(\App\Services\Mobile\MobileAccess::canManageUserAccess($request->user()), 403, 'Only administrators can manage mobile app access.');
+            abort_unless(\App\Services\Mobile\MobileAccess::canManageUserAccess($request->user()), 403, 'Only Super Admin and higher roles can manage mobile app access.');
             abort_if(!$request->user()->isSystemAdmin() && $user->isSystemAdmin(), 403, 'System administrator access can only be managed by a system administrator.');
         }
 

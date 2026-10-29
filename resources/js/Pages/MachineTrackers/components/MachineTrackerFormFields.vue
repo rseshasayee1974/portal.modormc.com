@@ -6,6 +6,7 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import type { OptionItem } from '../types';
+import { calculateRunningKm } from '../types';
 
 const props = defineProps<{
     form: any;
@@ -64,6 +65,7 @@ const fuelPrice = computed(() => {
 
 const formatValue = (value: number | null): string => value === null || !Number.isFinite(value)
     ? '—' : value.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const runningKm = computed(() => calculateRunningKm(props.form.odometer_start, props.form.odometer_end));
 </script>
 
 <template>
@@ -90,7 +92,7 @@ const formatValue = (value: number | null): string => value === null || !Number.
                 </div>
                 <div>
                     <BaseDatePicker v-model="form.opening" label="Opening Date & Time" :showTime="true" hourFormat="24"
-                        placeholder="Select Opening Time" :error="form.errors?.opening" />
+                        placeholder="Select Opening Time" required :error="form.errors?.opening" />
                 </div>
                 <div>
                     <BaseDatePicker v-model="form.closing" label="Closing Date & Time" :showTime="true" hourFormat="24"
@@ -111,17 +113,27 @@ const formatValue = (value: number | null): string => value === null || !Number.
             </h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div>
+                    <BaseInputNumber v-model="form.odometer_start" @input="form.odometer_start = $event.value" label="Opening KM" placeholder="0.00" :min="0" :maxFractionDigits="2"
+                        :error="form.errors?.odometer_start" />
                     <BaseInputNumber v-model="form.odometer_start" @input="form.odometer_start = $event.value"
                         label="Odometer Start" placeholder="0.00" :error="form.errors?.odometer_start" />
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.odometer_end" @input="form.odometer_end = $event.value"
-                        label="Odometer End" placeholder="0.00" :error="form.errors?.odometer_end" />
+                    <BaseInputNumber v-model="form.odometer_end" @input="form.odometer_end = $event.value" label="Closing KM" placeholder="0.00" :min="Number(form.odometer_start || 0)" :maxFractionDigits="2"
+                        :error="form.errors?.odometer_end" />
                     <p v-if="distance !== null" class="mt-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         Distance: {{ formatValue(distance) }} km
                         <span v-if="distance < 0" class="text-rose-500 font-normal text-[10px] ml-1">(End &lt;
                             Start)</span>
                     </p>
+                </div>
+                <div>
+                    <BaseInputNumber :modelValue="runningKm" label="Running KM (Automatic)" readonly
+                        hint="Closing KM minus Opening KM" :maxFractionDigits="2" />
+                </div>
+                <div>
+                    <BaseInputNumber :modelValue="runningKm" label="Running KM (Automatic)" readonly
+                        hint="Closing KM minus Opening KM" :maxFractionDigits="2" />
                 </div>
                 <div>
                     <BaseInputNumber v-model="form.hourmeter_start" @input="form.hourmeter_start = $event.value"
@@ -189,8 +201,8 @@ const formatValue = (value: number | null): string => value === null || !Number.
                     </p>
                 </div>
                 <div>
-                    <BaseInputNumber v-model="form.last_fuel_filled_km" @input="form.last_fuel_filled_km = $event.value"
-                        label="Last Fuel KM" required placeholder="0.00" :error="form.errors?.last_fuel_filled_km" />
+                    <BaseInputNumber v-model="form.last_fuel_filled_km" @input="form.last_fuel_filled_km = $event.value" label="Last Fuel KM (Optional)" :min="0" placeholder="0.00"
+                        :error="form.errors?.last_fuel_filled_km" />
                 </div>
                 <div>
                     <BaseInputNumber v-model="form.fuel_filled_km" @input="form.fuel_filled_km = $event.value"

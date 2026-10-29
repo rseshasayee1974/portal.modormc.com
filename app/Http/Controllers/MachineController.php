@@ -40,7 +40,7 @@ class MachineController extends Controller
             'vehicleTypes' => MachineType::where('deleted_at', null)
                 ->where('plant_id', session('active_plant_id'))
                 ->get(),
-            'documentTypes' => ['insurance', 'fc', 'permit', 'road_tax', 'other'],
+            'documentTypes' => ['insurance', 'fc', 'permit', 'road_tax', 'puc', 'national_permit', 'other'],
             'paymentStatuses' => ['pending', 'paid', 'overdue'],
             'transportOwners' => PatronsDropdown(['Transporter'])->toArray(),
         ];

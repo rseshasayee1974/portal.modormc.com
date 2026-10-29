@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
+import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref } from 'vue';
 import Column from 'primevue/column';
 import { PencilSquareIcon, TrashIcon, ClockIcon } from '@heroicons/vue/24/outline';
@@ -42,13 +43,16 @@ const getShiftLabel = (shiftVal: number) => {
         class="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/40 dark:shadow-none rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
         <BaseDataTable :value="trackers" v-model:filters="filters"
             :globalFilterFields="['machine.registration', 'operation_type', 'operator.username', 'notes', 'pump_name', 'category']"
-            showSearch showSerial heading="Tracker Ledger" headingIcon="ClockIcon" :rows="30"
+            showSearch showSerial showExport exportFilename="daily-machine-tracker" heading="Daily Machine Tracker" headingIcon="ClockIcon" :rows="30"
             :expandedRows="expandedRows" @update:expandedRows="emit('update:expandedRows', $event)"
             class="tracker-table">
             <!-- Expander Column -->
             <!-- <Column expander style="width: 3rem" /> -->
 
             <!-- Machine / Vehicle Asset -->
+            <Column header="Log Date" field="log_date" sortable>
+                <template #body="{ data }">{{ entityLocaleDate(data.log_date) }}</template>
+            </Column>
             <Column header="Vehicle" sortable field="machine.registration">
                 <template #body="slotProps">
                     <span
@@ -78,12 +82,17 @@ const getShiftLabel = (shiftVal: number) => {
             </Column>
 
             <!-- Odometer Readings -->
-            <Column header="Odometer (Start/End)">
+            <Column header="Opening / Closing KM">
                 <template #body="slotProps">
                     <span class="text-xs font-mono font-medium text-slate-600 dark:text-slate-300">
                         {{ Number(slotProps.data.odometer_start || 0) }} – {{ Number(slotProps.data.odometer_end || 0)
                         }}
                     </span>
+                </template>
+            </Column>
+            <Column header="Running KM" field="running_km" sortable>
+                <template #body="{ data }">
+                    <span class="font-semibold text-indigo-700">{{ Number(data.running_km || 0).toFixed(2) }}</span>
                 </template>
             </Column>
 

@@ -19,6 +19,8 @@ class ReportServiceFactory
             'patron'               => PatronReportService::class,
             'purchase'             => PurchaseReportService::class,
             'sales'                 => SalesReportService::class,
+            'customer_receipt_payment' => CustomerReceiptPaymentReportService::class,
+            'credit_debit_note_register' => CreditDebitNoteRegisterService::class,
             'product_consolidated'  => ProductConsolidatedReportService::class,
             'customer_consolidated' => CustomerConsolidatedReportService::class,
             'customer_outstanding'  => CustomerOutstandingReportService::class,

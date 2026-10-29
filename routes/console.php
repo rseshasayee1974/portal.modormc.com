@@ -8,6 +8,7 @@ Schedule::command('plants:monitor')->everyMinute();
 Schedule::command('users:expire-presence')->everyMinute()->withoutOverlapping();
 Schedule::command('website:monitor modormc.com')->everyFiveMinutes();
 Schedule::command('fleet:check-maintenance')->daily();
+Schedule::command('fleet:notify-document-expiry --scheduled')->everyFifteenMinutes()->withoutOverlapping(120);
 Schedule::command('reports:send-scheduled')->everyMinute();
 
 Artisan::command('inspire', function () {

@@ -58,18 +58,18 @@ class MachineTrackerReportService implements ReportServiceInterface
 
         if (!empty($params['start'])) {
             $query->where(function ($q) use ($params) {
-                $q->whereDate('opening', '>=', $params['start'])
+                $q->whereDate('opening', '>=', substr($params['start'], 0, 10))
                   ->orWhere(function ($q2) use ($params) {
-                      $q2->whereNull('opening')->whereDate('created', '>=', $params['start']);
+                      $q2->whereNull('opening')->whereDate('created', '>=', substr($params['start'], 0, 10));
                   });
             });
         }
 
         if (!empty($params['end'])) {
             $query->where(function ($q) use ($params) {
-                $q->whereDate('opening', '<=', $params['end'])
+                $q->whereDate('opening', '<=', substr($params['end'], 0, 10))
                   ->orWhere(function ($q2) use ($params) {
-                      $q2->whereNull('opening')->whereDate('created', '<=', $params['end']);
+                      $q2->whereNull('opening')->whereDate('created', '<=', substr($params['end'], 0, 10));
                   });
             });
         }
@@ -92,15 +92,15 @@ class MachineTrackerReportService implements ReportServiceInterface
 
             $odoStart = (float)($t->odometer_start ?? 0);
             $odoEnd = (float)($t->odometer_end ?? 0);
-            $odoDiff = ($odoEnd >= $odoStart && $odoEnd > 0) ? ($odoEnd - $odoStart) : 0;
+            $odoDiff = $t->running_km;
 
             $hmStart = (float)($t->hourmeter_start ?? 0);
             $hmEnd = (float)($t->hourmeter_end ?? 0);
-            $hmDiff = ($hmEnd >= $hmStart && $hmEnd > 0) ? ($hmEnd - $hmStart) : 0;
+            $hmDiff = MachineTracker::meterDifference($t->hourmeter_start, $t->hourmeter_end);
 
             $ebStart = (float)($t->eb_start ?? 0);
             $ebClose = (float)($t->eb_close ?? 0);
-            $ebUnits = ($ebClose >= $ebStart && $ebClose > 0) ? ($ebClose - $ebStart) : 0;
+            $ebUnits = MachineTracker::meterDifference($t->eb_start, $t->eb_close);
 
             $shiftLabel = match ((int)$t->shift) {
                 1 => 'Shift 1 (Day)',
@@ -139,6 +139,7 @@ class MachineTrackerReportService implements ReportServiceInterface
                 'odometer_start'       => $odoStart,
                 'odometer_end'         => $odoEnd,
                 'odometer_diff'        => $odoDiff,
+                'running_km'           => $odoDiff,
                 'odo_mileage'          => $odoMileage,
                 'odometer_display'     => $odoDispStr,
                 'odometer_readings'    => "{$odoStart} → {$odoEnd}",

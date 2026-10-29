@@ -124,6 +124,11 @@ const deleteItem = (id: number) => {
         </template>
 
         <div class="p-6">
+            <p class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-800">
+                Choose <strong>Machine Document Expiry</strong> to receive FC, permit, road tax, insurance, PUC and other document reminders for the plant.
+                Alerts are sent 30, 15, 7 and 1 day before expiry, on expiry, then weekly until renewed.
+                Add one active notification entry for each recipient email. New entries use the currently selected plant.
+            </p>
             <BaseDataTable 
                 :value="props.notificationEmails" 
                 showSerial
@@ -150,7 +155,7 @@ const deleteItem = (id: number) => {
                 <Column field="type" header="Type" sortable></Column>
                 <Column field="role_name" header="Role Name" sortable></Column>
                 <Column field="email" header="Email Address" sortable></Column>
-                <!-- <Column field="plant.name" header="Plant" sortable></Column> -->
+                <Column field="plant.name" header="Plant" sortable></Column>
                 <Column field="status" header="Status" sortable>
                     <template #body="slotProps">
                         <Tag :value="slotProps.data.status === 1 ? 'Active' : 'Inactive'" :severity="slotProps.data.status === 1 ? 'success' : 'danger'" rounded />
