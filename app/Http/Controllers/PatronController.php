@@ -70,7 +70,7 @@ class PatronController extends Controller
         $validated['plant_id'] = $plantId;
         $validated['entity_id'] = $entityId;
 
-        DB::transaction(function () use ($validated, $plantId, $entityId) {
+        $patron = DB::transaction(function () use ($validated, $plantId, $entityId) {
             $patron = Patron::create($validated);
 
             $hasContactData = !empty($validated['contact_name']) || 
@@ -124,14 +124,14 @@ class PatronController extends Controller
                     ]);
                 }
             }
+            return $patron;
         });
 
         if ($request->wantsJson()) {
-            $patron = Patron::where('legal_name', $validated['legal_name'])->first(); // Best way to get it back after tx
             return response()->json([
                 'message' => 'Patron created successfully',
                 'patron' => $patron
-            ]);
+            ], 201);
         }
 
         return redirect()->back()->with('success', 'Patron created successfully with contact details.');

@@ -22,7 +22,7 @@ const { isScaleConnected, captureWeight } = useWeighbridge();
 
 // Components
 import BaseInput from '@/Components/Base/BaseInput.vue';
-import BaseCreatableSelect from '@/Components/Base/BaseCreatableSelect.vue';
+import PatronQuickCreateSelect from '@/Components/PatronQuickCreateSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
@@ -203,47 +203,7 @@ const submit = () => {
 
 const isInstantVendorEnabled = computed(() => Number(props.instant_vendor) === 1);
 
-const isCreatingVendor = ref(false);
-const handleCreateVendor = async (name) => {
-    isCreatingVendor.value = true;
-    try {
-        const response = await axios.post(route('patrons.store'), {
-            legal_name: name,
-            patron_type: ['Vendor', 'Supplier'],
-            operational_status: 'active',
-            status: true,
-            displayed: true,
-        });
-        
-        const newVendor = response.data.patron;
-        
-        Swal.fire({ 
-            toast: true, 
-            position: 'top-end', 
-            icon: 'success', 
-            title: `Vendor "${name}" created.`, 
-            showConfirmButton: false, 
-            timer: 1500 
-        });
 
-        // Reload vendors prop to keep sync with backend and select new vendor
-        router.reload({
-            only: ['vendors'],
-            onSuccess: () => {
-                form.vendor_id = newVendor.id;
-            }
-        });
-    } catch (error) {
-        console.error(error);
-        Swal.fire({ 
-            icon: 'error', 
-            title: 'Creation Failed', 
-            text: error.response?.data?.message || 'Could not create vendor automatically.' 
-        });
-    } finally {
-        isCreatingVendor.value = false;
-    }
-};
 
 const vendorOptions = computed(() => props.vendors?.map(v => ({ label: v.legal_name, value: v.id })) || []);
 // const productOptions = computed(() => props.products?.map(p => ({ label: p.title, value: p.id })) || []);
@@ -278,7 +238,9 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
             <div v-if="isOpen" class="create-panel__body">
                 <form @submit.prevent="submit" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <BaseCreatableSelect
+                        <PatronQuickCreateSelect
+                            :patronTypes="['Vendor', 'Supplier']"
+                            reloadProp="vendors"
                             v-if="isInstantVendorEnabled"
                             v-model="form.vendor_id"
                             :options="vendorOptions"
@@ -287,9 +249,7 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                             label="Vendor / Supplier"
                             placeholder="Select Vendor" 
                             required
-                            :creating="isCreatingVendor"
                             :error="form.errors.vendor_id"
-                            @create="handleCreateVendor"
                         />
                         <BaseSelect
                             v-else

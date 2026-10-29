@@ -1,5 +1,16 @@
+import { entityDateTime } from '@/Utils/entityDateTime';
+
+export const calculateRunningKm = (start: unknown, end: unknown): number => {
+    if (start === null || start === undefined || start === '' || end === null || end === undefined || end === '') return 0;
+    const opening = Number(start), closing = Number(end);
+    if (!Number.isFinite(opening) || !Number.isFinite(closing) || opening < 0 || closing < opening) return 0;
+    return Math.round((closing - opening + Number.EPSILON) * 100) / 100;
+};
+
 export interface MachineTracker {
     id: number;
+    running_km: number;
+    log_date: string | null;
     plant_id: number;
     machine_id: number;
     operation_type: string | null;
@@ -56,7 +67,7 @@ export const getInitialTrackerForm = () => ({
     operation_type: '',
     category: '',
     operator_id: null as number | null,
-    opening: null as any,
+    opening: entityDateTime() as any,
     closing: null as any,
     odometer_start: 0,
     odometer_end: 0,

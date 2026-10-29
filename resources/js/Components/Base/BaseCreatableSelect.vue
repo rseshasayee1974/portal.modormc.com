@@ -22,6 +22,9 @@ const props = withDefaults(
         fluid?: boolean;
         fieldClass?: string;
         creating?: boolean;
+        canCreate?: boolean;
+        allowEmptyCreate?: boolean;
+        createLabel?: string;
     }>(),
     {
         required: false,
@@ -30,7 +33,9 @@ const props = withDefaults(
         fluid: true,
         optionLabel: 'label',
         optionValue: 'value',
-        creating: false
+        creating: false,
+        canCreate: true,
+        allowEmptyCreate: false,
     }
 );
 
@@ -41,6 +46,7 @@ const emit = defineEmits<{
 }>();
 
 const filterValue = ref('');
+const selectRef = ref();
 
 const onFilter = (event: any) => {
     filterValue.value = event.value || '';
@@ -56,17 +62,19 @@ const hasExactMatch = computed(() => {
 });
 
 const handleCreate = () => {
-    if (filterValue.value) {
-        emit('create', filterValue.value);
-        filterValue.value = '';
-    }
+    if (!props.canCreate || props.disabled || props.creating) return;
+    const name = filterValue.value.trim();
+    if (!name && !props.allowEmptyCreate) return;
+    selectRef.value?.hide();
+    emit('create', name);
+    filterValue.value = '';
 };
 
 const onHide = () => {
     filterValue.value = '';
 };
 
-const creatableLabel = computed(() => `Create "${filterValue.value}"`);
+const creatableLabel = computed(() => props.createLabel || `Create "${filterValue.value}"`);
 
 </script>
 
@@ -81,6 +89,7 @@ const creatableLabel = computed(() => `Create "${filterValue.value}"`);
     >
         <template #default="{ invalid, inputId }">
             <Select
+                ref="selectRef"
                 :id="inputId"
                 :modelValue="modelValue"
                 :options="options"
@@ -104,8 +113,8 @@ const creatableLabel = computed(() => `Create "${filterValue.value}"`);
                 </template>
 
                 <template #footer>
-                    <div v-if="filterValue && !hasExactMatch" class="p-2 border-t bg-slate-50/50">
-                        <Button 
+                    <div v-if="canCreate && (allowEmptyCreate || (filterValue && !hasExactMatch))" class="p-2 border-t bg-slate-50/50">
+                        <Button
                             :label="creatableLabel" 
                             icon="pi pi-plus" 
                             fluid 
@@ -122,7 +131,8 @@ const creatableLabel = computed(() => `Create "${filterValue.value}"`);
                 <template #emptyfilter>
                     <div class="p-4 text-center">
                         <p class="text-xs text-slate-500 mb-3">No results found for "{{ filterValue }}"</p>
-                        <Button 
+                        <Button
+                            v-if="canCreate"
                             :label="creatableLabel" 
                             icon="pi pi-plus" 
                             size="small"

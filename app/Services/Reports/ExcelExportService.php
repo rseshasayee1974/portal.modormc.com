@@ -1552,6 +1552,29 @@ class ExcelExportService
                     //     'rows' => $drvTripRows,
                     // ];
                 }
+            } elseif ($type === 'credit_debit_note_register') {
+                $title = 'CREDIT NOTE & DEBIT NOTE REGISTER';
+                $headersList = $data['headers'];
+                foreach (($data['transactions'] ?? []) as $row) {
+                    $rows[] = array_map(fn ($field) => $row[$field] ?? '', $data['fields']);
+                }
+                $totalRow = array_map(fn ($field, $index) => $index === 0 ? 'Total' : ($data['totals'][$field] ?? ''),
+                    $data['fields'], array_keys($data['fields']));
+            } elseif ($type === 'customer_receipt_payment') {
+                $title = 'CUSTOMER RECEIPT / PAYMENT AMOUNT';
+                $headersList = ['Customer', 'Receipt Amount (₹)', 'Payment Amount (₹)', 'Net Received Amount (₹)'];
+                foreach (($data['transactions'] ?? []) as $row) {
+                    $rows[] = [$row['customer_name'], $row['receipt_amt'], $row['payment_amt'], $row['net_amt']];
+                }
+                $totalRow = ['Total', $data['total_receipt'] ?? 0, $data['total_payment'] ?? 0, $data['net_received'] ?? 0];
+                $extraSections['tables'][] = [
+                    'title' => 'CUSTOMER VOUCHER DETAILS',
+                    'headers' => ['Date', 'Customer', 'Voucher / Reference', 'Type', 'Mode', 'Account', 'Amount (₹)'],
+                    'rows' => array_map(fn ($row) => [
+                        $row['date'], $row['customer_name'], $row['reference'], $row['type'],
+                        $row['mode'], $row['account'], $row['amount'],
+                    ], $data['details'] ?? []),
+                ];
             } elseif (in_array($type, ['payment', 'receipt'])) {
                 $isPayment = $type === 'payment';
                 $title = $isPayment ? 'PAYMENT LOG STATEMENT' : 'RECEIPT LOG STATEMENT';

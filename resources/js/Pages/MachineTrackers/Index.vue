@@ -2,6 +2,9 @@
 import { ref, computed, watch } from 'vue';
 import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import { entityToday, entityDateTime } from '@/Utils/entityDateTime';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import Swal from 'sweetalert2';
 
@@ -23,6 +26,13 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
+const selectedDate = ref<string | null>(entityToday());
+const selectedMachine = ref<number | null>(null);
+const filteredTrackers = computed(() => props.trackers.filter(tracker =>
+    (!selectedDate.value || tracker.log_date === entityToday(selectedDate.value))
+    && (!selectedMachine.value || tracker.machine_id === selectedMachine.value)));
+const totalRunningKm = computed(() => Number(filteredTrackers.value.reduce((total, tracker) => total + Number(tracker.running_km || 0), 0).toFixed(2)));
+
 
 const editingId = ref<number | null>(null);
 const expandedRows = ref<Record<number, boolean>>({});
@@ -46,7 +56,7 @@ const populateEditForm = (tracker: MachineTracker) => {
     editForm.operation_type = tracker.operation_type || '';
     editForm.category = tracker.category || '';
     editForm.operator_id = tracker.operator_id;
-    editForm.opening = tracker.opening;
+    editForm.opening = tracker.opening || tracker.created || entityDateTime();
     editForm.closing = tracker.closing;
     editForm.odometer_start = Number(tracker.odometer_start || 0);
     editForm.odometer_end = Number(tracker.odometer_end || 0);
@@ -83,16 +93,14 @@ const submitCreate = () => {
         hasError = true;
     }
 
-    if (createForm.last_fuel_filled_km === null || createForm.last_fuel_filled_km === undefined || createForm.last_fuel_filled_km === 0) {
-        createForm.setError('last_fuel_filled_km', 'The last fuel filled km is required.');
-        hasError = true;
-    }
+
 
     if (hasError) return;
 
     createForm.post(route('machine-trackers.store'), {
         preserveScroll: true,
         onSuccess: () => {
+            createForm.defaults(getInitialTrackerForm());
             createForm.reset();
             createForm.clearErrors();
             Swal.fire({
@@ -108,6 +116,7 @@ const submitCreate = () => {
 };
 
 const resetCreateForm = () => {
+    createForm.defaults(getInitialTrackerForm());
     createForm.reset();
     createForm.clearErrors();
 };
@@ -152,10 +161,7 @@ const submitEdit = () => {
         hasError = true;
     }
 
-    if (editForm.last_fuel_filled_km === null || editForm.last_fuel_filled_km === undefined || editForm.last_fuel_filled_km === 0) {
-        editForm.setError('last_fuel_filled_km', 'The last fuel filled km is required.');
-        hasError = true;
-    }
+
 
     if (hasError) return;
 
@@ -247,7 +253,18 @@ watch(() => page.props.flash, (flash: any) => {
 
                 <!-- ── Table & Inline Row Edit Section (v1 & v2) ── -->
                 <section>
-                    <MachineTrackerIndexList :trackers="trackers" :expandedRows="expandedRows" :editingId="editingId"
+                    <div class="mb-4 grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-4">
+                        <BaseDatePicker v-model="selectedDate" label="Log Date" :autoFillOnSubmit="false" />
+                        <BaseSelect v-model="selectedMachine" :options="machineOptions" optionLabel="label" optionValue="value"
+                            label="Machine" placeholder="All Machines" showClear />
+                        <div>
+                            <p class="text-xs text-slate-500">Total Running KM for selected date / machine</p>
+                            <p class="mt-2 text-xl font-bold text-indigo-700">{{ totalRunningKm.toFixed(2) }} KM</p>
+                            <p class="text-xs text-slate-500">{{ filteredTrackers.length }} log entries</p>
+                        </div>
+                        <button type="button" class="text-sm font-semibold text-indigo-600" @click="selectedDate = null; selectedMachine = null">Show All Dates &amp; Machines</button>
+                    </div>
+                    <MachineTrackerIndexList :trackers="filteredTrackers" :expandedRows="expandedRows" :editingId="editingId"
                         :editForm="editForm" :machineOptions="machineOptions" :shiftOptions="SHIFT_OPTIONS"
                         :operatorOptions="operatorOptions" :errors="editForm.errors" :processing="editForm.processing"
                         @update:expandedRows="handleExpandedRowsUpdate" @edit="startEdit" @delete="deleteTracker"

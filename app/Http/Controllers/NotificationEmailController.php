@@ -21,7 +21,7 @@ class NotificationEmailController extends Controller
     {
         $this->authorizeModule('menu');
         $user = Auth::user();
-        if ($user->hasRole('Super Administrator')) {
+        if ($user->isSystemAdmin()) {
             $allowedPlantIds = Plant::pluck('id')->toArray();
         } else {
             $allowedPlantIds = $user->entityUsers()->pluck('plant_id')->filter()->toArray();
@@ -41,7 +41,7 @@ class NotificationEmailController extends Controller
             'notificationEmails' => $notificationEmails,
             'plants' => $plants,
             'roles' => $roles,
-            'types' => ['Purchase Order','Batching','Quotation','Customer PO', 'Invoice', 'Dispatch', 'Payment', 'Other'] // Example notification types
+            'types' => ['Purchase Order','Batching','Quotation','Customer PO', 'Invoice', 'Dispatch', 'Payment', config('machine_notifications.type'), 'Other']
         ]);
     }
 
@@ -73,6 +73,7 @@ class NotificationEmailController extends Controller
     public function update(Request $request, NotificationEmail $notificationemail)
     {
         $this->authorizeModule('edit');
+        abort_unless($request->user()->isSystemAdmin() || (int) $notificationemail->plant_id === (int) session('active_plant_id'), 403);
         $validated = $request->validate([
             'type' => 'required|string|max:40',
             'role_name' => 'required|string|max:40',
@@ -94,6 +95,7 @@ class NotificationEmailController extends Controller
     public function destroy(NotificationEmail $notificationemail)
     {
         $this->authorizeModule('delete');
+        abort_unless(auth()->user()->isSystemAdmin() || (int) $notificationemail->plant_id === (int) session('active_plant_id'), 403);
         $notificationemail->deleted_by = Auth::id();
         $notificationemail->save();
         $notificationemail->delete();

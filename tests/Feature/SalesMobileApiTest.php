@@ -3468,17 +3468,46 @@ class SalesMobileApiTest extends TestCase
     {
         $this->putJson('/testing/mobile-access', ['email' => 'user1@example.test', 'enabled' => true])->assertForbidden();
     }
-
-    public function test_entity_admin_can_manage_members_but_not_another_entity(): void
+    public function test_entity_administrator_cannot_manage_mobile_access(): void
     {
-        session(['active_entity_id' => 1, 'active_plant_id' => 1]);
-        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
-        DB::table('mm_users')->insert(['id' => 3, 'username' => 'Other', 'email' => 'other@example.test', 'is_active' => 1, 'is_otp_enabled' => 0]);
-        DB::table('mm_entity_users')->insert(['user_id' => 3, 'entity_id' => 2, 'plant_id' => 2, 'role_id' => 1]);
-        $this->withHeaders(['Authorization' => 'Bearer '.$this->reviewer]);
-        $this->putJson('/testing/mobile-access', ['email' => 'user1@example.test', 'enabled' => false])->assertOk();
-        $this->putJson('/testing/mobile-access', ['email' => 'other@example.test', 'enabled' => true])->assertNotFound();
-        $this->assertEquals(0, DB::table('mm_users')->where('id', 3)->value('is_otp_enabled'));
+        session(['active_entity_id'=>1,'active_plant_id'=>1]);
+        DB::table('mm_roles')->where('id',2)->update(['name'=>'Administrator','code'=>'ADMINISTRATOR']);
+        $this->withHeaders(['Authorization'=>'Bearer '.$this->reviewer]);
+        $this->assertFalse(\App\Services\Mobile\MobileAccess::canManageUserAccess(User::find(2)));
+        $this->putJson('/testing/mobile-access',['email'=>'user1@example.test','enabled'=>false])->assertForbidden();
+        $this->putJson('/testing/mobile-access',['email'=>'user1@example.test','enabled'=>true])->assertForbidden();
+        $this->assertEquals(1,DB::table('mm_users')->where('id',1)->value('is_otp_enabled'));
+    }
+    public function test_global_administrator_without_super_admin_role_cannot_manage_mobile_access(): void
+    {
+        DB::table('mm_roles')->insert(['id'=>3,'name'=>'Administrator','code'=>'ADMINISTRATOR','guard_name'=>'web']);
+        DB::table('mm_model_has_roles')->insert(['role_id'=>3,'model_id'=>2,'model_type'=>User::class]);
+        session(['active_entity_id'=>1,'active_plant_id'=>1]);
+        $this->withHeaders(['Authorization'=>'Bearer '.$this->reviewer]);
+        $this->assertFalse(\App\Services\Mobile\MobileAccess::canManageUserAccess(User::find(2)));
+        $this->putJson('/testing/mobile-access',['email'=>'user1@example.test','enabled'=>false])->assertForbidden();
+    }
+    public function test_entity_super_admin_and_higher_can_manage_mobile_access(): void
+    {
+        session(['active_entity_id'=>1,'active_plant_id'=>1]);
+        foreach (['SUPER_ADMIN','PLATFORM_ADMIN','SAAS_OWNER'] as $roleCode) {
+            DB::table('mm_roles')->where('id',2)->update(['code'=>$roleCode]);
+            $this->withHeaders(['Authorization'=>'Bearer '.$this->reviewer]);
+            $this->assertTrue(\App\Services\Mobile\MobileAccess::canManageUserAccess(User::find(2)));
+            $this->putJson('/testing/mobile-access',['email'=>'user1@example.test','enabled'=>false])->assertOk();
+            $this->putJson('/testing/mobile-access',['email'=>'user1@example.test','enabled'=>true])->assertOk();
+        }
+    }
+    public function test_entity_super_admin_can_manage_members_but_not_another_entity(): void
+    {
+        session(['active_entity_id'=>1,'active_plant_id'=>1]);
+        DB::table('mm_roles')->where('id',2)->update(['code'=>'SUPER_ADMIN']);
+        DB::table('mm_users')->insert(['id'=>3,'username'=>'Other','email'=>'other@example.test','is_active'=>1,'is_otp_enabled'=>0]);
+        DB::table('mm_entity_users')->insert(['user_id'=>3,'entity_id'=>2,'plant_id'=>2,'role_id'=>1]);
+        $this->withHeaders(['Authorization'=>'Bearer '.$this->reviewer]);
+        $this->putJson('/testing/mobile-access',['email'=>'user1@example.test','enabled'=>false])->assertOk();
+        $this->putJson('/testing/mobile-access',['email'=>'other@example.test','enabled'=>true])->assertNotFound();
+        $this->assertEquals(0,DB::table('mm_users')->where('id',3)->value('is_otp_enabled'));
     }
 
     public function test_mobile_access_migration_defaults_to_denied(): void

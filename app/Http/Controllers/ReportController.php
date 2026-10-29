@@ -126,7 +126,8 @@ class ReportController extends Controller
     public function generate(Request $request, ReportServiceFactory $factory, ExcelExportService $excelService)
     {
         $type = strtolower((string) $request->input('type'));
-        $this->authorizeReport($type, $request->filled('export') ? 'export' : 'view', $request->all());
+        $isExport = in_array(strtolower((string) $request->input('export')), ['excel', 'pdf'], true);
+        $this->authorizeReport($type, $isExport ? 'export' : 'view', $request->all());
         try {
             $export   = $request->input('export');
             $type     = $request->input('type');
@@ -223,6 +224,8 @@ class ReportController extends Controller
             'LEDGER'                    => 'reports.ledger_report',
             'PATRON'                    => 'reports.patron_report',
             'SALES'                     => 'reports.sales_report',
+            'CUSTOMER_RECEIPT_PAYMENT'   => 'reports.generic_report',
+            'CREDIT_DEBIT_NOTE_REGISTER' => 'reports.generic_report',
             'PRODUCT_CONSOLIDATED'      => 'reports.product_consolidated_report',
             'CUSTOMER_CONSOLIDATED'     => 'reports.customer_consolidated_report',
             'CUSTOMER_OUTSTANDING'      => 'reports.customer_outstanding_report',
@@ -329,7 +332,7 @@ class ReportController extends Controller
 
         $paperSize = 'a4';
         $orientation = 'portrait';
-        if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PUMP_BOOM_DEPLOYMENT', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER', 'INVENTORY_INWARD']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
+        if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PUMP_BOOM_DEPLOYMENT', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER', 'CREDIT_DEBIT_NOTE_REGISTER', 'INVENTORY_INWARD']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
             $orientation = 'landscape';
         }
         if (strtoupper($type) === 'INVENTORY_INWARD') {

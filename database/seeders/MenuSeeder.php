@@ -29,7 +29,7 @@ class MenuSeeder extends Seeder
             ['id' => 10, 'menutype' => 1, 'title' => 'Report',      'alias' => 'report',    'link' => 'reports/report',               'icon' => 'ChartBarIcon',                'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 10, 'permission_name' => 'REPORT.VIEW'],
             ['id' => 11, 'menutype' => 1, 'title' => 'Setting',     'alias' => 'Setting',   'link' => 'settings/sites',               'icon' => 'Cog6ToothIcon',               'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 11, 'permission_name' => 'SETTING.VIEW'],
             ['id' => 12, 'menutype' => 1, 'title' => 'GPS Tracking', 'alias' => 'gps-tracking', 'link' => 'fleet/gps/live',            'icon' => 'MapIcon',                    'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 12, 'permission_name' => 'GPS_DEVICE.VIEW'],
-            ['id' => 100, 'menutype' => 1, 'title' => 'Quality Control', 'alias' => 'quality', 'link' => 'quality/dashboard',           'icon' => 'BeakerIcon',                 'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 13, 'permission_name' => 'QC.VIEW'],
+            ['id' => 100, 'menutype' => 1, 'title' => 'Quality Testing & Report', 'alias' => 'quality', 'link' => 'quality/dashboard',           'icon' => 'BeakerIcon',                 'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 13, 'permission_name' => 'QC.VIEW'],
 
             // Sidebar Quality Control (parent_id = 100)
             ['id' => 101, 'menutype' => 2, 'title' => 'Dashboard',           'alias' => 'quality-dashboard',           'link' => 'quality/dashboard',                               'icon' => 'HomeIcon',             'published' => 1, 'parent_id' => 100, 'level' => 1, 'ordering' => 1,  'permission_name' => 'QC.VIEW'],
@@ -40,7 +40,7 @@ class MenuSeeder extends Seeder
             // ['id' => 105, 'menutype' => 2, 'title' => 'Material Mapping',    'alias' => 'quality-material-mapping',    'link' => 'quality/configuration/material-mapping',         'icon' => 'Square3Stack3DIcon',   'published' => 1, 'parent_id' => 100, 'level' => 1, 'ordering' => 7,  'permission_name' => 'QC_CONFIG.VIEW'],
             // ['id' => 106, 'menutype' => 2, 'title' => 'Test Schedules',      'alias' => 'quality-test-schedules',      'link' => 'quality/configuration/test-schedules',           'icon' => 'ClockIcon',            'published' => 1, 'parent_id' => 100, 'level' => 1, 'ordering' => 8,  'permission_name' => 'QC_CONFIG.VIEW'],
             ['id' => 107, 'menutype' => 2, 'title' => 'Samples',             'alias' => 'quality-samples',             'link' => 'quality/samples',                                 'icon' => 'ArchiveBoxIcon',       'published' => 1, 'parent_id' => 100, 'level' => 1, 'ordering' => 9,  'permission_name' => 'QC_SAMPLE.VIEW'],
-            // ['id' => 111, 'menutype' => 2, 'title' => 'QC Reports',          'alias' => 'quality-reports',             'link' => 'quality/reports',                                 'icon' => 'ChartBarIcon',         'published' => 1, 'parent_id' => 100, 'level' => 1, 'ordering' => 10, 'permission_name' => 'QC_REPORT.VIEW'],
+            ['id' => 111, 'menutype' => 2, 'title' => 'QC Reports',          'alias' => 'quality-reports',             'link' => 'quality/reports',                                 'icon' => 'ChartBarIcon',         'published' => 1, 'parent_id' => 100, 'level' => 1, 'ordering' => 10, 'permission_name' => 'QC_REPORT.VIEW'],
 
             // Sidebar: Membership (parent_id = 8)
             ['id' => 13, 'menutype' => 2, 'title' => 'User',             'alias' => 'Users',              'link' => 'membership/users',              'icon' => 'UsersIcon',                   'published' => 1, 'parent_id' => 8,  'level' => 1, 'ordering' => 1, 'permission_name' => 'USER.VIEW'],
@@ -168,9 +168,16 @@ class MenuSeeder extends Seeder
             'icon' => 'DocumentChartBarIcon', 'published' => 1, 'parent_id' => 10,
             'level' => 1, 'ordering' => 3, 'permission_name' => 'REPORT.VIEW',
         ]);
+        Menu::updateOrCreate(['alias' => 'credit-debit-note-register-report'], [
+            'menutype' => 2, 'title' => 'Credit Note & Debit Note Register',
+            'link' => 'reports/report?type=credit_debit_note_register', 'icon' => 'DocumentChartBarIcon',
+            'published' => 1, 'parent_id' => 10, 'level' => 1, 'ordering' => 4,
+            'permission_name' => 'REPORT_CREDIT_DEBIT_NOTE_REGISTER.VIEW',
+        ]);
         \App\Services\Reports\InstallReportPermissions::syncMenus();
         $this->call(DiscountModuleSeeder::class);
         \App\Services\InstallNoteModule::run();
         \App\Services\InstallCrmModule::run();
+        \App\Services\InstallQualityTestingMenu::run();
     }
 }

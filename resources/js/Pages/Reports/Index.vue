@@ -29,6 +29,8 @@ import VehiclePLReport from './components/VehiclePLReport.vue';
 import PayrollPersonnelReport from './components/PayrollPersonnelReport.vue';
 import PurchaseReport from './components/PurchaseReport.vue';
 import SalesReport from './components/SalesReport.vue';
+import CustomerReceiptPaymentReport from './components/CustomerReceiptPaymentReport.vue';
+import CreditDebitNoteRegister from './components/CreditDebitNoteRegister.vue';
 import ProductConsolidatedReport from './components/ProductConsolidatedReport.vue';
 import CustomerConsolidatedReport from './components/CustomerConsolidatedReport.vue';
 import TruckConsolidatedReport from './components/TruckConsolidatedReport.vue';
@@ -131,6 +133,8 @@ const reportIcons = {
     silo_stock_valuation: CalculatorIcon,
     overall: ChartBarIcon,
     sales: TruckIcon,
+    customer_receipt_payment: CreditCardIcon,
+    credit_debit_note_register: DocumentTextIcon,
     product_consolidated: CubeIcon,
     customer_consolidated: UserGroupIcon,
     truck_consolidated: TruckIcon,
@@ -162,6 +166,7 @@ const reportCatalog = [
         reports: [
             { id: 'sales_register', name: 'Sales Register', description: 'Invoice summary and item details with GST rates, totals and exports' },
             { id: 'purchase_register', name: 'Purchase Register', description: 'Supplier bill summary and item details with GST rates, totals and exports' },
+            { id: 'credit_debit_note_register', name: 'Credit Note & Debit Note Register', description: 'Credit and debit notes with partner, original invoice or bill, tax and amount totals' },
             { id: 'deleted_report', name: 'Deleted Report', description: 'Audit trail of deleted invoices, bills, payments, receipts, batches, dispatches, expenses, e-way bills, journal entries, and discounts' },
             { id: 'bulk_documents', name: 'Bulk Invoice / Bill Export', description: 'Filter invoices and bills and download one combined PDF, one document per page' },
             { id: 'ledger', name: 'General Ledger', description: 'Account balances, running ledgers and transaction history' },
@@ -188,6 +193,7 @@ const reportCatalog = [
         reports: [
             { id: 'overall', name: 'Overall Daily Report', description: 'Complete day book: production, dispatch, pump, invoices, billing, e-invoice, e-way bill, collections & taxes' },
             { id: 'sales', name: 'Sales & Dispatches', description: 'Invoice listings, dispatch volumes and concrete grades' },
+            { id: 'customer_receipt_payment', name: 'Customer Receipt/Payment Amount', description: 'Customer-wise completed receipts, payments, net collections and voucher details' },
             { id: 'product_consolidated', name: 'Product Consolidated Report', description: 'Mix design & concrete grade wise dispatches with batch size, weights, and revenue' },
             { id: 'customer_consolidated', name: 'Customer Report', description: 'Customer wise dispatches consolidated with batch size, weights, and billing totals' },
             { id: 'truck_consolidated', name: 'Truck Consolidated Report', description: 'Transit mixer & vehicle wise dispatches with batch size, weights, and trip counts' },
@@ -341,6 +347,8 @@ const getReportComponent = (type) => {
         case 'payroll_personnel': return PayrollPersonnelReport;
         case 'purchase': return PurchaseReport;
         case 'sales': return SalesReport;
+        case 'customer_receipt_payment': return CustomerReceiptPaymentReport;
+        case 'credit_debit_note_register': return CreditDebitNoteRegister;
         case 'product_consolidated': return ProductConsolidatedReport;
         case 'customer_consolidated': return CustomerConsolidatedReport;
         case 'customer_outstanding': return CustomerOutstandingReport;
@@ -506,7 +514,7 @@ const activeReport = computed(() => {
 });
 
 const isCustomerReport = computed(() => {
-    return ['overall', 'sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'customer_outstanding', 'sales', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType.value);
+    return ['customer_receipt_payment', 'overall', 'sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'customer_outstanding', 'sales', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType.value);
 });
 
 const isSupplierReport = computed(() => {
@@ -529,7 +537,7 @@ const patronPlaceholder = computed(() => {
 
 const patronOptions = computed(() => {
     const list = (props.patrons || []).filter(patron => {
-        if (reportType.value !== 'overall') return true;
+        if (!['overall', 'customer_receipt_payment'].includes(reportType.value)) return true;
         const types = Array.isArray(patron.patron_type) ? patron.patron_type : [patron.patron_type];
         return types.includes('Customer');
     });
@@ -1308,6 +1316,14 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Voucher Type Filter (General Ledger) -->
+                                    <div v-if="reportType === 'credit_debit_note_register'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Note Type</span>
+                                        <BaseSelect v-model="ledgerVoucherFilter" :options="[
+                                            { label: 'All Notes', value: 'ALL' },
+                                            { label: 'Credit Notes', value: 'CREDIT_NOTE' },
+                                            { label: 'Debit Notes', value: 'DEBIT_NOTE' },
+                                        ]" optionLabel="label" optionValue="value" />
+                                    </div>
                                     <div v-if="reportType === 'ledger'" class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Voucher
                                             Type</span>
@@ -1316,7 +1332,7 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Patron / Customer Dropdown -->
-                                    <div v-if="['overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
+                                    <div v-if="['credit_debit_note_register', 'customer_receipt_payment', 'overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                             {{ patronLabel }}

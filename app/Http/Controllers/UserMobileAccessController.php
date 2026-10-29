@@ -15,7 +15,7 @@ class UserMobileAccessController extends Controller
 {
     public function update(Request $request)
     {
-        abort_unless(MobileAccess::canManageUserAccess($request->user()), 403, 'Only administrators can manage mobile app access.');
+        abort_unless(MobileAccess::canManageUserAccess($request->user()), 403, 'Only Super Admin and higher roles can manage mobile app access.');
         $data=$request->validate(['email'=>'required|email|max:255','enabled'=>'required|boolean']);
         return DB::transaction(function () use ($request,$data) {
             $query=User::whereRaw('LOWER(email) = ?', [strtolower(trim($data['email']))]);

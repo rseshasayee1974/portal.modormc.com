@@ -16,7 +16,7 @@ import {
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import BaseCreatableSelect from '@/Components/Base/BaseCreatableSelect.vue';
+import PatronQuickCreateSelect from '@/Components/PatronQuickCreateSelect.vue';
 import BaseSelectQuickAdd from '@/Components/Base/BaseSelectQuickAdd.vue';
 import BaseAutoComplete from '@/Components/Base/BaseAutoComplete.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
@@ -347,42 +347,7 @@ const quickAddSite = async () => {
     }
 };
 
-const isCreatingPatron = ref(false);
-const handleCreatePatron = async (name: string) => {
-    isCreatingPatron.value = true;
-    try {
-        const response = await axios.post(route('patrons.store'), {
-            legal_name: name,
-            patron_type: ['Customer'],
-            operational_status: 'active',
-            status: true,
-            displayed: true,
-        });
-        
-        const newPatron = response.data.patron;
-        
-        Swal.fire({ 
-            toast: true, 
-            position: 'top-end', 
-            icon: 'success', 
-            title: `Customer "${name}" created.`, 
-            showConfirmButton: false, 
-            timer: 1500 
-        });
 
-        router.reload({
-            only: ['patrons'],
-            onSuccess: () => {
-                form.patron_id = newPatron.id;
-            }
-        });
-    } catch (error: any) {
-        console.error(error);
-        Swal.fire({ icon: 'error', title: 'Error', text: error.response?.data?.message || 'Failed to create customer' });
-    } finally {
-        isCreatingPatron.value = false;
-    }
-};
 
 const isInstantCustomerEnabled = computed(() => Number(props.instant_customer) === 1);
 
@@ -550,7 +515,7 @@ const submit = () => {
                 <form @submit.prevent="submit" class="space-y-8">
                     <!-- Form Header Grid -->
                     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 items-end">
-                        <BaseCreatableSelect 
+                        <PatronQuickCreateSelect
                             v-if="isInstantCustomerEnabled"
                             v-model="form.patron_id" 
                             :options="patronOptions" 
@@ -560,8 +525,6 @@ const submit = () => {
                             :error="form.errors.patron_id"
                             required 
                             placeholder="Select Customer" 
-                            :creating="isCreatingPatron"
-                            @create="handleCreatePatron"
                         />
                         <BaseSelect 
                             v-else
