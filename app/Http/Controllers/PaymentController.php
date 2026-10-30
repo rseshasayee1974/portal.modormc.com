@@ -29,7 +29,9 @@ class PaymentController extends Controller
         $plantId = session('active_plant_id');
 
         return Inertia::render('Payments/Index', [
-            'payments' => Payment::with(['ledger:id,title', 'patron:id,legal_name', 'creator:id,username'])
+            'payments' => Payment::with(['ledger:id,title', 'creator:id,username'])
+                ->with(['patron' => fn ($query) => $query
+                    ->withoutGlobalScope('active_operational_status')->select('id', 'legal_name')])
                 ->where('plant_id', $plantId)
                 ->orderBy('transaction_date', 'desc')
                 ->orderBy('created_at', 'desc')

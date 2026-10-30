@@ -20,7 +20,7 @@ const form = reactive({
     patron_id: props.record.patron_id, account_id: props.record.account_id,
     cutover_date: props.record.cutover_date?.slice(0, 10),
     side: line.side || 'Dr', amount: line.amount || '',
-    // clearing_account_id: props.record.clearing_account_id,
+    clearing_account_id: props.record.clearing_account_id,
     reference: line.reference || '', notes: props.record.notes || '', reason: '',
 });
 const busy = ref(false);

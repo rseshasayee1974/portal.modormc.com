@@ -48,8 +48,8 @@ class AttendanceReportService implements ReportServiceInterface
             'employee_name' => trim($record->personnel->first_name.' '.$record->personnel->last_name),
             'department' => $record->personnel->department?->name ?? '—', 'shift' => $record->shift?->shift_name ?? '—',
             'status' => $record->status, 'status_label' => ucwords(str_replace('_', ' ', $record->status)),
-            'check_in' => $record->check_in?->format('d-m-Y H:i') ?? '—',
-            'check_out' => $record->check_out?->format('d-m-Y H:i') ?? '—',
+            'check_in' => $record->check_in?->format('h:i A') ?? '—',
+            'check_out' => $record->check_out?->format('h:i A') ?? '—',
             'worked_hours' => (float) ($record->worked_hours ?? 0), 'overtime_hours' => (float) ($record->overtime_hours ?? 0),
             'late_hours' => (float) ($record->late_hours ?? 0), 'source' => $record->source ?? '—', 'notes' => $record->notes ?? '',
         ])->values();

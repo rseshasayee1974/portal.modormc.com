@@ -101,7 +101,7 @@ async function save() {
                 </a> -->
                 <!-- </button> -->
                 <button type="submit"
-                    :disabled="busy || Number(form.amount) <= 0 || !form.amount || (!form.patron_id && !form.account_id) || form.reason.trim().length < 2"
+                    :disabled="busy || Number(form.amount) <= 0 || !form.amount || (!form.patron_id && !form.account_id) || !form.clearing_account_id || form.reason.trim().length < 2"
                     class="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
                     {{ busy ? 'Saving...' : 'Save & Post Opening Balance' }}
                 </button>

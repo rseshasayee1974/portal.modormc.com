@@ -1,6 +1,6 @@
 <script setup>
 import { APP_LOCALE } from '@/Utils/locale';
-import { computed } from 'vue';
+import { computed, watch, onMounted } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
@@ -52,8 +52,31 @@ const selectedLedgerDetail = computed(() => {
 
 const clearing = computed(() => (props.ledgers || [])
     .filter(x => !x.is_pnl && Number(x.id) !== Number(props.kind === 'patron' ? patronLedger.value : form.account_id) && !(props.patrons || []).some(p => Number(p.debit_ledger_id) === Number(x.id) || Number(p.credit_ledger_id) === Number(x.id)))
-    .map(x => ({ label: `${x.code ? `[${x.code}] ` : ''}${x.title}`, value: x.id }))
+    .map(x => ({ label: `${x.code ? `[${x.code}] ` : ''}${x.title}`, value: x.id, title: x.title, code: x.code }))
 );
+
+const defaultClearingAccount = computed(() => {
+    return clearing.value.find(c => {
+        const title = (c.title || '').trim().toLowerCase();
+        return title === 'opening balance adjustment' || title.includes('opening balance') || title === 'adjustment account';
+    }) || null;
+});
+
+function applyDefaultClearing() {
+    if (!form.clearing_account_id && defaultClearingAccount.value) {
+        form.clearing_account_id = defaultClearingAccount.value.value;
+    }
+}
+
+onMounted(() => {
+    applyDefaultClearing();
+});
+
+watch(defaultClearingAccount, (acc) => {
+    if (!form.clearing_account_id && acc) {
+        form.clearing_account_id = acc.value;
+    }
+}, { immediate: true });
 </script>
 
 <template>
@@ -84,7 +107,7 @@ const clearing = computed(() => (props.ledgers || [])
                 <div v-if="selectedLedgerDetail" class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                     <span>Account Code: </span>
                     <strong class="font-mono text-slate-700 dark:text-slate-300">{{ selectedLedgerDetail.code || 'N/A'
-                        }}</strong>
+                    }}</strong>
                 </div>
             </div>
         </div>
@@ -130,11 +153,11 @@ const clearing = computed(() => (props.ledgers || [])
         </div>
 
         <!-- 5. Balancing / Clearing Ledger (BaseSelect) -->
-        <!-- <div>
+        <div>
             <BaseSelect v-model="form.clearing_account_id" :options="clearing" optionLabel="label" optionValue="value"
                 label="Balancing / Clearing Ledger" :disabled="busy" placeholder="Select balancing account"
                 :filter="true" :showClear="true" />
-        </div> -->
+        </div>
 
         <!-- 6. Reference Number (BaseInput) -->
         <div>

@@ -84,19 +84,19 @@ class CustomerReceiptPaymentReportService implements ReportServiceInterface
                 'receipt_amt' => 0, 'payment_amt' => 0, 'net_amt' => 0];
             $field = $detail['type'] === 'Receipt' ? 'receipt_amt' : 'payment_amt';
             $rows[$id][$field] = round($rows[$id][$field] + $detail['amount'], 2);
-            $rows[$id]['net_amt'] = round($rows[$id]['receipt_amt'] - $rows[$id]['payment_amt'], 2);
+            $rows[$id]['net_amt'] = abs(round($rows[$id]['receipt_amt'] - $rows[$id]['payment_amt'], 2));
         }
         uasort($rows, fn ($a, $b) => strnatcasecmp($a['customer_name'], $b['customer_name']));
         $receipts = round(array_sum(array_column($rows, 'receipt_amt')), 2);
         $payments = round(array_sum(array_column($rows, 'payment_amt')), 2);
         return [
             'transactions' => array_values($rows), 'details' => $details,
-            'total_receipt' => $receipts, 'total_payment' => $payments, 'net_received' => round($receipts - $payments, 2),
+            'total_receipt' => $receipts, 'total_payment' => $payments, 'net_received' => abs(round($receipts - $payments, 2)),
             'customer_count' => count($rows), 'voucher_count' => count($details),
             'headers' => ['Customer', 'Receipt Amount (₹)', 'Payment Amount (₹)', 'Net Received (₹)'],
             'fields' => ['customer_name', 'receipt_amt', 'payment_amt', 'net_amt'],
             'alignments' => ['left', 'right', 'right', 'right'],
-            'totals' => ['receipt_amt' => $receipts, 'payment_amt' => $payments, 'net_amt' => round($receipts - $payments, 2)],
+            'totals' => ['receipt_amt' => $receipts, 'payment_amt' => $payments, 'net_amt' => abs(round($receipts - $payments, 2))],
         ];
     }
 

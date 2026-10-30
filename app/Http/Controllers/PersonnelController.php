@@ -155,9 +155,21 @@ class PersonnelController extends Controller
                 }
             }
 
-            if (!empty($validated['patron_ids'])) {
-                $personnel->patrons()->sync($validated['patron_ids']);
-            }
+            $employeePatron = Patron::create([
+                'plant_id' => $personnel->plant_id,
+                'patron_type' => ['Employee'],
+                'legal_name' => $personnel->full_name,
+                'pan_no' => $personnel->pan,
+                'aadhar_number' => $personnel->aadhaar,
+                'operational_status' => 'active',
+                'status' => true,
+                'displayed' => true,
+                'created_by' => auth()->id(),
+            ]);
+            $personnel->patrons()->sync(array_unique([
+                ...($validated['patron_ids'] ?? []),
+                $employeePatron->id,
+            ]));
 
             if (!empty($validated['salary_structures'])) {
                 foreach ($validated['salary_structures'] as $struct) {

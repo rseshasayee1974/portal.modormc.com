@@ -44,6 +44,7 @@ class ReportPermissions
         'machine_tracker' => 'Machine Tracker Log Sheet',
         'machine_summary' => 'Machine Summary Report',
         'vehicle_pl' => 'Vehicle Profit and Loss',
+        'attendance' => 'Attendance Report',
         'payroll_personnel' => 'Personnel Directory',
         'gstr1' => 'GSTR-1 Report',
         'gstr3b' => 'GSTR-3B Summary',

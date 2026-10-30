@@ -2852,6 +2852,47 @@ class SalesMobileApiTest extends TestCase
         }
     }
 
+    public function test_customer_po_schema_alignment_adds_only_missing_columns_and_preserves_records(): void
+    {
+        // Refuse all fixture DDL unless the actual connection is isolated in-memory SQLite.
+        $this->assertSame('sqlite', DB::connection()->getDriverName());
+        $this->assertSame(':memory:', DB::connection()->getDatabaseName());
+        $columns = ['due_date', 'concrete_pump', 'pump_rate', 'adjustment', 'is_sales_order'];
+        Schema::table('mm_customer_pos', fn (Blueprint $t) => $t->dropColumn($columns));
+        DB::table('mm_customer_pos')->insert(['id' => 601, 'plant_id' => 1, 'patron_id' => 1, 'site_id' => 1,
+            'sales_executive_id' => 1, 'reference' => 'LEGACY-601', 'notes' => 'Preserve existing data', 'status' => 0]);
+        $before = (array) DB::table('mm_customer_pos')->where('id', 601)->first();
+        $migration = require database_path('migrations/2026_10_29_120000_align_customer_po_mobile_header_columns.php');
+        $migration->up();
+        foreach ($columns as $column) $this->assertTrue(Schema::hasColumn('mm_customer_pos', $column));
+        $after = (array) DB::table('mm_customer_pos')->where('id', 601)->first();
+        foreach ($before as $column => $value) $this->assertSame($value, $after[$column]);
+        $this->getJson('/api/mobile/v1/customer-pos')->assertOk()->assertJsonPath('data.data.0.id', 601);
+        DB::table('mm_customer_pos')->where('id', 601)->update(['adjustment' => 5.25, 'concrete_pump' => 'Saved pump']);
+        $migration->up();
+        $migration->down();
+        $this->assertDatabaseHas('mm_customer_pos', ['id' => 601, 'adjustment' => 5.25, 'concrete_pump' => 'Saved pump']);
+    }
+
+    public function test_customer_po_error_codes_identify_schema_failures_without_exposing_sql(): void
+    {
+        foreach (['42S22' => 'PO_SCHEMA_MISMATCH', '42S02' => 'PO_SCHEMA_MISMATCH', '23000' => 'PO_DATABASE_ERROR'] as $state => $expected) {
+            $pdo = new \PDOException('SQLSTATE private_column sensitive SQL details');
+            $pdo->errorInfo = [$state, 1054, 'private_column'];
+            $exception = new \Illuminate\Database\QueryException('mysql', 'select private_column from private_table', [], $pdo);
+            $controller = new class($exception) extends \App\Http\Controllers\Api\SalesMobile\CustomerPOController {
+                public function __construct(private \Throwable $failure) {}
+                public function index(Request $request) { throw $this->failure; }
+            };
+            $response = \Illuminate\Testing\TestResponse::fromBaseResponse($controller->callAction('index', [Request::create('/')]));
+            $response->assertStatus(500)->assertJsonPath('error_code', $expected)
+                ->assertJsonStructure(['message', 'error_reference'])->assertJsonMissingPath('exception')->assertJsonMissingPath('trace');
+            $this->assertTrue(Str::isUuid($response->json('error_reference')));
+            $this->assertStringNotContainsString('private_column', $response->getContent());
+            $this->assertStringNotContainsString('SQLSTATE', $response->getContent());
+        }
+    }
+
     public function test_customer_po_all_database_fields_are_saved_or_server_controlled_on_create(): void
     {
         $mainToken = User::find(1)->createToken('main-field-persistence', ['*'])->plainTextToken;
