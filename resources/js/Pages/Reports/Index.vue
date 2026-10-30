@@ -26,6 +26,7 @@ import MachinesListReport from './components/MachinesListReport.vue';
 import MachineTrackerReport from './components/MachineTrackerReport.vue';
 import MachineSummaryReport from './components/MachineSummaryReport.vue';
 import VehiclePLReport from './components/VehiclePLReport.vue';
+import AttendanceReport from './components/AttendanceReport.vue';
 import PayrollPersonnelReport from './components/PayrollPersonnelReport.vue';
 import PurchaseReport from './components/PurchaseReport.vue';
 import SalesReport from './components/SalesReport.vue';
@@ -150,6 +151,7 @@ const reportIcons = {
     machine_tracker: ClipboardDocumentListIcon,
     machine_summary: ChartBarIcon,
     vehicle_pl: CurrencyRupeeIcon,
+    attendance: CalendarDaysIcon,
     payroll_personnel: UsersIcon,
     gstr1: ReceiptPercentIcon,
     gstr3b: CalculatorIcon,
@@ -223,10 +225,11 @@ const reportCatalog = [
         id: 'payroll',
         name: 'Payroll & Personnel',
         reports: [
+            { id: 'attendance', name: 'Attendance Report', description: 'Daily attendance, check-in/out, worked hours, overtime and late hours' },
             { id: 'payroll_personnel', name: 'Personnel Directory', description: 'Employee master data, contact details and designations' },
             { id: 'sales_executive', name: 'Sales Executive Report', description: 'Sales executive performance, volume, and billing totals' },
             { id: 'driver', name: 'Driver Trip Report', description: 'Driver trip logs, vehicle dispatches, and delivered quantities' },
-        ]
+        ]   
     },
     // {
     //     id: 'compliance',
@@ -281,6 +284,8 @@ const pumpVehicleId = ref(null);
 const driverId = ref(null);
 const salesExecutiveId = ref(null);
 const selectedEmployeeId = ref(null);
+const attendanceStatus = ref(null);
+const attendanceStatusOptions = ['present', 'absent', 'half_day', 'leave', 'holiday', 'weekoff', 'on_duty'].map(value => ({ value, label: value.replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase()) }));
 const selectedMonth = ref(null);
 const mixDesignId = ref(null);
 const startDate = ref(props.filters.start_date);
@@ -344,6 +349,7 @@ const getReportComponent = (type) => {
         case 'machine_tracker': return MachineTrackerReport;
         case 'machine_summary': return MachineSummaryReport;
         case 'vehicle_pl': return VehiclePLReport;
+        case 'attendance': return AttendanceReport;
         case 'payroll_personnel': return PayrollPersonnelReport;
         case 'purchase': return PurchaseReport;
         case 'sales': return SalesReport;
@@ -694,6 +700,7 @@ watch(selectedModuleId, (newModuleId) => {
         driverId.value = null;
         salesExecutiveId.value = null;
         selectedEmployeeId.value = null;
+        attendanceStatus.value = null;
         selectedMonth.value = null;
         gstType.value = null;
         paymentStatus.value = null;
@@ -724,6 +731,7 @@ watch(reportType, () => {
     driverId.value = null;
     salesExecutiveId.value = null;
     selectedEmployeeId.value = null;
+    attendanceStatus.value = null;
     selectedMonth.value = null;
     currentPage.value = 1;
     if (pollingInterval.value) {
@@ -734,7 +742,7 @@ watch(reportType, () => {
     generateReport();
 });
 
-watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, ledgerVoucherFilter], () => {
+watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, attendanceStatus, ledgerVoucherFilter], () => {
     currentPage.value = 1;
     generateReport();
 });
@@ -767,6 +775,7 @@ const generateReport = async () => {
             driver_id: driverId.value,
             sales_executive_id: salesExecutiveId.value,
             employee_id: selectedEmployeeId.value,
+            attendance_status: attendanceStatus.value,
             month: selectedMonth.value,
             voucher_type_filter: ledgerVoucherFilter.value,
             export: 'view'
@@ -881,6 +890,7 @@ const exportPdf = () => {
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
         employee_id: selectedEmployeeId.value,
+        attendance_status: attendanceStatus.value,
         month: selectedMonth.value,
         export: 'pdf'
     });
@@ -945,6 +955,7 @@ const exportExcel = () => {
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
         employee_id: selectedEmployeeId.value,
+        attendance_status: attendanceStatus.value,
         month: selectedMonth.value,
         export: 'excel'
     });
@@ -1097,6 +1108,7 @@ const generateShareLink = async () => {
                 site_id: siteId.value,
                 pump_vehicle_id: pumpVehicleId.value,
                 employee_id: selectedEmployeeId.value,
+                attendance_status: attendanceStatus.value,
                 month: selectedMonth.value,
             }
         });
@@ -1446,12 +1458,17 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Employee Dropdown (Payroll & Personnel Directory) -->
-                                    <div v-if="reportType === 'payroll_personnel'" class="lg:col-span-1">
+                                    <div v-if="['payroll_personnel', 'attendance'].includes(reportType)" class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Select
                                             Employee</span>
                                         <BaseSelect v-model="selectedEmployeeId" :options="employeeOptions"
                                             optionLabel="name" optionValue="id" placeholder="-- All Employees --" filter
                                             showClear />
+                                    </div>
+
+                                    <div v-if="reportType === 'attendance'" class="lg:col-span-1">
+                                        <span class="mb-1 block text-[11px] font-bold text-slate-500">Attendance Status</span>
+                                        <BaseSelect v-model="attendanceStatus" :options="attendanceStatusOptions" optionLabel="label" optionValue="value" placeholder="All statuses" showClear />
                                     </div>
 
                                     <!-- Month Select (Payroll Month / Cycle) -->

@@ -31,7 +31,11 @@ class PatronController extends Controller
         $this->authorizeModule('menu');
          
         return Inertia::render('Patrons/Index', [
-            'patrons'  => DetailedPatronsDropdown(),
+            'patrons' => Patron::withoutGlobalScope('active_operational_status')
+                ->where('plant_id', session('active_plant_id'))
+                ->with(['plant', 'debitLedger', 'creditLedger', 'contacts.addresses.state', 'bankAccounts'])
+                ->orderBy('legal_name')
+                ->get(),
             'plants'   => ActivePlantsDropdown(),
             'debitLedgers' => $this->patronLedgerOptions('Sundry Debtors'),
             'creditLedgers' => $this->patronLedgerOptions('Sundry Creditors'),

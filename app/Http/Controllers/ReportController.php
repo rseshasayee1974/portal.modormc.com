@@ -126,6 +126,11 @@ class ReportController extends Controller
     public function generate(Request $request, ReportServiceFactory $factory, ExcelExportService $excelService)
     {
         $type = strtolower((string) $request->input('type'));
+        if ($type === 'attendance') $request->validate([
+            'employee_id' => 'nullable|integer|min:1',
+            'attendance_status' => ['nullable', \Illuminate\Validation\Rule::in(\App\Services\Reports\AttendanceReportService::STATUSES)],
+            'start_date' => 'nullable|date', 'end_date' => 'nullable|date|after_or_equal:start_date',
+        ]);
         $isExport = in_array(strtolower((string) $request->input('export')), ['excel', 'pdf'], true);
         $this->authorizeReport($type, $isExport ? 'export' : 'view', $request->all());
         try {
@@ -169,6 +174,7 @@ class ReportController extends Controller
                 'pump_vehicle_id'     => $request->input('pump_vehicle_id'),
                 'driver_id'           => $request->input('driver_id'),
                 'sales_executive_id'  => $request->input('sales_executive_id'),
+                'attendance_status'   => $request->input('attendance_status'),
                 'employee_id'         => $request->input('employee_id') ?? $request->input('personnel_id'),
                 'month'               => $request->input('month'),
                 'grade_id'            => $request->input('grade_id'),
@@ -236,6 +242,7 @@ class ReportController extends Controller
             'SALES_EXECUTIVE'           => 'reports.sales_executive_report',
             'DRIVER'                    => 'reports.driver_report',
             'CANCELLED_DISPATCH'        => 'reports.cancelled_dispatch_report',
+            'ATTENDANCE'                => 'reports.attendance_report',
             'PURCHASE'                  => 'reports.purchase_report',
             'PAYMENT'              => 'reports.payment_report',
             'RECEIPT'              => 'reports.receipt_report',
@@ -341,6 +348,7 @@ class ReportController extends Controller
 
         $css = $this->getReportCss($type);
 
+        if (strtolower($type) === 'attendance') $orientation = 'landscape';
         if (strtolower($type) === 'machine_tracker') {
             $paperSize = 'a3';
             $orientation = 'landscape';

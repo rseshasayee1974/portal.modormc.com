@@ -206,6 +206,7 @@ class QueueReportExportJob implements ShouldQueue
             'PAYMENT_MODE_CONSOLIDATED' => 'reports.payment_mode_consolidated_report',
             'SALES_EXECUTIVE'           => 'reports.sales_executive_report',
             'DRIVER'                    => 'reports.driver_report',
+            'ATTENDANCE'                => 'reports.attendance_report',
             'PURCHASE'             => 'reports.purchase_report',
             'PAYMENT'              => 'reports.payment_report',
             'RECEIPT'              => 'reports.receipt_report',
@@ -309,6 +310,7 @@ class QueueReportExportJob implements ShouldQueue
             $paperSize = 'a5';
         }
 
+        if (strtolower($type) === 'attendance') $orientation = 'landscape';
         if (strtolower($type) === 'machine_tracker') {
             $paperSize = 'a3';
             $orientation = 'landscape';

@@ -53,7 +53,7 @@ const operationalStatusMap: Record<string, string> = {
     closed: 'secondary',
 };
 
-const getStatusSeverity = (status: string) => operationalStatusMap[status] || 'info';
+const getStatusSeverity = (status: string) => operationalStatusMap[status?.trim().toLowerCase()] || 'info';
 
 const onRowClick = (event: any) => {
     const target = event.originalEvent.target as HTMLElement;

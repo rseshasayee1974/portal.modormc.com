@@ -364,6 +364,13 @@ class ExcelExportService
                 ['from_date' => $start ?? '', 'to_date' => $end ?? ''], $data
             );
         }
+        if ($type === 'attendance') {
+            $columns = AttendanceReportService::COLUMNS;
+            $rows = collect($data['transactions'] ?? [])->map(fn ($row) => array_map(fn ($field) => $row[$field] ?? '', array_keys($columns)))->all();
+            $totals = array_map(fn ($field) => $data['totals'][$field] ?? '', array_keys($columns));
+            $totals[0] = 'Total';
+            return $this->export('Attendance Report', ($start ?? '').' to '.($end ?? ''), array_values($columns), $rows, $totals);
+        }
         $title = strtoupper(str_replace('_', ' ', $type)) . " REPORT";
         $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->format('d-m-Y')) : '';
         $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->format('d-m-Y')) : '';
@@ -1566,9 +1573,9 @@ class ExcelExportService
                 $title = 'CUSTOMER RECEIPT / PAYMENT AMOUNT';
                 $headersList = ['Customer', 'Receipt Amount (₹)', 'Payment Amount (₹)', 'Net Received Amount (₹)'];
                 foreach (($data['transactions'] ?? []) as $row) {
-                    $rows[] = [$row['customer_name'], $row['receipt_amt'], $row['payment_amt'], $row['net_amt']];
+                    $rows[] = [$row['customer_name'], $row['receipt_amt'], $row['payment_amt'], abs((float)($row['net_amt'] ?? 0))];
                 }
-                $totalRow = ['Total', $data['total_receipt'] ?? 0, $data['total_payment'] ?? 0, $data['net_received'] ?? 0];
+                $totalRow = ['Total', $data['total_receipt'] ?? 0, $data['total_payment'] ?? 0, abs((float)($data['net_received'] ?? 0))];
                 $extraSections['tables'][] = [
                     'title' => 'CUSTOMER VOUCHER DETAILS',
                     'headers' => ['Date', 'Customer', 'Voucher / Reference', 'Type', 'Mode', 'Account', 'Amount (₹)'],

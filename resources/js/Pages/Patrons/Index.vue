@@ -64,7 +64,8 @@ const filteredPatrons = computed(() => {
         // Safe check for legal_name
         (p.legal_name?.toLowerCase().includes(q) ?? false) ||
         // Safe check for gstin (prevents crash if null)
-        (p.gstin?.toLowerCase().includes(q) ?? false)
+        (p.gstin?.toLowerCase().includes(q) ?? false) ||
+        (p.operational_status?.toLowerCase().includes(q) ?? false)
     );
 });
 

@@ -39,6 +39,7 @@ class ReportServiceFactory
             'pump_boom_deployment' => PumpBoomDeploymentReportService::class,
             'machines_list'        => MachinesListReportService::class,
             'machine_tracker'     => MachineTrackerReportService::class,
+            'attendance'           => AttendanceReportService::class,
             'payroll_personnel'    => PayrollPersonnelReportService::class,
             'silo_stock_valuation' => SiloStockValuationReportService::class,
             'gstr1'                => Gstr1ReportService::class,
