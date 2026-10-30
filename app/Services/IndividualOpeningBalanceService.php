@@ -19,7 +19,7 @@ class IndividualOpeningBalanceService
                 'account_id'=>'exclude_if:balance_type,patron|required|integer', 
                 'patron_id'=>'nullable|required_if:balance_type,patron|prohibited_if:balance_type,ledger|integer',
                 'side'=>'required|in:Dr,Cr',
-                'clearing_account_id'=>'required|integer', 'reason'=>'required|string|min:5|max:1000',
+                'clearing_account_id'=>'nullable|integer', 'reason'=>'required|string|min:5|max:1000',
             ])->validate();
             if ($input['balance_type'] === 'patron') {
                 $patron = Patron::withoutGlobalScope('plant_id')->where('plant_id', $plantId)

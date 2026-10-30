@@ -85,7 +85,7 @@ class OpeningBalanceController extends Controller
     public function convert(Request $request)
     {
         $this->authorizeModule('create');
-        $data=$request->validate(['clearing_account_id'=>'required|integer']);
+        $data=$request->validate(['clearing_account_id'=>'nullable|integer']);
         app(\App\Services\IndividualOpeningBalanceService::class)->convert($this->context->requirePlantId(),auth()->id(),$data['clearing_account_id']);
         return response()->json(['message'=>'Existing balances converted without changing their amounts.']);
     }
