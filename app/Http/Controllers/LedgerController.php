@@ -51,14 +51,6 @@ class LedgerController extends Controller
         // Generate Code if not provided
         $code = $validated['code'] ?? Ledger::generateNextCodeForCategory($category, $plantId);
 
-        // Range Validation logic migrated to model
-        $tempLedger = new Ledger();
-        if (!$tempLedger->isValidCodeForCategory($code, $category)) {
-            return response()->json([
-                'errors' => ['code' => ["The code '$code' is out of range for $category series."]]
-            ], 422);
-        }
-
         $ledger = Ledger::create(array_merge($validated, ['code' => $code]));
 
         return response()->json([
@@ -83,15 +75,6 @@ class LedgerController extends Controller
     {
         $this->authorizeModule('edit');
         $validated = $request->validated();
-        
-        $accountType = AccountsType::with('account')->findOrFail($validated['account_type_id']);
-        $category = strtoupper($accountType->account->title ?? '');
-
-        if (!empty($validated['code']) && !$ledger->isValidCodeForCategory($validated['code'], $category)) {
-            return response()->json([
-                'errors' => ['code' => ["The code '{$validated['code']}' is out of range for $category series."]]
-            ], 422);
-        }
 
         $ledger->update($validated);
 

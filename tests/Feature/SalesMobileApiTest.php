@@ -2449,6 +2449,40 @@ class SalesMobileApiTest extends TestCase
         $this->postJson('/api/mobile/v1/leads/999/convert', [])->assertForbidden();
     }
 
+    public function test_customer_po_schema_repair_restores_listing_and_conversion_history(): void
+    {
+        Schema::table('mm_customer_pos', fn (Blueprint $table) => $table->dropColumn('is_sales_order'));
+        foreach ([1, 2, 3] as $id) {
+            DB::table('mm_customer_pos')->insert(['id' => $id, 'plant_id' => 1, 'sales_executive_id' => 1,
+                'patron_id' => 1, 'site_id' => 1, 'reference' => 'CPO-'.$id, 'status' => 0]);
+        }
+        DB::table('mm_sales_orders')->insert([
+            ['id' => 1, 'customer_po_id' => 2, 'deleted_at' => null],
+            ['id' => 2, 'customer_po_id' => 3, 'deleted_at' => '2026-10-29 00:00:00'],
+        ]);
+
+        $migration = require database_path('migrations/2026_10_30_154000_add_is_sales_order_to_customer_pos_table.php');
+        $migration->up();
+        $migration->up();
+
+        foreach ([1 => 0, 2 => 1, 3 => 1] as $id => $converted) {
+            $this->assertDatabaseHas('mm_customer_pos', ['id' => $id, 'is_sales_order' => $converted]);
+        }
+        DB::table('mm_customer_pos')->insert(['id' => 4, 'plant_id' => 1, 'sales_executive_id' => 1]);
+        $this->assertDatabaseHas('mm_customer_pos', ['id' => 4, 'is_sales_order' => 0]);
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            if ($prefix === '/api/mobile') {
+                DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+                $this->withHeaders(['Authorization' => 'Bearer '.User::find(2)->createToken('web-login')->plainTextToken]);
+            }
+            $this->getJson($prefix.'/customer-pos?search=CPO-2')->assertOk()
+                ->assertJsonPath('data.data.0.is_sales_order', 1);
+        }
+
+        $migration->down();
+        $this->assertFalse(Schema::hasColumn('mm_customer_pos', 'is_sales_order'));
+    }
+
     public function test_customer_po_listing_scopes_filters_and_permissions(): void
     {
         foreach ([

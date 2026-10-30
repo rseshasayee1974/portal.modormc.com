@@ -50,14 +50,23 @@ class LedgerReportService implements ReportServiceInterface
         }
 
         if ($patronId) {
-            $query->where(function ($q) use ($patronId) {
+            $query->where(function ($q) use ($patronId, $ledgerId, $plantId) {
                 $q->where(function ($sq) use ($patronId) {
                     $sq->where('partner_id', $patronId)->where('partner_type', 'Patron');
-                })->orWhereHas('entry.lines', function ($elq) use ($patronId) {
-                    $elq->where('partner_id', $patronId)
-                        ->where('partner_type', 'Patron')
-                        ->whereNull('deleted_at');
                 });
+
+                // A patron statement must only sum the patron's side of each
+                // journal. Include counterpart lines only for a selected ledger
+                // (for example, a bank ledger filtered by customer).
+                if ($ledgerId) {
+                    $q->orWhereHas('entry.lines', function ($elq) use ($patronId, $plantId) {
+                        $elq->where('plant_id', $plantId)
+                            ->where('partner_id', $patronId)
+                            ->where('partner_type', 'Patron')
+                            ->whereNull('deleted_at')
+                            ->where(fn ($active) => $active->where('is_deleted', 0)->orWhereNull('is_deleted'));
+                    });
+                }
             });
         }
 

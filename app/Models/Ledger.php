@@ -76,14 +76,6 @@ class Ledger extends Model
     }
 
     /**
-     * Business Logic: Validate the code against the account type category.
-     */
-    public function isValidCodeForCategory($code, $category): bool
-    {
-        return $this->validateCodeRange($code, $category);
-    }
-
-    /**
      * Business Logic: Generate next code.
      */
     public static function generateNextCodeForCategory($category, $plantId)
