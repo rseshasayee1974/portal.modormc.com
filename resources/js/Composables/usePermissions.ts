@@ -23,26 +23,22 @@ export function usePermissions() {
         (page.props.user_role as string) ?? ''
     );
 
-    const isSuperAdmin = computed(() =>
-        ['Super Administrator', 'Platform Admin', 'Super Admin'].includes(userRole.value)
-    );
+    const hasFullAccess = computed(() => page.props.has_full_access === true);
     const isSassOwner = computed(() =>
-        ['Saas Owner'].includes(userRole.value)
+        hasFullAccess.value && (page.props.user_code === 'SAAS_OWNER' || userRole.value === 'Saas Owner')
     );
+    const isSuperAdmin = computed(() => hasFullAccess.value && !isSassOwner.value);
 
-    const isAdmin = computed(() =>
-        ['Administrator', 'Admin'].includes(userRole.value)
-    );
+    // Existing forms use this flag as a permission bypass.
+    const isAdmin = hasFullAccess;
 
     /**
      * Check if the current user has a specific permission.
-     * Super Administrators always return true (all permissions granted).
+     * The backend grants full access only to SaaS Owner and Super Admin.
      */
     const can = (permission: string): boolean => {
         const normalized = permission.toLowerCase();
-        if (isSassOwner.value) return true;
-
-        if (isSuperAdmin.value) return true;
+        if (hasFullAccess.value) return true;
         // console.log('normalized', normalized);
         // console.log('permissions', permissions.value);
         // console.log('isSuperAdmin', isSuperAdmin.value);
@@ -50,5 +46,5 @@ export function usePermissions() {
         return permissionIndex.value.has(normalized);
     };
 
-    return { can, isSuperAdmin, isAdmin, permissions, userRole, isSassOwner };
+    return { can, hasFullAccess, isSuperAdmin, isAdmin, permissions, userRole, isSassOwner };
 }

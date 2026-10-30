@@ -453,8 +453,7 @@ const iconList = [
 const getWorkspaceIcon = (index: number) => iconList[index % iconList.length];
 
 const isSystemAdmin = computed(() => {
-    const role = page.props.user_role as string | undefined;
-    return role === 'Super Administrator' || role === 'Saas Owner' || role === 'Platform Admin';
+    return page.props.has_full_access === true;
 });
 
 const userName = computed(() => {

@@ -21,7 +21,7 @@ const props = defineProps<{
 
 const toast = useToast();
 const page = usePage();
-const canEditPlantIdentityOnUpdate = computed(() => (page.props as any).user_role === 'Saas Owner');
+const canEditPlantIdentityOnUpdate = computed(() => page.props.has_full_access === true);
 
 const searchQuery = ref(props.filters?.search || '');
 const editingId = ref<number | null>(null);

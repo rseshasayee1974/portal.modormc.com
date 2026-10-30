@@ -59,7 +59,7 @@ const { isAdmin, isSuperAdmin, can } = usePermissions();
 
 const canExportInvoice = computed(() => isAdmin.value);
 
-const hasEditBypass = computed(() => isAdmin || isSuperAdmin);
+const hasEditBypass = computed(() => isAdmin.value || isSuperAdmin.value);
 const hasDispatchActivity = computed(() => {
     if (!props.dispatch) return false;
 

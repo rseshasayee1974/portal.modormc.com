@@ -183,7 +183,7 @@ class SalesOrderController extends Controller
         $this->ensurePlantScope($salesorder);
 
         $user = request()->user();
-        $isSuperAdmin = $user && method_exists($user, 'hasRole') && $user->hasRole(['Saas Owner', 'Platform Admin', 'Super Admin']);
+        $isSuperAdmin = $user && $user->hasFullAccess();
 
         if (!$isSuperAdmin && ($salesorder->batches()->exists() || $salesorder->dispatches()->exists())) {
             return redirect()->back()->with('error', 'Cannot delete this sales order because it has associated batches or dispatches.');

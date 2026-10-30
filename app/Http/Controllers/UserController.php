@@ -29,11 +29,7 @@ class UserController extends Controller
         $this->authorizeModule('menu');
         /** @var User $user */
         $user = $request->user();
-        $isSuperUser = $user && method_exists($user, 'hasRole') && (
-            $user->hasRole('Saas Owner') ||
-            $user->hasRole('Platform Admin') ||
-            $user->hasRole('Super Admin')
-        );
+        $isSuperUser = $user && $user->hasFullAccess();
 
         $query = User::with(['entityUsers.entity', 'entityUsers.plant', 'entityUsers.role'])
             ->where('id', '!=', $user->id);
@@ -303,7 +299,7 @@ class UserController extends Controller
     public function restore($id)
     {
         $user = auth()->user();
-        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+        if (!$user || !$user->hasFullAccess()) {
             abort(403, 'Unauthorized.');
         }
 
@@ -320,7 +316,7 @@ class UserController extends Controller
     public function forceDelete($id)
     {
         $user = auth()->user();
-        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+        if (!$user || !$user->hasFullAccess()) {
             abort(403, 'Unauthorized.');
         }
 
@@ -345,11 +341,7 @@ class UserController extends Controller
             abort(401, 'Unauthenticated.');
         }
 
-        $isSuperUser = method_exists($currentUser, 'hasRole') && (
-            $currentUser->hasRole('Saas Owner') ||
-            $currentUser->hasRole('Platform Admin') ||
-            $currentUser->hasRole('Super Admin')
-        );
+        $isSuperUser = $currentUser->hasFullAccess();
 
         if ($isSuperUser) {
             return;

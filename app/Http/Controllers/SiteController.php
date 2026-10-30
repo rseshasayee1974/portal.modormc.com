@@ -92,7 +92,7 @@ class SiteController extends Controller
         });
 
         $user = Auth::user();
-        $isPrivileged = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin');
+        $isPrivileged = $user->hasFullAccess();
 
         if ($isPrivileged) {
             $plants = Plant::where('is_active', true)->select('id', 'name')->get();
@@ -115,7 +115,7 @@ class SiteController extends Controller
         $this->authorizeModule('create');
         $payload = $request->validated();
         $user = Auth::user();
-        $isPrivileged = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Administrator');
+        $isPrivileged = $user->hasFullAccess();
 
         if (!$isPrivileged) {
             $payload['type'] = 'unloading';
@@ -143,7 +143,7 @@ class SiteController extends Controller
         $this->authorizeModule('edit');
         $payload = $request->validated();
         $user = Auth::user();
-        $isPrivileged = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Administrator');
+        $isPrivileged = $user->hasFullAccess();
 
         if (!$isPrivileged) {
             $payload['type'] = 'unloading';

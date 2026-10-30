@@ -51,7 +51,7 @@ onMounted(load);
     <AppLayout title="Billing History">
         <div class="p-6 space-y-4">
             <div v-if="!props.canManageBilling" class="bg-amber-50 border border-amber-200 text-amber-700 p-3 rounded">
-                Only SaaS Owner or Platform Admin can access billing APIs.
+                Only SaaS Owner or Super Admin can access billing APIs.
             </div>
             <div class="flex gap-2">
                 <button class="px-3 py-2 bg-indigo-600 text-white rounded disabled:opacity-50" :disabled="!props.canManageBilling" @click="generate">Generate Current Month Bill</button>

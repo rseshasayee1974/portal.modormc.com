@@ -245,7 +245,7 @@ onMounted(loadDashboard);
                 <Button label="Regenerate" icon="pi pi-refresh" :disabled="!canManageBilling" :loading="loading" class="rounded-xl" @click="regenerateApiKey" />
             </div>
             <InputText v-model="apiKey" readonly class="w-full rounded-2xl border-slate-200 bg-slate-50 px-4 py-3 font-mono text-xs dark:border-white/10 dark:bg-white/5 dark:text-white" />
-            <p v-if="!canManageBilling" class="mt-2 text-xs text-amber-600 dark:text-amber-300">Only SaaS Owner or Platform Admin can regenerate the API key.</p>
+            <p v-if="!canManageBilling" class="mt-2 text-xs text-amber-600 dark:text-amber-300">Only SaaS Owner or Super Admin can regenerate the API key.</p>
             <p v-if="apiError" class="mt-2 text-xs text-rose-600 dark:text-rose-300">{{ apiError }}</p>
         </section>
 

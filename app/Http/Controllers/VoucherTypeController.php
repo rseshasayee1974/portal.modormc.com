@@ -22,7 +22,7 @@ class VoucherTypeController extends Controller
     {
         $this->authorizeModule('menu');
         $user = Auth::user();
-        $isSuperAdmin = $user->hasRole('Admin') || $user->roles->contains('id', 1);
+        $isSuperAdmin = $user->hasFullAccess();
 
         $voucherTypes = VoucherType::orderBy('voucher_group', 'asc')
             ->orderBy('journal_name', 'asc')
@@ -41,7 +41,7 @@ class VoucherTypeController extends Controller
     {
         $this->authorizeModule('create');
         $user = Auth::user();
-        $isSuperAdmin = $user->hasRole('Admin') || $user->roles->contains('id', 1);
+        $isSuperAdmin = $user->hasFullAccess();
 
         $validated = $request->validate([
             'journal_name'        => ['required', 'string', 'max:100', Rule::unique('mm_voucher_types', 'journal_name')],
@@ -77,7 +77,7 @@ class VoucherTypeController extends Controller
     {
         $this->authorizeModule('edit');
         $user = Auth::user();
-        $isSuperAdmin = $user->hasRole('Admin') || $user->roles->contains('id', 1);
+        $isSuperAdmin = $user->hasFullAccess();
 
         $voucherType = VoucherType::findOrFail($id);
 

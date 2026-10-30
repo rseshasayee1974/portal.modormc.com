@@ -20,11 +20,7 @@ class MobileAccess
         $entity = (int) session('active_entity_id');
         if (!$entity) return false;
         $role = EntityUser::forContext($user->id, $entity, session('active_plant_id'))?->role;
-        return in_array(strtoupper((string) $role?->code), [
-            'SUPER_ADMIN',
-            'PLATFORM_ADMIN',
-            'SAAS_OWNER',
-        ], true);
+        return $role?->grantsFullAccess() ?? false;
     }
 
     public static function plants(User $user): Builder
@@ -64,7 +60,7 @@ class MobileAccess
 
     public static function permits(string $module, string $action): bool
     {
-        if (request()->attributes->get('mobile_system_admin')) return true;
+        if (request()->user()?->hasFullAccess() || request()->attributes->get('mobile_role')?->grantsFullAccess()) return true;
         $names = collect([strtoupper(Str::singular($module)).'.'.strtoupper($action), strtoupper(Str::plural($module)).'.'.strtoupper($action)]);
         $role = request()->attributes->get('mobile_role');
         $permissions = ($role ? $role->permissions->pluck('name') : collect())
@@ -189,11 +185,9 @@ class MobileAccess
 
     public static function isCommercialAdministrator(): bool
     {
-        $role = request()->attributes->get('mobile_role');
         return request()->attributes->get('mobile_app_context') && (
-            request()->attributes->get('mobile_system_admin') || in_array(strtoupper((string) $role?->code), [
-                'ADMINISTRATOR', 'SUPER_ADMIN', 'PLATFORM_ADMIN', 'SAAS_OWNER',
-            ], true)
+            request()->user()?->hasFullAccess()
+            || (request()->attributes->get('mobile_role')?->grantsFullAccess() ?? false)
         );
     }
 

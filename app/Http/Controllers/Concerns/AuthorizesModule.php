@@ -27,28 +27,7 @@ trait AuthorizesModule
             abort(401);
         }
 
-        // Restrict master and its submenus strictly to SaaS Owner and Platform Admin (blocking Super Admin)
-        $prefix = strtoupper(\Illuminate\Support\Str::singular($module));
-        $isMasterModule = false;
-        try {
-            $isMasterModule = \App\Models\Menu::where(function ($q) {
-                    $q->where('id', 2)->orWhere('parent_id', 2);
-                })
-                ->where('permission_name', 'like', $prefix . '.%')
-                ->exists();
-        } catch (\Exception $e) {
-            // Safe fallback if database is not fully loaded/migrated yet
-        }
-
-        if ($isMasterModule) {
-            if ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('SAAS_OWNER') || $user->hasRole('PLATFORM_ADMIN')) {
-                return;
-            }
-            abort(403, "Access Denied: Master data is restricted to SaaS Owners.");
-        }
-
-        // Explicit bypass for SaaS Owner, Super Admin, and Administrator roles for other modules
-        if ($user->isSystemAdmin()) {
+        if ($user->hasFullAccess()) {
             return;
         }
 
@@ -56,21 +35,13 @@ trait AuthorizesModule
         $activeEntityId = session('active_entity_id');
         $activeRole = null;
         if ($activeEntityId) {
-            $entityUser = \App\Models\EntityUser::where('user_id', $user->id)
-                ->where('entity_id', $activeEntityId)
-                ->first();
+            $entityUser = \App\Models\EntityUser::forContext($user->id, (int) $activeEntityId, session('active_plant_id'));
             if ($entityUser && $entityUser->role_id) {
                 $activeRole = \App\Models\Role::with('permissions')->find($entityUser->role_id);
             }
         }
 
-        if ($activeRole) {
-            $adminRoleCodes = ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'];
-            $adminRoleNames = ['Saas Owner', 'Platform Admin', 'Super Admin', 'Super Administrator', 'Administrator'];
-            if (in_array(strtoupper($activeRole->code ?? ''), $adminRoleCodes) || in_array($activeRole->name ?? '', $adminRoleNames)) {
-                return;
-            }
-        }
+        if ($activeRole?->grantsFullAccess()) return;
 
         // Map common controller actions to uppercase actions
         $actionMap = [

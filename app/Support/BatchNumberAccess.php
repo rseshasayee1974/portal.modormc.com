@@ -14,12 +14,7 @@ class BatchNumberAccess
             return false;
         }
 
-        $adminRoles = [
-            'Saas Owner', 'Platform Admin', 'Super Admin',
-            'Super Administrator', 'Administrator', 'Admin',
-        ];
-
-        if ($user->hasAnyRole($adminRoles)) {
+        if ($user->hasFullAccess()) {
             return true;
         }
 
@@ -31,7 +26,7 @@ class BatchNumberAccess
             $activeRole = $roleId ? Role::with('permissions')->find($roleId) : null;
         }
 
-        if ($activeRole && in_array($activeRole->name, $adminRoles, true)) {
+        if ($activeRole?->grantsFullAccess()) {
             return true;
         }
 

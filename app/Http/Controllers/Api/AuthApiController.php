@@ -19,8 +19,7 @@ class AuthApiController extends Controller
 {
     private function canManageBillingApiKey(User $user): bool
     {
-        $roles = $user->getRoleNames()->map(fn ($r) => mb_strtolower((string) $r))->all();
-        return in_array('saas owner', $roles, true) || in_array('platform admin', $roles, true);
+        return $user->hasFullAccess();
     }
 
     #[OA\Post(path: "/auth/register", summary: "Register new user", tags: ["Authentication"])]
@@ -224,7 +223,7 @@ class AuthApiController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        abort_unless($this->canManageBillingApiKey($user), 403, 'Only SaaS Owner or Platform Admin can regenerate API key.');
+        abort_unless($this->canManageBillingApiKey($user), 403, 'Only SaaS Owner or Super Admin can regenerate API key.');
         $user->forceFill(['api_key' => Str::random(60)])->save();
 
         return response()->json([
@@ -239,7 +238,7 @@ class AuthApiController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        abort_unless($this->canManageBillingApiKey($user), 403, 'Only SaaS Owner or Platform Admin can generate API key.');
+        abort_unless($this->canManageBillingApiKey($user), 403, 'Only SaaS Owner or Super Admin can generate API key.');
 
         if (!$user->api_key) {
             $user->forceFill(['api_key' => Str::random(60)])->save();

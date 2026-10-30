@@ -82,8 +82,7 @@ class ReportPermissions
             if (!$assignment) return [];
             if ($assignment?->role_id) $role = Role::with('permissions')->find($assignment->role_id);
         }
-        if ($role && (in_array(strtoupper($role->code ?? ''), ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'])
-            || in_array($role->name, ['Saas Owner', 'Platform Admin', 'Super Admin', 'Super Administrator', 'Administrator']))) {
+        if ($role?->grantsFullAccess()) {
             return ['*'];
         }
         $permissions = $role ? $role->permissions->merge($user->getDirectPermissions()) : $user->getAllPermissions();

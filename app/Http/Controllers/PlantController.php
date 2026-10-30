@@ -36,11 +36,7 @@ class PlantController extends Controller
         $this->authorizeModule('menu');
 
         $user = Auth::user();
-        $isSuperUser = $user && method_exists($user, 'hasRole') && (
-            $user->hasRole('Saas Owner') || 
-            $user->hasRole('Platform Admin') || 
-            $user->hasRole('Super Admin')
-        );
+        $isSuperUser = $user && $user->hasFullAccess();
 
         if ($isSuperUser) {
             $allowedEntityIds = Entity::pluck('id')->toArray();
@@ -155,7 +151,7 @@ class PlantController extends Controller
         
         return DB::transaction(function () use ($validated, $plant, $user, $request) {
             $updatableFields = $validated;
-            if (!$user->hasRole('Saas Owner')) {
+            if (!$user->hasFullAccess()) {
                 unset($updatableFields['code'], $updatableFields['name']);
             }
             if (!\Illuminate\Support\Facades\Schema::hasColumn('mm_plants', 'upi_qr_path')) {
@@ -283,8 +279,8 @@ class PlantController extends Controller
 
         $user = Auth::user();
 
-        // Check permissions: saas-owner, platform-admin, or super-admin
-        if (!$user->hasRole('Saas Owner') && !$user->hasRole('Platform Admin')) {
+        // Only the two full-access roles can initialize plants.
+        if (!$user->hasFullAccess()) {
             return redirect()->back()->with('error', 'Unauthorized access.');
         }
 
@@ -362,7 +358,7 @@ class PlantController extends Controller
         $this->authorizeModule('edit');
 
         $user = Auth::user();
-        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+        if (!$user || !$user->hasFullAccess()) {
             abort(403, 'Unauthorized.');
         }
 
@@ -377,7 +373,7 @@ class PlantController extends Controller
         $this->authorizeModule('delete');
 
         $user = Auth::user();
-        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+        if (!$user || !$user->hasFullAccess()) {
             abort(403, 'Unauthorized.');
         }
 

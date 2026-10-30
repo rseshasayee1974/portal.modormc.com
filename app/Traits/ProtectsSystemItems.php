@@ -35,6 +35,6 @@ trait ProtectsSystemItems
         $user = Auth::user();
         if (!$user) return false;
 
-        return $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin');
+        return $user->hasFullAccess();
     }
 }

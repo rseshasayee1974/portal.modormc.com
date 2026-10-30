@@ -24,8 +24,7 @@ class SaasDashboardApiController extends Controller
 
     private function canViewUsageAlert(User $user): bool
     {
-        $roles = $user->getRoleNames()->map(fn ($r) => mb_strtolower((string) $r))->all();
-        return in_array('saas owner', $roles, true) || in_array('platform admin', $roles, true);
+        return $user->hasFullAccess();
     }
 
     #[OA\Post(path: "/dashboard", summary: "Get SaaS usage dashboard", tags: ["SaaS"], security: [["bearerAuth" => []]])]

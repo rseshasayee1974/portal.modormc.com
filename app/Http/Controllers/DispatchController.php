@@ -154,14 +154,7 @@ class DispatchController extends Controller
         $this->authorizeModule('update');
         $user = auth()->user();
         
-        $isAdmin = $user && method_exists($user, 'hasRole') && (
-            $user->hasRole('Saas Owner') || 
-            $user->hasRole('Platform Admin') || 
-            $user->hasRole('Super Admin') || 
-            $user->hasRole('Admin') || 
-            $user->hasRole('Super Administrator') ||
-            $user->hasRole('Administrator')
-        );
+        $isAdmin = $user && $user->hasFullAccess();
 
         if (!$isAdmin) {
             if (

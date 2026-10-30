@@ -47,7 +47,7 @@ class UpdateUserRequest extends FormRequest
                 'required',
                 'integer',
                 function ($attribute, $value, $fail) use ($user) {
-                    if ($user->hasRole('Saas Owner')) {
+                    if ($user->hasFullAccess()) {
                         if (!Entity::where('id', $value)->exists()) {
                             $fail('The selected entity is invalid.');
                         }
@@ -68,11 +68,7 @@ class UpdateUserRequest extends FormRequest
                     if (!$assignedRole) {
                         return $fail('The selected role is invalid.');
                     }
-                    $isSuper = $user && method_exists($user, 'hasRole') && (
-                        $user->hasRole('Saas Owner') || 
-                        $user->hasRole('Platform Admin') || 
-                        $user->hasRole('Super Admin')
-                    );
+                    $isSuper = $user && $user->hasFullAccess();
                     if (!$isSuper) {
                         $spatieLevel = $user->roles->max('level');
                         $entityLevel = $user->entityUsers()->with('role')->get()->max('role.level');

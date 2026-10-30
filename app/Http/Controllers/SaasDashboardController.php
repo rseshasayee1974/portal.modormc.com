@@ -12,8 +12,7 @@ class SaasDashboardController extends Controller
 {
     private function canManageBilling(User $user): bool
     {
-        $roles = $user->getRoleNames()->map(fn ($r) => mb_strtolower((string) $r))->all();
-        return in_array('saas owner', $roles, true) || in_array('platform admin', $roles, true);
+        return $user->hasFullAccess();
     }
 
     private function getOrCreateApiKey(User $user): ?string

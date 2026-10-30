@@ -35,6 +35,7 @@ package.json
 !/tests/Feature/PatronStatementBillTest.php
 !/tests/Feature/CrmLeadTest.php
 !/tests/Feature/SalesMobileApiTest.php
+!/tests/Feature/FullAccessRoleTest.php
 !/tests/Feature/ProductionSchemaRepairTest.php
 !/tests/Feature/LedgerReportOpeningBalanceTest.php
 !/tests/Feature/OpeningBalanceNarrationTest.php

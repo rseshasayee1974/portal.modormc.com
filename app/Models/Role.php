@@ -59,6 +59,18 @@ class Role extends SpatieRole
     const OFFICE_ADMIN        = 'OFFICE_ADMIN';
     const OPERATOR            = 'OPERATOR';
 
+    public function grantsFullAccess(): bool
+    {
+        // Codes are authoritative; names support older roles without a code.
+        $code = strtoupper(trim((string) $this->code));
+        if ($code === '') {
+            $code = strtoupper(str_replace(' ', '_', trim((string) $this->name)));
+            if ($code === 'SUPER_ADMINISTRATOR') $code = self::SUPER_ADMIN;
+        }
+
+        return in_array($code, [self::SAAS_OWNER, self::SUPER_ADMIN], true);
+    }
+
     protected static function boot()
     {
         parent::boot();

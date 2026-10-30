@@ -61,7 +61,7 @@ class PayslipApiController extends Controller
         $payslip = Payslip::with(['personnel', 'payrollPeriod', 'items'])->findOrFail($id);
 
         $isOwner = $personnel && $payslip->personnel_id === $personnel->id;
-        $isAdmin = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin');
+        $isAdmin = $user->hasFullAccess();
 
         if (!$isOwner && !$isAdmin) {
             return response()->json(['error' => 'Unauthorized access to this payslip.'], 403);
@@ -91,7 +91,7 @@ class PayslipApiController extends Controller
     public function exportEcr(Request $request)
     {
         $user = $request->user();
-        $isAdmin = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin');
+        $isAdmin = $user->hasFullAccess();
         if (!$isAdmin) {
             return response()->json(['error' => 'Unauthorized access. Compliance exports require administrative privileges.'], 403);
         }
@@ -222,7 +222,7 @@ class PayslipApiController extends Controller
     public function exportEsic(Request $request)
     {
         $user = $request->user();
-        $isAdmin = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin');
+        $isAdmin = $user->hasFullAccess();
         if (!$isAdmin) {
             return response()->json(['error' => 'Unauthorized access. Compliance exports require administrative privileges.'], 403);
         }

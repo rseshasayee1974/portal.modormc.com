@@ -22,7 +22,7 @@ class InstallCrmModule
                 'module' => 'CRM_LEAD', 'description' => ucfirst(strtolower($action)).' CRM leads', 'is_system' => true, 'updated_at' => now(),
             ]);
             $id = DB::table('mm_permissions')->where('name', $name)->where('guard_name', 'web')->value('id');
-            foreach (DB::table('mm_roles')->whereNull('deleted_at')->whereIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR', 'SALES_MANAGER'])->pluck('id') as $role) {
+            foreach (DB::table('mm_roles')->whereNull('deleted_at')->whereIn('code', ['SAAS_OWNER', 'SUPER_ADMIN'])->pluck('id') as $role) {
                 DB::table('mm_role_has_permissions')->insertOrIgnore(['role_id' => $role, 'permission_id' => $id]);
             }
         }

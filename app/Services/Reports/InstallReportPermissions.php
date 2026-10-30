@@ -32,7 +32,7 @@ class InstallReportPermissions
                             DB::table($table)->insertOrIgnore(array_replace((array) $grant, ['permission_id' => $permissionId]));
                         }
                     }
-                    foreach (DB::table('mm_roles')->whereNull('deleted_at')->whereIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'])->pluck('id') as $roleId) {
+                    foreach (DB::table('mm_roles')->whereNull('deleted_at')->whereIn('code', ['SAAS_OWNER', 'SUPER_ADMIN'])->pluck('id') as $roleId) {
                         DB::table('mm_role_has_permissions')->insertOrIgnore(['role_id' => $roleId, 'permission_id' => $permissionId]);
                     }
                 }

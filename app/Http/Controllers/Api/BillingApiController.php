@@ -40,9 +40,8 @@ class BillingApiController extends Controller
 
     private function authorizeBillingAccess(User $user): void
     {
-        $roles = $user->getRoleNames()->map(fn ($r) => mb_strtolower((string) $r))->all();
-        $allowed = in_array('saas owner', $roles, true) || in_array('platform admin', $roles, true);
-        abort_unless($allowed, 403, 'Only SaaS Owner or Platform Admin can access billing APIs.');
+        $allowed = $user->hasFullAccess();
+        abort_unless($allowed, 403, 'Only SaaS Owner or Super Admin can access billing APIs.');
     }
 
     private function resolveContext(Request $request, User $user): array

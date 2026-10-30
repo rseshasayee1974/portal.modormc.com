@@ -92,7 +92,7 @@ const IconMap = {
 };
 
 const page = usePage();
-const { can, isSuperAdmin } = usePermissions();
+const { can, hasFullAccess } = usePermissions();
 const activeEntity = computed(() => page.props.active_entity);
 const activePlant = computed(() => page.props.active_plant);
 
@@ -164,7 +164,7 @@ const switchEntity = async (entityId) => {
 
 const toggleFooterSuspension = async () => {
     if (!activeEntity.value) return;
-    if (activeEntity.value.is_suspended !== 0 && !isSuperAdmin.value) {
+    if (activeEntity.value.is_suspended !== 0 && !hasFullAccess.value) {
         alert("Action Denied:\nOnly a Super Administrator can reactivate a suspended organization.");
         return;
     }
@@ -591,7 +591,7 @@ const mobileMenuOpen = ref(false);
                                             <div class="border-t border-slate-200/50 my-2 mx-2" />
 
                                             <Link :href="route('entity-context.index')"
-                                                v-if="$page.props.user_role === 'Platform Admin' || $page.props.user_role === 'Saas Owner'"
+                                                v-if="$page.props.has_full_access === true"
                                                 class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
                                                 <div class="flex items-center justify-between w-full">
                                                     <div class="flex items-center gap-4">

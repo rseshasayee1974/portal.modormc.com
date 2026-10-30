@@ -34,11 +34,7 @@ class EntityController extends Controller
         $this->authorizeModule('menu');
 
         $user = Auth::user();
-        $isSuperUser = $user && method_exists($user, 'hasRole') && (
-            $user->hasRole('Saas Owner') || 
-            $user->hasRole('Platform Admin') || 
-            $user->hasRole('Super Admin')
-        );
+        $isSuperUser = $user && $user->hasFullAccess();
 
         $entities = $isSuperUser ? Entity::withTrashed()->get() : Entity::all();
 
@@ -177,7 +173,7 @@ class EntityController extends Controller
     public function restore($id)
     {
         $user = Auth::user();
-        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+        if (!$user || !$user->hasFullAccess()) {
             abort(403, 'Unauthorized.');
         }
 
@@ -190,7 +186,7 @@ class EntityController extends Controller
     public function forceDelete($id)
     {
         $user = Auth::user();
-        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+        if (!$user || !$user->hasFullAccess()) {
             abort(403, 'Unauthorized.');
         }
 

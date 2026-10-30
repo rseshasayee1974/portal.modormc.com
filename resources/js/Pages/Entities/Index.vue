@@ -36,7 +36,7 @@ const page = usePage();
 const store = useEntityStore();
 const toast = useToast();
 
-const isSuperAdmin = computed(() => (page.props as any).user_role === 'Super Administrator');
+const isSuperAdmin = computed(() => page.props.has_full_access === true);
 
 onMounted(() => {
     store.setEntities(props.entities);

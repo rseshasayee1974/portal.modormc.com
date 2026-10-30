@@ -17,7 +17,7 @@ class UpdateSiteRequest extends FormRequest
     protected function prepareForValidation()
     {
         $user = auth()->user();
-        $isPrivileged = $user && ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Administrator'));
+        $isPrivileged = $user && ($user->hasFullAccess());
 
         $mergeData = [];
 

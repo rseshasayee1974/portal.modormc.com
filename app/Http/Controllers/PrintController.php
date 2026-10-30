@@ -45,14 +45,7 @@ class PrintController extends Controller
             $invoice = \App\Models\Invoice::find($realId);
             if ($invoice) {
                 $user = auth()->user();
-                $isAdmin = $user && method_exists($user, 'hasRole') && (
-                    $user->hasRole('Saas Owner') || 
-                    $user->hasRole('Platform Admin') || 
-                    $user->hasRole('Super Admin') || 
-                    $user->hasRole('Admin') || 
-                    $user->hasRole('Super Administrator') ||
-                    $user->hasRole('Administrator') 
-                );
+                $isAdmin = $user && $user->hasFullAccess();
                 $forceParam = $request->query('force');
 
                 if ($isAdmin) {
