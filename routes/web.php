@@ -659,43 +659,6 @@ Route::middleware([
     });
     // 10. Finance & Accounting
     Route::prefix('finance')->group(function () {
-        Route::prefix('accounting')->name('accounting.')->middleware('throttle:120,1')->controller(\App\Http\Controllers\AccountingWorkspaceController::class)->group(function () {
-            Route::get('/', 'index')->name('index');
-            Route::get('/data', 'data')->name('data');
-            Route::get('/ledger', 'ledger')->name('ledger');
-            Route::get('/export', 'export')->name('export');
-            Route::get('/audit', 'audit')->name('audit');
-            Route::post('/accounts', 'account')->name('accounts.store');
-            Route::put('/accounts/{id}', 'account')->whereNumber('id')->name('accounts.update');
-            Route::post('/journals', 'journal')->name('journals.store');
-            Route::get('/journals/{id}', 'entry')->whereNumber('id')->name('journals.show');
-            Route::put('/journals/{id}', 'journal')->whereNumber('id')->name('journals.update');
-            Route::delete('/journals/{id}', 'delete')->whereNumber('id')->name('journals.delete');
-            Route::post('/journals/{id}/post', 'post')->whereNumber('id')->name('journals.post');
-            Route::post('/journals/{id}/reverse', 'reverse')->whereNumber('id')->name('journals.reverse');
-            Route::post('/periods', 'period')->name('periods');
-            Route::post('/tally/config', 'tallyConfig')->name('tally.config');
-            Route::post('/tally/connection', 'tallyConnection')->name('tally.connection');
-            Route::post('/tally/journals/{id}', 'tallyEnqueue')->whereNumber('id')->name('tally.enqueue');
-            Route::post('/tally/jobs/{id}/send', 'tallySend')->whereNumber('id')->name('tally.send');
-            Route::post('/tally/jobs/{id}/resolve', 'tallyResolve')->whereNumber('id')->name('tally.resolve');
-        });
-        Route::prefix('gst-compliance')->name('gst-compliance.')->controller(\App\Http\Controllers\GstComplianceController::class)->group(function () {
-            Route::get('/', 'index')->name('index');
-            Route::get('/data', 'data')->name('data');
-            Route::get('/audit', 'audit')->name('audit');
-            Route::get('/template', 'template')->name('template');
-            Route::get('/tally-export', 'tally')->name('tally');
-            Route::post('/imports', 'import')->name('imports');
-              Route::post('/imports/preview', 'preview')->middleware('throttle:30,1')->name('preview');
-            Route::post('/tally-inbound', 'inbound')->name('inbound');
-            Route::post('/classifications', 'classify')->name('classifications');
-            Route::post('/rules', 'rule')->name('rules');
-            Route::post('/snapshots', 'prepare')->name('snapshots');
-            Route::post('/reviews/{type}/{id}', 'review')->whereIn('type', ['rule','classification','snapshot','inbound'])->whereNumber('id')->name('review');
-            Route::get('/snapshots/{id}/export', 'export')->whereNumber('id')->name('export');
-        });
-
         Route::resource('accounts', AccountsController::class);
         Route::resource('accounttypes', AccountsTypeController::class);
         Route::get('ledgers/dropdown', [LedgerController::class, 'dropdown'])->name('ledgers.dropdown');

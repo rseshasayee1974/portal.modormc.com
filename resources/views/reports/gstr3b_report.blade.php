@@ -9,7 +9,6 @@
 </head>
 <body>
 @include('pdfs.partials._brand_header')
-<p style="border:1px solid #d6a522;padding:8px;color:#775500;">Draft book summary only. Input tax is not automatically eligible ITC. Verify reversals, RCM, interest and payment setoff through GST Reconciliation before filing.</p>
 
     <table class="header-table">
         <tr>
@@ -78,7 +77,7 @@
     </table>
 
     <!-- Table 4 ITC -->
-    <div class="table-section-title">Table 4: Provisional Book Input Tax (Review Required)</div>
+    <div class="table-section-title">Table 4: Details of Eligible Input Tax Credit (ITC)</div>
     <table class="data-table">
         <thead>
             <tr>
@@ -90,7 +89,7 @@
         </thead>
         <tbody>
             <tr class="font-bold" style="background-color: #f8fafc;">
-                <td colspan="4">(A) Book input tax — subject to eligibility and reversal review</td>
+                <td colspan="4">(A) ITC Available (whether in full or part)</td>
             </tr>
             <tr>
                 <td style="padding-left: 20px;">(1) Import of goods</td>
@@ -117,7 +116,7 @@
                 <td class="text-right">₹ {{ number_format($table4['isd_itc']['sgst'], 2) }}</td>
             </tr>
             <tr class="font-bold">
-                <td style="padding-left: 20px;">(5) Purchase bill input tax (not automatically eligible credit)</td>
+                <td style="padding-left: 20px;">(5) All other ITC (Purchase Bills Input Tax Credit)</td>
                 <td class="text-right">₹ {{ number_format($table4['other_itc']['igst'], 2) }}</td>
                 <td class="text-right">₹ {{ number_format($table4['other_itc']['cgst'], 2) }}</td>
                 <td class="text-right">₹ {{ number_format($table4['other_itc']['sgst'], 2) }}</td>

@@ -517,10 +517,6 @@ class PaymentController extends Controller
                         ->where('ref_id', $payment->id)
                         ->get()
                         ->each(function ($entry) {
-                            if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) {
-                                if (! \Illuminate\Support\Facades\DB::table('mm_accounting_journals')->where('reversal_of', $entry->id)->exists()) app(\App\Services\Finance\SourceJournalService::class)->reverse((int) $entry->plant_id, (int) auth()->id(), (int) $entry->id, now()->toDateString(), 'Payment cancelled through the payment workflow', 'payment-cancel:'.$entry->id);
-                                return;
-                            }
                             if (class_exists(\App\Models\JournalEntryLine::class)) {
                                 \App\Models\JournalEntryLine::where('journal_entry_id', $entry->id)->update([
                                     'is_deleted' => 1,

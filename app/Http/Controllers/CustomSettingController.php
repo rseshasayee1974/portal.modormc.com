@@ -75,6 +75,14 @@ class CustomSettingController extends Controller
             'remove_batch_sheet_logo' => ['sometimes', 'boolean'],
         ]);
         $settings = $request->input('settings', []);
+        // Multipart uploads encode numbers as strings; keep toggle settings numeric.
+        foreach (['manual_weight', 'weight_mandatory', 'with_inventory', 'camera', 'sheet_upload',
+            'hide_batch_form', 'target_to_actual', 'auto_carry_pump', 'print_delivery_ingredients',
+            'quotation_price_list'] as $key) {
+            if (array_key_exists($key, $settings)) {
+                $settings[$key] = $request->boolean('settings.' . $key) ? 1 : 0;
+            }
+        }
 
         $customSetting = CustomSetting::where('plant_id', $plantId)
             ->where('module_name', $module)
