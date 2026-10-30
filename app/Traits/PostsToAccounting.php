@@ -74,6 +74,10 @@ trait PostsToAccounting
 
             $ctx = $this->buildPostingContext();
 
+            $journalEntry = $this->createOrUpdateJournalHeader($ctx);
+
+            $journalEntry->lines()->delete();
+
             $lines = [];
             $lines[] = $this->buildPartnerLine($ctx);
 
@@ -83,17 +87,6 @@ trait PostsToAccounting
 
             $lines = array_merge($lines, $this->buildTaxLines($ctx));
             $this->addAdjustmentLines($lines, $ctx['isSales'], $ctx['invoiceNo']);
-
-            if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) {
-                $entry = app(\App\Services\Finance\SourceJournalService::class)->post((int) $ctx['plantId'], (int) (Auth::id() ?? $this->created_by), [
-                    'voucher_type' => $ctx['voucherType'], 'voucher_number' => $ctx['invoiceNo'], 'ref_module' => $ctx['refModule'], 'ref_id' => $this->id,
-                    'voucher_date' => substr((string) $ctx['invoiceDate'], 0, 10), 'posting_date' => substr((string) $ctx['invoiceDate'], 0, 10),
-                    'narration' => ucfirst($ctx['docType']).': '.$ctx['invoiceNo'].' | '.($ctx['partner']?->legal_name ?? 'Unknown Partner'), 'narration_label' => $ctx['narrationLabel'],
-                ], array_map(fn ($l) => array_merge($l, ['debit_amount' => (string) $l['debit_amount'], 'credit_amount' => (string) $l['credit_amount']]), $lines));
-                return JournalEntry::findOrFail($entry->id);
-            }
-            $journalEntry = $this->createOrUpdateJournalHeader($ctx);
-            $journalEntry->lines()->delete();
 
             [$totalDebit, $totalCredit] = $this->persistLines($journalEntry, $lines, $ctx['plantId']);
 

@@ -25,12 +25,6 @@ class Invoice extends Model implements Postable
 
     protected $table = 'mm_invoices';
 
-    public function delete()
-    {
-        // Cancellation and its accounting reversal must commit together.
-        return DB::transaction(fn () => parent::delete());
-    }
-
     protected $fillable = [
         'plant_id', 'partner_id', 'account_id', 
         'invoice_type', 'invoice_label', 'ref_id', 'ref_title',
@@ -219,10 +213,6 @@ class Invoice extends Model implements Postable
                 ->where('ref_id', $m->id)
                 ->get()
                 ->each(function($entry) {
-                    if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals') && strtoupper($entry->is_status) === 'POSTED' && ! $entry->trashed()) {
-                        if (! DB::table('mm_accounting_journals')->where('reversal_of', $entry->id)->exists()) app(\App\Services\Finance\SourceJournalService::class)->reverse((int) $entry->plant_id, (int) auth()->id(), (int) $entry->id, now()->toDateString(), 'Source invoice or bill cancelled through its business workflow', 'invoice-cancel:'.$entry->id);
-                        return;
-                    }
                     // Rename voucher number to avoid unique constraint violations on regeneration
                     // and mark as deleted for audit purposes.
                     $entry->updateQuietly([
@@ -322,7 +312,7 @@ class Invoice extends Model implements Postable
                  }
              }
         }
-            
+
         // A series belongs to a plant and prefix, even when several ledgers use it.
         // Only non-deleted invoices reserve a number in the series.
         $highest = 0;
@@ -406,28 +396,31 @@ class Invoice extends Model implements Postable
     {
         $items = $this->items()->withTrashed(false)->get();
 
-        $paise = fn ($v) => \App\Services\Gst\GstData::paise((string) ($v ?? '0'));
-        $decimal = fn (int $v) => \App\Services\Finance\AccountingMoney::decimal($v * 100);
-        $subtotal = 0; $itemDiscountTotal = 0; $taxAmount = 0;
-        foreach ($items as $item) {
-            $subtotal += $paise($item->subtotal);
-            $itemDiscountTotal += $paise($item->discount_amount);
-            $taxAmount += $paise($item->line_tax_amount);
+        $subtotal = $items->sum('subtotal');
+        $itemDiscountTotal = $items->sum('discount_amount');
+
+        $globalDiscount = 0;
+        if ($this->global_discount_type === '%') {
+            $globalDiscount = $subtotal * (($this->global_discount ?? 0) / 100);
+        } else {
+            $globalDiscount = $this->global_discount ?? 0;
         }
-        $globalDiscount = $this->global_discount_type === '%'
-            ? \App\Services\Finance\AccountingMoney::percentage($subtotal, (string) ($this->global_discount ?? '0'))
-            : $paise($this->global_discount);
-        $rawTotal = $subtotal + $taxAmount - $globalDiscount + $paise($this->adjustment) + $paise($this->shipping_charges);
-        $totalAmount = \App\Services\Finance\AccountingMoney::roundPaiseToRupee($rawTotal + $paise($this->round_off));
-        $roundOff = $totalAmount - $rawTotal;
+
+        $discountTotal  = $itemDiscountTotal + $globalDiscount;
+        $taxAmount      = $items->sum('line_tax_amount');
+
+        // Add shipping charges to total
+        $rawTotal       = $subtotal + $taxAmount - $globalDiscount + $this->adjustment + ($this->shipping_charges ?? 0);
+        $roundOff       = (float) ($this->round_off ?? 0);
+        $totalAmount    = (float)($rawTotal);
 
         $this->updateQuietly([
-            'subtotal'       => $decimal($subtotal),
-            'discount_total' => $decimal($itemDiscountTotal + $globalDiscount),
-            'tax_amount'     => $decimal($taxAmount),
-            'total_amount'   => $decimal($totalAmount),
-            'round_off'      => $decimal($roundOff),
-            'balance_amount' => $decimal(\App\Services\Finance\AccountingMoney::roundPaiseToRupee($totalAmount - $paise($this->paid_amount))),
+            'subtotal'       => $subtotal,
+            'discount_total' => $discountTotal,
+            'tax_amount'     => $taxAmount,
+            'total_amount'   => $totalAmount,
+            'round_off'      => $roundOff,
+            'balance_amount' => round($totalAmount - (float)($this->paid_amount ?? 0), 0),
         ]);
     }
 
@@ -653,7 +646,7 @@ class Invoice extends Model implements Postable
             $invoice->refresh();
             $invoice->round_off = $data['round_off'] ?? 0;
             $invoice->recalculate();
-            
+
             // For now, we still sync aggregated splits at invoice level using a weighted average or just the first item's rate for split naming
             // In a full implementation, we might want per-item splits, but let's stick to the invoice level for now as per syncTaxSplits signature.
             $invoice->syncTaxSplits($invoice['invoice_type']);
@@ -724,7 +717,7 @@ class Invoice extends Model implements Postable
     {
         $normalizedType = $this->accountingModule();
         $keptTaxIds = [];
-        
+
         // 1. Process line items individually to capture specific item IDs and accounts
         foreach ($this->items()->with('tax')->get() as $item) {
             if (!$item->tax_id || $item->line_tax_amount <= 0) continue;
@@ -793,7 +786,7 @@ class Invoice extends Model implements Postable
             $subtotalSum = 0;
             $taxSum = 0;
             $discountSum = 0;
-            
+
             $itemsData = [];
             foreach ($source->items as $item) {
                 if ($type === 'bill') {
@@ -805,7 +798,7 @@ class Invoice extends Model implements Postable
                     $discountType = data_get($item, 'discount_type');
                     $discountVal = (float) data_get($item, 'discount_amount');
                     $lineSubtotalBeforeDiscount = $qty * $priceUnit;
-                    
+
                     if ($discountType === '%') {
                         $lineDiscount = ($lineSubtotalBeforeDiscount * $discountVal) / 100;
                     } else {
@@ -817,9 +810,9 @@ class Invoice extends Model implements Postable
                             $lineDiscount = ($discountVal / $orderedQty) * $qty;
                         }
                     }
-                    
+
                     $lineSubtotal = $lineSubtotalBeforeDiscount - $lineDiscount;
-                    
+
                     // Recalculate tax
                     $taxRate = 0;
                     $taxId = data_get($item, 'tax_id');
@@ -829,7 +822,7 @@ class Invoice extends Model implements Postable
                             $taxRate = (float) $tax->tax_rate;
                         }
                     }
-                    
+
                     $lineTax = ($lineSubtotal * $taxRate) / 100;
                     $lineTotal = $lineSubtotal + $lineTax;
                 } else {
@@ -843,11 +836,11 @@ class Invoice extends Model implements Postable
                     $lineTotal = (float) data_get($item, 'price_total');
                     $taxId = data_get($item, 'tax_id');
                 }
-                
+
                 $subtotalSum += $lineSubtotal;
                 $taxSum += $lineTax;
                 $discountSum += $lineDiscount;
-                
+
                 $itemsData[] = [
                     'item_id'         => $item_id,
                     'item_name'       => data_get($item, 'product.title') ?? data_get($item, 'description'),
@@ -868,10 +861,10 @@ class Invoice extends Model implements Postable
             $subtotal = $type === 'bill' ? ($subtotalSum - $source->discount_amount) : (float)($source->amount_untaxed ?? $subtotalSum);
             $discountTotal = $type === 'bill' ? ($discountSum + $source->discount_amount) : (float)($source->discount_amount ?? 0);
             $taxAmount = $type === 'bill' ? $taxSum : (float)($source->amount_tax ?? $taxSum);
-            
+
             $adjustment = (float)($source->adjustment ?? 0);
             $shippingCharges = (float)($source->shipping_charges ?? 0);
-            
+
             if ($type === 'bill') {
                 $totalAmount = round($subtotal + $taxAmount + $shippingCharges + $adjustment, 2);
                 $roundOff = 0.0;
@@ -879,10 +872,10 @@ class Invoice extends Model implements Postable
                 $roundOff = (float) ($source->rounding_value ?? $source->round_off ?? 0);
                 $pumpCharges = (float) ($source->pump_charges ?? 0);
                 $passAmount = (float) ($source->pass_amount ?? 0);
-                
+
                 $sourceTotal = (float)($source->amount_total ?? $source->total_amount ?? 0);
                 $calcBeforeRound = ($subtotal + $taxAmount + $pumpCharges + $shippingCharges + $passAmount + $adjustment) - $discountTotal;
-                
+
                 if ($sourceTotal > 0) {
                     $totalAmount = round($sourceTotal, 2);
                     if ($roundOff == 0) {
@@ -944,7 +937,7 @@ class Invoice extends Model implements Postable
             }
 
             $invoice = self::create($invoiceHeaderData);
- 
+
             // 2. Create Invoice Items
             foreach ($itemsData as $itemData) {
                 $invoice->items()->create($itemData);
@@ -1060,17 +1053,17 @@ class Invoice extends Model implements Postable
 
     public function getSubtotalCents(): int
     {
-        return \App\Services\Gst\GstData::paise((string) ($this->subtotal ?? '0'));
+        return (int) round((float)($this->subtotal ?? 0) * 100);
     }
 
     public function getTaxTotalCents(): int
     {
-        return \App\Services\Gst\GstData::paise((string) ($this->tax_amount ?? '0'));
+        return (int) round((float)($this->tax_amount ?? 0) * 100);
     }
 
     public function getTotalAmountCents(): int
     {
-        return \App\Services\Gst\GstData::paise((string) ($this->total_amount ?? '0'));
+        return (int) round((float)($this->total_amount ?? 0) * 100);
     }
 
     /**
@@ -1084,12 +1077,11 @@ class Invoice extends Model implements Postable
         $module = $this->accountingModule();
 
         return OrderTax::query()
-            ->where('plant_id', $this->getPlantId())
             ->where('order_id', $this->id)
             ->where('order_type', $module)
             ->get()
             ->map(fn($row) => new TaxLineDTO(
-                amountCents: \App\Services\Gst\GstData::paise((string) ($row->amount ?? '0')),
+                amountCents: (int) round((float)($row->amount ?? 0) * 100),
                 accountId:   $row->account_id ? (int) $row->account_id : null,
                 taxName:     $row->name ?? 'Tax',
                 taxId:       $row->tax_id ? (int) $row->tax_id : null,
@@ -1116,10 +1108,10 @@ class Invoice extends Model implements Postable
         ];
 
         foreach ($map as $field => $cfg) {
-            $amountCents = $field === 'global_discount' && $this->global_discount_type === '%'
-                ? \App\Services\Finance\AccountingMoney::percentage($this->getSubtotalCents(), (string) ($this->{$field} ?? '0'))
-                : \App\Services\Gst\GstData::paise((string) ($this->{$field} ?? '0'));
-            if ($amountCents === 0) continue;
+            $value = (float)($this->{$field} ?? 0);
+            if (abs($value) < 0.01) continue;
+
+            $amountCents = (int) round($value * 100);
             if ($cfg['invert']) $amountCents = -$amountCents; // discount = negative
 
             $accountId = $resolver->resolve($plantId, $module, $cfg['key'], $cfg['label']);

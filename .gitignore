@@ -41,15 +41,8 @@ package.json
 !/tests/Feature/InwardDetailsTest.php
 !/tests/Feature/ConcreteQualityDropdownTest.php
 !/tests/Feature/PurchaseOrderTaxInclusiveTest.php
-!/tests/Feature/GstComplianceTest.php
-!/tests/Feature/AccountingPostingSafetyTest.php
-!/tests/Feature/AccountingWorkspaceTest.php
-!/tests/Frontend/
-/tests/Frontend/*
-!/tests/Frontend/accounting.test.mjs
 !/tests/Support/
 /tests/Support/*
-!/tests/Support/accounting-concurrent-worker.php
 !/tests/Standalone/
 /tests/Standalone/*
 !/tests/Standalone/register-reports.php

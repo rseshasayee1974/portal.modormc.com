@@ -26,7 +26,6 @@ class JournalEntryController extends Controller
      */
     public function index()
     {
-        if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) return redirect()->route('accounting.index', ['view' => 'journals']);
         $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
 
@@ -52,21 +51,6 @@ class JournalEntryController extends Controller
      */
     public function store(Request $request)
     {
-        if (\Illuminate\Support\Facades\Schema::hasTable('mm_accounting_journals')) {
-            $plant = app(\App\Services\PlantContextService::class)->requirePlantId();
-            $permissions = app(\App\Services\Gst\GstAccess::class)->forModule($request->user(), $plant, 'ACCOUNTING', \App\Services\Finance\AccountingWorkspace::ACTIONS);
-            abort_unless($permissions['CREATE'] && $permissions['POST'], 403, 'Accounting create and post permissions required');
-            $v = $request->validate(['request_key' => 'required|string|max:100', 'voucher_date' => 'required|date_format:Y-m-d', 'narration' => 'required|string', 'lines' => 'required|array|min:2']);
-            $service = app(\App\Services\Finance\AccountingWorkspace::class);
-            $entry = DB::transaction(function () use ($service, $request, $plant, $v) {
-                $j = $service->journal($plant, (int) $request->user()->id, [
-                    'request_key' => $v['request_key'], 'date' => $v['voucher_date'], 'reference' => $request->input('voucher_number') ?: $v['request_key'], 'narration' => $v['narration'],
-                    'lines' => array_map(fn ($l) => ['account_id' => $l['account_id'] ?? null, 'debit' => (string) ($l['debit_amount'] ?? '0'), 'credit' => (string) ($l['credit_amount'] ?? '0'), 'narration' => $l['line_narration'] ?? ''], $v['lines']),
-                ]);
-                return $service->post($plant, (int) $request->user()->id, (int) $j->id);
-            });
-            return response()->json(['message' => 'Journal posted', 'entry' => $entry], 201);
-        }
         $this->authorizeModule('create');
         $plantId = session('active_plant_id');
         $entityId = session('active_entity_id') ?: ($plantId ? Plant::find($plantId)?->entity_id : null);
@@ -228,7 +212,7 @@ class JournalEntryController extends Controller
     public function show($id)
     {
         $this->authorizeModule('menu');
-        $plantId = app(\App\Services\PlantContextService::class)->requirePlantId();
+        $plantId = session('active_plant_id');
 
         $entry = JournalEntry::with(['lines.ledger', 'lines.partner', 'creator', 'plant'])
             ->when($plantId, fn($q) => $q->where('plant_id', $plantId))
@@ -247,7 +231,6 @@ class JournalEntryController extends Controller
         $this->authorizeModule('delete');
         $plantId = session('active_plant_id');
         $entry = JournalEntry::where('plant_id', $plantId)->findOrFail($id);
-        abort_if(strtoupper($entry->is_status) === 'POSTED', 409, 'Posted journals cannot be deleted. Reverse them through Accounting.');
         abort_if(in_array($entry->ref_module, ['opening_balance', 'opening_balance_reversal']), 409, 'Opening entries are locked. Use Opening Balances to reverse the setup.');
         
         $entry->delete();
@@ -262,8 +245,7 @@ class JournalEntryController extends Controller
      */
     public function generateVoucherNumber(Request $request)
     {
-        $this->authorizeModule('show');
-        $plantId = app(\App\Services\PlantContextService::class)->requirePlantId();
+        $plantId = session('active_plant_id') ?? $request->input('plant_id');
         $voucherType = $request->input('voucher_type', 'Journal');
         $voucherId = $request->input('voucher_id');
         $voucherDate = $request->input('voucher_date', now()->toDateString());
