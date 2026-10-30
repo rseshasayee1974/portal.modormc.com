@@ -13,6 +13,7 @@ use App\Services\Mobile\QuotationCalculator;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,8 +41,13 @@ class CustomerPOController extends Controller
             throw $exception;
         } catch (Throwable $exception) {
             $reference = (string) Str::uuid();
+            $errorCode = $exception instanceof QueryException
+                ? (in_array((string) ($exception->errorInfo[0] ?? $exception->getCode()), ['42S22', '42S02'], true)
+                    ? 'PO_SCHEMA_MISMATCH' : 'PO_DATABASE_ERROR')
+                : ($exception instanceof \Error ? 'PO_RUNTIME_ERROR' : 'PO_UNEXPECTED_ERROR');
             Log::error('Customer PO API request failed.', [
                 'error_reference' => $reference,
+                'error_code' => $errorCode,
                 'operation' => $method,
                 'plant_id' => Access::plantId(),
                 'exception' => $exception,
@@ -59,6 +65,7 @@ class CustomerPOController extends Controller
             return response()->json([
                 'message' => 'Unable to '.$operation.'. Please try again or contact support with the error reference.',
                 'error_reference' => $reference,
+                'error_code' => $errorCode,
             ], 500);
         }
     }
