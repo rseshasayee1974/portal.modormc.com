@@ -55,7 +55,14 @@ class JournalEntry extends Model
 
         static::deleting(function ($entry) {
             if (in_array($entry->ref_module, ['opening_balance', 'opening_balance_reversal'])) {
-                throw new \LogicException('Opening entries cannot be deleted; reverse them through Opening Balances.');
+                // Keep the opening setup in sync when its journal is deleted directly.
+                OpeningBalanceBatch::where('journal_entry_id', $entry->id)->get()->each(function ($balance) {
+                    $balance->forceFill([
+                        'active_key' => null, 'status' => 'REMOVED',
+                        'deleted_by' => auth()->id(), 'deleted_at' => now(),
+                        'version' => $balance->version + 1,
+                    ])->save();
+                });
             }
             // Mass update lines to ensure is_deleted, deleted_by, and deleted_at are set
             $entry->lines()->update([

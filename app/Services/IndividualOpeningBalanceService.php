@@ -127,13 +127,16 @@ class IndividualOpeningBalanceService
                 'plant_id'=>$plant->id,'entity_id'=>$plant->entity_id,'voucher_type'=>'OPENING',
                 'voucher_number'=>'OBI/'.$record->id,'ref_module'=>'opening_balance','ref_id'=>$record->id,
                 'voucher_date'=>$date,'posting_date'=>$date,'narration'=>'Individual opening balance. '.$reason,
+                'narration_label'=>'Opening Balance',
                 'total_debit'=>$amount,'total_credit'=>$amount,'is_status'=>'POSTED','created_by'=>$userId,
             ]);
             $dr=$line['side']==='Dr';
             $entry->lines()->create(['plant_id'=>$plant->id,'account_id'=>$line['account_id'],
                 'partner_id'=>$line['partner_id'],'partner_type'=>$line['partner_id']?'Patron':null,
+                'narration_name'=>$line['partner_id']?'Party':'Ledger','narration_label'=>$entry->narration_label,
                 'debit_amount'=>$dr?$amount:0,'credit_amount'=>$dr?0:$amount,'line_narration'=>$line['reference'] ?? 'Opening balance','created_by'=>$userId]);
             $entry->lines()->create(['plant_id'=>$plant->id,'account_id'=>$data['clearing_account_id'],
+                'narration_name'=>'Opening Balance Clearing','narration_label'=>$entry->narration_label,
                 'debit_amount'=>$dr?0:$amount,'credit_amount'=>$dr?$amount:0,'line_narration'=>'Opening balance offset','created_by'=>$userId]);
             $record->update(['journal_entry_id'=>$entry->id,'posted_at'=>now()]);
         }

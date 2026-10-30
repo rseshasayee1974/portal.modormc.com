@@ -37,7 +37,6 @@ const production = computed(() => props.reportData?.production || { list: [], gr
 const pumpOps = computed(() => props.reportData?.pump_operations || { list: [] });
 const invoicing = computed(() => props.reportData?.invoicing || { list: [], purchase_bills_list: [] });
 const cashFlow = computed(() => props.reportData?.cash_flow || { receipts_list: [], payments_list: [] });
-const taxes = computed(() => props.reportData?.taxes || {});
 const pipeline = computed(() => props.reportData?.sales_pipeline || { quotations_list: [], sales_orders_list: [] });
 const procurement = computed(() => props.reportData?.procurement || { list: [] });
 
@@ -487,28 +486,8 @@ const filteredPayments = computed(() => {
 
             <!-- 6. SECTION 3: CASH FLOW & DAY BOOK -->
             <div v-if="activeSection === 'cash_flow'" class="p-4 space-y-6">
-                <!-- Tax & Cash Flow Highlights -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <!-- Output vs Input GST -->
-                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-1">
-                        <span class="text-[10px] font-bold uppercase text-slate-500 block">GST Reconciliation</span>
-                        <div class="flex items-center justify-between text-slate-700">
-                            <span>Output GST (Sales):</span>
-                            <span class="font-bold">{{ formatCurrency(taxes.total_output_tax) }}</span>
-                        </div>
-                        <div class="flex items-center justify-between text-slate-700">
-                            <span>Input GST (Purchase ITC):</span>
-                            <span class="font-bold text-emerald-700">{{ formatCurrency(taxes.total_input_tax) }}</span>
-                        </div>
-                        <div
-                            class="flex items-center justify-between pt-1 border-t border-slate-200 font-bold text-slate-900">
-                            <span>Net Tax Liability:</span>
-                            <span :class="taxes.net_tax_liability >= 0 ? 'text-slate-900' : 'text-emerald-700'">
-                                {{ formatCurrency(taxes.net_tax_liability) }}
-                            </span>
-                        </div>
-                    </div>
-
+                <!-- Cash Flow Highlights -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <!-- Collections Split -->
                     <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-1">
                         <span class="text-[10px] font-bold uppercase text-emerald-700 block">Receipts Mode

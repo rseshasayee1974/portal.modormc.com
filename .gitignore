@@ -37,6 +37,7 @@ package.json
 !/tests/Feature/SalesMobileApiTest.php
 !/tests/Feature/ProductionSchemaRepairTest.php
 !/tests/Feature/LedgerReportOpeningBalanceTest.php
+!/tests/Feature/OpeningBalanceNarrationTest.php
 !/tests/Feature/ErpMcpTest.php
 !/tests/Feature/BatchCreationSourceTest.php
 !/tests/Feature/ProductionReadCacheTest.php
