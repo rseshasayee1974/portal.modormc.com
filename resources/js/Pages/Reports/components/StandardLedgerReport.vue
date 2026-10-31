@@ -16,13 +16,17 @@ const props = defineProps({
 
 const isSinglePatron = computed(() => !!props.reportData?.is_single_patron);
 
+const openingDebit = computed(() => Number(props.reportData.opening_debit ?? Math.max(0, Number(props.reportData.opening_balance || 0))));
+const openingCredit = computed(() => Number(props.reportData.opening_credit ?? Math.max(0, -Number(props.reportData.opening_balance || 0))));
+
 const formattedStartDate = computed(() => formatDate(props.startDate));
 
 const transactionsWithBalance = computed(() => {
     if (!props.reportData || isSinglePatron.value) return [];
-    let balance = props.reportData.opening_balance;
+    let balance = Number(props.reportData.opening_balance || 0);
     return (props.reportData.transactions || []).map(trx => {
-        balance += (trx.debit - trx.credit);
+        balance = trx.running_balance != null ? Number(trx.running_balance)
+            : Math.round((balance + Number(trx.debit || 0) - Number(trx.credit || 0)) * 10000) / 10000;
         return { ...trx, running_balance: balance };
     });
 });
@@ -34,6 +38,10 @@ const transactionsWithBalance = computed(() => {
 
     <!-- Standard Double-Entry General Ledger -->
     <div v-else class="overflow-x-auto border border-slate-200 rounded">
+        <p v-if="reportData.balance_scope === 'all_ledgers'" class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+            All ledgers: opening debits and credits include both account balances and their balancing entries.
+            The balance column shows their net. Select an account ledger or customer/vendor to view its opening balance.
+        </p>
         <table class="w-full text-left border-collapse min-w-[1050px]">
             <thead>
                 <tr
@@ -56,14 +64,14 @@ const transactionsWithBalance = computed(() => {
                     <td class="py-3 px-4 font-bold text-[#1d2d3e] uppercase">Opening Balance</td>
                     <td class="py-3 px-4">---</td>
                     <td class="py-3 px-4">---</td>
-                    <td class="py-3 px-4 text-right font-bold">{{ reportData.opening_balance > 0 ?
-                        formatCurrency(reportData.opening_balance) : '---' }}</td>
-                    <td class="py-3 px-4 text-right font-bold">{{ reportData.opening_balance < 0 ?
-                        formatCurrency(Math.abs(reportData.opening_balance)) : '---' }}</td>
+                    <td class="py-3 px-4 text-right font-bold">{{ openingDebit > 0 ?
+                        formatCurrency(openingDebit) : '---' }}</td>
+                    <td class="py-3 px-4 text-right font-bold">{{ openingCredit > 0 ?
+                        formatCurrency(openingCredit) : '---' }}</td>
                     <td class="py-3 px-4 text-right font-bold text-[#1d2d3e]">
                         {{ formatCurrency(Math.abs(reportData.opening_balance)) }}
-                        <!-- <span class="text-[9px] ml-1 uppercase text-slate-400">{{ reportData.opening_balance >= 0 ? 'Dr'
-                            : 'Cr' }}</span> -->
+                        <span class="text-[9px] ml-1 uppercase text-slate-400">{{ reportData.opening_balance >= 0 ? 'Dr'
+                            : 'Cr' }}</span>
                     </td>
                 </tr>
 
@@ -89,7 +97,7 @@ const transactionsWithBalance = computed(() => {
                     </td>
                     <td class="py-3 px-4 text-right font-black text-slate-800 bg-slate-50/55">
                         {{ formatCurrency(Math.abs(trx.running_balance)) }}
-                        <!-- <span class="text-[9px] ml-1 uppercase text-slate-400">{{ trx.running_balance >= 0 ? 'Dr' : 'Cr' }}</span> -->
+                        <span class="text-[9px] ml-1 uppercase text-slate-400">{{ trx.running_balance >= 0 ? 'Dr' : 'Cr' }}</span>
                     </td>
                 </tr>
 

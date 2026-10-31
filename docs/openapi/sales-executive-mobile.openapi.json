@@ -2323,7 +2323,7 @@
         ],
         "summary": "Convert owned lead and create draft quotation",
         "operationId": "post_leads_lead_quotation",
-        "description": "Requires CRM_LEAD.CONVERT and an accessible lead with active mix_design_id. Automatically converts an eligible unconverted lead and creates a linked quotation. Do not send items or mix_design_id: these come from the lead. A previously linked quotation blocks another creation. Select a customer-linked site. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
+        "description": "Requires CRM_LEAD.CONVERT and an accessible lead. Automatically converts an eligible unconverted lead and creates a linked quotation. Supply items for multiple quotation lines, or use flat pricing fields with mix_design_id defaulting to the active lead mix design. Nested items take precedence over flat pricing fields. Sales executive and audit fields are assigned by the server. A previously linked quotation blocks another creation. Select a customer-linked site. Notification behavior: successful CrmLead, Quotation or SalesOrder model creation/business update/deletion generates a notification per eligible recipient. One request may emit multiple events; a no-op, rejected request or rolled-back transaction emits none. Follow-up activity and batch-schedule writes are not notification sources. Recipient needs active plant membership and PUSH_NOTIFICATION.RECEIVE. Payload contains subject_type, subject_id, operation, reference and selected changes; navigate using the subject identity.",
         "security": [
           {
             "bearerAuth": []
@@ -2419,6 +2419,105 @@
                   },
                   "notes": {
                     "type": "string"
+                  },
+                  "uom_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "nullable": true
+                  },
+                  "concrete_pump": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 100
+                  },
+                  "pump_rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "nullable": true
+                  },
+                  "discount_type": {
+                    "type": "string",
+                    "enum": [
+                      "amount",
+                      "%"
+                    ],
+                    "nullable": true
+                  },
+                  "discount": {
+                    "type": "number",
+                    "minimum": 0,
+                    "nullable": true
+                  },
+                  "reference": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 100
+                  },
+                  "patron_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Must match the lead customer."
+                  },
+                  "mix_design_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "mix_design_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "number"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "tax_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "uom_id": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "nullable": true
+                        },
+                        "concrete_pump": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 100
+                        },
+                        "pump_rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "discount_type": {
+                          "type": "string",
+                          "enum": [
+                            "amount",
+                            "%"
+                          ],
+                          "nullable": true
+                        },
+                        "discount": {
+                          "type": "number",
+                          "minimum": 0,
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "mix_design_id",
+                        "quantity",
+                        "rate"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
                   }
                 },
                 "required": []
@@ -3052,6 +3151,34 @@
                         "tax_id": {
                           "type": "integer",
                           "minimum": 1
+                        },
+                        "uom_id": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "nullable": true
+                        },
+                        "concrete_pump": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 100
+                        },
+                        "pump_rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "discount_type": {
+                          "type": "string",
+                          "enum": [
+                            "amount",
+                            "%"
+                          ],
+                          "nullable": true
+                        },
+                        "discount": {
+                          "type": "number",
+                          "minimum": 0,
+                          "nullable": true
                         }
                       },
                       "required": [
@@ -3062,6 +3189,11 @@
                     },
                     "minItems": 1,
                     "maxItems": 100
+                  },
+                  "reference": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 100
                   }
                 },
                 "required": [
@@ -3278,6 +3410,39 @@
                         "tax_id": {
                           "type": "integer",
                           "minimum": 1
+                        },
+                        "uom_id": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "nullable": true
+                        },
+                        "concrete_pump": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 100
+                        },
+                        "pump_rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "discount_type": {
+                          "type": "string",
+                          "enum": [
+                            "amount",
+                            "%"
+                          ],
+                          "nullable": true
+                        },
+                        "discount": {
+                          "type": "number",
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "id": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "description": "An active item belonging to this quotation."
                         }
                       },
                       "required": [
@@ -3287,16 +3452,16 @@
                       ]
                     },
                     "minItems": 1,
-                    "maxItems": 100
+                    "maxItems": 100,
+                    "description": "When supplied, replaces the saved item list. Include an existing item id to update it; omitted saved items are deleted. Omitted header fields and the omitted item list retain their saved values."
+                  },
+                  "reference": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 100
                   }
                 },
-                "required": [
-                  "patron_id",
-                  "site_id",
-                  "quote_date",
-                  "is_tax_inclusive",
-                  "items"
-                ]
+                "required": []
               },
               "example": {
                 "patron_id": 1,
@@ -3433,6 +3598,39 @@
                         "tax_id": {
                           "type": "integer",
                           "minimum": 1
+                        },
+                        "uom_id": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "nullable": true
+                        },
+                        "concrete_pump": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 100
+                        },
+                        "pump_rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "discount_type": {
+                          "type": "string",
+                          "enum": [
+                            "amount",
+                            "%"
+                          ],
+                          "nullable": true
+                        },
+                        "discount": {
+                          "type": "number",
+                          "minimum": 0,
+                          "nullable": true
+                        },
+                        "id": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "description": "An active item belonging to this quotation."
                         }
                       },
                       "required": [
@@ -3442,16 +3640,16 @@
                       ]
                     },
                     "minItems": 1,
-                    "maxItems": 100
+                    "maxItems": 100,
+                    "description": "When supplied, replaces the saved item list. Include an existing item id to update it; omitted saved items are deleted. Omitted header fields and the omitted item list retain their saved values."
+                  },
+                  "reference": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 100
                   }
                 },
-                "required": [
-                  "patron_id",
-                  "site_id",
-                  "quote_date",
-                  "is_tax_inclusive",
-                  "items"
-                ]
+                "required": []
               },
               "example": {
                 "patron_id": 1,
@@ -6542,6 +6740,112 @@
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/customer-pos/{customer_po}/convert-sales-order": {
+      "post": {
+        "tags": [
+          "Customer-pos"
+        ],
+        "summary": "Convert PO items to sales orders (run individually)",
+        "operationId": "post_customer_pos_customer_po_convert_sales_order",
+        "description": "Shared commercial endpoint: sales app /api/mobile/v1, main app /api/mobile with its own login token. X-Plant-Id is required. Records are personal to the logged-in user in the selected plant. Requires a personnel assignment for creation. Totals, references and ownership are server-managed. Completed POs and POs with orders or dispatches cannot be edited/deleted. PUT/PATCH require the full form. Run alternative conversion and deletion requests individually against disposable records. Requires distinct item IDs belonging to this PO and positive quantities within the remaining mix-design allocation. Locks the plant/PO, copies prices and creates scheduled orders. Captures the first order_id. Avoid also creating a direct order for the same allocation. Notification behavior: this request does not directly trigger a business push notification.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "customer_po",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Plant-Id",
+            "in": "header",
+            "required": true,
+            "description": "Accessible plant ID returned by login or GET /plants.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Decimal fields can serialize as strings. Lists use Laravel pagination under data. Schedule creation/update reuse the existing schedule response field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "item_id": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "quantity": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "item_id",
+                        "quantity"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "items"
+                ]
+              },
+              "example": {
+                "items": [
+                  {
+                    "item_id": 1,
+                    "quantity": 6
+                  }
+                ]
+              }
+            }
           }
         }
       }

@@ -2303,6 +2303,246 @@ class SalesMobileApiTest extends TestCase
             ->assertJsonStructure(['error_reference'])->assertJsonMissingPath('exception')->assertJsonMissingPath('trace');
     }
 
+    private function mobileDeleteFixtures(): array
+    {
+        DB::table('mm_crm_leads')->insert([
+            ['id' => 801, 'plant_id' => 1, 'created_by' => 1, 'assigned_to' => 1, 'status' => 'New'],
+            ['id' => 808, 'plant_id' => 1, 'created_by' => 1, 'assigned_to' => 1, 'status' => 'New'],
+        ]);
+        DB::table('mm_quotations')->insert(['id' => 802, 'plant_id' => 1, 'created_by' => 1, 'status' => 0]);
+        DB::table('mm_quotation_items')->insert(['id' => 802, 'quotation_id' => 802, 'mix_design_id' => 1, 'quantity' => 2]);
+        DB::table('mm_customer_pos')->insert(['id' => 803, 'plant_id' => 1, 'created_by' => 1, 'sales_executive_id' => 1, 'status' => 0]);
+        DB::table('mm_customer_po_items')->insert(['id' => 803, 'customer_po_id' => 803, 'mix_design_id' => 1, 'quantity' => 2]);
+        foreach ([804, 806] as $id) {
+            DB::table('mm_sales_orders')->insert(['id' => $id, 'plant_id' => 1, 'created_by' => 1, 'sales_executive_id' => 1, 'status' => 1, 'total_qty' => 10]);
+        }
+        DB::table('mm_concrete_batching_schedules')->insert(['id' => 805, 'plant_id' => 1, 'sales_order_id' => 806, 'status' => 'scheduled']);
+        DB::table('mm_crm_activities')->insert(['id' => 807, 'plant_id' => 1, 'lead_id' => 808, 'assigned_to' => 1, 'type' => 'Call']);
+        return [
+            ['leads/801', 'mm_crm_leads', 801], ['quotations/802', 'mm_quotations', 802],
+            ['customer-pos/803', 'mm_customer_pos', 803], ['orders/804', 'mm_sales_orders', 804],
+            ['batch-schedules/805', 'mm_concrete_batching_schedules', 805],
+        ];
+    }
+
+    public function test_mobile_delete_route_inventory_is_complete(): void
+    {
+        $actual = [];
+        foreach (Route::getRoutes() as $route) {
+            if (str_starts_with($route->uri(), 'api/mobile/') && in_array('DELETE', $route->methods(), true)) {
+                $actual[] = $route->uri();
+            }
+        }
+        $expected = ['api/mobile/users/{user}', 'api/mobile/v1/follow-ups/{activity}'];
+        foreach (['api/mobile', 'api/mobile/v1'] as $prefix) {
+            foreach (['leads/{lead}', 'quotations/{quotation}', 'customer-pos/{customer_po}', 'orders/{order}', 'batch-schedules/{schedule}'] as $path) {
+                $expected[] = $prefix.'/'.$path;
+            }
+        }
+        sort($expected);
+        sort($actual);
+        $this->assertSame($expected, $actual);
+    }
+
+    public function test_mobile_delete_success_cascades_audit_and_repeat_without_payload(): void
+    {
+        $fixtures = $this->mobileDeleteFixtures();
+        DB::table('mm_roles')->where('id', 1)->update(['code' => 'ADMINISTRATOR']);
+        $mainToken = User::find(1)->createToken('delete-test', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $this->withHeaders(['Authorization' => 'Bearer '.($prefix === '/api/mobile' ? $mainToken : $this->token)]);
+            foreach ($fixtures as [$path, $table, $id]) {
+                DB::table($table)->where('id', $id)->update(['deleted_at' => null]);
+                if ($id === 802 || $id === 803) {
+                    DB::table($id === 802 ? 'mm_quotation_items' : 'mm_customer_po_items')->where('id', $id)->update(['deleted_at' => null]);
+                }
+                $this->deleteJson($prefix.'/'.$path)->assertOk()->assertJsonPath('success', true);
+                $this->assertSoftDeleted($table, ['id' => $id]);
+                $this->assertDatabaseHas($table, ['id' => $id, 'deleted_by' => 1]);
+                $this->deleteJson($prefix.'/'.$path)->assertNotFound();
+            }
+            $this->assertSoftDeleted('mm_quotation_items', ['id' => 802]);
+            $this->assertSoftDeleted('mm_customer_po_items', ['id' => 803]);
+        }
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token]);
+        $this->deleteJson('/api/mobile/v1/follow-ups/807')->assertOk()->assertJsonPath('success', true);
+        $this->assertSoftDeleted('mm_crm_activities', ['id' => 807]);
+        $this->deleteJson('/api/mobile/v1/follow-ups/807')->assertNotFound();
+    }
+
+    public function test_mobile_delete_missing_malformed_foreign_and_authentication_boundaries(): void
+    {
+        $fixtures = $this->mobileDeleteFixtures();
+        DB::table('mm_roles')->where('id', 1)->update(['code' => 'ADMINISTRATOR']);
+        $mainToken = User::find(1)->createToken('delete-boundaries', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $auth = 'Bearer '.($prefix === '/api/mobile' ? $mainToken : $this->token);
+            foreach ($fixtures as [$path, $table, $id]) {
+                $url = $prefix.'/'.$path;
+                $this->withHeaders(['Authorization' => ''])->deleteJson($url)->assertUnauthorized();
+                $this->withHeaders(['Authorization' => 'Bearer invalid'])->deleteJson($url)->assertUnauthorized();
+                $this->withHeaders(['Authorization' => $auth, 'X-Plant-Id' => ''])->deleteJson($url)->assertStatus(422);
+                $this->withHeaders(['X-Plant-Id' => '2'])->deleteJson($url)->assertForbidden();
+                $this->withHeaders(['X-Plant-Id' => '1']);
+                DB::table($table)->where('id', $id)->update(['plant_id' => 2]);
+                $this->deleteJson($url)->assertNotFound();
+                DB::table($table)->where('id', $id)->update(['plant_id' => 1]);
+                $base = substr($url, 0, strrpos($url, '/') + 1);
+                $this->deleteJson($base.'999999')->assertNotFound();
+                $this->deleteJson($base.'invalid')->assertNotFound();
+                $this->assertDatabaseHas($table, ['id' => $id, 'deleted_at' => null]);
+            }
+        }
+    }
+
+    public function test_mobile_delete_lifecycle_guards_preserve_records_in_both_apps(): void
+    {
+        $this->mobileDeleteFixtures();
+        DB::table('mm_roles')->where('id', 1)->update(['code' => 'ADMINISTRATOR']);
+        $mainToken = User::find(1)->createToken('delete-guards', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $this->withHeaders(['Authorization' => 'Bearer '.($prefix === '/api/mobile' ? $mainToken : $this->token)]);
+            DB::table('mm_crm_leads')->where('id', 801)->update(['converted_at' => now()]);
+            $this->deleteJson($prefix.'/leads/801')->assertUnprocessable();
+            foreach ([1, 2] as $status) {
+                DB::table('mm_quotations')->where('id', 802)->update(['status' => $status]);
+                $this->deleteJson($prefix.'/quotations/802')->assertUnprocessable();
+            }
+            DB::table('mm_quotations')->where('id', 802)->update(['status' => 0, 'is_customer_po' => 1]);
+            $this->deleteJson($prefix.'/quotations/802')->assertUnprocessable();
+            DB::table('mm_customer_pos')->where('id', 803)->update(['status' => 2]);
+            $this->deleteJson($prefix.'/customer-pos/803')->assertUnprocessable();
+            DB::table('mm_customer_pos')->where('id', 803)->update(['status' => 1]);
+            DB::table('mm_sales_orders')->where('id', 806)->update(['customer_po_id' => 803]);
+            $this->deleteJson($prefix.'/customer-pos/803')->assertUnprocessable();
+            foreach ([3, 4] as $status) {
+                DB::table('mm_sales_orders')->where('id', 804)->update(['status' => $status]);
+                $this->deleteJson($prefix.'/orders/804')->assertUnprocessable();
+            }
+            DB::table('mm_sales_orders')->where('id', 804)->update(['status' => 1]);
+            foreach ([['batch_id' => 9], ['dispatch_id' => 9], ['status' => 'completed']] as $blocked) {
+                DB::table('mm_concrete_batching_schedules')->where('id', 805)->update(['batch_id' => null, 'dispatch_id' => null, 'status' => 'scheduled', ...$blocked]);
+                $this->deleteJson($prefix.'/batch-schedules/805')->assertUnprocessable();
+            }
+            DB::table('mm_concrete_batching_schedules')->where('id', 805)->update(['sales_order_id' => 804]);
+            $this->deleteJson($prefix.'/orders/804')->assertUnprocessable();
+            DB::table('mm_concrete_batching_schedules')->where('id', 805)->update(['sales_order_id' => 806]);
+            foreach (['mm_batches', 'mm_dispatches'] as $table) {
+                $child = DB::table($table)->insertGetId(['plant_id' => 1, 'sales_order_id' => 804]);
+                $this->deleteJson($prefix.'/orders/804')->assertUnprocessable();
+                DB::table($table)->where('id', $child)->delete();
+            }
+            foreach (['mm_crm_leads' => 801, 'mm_quotations' => 802, 'mm_customer_pos' => 803, 'mm_sales_orders' => 804, 'mm_concrete_batching_schedules' => 805] as $table => $id) {
+                $this->assertDatabaseHas($table, ['id' => $id, 'deleted_at' => null]);
+            }
+        }
+    }
+
+    public function test_mobile_delete_followup_ownership_and_lead_delete_permissions(): void
+    {
+        $this->mobileDeleteFixtures();
+        DB::table('mm_crm_activities')->where('id', 807)->update(['assigned_to' => 2]);
+        $this->deleteJson('/api/mobile/v1/follow-ups/807')->assertNotFound();
+        DB::table('mm_crm_activities')->where('id', 807)->update(['assigned_to' => 1, 'plant_id' => 2]);
+        $this->deleteJson('/api/mobile/v1/follow-ups/807')->assertNotFound();
+        DB::table('mm_crm_activities')->where('id', 807)->update(['plant_id' => 1]);
+        DB::table('mm_crm_leads')->where('id', 801)->update(['created_by' => 2]);
+        $this->deleteJson('/api/mobile/v1/leads/801')->assertNotFound();
+        DB::table('mm_crm_leads')->where('id', 801)->update(['created_by' => 1]);
+        $permission = DB::table('mm_permissions')->where('name', 'CRM_LEAD.DELETE')->value('id');
+        DB::table('mm_role_has_permissions')->where('role_id', 1)->where('permission_id', $permission)->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        foreach (['leads/801', 'follow-ups/807'] as $path) {
+            $this->deleteJson('/api/mobile/v1/'.$path)->assertForbidden();
+        }
+        $this->assertDatabaseHas('mm_crm_leads', ['id' => 801, 'deleted_at' => null]);
+        $this->assertDatabaseHas('mm_crm_activities', ['id' => 807, 'deleted_at' => null]);
+    }
+
+    public function test_mobile_delete_user_authorization_membership_cleanup_and_authentication(): void
+    {
+        DB::table('mm_users')->insert(['id' => 301, 'username' => 'Delete target', 'email' => 'delete@example.test', 'is_active' => 1]);
+        DB::table('mm_entity_users')->insert(['user_id' => 301, 'entity_id' => 1, 'plant_id' => 1, 'role_id' => 1]);
+        $url = '/api/mobile/users/301';
+        $this->withHeaders(['Authorization' => ''])->deleteJson($url)->assertUnauthorized();
+        $this->withHeaders(['Authorization' => 'Bearer invalid'])->deleteJson($url)->assertUnauthorized();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token])->deleteJson($url)->assertForbidden();
+        $this->assertDatabaseHas('mm_users', ['id' => 301, 'deleted_at' => null]);
+        $this->makeReviewerSystemAdmin();
+        $this->deleteJson($url)->assertOk()->assertJsonPath('success', true);
+        $this->assertSoftDeleted('mm_users', ['id' => 301]);
+        $this->assertSoftDeleted('mm_entity_users', ['user_id' => 301]);
+        $this->deleteJson($url)->assertNotFound();
+        $this->deleteJson('/api/mobile/users/999999')->assertNotFound();
+    }
+
+    public function test_mobile_delete_followup_authentication_missing_ids_and_parent_ownership(): void
+    {
+        $this->mobileDeleteFixtures();
+        $url = '/api/mobile/v1/follow-ups/807';
+        $this->withHeaders(['Authorization' => ''])->deleteJson($url)->assertUnauthorized();
+        $this->withHeaders(['Authorization' => 'Bearer invalid'])->deleteJson($url)->assertUnauthorized();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => ''])->deleteJson($url)->assertUnprocessable();
+        $this->withHeaders(['X-Plant-Id' => '2'])->deleteJson($url)->assertForbidden();
+        $this->withHeaders(['X-Plant-Id' => '1']);
+        $this->deleteJson('/api/mobile/v1/follow-ups/999999')->assertNotFound();
+        $this->deleteJson('/api/mobile/v1/follow-ups/invalid')->assertNotFound();
+        DB::table('mm_crm_leads')->where('id', 808)->update(['created_by' => 2]);
+        $this->deleteJson($url)->assertNotFound();
+        DB::table('mm_crm_leads')->where('id', 808)->update(['created_by' => 1]);
+        DB::table('mm_crm_activities')->where('id', 807)->update(['type' => 'System']);
+        $this->deleteJson($url)->assertNotFound();
+        DB::table('mm_crm_activities')->where('id', 807)->update(['type' => 'Call']);
+        DB::table('mm_crm_leads')->where('id', 808)->update(['deleted_at' => now()]);
+        $this->deleteJson($url)->assertNotFound();
+        $this->assertDatabaseHas('mm_crm_activities', ['id' => 807, 'deleted_at' => null]);
+    }
+
+    public function test_mobile_delete_main_app_admin_permissions_and_sales_ownership(): void
+    {
+        $fixtures = $this->mobileDeleteFixtures();
+        $mainToken = User::find(1)->createToken('delete-admin-gate', ['*'])->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$mainToken]);
+        $this->deleteJson('/api/mobile/leads/801')->assertForbidden();
+        $this->deleteJson('/api/mobile/quotations/802')->assertForbidden();
+        DB::table('mm_roles')->where('id', 1)->update(['code' => 'ADMINISTRATOR']);
+        foreach (['CRM_LEAD.DELETE' => 'leads/801', 'QUOTATION.DELETE' => 'quotations/802'] as $permission => $path) {
+            $id = DB::table('mm_permissions')->where('name', $permission)->value('id');
+            DB::table('mm_role_has_permissions')->where('role_id', 1)->where('permission_id', $id)->delete();
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+            $this->deleteJson('/api/mobile/'.$path)->assertForbidden();
+            DB::table('mm_role_has_permissions')->insert(['role_id' => 1, 'permission_id' => $id]);
+        }
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        DB::table('mm_roles')->where('id', 1)->update(['code' => 'SALES_EXECUTIVE']);
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token]);
+        foreach ($fixtures as [$path, $table, $id]) {
+            if ($id === 805) {
+                DB::table('mm_sales_orders')->where('id', 806)->update(['sales_executive_id' => 2]);
+            } else {
+                DB::table($table)->where('id', $id)->update(in_array($id, [801, 802]) ? ['created_by' => 2] : ['sales_executive_id' => 2]);
+            }
+            $this->deleteJson('/api/mobile/v1/'.$path)->assertNotFound();
+            $this->assertDatabaseHas($table, ['id' => $id, 'deleted_at' => null]);
+        }
+    }
+
+    public function test_mobile_delete_customer_po_unlinks_quotation_in_both_apps(): void
+    {
+        $this->mobileDeleteFixtures();
+        DB::table('mm_roles')->where('id', 1)->update(['code' => 'ADMINISTRATOR']);
+        $mainToken = User::find(1)->createToken('delete-po-link', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
+            $this->withHeaders(['Authorization' => 'Bearer '.($prefix === '/api/mobile' ? $mainToken : $this->token)]);
+            DB::table('mm_quotations')->where('id', 802)->update(['status' => 2, 'is_customer_po' => 1]);
+            DB::table('mm_customer_pos')->where('id', 803)->update(['quotation_id' => 802, 'deleted_at' => null]);
+            DB::table('mm_customer_po_items')->where('id', 803)->update(['deleted_at' => null]);
+            $this->deleteJson($prefix.'/customer-pos/803')->assertOk();
+            $this->assertDatabaseHas('mm_quotations', ['id' => 802, 'is_customer_po' => 0, 'deleted_at' => null]);
+            $this->assertSoftDeleted('mm_customer_po_items', ['id' => 803]);
+        }
+    }
+
     public function test_mobile_user_management_valid_crud_and_invalid_input(): void
     {
         Notification::fake();
