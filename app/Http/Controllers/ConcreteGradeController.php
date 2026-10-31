@@ -54,12 +54,8 @@ class ConcreteGradeController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|distinct|exists:mm_products,id',
             'items.*.quantity' => 'required|numeric',
-<<<<<<< HEAD
-            'items.*.display_order' => 'nullable|integer|min:0|max:4294967295',
-=======
         ], [
             'items.*.product_id.distinct' => 'This material is selected more than once. Choose a different material or remove the duplicate row.',
->>>>>>> c0f44f6c87c8babc04e9bb1155552845e92dd86e
         ]);
 
         DB::transaction(function () use ($validated, $plantId) {
@@ -109,12 +105,8 @@ class ConcreteGradeController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|distinct|exists:mm_products,id',
             'items.*.quantity' => 'required|numeric',
-<<<<<<< HEAD
-            'items.*.display_order' => 'nullable|integer|min:0|max:4294967295',
-=======
         ], [
             'items.*.product_id.distinct' => 'This material is selected more than once. Choose a different material or remove the duplicate row.',
->>>>>>> c0f44f6c87c8babc04e9bb1155552845e92dd86e
         ]);
 
         DB::transaction(function () use ($validated, $concretegrade, $plantId) {

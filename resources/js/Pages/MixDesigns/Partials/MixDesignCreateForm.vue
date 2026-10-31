@@ -239,7 +239,11 @@ const submit = () => {
                             </thead>
                             <tbody>
                                 <tr v-for="(item, index) in form.items" :key="index">
-                                    <td><BaseInputNumber v-model="item.display_order" :min="0" :max="4294967295" :maxFractionDigits="0" :useGrouping="false" :error="form.errors[`items.${index}.display_order`]" /></td>
+                                    <td>
+                                        <BaseInputNumber v-model="item.display_order" :min="0" :max="4294967295"
+                                            :maxFractionDigits="0" :useGrouping="false"
+                                            :error="form.errors[`items.${index}.display_order`]" />
+                                    </td>
                                     <td>
                                         <BaseSelect v-model="item.product_id" :options="productOptions"
                                             optionLabel="label" optionValue="value" filter placeholder="Select Material"
@@ -278,12 +282,8 @@ const submit = () => {
                             </tbody>
                             <tfoot>
                                 <tr class="bg-slate-50/80 border-t border-slate-200">
-<<<<<<< HEAD
-                                    <td colspan="3" class="text-right text-[11px] font-black text-slate-500 uppercase px-3 py-2.5">
-=======
                                     <td colspan="2"
                                         class="text-right text-[11px] font-black text-slate-500 uppercase px-3 py-2.5">
->>>>>>> c0f44f6c87c8babc04e9bb1155552845e92dd86e
                                         Total Qty:
                                     </td>
                                     <td class="text-right font-black font-mono text-indigo-600 text-xs px-2 py-2.5">

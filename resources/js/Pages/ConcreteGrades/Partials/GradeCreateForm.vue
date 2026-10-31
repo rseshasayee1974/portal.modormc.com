@@ -287,12 +287,8 @@ const submit = () => {
                                 </tbody>
                                 <tfoot>
                                     <tr class="bg-slate-50">
-<<<<<<< HEAD
-                                        <td colspan="2" class="text-[10px] font-bold uppercase text-slate-400 text-right">Total Batch Weight:</td>
-=======
                                         <td class="text-[10px] font-bold uppercase text-slate-400 text-right">Total
                                             Batch Weight:</td>
->>>>>>> c0f44f6c87c8babc04e9bb1155552845e92dd86e
                                         <td class="text-right font-black text-indigo-600 text-sm">
                                             {{form.items.reduce((sum, i) => sum + Number(i.quantity || 0),
                                                 0).toFixed(0)}} Kg
