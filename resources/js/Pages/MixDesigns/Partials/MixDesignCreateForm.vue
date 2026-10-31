@@ -36,7 +36,7 @@ const unitOptions = computed(() => (props.units || []).map(u => ({ label: u.unit
 const typeOptions = computed(() => (props.designTypes || []).map(t => ({ label: t.name, value: t.name })));
 const fallbackUomId = computed(() => props.defaultUomId ?? props.units?.[0]?.id ?? null);
 const defaultKgsUomId = computed(() => {
-    const kgs = props.units?.find((u: any) => 
+    const kgs = props.units?.find((u: any) =>
         ['KGS', 'KG', 'KILOGRAMS', 'KILOGRAM'].includes(String(u.unit_code || u.unit_name).toUpperCase())
     );
     return kgs ? kgs.id : fallbackUomId.value;
@@ -142,7 +142,7 @@ const submit = () => {
             if (!item.product_id) { form.setError(`items.${i}.product_id`, 'Material required.'); hasErrors = true; }
             if (!item.uom_id) { form.setError(`items.${i}.uom_id`, 'UOM required.'); hasErrors = true; }
             // if (!item.actual_quantity || item.actual_quantity <= 0) { form.setError(`items.${i}.actual_quantity`, 'Qty > 0'); hasErrors = true; }
-             if (!item.cross_quantity || item.cross_quantity <= 0) { form.setError(`items.${i}.cross_quantity`, 'Qty > 0'); hasErrors = true; }
+            //  if (!item.cross_quantity || item.cross_quantity <= 0) { form.setError(`items.${i}.cross_quantity`, 'Qty > 0'); hasErrors = true; }
             item.actual_quantity = item.cross_quantity;
         });
     }
@@ -167,8 +167,10 @@ const submit = () => {
                     <BeakerIcon class="w-5 h-5 text-indigo-500" />
                 </div>
                 <div class="text-left">
-                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">{{ initialDesign ? 'Duplicate Mix Design' : 'Create New Mix Design' }}</p>
-                    <p class="text-[11px] text-gray-400 font-medium mt-0.5">{{ initialDesign ? 'Review and create a copy of the selected mix design' : 'Define ingredient matrix, rates and partner assignment' }}</p>
+                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">{{ initialDesign ? `Duplicate
+                        Mix Design` : `Create New Mix Design` }}</p>
+                    <p class="text-[11px] text-gray-400 font-medium mt-0.5">{{ initialDesign ? `Review and create a copy
+                        of the selected mix design` : `Define ingredient matrix, rates and partner assignment` }}</p>
                 </div>
             </div>
             <div class="create-panel__toggle" :class="{ 'create-panel__toggle--open': isOpen }">
@@ -179,16 +181,23 @@ const submit = () => {
         <div class="create-panel__body" v-show="isOpen">
             <div class="grid grid-cols-12 gap-6 mb-8">
                 <div class="col-span-12 lg:col-span-4">
-                    <div class="section-title"><VariableIcon class="w-3.5 h-3.5" /><span>Identification</span></div>
+                    <div class="section-title">
+                        <VariableIcon class="w-3.5 h-3.5" /><span>Identification</span>
+                    </div>
                     <div class="space-y-4">
                         <div>
-                            <BaseSelect v-model="form.partner_id" :options="partnerOptions" optionLabel="label" optionValue="value" filter placeholder="Select Partner *" fluid />
+                            <BaseSelect v-model="form.partner_id" :options="partnerOptions" optionLabel="label"
+                                optionValue="value" filter placeholder="Select Partner *" fluid />
                             <small v-if="form.errors.partner_id" class="err-msg">{{ form.errors.partner_id }}</small>
                         </div>
-                        <BaseInput v-model="form.design_name" label="Design Name *" placeholder="e.g. M25 Standard Pump" :error="form.errors.design_name" />
-                        <BaseInput v-model="form.design_code" label="Internal Code" placeholder="DM-001" :error="form.errors.design_code" />
+                        <BaseInput v-model="form.design_name" label="Design Name *" placeholder="e.g. M25 Standard Pump"
+                            :error="form.errors.design_name" />
+                        <BaseInput v-model="form.design_code" label="Internal Code" placeholder="DM-001"
+                            :error="form.errors.design_code" />
                         <div>
-                            <BaseSelect v-model="form.design_type" :options="typeOptions" optionLabel="label" optionValue="value" @change="handleGradeChange" filter placeholder="Concrete Grade" label="Concrete Grade" fluid />
+                            <BaseSelect v-model="form.design_type" :options="typeOptions" optionLabel="label"
+                                optionValue="value" @change="handleGradeChange" filter placeholder="Concrete Grade"
+                                label="Concrete Grade" fluid />
                         </div>
                         <!-- <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -202,7 +211,9 @@ const submit = () => {
                 <!-- Ingredient Matrix -->
                 <div class="col-span-12 lg:col-span-8">
                     <div class="flex justify-between items-center mb-3">
-                        <div class="section-title"><TableCellsIcon class="w-3.5 h-3.5" /><span>Ingredient Matrix (per 1 m³)</span></div>
+                        <div class="section-title">
+                            <TableCellsIcon class="w-3.5 h-3.5" /><span>Ingredient Matrix (per 1 m³)</span>
+                        </div>
                         <button type="button" @click="addItem" class="add-btn-mini">
                             <PlusIcon class="w-3 h-3" /><span>Add Row</span>
                         </button>
@@ -225,20 +236,28 @@ const submit = () => {
                             <tbody>
                                 <tr v-for="(item, index) in form.items" :key="index">
                                     <td>
-                                        <BaseSelect v-model="item.product_id" :options="productOptions" optionLabel="label" optionValue="value" filter placeholder="Select Material" fluid />
-                                        <small v-if="form.errors[`items.${index}.product_id`]" class="err-msg">{{ form.errors[`items.${index}.product_id`] }}</small>
+                                        <BaseSelect v-model="item.product_id" :options="productOptions"
+                                            optionLabel="label" optionValue="value" filter placeholder="Select Material"
+                                            fluid />
+                                        <small v-if="form.errors[`items.${index}.product_id`]" class="err-msg">{{
+                                            form.errors[`items.${index}.product_id`] }}</small>
                                     </td>
                                     <td>
-                                        <BaseSelect v-model="item.uom_id" :options="unitOptions" optionLabel="label" optionValue="value" placeholder="UOM" fluid />
-                                        <small v-if="form.errors[`items.${index}.uom_id`]" class="err-msg">{{ form.errors[`items.${index}.uom_id`] }}</small>
+                                        <BaseSelect v-model="item.uom_id" :options="unitOptions" optionLabel="label"
+                                            optionValue="value" placeholder="UOM" fluid />
+                                        <small v-if="form.errors[`items.${index}.uom_id`]" class="err-msg">{{
+                                            form.errors[`items.${index}.uom_id`] }}</small>
                                     </td>
                                     <!-- <td>
                                         <BaseInputNumber v-model="item.cross_quantity" :readonly="item.cross_quantity === 0" placeholder="0.0000" fluid :inputClass="'text-right'" />
                                         <small v-if="form.errors[`items.${index}.cross_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.cross_quantity`] }}</small>
                                     </td> -->
                                     <td>
-                                        <BaseInputNumber v-model="item.cross_quantity" :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
-                                        <small v-if="form.errors[`items.${index}.cross_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.cross_quantity`] }}</small>
+                                        <BaseInputNumber v-model="item.cross_quantity" :minFractionDigits="3"
+                                            placeholder="0.0000" fluid :inputClass="'text-right'" />
+                                        <small v-if="form.errors[`items.${index}.cross_quantity`]"
+                                            class="err-msg text-right block">{{
+                                                form.errors[`items.${index}.cross_quantity`] }}</small>
                                     </td>
                                     <!-- <td>
                                         <BaseInputNumber v-model="item.rate" :minFractionDigits="2" placeholder="0.00" fluid :inputClass="'text-right'" />
@@ -247,17 +266,22 @@ const submit = () => {
                                         ₹{{ ((item.cross_quantity || 0) * (item.rate || 0)).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                     </td> -->
                                     <td>
-                                        <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" class="!text-red-400 hover:!text-red-600" />
+                                        <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1"
+                                            class="!text-red-400 hover:!text-red-600" />
                                     </td>
                                 </tr>
                             </tbody>
                             <tfoot>
                                 <tr class="bg-slate-50/80 border-t border-slate-200">
-                                    <td colspan="2" class="text-right text-[11px] font-black text-slate-500 uppercase px-3 py-2.5">
+                                    <td colspan="2"
+                                        class="text-right text-[11px] font-black text-slate-500 uppercase px-3 py-2.5">
                                         Total Qty:
                                     </td>
                                     <td class="text-right font-black font-mono text-indigo-600 text-xs px-2 py-2.5">
-                                        {{ totalGrossQty.toLocaleString(APP_LOCALE, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }}
+                                        {{ totalGrossQty.toLocaleString(APP_LOCALE, {
+                                            minimumFractionDigits: 3,
+                                            maximumFractionDigits: 3
+                                        }) }}
                                     </td>
                                     <td></td>
                                 </tr>
@@ -267,20 +291,13 @@ const submit = () => {
                 </div>
             </div>
 
-            
+
         </div>
         <div class="flex justify-end p-4 border-t border-slate-100">
-            <BaseFormActions 
-                :label="'Save Mix Design'" 
-                :loading="form.processing" 
-                @submit="submit" 
-                @cancel="() => emit('cancel')" 
-                @reset="resetForm" 
-            />
+            <BaseFormActions :label="'Save Mix Design'" :loading="form.processing" @submit="submit"
+                @cancel="() => emit('cancel')" @reset="resetForm" />
         </div>
     </div>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

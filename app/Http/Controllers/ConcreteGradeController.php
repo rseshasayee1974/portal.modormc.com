@@ -52,8 +52,10 @@ class ConcreteGradeController extends Controller
             'aggregate_ratio' => 'nullable|numeric',
             'status' => 'boolean',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:mm_products,id',
+            'items.*.product_id' => 'required|distinct|exists:mm_products,id',
             'items.*.quantity' => 'required|numeric',
+        ], [
+            'items.*.product_id.distinct' => 'This material is selected more than once. Choose a different material or remove the duplicate row.',
         ]);
 
         DB::transaction(function () use ($validated, $plantId) {
@@ -102,6 +104,8 @@ class ConcreteGradeController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|distinct|exists:mm_products,id',
             'items.*.quantity' => 'required|numeric',
+        ], [
+            'items.*.product_id.distinct' => 'This material is selected more than once. Choose a different material or remove the duplicate row.',
         ]);
 
         DB::transaction(function () use ($validated, $concretegrade, $plantId) {

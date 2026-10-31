@@ -41,6 +41,29 @@ const form = useForm({
 });
 
 const productOptions = computed(() => props.products.map(p => ({ label: p.title, value: p.id })));
+const availableProducts = (index: number) => productOptions.value.filter(option =>
+    String(option.value) === String(form.items[index].product_id) ||
+    !form.items.some((item: any, row: number) => row !== index && String(item.product_id) === String(option.value))
+);
+const validateUniqueMaterials = () => {
+    const selected = new Map<string, number>();
+    let valid = true;
+    form.items.forEach((item: any, index: number) => {
+        if (!item.product_id) return;
+        const key = String(item.product_id);
+        const previous = selected.get(key);
+        if (previous !== undefined) {
+            const message = 'This material is selected more than once. Choose a different material or remove the duplicate row.';
+            form.setError(`items.${previous}.product_id`, message);
+            form.setError(`items.${index}.product_id`, message);
+            valid = false;
+        } else {
+            selected.set(key, index);
+        }
+    });
+    return valid;
+};
+
 
 watch(
     () => [form.cement_ratio, form.sand_ratio, form.aggregate_ratio],
@@ -113,6 +136,7 @@ const applyCalculatedProportions = () => {
 
 const submit = () => {
     form.clearErrors();
+    if (!validateUniqueMaterials()) return;
     let hasFrontendErrors = false;
 
     if (!form.name || form.name.trim() === '') {
@@ -205,7 +229,7 @@ const submit = () => {
                         <tbody>
                             <tr v-for="(item, index) in form.items" :key="index">
                                 <td>
-                                    <BaseSelect v-model="item.product_id" :options="productOptions" optionLabel="label"
+                                    <BaseSelect v-model="item.product_id" :options="availableProducts(index)" optionLabel="label"
                                         optionValue="value" filter placeholder="Pick Material" fluid />
                                     <small v-if="form.errors[`items.${index}.product_id`]"
                                         class="text-rose-500 text-[10px] mt-1 block">{{

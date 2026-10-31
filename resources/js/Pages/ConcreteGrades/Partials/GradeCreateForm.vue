@@ -6,8 +6,8 @@ import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
-import { 
-    PlusIcon, 
+import {
+    PlusIcon,
     ArrowPathIcon,
     BeakerIcon,
     VariableIcon,
@@ -36,6 +36,29 @@ const form = useForm({
 });
 
 const productOptions = computed(() => props.products.map(p => ({ label: p.title, value: p.id })));
+const availableProducts = (index: number) => productOptions.value.filter(option =>
+    String(option.value) === String(form.items[index].product_id) ||
+    !form.items.some((item: any, row: number) => row !== index && String(item.product_id) === String(option.value))
+);
+const validateUniqueMaterials = () => {
+    const selected = new Map<string, number>();
+    let valid = true;
+    form.items.forEach((item: any, index: number) => {
+        if (!item.product_id) return;
+        const key = String(item.product_id);
+        const previous = selected.get(key);
+        if (previous !== undefined) {
+            const message = 'This material is selected more than once. Choose a different material or remove the duplicate row.';
+            form.setError(`items.${previous}.product_id`, message);
+            form.setError(`items.${index}.product_id`, message);
+            valid = false;
+        } else {
+            selected.set(key, index);
+        }
+    });
+    return valid;
+};
+
 
 watch(
     () => [form.cement_ratio, form.sand_ratio, form.aggregate_ratio],
@@ -88,9 +111,9 @@ const applyCalculatedProportions = () => {
     const items: any[] = [];
 
     const findProduct = (terms: string[]) => {
-        return props.products.find(p => 
-            terms.some(t => 
-                p.title.toLowerCase().includes(t.toLowerCase()) || 
+        return props.products.find(p =>
+            terms.some(t =>
+                p.title.toLowerCase().includes(t.toLowerCase()) ||
                 (p.category?.name?.toLowerCase().includes(t.toLowerCase()))
             )
         )?.id || null;
@@ -134,12 +157,14 @@ const submit = () => {
                 hasFrontendErrors = true;
             }
             // Validate quantity
-            if (item.quantity === null || item.quantity <= 0) {
-                form.setError(`items.${index}.quantity`, 'Quantity must be > 0');
-                hasFrontendErrors = true;
-            }
+            // if (item.quantity === null || item.quantity <= 0) {
+            //     form.setError(`items.${index}.quantity`, 'Quantity must be > 0');
+            //     hasFrontendErrors = true;
+            // }
         });
     }
+
+    if (!validateUniqueMaterials()) hasFrontendErrors = true;
 
     if (hasFrontendErrors) {
         return;
@@ -164,7 +189,8 @@ const submit = () => {
                 </div>
                 <div class="text-left">
                     <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">Establish New Grade</p>
-                    <p class="text-[11px] text-gray-400 font-medium mt-0.5">Define mix proportions, ratios and ingredient matrix</p>
+                    <p class="text-[11px] text-gray-400 font-medium mt-0.5">Define mix proportions, ratios and
+                        ingredient matrix</p>
                 </div>
             </div>
             <div class="create-panel__toggle" :class="{ 'create-panel__toggle--open': isOpen }">
@@ -181,19 +207,26 @@ const submit = () => {
                             <VariableIcon class="w-3.5 h-3.5" />
                             <span>Base Specification</span>
                         </div>
-                        <BaseInput v-model="form.name" label="Grade Name (Mix Identifier)" placeholder="e.g. M25" :error="form.errors.name" />
-                        <BaseInput v-model="form.hsn_code" label="HSN Code" placeholder="e.g. 38245010" :error="form.errors.hsn_code" />
-                        
+                        <BaseInput v-model="form.name" label="Grade Name (Mix Identifier)" placeholder="e.g. M25"
+                            :error="form.errors.name" />
+                        <BaseInput v-model="form.hsn_code" label="HSN Code" placeholder="e.g. 38245010"
+                            :error="form.errors.hsn_code" />
+
                         <div class="ratio-input-card mt-6">
-                            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 block">Ratio Estimator (Cement : Sand : Agg)</label>
+                            <label
+                                class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 block">Ratio
+                                Estimator (Cement : Sand : Agg)</label>
                             <div class="grid grid-cols-3 gap-2">
                                 <BaseInputNumber v-model="form.cement_ratio" :minFractionDigits="1" placeholder="C" />
                                 <BaseInputNumber v-model="form.sand_ratio" :minFractionDigits="1" placeholder="S" />
-                                <BaseInputNumber v-model="form.aggregate_ratio" :minFractionDigits="1" placeholder="A" />
+                                <BaseInputNumber v-model="form.aggregate_ratio" :minFractionDigits="1"
+                                    placeholder="A" />
                             </div>
                             <div class="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
-                                <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Calculated Ratio:</span>
-                                <span class="text-sm font-black text-indigo-900 tracking-tighter">{{ form.concrete_ratio || '0:0:0' }}</span>
+                                <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Calculated
+                                    Ratio:</span>
+                                <span class="text-sm font-black text-indigo-900 tracking-tighter">{{ form.concrete_ratio
+                                    || '0:0:0' }}</span>
                             </div>
                             <button type="button" @click="applyCalculatedProportions" class="calc-btn mt-4">
                                 <ArrowPathIcon class="w-3 h-3" />
@@ -214,7 +247,8 @@ const submit = () => {
                                 <span>Add Material</span>
                             </button>
                         </div>
-                        <small v-if="form.errors.items" class="text-rose-500 text-[10px] block mt-1">{{ form.errors.items }}</small>
+                        <small v-if="form.errors.items" class="text-rose-500 text-[10px] block mt-1">{{
+                            form.errors.items }}</small>
 
                         <div class="matrix-table-wrap">
                             <table class="w-full">
@@ -228,23 +262,33 @@ const submit = () => {
                                 <tbody>
                                     <tr v-for="(item, index) in form.items" :key="index">
                                         <td>
-                                            <BaseSelect v-model="item.product_id" :options="productOptions" optionLabel="label" optionValue="value" filter placeholder="Select Material..." fluid />
-                                            <small v-if="form.errors[`items.${index}.product_id`]" class="text-rose-500 text-[10px] mt-1 block">{{ form.errors[`items.${index}.product_id`] }}</small>
+                                            <BaseSelect v-model="item.product_id" :options="availableProducts(index)"
+                                                optionLabel="label" optionValue="value" filter
+                                                placeholder="Select Material..." fluid />
+                                            <small v-if="form.errors[`items.${index}.product_id`]"
+                                                class="text-rose-500 text-[10px] mt-1 block">{{
+                                                    form.errors[`items.${index}.product_id`] }}</small>
                                         </td>
                                         <td>
-                                            <BaseInputNumber v-model="item.quantity" :minFractionDigits="2" fluid :inputClass="'text-right font-bold'" />
-                                            <small v-if="form.errors[`items.${index}.quantity`]" class="text-rose-500 text-[10px] mt-1 block text-right">{{ form.errors[`items.${index}.quantity`] }}</small>
+                                            <BaseInputNumber v-model="item.quantity" :minFractionDigits="2" fluid
+                                                :inputClass="'text-right font-bold'" />
+                                            <small v-if="form.errors[`items.${index}.quantity`]"
+                                                class="text-rose-500 text-[10px] mt-1 block text-right">{{
+                                                    form.errors[`items.${index}.quantity`] }}</small>
                                         </td>
                                         <td class="text-center">
-                                            <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" />
+                                            <BaseDeleteButton @click="removeItem(index)"
+                                                :disabled="form.items.length <= 1" />
                                         </td>
                                     </tr>
                                 </tbody>
                                 <tfoot>
                                     <tr class="bg-slate-50">
-                                        <td class="text-[10px] font-bold uppercase text-slate-400 text-right">Total Batch Weight:</td>
+                                        <td class="text-[10px] font-bold uppercase text-slate-400 text-right">Total
+                                            Batch Weight:</td>
                                         <td class="text-right font-black text-indigo-600 text-sm">
-                                            {{ form.items.reduce((sum, i) => sum + Number(i.quantity || 0), 0).toFixed(0) }} Kg
+                                            {{form.items.reduce((sum, i) => sum + Number(i.quantity || 0),
+                                                0).toFixed(0)}} Kg
                                         </td>
                                         <td></td>
                                     </tr>
@@ -255,13 +299,8 @@ const submit = () => {
                 </div>
 
                 <div class="expansion-actions flex justify-end mt-8 pt-6 border-t border-slate-100">
-                    <BaseFormActions
-                        label="Save Mix Grade"
-                        cancelLabel="Reset Form"
-                        :loading="form.processing"
-                        @submit="submit"
-                        @reset="form.reset(); form.clearErrors()"
-                    />
+                    <BaseFormActions label="Save Mix Grade" cancelLabel="Reset Form" :loading="form.processing"
+                        @submit="submit" @reset="form.reset(); form.clearErrors()" />
                 </div>
             </div>
         </Transition>
@@ -269,33 +308,195 @@ const submit = () => {
 </template>
 
 <style scoped>
-.create-panel { background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-.create-panel--open { border-color: #c7d2fe; box-shadow: 0 10px 30px -10px rgba(99,102,241,0.2), 0 4px 12px rgba(0,0,0,0.05); }
-.create-panel__header { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 18px 24px; background: transparent; border: none; cursor: pointer; text-align: left; }
-.create-panel__header:hover { background: #fafafa; }
-.create-panel__icon { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #eef2ff, #e0e7ff); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 2px 4px rgba(255,255,255,0.8); }
-.create-panel__toggle { width: 28px; height: 28px; border-radius: 50%; background: #eef2ff; display: flex; align-items: center; justify-content: center; color: #6366f1; transition: all 0.3s ease; }
-.create-panel__toggle--open { transform: rotate(45deg); background: #6366f1; color: white; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
-.create-panel__body { padding: 32px 24px; border-top: 1px solid #f1f5f9; background: linear-gradient(180deg, #fff 0%, #ffffff 100%); }
+.create-panel {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-.section-title { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #94a3b8; margin-bottom: 20px; }
+.create-panel--open {
+    border-color: #c7d2fe;
+    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.2), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
 
-.ratio-input-card { background: #f8fafc; border: 1px solid #eef2ff; border-radius: 14px; padding: 16px; border-style: dashed; }
-.calc-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #6366f1; cursor: pointer; transition: all 0.2s; }
-.calc-btn:hover { background: #6366f1; color: white; border-color: #6366f1; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.2); }
+.create-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 18px 24px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+}
 
-.matrix-table-wrap { border: 1px solid #f1f5f9; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
-.matrix-table-wrap table th { padding: 12px 16px; background: #f8fafc; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #94a3b8; border-bottom: 1px solid #f1f5f9; }
-.matrix-table-wrap table td { padding: 8px 12px; border-bottom: 1px solid #f8fafc; }
+.create-panel__header:hover {
+    background: #fafafa;
+}
 
-.trash-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; transition: color 0.2s; cursor: pointer; border: none; background: none; }
-.trash-btn:hover:not(:disabled) { color: #f43f5e; }
-.trash-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.create-panel__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.8);
+}
 
-.add-item-btn { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; background: #f0f7ff; color: #0284c7; font-size: 9px; font-weight: 800; text-transform: uppercase; border: none; cursor: pointer; transition: all 0.2s; }
-.add-item-btn:hover { background: #0284c7; color: white; }
+.create-panel__toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #eef2ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6366f1;
+    transition: all 0.3s ease;
+}
 
-.panel-slide-enter-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-.panel-slide-leave-active { transition: all 0.25s ease-out; }
-.panel-slide-enter-from, .panel-slide-leave-to { opacity: 0; transform: translateY(-10px) scale(0.995); }
+.create-panel__toggle--open {
+    transform: rotate(45deg);
+    background: #6366f1;
+    color: white;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.create-panel__body {
+    padding: 32px 24px;
+    border-top: 1px solid #f1f5f9;
+    background: linear-gradient(180deg, #fff 0%, #ffffff 100%);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #94a3b8;
+    margin-bottom: 20px;
+}
+
+.ratio-input-card {
+    background: #f8fafc;
+    border: 1px solid #eef2ff;
+    border-radius: 14px;
+    padding: 16px;
+    border-style: dashed;
+}
+
+.calc-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #6366f1;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.calc-btn:hover {
+    background: #6366f1;
+    color: white;
+    border-color: #6366f1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.matrix-table-wrap {
+    border: 1px solid #f1f5f9;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.matrix-table-wrap table th {
+    padding: 12px 16px;
+    background: #f8fafc;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #94a3b8;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.matrix-table-wrap table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.trash-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5e1;
+    transition: color 0.2s;
+    cursor: pointer;
+    border: none;
+    background: none;
+}
+
+.trash-btn:hover:not(:disabled) {
+    color: #f43f5e;
+}
+
+.trash-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.add-item-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    background: #f0f7ff;
+    color: #0284c7;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-item-btn:hover {
+    background: #0284c7;
+    color: white;
+}
+
+.panel-slide-enter-active {
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.panel-slide-leave-active {
+    transition: all 0.25s ease-out;
+}
+
+.panel-slide-enter-from,
+.panel-slide-leave-to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.995);
+}
 </style>
