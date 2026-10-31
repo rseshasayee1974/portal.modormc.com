@@ -46,7 +46,7 @@ class QcProductGradeConfigController extends Controller
         $configs = $query->orderBy('id', 'desc')->paginate(15)->withQueryString();
 
         $materials = Product::where('status', true)->get(['id', 'title', 'code']);
-        $grades = ConcreteGrade::where('is_active', true)->get(['id', 'name', 'code']);
+        $grades = ConcreteGrade::where('status', true)->get(['id', 'name', 'concrete_code']);
         $testTypes = QcTestType::where('is_active', true)->get(['id', 'name', 'code', 'category']);
         $standards = QcStandard::where('is_active', true)->get(['id', 'name', 'code', 'organization']);
 
