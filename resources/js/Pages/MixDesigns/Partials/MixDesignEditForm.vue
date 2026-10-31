@@ -64,6 +64,7 @@ const form = useForm({
             id: item.id,
             isLocked: isLocked.value,
             product_id: item.product_id,
+            display_order: Number(item.display_order ?? 0),
             uom_id: item.uom_id ?? props.defaultUomId ?? props.units[0]?.id ?? null,
             rate: parseFloat(item.rate || 0),
             actual_quantity: parseFloat(item.actual_quantity || 0),
@@ -77,6 +78,7 @@ const blankItem = () => ({
     id: null as number | null,
     isLocked: false as boolean,
     product_id: null as number | null,
+    display_order: 1,
     uom_id: fallbackUomId.value,
     rate: 0,
     actual_quantity: 0,
@@ -84,7 +86,7 @@ const blankItem = () => ({
     variation_quantity: 0
 });
 
-const addItem = () => form.items.push(blankItem());
+const addItem = () => form.items.push({ ...blankItem(), display_order: Math.min(4294967295, Math.max(0, ...form.items.map((item: any) => Number(item.display_order || 0))) + 1) });
 const removeItem = (index: number) => { if (form.items.length > 1) form.items.splice(index, 1); };
 
 const totalTargetQty = computed(() => {
@@ -107,6 +109,7 @@ const handleGradeChange = async () => {
         if (response.data.items?.length > 0) {
             form.items = response.data.items.map((item: any) => ({
                 product_id: item.product_id,
+                display_order: Number(item.display_order ?? 0),
                 uom_id: item.uom_id ?? fallbackUomId.value,
                 actual_quantity: item.actual_quantity,
                 rate: item.rate,
@@ -189,6 +192,7 @@ const submit = () => {
                     <table class="w-full">
                         <thead>
                             <tr>
+                                <th class="w-28">Display Order</th>
                                 <th>Material</th>
                                 <th class="w-24 text-center">UOM</th>
                                 <!-- <th class="w-28 text-right">Target Qty</th> -->
@@ -200,6 +204,7 @@ const submit = () => {
                         </thead>
                         <tbody>
                             <tr v-for="(item, index) in form.items" :key="index">
+                                <td><BaseInputNumber v-model="item.display_order" :min="0" :max="4294967295" :maxFractionDigits="0" :useGrouping="false" :error="form.errors[`items.${index}.display_order`]" /></td>
                                 <td>
                                     <BaseSelect v-model="item.product_id" :options="productOptions" optionLabel="label" optionValue="value" filter placeholder="Select Material" fluid />
                                     <small v-if="form.errors[`items.${index}.product_id`]" class="err-msg">{{ form.errors[`items.${index}.product_id`] }}</small>
@@ -227,11 +232,8 @@ const submit = () => {
                         </tbody>
                         <tfoot>
                             <tr class="bg-slate-50/80 border-t border-slate-200">
-                                <td colspan="2" class="text-right text-[11px] font-black text-slate-500 uppercase px-3 py-2.5">
+                                <td colspan="3" class="text-right text-[11px] font-black text-slate-500 uppercase px-3 py-2.5">
                                     Total Qty:
-                                </td>
-                                <td class="text-right font-black font-mono text-slate-700 text-xs px-2 py-2.5">
-                                    {{ totalTargetQty.toLocaleString(APP_LOCALE, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }}
                                 </td>
                                 <td class="text-right font-black font-mono text-indigo-600 text-xs px-2 py-2.5">
                                     {{ totalGrossQty.toLocaleString(APP_LOCALE, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }}

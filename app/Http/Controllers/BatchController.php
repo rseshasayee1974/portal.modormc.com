@@ -782,6 +782,8 @@ class BatchController extends Controller
             ->leftJoin('mm_product_units as u', 'u.id', '=', 'bm.uom_id')
             ->where('bm.batch_id', $batchId)
             ->whereNull('bm.deleted_at')
+            ->orderByRaw(\App\Services\MaterialDisplayOrder::batchMaterial('bm'))
+            ->orderBy('bm.id')
             ->select([
                 'bm.id',
                 'bm.batch_id',
@@ -825,6 +827,8 @@ class BatchController extends Controller
                 ->leftJoin('mm_product_units as u', 'u.id', '=', 'mdi.uom_id')
                 ->where('mdi.mix_design_id', $batchRow->mix_design_id)
                 ->whereNull('mdi.deleted_at')
+                ->orderByRaw(\App\Services\MaterialDisplayOrder::mixDesignItem('mdi'))
+                ->orderBy('mdi.id')
                 ->select([
                     'mdi.id',
                     'mdi.mix_design_id',
@@ -834,6 +838,7 @@ class BatchController extends Controller
                     'mdi.actual_quantity',
                     'mdi.cross_quantity',
                     'mdi.variation_quantity',
+                    'mdi.display_order',
                     'p.title as product_title',
                     'p.material_code',
                     'u.unit_code',
@@ -849,6 +854,7 @@ class BatchController extends Controller
                         'actual_quantity' => (float)$item->actual_quantity,
                         'cross_quantity' => (float)$item->cross_quantity,
                         'variation_quantity' => (float)$item->variation_quantity,
+                        'display_order' => (int) $item->display_order,
                         'product' => $item->product_id ? [
                             'id' => $item->product_id,
                             'title' => $item->product_title,

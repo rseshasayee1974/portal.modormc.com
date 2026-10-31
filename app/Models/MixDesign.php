@@ -70,7 +70,9 @@ class MixDesign extends Model
 
     public function items()
     {
-        return $this->hasMany(MixDesignItem::class, 'mix_design_id');
+        return $this->hasMany(MixDesignItem::class, 'mix_design_id')
+            ->orderByRaw(\App\Services\MaterialDisplayOrder::mixDesignItem())
+            ->orderBy('mm_mix_design_items.id');
     }
 
     public function materials()
@@ -94,7 +96,9 @@ class MixDesign extends Model
     }
     public function concrete_grade_items()
     {
-        return $this->hasMany(MixDesignItem::class, 'mix_design_id');
+        return $this->hasMany(MixDesignItem::class, 'mix_design_id')
+            ->orderByRaw(\App\Services\MaterialDisplayOrder::mixDesignItem())
+            ->orderBy('mm_mix_design_items.id');
     }
     public function quotationItems()
     {

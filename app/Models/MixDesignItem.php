@@ -22,6 +22,7 @@ class MixDesignItem extends Model
         'actual_quantity',
         'cross_quantity',
         'variation_quantity',
+        'display_order',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -29,6 +30,7 @@ class MixDesignItem extends Model
 
     protected $casts = [
         'rate' => 'decimal:4',
+        'display_order' => 'integer',
         'actual_quantity' => 'decimal:4',
         'cross_quantity' => 'decimal:4',
         'variation_quantity' => 'decimal:4',

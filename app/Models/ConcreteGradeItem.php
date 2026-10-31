@@ -17,6 +17,7 @@ class ConcreteGradeItem extends Model
         'concrete_grade_id',
         'product_id',
         'quantity',
+        'display_order',
         'status',
         'created_by',
         'updated_by',
@@ -30,6 +31,7 @@ class ConcreteGradeItem extends Model
     protected $casts = [
         'status'   => 'boolean',
         'quantity' => 'decimal:4',
+        'display_order' => 'integer',
     ];
 
     protected static function boot()

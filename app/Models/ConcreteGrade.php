@@ -55,7 +55,9 @@ class ConcreteGrade extends Model
 
     public function items()
     {
-        return $this->hasMany(ConcreteGradeItem::class);
+        return $this->hasMany(ConcreteGradeItem::class)
+            ->orderBy('mm_concrete_grade_items.display_order')
+            ->orderBy('mm_concrete_grade_items.id');
     }
     public function mixDesigns()
     {

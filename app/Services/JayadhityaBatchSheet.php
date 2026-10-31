@@ -33,6 +33,7 @@ class JayadhityaBatchSheet
     {
         $groups = array_fill_keys(array_keys(self::GROUPS), []);
         $targets = $actuals = $runs = $productColumns = $labels = [];
+        $columns = $groupSpans = [];
         foreach ($batch->materials as $material) {
             $rawName = trim((string) ($material->material_name ?: $material->product?->title ?: 'Material'));
             preg_match('/\s*[-–—]?\s*Run\s*[-–—]?\s*(\d+)\s*$/iu', $rawName, $runMatch);
@@ -46,6 +47,13 @@ class JayadhityaBatchSheet
             $group = self::group($column, (string) $material->product?->category?->name);
             if (! in_array($column, $groups[$group], true)) {
                 $groups[$group][] = $column;
+                $columns[] = $column;
+                $last = array_key_last($groupSpans);
+                if ($last !== null && $groupSpans[$last]['name'] === $group) {
+                    $groupSpans[$last]['span']++;
+                } else {
+                    $groupSpans[] = ['name' => $group, 'span' => 1];
+                }
             }
             $target = (float) $material->target_qty;
             $actual = (float) $material->actual_qty;
@@ -89,7 +97,8 @@ class JayadhityaBatchSheet
 
         return [
             'groups' => array_filter($groups),
-            'columns' => array_merge(...array_values($groups)),
+            'columns' => $columns,
+            'group_spans' => $groupSpans,
             'labels' => $labels,
             'targets' => $targets,
             'actuals' => $actuals,

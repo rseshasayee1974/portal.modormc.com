@@ -174,7 +174,9 @@ class Batch extends Model
 
     public function materials()
     {
-        return $this->hasMany(BatchMaterial::class, 'batch_id');
+        return $this->hasMany(BatchMaterial::class, 'batch_id')
+            ->orderByRaw(\App\Services\MaterialDisplayOrder::batchMaterial())
+            ->orderBy('mm_batch_materials.id');
     }
 
     public function photos()

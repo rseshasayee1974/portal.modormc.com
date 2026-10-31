@@ -10,6 +10,7 @@ interface GradeItem {
     id?: number;
     product_id: number | null;
     quantity: number;
+    display_order: number;
     product?: any;
 }
 

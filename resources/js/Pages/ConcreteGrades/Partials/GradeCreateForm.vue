@@ -31,7 +31,7 @@ const form = useForm({
     aggregate_ratio: null as number | null,
     status: true,
     items: [
-        { product_id: null as number | null, quantity: 0 }
+        { product_id: null as number | null, quantity: 0, display_order: 1 }
     ] as any[]
 });
 
@@ -62,6 +62,7 @@ const toggle = () => {
 const addItem = () => {
     form.items.push({
         product_id: null,
+        display_order: Math.max(0, ...form.items.map((item: any) => Number(item.display_order || 0))) + 1,
         quantity: 0
     });
 };
@@ -110,7 +111,7 @@ const applyCalculatedProportions = () => {
     }
 
     if (items.length > 0) {
-        form.items = items;
+        form.items = items.map((item, index) => ({ ...item, display_order: index + 1 }));
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Calculated weights applied', timer: 1500, showConfirmButton: true });
     }
 };
@@ -220,6 +221,7 @@ const submit = () => {
                             <table class="w-full">
                                 <thead>
                                     <tr>
+                                        <th class="w-28">Display Order</th>
                                         <th>Material Specification</th>
                                         <th class="text-right w-32">Qty (Kg)</th>
                                         <th class="w-10"></th>
@@ -227,6 +229,7 @@ const submit = () => {
                                 </thead>
                                 <tbody>
                                     <tr v-for="(item, index) in form.items" :key="index">
+                                        <td><BaseInputNumber v-model="item.display_order" :min="0" :max="4294967295" :maxFractionDigits="0" :useGrouping="false" :error="form.errors[`items.${index}.display_order`]" /></td>
                                         <td>
                                             <BaseSelect v-model="item.product_id" :options="productOptions" optionLabel="label" optionValue="value" filter placeholder="Select Material..." fluid />
                                             <small v-if="form.errors[`items.${index}.product_id`]" class="text-rose-500 text-[10px] mt-1 block">{{ form.errors[`items.${index}.product_id`] }}</small>
@@ -242,7 +245,7 @@ const submit = () => {
                                 </tbody>
                                 <tfoot>
                                     <tr class="bg-slate-50">
-                                        <td class="text-[10px] font-bold uppercase text-slate-400 text-right">Total Batch Weight:</td>
+                                        <td colspan="2" class="text-[10px] font-bold uppercase text-slate-400 text-right">Total Batch Weight:</td>
                                         <td class="text-right font-black text-indigo-600 text-sm">
                                             {{ form.items.reduce((sum, i) => sum + Number(i.quantity || 0), 0).toFixed(0) }} Kg
                                         </td>

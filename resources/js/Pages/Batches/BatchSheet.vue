@@ -49,28 +49,16 @@ const groups = [
     { name: 'Silica', keywords: ['sil', 'silica', 'fume'] }
 ];
 
-const groupedMaterials = computed(() => {
-    const result: Record<string, any[]> = {
-        'Aggregate': [],
-        'Cement': [],
-        'Water / Ice': [],
-        'Admixture': [],
-        'Silica': []
-    };
-
+// Consecutive category spans preserve the grade's material display order.
+const materialGroups = computed(() => {
+    const result: { name: string; materials: any[] }[] = [];
     props.batch.materials.forEach((mat: any) => {
         const name = (mat.material_name || mat.product?.title || '').toLowerCase();
-        let matched = false;
-        for (const group of groups) {
-            if (group.keywords.some(k => name.includes(k))) {
-                result[group.name].push(mat);
-                matched = true;
-                break;
-            }
-        }
-        if (!matched) result['Aggregate'].push(mat); // Default
+        const category = groups.find(group => group.keywords.some(k => name.includes(k)))?.name || 'Aggregate';
+        const previous = result[result.length - 1];
+        if (previous?.name === category) previous.materials.push(mat);
+        else result.push({ name: category, materials: [mat] });
     });
-
     return result;
 });
 
@@ -163,14 +151,14 @@ const print = () => {
                 <table class="w-full border-collapse text-[10px] border border-black">
                     <thead>
                         <tr class="divide-x divide-black border-b border-black">
-                            <th v-for="group in groups" :key="group.name" :colspan="Math.max(1, groupedMaterials[group.name].length)" class="text-center py-1 uppercase font-bold bg-gray-50 border-r border-black last:border-r-0">
+                            <th v-for="(group, groupIndex) in materialGroups" :key="groupIndex" :colspan="Math.max(1, group.materials.length)" class="text-center py-1 uppercase font-bold bg-gray-50 border-r border-black last:border-r-0">
                                 {{ group.name }}
                             </th>
                         </tr>
                         <tr class="divide-x divide-black border-b border-black">
-                            <template v-for="group in groups" :key="'label-'+group.name">
-                                <th v-if="groupedMaterials[group.name].length === 0" class="px-1 py-2 text-center">-</th>
-                                <th v-for="mat in groupedMaterials[group.name]" :key="mat.id" class="px-1 py-2 text-center uppercase font-bold">
+                            <template v-for="(group, groupIndex) in materialGroups" :key="'label-'+groupIndex">
+                                <th v-if="group.materials.length === 0" class="px-1 py-2 text-center">-</th>
+                                <th v-for="mat in group.materials" :key="mat.id" class="px-1 py-2 text-center uppercase font-bold">
                                     {{ mat.material_name || mat.product?.title }}
                                 </th>
                             </template>
@@ -179,9 +167,9 @@ const print = () => {
                     <tbody class="divide-y divide-black font-mono">
                         <!-- Targets -->
                         <tr class="divide-x divide-black">
-                            <template v-for="group in groups" :key="'target-'+group.name">
-                                <td v-if="groupedMaterials[group.name].length === 0" class="px-1 py-2 text-center">0</td>
-                                <td v-for="mat in groupedMaterials[group.name]" :key="'target-'+mat.id" class="px-1 py-2 text-center font-bold">
+                            <template v-for="(group, groupIndex) in materialGroups" :key="'target-'+groupIndex">
+                                <td v-if="group.materials.length === 0" class="px-1 py-2 text-center">0</td>
+                                <td v-for="mat in group.materials" :key="'target-'+mat.id" class="px-1 py-2 text-center font-bold">
                                     {{ Math.round(mat.target_qty) }}
                                 </td>
                             </template>
@@ -194,9 +182,9 @@ const print = () => {
 
                         <!-- Actuals -->
                         <tr class="divide-x divide-black">
-                            <template v-for="group in groups" :key="'actual-'+group.name">
-                                <td v-if="groupedMaterials[group.name].length === 0" class="px-1 py-2 text-center">0</td>
-                                <td v-for="mat in groupedMaterials[group.name]" :key="'actual-'+mat.id" class="px-1 py-2 text-center font-bold">
+                            <template v-for="(group, groupIndex) in materialGroups" :key="'actual-'+groupIndex">
+                                <td v-if="group.materials.length === 0" class="px-1 py-2 text-center">0</td>
+                                <td v-for="mat in group.materials" :key="'actual-'+mat.id" class="px-1 py-2 text-center font-bold">
                                     {{ Math.round(mat.actual_qty) }}
                                 </td>
                             </template>

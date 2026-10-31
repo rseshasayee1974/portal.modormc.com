@@ -54,6 +54,7 @@ class ConcreteGradeController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:mm_products,id',
             'items.*.quantity' => 'required|numeric',
+            'items.*.display_order' => 'nullable|integer|min:0|max:4294967295',
         ]);
 
         DB::transaction(function () use ($validated, $plantId) {
@@ -70,12 +71,13 @@ class ConcreteGradeController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            foreach ($validated['items'] as $item) {
+            foreach ($validated['items'] as $index => $item) {
                 ConcreteGradeItem::create([
                     'plant_id' => $plantId,
                     'concrete_grade_id' => $grade->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
+                    'display_order' => $item['display_order'] ?? ($index + 1),
                     'created_by' => Auth::id(),
                 ]);
             }
@@ -102,6 +104,7 @@ class ConcreteGradeController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|distinct|exists:mm_products,id',
             'items.*.quantity' => 'required|numeric',
+            'items.*.display_order' => 'nullable|integer|min:0|max:4294967295',
         ]);
 
         DB::transaction(function () use ($validated, $concretegrade, $plantId) {
@@ -121,12 +124,13 @@ class ConcreteGradeController extends Controller
             // only this grade's template rows; existing mix designs keep their own items.
             $concretegrade->items()->withTrashed()->forceDelete();
 
-            foreach ($validated['items'] as $item) {
+            foreach ($validated['items'] as $index => $item) {
                 ConcreteGradeItem::create([
                     'plant_id' => $plantId,
                     'concrete_grade_id' => $concretegrade->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
+                    'display_order' => $item['display_order'] ?? ($index + 1),
                     'created_by' => Auth::id(),
                     'updated_by' => Auth::id(),
                 ]);

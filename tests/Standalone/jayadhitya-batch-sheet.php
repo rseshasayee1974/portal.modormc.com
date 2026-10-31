@@ -199,6 +199,11 @@ Illuminate\Support\Facades\Schema::create('mm_batch_materials', function ($table
     $table->decimal('target_qty', 12, 3); $table->decimal('actual_qty', 12, 3); $table->decimal('deviation_quantity', 12, 3);
     $table->unsignedBigInteger('uom_id')->nullable(); $table->timestamps(); $table->softDeletes();
 });
+// The material relation resolves ordering through the grade, mix and sales order.
+Illuminate\Support\Facades\DB::statement('CREATE TABLE mm_concrete_grade_items (id INTEGER PRIMARY KEY, plant_id INTEGER, concrete_grade_id INTEGER, product_id INTEGER, display_order INTEGER, deleted_at TEXT)');
+Illuminate\Support\Facades\DB::statement('CREATE TABLE mm_mix_design_items (id INTEGER PRIMARY KEY, plant_id INTEGER, mix_design_id INTEGER, product_id INTEGER, display_order INTEGER, deleted_at TEXT)');
+Illuminate\Support\Facades\DB::statement('CREATE TABLE mm_mix_designs (id INTEGER PRIMARY KEY, plant_id INTEGER, concrete_grade_id INTEGER)');
+Illuminate\Support\Facades\DB::statement('CREATE TABLE mm_sales_orders (id INTEGER PRIMARY KEY, plant_id INTEGER, mix_design_id INTEGER)');
 Illuminate\Support\Facades\DB::table('mm_products')->insert(['id' => 1, 'plant_id' => 739, 'title' => 'Cement']);
 session(['active_plant_id' => 739]);
 $sync = new ReflectionMethod(App\Http\Controllers\BatchController::class, 'syncMaterials');

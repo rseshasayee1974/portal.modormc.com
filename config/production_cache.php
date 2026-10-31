@@ -17,7 +17,7 @@ return [
         'mm_sales_orders', 'mm_custom_settings', 'mm_invoices', 'mm_einvoice_invoice_rel',
         'mm_ewaybill_details', 'mm_plants', 'mm_patrons', 'mm_sites', 'mm_machines',
         'mm_personnels', 'mm_users', 'mm_mix_designs', 'mm_mix_design_items',
-        'mm_concrete_grades', 'mm_products', 'mm_product_units', 'mm_quotations',
+        'mm_concrete_grades', 'mm_concrete_grade_items', 'mm_products', 'mm_product_units', 'mm_quotations',
         'mm_quotation_items', 'mm_customer_pos', 'mm_customer_po_items',
     ],
 ];

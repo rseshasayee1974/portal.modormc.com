@@ -109,11 +109,11 @@ const form = useForm({
         let initialMaterials = props.batch?.materials || [];
         if (!initialMaterials.length) return [blankMaterial()];
 
-        const grouped: { [key: number]: any } = {};
+        const grouped: { [key: string]: any } = {};
         initialMaterials.forEach((item: any) => {
             if (!item.product_id) return;
-            if (!grouped[item.product_id]) {
-                grouped[item.product_id] = {
+            if (!grouped[`product-${item.product_id}`]) {
+                grouped[`product-${item.product_id}`] = {
                     product_id: item.product_id,
                     material_name: item.material_name?.split(' - Run')[0] || item.product?.title || '',
                     target_qty: 0,
@@ -121,8 +121,8 @@ const form = useForm({
                     rawItems: [],
                 };
             }
-            grouped[item.product_id].target_qty += Number(item.target_qty || 0);
-            grouped[item.product_id].rawItems.push(item);
+            grouped[`product-${item.product_id}`].target_qty += Number(item.target_qty || 0);
+            grouped[`product-${item.product_id}`].rawItems.push(item);
         });
 
         return Object.values(grouped).map((group: any) => {
@@ -403,11 +403,11 @@ const applyBatchToForm = (newBatch: any) => {
         return;
     }
 
-    const grouped: { [key: number]: any } = {};
+    const grouped: { [key: string]: any } = {};
     initialMaterials.forEach((item: any) => {
         if (!item.product_id) return;
-        if (!grouped[item.product_id]) {
-            grouped[item.product_id] = {
+        if (!grouped[`product-${item.product_id}`]) {
+            grouped[`product-${item.product_id}`] = {
                 product_id: item.product_id,
                 material_name: item.material_name?.split(' - Run')[0] || item.product?.title || '',
                 target_qty: 0,
@@ -415,8 +415,8 @@ const applyBatchToForm = (newBatch: any) => {
                 rawItems: [],
             };
         }
-        grouped[item.product_id].target_qty += Number(item.target_qty || 0);
-        grouped[item.product_id].rawItems.push(item);
+        grouped[`product-${item.product_id}`].target_qty += Number(item.target_qty || 0);
+        grouped[`product-${item.product_id}`].rawItems.push(item);
     });
 
     const runsCount = numberOfRuns.value;

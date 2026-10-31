@@ -75,6 +75,7 @@ class MixDesignController extends Controller
             'items.*.actual_quantity' => 'required|numeric',
             'items.*.cross_quantity' => 'nullable|numeric',
             'items.*.variation_quantity' => 'nullable|numeric',
+            'items.*.display_order' => 'nullable|integer|min:0|max:4294967295',
         ]);
 
         $concreteGrade = null;
@@ -84,7 +85,9 @@ class MixDesignController extends Controller
                 ->firstOrFail();
         }
 
-        DB::transaction(function () use ($validated, $plantId, $concreteGrade) {
+        $gradeOrders = $concreteGrade?->items()->pluck('display_order', 'product_id') ?? collect();
+
+        DB::transaction(function () use ($validated, $plantId, $concreteGrade, $gradeOrders) {
             $mixDesign = MixDesign::create([
                 'plant_id' => $plantId,
                 'partner_id' => $validated['partner_id'],
@@ -98,7 +101,7 @@ class MixDesignController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            foreach ($validated['items'] as $item) {
+            foreach ($validated['items'] as $index => $item) {
                 MixDesignItem::create([
                     'plant_id' => $plantId,
                     'mix_design_id' => $mixDesign->id,
@@ -108,6 +111,7 @@ class MixDesignController extends Controller
                     'actual_quantity' => $item['actual_quantity'],
                     'cross_quantity' => $item['cross_quantity'],
                     'variation_quantity' => $item['variation_quantity'],
+                    'display_order' => $item['display_order'] ?? $gradeOrders->get($item['product_id'], $index + 1),
                     'created_by' => Auth::id(),
                 ]);
             }
@@ -151,6 +155,7 @@ class MixDesignController extends Controller
             'items.*.actual_quantity' => 'required|numeric',
             'items.*.cross_quantity' => 'nullable|numeric',
             'items.*.variation_quantity' => 'nullable|numeric',
+            'items.*.display_order' => 'nullable|integer|min:0|max:4294967295',
         ]);
 
         $concreteGrade = null;
@@ -160,7 +165,9 @@ class MixDesignController extends Controller
                 ->firstOrFail();
         }
 
-        DB::transaction(function () use ($validated, $mixdesign, $plantId, $concreteGrade) {
+        $gradeOrders = $concreteGrade?->items()->pluck('display_order', 'product_id') ?? collect();
+
+        DB::transaction(function () use ($validated, $mixdesign, $plantId, $concreteGrade, $gradeOrders) {
             $mixdesign->update([
                 'partner_id' => $validated['partner_id'],
                 'concrete_grade_id' => $concreteGrade?->id,
@@ -192,7 +199,7 @@ class MixDesignController extends Controller
             }
 
             // Create new items or update existing ones
-            foreach ($validated['items'] as $item) {
+            foreach ($validated['items'] as $index => $item) {
                 if (!empty($item['id'])) {
                     // Update existing item
                     $mixDesignItem = MixDesignItem::find($item['id']);
@@ -204,6 +211,7 @@ class MixDesignController extends Controller
                             'actual_quantity' => $item['cross_quantity'],
                             'cross_quantity' => $item['cross_quantity'],
                             'variation_quantity' => $item['variation_quantity'],
+                            'display_order' => $item['display_order'] ?? ($mixDesignItem->product_id == $item['product_id'] ? $mixDesignItem->display_order : $gradeOrders->get($item['product_id'], $index + 1)),
                             'updated_by' => Auth::id(),
                         ]);
                     }
@@ -218,6 +226,7 @@ class MixDesignController extends Controller
                         'actual_quantity' => $item['cross_quantity'],
                         'cross_quantity' => $item['cross_quantity'],
                         'variation_quantity' => $item['variation_quantity'],
+                        'display_order' => $item['display_order'] ?? $gradeOrders->get($item['product_id'], $index + 1),
                         'created_by' => Auth::id(),
                     ]);
                 }
@@ -264,6 +273,7 @@ class MixDesignController extends Controller
                 'product_id' => $item->product_id,
                 'uom_id' => $item->product->unit_id ?? null,
                 'actual_quantity' => (float)$item->quantity,
+                'display_order' => (int) $item->display_order,
                 'rate' => (float)($item->product->purchase_price ?? 0),
                 'cross_quantity' => (float)$item->quantity,
                 'variation_quantity' => 0,

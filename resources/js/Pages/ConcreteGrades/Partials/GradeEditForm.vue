@@ -36,6 +36,7 @@ const form = useForm({
         id: item.id,
         product_id: item.product_id,
         quantity: item.quantity,
+        display_order: Number(item.display_order ?? 0),
         is_in_use: Boolean(item.is_in_use)
     }))
 });
@@ -58,6 +59,7 @@ watch(
 const addItem = () => {
     form.items.push({
         product_id: null,
+        display_order: Math.max(0, ...form.items.map((item: any) => Number(item.display_order || 0))) + 1,
         quantity: 0,
         is_in_use: false
     });
@@ -107,7 +109,7 @@ const applyCalculatedProportions = () => {
     }
 
     if (items.length > 0) {
-        form.items = items;
+        form.items = items.map((item, index) => ({ ...item, display_order: index + 1 }));
     }
 };
 
@@ -197,6 +199,7 @@ const submit = () => {
                     <table class="w-full">
                         <thead>
                             <tr>
+                                <th class="w-28">Display Order</th>
                                 <th>Specification</th>
                                 <th class="text-right w-28">Weight</th>
                                 <th class="w-8"></th>
@@ -204,6 +207,7 @@ const submit = () => {
                         </thead>
                         <tbody>
                             <tr v-for="(item, index) in form.items" :key="index">
+                                <td><BaseInputNumber v-model="item.display_order" :min="0" :max="4294967295" :maxFractionDigits="0" :useGrouping="false" :error="form.errors[`items.${index}.display_order`]" /></td>
                                 <td>
                                     <BaseSelect v-model="item.product_id" :options="productOptions" optionLabel="label"
                                         optionValue="value" filter placeholder="Pick Material" fluid />
@@ -226,7 +230,7 @@ const submit = () => {
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td class="text-right text-[10px] font-bold text-slate-400">Yield Weight:</td>
+                                <td colspan="2" class="text-right text-[10px] font-bold text-slate-400">Yield Weight:</td>
                                 <td class="text-right font-black text-indigo-600">
                                     {{form.items.reduce((sum, i) => sum + Number(i.quantity || 0), 0).toFixed(0)}} Kg
                                 </td>
@@ -241,7 +245,7 @@ const submit = () => {
         <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-indigo-100">
 
             <BaseFormActions label="Update Mix Specification" cancelLabel="Discard"
-                :disabled="!can('CONCRETE_GRADE.UPDATE')""
+                :disabled="!can('CONCRETE_GRADE.UPDATE')"
                 :loading="form.processing" @submit="submit" @reset="emit('cancel')" />
         </div>
     </div>

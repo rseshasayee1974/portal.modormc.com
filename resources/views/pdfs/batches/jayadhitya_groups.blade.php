@@ -113,7 +113,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
     <tr><td>No consumption records stored for this batch.</td></tr>
     @else
     <thead>
-    <tr class="grp">@foreach ($report['groups'] as $group => $columns)<th colspan="{{ count($columns) }}"><span>{{ $group }}</span></th>@endforeach</tr>
+    <tr class="grp">@foreach ($report['group_spans'] as $group)<th colspan="{{ $group['span'] }}"><span>{{ $group['name'] }}</span></th>@endforeach</tr>
     <tr class="cols">@foreach ($report['columns'] as $column)<th class="{{ $loop->last ? 'sil' : '' }}">{{ $report['labels'][$column] ?? $column }}</th>@endforeach</tr>
     </thead>
     <tbody>
