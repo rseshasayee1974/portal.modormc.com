@@ -27,6 +27,7 @@ package.json
 /storage/pail
 /vendor
 /tests
+tests/
 !/tests/
 /tests/*
 !/tests/Unit/
@@ -34,6 +35,7 @@ package.json
 !/tests/Unit/JayadhityaGroupsPlant739DriverTest.php
 !/tests/Feature/
 /tests/Feature/*
+!/tests/Feature/QualityRoutesTest.php
 !/tests/Feature/InvoiceClassificationTest.php
 !/tests/Feature/PatronStatementBillTest.php
 !/tests/Feature/CrmLeadTest.php

@@ -2735,17 +2735,20 @@ class SalesMobileApiTest extends TestCase
                 'amount_total' => 118, 'deleted_at' => $deleted]);
         }
         DB::table('mm_customer_po_items')->insert(['customer_po_id' => 2, 'mix_design_id' => 1, 'quantity' => 10, 'rate' => 10]);
+        DB::table('mm_sales_orders')->insert(['id' => 850, 'plant_id' => 1, 'customer_po_id' => 2, 'sales_executive_id' => 1, 'mix_design_id' => 1]);
         $listing = $this->getJson('/api/mobile/v1/customer-pos?per_page=1')->assertOk()
             ->assertJsonPath('data.total', 1)->assertJsonPath('data.data.0.id', 2)
             ->assertJsonPath('data.data.0.patron.legal_name', 'Customer')->assertJsonPath('data.data.0.site.name', 'Site')
-            ->assertJsonCount(1, 'data.data.0.items');
+            ->assertJsonCount(1, 'data.data.0.items')
+            ->assertJsonPath('data.data.0.items.0.mix_design_name', DB::table('mm_mix_designs')->where('id', 1)->value('design_name'))
+            ->assertJsonPath('data.data.0.sales_orders.0.id', 850);
         $this->assertEqualsCanonicalizing(['id', 'prefix', 'reference', 'customer_po_reference', 'quotation_id', 'patron_id', 'site_id',
             'order_date', 'due_date', 'notes', 'sales_executive_id', 'concrete_pump', 'pump_rate', 'adjustment',
             'status', 'is_sales_order', 'is_tax_inclusive', 'amount_untaxed', 'amount_tax', 'amount_total',
-            'converted_by_user_id', 'created_at', 'updated_at', 'patron', 'site', 'items'],
+            'converted_by_user_id', 'created_at', 'updated_at', 'patron', 'site', 'items', 'sales_orders'],
             array_keys($listing->json('data.data.0')));
         $this->assertEqualsCanonicalizing(['id', 'mix_design_id', 'quantity', 'rate', 'tax_id', 'concrete_pump', 'pump_rate',
-            'untaxed_amount', 'tax_amount', 'amount_total'], array_keys($listing->json('data.data.0.items.0')));
+            'untaxed_amount', 'tax_amount', 'amount_total', 'mix_design_name', 'mix_design'], array_keys($listing->json('data.data.0.items.0')));
         $this->getJson('/api/mobile/v1/customer-pos?search=CUSTOMER-2&customer_id=1&site_id=1&status=0')
             ->assertOk()->assertJsonPath('data.total', 1)->assertJsonPath('data.data.0.id', 2);
         $this->getJson('/api/mobile/v1/customer-pos?search=CPO-3')->assertOk()->assertJsonPath('data.total', 0);

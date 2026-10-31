@@ -170,6 +170,28 @@ class MobileAccess
             : self::commercial(CustomerPO::class, 'SALES_ORDER');
     }
 
+    public static function customerPOsForReading(): Builder
+    {
+        // Main-app PO viewers have the same plant-wide directory as the website.
+        // Keep the dedicated sales app and mutation queries restricted to ownership.
+        return self::canReadPlantCustomerPOs()
+            ? self::plantQuery(CustomerPO::class)
+            : self::customerPOs();
+    }
+
+    public static function customerPOSalesOrdersForReading(): Builder
+    {
+        return self::canReadPlantCustomerPOs()
+            ? self::plantQuery(SalesOrder::class)
+            : self::orders();
+    }
+
+    private static function canReadPlantCustomerPOs(): bool
+    {
+        return (bool) request()->attributes->get('mobile_app_context')
+            && self::permits('CUSTOMER_PO', 'VIEW');
+    }
+
     public static function orderOwnerId(?int $existingOwner = null, bool $updating = false, mixed $requestedOwner = null, bool $hasRequested = false): ?int
     {
         if (self::isCommercialAdministrator()) {
