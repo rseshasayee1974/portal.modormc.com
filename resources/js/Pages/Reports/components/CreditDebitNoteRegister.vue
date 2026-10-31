@@ -31,11 +31,13 @@ const display = (row, field) => moneyField(field) ? formatCurrency(row[field] ||
         <div class="overflow-x-auto rounded border border-slate-200 bg-white">
             <table class="w-full min-w-[1400px] text-xs text-left">
                 <thead class="bg-slate-50 text-slate-600">
-                    <tr><th v-for="(header, index) in reportData.headers" :key="header" class="p-3"
+                    <tr><th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
+                        <th v-for="(header, index) in reportData.headers" :key="header" class="p-3"
                         :class="moneyField(reportData.fields[index]) ? 'text-right' : ''">{{ header }}</th></tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in reportData.transactions || []" :key="row.id" class="border-t border-slate-100">
+                    <tr v-for="(row, serialIndex) in reportData.transactions || []" :key="row.id" class="border-t border-slate-100">
+                        <td class="py-3 px-3 text-center text-slate-400">{{ serialIndex + 1 }}</td>
                         <td v-for="field in reportData.fields" :key="field" class="p-3"
                             :class="moneyField(field) ? 'text-right whitespace-nowrap' : ''">
                             <span :class="field === 'note_number' ? 'font-semibold' : ''">{{ display(row, field) }}</span>
@@ -43,11 +45,12 @@ const display = (row, field) => moneyField(field) ? formatCurrency(row[field] ||
                         </td>
                     </tr>
                     <tr v-if="!reportData.transactions?.length">
-                        <td :colspan="reportData.fields?.length || 12" class="p-8 text-center text-slate-500">No credit or debit notes found for the selected period.</td>
+                        <td :colspan="(reportData.fields?.length || 12) + 1" class="p-8 text-center text-slate-500">No credit or debit notes found for the selected period.</td>
                     </tr>
                 </tbody>
                 <tfoot class="border-t border-slate-200 bg-slate-50 font-bold">
-                    <tr><td v-for="(field, index) in reportData.fields" :key="field" class="p-3"
+                    <tr><td class="py-3 px-3"></td>
+                        <td v-for="(field, index) in reportData.fields" :key="field" class="p-3"
                         :class="moneyField(field) ? 'text-right whitespace-nowrap' : ''">
                         {{ index === 0 ? 'Total' : moneyField(field) ? formatCurrency(reportData.totals?.[field] || 0) : '' }}
                     </td></tr>

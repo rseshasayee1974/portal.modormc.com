@@ -150,6 +150,7 @@ const grandTotal = computed(() => {
             <table class="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
                     <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                         <th class="py-3 px-4">Customer GSTIN</th>
                         <th class="py-3 px-4">Customer Name</th>
                         <th class="py-3 px-4">Invoice No</th>
@@ -164,11 +165,12 @@ const grandTotal = computed(() => {
                 </thead>
                 <tbody class="text-[11px] font-semibold text-slate-700">
                     <tr v-if="(reportData.b2b || []).length === 0">
-                        <td colspan="10" class="py-8 text-center text-slate-400 bg-slate-50/50">
+                        <td colspan="11" class="py-8 text-center text-slate-400 bg-slate-50/50">
                             No B2B invoices found in this period.
                         </td>
                     </tr>
                     <tr v-for="(row, idx) in reportData.b2b" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                        <td class="py-3 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                         <td class="py-3 px-4 font-bold text-slate-800">{{ row.gstin }}</td>
                         <td class="py-3 px-4">{{ row.customer_name }}</td>
                         <td class="py-3 px-4 font-bold text-slate-900">{{ row.invoice_no }}</td>
@@ -181,7 +183,7 @@ const grandTotal = computed(() => {
                         <td class="py-3 px-4 text-center">{{ row.place_of_supply }}</td>
                     </tr>
                     <tr v-if="(reportData.b2b || []).length > 0" class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs text-slate-800">
-                        <td colspan="4" class="py-3.5 px-4 uppercase text-center font-bold">Total B2B</td>
+                        <td colspan="5" class="py-3.5 px-4 uppercase text-center font-bold">Total B2B</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(b2bTotal.taxable) }}</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(b2bTotal.cgst) }}</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(b2bTotal.sgst) }}</td>
@@ -198,6 +200,7 @@ const grandTotal = computed(() => {
             <table class="w-full text-left border-collapse min-w-[900px]">
                 <thead>
                     <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                         <th class="py-3 px-4">Invoice No</th>
                         <th class="py-3 px-4 text-center">Date</th>
                         <th class="py-3 px-4 text-right">Taxable Value</th>
@@ -210,11 +213,12 @@ const grandTotal = computed(() => {
                 </thead>
                 <tbody class="text-[11px] font-semibold text-slate-700">
                     <tr v-if="(reportData.b2c || []).length === 0">
-                        <td colspan="8" class="py-8 text-center text-slate-400 bg-slate-50/50">
+                        <td colspan="9" class="py-8 text-center text-slate-400 bg-slate-50/50">
                             No B2C transactions found in this period.
                         </td>
                     </tr>
                     <tr v-for="(row, idx) in reportData.b2c" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                        <td class="py-3 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                         <td class="py-3 px-4 font-bold text-slate-900">{{ row.invoice_no }}</td>
                         <td class="py-3 px-4 text-center text-slate-500">{{ row.invoice_date }}</td>
                         <td class="py-3 px-4 text-right">{{ formatCurrency(row.taxable_value) }}</td>
@@ -225,7 +229,7 @@ const grandTotal = computed(() => {
                         <td class="py-3 px-4 text-center">{{ row.place_of_supply }}</td>
                     </tr>
                     <tr v-if="(reportData.b2c || []).length > 0" class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs text-slate-800">
-                        <td colspan="2" class="py-3.5 px-4 uppercase text-center font-bold">Total B2C</td>
+                        <td colspan="3" class="py-3.5 px-4 uppercase text-center font-bold">Total B2C</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(b2cTotal.taxable) }}</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(b2cTotal.cgst) }}</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(b2cTotal.sgst) }}</td>
@@ -242,6 +246,7 @@ const grandTotal = computed(() => {
             <table class="w-full text-left border-collapse min-w-[1100px]">
                 <thead>
                     <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                         <th class="py-3 px-4">Customer GSTIN</th>
                         <th class="py-3 px-4">Customer Name</th>
                         <th class="py-3 px-4">Note No</th>
@@ -258,11 +263,12 @@ const grandTotal = computed(() => {
                 </thead>
                 <tbody class="text-[11px] font-semibold text-slate-700">
                     <tr v-if="(reportData.cdnr || []).length === 0">
-                        <td colspan="12" class="py-8 text-center text-slate-400 bg-slate-50/50">
+                        <td colspan="13" class="py-8 text-center text-slate-400 bg-slate-50/50">
                             No credit/debit notes found in this period.
                         </td>
                     </tr>
                     <tr v-for="(row, idx) in reportData.cdnr" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                        <td class="py-3 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                         <td class="py-3 px-4 font-bold text-slate-800">{{ row.gstin }}</td>
                         <td class="py-3 px-4">{{ row.customer_name }}</td>
                         <td class="py-3 px-4 font-bold text-slate-900">{{ row.note_no }}</td>
@@ -281,7 +287,7 @@ const grandTotal = computed(() => {
                         <td class="py-3 px-4 text-center">{{ row.place_of_supply }}</td>
                     </tr>
                     <tr v-if="(reportData.cdnr || []).length > 0" class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs text-slate-800">
-                        <td colspan="6" class="py-3.5 px-4 uppercase text-center font-bold">Total CDNR</td>
+                        <td colspan="7" class="py-3.5 px-4 uppercase text-center font-bold">Total CDNR</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(cdnrTotal.taxable) }}</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(cdnrTotal.cgst) }}</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(cdnrTotal.sgst) }}</td>
@@ -298,6 +304,7 @@ const grandTotal = computed(() => {
             <table class="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                     <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                         <th class="py-3 px-4">Invoice No</th>
                         <th class="py-3 px-4 text-center">Date</th>
                         <th class="py-3 px-4">Export Type</th>
@@ -309,11 +316,12 @@ const grandTotal = computed(() => {
                 </thead>
                 <tbody class="text-[11px] font-semibold text-slate-700">
                     <tr v-if="(reportData.exp || []).length === 0">
-                        <td colspan="7" class="py-8 text-center text-slate-400 bg-slate-50/50">
+                        <td colspan="8" class="py-8 text-center text-slate-400 bg-slate-50/50">
                             No export transactions found in this period.
                         </td>
                     </tr>
                     <tr v-for="(row, idx) in reportData.exp" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                        <td class="py-3 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                         <td class="py-3 px-4 font-bold text-slate-900">{{ row.invoice_no }}</td>
                         <td class="py-3 px-4 text-center text-slate-500">{{ row.invoice_date }}</td>
                         <td class="py-3 px-4">
@@ -327,7 +335,7 @@ const grandTotal = computed(() => {
                         <td class="py-3 px-4 text-center">{{ row.place_of_supply }}</td>
                     </tr>
                     <tr v-if="(reportData.exp || []).length > 0" class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs text-slate-800">
-                        <td colspan="3" class="py-3.5 px-4 uppercase text-center font-bold">Total EXP</td>
+                        <td colspan="4" class="py-3.5 px-4 uppercase text-center font-bold">Total EXP</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(expTotal.taxable) }}</td>
                         <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(expTotal.igst) }}</td>
                         <td class="py-3.5 px-4 text-right font-black bg-slate-100">{{ formatCurrency(expTotal.value) }}</td>

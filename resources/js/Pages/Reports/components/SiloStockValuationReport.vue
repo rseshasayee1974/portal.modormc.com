@@ -111,6 +111,7 @@ const formatCurrency = (val) => {
                                         <table class="w-full text-left border-collapse text-[10px]">
                                             <thead>
                                                 <tr class="font-bold text-slate-500 border-b border-slate-100 uppercase bg-slate-50/50">
+                                                    <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                                                     <th class="py-2 px-3">Date</th>
                                                     <th class="py-2 px-3">Doc No</th>
                                                     <th class="py-2 px-3">Transaction</th>
@@ -125,6 +126,7 @@ const formatCurrency = (val) => {
                                             </thead>
                                             <tbody class="font-medium text-slate-600">
                                                 <tr v-for="(evt, eIdx) in row.detailed_events" :key="eIdx" class="border-b border-slate-100 hover:bg-slate-50">
+                                                    <td class="py-3 px-3 text-center text-slate-400">{{ eIdx + 1 }}</td>
                                                     <td class="py-2 px-3 text-slate-400">{{ evt.date }}</td>
                                                     <td class="py-2 px-3 font-mono font-bold">{{ evt.doc_no }}</td>
                                                     <td class="py-2 px-3">

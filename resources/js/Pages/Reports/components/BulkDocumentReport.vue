@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { entityToday } from '@/Utils/entityDateTime';
-import { reactive, ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { reactive, ref, computed, watch, onUnmounted } from 'vue';
 import axios from 'axios';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
@@ -53,8 +53,6 @@ const optionsLoading = ref(false);
 const optionsError = ref('');
 let optionsGeneration = 0;
 let previewGeneration = 0;
-let optionsTimer: ReturnType<typeof setTimeout>;
-let previewTimer: ReturnType<typeof setTimeout>;
 
 const scopeFilters = computed(() => ({
     start_date: filters.start_date, end_date: filters.end_date,
@@ -74,7 +72,7 @@ async function loadInvoiceOptions() {
             ...option, label: `${option.number} · ${option.date}`,
         }));
     } catch (e: any) {
-        if (generation === optionsGeneration) optionsError.value = 'Unable to load invoice numbers. Check the date range and try Generate Report again.';
+        if (generation === optionsGeneration) optionsError.value = 'Unable to load invoice numbers. Check the date range and try Execute Query again.';
     } finally {
         if (generation === optionsGeneration) optionsLoading.value = false;
     }
@@ -84,23 +82,20 @@ watch(scopeFilters, () => {
     optionsGeneration++;
     invoiceOptions.value = [];
     filters.invoice_ids = [];
-    optionsLoading.value = true;
-    clearTimeout(optionsTimer);
-    optionsTimer = setTimeout(loadInvoiceOptions, 250);
+    optionsLoading.value = false;
+    optionsError.value = '';
 });
 
 watch(filters, () => {
     previewGeneration++;
     result.value = null;
-    clearTimeout(previewTimer);
-    previewTimer = setTimeout(runPreview, 300);
+    busy.value = false;
+    error.value = '';
 }, { deep: true, flush: 'sync' });
 
 onUnmounted(() => {
     optionsGeneration++;
     previewGeneration++;
-    clearTimeout(optionsTimer);
-    clearTimeout(previewTimer);
 });
 
 const documentTypeOptions = [
@@ -283,11 +278,9 @@ const resetFilters = () => {
     filters.tax_type = '';
     filters.reference = '';
     filters.invoice_ids = [];
-    runPreview();
 };
 
 async function runPreview() {
-    clearTimeout(previewTimer);
     if (optionsError.value) loadInvoiceOptions();
     const generation = ++previewGeneration;
     busy.value = true;
@@ -376,10 +369,6 @@ const printReport = async () => {
     }
 };
 
-onMounted(() => {
-    loadInvoiceOptions();
-    runPreview();
-});
 </script>
 
 <template>
@@ -491,7 +480,7 @@ onMounted(() => {
                         <MultiSelect inputId="bulk-invoice-numbers" v-model="filters.invoice_ids"
                             :options="invoiceOptions" optionLabel="label" optionValue="id" filter showClear
                             :maxSelectedLabels="3" selectedItemsLabel="{0} documents selected" :selectionLimit="1000"
-                            :virtualScrollerOptions="{ itemSize: 44 }" :loading="optionsLoading"
+                            :virtualScrollerOptions="{ itemSize: 44 }" :loading="optionsLoading" @show="loadInvoiceOptions"
                             :disabled="optionsLoading || !!optionsError" class="w-full" />
                         <!-- <p v-if="optionsError" class="mt-2 text-sm text-red-600">{{ optionsError }}</p>
                         <p v-else class="mt-2 text-xs text-slate-500">
@@ -517,7 +506,7 @@ onMounted(() => {
 
                             <BaseButton type="submit" variant="filled" severity="primary" :loading="busy">
                                 <ArrowPathIcon class="h-4 w-4 mr-2" />
-                                Generate Report
+                                Execute Query
                             </BaseButton>
                         </div>
                     </div>

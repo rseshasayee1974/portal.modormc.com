@@ -84,6 +84,7 @@ const activeTab = ref('pf');
                 <table class="w-full text-left border-collapse min-w-[1000px]">
                     <thead>
                         <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                            <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                             <th class="py-3 px-4 text-center" style="width: 100px;">Emp Code</th>
                             <th class="py-3 px-4">Employee Name</th>
                             <th class="py-3 px-4 text-center">UAN</th>
@@ -98,11 +99,12 @@ const activeTab = ref('pf');
                     </thead>
                     <tbody class="text-[11px] font-semibold text-slate-700">
                         <tr v-if="(reportData.pf || []).length === 0">
-                            <td colspan="10" class="py-8 text-center text-slate-400 bg-slate-50/50">
+                            <td colspan="11" class="py-8 text-center text-slate-400 bg-slate-50/50">
                                 No PF transactions found for the selected date range.
                             </td>
                         </tr>
                         <tr v-for="(row, idx) in reportData.pf" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                            <td class="py-3 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                             <td class="py-3 px-4 text-center text-slate-500 whitespace-nowrap">{{ row.employee_code }}</td>
                             <td class="py-3 px-4 font-bold text-slate-900">{{ row.name }}</td>
                             <td class="py-3 px-4 text-center font-mono">{{ row.uan }}</td>
@@ -115,7 +117,7 @@ const activeTab = ref('pf');
                             <td class="py-3 px-4 text-right font-black text-indigo-600 bg-indigo-50/20">{{ formatCurrency(row.total_contribution) }}</td>
                         </tr>
                         <tr v-if="(reportData.pf || []).length > 0" class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs text-slate-800">
-                            <td colspan="3" class="py-3.5 px-4 uppercase text-center font-bold">Total PF Summary</td>
+                            <td colspan="4" class="py-3.5 px-4 uppercase text-center font-bold">Total PF Summary</td>
                             <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(reportData.pf_totals?.gross_wages) }}</td>
                             <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(reportData.pf_totals?.epf_wages) }}</td>
                             <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(reportData.pf_totals?.eps_wages) }}</td>
@@ -168,6 +170,7 @@ const activeTab = ref('pf');
                 <table class="w-full text-left border-collapse min-w-[800px]">
                     <thead>
                         <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                            <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                             <th class="py-3 px-4 text-center" style="width: 100px;">Emp Code</th>
                             <th class="py-3 px-4">Employee Name</th>
                             <th class="py-3 px-4 text-center">ESI Number</th>
@@ -180,11 +183,12 @@ const activeTab = ref('pf');
                     </thead>
                     <tbody class="text-[11px] font-semibold text-slate-700">
                         <tr v-if="(reportData.esi || []).length === 0">
-                            <td colspan="8" class="py-8 text-center text-slate-400 bg-slate-50/50">
+                            <td colspan="9" class="py-8 text-center text-slate-400 bg-slate-50/50">
                                 No ESI transactions found for the selected date range.
                             </td>
                         </tr>
                         <tr v-for="(row, idx) in reportData.esi" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                            <td class="py-3 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                             <td class="py-3 px-4 text-center text-slate-500 whitespace-nowrap">{{ row.employee_code }}</td>
                             <td class="py-3 px-4 font-bold text-slate-900">{{ row.name }}</td>
                             <td class="py-3 px-4 text-center font-mono">{{ row.esi_number }}</td>
@@ -195,7 +199,7 @@ const activeTab = ref('pf');
                             <td class="py-3 px-4 text-right font-black text-indigo-600 bg-indigo-50/20">{{ formatCurrency(row.total_contribution) }}</td>
                         </tr>
                         <tr v-if="(reportData.esi || []).length > 0" class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs text-slate-800">
-                            <td colspan="3" class="py-3.5 px-4 uppercase text-center font-bold">Total ESI Summary</td>
+                            <td colspan="4" class="py-3.5 px-4 uppercase text-center font-bold">Total ESI Summary</td>
                             <td class="py-3.5 px-4 text-center font-black">{{ reportData.esi_totals?.days_worked }}</td>
                             <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(reportData.esi_totals?.gross_wages) }}</td>
                             <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(reportData.esi_totals?.employee_contribution) }}</td>

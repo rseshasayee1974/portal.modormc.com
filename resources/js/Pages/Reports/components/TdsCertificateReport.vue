@@ -75,6 +75,7 @@ const totals = computed(() => {
                 <table class="w-full text-left border-collapse min-w-[800px]">
                     <thead>
                         <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                            <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                             <th class="py-3 px-4">Date</th>
                             <th class="py-3 px-4">Document Number</th>
                             <th class="py-3 px-4 text-center">Document Type</th>
@@ -86,11 +87,12 @@ const totals = computed(() => {
                     </thead>
                     <tbody class="text-[11px] font-semibold text-slate-700">
                         <tr v-if="(reportData.transactions || []).length === 0">
-                            <td colspan="7" class="py-8 text-center text-slate-400 bg-slate-50/50">
+                            <td colspan="8" class="py-8 text-center text-slate-400 bg-slate-50/50">
                                 No TDS transactions found for this partner in the selected date range.
                             </td>
                         </tr>
                         <tr v-for="(row, idx) in reportData.transactions" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                            <td class="py-3 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                             <td class="py-3 px-4 text-slate-500 whitespace-nowrap">{{ row.date }}</td>
                             <td class="py-3 px-4 font-bold text-slate-900">{{ row.doc_no }}</td>
                             <td class="py-3 px-4 text-center">
@@ -104,7 +106,7 @@ const totals = computed(() => {
                             <td class="py-3 px-4 text-right font-black text-[#385723] bg-slate-50/40">{{ formatCurrency(row.tds_amount) }}</td>
                         </tr>
                         <tr v-if="(reportData.transactions || []).length > 0" class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs text-slate-800">
-                            <td colspan="3" class="py-3.5 px-4 uppercase text-center font-bold">Total</td>
+                            <td colspan="4" class="py-3.5 px-4 uppercase text-center font-bold">Total</td>
                             <td class="py-3.5 px-4 text-right font-black">{{ formatCurrency(totals.taxable) }}</td>
                             <td colspan="2"></td>
                             <td class="py-3.5 px-4 text-right font-black bg-slate-100 text-[#385723]">{{ formatCurrency(totals.tds) }}</td>

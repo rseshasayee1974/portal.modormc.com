@@ -541,6 +541,7 @@ const filteredPayments = computed(() => {
                                 <thead
                                     class="bg-emerald-50/50 text-[10px] uppercase font-bold text-emerald-900 border-b border-slate-200">
                                     <tr>
+                                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                                         <th class="py-2 px-3">Voucher #</th>
                                         <th class="py-2 px-3">Customer</th>
                                         <th class="py-2 px-3">Mode</th>
@@ -548,7 +549,8 @@ const filteredPayments = computed(() => {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
-                                    <tr v-for="r in filteredReceipts" :key="r.id" class="hover:bg-slate-50">
+                                    <tr v-for="(r, serialIndex) in filteredReceipts" :key="r.id" class="hover:bg-slate-50">
+                                        <td class="py-3 px-3 text-center text-slate-400">{{ serialIndex + 1 }}</td>
                                         <td class="py-2 px-3 font-bold font-mono text-slate-800">{{ r.voucher_no }}</td>
                                         <td class="py-2 px-3 font-semibold text-slate-800">{{ r.customer }}</td>
                                         <td class="py-2 px-3 text-slate-600 text-[11px]">{{ r.mode }}</td>
@@ -556,7 +558,7 @@ const filteredPayments = computed(() => {
                                             formatCurrency(r.amount) }}</td>
                                     </tr>
                                     <tr v-if="!filteredReceipts.length">
-                                        <td colspan="4" class="py-6 text-center text-slate-400">No receipts logged
+                                        <td colspan="5" class="py-6 text-center text-slate-400">No receipts logged
                                             today.</td>
                                     </tr>
                                 </tbody>
@@ -575,6 +577,7 @@ const filteredPayments = computed(() => {
                                 <thead
                                     class="bg-amber-50/50 text-[10px] uppercase font-bold text-amber-900 border-b border-slate-200">
                                     <tr>
+                                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                                         <th class="py-2 px-3">Voucher #</th>
                                         <th class="py-2 px-3">Beneficiary</th>
                                         <th class="py-2 px-3">Mode</th>
@@ -582,7 +585,8 @@ const filteredPayments = computed(() => {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
-                                    <tr v-for="p in filteredPayments" :key="p.id" class="hover:bg-slate-50">
+                                    <tr v-for="(p, serialIndex) in filteredPayments" :key="p.id" class="hover:bg-slate-50">
+                                        <td class="py-3 px-3 text-center text-slate-400">{{ serialIndex + 1 }}</td>
                                         <td class="py-2 px-3 font-bold font-mono text-slate-800">{{ p.voucher_no }}</td>
                                         <td class="py-2 px-3 font-semibold text-slate-800">{{ p.beneficiary }}</td>
                                         <td class="py-2 px-3 text-slate-600 text-[11px]">{{ p.mode }}</td>
@@ -590,7 +594,7 @@ const filteredPayments = computed(() => {
                                             formatCurrency(p.amount) }}</td>
                                     </tr>
                                     <tr v-if="!filteredPayments.length">
-                                        <td colspan="4" class="py-6 text-center text-slate-400">No payments logged
+                                        <td colspan="5" class="py-6 text-center text-slate-400">No payments logged
                                             today.</td>
                                     </tr>
                                 </tbody>
@@ -614,6 +618,7 @@ const filteredPayments = computed(() => {
                                 <thead
                                     class="bg-slate-50 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
                                     <tr>
+                                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                                         <th class="py-2 px-3">Quote #</th>
                                         <th class="py-2 px-3">Customer</th>
                                         <th class="py-2 px-3 text-right">Total Amount</th>
@@ -621,7 +626,8 @@ const filteredPayments = computed(() => {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
-                                    <tr v-for="q in pipeline.quotations_list" :key="q.id">
+                                    <tr v-for="(q, serialIndex) in pipeline.quotations_list" :key="q.id">
+                                        <td class="py-3 px-3 text-center text-slate-400">{{ serialIndex + 1 }}</td>
                                         <td class="py-2 px-3 font-bold font-mono text-[#0064d2]">{{ q.quote_no }}</td>
                                         <td class="py-2 px-3 font-semibold text-slate-800">{{ q.customer }}</td>
                                         <td class="py-2 px-3 text-right font-bold">{{ formatCurrency(q.total_amount) }}
@@ -629,7 +635,7 @@ const filteredPayments = computed(() => {
                                         <td class="py-2 px-3 text-center text-[10px]">{{ q.status }}</td>
                                     </tr>
                                     <tr v-if="!pipeline.quotations_list.length">
-                                        <td colspan="4" class="py-6 text-center text-slate-400">No quotations logged for
+                                        <td colspan="5" class="py-6 text-center text-slate-400">No quotations logged for
                                             this period.</td>
                                     </tr>
                                 </tbody>
@@ -648,6 +654,7 @@ const filteredPayments = computed(() => {
                                 <thead
                                     class="bg-slate-50 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
                                     <tr>
+                                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                                         <th class="py-2 px-3">Order #</th>
                                         <th class="py-2 px-3">Customer</th>
                                         <th class="py-2 px-3 text-right">Total Amount</th>
@@ -655,7 +662,8 @@ const filteredPayments = computed(() => {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
-                                    <tr v-for="so in pipeline.sales_orders_list" :key="so.id">
+                                    <tr v-for="(so, serialIndex) in pipeline.sales_orders_list" :key="so.id">
+                                        <td class="py-3 px-3 text-center text-slate-400">{{ serialIndex + 1 }}</td>
                                         <td class="py-2 px-3 font-bold font-mono text-emerald-700">{{ so.order_no }}
                                         </td>
                                         <td class="py-2 px-3 font-semibold text-slate-800">{{ so.customer }}</td>
@@ -668,7 +676,7 @@ const filteredPayments = computed(() => {
                                         </td>
                                     </tr>
                                     <tr v-if="!pipeline.sales_orders_list.length">
-                                        <td colspan="4" class="py-6 text-center text-slate-400">No sales orders logged
+                                        <td colspan="5" class="py-6 text-center text-slate-400">No sales orders logged
                                             for this period.</td>
                                     </tr>
                                 </tbody>
