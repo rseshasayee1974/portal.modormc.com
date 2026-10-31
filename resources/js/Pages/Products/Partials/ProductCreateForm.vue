@@ -28,6 +28,7 @@ const isOpen = ref(true);
 const form = useForm({
     title: '',
     code: '',
+    alias: null,
     category_id: props.categories.length > 0 ? props.categories[0].id : null,
     unit_id: props.units.length > 0 ? props.units[0].id : null,
     purchase_price: 0,
@@ -35,7 +36,7 @@ const form = useForm({
     status: true,
     hsn_code: '',
     material_code: '',
-    tax_mode:  false,
+    tax_mode: false,
     purchase_tax_id: null as number | null,
     sale_tax_id: null as number | null,
     is_service: false,
@@ -110,119 +111,69 @@ const submit = () => {
                 <div class="grid grid-cols-12   gap-4">
                     <div class="field-group col-span-12 md:col-span-2">
                         <label class="field-label">Category</label>
-                        <BaseSelect
-                            v-model="form.category_id"
-                            :options="categoryOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            filter
-                            :class="{ 'p-invalid': form.errorFor('category_id') }"
-                        />
-                        <small v-if="form.errorFor('category_id')" class="field-error">{{ form.errorFor('category_id') }}</small>
+                        <BaseSelect v-model="form.category_id" :options="categoryOptions" optionLabel="label"
+                            optionValue="value" filter :class="{ 'p-invalid': form.errorFor('category_id') }" />
+                        <small v-if="form.errorFor('category_id')" class="field-error">{{ form.errorFor('category_id')
+                            }}</small>
                     </div>
                     <div class="col-span-12 md:col-span-2">
-                        <BaseInput 
-                            v-model="form.title" 
-                            label="Product Name"
-                            required
-                            :error="form.errorFor('title')"
-                        />
+                        <BaseInput v-model="form.title" label="Product Name" required :error="form.errorFor('title')" />
                     </div>
-                    
+                    <div class="col-span-12 md:col-span-2">
+                        <BaseInput v-model="form.alias" label="Alias" :error="form.errorFor('alias')" />
+                    </div>
+
                     <div class="field-group col-span-12 md:col-span-2">
                         <label class="field-label">Unit</label>
-                        <BaseSelect
-                            v-model="form.unit_id"
-                            :options="unitOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            :class="{ 'p-invalid': form.errorFor('unit_id') }"
-                        />
-                        <small v-if="form.errorFor('unit_id')" class="field-error">{{ form.errorFor('unit_id') }}</small>
+                        <BaseSelect v-model="form.unit_id" :options="unitOptions" optionLabel="label"
+                            optionValue="value" :class="{ 'p-invalid': form.errorFor('unit_id') }" />
+                        <small v-if="form.errorFor('unit_id')" class="field-error">{{ form.errorFor('unit_id')
+                            }}</small>
                     </div>
                     <div class="col-span-12 md:col-span-2">
-                        <BaseInput 
-                            v-model="form.purchase_price" 
-                            label="Purchase Price"
-                            required
-                            type="number"
-                            :error="form.errorFor('purchase_price')"
-                        />
+                        <BaseInput v-model="form.purchase_price" label="Purchase Price" required type="number"
+                            :error="form.errorFor('purchase_price')" />
                     </div>
                     <div class="col-span-12 md:col-span-2">
-                        <BaseInput 
-                            v-model="form.sales_price" 
-                            label="Sale Price"
-                            required
-                            type="number"
-                            :error="form.errorFor('sales_price')"
-                        />
+                        <BaseInput v-model="form.sales_price" label="Sale Price" required type="number"
+                            :error="form.errorFor('sales_price')" />
                     </div>
-                
+
                     <div class="field-group col-span-12 md:col-span-2">
                         <label class="field-label">Product Type</label>
-                        <BaseSelect
-                            v-model="form.product_type"
-                            :options="productTypeOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            :class="{ 'p-invalid': form.errorFor('product_type') }"
-                        />
-                        <small v-if="form.errorFor('product_type')" class="field-error">{{ form.errorFor('product_type') }}</small>
+                        <BaseSelect v-model="form.product_type" :options="productTypeOptions" optionLabel="label"
+                            optionValue="value" :class="{ 'p-invalid': form.errorFor('product_type') }" />
+                        <small v-if="form.errorFor('product_type')" class="field-error">{{ form.errorFor('product_type')
+                            }}</small>
                     </div>
                     <div class="col-span-12 md:col-span-2">
-                        <BaseInput 
-                            v-model="form.hsn_code" 
-                            label="HSN Code"
-                            :error="form.errorFor('hsn_code')"
-                        />
+                        <BaseInput v-model="form.hsn_code" label="HSN Code" :error="form.errorFor('hsn_code')" />
                     </div>
                     <div class="col-span-12 md:col-span-2">
-                        <BaseInput 
-                            v-model="form.material_code" 
-                            label="Material Code"
-                            :error="form.errorFor('material_code')"
-                        />
+                        <BaseInput v-model="form.material_code" label="Material Code"
+                            :error="form.errorFor('material_code')" />
                     </div>
                     <div class="field-group col-span-12 md:col-span-2">
                         <label class="field-label">Purchase Tax</label>
-                        <BaseSelect
-                            v-model="form.purchase_tax_id"
-                            :options="purchaseTaxOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            filter
-                            :class="{ 'p-invalid': form.errorFor('purchase_tax_id') }"
-                        />
-                        <small v-if="form.errorFor('purchase_tax_id')" class="field-error">{{ form.errorFor('purchase_tax_id') }}</small>
+                        <BaseSelect v-model="form.purchase_tax_id" :options="purchaseTaxOptions" optionLabel="label"
+                            optionValue="value" filter :class="{ 'p-invalid': form.errorFor('purchase_tax_id') }" />
+                        <small v-if="form.errorFor('purchase_tax_id')" class="field-error">{{
+                            form.errorFor('purchase_tax_id') }}</small>
                     </div>
                     <div class="field-group col-span-12 md:col-span-2">
                         <label class="field-label">Sales Tax</label>
-                        <BaseSelect
-                            v-model="form.sale_tax_id"
-                            :options="salesTaxOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            filter
-                            :class="{ 'p-invalid': form.errorFor('sale_tax_id') }"
-                        />
-                        <small v-if="form.errorFor('sale_tax_id')" class="field-error">{{ form.errorFor('sale_tax_id') }}</small>
+                        <BaseSelect v-model="form.sale_tax_id" :options="salesTaxOptions" optionLabel="label"
+                            optionValue="value" filter :class="{ 'p-invalid': form.errorFor('sale_tax_id') }" />
+                        <small v-if="form.errorFor('sale_tax_id')" class="field-error">{{ form.errorFor('sale_tax_id')
+                            }}</small>
                     </div>
                     <div class="col-span-12 md:col-span-2">
-                        <BaseInput 
-                            v-model="form.stock_alert" 
-                            label="Stock Alert Qty"
-                            type="number"
-                            :error="form.errorFor('stock_alert')"
-                        />
+                        <BaseInput v-model="form.stock_alert" label="Stock Alert Qty" type="number"
+                            :error="form.errorFor('stock_alert')" />
                     </div>
                     <div class="col-span-12 md:col-span-2">
-                        <BaseInput 
-                            v-model="form.conversion_quantity" 
-                            label="Conversion Qty"
-                            type="number"
-                            :error="form.errorFor('conversion_quantity')"
-                        />
+                        <BaseInput v-model="form.conversion_quantity" label="Conversion Qty" type="number"
+                            :error="form.errorFor('conversion_quantity')" />
                     </div>
                 </div>
                 <div class="expansion-actions">
@@ -236,17 +187,13 @@ const submit = () => {
                     </div>
                     <div class="flex items-center gap-2 mr-auto">
                         <ToggleSwitch v-model="form.tax_mode" />
-                        <span class="text-xs font-semibold uppercase" :class="form.tax_mode ? 'text-indigo-500' : 'text-slate-400'">
+                        <span class="text-xs font-semibold uppercase"
+                            :class="form.tax_mode ? 'text-indigo-500' : 'text-slate-400'">
                             {{ form.tax_mode ? 'Tax Inclusive' : 'Tax Exclusive' }}
                         </span>
                     </div>
-                <BaseFormActions
-                    label="Add Product"
-                    cancelLabel="Reset"
-                    :loading="form.processing"
-                    @submit="submit"
-                    @reset="form.reset(); form.clearErrors()"
-                />
+                    <BaseFormActions label="Add Product" cancelLabel="Reset" :loading="form.processing" @submit="submit"
+                        @reset="form.reset(); form.clearErrors()" />
                 </div>
             </div>
         </Transition>
@@ -254,19 +201,111 @@ const submit = () => {
 </template>
 
 <style scoped>
-.create-panel { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
-.create-panel--open { border-color: #c7d2fe; box-shadow: 0 0 0 3px rgba(99,102,241,0.07), 0 1px 3px rgba(0,0,0,0.05); }
-.create-panel__header { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 14px 18px; background: transparent; border: none; cursor: pointer; text-align: left; transition: background 0.15s ease; }
-.create-panel__header:hover { background: #f8fafc; }
-.create-panel__icon { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #eef2ff, #e0e7ff); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.create-panel__toggle { width: 26px; height: 26px; border-radius: 50%; background: #eef2ff; display: flex; align-items: center; justify-content: center; color: #6366f1; transition: background 0.2s, transform 0.25s ease; }
-.create-panel__toggle--open { transform: rotate(45deg); background: #6366f1; color: white; }
-.create-panel__body { padding: 20px 18px; border-top: 1px solid #eef2ff; background: linear-gradient(180deg, #fafbff 0%, #ffffff 100%); }
-.field-group { display: flex; flex-direction: column; gap: 5px; }
-.field-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; }
-.field-error { font-size: 11px; color: #e11d48; }
-.expansion-actions { display: flex; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e0e7ff; align-items: center; }
-.panel-slide-enter-active { transition: all 0.22s cubic-bezier(0.4,0,0.2,1); }
-.panel-slide-leave-active { transition: all 0.16s ease; }
-.panel-slide-enter-from, .panel-slide-leave-to { opacity: 0; transform: translateY(-6px); }
+.create-panel {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.create-panel--open {
+    border-color: #c7d2fe;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.create-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+}
+
+.create-panel__header:hover {
+    background: #f8fafc;
+}
+
+.create-panel__icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.create-panel__toggle {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #eef2ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6366f1;
+    transition: background 0.2s, transform 0.25s ease;
+}
+
+.create-panel__toggle--open {
+    transform: rotate(45deg);
+    background: #6366f1;
+    color: white;
+}
+
+.create-panel__body {
+    padding: 20px 18px;
+    border-top: 1px solid #eef2ff;
+    background: linear-gradient(180deg, #fafbff 0%, #ffffff 100%);
+}
+
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.field-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #94a3b8;
+}
+
+.field-error {
+    font-size: 11px;
+    color: #e11d48;
+}
+
+.expansion-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #e0e7ff;
+    align-items: center;
+}
+
+.panel-slide-enter-active {
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.panel-slide-leave-active {
+    transition: all 0.16s ease;
+}
+
+.panel-slide-enter-from,
+.panel-slide-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+}
 </style>

@@ -14,6 +14,7 @@ const { can } = usePermissions();
 interface Product {
     id: number;
     title: string;
+    alias: string | null;
     code: string | null;
     category_id: number | null;
     unit_id: number | null;
@@ -56,6 +57,7 @@ const toast = useToast();
 const form = useForm({
     title: props.product.title ?? '',
     code: props.product.code ?? '',
+    alias: props.product.alias ?? null,
     category_id: props.product.category_id ?? null,
     unit_id: props.product.unit_id ?? null,
     purchase_price: Number(props.product.purchase_price ?? 0),
@@ -111,130 +113,68 @@ const submit = () => {
 <template>
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 max-w-6xl">
         <div class="field-group">
-            <BaseInput 
-                v-model="form.title" 
-                label="Product Name"
-                required
-                :error="form.errorFor('title')"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseInput v-model="form.title" label="Product Name" required :error="form.errorFor('title')"
+                :disabled="!can('PRODUCT.update')" />
+        </div>
+        <div class="field-group">
+            <BaseInput v-model="form.alias" label="Alias" :error="form.errorFor('alias')" />
         </div>
         <div class="field-group">
             <label class="field-label">Category</label>
-            <BaseSelect
-                v-model="form.category_id"
-                :options="categoryOptions"
-                optionLabel="label"
-                optionValue="value"
-                filter
-                :class="{ 'p-invalid': form.errorFor('category_id') }"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseSelect v-model="form.category_id" :options="categoryOptions" optionLabel="label" optionValue="value"
+                filter :class="{ 'p-invalid': form.errorFor('category_id') }" :disabled="!can('PRODUCT.update')" />
             <small v-if="form.errorFor('category_id')" class="field-error">{{ form.errorFor('category_id') }}</small>
         </div>
         <div class="field-group">
             <label class="field-label">Unit</label>
-            <BaseSelect
-                v-model="form.unit_id"
-                :options="unitOptions"
-                optionLabel="label"
-                optionValue="value"
-                :class="{ 'p-invalid': form.errorFor('unit_id') }"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseSelect v-model="form.unit_id" :options="unitOptions" optionLabel="label" optionValue="value"
+                :class="{ 'p-invalid': form.errorFor('unit_id') }" :disabled="!can('PRODUCT.update')" />
             <small v-if="form.errorFor('unit_id')" class="field-error">{{ form.errorFor('unit_id') }}</small>
         </div>
         <div class="field-group">
-            <BaseInput 
-                v-model="form.purchase_price" 
-                label="Purchase Price"
-                required
-                type="number"
-                :error="form.errorFor('purchase_price')"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseInput v-model="form.purchase_price" label="Purchase Price" required type="number"
+                :error="form.errorFor('purchase_price')" :disabled="!can('PRODUCT.update')" />
         </div>
         <div class="field-group">
-            <BaseInput 
-                v-model="form.sales_price" 
-                label="Sale Price"
-                required
-                type="number"
-                :error="form.errorFor('sales_price')"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseInput v-model="form.sales_price" label="Sale Price" required type="number"
+                :error="form.errorFor('sales_price')" :disabled="!can('PRODUCT.update')" />
         </div>
         <div class="field-group">
             <label class="field-label">Product Type</label>
-            <BaseSelect
-                v-model="form.product_type"
-                :options="productTypeOptions"
-                optionLabel="label"
-                optionValue="value"
-                :class="{ 'p-invalid': form.errorFor('product_type') }"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseSelect v-model="form.product_type" :options="productTypeOptions" optionLabel="label"
+                optionValue="value" :class="{ 'p-invalid': form.errorFor('product_type') }"
+                :disabled="!can('PRODUCT.update')" />
             <small v-if="form.errorFor('product_type')" class="field-error">{{ form.errorFor('product_type') }}</small>
         </div>
         <div class="field-group">
-            <BaseInput 
-                v-model="form.hsn_code" 
-                label="HSN Code"
-                :error="form.errorFor('hsn_code')"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseInput v-model="form.hsn_code" label="HSN Code" :error="form.errorFor('hsn_code')"
+                :disabled="!can('PRODUCT.update')" />
         </div>
         <div class="field-group">
-            <BaseInput 
-                v-model="form.material_code" 
-                label="Material Code"
-                :error="form.errorFor('material_code')"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseInput v-model="form.material_code" label="Material Code" :error="form.errorFor('material_code')"
+                :disabled="!can('PRODUCT.update')" />
         </div>
         <div class="field-group">
             <label class="field-label">Purchase Tax</label>
-            <BaseSelect
-                v-model="form.purchase_tax_id"
-                :options="purchaseTaxOptions"
-                optionLabel="label"
-                optionValue="value"
-                filter
-                :class="{ 'p-invalid': form.errorFor('purchase_tax_id') }"
-                :disabled="!can('PRODUCT.update')"
-            />
-            <small v-if="form.errorFor('purchase_tax_id')" class="field-error">{{ form.errorFor('purchase_tax_id') }}</small>
+            <BaseSelect v-model="form.purchase_tax_id" :options="purchaseTaxOptions" optionLabel="label"
+                optionValue="value" filter :class="{ 'p-invalid': form.errorFor('purchase_tax_id') }"
+                :disabled="!can('PRODUCT.update')" />
+            <small v-if="form.errorFor('purchase_tax_id')" class="field-error">{{ form.errorFor('purchase_tax_id')
+                }}</small>
         </div>
         <div class="field-group">
             <label class="field-label">Sales Tax</label>
-            <BaseSelect
-                v-model="form.sale_tax_id"
-                :options="salesTaxOptions"
-                optionLabel="label"
-                optionValue="value"
-                filter
-                :class="{ 'p-invalid': form.errorFor('sale_tax_id') }"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseSelect v-model="form.sale_tax_id" :options="salesTaxOptions" optionLabel="label" optionValue="value"
+                filter :class="{ 'p-invalid': form.errorFor('sale_tax_id') }" :disabled="!can('PRODUCT.update')" />
             <small v-if="form.errorFor('sale_tax_id')" class="field-error">{{ form.errorFor('sale_tax_id') }}</small>
         </div>
         <div class="field-group">
-            <BaseInput 
-                v-model="form.stock_alert" 
-                label="Stock Alert Qty"
-                type="number"
-                :error="form.errorFor('stock_alert')"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseInput v-model="form.stock_alert" label="Stock Alert Qty" type="number"
+                :error="form.errorFor('stock_alert')" :disabled="!can('PRODUCT.update')" />
         </div>
         <div class="field-group">
-            <BaseInput 
-                v-model="form.conversion_quantity" 
-                label="Conversion Qty"
-                type="number"
-                :error="form.errorFor('conversion_quantity')"
-                :disabled="!can('PRODUCT.update')"
-            />
+            <BaseInput v-model="form.conversion_quantity" label="Conversion Qty" type="number"
+                :error="form.errorFor('conversion_quantity')" :disabled="!can('PRODUCT.update')" />
         </div>
     </div>
     <div class="expansion-actions">
@@ -252,20 +192,37 @@ const submit = () => {
                 {{ form.tax_mode ? 'Tax Inclusive' : 'Tax Exclusive' }}
             </span>
         </div>
-        <BaseFormActions
-            label="Update Product"
-            cancelLabel="Cancel"
-            :loading="form.processing"
-            :disabled="!can('PRODUCT.update')"
-            @submit="submit"
-            @reset="form.reset(); form.clearErrors()"
-        />
+        <BaseFormActions label="Update Product" cancelLabel="Cancel" :loading="form.processing"
+            :disabled="!can('PRODUCT.update')" @submit="submit" @reset="form.reset(); form.clearErrors()" />
     </div>
 </template>
 
 <style scoped>
-.field-group { display: flex; flex-direction: column; gap: 5px; }
-.field-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; }
-.field-error { font-size: 11px; color: #e11d48; }
-.expansion-actions { display: flex; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e0e7ff; align-items: center; }
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.field-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #94a3b8;
+}
+
+.field-error {
+    font-size: 11px;
+    color: #e11d48;
+}
+
+.expansion-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #e0e7ff;
+    align-items: center;
+}
 </style>

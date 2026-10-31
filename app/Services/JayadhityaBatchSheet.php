@@ -8,7 +8,6 @@
 namespace App\Services;
 
 use App\Models\Batch;
-use Illuminate\Validation\ValidationException;
 
 class JayadhityaBatchSheet
 {
@@ -32,27 +31,21 @@ class JayadhityaBatchSheet
 
     public static function data(Batch $batch): array
     {
-        $groups = self::GROUPS;
-        $targets = $actuals = $runs = $productColumns = [];
+        $groups = array_fill_keys(array_keys(self::GROUPS), []);
+        $targets = $actuals = $runs = $productColumns = $labels = [];
         foreach ($batch->materials as $material) {
             $rawName = trim((string) ($material->material_name ?: $material->product?->title ?: 'Material'));
             preg_match('/\s*[-–—]?\s*Run\s*[-–—]?\s*(\d+)\s*$/iu', $rawName, $runMatch);
             $name = isset($runMatch[0]) ? trim(substr($rawName, 0, -strlen($runMatch[0]))) : $rawName;
             $column = self::column($name);
-            if ($column === null) {
-                // Keep unmapped materials visible instead of silently dropping their weights.
-                $column = $name;
-                $category = strtoupper((string) $material->product?->category?->name);
-                $group = match (true) {
-                    str_contains($category, 'SIL') => 'Silica',
-                    str_contains($category, 'CEM'), str_contains($category, 'FLY'), str_contains($category, 'GGBS') => 'Cement',
-                    str_contains($category, 'WATER'), str_contains($category, 'ICE') => 'Water / Ice',
-                    str_contains($category, 'ADM'), str_contains($category, 'CHEM') => 'Admixture',
-                    default => 'Aggregate',
-                };
-                if (! in_array($column, $groups[$group], true)) {
-                    $groups[$group][] = $column;
-                }
+            $column ??= $name;
+            $alias = trim((string) $material->product?->alias);
+            if ($alias !== '' || ! isset($labels[$column])) {
+                $labels[$column] = $alias !== '' ? $alias : $name;
+            }
+            $group = self::group($column, (string) $material->product?->category?->name);
+            if (! in_array($column, $groups[$group], true)) {
+                $groups[$group][] = $column;
             }
             $target = (float) $material->target_qty;
             $actual = (float) $material->actual_qty;
@@ -65,6 +58,23 @@ class JayadhityaBatchSheet
             $runs[$run][$column] = ($runs[$run][$column] ?? 0) + $actual;
         }
         uksort($runs, 'strnatcmp');
+        $inferredRuns = count($runs) === 1 && isset($runs['Stored totals']);
+        $runSizes = [];
+        if ($inferredRuns) {
+            // Match the reconciliation editor's legacy-total split, including its 1.25 m3 fallback.
+            $quantity = (float) $batch->batch_size;
+            $capacity = (float) ($batch->plant?->mixer_capacity ?: 1.25);
+            $capacity = $capacity > 0 ? $capacity : 1.25;
+            $count = max(1, (int) ceil($quantity / $capacity));
+            $runs = [];
+            for ($index = 0; $index < $count; $index++) {
+                $volume = min($capacity, max(0, $quantity - $index * $capacity));
+                $runSizes[] = $volume;
+                foreach ($actuals as $column => $actual) {
+                    $runs[$index + 1][$column] = $quantity > 0 ? round($actual * $volume / $quantity, 3) : $actual;
+                }
+            }
+        }
         $totalTarget = array_sum($targets);
         $totalActual = array_sum($actuals);
         $order = $batch->relationLoaded('workOrder') && ! $batch->relationLoaded('salesOrder')
@@ -78,11 +88,14 @@ class JayadhityaBatchSheet
         }
 
         return [
-            'groups' => $groups,
+            'groups' => array_filter($groups),
             'columns' => array_merge(...array_values($groups)),
+            'labels' => $labels,
             'targets' => $targets,
             'actuals' => $actuals,
             'runs' => $runs,
+            'inferred_runs' => $inferredRuns,
+            'run_sizes' => $runSizes,
             'recipe' => $recipe,
             'total_target' => $totalTarget,
             'total_actual' => $totalActual,
@@ -93,51 +106,48 @@ class JayadhityaBatchSheet
     public static function layoutData(Batch $batch): array
     {
         $data = self::data($batch);
-        $labels = [];
-        $mapping = [];
-        foreach (self::GROUPS as $group => $slots) {
-            $extras = array_diff($data['groups'][$group], $slots);
-            $used = array_merge(array_keys($data['targets']), array_keys($data['recipe']));
-            $available = array_values(array_diff($slots, $used));
-            if (count($extras) > count($available)) {
-                throw ValidationException::withMessages([
-                    'materials' => "The fixed batch sheet has no free {$group} columns. Map the material names to its existing columns before exporting.",
-                ]);
-            }
-            foreach (array_values($extras) as $index => $name) {
-                $mapping[$name] = $available[$index];
-                $labels[$available[$index]] = $name;
-            }
-        }
-        $remap = function (array $row) use ($mapping): array {
-            $result = [];
-            foreach ($row as $column => $value) {
-                $key = $mapping[$column] ?? $column;
-                $result[$key] = ($result[$key] ?? 0) + $value;
-            }
-
-            return $result;
-        };
-        foreach (['targets', 'actuals', 'recipe'] as $key) {
-            $data[$key] = $remap($data[$key]);
-        }
-        $data['runs'] = array_values(array_map($remap, $data['runs']));
-        // Always retain both actual rows, even when only load totals were stored.
-        while (count($data['runs']) < 2) {
-            $data['runs'][] = null;
-        }
+        $numberedRuns = ! $data['inferred_runs'] && $data['runs'] && ! array_key_exists('Stored totals', $data['runs']);
+        $runCount = $numberedRuns ? count($data['runs']) : 0;
+        // Material columns and run rows follow stored consumption, without fixed slot limits.
+        $data['runs'] = array_values($data['runs']);
         $quantity = (float) $batch->batch_size;
+        // With numbered runs, show the average mixer-run size separately from load volume.
+        $data['run_size'] = $data['run_sizes'][0] ?? ($runCount > 0 ? $quantity / $runCount : $quantity);
         $data['recipe_rows'] = [
             $data['recipe'] ?: null,
-            $quantity > 0 ? array_map(fn ($target) => $target / $quantity, $data['targets']) : null,
+            $runCount > 0 ? array_map(function ($target, $column) use ($runCount) {
+                $precision = in_array($column, ['ADMIX 1', 'ADMIX 2', 'Adm 3', 'Adm 4', 'Sil'], true) ? 2 : 0;
+                return round($target / $runCount, $precision);
+            }, $data['targets'], array_keys($data['targets'])) : ($quantity > 0 ? array_map(fn ($target) => $target / $quantity, $data['targets']) : null),
         ];
-        // These two six-cell rows exist in the source layout. Unknown readings stay unknown.
-        $data['tolerance_rows'] = [array_fill(0, 6, null), array_fill(0, 6, null)];
-        $data['groups'] = self::GROUPS;
-        $data['columns'] = array_merge(...array_values(self::GROUPS));
-        $data['labels'] = $labels;
+        if ($runCount > 0) $data['recipe_rows'][1] = array_combine(array_keys($data['targets']), $data['recipe_rows'][1]);
+        $data['with_this_load'] = $batch->exists && $batch->sales_order_id && $batch->plant_id
+            ? Batch::withoutPlantScope()->where('plant_id', $batch->plant_id)
+                ->where('sales_order_id', $batch->sales_order_id)
+                ->where('id', '<=', $batch->id)
+                ->whereIn('status', [Batch::STATUS_LOADING, Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])
+                ->sum('batch_size')
+            : null;
 
         return $data;
+    }
+
+    private static function group(string $column, string $category): string
+    {
+        foreach (self::GROUPS as $group => $columns) {
+            if (in_array($column, $columns, true)) {
+                return $group;
+            }
+        }
+        $name = strtoupper($category.' '.$column);
+
+        return match (true) {
+            str_contains($name, 'SIL'), str_contains($name, 'FUME') => 'Silica',
+            str_contains($name, 'CEM'), str_contains($name, 'FLY'), str_contains($name, 'GGBS') => 'Cement',
+            str_contains($name, 'WATER'), str_contains($name, 'ICE'), str_contains($name, 'WTR') => 'Water / Ice',
+            str_contains($name, 'ADM'), str_contains($name, 'CHEM') => 'Admixture',
+            default => 'Aggregate',
+        };
     }
 
     private static function column(string $name): ?string

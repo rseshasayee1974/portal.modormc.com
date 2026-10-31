@@ -74,6 +74,8 @@ class UpdateBatchRequest extends FormRequest
             'materials.*.material_name' => ['nullable', 'string', 'max:255'],
             'materials.*.target_qty' => ['required', 'numeric', 'gte:0'],
             'materials.*.actual_qty' => ['required', 'numeric', 'gte:0'],
+            'materials.*.runs' => ['sometimes', 'array', 'min:1', 'max:1000'],
+            'materials.*.runs.*' => ['required', 'numeric', 'gte:0'],
             'materials.*.deviation_quantity' => ['nullable', 'numeric'],
             'materials.*.uom_id' => ['nullable', 'integer', 'exists:mm_product_units,id'],
         ];
@@ -82,6 +84,15 @@ class UpdateBatchRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+            $materials = $this->input('materials', []);
+            foreach (is_array($materials) ? $materials : [] as $index => $material) {
+                $runs = $material['runs'] ?? null;
+                if (is_array($runs) && $runs && count(array_filter($runs, 'is_numeric')) === count($runs)
+                    && is_numeric($material['actual_qty'] ?? null)
+                    && abs(array_sum($runs) - (float) $material['actual_qty']) > .001) {
+                    $validator->errors()->add("materials.$index.actual_qty", 'Actual quantity must equal the sum of its runs.');
+                }
+            }
             $batchId = $this->route('batch')?->id ?? $this->route('batch');
             $salesOrderId = $this->input('sales_order_id') ?? $this->route('batch')?->sales_order_id;
             $newBatchSize = (float) $this->input('batch_size', 0);

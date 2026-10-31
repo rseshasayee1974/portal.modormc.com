@@ -120,6 +120,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255|unique:mm_products,title,NULL,id,plant_id,' . $plantId,
             'code' => 'nullable|string|max:255',
+            'alias' => 'nullable|string|max:255',
             'category_id' => 'nullable|exists:mm_product_categories,id',
             'unit_id' => 'nullable|exists:mm_product_units,id',
             'purchase_price' => 'required|numeric|min:0',
@@ -164,6 +165,7 @@ public function update(Request $request, Product $product)
         'category_id'         => 'nullable|exists:mm_product_categories,id',
         'unit_id'             => 'nullable|exists:mm_product_units,id',
         'purchase_price'      => 'required|numeric|min:0',
+        'alias' => 'nullable|string|max:255',
         'sales_price'         => 'required|numeric|min:0',
         'status'              => 'required|boolean',
         'hsn_code'            => 'nullable|string|max:255',

@@ -94,8 +94,8 @@ const form = useForm({
         || props.batch?.sales_order?.concrete_pump
         || props.salesOrders?.find((wo: any) => Number(wo.id) === Number(props.batch?.sales_order_id))?.concrete_pump
         || null,
-    empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? props.batch?.empty_weight_truck ??  0),
-    loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? props.batch?.loaded_weight_truck ??  0),
+    empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? props.batch?.empty_weight_truck ?? 0),
+    loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? props.batch?.loaded_weight_truck ?? 0),
 
     loaded_weight_photo: null as string | null,
     net_weight: Number(props.batch?.dispatches?.[0]?.net_weight ?? props.batch?.net_weight ?? 0),
@@ -129,7 +129,8 @@ const form = useForm({
             const size = Number(props.batch?.batch_size ?? 1);
             const matchingSO = props.batch?.sales_order || props.salesOrders.find((wo: any) => Number(wo.id) === Number(props.batch?.sales_order_id));
             const cap = Number(matchingSO?.mixer_capacity || matchingSO?.plant?.mixer_capacity || 1.25);
-            const runsCount = Math.ceil(size / cap) || 1;
+            const storedRuns = Math.max(0, ...group.rawItems.map((item: any) => Number(String(item.material_name).match(/Run (\d+)/i)?.[1] || 0)));
+            const runsCount = storedRuns || Math.ceil(size / cap) || 1;
 
             const runsArray = Array(runsCount).fill(0);
             const hasRunNames = group.rawItems.some((item: any) => /Run \d+/i.test(item.material_name));
@@ -145,7 +146,7 @@ const form = useForm({
                     }
                 });
             } else {
-                const totalActual = Number(group.rawItems[0]?.actual_qty || 0);
+                const totalActual = group.rawItems.reduce((sum: number, item: any) => sum + Number(item.actual_qty || 0), 0);
                 if (totalActual > 0) {
                     for (let i = 0; i < runsCount; i++) {
                         const runSz = (i < runsCount - 1) ? cap : (size - cap * (runsCount - 1));
@@ -186,6 +187,10 @@ const mixerCapacity = computed(() => {
 const numberOfRuns = computed(() => {
     const size = Number(form.batch_size || 1);
     const cap = Number(mixerCapacity.value || 1.25);
+    if (size === Number(props.batch?.batch_size)) {
+        const storedRuns = Math.max(0, ...(props.batch?.materials || []).map((item: any) => Number(String(item.material_name).match(/Run (\d+)/i)?.[1] || 0)));
+        if (storedRuns) return storedRuns;
+    }
     return Math.ceil(size / cap) || 1;
 });
 
@@ -430,7 +435,7 @@ const applyBatchToForm = (newBatch: any) => {
                 }
             });
         } else {
-            const totalActual = Number(group.rawItems[0]?.actual_qty || 0);
+            const totalActual = group.rawItems.reduce((sum: number, item: any) => sum + Number(item.actual_qty || 0), 0);
             const size = Number(form.batch_size || 1);
             if (totalActual > 0) {
                 for (let i = 0; i < runsCount; i++) {
@@ -810,14 +815,16 @@ const copyTargetsToActuals = () => {
         const size = Number(form.batch_size || 1);
         mat.runs = runSizes.value.map((runSz) => {
             const targetForRun = Number(mat.target_qty ?? 0) * (runSz / size);
-            return Number(targetForRun.toFixed(3));
+            const variation = Math.random() * 10 - 5;
+            return Number(Math.max(0, targetForRun + variation).toFixed(3));
         });
     });
     Swal.fire({
         toast: true,
         position: 'top-end',
         icon: 'success',
-        title: 'Recipe targets copied to actual quantities',
+        // title: 'Actual quantities generated within ±5 of run targets',
+        title: 'Actual quantities generated',
         showConfirmButton: false,
         timer: 1500
     });
@@ -954,6 +961,7 @@ const submit = (onSuccessCallback?: () => void) => {
                 material_name: baseName,
                 target_qty: Number(target.toFixed(3)),
                 actual_qty: Number(totalActual.toFixed(3)),
+                runs: (mat.runs || []).map((value: any) => Number(Number(value || 0).toFixed(3))),
                 deviation_quantity: Number((totalActual - target).toFixed(3)),
                 uom_id: mat.uom_id
             };
@@ -1138,7 +1146,8 @@ console.log('test');
                                             <BaseInputNumber v-model="form.loaded_weight_truck" :minFractionDigits="0"
                                                 :maxFractionDigits="3"
                                                 :disabled="isLocked || customSettings?.batching?.manual_weight === 0"
-                                                label="Full Weight" :required="isWeightMandatory" :error="form.errors.loaded_weight_truck" />
+                                                label="Full Weight" :required="isWeightMandatory"
+                                                :error="form.errors.loaded_weight_truck" />
                                         </div>
                                         <button
                                             v-if="!isLocked && !customSettings?.batching?.manual_weight && form.net_weight <= 0"

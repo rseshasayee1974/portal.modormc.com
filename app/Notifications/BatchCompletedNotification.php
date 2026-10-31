@@ -33,7 +33,8 @@ class BatchCompletedNotification extends Notification implements ShouldQueue
         $batch->load([
             'workOrder.plant.entity',
             'workOrder.mixDesign.concrete_grade',
-            'workOrder.customer',
+            'workOrder.mixDesign.items.product',
+            'workOrder.customer' => fn ($query) => $query->withoutGlobalScope('active_operational_status'),
             'workOrder.site',
             'site',
             'dispatches.truck',
@@ -44,11 +45,12 @@ class BatchCompletedNotification extends Notification implements ShouldQueue
         
         $sheet = $batch->getReportData();
         // Generate PDF in memory
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.batches.batch_sheet', [
+        $html = view('pdfs.batches.batch_sheet', [
             'batch' => $batch,
             'sheet' => $sheet,
             'isPreview' => false,
-        ])->setPaper('a4', 'landscape');
+        ])->render();
+        $pdf = app(\App\Services\BatchSheetBrowserPdf::class)->render($html);
 
         $filename = 'BatchReport_#' . $batch->batch_no . '_Order_' . ($batch->workOrder->order_no ?? 'N/A') . '.pdf';
 
@@ -74,7 +76,7 @@ class BatchCompletedNotification extends Notification implements ShouldQueue
                 </table>
             </div>'))
             ->action('View Online Report', route('batches.report', \Illuminate\Support\Facades\Crypt::encryptString($batch->id)))
-            ->attachData($pdf->output(), $filename, [
+            ->attachData($pdf, $filename, [
                 'mime' => 'application/pdf',
             ])
             ->line('The detailed batching report has been attached to this email as a PDF.')

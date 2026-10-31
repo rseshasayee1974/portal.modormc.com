@@ -109,10 +109,18 @@ class QuotationController extends Controller
 
     private function data(Request $r, ?Quotation $quotation, bool $fromLead = false): array
     {
+        // Pump fields belong to quotation lines. Accept quotation-level defaults
+        // for mobile clients, while explicit line values take precedence.
+        $lineDefaults = $r->validate([
+            'concrete_pump' => 'nullable|string|max:100',
+            'pump_rate' => 'nullable|numeric|between:0,99999999',
+        ]);
+        $hasItems = $r->exists('items');
         if ($quotation) {
             $r->replace(array_replace($quotation->only([
                 'reference', 'patron_id', 'site_id', 'notes', 'is_tax_inclusive',
             ]), [
+                ...($quotation->adjustment !== null ? ['adjustment' => $quotation->adjustment] : []),
                 'quote_date' => $quotation->quote_date?->format('Y-m-d'),
                 'validity_date' => $quotation->validity_date?->format('Y-m-d'),
                 'items' => $quotation->items->map(fn ($item) => $item->only([
@@ -123,14 +131,24 @@ class QuotationController extends Controller
         }
         $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
         if (is_array($r->input('items'))) {
-            $r->merge(['items' => array_map(fn ($item) => is_array($item)
-                ? QuotationCalculator::normalizeDiscount($item) : $item, $r->input('items'))]);
+            $r->merge(['items' => array_map(function ($item) use ($quotation, $lineDefaults, $hasItems) {
+                if (! is_array($item)) return $item;
+                $saved = isset($item['id']) && is_scalar($item['id'])
+                    ? $quotation?->items->firstWhere('id', $item['id']) : null;
+                $existing = $saved?->only([
+                    'id', 'mix_design_id', 'quantity', 'rate', 'tax_id', 'uom_id',
+                    'concrete_pump', 'pump_rate', 'discount_type', 'discount',
+                ]) ?? [];
+                $item = $hasItems ? array_replace($existing, $lineDefaults, $item) : array_replace($item, $lineDefaults);
+                return QuotationCalculator::normalizeDiscount($item);
+            }, $r->input('items'))]);
         }
         $data = $r->validate([
             'reference' => ['nullable', 'string', 'max:100', Rule::unique('mm_quotations', 'reference')->where('plant_id', Access::plantId())->whereNull('deleted_at')->ignore($quotation?->id)],
             'patron_id' => ['required', 'integer', Access::exists(Access::customers())], 'site_id' => ['required', 'integer', Access::exists(Access::plantSites())],
             'quote_date' => 'required|date_format:Y-m-d', 'validity_date' => 'nullable|date_format:Y-m-d|after_or_equal:quote_date',
             'notes' => 'nullable|string|max:10000', 'is_tax_inclusive' => 'required|boolean',
+            'adjustment' => 'sometimes|required|numeric|between:-99999999,99999999',
             'items' => 'required|array|min:1|max:100', 'items.*' => 'required|array:id,mix_design_id,quantity,rate,tax_id,uom_id,concrete_pump,pump_rate,discount_type,discount', 'items.*.mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')],
             'items.*.id' => $quotation
                 ? ['sometimes', 'required', 'integer', 'distinct', Rule::exists('mm_quotation_items', 'id')->where('quotation_id', $quotation->id)->whereNull('deleted_at')]
@@ -139,7 +157,7 @@ class QuotationController extends Controller
             'items.*.discount_type' => 'nullable|in:amount,%', 'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
             'items.*.uom_id' => ['nullable', 'integer', Rule::exists('mm_product_units', 'id')->whereNull('deleted_at')],
-            'items.*.concrete_pump' => 'nullable|string|max:100', 'items.*.pump_rate' => 'nullable|numeric|min:0',
+            'items.*.concrete_pump' => 'nullable|string|max:100', 'items.*.pump_rate' => 'nullable|numeric|between:0,99999999',
         ], [
             'patron_id.exists' => 'The selected customer is unavailable in the selected plant.',
             'site_id.exists' => 'The selected site is unavailable in the selected plant.',
@@ -151,7 +169,9 @@ class QuotationController extends Controller
         $data['items'] = QuotationCalculator::items($data['items'], (bool) $data['is_tax_inclusive']);
         $baseTotal = array_sum(array_column($data['items'], 'amount_total'));
         $target = $data['is_tax_inclusive'] ? array_sum(array_map(fn ($i) => round($i['quantity'] * $i['rate'] + ($i['pump_rate'] ?? 0) - ($i['discount_amount'] ?? 0), 2), $data['items'])) : $baseTotal;
-        $data['adjustment'] = round(round($target) - $baseTotal, 2);
+        $data['adjustment'] = array_key_exists('adjustment', $data)
+            ? round((float) $data['adjustment'], 2)
+            : round(round($target) - $baseTotal, 2);
         $data['status'] = Quotation::STATUS_DRAFT;
         return $data;
     }
@@ -200,6 +220,7 @@ class QuotationController extends Controller
                 'reference' => 'nullable|string|max:100', 'quote_date' => 'sometimes|required|date_format:Y-m-d',
                 'validity_date' => 'nullable|date_format:Y-m-d', 'notes' => 'nullable|string|max:10000',
                 'is_tax_inclusive' => 'sometimes|required|boolean',
+                'adjustment' => 'sometimes|required|numeric|between:-99999999,99999999',
                 'tax_id' => 'nullable|integer', 'uom_id' => 'nullable|integer',
                 'concrete_pump' => 'nullable|string|max:100', 'pump_rate' => 'nullable|numeric|min:0',
                 'discount_type' => 'nullable|in:amount,%', 'discount' => 'nullable|numeric|min:0',
@@ -251,6 +272,7 @@ class QuotationController extends Controller
                 $source->remarks,
             ])->filter()->implode("\n");
             $r->replace([
+                ...array_intersect_key($input, array_flip(['adjustment', 'concrete_pump', 'pump_rate'])),
                 'patron_id' => $customer->id, 'site_id' => $siteId,
                 'quote_date' => $input['quote_date'] ?? now()->toDateString(),
                 'validity_date' => $input['validity_date'] ?? null,

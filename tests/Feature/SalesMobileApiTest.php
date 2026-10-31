@@ -2723,6 +2723,56 @@ class SalesMobileApiTest extends TestCase
         $this->assertFalse(Schema::hasColumn('mm_customer_pos', 'is_sales_order'));
     }
 
+    public function test_main_mobile_po_directory_matches_website_plant_visibility(): void
+    {
+        foreach (range(1, 28) as $id) {
+            DB::table('mm_customer_pos')->insert([
+                'id' => $id, 'plant_id' => 1, 'reference' => 'CPO-'.$id,
+                'sales_executive_id' => $id === 1 ? 1 : ($id % 2 === 0 ? 2 : null),
+                'patron_id' => 1, 'site_id' => 1, 'status' => 1,
+            ]);
+        }
+        DB::table('mm_customer_pos')->insert([
+            ['id' => 29, 'plant_id' => 2, 'reference' => 'FOREIGN', 'deleted_at' => null],
+            ['id' => 30, 'plant_id' => 1, 'reference' => 'DELETED', 'deleted_at' => now()],
+        ]);
+        DB::table('mm_customer_po_items')->insert(['customer_po_id' => 28, 'mix_design_id' => 1, 'quantity' => 10]);
+        foreach ([[1, 1, 1], [2, 1, 2], [3, 2, 1]] as [$id, $plant, $owner]) {
+            DB::table('mm_sales_orders')->insert([
+                'id' => $id, 'plant_id' => $plant, 'customer_po_id' => 28,
+                'sales_executive_id' => $owner, 'mix_design_id' => 1,
+            ]);
+        }
+        $token = User::find(1)->createToken('main-mobile-po-directory', ['*'])->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Plant-Id' => '1']);
+        $this->getJson('/api/mobile/customer-pos')->assertOk()
+            ->assertJsonPath('data.total', 28)->assertJsonCount(20, 'data.data')
+            ->assertJsonPath('data.last_page', 2)
+            ->assertJsonPath('data.data.0.items.0.mix_design_name', 'M25')
+            ->assertJsonCount(2, 'data.data.0.sales_orders');
+        $this->getJson('/api/mobile/customer-pos?page=2')->assertOk()
+            ->assertJsonPath('data.total', 28)->assertJsonCount(8, 'data.data');
+        $this->getJson('/api/mobile/customer-pos?per_page=100')->assertOk()->assertJsonCount(28, 'data.data');
+        $this->getJson('/api/mobile/customer-pos?search=CPO-28')->assertOk()->assertJsonPath('data.total', 1);
+        $this->getJson('/api/mobile/customer-pos/28')->assertOk()
+            ->assertJsonPath('data.items.0.mix_design_name', 'M25')->assertJsonCount(2, 'data.sales_orders');
+        $this->getJson('/api/mobile/customer-pos/29')->assertNotFound();
+        $this->getJson('/api/mobile/customer-pos/30')->assertNotFound();
+        // Read access must not allow changing another executive's PO.
+        $this->putJson('/api/mobile/customer-pos/28', [])->assertNotFound();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token]);
+        $this->getJson('/api/mobile/v1/customer-pos')->assertOk()->assertJsonPath('data.total', 1);
+        $this->getJson('/api/mobile/v1/customer-pos/28')->assertNotFound();
+
+        // Without website-equivalent PO view permission, main mobile remains owner-scoped.
+        DB::table('mm_role_has_permissions')->where('role_id', 1)->whereIn('permission_id',
+            DB::table('mm_permissions')->where('name', 'CUSTOMER_PO.VIEW')->select('id'))->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        $this->getJson('/api/mobile/customer-pos')->assertOk()->assertJsonPath('data.total', 1);
+    }
+
     public function test_customer_po_listing_scopes_filters_and_permissions(): void
     {
         foreach ([
@@ -2830,6 +2880,116 @@ class SalesMobileApiTest extends TestCase
         $this->getJson('/api/mobile/v1/orders/1/batches?page=abc')->assertUnprocessable();
         $this->getJson('/api/mobile/v1/orders/1/batches?page=3&per_page=1')->assertOk()->assertJsonCount(0, 'data.data');
         $this->withHeaders(['Authorization' => ''])->getJson('/api/mobile/v1/orders/1/batches')->assertUnauthorized();
+    }
+
+    public function test_all_mobile_quotation_input_fields_persist_in_both_apps(): void
+    {
+        DB::table('mm_roles')->where('id', 1)->update(['code' => 'ADMINISTRATOR']);
+        DB::table('mm_product_units')->insert([
+            ['id' => 1, 'unit_name' => 'Cubic metre', 'unit_code' => 'm3'],
+            ['id' => 2, 'unit_name' => 'Kilogram', 'unit_code' => 'kg'],
+        ]);
+        DB::table('mm_patrons')->insert(['id' => 2, 'plant_id' => 1, 'legal_name' => 'Other customer', 'patron_type' => '["Customer"]', 'status' => 1, 'operational_status' => 'active']);
+        DB::table('mm_sites')->insert(['id' => 2, 'plant_id' => 1, 'patron_id' => 2, 'name' => 'Other site']);
+        DB::table('mm_mix_designs')->insert(['id' => 2, 'plant_id' => 1, 'design_name' => 'M30', 'is_active' => 1]);
+        $adminToken = User::find(1)->createToken('quotation-field-audit', ['*'])->plainTextToken;
+        foreach (['/api/mobile/v1' => $this->token, '/api/mobile' => $adminToken] as $prefix => $token) {
+            $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Plant-Id' => '1']);
+            $header = [
+                'reference' => 'FIELDS-'.md5($prefix), 'patron_id' => 1, 'site_id' => 1,
+                'quote_date' => '2026-10-09', 'validity_date' => '2026-11-09',
+                'notes' => 'All create fields', 'is_tax_inclusive' => false, 'adjustment' => 2.25,
+            ];
+            $line = [
+                'mix_design_id' => 1, 'quantity' => 2, 'rate' => 1000, 'tax_id' => 1, 'uom_id' => 1,
+                'discount_type' => 'amount', 'discount' => 25,
+            ];
+            $created = $this->postJson($prefix.'/quotations', $header + [
+                'concrete_pump' => 'Boom pump', 'pump_rate' => 90, 'items' => [$line],
+            ])->assertCreated()->assertJsonPath('data.items.0.concrete_pump', 'Boom pump');
+            $id = $created->json('data.id');
+            $lineId = $created->json('data.items.0.id');
+            $this->assertDatabaseHas('mm_quotations', ['id' => $id] + $header);
+            $this->assertDatabaseHas('mm_quotation_items', ['id' => $lineId, 'concrete_pump' => 'Boom pump', 'pump_rate' => 90] + $line);
+
+            $header = array_replace($header, ['reference' => $header['reference'].'-UPDATED', 'patron_id' => 2, 'site_id' => 2, 'notes' => 'All update fields',
+                'quote_date' => '2026-10-10', 'validity_date' => '2026-11-10', 'is_tax_inclusive' => true, 'adjustment' => -3.5]);
+            $line = ['id' => $lineId, 'mix_design_id' => 2, 'quantity' => 5, 'rate' => 700,
+                'tax_id' => null, 'uom_id' => 2, 'discount_type' => '%', 'discount' => 10,
+                'concrete_pump' => 'Line pump', 'pump_rate' => 55];
+            $this->putJson($prefix.'/quotations/'.$id, $header + [
+                'concrete_pump' => 'Default pump', 'pump_rate' => 999, 'items' => [$line],
+            ])->assertOk()->assertJsonPath('data.items.0.concrete_pump', 'Line pump');
+            $this->assertDatabaseHas('mm_quotations', ['id' => $id] + $header);
+            $this->assertDatabaseHas('mm_quotation_items', $line);
+            $this->putJson($prefix.'/quotations/'.$id, ['notes' => 'Only notes'])->assertOk();
+            $this->assertDatabaseHas('mm_quotation_items', $line);
+            $this->putJson($prefix.'/quotations/'.$id, ['concrete_pump' => 'New default', 'pump_rate' => 15])->assertOk();
+            $this->assertDatabaseHas('mm_quotation_items', ['id' => $lineId, 'concrete_pump' => 'New default', 'pump_rate' => 15]);
+            $this->putJson($prefix.'/quotations/'.$id, ['items' => [['id' => $lineId, 'concrete_pump' => null, 'pump_rate' => 0]]])
+                ->assertOk()->assertJsonPath('data.items.0.concrete_pump', null);
+            $this->assertDatabaseHas('mm_quotation_items', array_replace($line, ['concrete_pump' => null, 'pump_rate' => 0]));
+            $this->putJson($prefix.'/quotations/'.$id, ['notes' => null, 'validity_date' => null])->assertOk();
+            $this->assertDatabaseHas('mm_quotations', ['id' => $id, 'notes' => null, 'validity_date' => null]);
+            $this->getJson($prefix.'/quotations/'.$id)->assertOk()->assertJsonPath('data.items.0.concrete_pump', null);
+            foreach ([['pump_rate' => -1], ['concrete_pump' => []], ['items' => [['id' => 999999, 'pump_rate' => 10]]]] as $invalid) {
+                $this->putJson($prefix.'/quotations/'.$id, $invalid)->assertUnprocessable();
+            }
+        }
+    }
+
+    public function test_lead_quotation_preserves_pump_defaults_and_explicit_line_overrides(): void
+    {
+        $this->convertedQuotationLead();
+        DB::table('mm_crm_leads')->where('id', 501)->update(['created_by' => 1]);
+        $created = $this->postJson('/api/mobile/v1/leads/501/quotation', [
+            'quote_date' => '2026-10-17', 'validity_date' => '2026-11-17',
+            'concrete_pump' => 'Boom pump', 'pump_rate' => 350, 'adjustment' => -2.5,
+            'items' => [
+                ['mix_design_id' => 1, 'quantity' => 2, 'rate' => 1000, 'tax_id' => 1],
+                ['mix_design_id' => 1, 'quantity' => 3, 'rate' => 1100, 'concrete_pump' => null, 'pump_rate' => 0],
+            ],
+        ])->assertCreated()->assertJsonPath('data.adjustment', '-2.50')
+            ->assertJsonPath('data.items.0.concrete_pump', 'Boom pump')
+            ->assertJsonPath('data.items.1.concrete_pump', null);
+        $this->assertDatabaseHas('mm_quotation_items', [
+            'id' => $created->json('data.items.0.id'), 'pump_rate' => 350, 'concrete_pump' => 'Boom pump',
+        ]);
+        $this->assertDatabaseHas('mm_quotation_items', [
+            'id' => $created->json('data.items.1.id'), 'pump_rate' => 0, 'concrete_pump' => null,
+        ]);
+    }
+
+    public function test_mobile_quotation_adjustments_are_saved_and_preserved(): void
+    {
+        foreach ([true, false] as $inclusive) {
+            $body = array_replace($this->quote(), [
+                'reference' => 'ADJUST-'.(int) $inclusive, 'is_tax_inclusive' => $inclusive,
+                'adjustment' => '12.34',
+            ]);
+            $created = $this->postJson('/api/mobile/v1/quotations', $body)->assertCreated()
+                ->assertJsonPath('data.adjustment', '12.34');
+            $id = $created->json('data.id');
+            $base = (float) DB::table('mm_quotation_items')->where('quotation_id', $id)->sum('amount_total');
+            $this->assertEquals(round($base + 12.34, 2), (float) $created->json('data.amount_total'));
+            $this->putJson('/api/mobile/v1/quotations/'.$id, ['adjustment' => '-5.25'])->assertOk()
+                ->assertJsonPath('data.adjustment', '-5.25')
+                ->assertJsonPath('data.amount_total', number_format($base - 5.25, 2, '.', ''));
+            $this->assertDatabaseHas('mm_quotations', ['id' => $id, 'adjustment' => -5.25]);
+            $this->putJson('/api/mobile/v1/quotations/'.$id, ['notes' => 'Keep adjustment'])->assertOk()
+                ->assertJsonPath('data.adjustment', '-5.25');
+            $this->putJson('/api/mobile/v1/quotations/'.$id, ['adjustment' => 0])->assertOk()
+                ->assertJsonPath('data.adjustment', '0.00');
+            foreach ([null, 'invalid', 100000000] as $invalid) {
+                $this->putJson('/api/mobile/v1/quotations/'.$id, ['adjustment' => $invalid])
+                    ->assertUnprocessable()->assertJsonValidationErrors('adjustment');
+            }
+        }
+        // Legacy quotations with no saved adjustment must remain editable.
+        DB::table('mm_quotations')->where('id', $id)->update(['adjustment' => null]);
+        $this->putJson('/api/mobile/v1/quotations/'.$id, ['notes' => 'Legacy quotation'])->assertOk();
+        $this->postJson('/api/mobile/v1/quotations', array_replace($this->quote(), ['reference' => 'AUTO-ROUND']))
+            ->assertCreated()->assertJsonPath('data.adjustment', '-0.31')->assertJsonPath('data.amount_total', '1938.00');
     }
 
     private function quote(): array

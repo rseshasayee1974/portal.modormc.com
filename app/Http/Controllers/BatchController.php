@@ -1863,10 +1863,11 @@ class BatchController extends Controller
     {
         $batch->load([
             'plant',
-            'salesOrder.customer',
+            'salesOrder.customer' => fn ($query) => $query->withoutGlobalScope('active_operational_status'),
             'salesOrder.site',
             'salesOrder.plant.entity',
             'salesOrder.mixDesign.concrete_grade',
+            'salesOrder.mixDesign.items.product',
             'dispatches.truck',
             'dispatches.driver',
             'materials.product.category',
@@ -1919,6 +1920,23 @@ class BatchController extends Controller
             if (empty($item['product_id'])) continue;
             
             $materialName = $item['material_name'] ?? ($productTitles[$item['product_id']] ?? 'Material');
+
+            if (! empty($item['runs'])) {
+                $target = (float) ($item['target_qty'] ?? 0);
+                $count = count($item['runs']);
+                $allocated = 0;
+                foreach (array_values($item['runs']) as $index => $actual) {
+                    $runTarget = $index === $count - 1 ? round($target - $allocated, 3) : round($target / $count, 3);
+                    $allocated += $runTarget;
+                    $batch->materials()->create([
+                        'plant_id' => $plantId, 'product_id' => $item['product_id'],
+                        'material_name' => preg_replace('/\s*-\s*Run\s*\d+\s*$/i', '', $materialName).' - Run '.($index + 1),
+                        'target_qty' => $runTarget, 'actual_qty' => $actual,
+                        'deviation_quantity' => round((float) $actual - $runTarget, 3), 'uom_id' => $item['uom_id'],
+                    ]);
+                }
+                continue;
+            }
 
             $batch->materials()->create([
                 'batch_id' => $batch->id,
