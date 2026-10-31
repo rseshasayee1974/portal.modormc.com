@@ -1,8 +1,9 @@
 <script setup>
 import { APP_LOCALE } from '@/Utils/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { ref, computed } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import axios from 'axios';
+import { useForm } from '@inertiajs/vue3';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
@@ -25,23 +26,42 @@ const form = useForm({
     end_date: props.filters.end_date,
 });
 
-const submit = () => {
-    form.get(route('reports.ledger'), {
-        preserveState: true,
-        preserveScroll: true,
-    });
+const reportData = ref(props.reportData || { opening_balance: 0, transactions: [] });
+const generating = ref(false);
+const reportError = ref('');
+watch(() => props.reportData, data => { reportData.value = data || { opening_balance: 0, transactions: [] }; });
+
+const submit = async () => {
+    if (generating.value) return;
+    generating.value = true;
+    reportError.value = '';
+    try {
+        const response = await axios.get(route('reports.generate'), {
+            params: { type: 'ledger', id: form.ledger_id, patron_id: props.filters?.patron_id,
+                start_date: form.start_date, end_date: form.end_date },
+        });
+        reportData.value = response.data;
+    } catch (error) {
+        reportError.value = error.response?.data?.message || error.response?.data?.error || 'Unable to generate the ledger report.';
+    } finally {
+        generating.value = false;
+    }
 };
 
 const transactionsWithBalance = computed(() => {
-    let balance = props.reportData.opening_balance;
-    return props.reportData.transactions.map(trx => {
-        balance += (trx.debit - trx.credit);
-        return {
-            ...trx,
-            running_balance: balance
-        };
+    let balance = Number(reportData.value.opening_balance || 0);
+    return (reportData.value.transactions || []).map(trx => {
+        balance = trx.running_balance != null ? Number(trx.running_balance)
+            : Math.round((balance + Number(trx.debit || 0) - Number(trx.credit || 0)) * 10000) / 10000;
+        return { ...trx, running_balance: balance };
     });
 });
+
+const openingDebit = computed(() => Number(reportData.value.opening_debit ?? Math.max(0, Number(reportData.value.opening_balance || 0))));
+const openingCredit = computed(() => Number(reportData.value.opening_credit ?? Math.max(0, -Number(reportData.value.opening_balance || 0))));
+
+const closingBalance = computed(() => Number(reportData.value.closing_balance
+    ?? transactionsWithBalance.value.at(-1)?.running_balance ?? reportData.value.opening_balance ?? 0));
 
 const formatCurrency = (val) => {
     return new Intl.NumberFormat(APP_LOCALE, {
@@ -89,16 +109,14 @@ const printReport = () => {
                                     showClear />
                             </div>
                             <div>
-                                <BaseDatePicker v-model="form.start_date" :showTime="true" hourFormat="12"
-                                    label="From Date & Time" fluid />
+                                <BaseDatePicker v-model="form.start_date" label="From Date" fluid />
                             </div>
                             <div>
-                                <BaseDatePicker v-model="form.end_date" :showTime="true" hourFormat="12"
-                                    label="To Date & Time" fluid />
+                                <BaseDatePicker v-model="form.end_date" label="To Date" fluid />
                             </div>
                             <div class="col-span-full flex justify-end gap-3 mt-2 border-t pt-6">
                                 <BaseButton type="submit" variant="filled" severity="primary"
-                                    :loading="form.processing">
+                                    :loading="generating">
                                     <ArrowPathIcon class="h-4 w-4 mr-2" />
                                     Generate Report
                                 </BaseButton>
@@ -107,8 +125,10 @@ const printReport = () => {
                     </div>
                 </div>
 
+                <p v-if="reportError" role="alert" class="mb-4 rounded-lg bg-rose-50 p-4 text-rose-700">{{ reportError }}</p>
+
                 <!-- Report Content -->
-                <div v-if="reportData.transactions.length > 0 || reportData.opening_balance != 0"
+                <div v-if="reportData.transactions.length > 0 || openingDebit > 0 || openingCredit > 0"
                     class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden print:shadow-none print:border-none">
 
                     <!-- Report Header (Visible in Print) -->
@@ -120,6 +140,10 @@ const printReport = () => {
                     </div>
 
                     <div class="p-8">
+                        <p v-if="reportData.balance_scope === 'all_ledgers'" class="mb-4 text-sm text-slate-600">
+                            All ledgers: opening debits and credits include balancing entries. The balance column shows their net.
+                            Select an account ledger to view its opening balance.
+                        </p>
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr
@@ -144,15 +168,15 @@ const printReport = () => {
                                     <td class="py-4">---</td>
                                     <td class="py-4">---</td>
                                     <td class="py-4 text-right">
-                                        {{ reportData.opening_balance > 0 ? formatCurrency(reportData.opening_balance) :
+                                        {{ openingDebit > 0 ? formatCurrency(openingDebit) :
                                             '---' }}
                                     </td>
                                     <td class="py-4 text-right">
-                                        {{ reportData.opening_balance < 0 ?
-                                            formatCurrency(Math.abs(reportData.opening_balance)) : '---' }} </td>
+                                        {{ openingCredit > 0 ?
+                                            formatCurrency(openingCredit) : '---' }} </td>
                                     <td class="py-4 text-right font-black"
                                         :class="reportData.opening_balance >= 0 ? 'text-emerald-600' : 'text-rose-600'">
-                                        {{ formatCurrency(reportData.opening_balance) }}
+                                        {{ formatCurrency(Math.abs(Number(reportData.opening_balance || 0))) }}
                                         <span class="text-[10px] ml-1 uppercase">{{ reportData.opening_balance >= 0 ?
                                             'Dr' : 'Cr' }}</span>
                                     </td>
@@ -177,7 +201,7 @@ const printReport = () => {
                                         {{ trx.credit > 0 ? formatCurrency(trx.credit) : '---' }}
                                     </td>
                                     <td class="py-4 text-right font-black text-slate-800 bg-slate-50/20">
-                                        {{ formatCurrency(trx.running_balance) }}
+                                        {{ formatCurrency(Math.abs(trx.running_balance)) }}
                                         <span class="text-[10px] ml-1 uppercase text-slate-400">{{ trx.running_balance
                                             >= 0 ? 'Dr' : 'Cr' }}</span>
                                     </td>
@@ -189,13 +213,9 @@ const printReport = () => {
                                         class="py-6 px-4 text-right font-black uppercase tracking-widest text-[11px]">
                                         Closing Balance</td>
                                     <td colspan="3" class="py-6 px-8 text-right font-black text-xl">
-                                        {{ formatCurrency(transactionsWithBalance.length > 0 ?
-                                            transactionsWithBalance[transactionsWithBalance.length - 1].running_balance :
-                                            reportData.opening_balance) }}
+                                        {{ formatCurrency(Math.abs(closingBalance)) }}
                                         <span class="text-xs ml-2 uppercase opacity-60">
-                                            {{ (transactionsWithBalance.length > 0 ?
-                                                transactionsWithBalance[transactionsWithBalance.length - 1].running_balance
-                                                : reportData.opening_balance) >= 0 ? 'Debit' : 'Credit' }}
+                                            {{ closingBalance >= 0 ? 'Debit' : 'Credit' }}
                                         </span>
                                     </td>
                                 </tr>

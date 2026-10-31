@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -57,10 +57,24 @@ function saved(record, previousId = null) {
     notice.value = previousId ? 'Opening balance updated successfully.' : 'Opening balance saved and posted successfully.';
 }
 
-function removed(id) {
-    currentRecords.value = currentRecords.value.filter(record => Number(record.id) !== Number(id));
-    notice.value = 'Opening balance removed. Its audit history is retained.';
-}
+onMounted(() => {
+    let message;
+    try {
+        message = sessionStorage.getItem('opening-balances:removed-message');
+        sessionStorage.removeItem('opening-balances:removed-message');
+    } catch {
+        return;
+    }
+    if (message) {
+        Swal.fire({
+            title: 'Removed',
+            text: message,
+            icon: 'success',
+            confirmButtonText: 'OK',
+            returnFocus: false,
+        });
+    }
+});
 
 function editExisting(record) {
     if (!can('OPENING_BALANCE.UPDATE') && !can('OPENING_BALANCE.DELETE')) {
@@ -162,7 +176,7 @@ async function convert() {
             </section>
             <template v-else>
                 <Create v-if="can('OPENING_BALANCE.CREATE')" :records="currentRecords" :ledgers="ledgers" :patrons="patrons" @created="saved" @edit="editExisting" />
-                <OpeningBalanceList ref="list" :records="currentRecords" :ledgers="ledgers" :patrons="patrons" @saved="saved" @removed="removed" />
+                <OpeningBalanceList ref="list" :records="currentRecords" :ledgers="ledgers" :patrons="patrons" @saved="saved" />
             </template>
         </main>
     </AppLayout>

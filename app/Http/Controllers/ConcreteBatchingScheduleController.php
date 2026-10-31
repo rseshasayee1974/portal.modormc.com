@@ -688,7 +688,9 @@ class ConcreteBatchingScheduleController extends Controller
             $schedule->delete();
         });
 
-        ConcreteBatchingSchedule::recalculatePourBalances($pourRef, $plantId);
+        if ($pourRef) {
+            ConcreteBatchingSchedule::recalculatePourBalances($pourRef, $plantId);
+        }
 
         if ($salesOrderId) {
             SalesOrder::find($salesOrderId)?->refreshProduction();

@@ -109,6 +109,18 @@ class QuotationController extends Controller
 
     private function data(Request $r, ?Quotation $quotation, bool $fromLead = false): array
     {
+        if ($quotation) {
+            $r->replace(array_replace($quotation->only([
+                'reference', 'patron_id', 'site_id', 'notes', 'is_tax_inclusive',
+            ]), [
+                'quote_date' => $quotation->quote_date?->format('Y-m-d'),
+                'validity_date' => $quotation->validity_date?->format('Y-m-d'),
+                'items' => $quotation->items->map(fn ($item) => $item->only([
+                    'id', 'mix_design_id', 'quantity', 'rate', 'tax_id', 'uom_id',
+                    'concrete_pump', 'pump_rate', 'discount_type', 'discount',
+                ]))->all(),
+            ], $r->all()));
+        }
         $exists = fn ($table) => Rule::exists($table, 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at');
         if (is_array($r->input('items'))) {
             $r->merge(['items' => array_map(fn ($item) => is_array($item)
@@ -119,7 +131,10 @@ class QuotationController extends Controller
             'patron_id' => ['required', 'integer', Access::exists(Access::customers())], 'site_id' => ['required', 'integer', Access::exists(Access::plantSites())],
             'quote_date' => 'required|date_format:Y-m-d', 'validity_date' => 'nullable|date_format:Y-m-d|after_or_equal:quote_date',
             'notes' => 'nullable|string|max:10000', 'is_tax_inclusive' => 'required|boolean',
-            'items' => 'required|array|min:1|max:100', 'items.*' => 'required|array:mix_design_id,quantity,rate,tax_id,uom_id,concrete_pump,pump_rate,discount_type,discount', 'items.*.mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')],
+            'items' => 'required|array|min:1|max:100', 'items.*' => 'required|array:id,mix_design_id,quantity,rate,tax_id,uom_id,concrete_pump,pump_rate,discount_type,discount', 'items.*.mix_design_id' => ['required', 'integer', $exists('mm_mix_designs')],
+            'items.*.id' => $quotation
+                ? ['sometimes', 'required', 'integer', 'distinct', Rule::exists('mm_quotation_items', 'id')->where('quotation_id', $quotation->id)->whereNull('deleted_at')]
+                : ['nullable'],
             'items.*.quantity' => 'required|numeric|between:0.01,999999', 'items.*.rate' => 'required|numeric|between:0,99999999',
             'items.*.discount_type' => 'nullable|in:amount,%', 'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.tax_id' => ['nullable', 'integer', $exists('mm_taxes')->where('tax_type', 'Sales')->where('status', 1)->whereNull('parent_id')],
@@ -178,10 +193,6 @@ class QuotationController extends Controller
             if (!$customer) {
                 throw ValidationException::withMessages(['lead_id' => 'The lead customer is not active or accessible in this plant.']);
             }
-            $mix = MixDesign::where('plant_id', Access::plantId())->where('is_active', 1)->find($source->mix_design_id);
-            if (!$mix) {
-                throw ValidationException::withMessages(['mix_design_id' => 'Select an active mix design on the lead before creating a quotation.']);
-            }
             $input = $r->validate([
                 'site_id' => ['nullable', 'integer', Access::exists(Access::plantSites())],
                 'quantity' => 'sometimes|required|numeric|between:0.01,999999',
@@ -192,11 +203,15 @@ class QuotationController extends Controller
                 'tax_id' => 'nullable|integer', 'uom_id' => 'nullable|integer',
                 'concrete_pump' => 'nullable|string|max:100', 'pump_rate' => 'nullable|numeric|min:0',
                 'discount_type' => 'nullable|in:amount,%', 'discount' => 'nullable|numeric|min:0',
-                'items' => 'nullable',
+                'items' => 'sometimes|required|array|min:1|max:100',
                 'patron_id' => ['nullable', 'integer', Access::exists(Access::customers())],
                 'sales_executive_id' => 'nullable',
-                'mix_design_id' => 'nullable',
+                'mix_design_id' => ['sometimes', 'required', 'integer', Rule::exists('mm_mix_designs', 'id')->where('plant_id', Access::plantId())->where('is_active', 1)->whereNull('deleted_at')],
             ]);
+            $mix = MixDesign::where('plant_id', Access::plantId())->where('is_active', 1)->find($input['mix_design_id'] ?? $source->mix_design_id);
+            if (!$mix && !array_key_exists('items', $input)) {
+                throw ValidationException::withMessages(['mix_design_id' => 'Select an active mix design on the lead before creating a quotation.']);
+            }
             if (isset($input['patron_id']) && (int) $input['patron_id'] !== (int) $customer->id) {
                 throw ValidationException::withMessages(['patron_id' => 'The selected customer must match the lead customer.']);
             }
@@ -219,10 +234,10 @@ class QuotationController extends Controller
                 ])->id;
             }
             $line = [
-                'mix_design_id' => $mix->id,
+                'mix_design_id' => $mix?->id,
                 'quantity' => $input['quantity'] ?? $source->estimated_quantity,
-                'rate' => $input['rate'] ?? $mix->rate_per_qty,
-                'uom_id' => $input['uom_id'] ?? $mix->unit_id,
+                'rate' => $input['rate'] ?? $mix?->rate_per_qty,
+                'uom_id' => array_key_exists('uom_id', $input) ? $input['uom_id'] : $mix?->unit_id,
                 'tax_id' => $input['tax_id'] ?? null,
                 'concrete_pump' => $input['concrete_pump'] ?? null,
                 'pump_rate' => $input['pump_rate'] ?? 0,
@@ -240,9 +255,9 @@ class QuotationController extends Controller
                 'quote_date' => $input['quote_date'] ?? now()->toDateString(),
                 'validity_date' => $input['validity_date'] ?? null,
                 'reference' => $input['reference'] ?? null,
-                'notes' => $input['notes'] ?? mb_substr($notes, 0, 10000),
+                'notes' => array_key_exists('notes', $input) ? $input['notes'] : mb_substr($notes, 0, 10000),
                 'is_tax_inclusive' => $input['is_tax_inclusive'] ?? false,
-                'items' => [$line],
+                'items' => $input['items'] ?? [$line],
             ]);
             $data = $this->data($r, null, fromLead: true);
             $data['created_by'] = $r->user()->id;

@@ -303,6 +303,11 @@ class CustomerPOController extends Controller
         });
     }
 
+    public function convertToSalesOrder(Request $request, int $customer_po)
+    {
+        return $this->convert($request, $customer_po);
+    }
+
     public function convert(Request $request, int $customer_po)
     {
         return DB::transaction(function () use ($request, $customer_po) {

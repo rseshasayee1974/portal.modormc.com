@@ -19,6 +19,14 @@ class LedgerReportService implements ReportServiceInterface
         $end      = $params['end'];
         $voucherTypeFilter = strtoupper($params['voucher_type_filter'] ?? $params['voucher_filter'] ?? 'ALL');
 
+        $isOpeningSql = "(mm_journal_entries.ref_module IN ('opening_balance', 'opening_balance_reversal') OR mm_journal_entries.voucher_type = 'OPENING')";
+        // Opening journals are posted one day before the balance becomes effective.
+        // Historical batches remain usable for dating legacy reversal journals.
+        $dateSql = "CASE WHEN {$isOpeningSql} THEN COALESCE(
+            (SELECT ob.cutover_date FROM mm_opening_balance_batches ob
+             WHERE ob.id = mm_journal_entries.ref_id AND ob.plant_id = mm_journal_entries.plant_id),
+            mm_journal_entries.voucher_date) ELSE mm_journal_entries.voucher_date END";
+
         // Auto-heal/sync any paid payments without accounting entries
         $unpostedPayments = \App\Models\Payment::where('plant_id', $plantId)
             ->where('status', 'paid')
@@ -43,7 +51,7 @@ class LedgerReportService implements ReportServiceInterface
         $query = JournalEntryLine::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->where(fn($q) => $q->where('is_deleted', 0)->orWhereNull('is_deleted'))
-            ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')));
+            ->whereHas('entry', fn($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')));
 
         if ($ledgerId) {
             $query->where('account_id', $ledgerId);
@@ -59,12 +67,15 @@ class LedgerReportService implements ReportServiceInterface
                 // journal. Include counterpart lines only for a selected ledger
                 // (for example, a bank ledger filtered by customer).
                 if ($ledgerId) {
-                    $q->orWhereHas('entry.lines', function ($elq) use ($patronId, $plantId) {
-                        $elq->where('plant_id', $plantId)
-                            ->where('partner_id', $patronId)
-                            ->where('partner_type', 'Patron')
-                            ->whereNull('deleted_at')
-                            ->where(fn ($active) => $active->where('is_deleted', 0)->orWhereNull('is_deleted'));
+                    $q->orWhere(function ($counterpart) use ($patronId, $plantId) {
+                        $counterpart->where(fn ($untagged) => $untagged->whereNull('partner_id')->orWhereNull('partner_type')->orWhere('partner_type', '!=', 'Patron'))
+                            ->whereHas('entry.lines', function ($elq) use ($patronId, $plantId) {
+                                $elq->where('plant_id', $plantId)
+                                    ->where('partner_id', $patronId)
+                                    ->where('partner_type', 'Patron')
+                                    ->whereNull('deleted_at')
+                                    ->where(fn ($active) => $active->where('is_deleted', 0)->orWhereNull('is_deleted'));
+                            });
                     });
                 }
             });
@@ -89,53 +100,35 @@ class LedgerReportService implements ReportServiceInterface
         $startDateStr = substr($start, 0, 10);
         $endDateStr   = substr($end, 0, 10);
 
-        $openingBalance = $openingBalanceQuery
-            ->whereHas('entry', function ($q) use ($startDateStr) {
-                $q->whereNull('deleted_at')
-                  ->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))
-                  ->where(function ($dateQ) use ($startDateStr) {
-                      $dateQ->where(function ($normalQ) use ($startDateStr) {
-                          $normalQ->where('voucher_date', '<', $startDateStr)
-                                  ->where(function ($sq) {
-                                      $sq->whereNull('ref_module')->orWhere('ref_module', '!=', 'opening_balance');
-                                  })
-                                  ->where(function ($sq) {
-                                      $sq->whereNull('voucher_type')->orWhere('voucher_type', '!=', 'OPENING');
-                                  });
-                      })->orWhere(function ($obQ) use ($startDateStr) {
-                          $obQ->where('voucher_date', '<=', $startDateStr)
-                              ->where(function ($sq) {
-                                  $sq->where('ref_module', 'opening_balance')
-                                     ->orWhere('voucher_type', 'OPENING');
-                              });
-                      });
-                  });
+        $openingBalances = $openingBalanceQuery
+            ->whereHas('entry', function ($q) use ($startDateStr, $dateSql, $isOpeningSql) {
+                $q->where(function ($dates) use ($startDateStr, $dateSql, $isOpeningSql) {
+                    $dates->whereRaw("({$dateSql}) < ?", [$startDateStr])
+                        ->orWhereRaw("({$isOpeningSql}) AND ({$dateSql}) = ?", [$startDateStr]);
+                });
             })
-            ->selectRaw('SUM(debit_amount) - SUM(credit_amount) as balance')
-            ->value('balance') ?: 0;
+            ->selectRaw('account_id, COALESCE(SUM(debit_amount), 0) - COALESCE(SUM(credit_amount), 0) as balance')
+            ->groupBy('account_id')
+            ->get();
+        $openingBalance = (float) $openingBalances->sum('balance');
+        $openingDebit = $openingBalances->sum(fn ($line) => max(0, (float) $line->balance));
+        $openingCredit = $openingBalances->sum(fn ($line) => max(0, -(float) $line->balance));
 
         $transactions = $query
             ->with([
-                'entry' => fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')),
+                'entry' => fn($q) => $q->select('mm_journal_entries.*')->selectRaw("{$dateSql} as report_date")->where('plant_id', $plantId)->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')),
                 'entry.lines' => fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')),
                 'entry.lines.ledger', 
                 'entry.lines.partner', 
                 'ledger',
                 'partner'
             ])
-            ->whereHas('entry', function ($q) use ($startDateStr, $endDateStr) {
-                $q->whereNull('deleted_at')
-                  ->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))
-                  ->whereBetween('voucher_date', [$startDateStr, $endDateStr])
-                  ->where(function ($sq) {
-                      $sq->whereNull('ref_module')->orWhere('ref_module', '!=', 'opening_balance');
-                  })
-                  ->where(function ($sq) {
-                      $sq->whereNull('voucher_type')->orWhere('voucher_type', '!=', 'OPENING');
-                  });
+            ->whereHas('entry', function ($q) use ($startDateStr, $endDateStr, $dateSql, $isOpeningSql) {
+                $q->whereRaw("({$dateSql}) BETWEEN ? AND ?", [$startDateStr, $endDateStr])
+                    ->whereRaw("NOT (COALESCE({$isOpeningSql}, 0) AND ({$dateSql}) = ?)", [$startDateStr]);
             })
             ->get()
-            ->sortBy(fn($line) => ($line->entry->voucher_date ? $line->entry->voucher_date->format('Y-m-d') : '') . '_' . str_pad($line->entry->id, 8, '0', STR_PAD_LEFT))
+            ->sortBy(fn ($line) => $line->entry->report_date.'_'.str_pad($line->entry->id, 20, '0', STR_PAD_LEFT).'_'.str_pad($line->id, 20, '0', STR_PAD_LEFT))
             ->map(function ($line) {
                 $isDebit       = $line->debit_amount > 0;
                 $vType         = strtoupper($line->entry->voucher_type ?? '');
@@ -171,7 +164,7 @@ class LedgerReportService implements ReportServiceInterface
 
                 return [
                     'id'           => $line->id,
-                    'date'         => $line->entry->voucher_date ? $line->entry->voucher_date->toDateString() : '',
+                    'date'         => substr((string) $line->entry->report_date, 0, 10),
                     'voucher_type' => $line->entry->voucher_type,
                     'voucher_no'   => $line->entry->voucher_number,
                     'ref_module'   => $line->entry->ref_module,
@@ -186,7 +179,22 @@ class LedgerReportService implements ReportServiceInterface
                 ];
             })->values();
 
-        return ['opening_balance' => (float)$openingBalance, 'transactions' => $transactions];
+        $balance = round((float) $openingBalance, 4);
+        $transactions = $transactions->map(function ($transaction) use (&$balance) {
+            $balance = round($balance + $transaction['debit'] - $transaction['credit'], 4);
+            return [...$transaction, 'running_balance' => $balance];
+        });
+
+        return [
+            'opening_balance' => round((float) $openingBalance, 4),
+            'opening_debit' => round($openingDebit, 4),
+            'opening_credit' => round($openingCredit, 4),
+            'balance_scope' => $ledgerId ? 'ledger' : ($patronId ? 'patron' : 'all_ledgers'),
+            'transactions' => $transactions,
+            'total_debit' => round($transactions->sum('debit'), 4),
+            'total_credit' => round($transactions->sum('credit'), 4),
+            'closing_balance' => $balance,
+        ];
     }
 
     public function targetName(array $params): string

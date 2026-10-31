@@ -10,7 +10,7 @@ const props = defineProps({
     ledgers: { type: Array, default: () => [] },
     patrons: { type: Array, default: () => [] },
 });
-const emit = defineEmits(['saved', 'removed', 'close', 'busy']);
+const emit = defineEmits(['saved', 'close', 'busy']);
 const { can } = usePermissions();
 const canUpdate = computed(() => can('OPENING_BALANCE.UPDATE'));
 const kind = computed(() => props.record.patron_id ? 'patron' : 'ledger');
@@ -55,20 +55,37 @@ async function save() {
 
 async function remove() {
     if (busy.value || !can('OPENING_BALANCE.DELETE')) return;
-    const result = await Swal.fire({
+    await Swal.fire({
         title: 'Remove Opening Balance?',
         text: 'This removes the balance and its opening journal. The audit history is retained.',
         icon: 'warning', input: 'text', inputValue: form.reason,
         inputLabel: 'Reason for removal (minimum 5 characters)',
         showCancelButton: true, confirmButtonText: 'Remove Balance', confirmButtonColor: '#e11d48',
+        showLoaderOnConfirm: true,
+        allowOutsideClick: () => !Swal.isLoading(),
+        allowEscapeKey: () => !Swal.isLoading(),
+        returnFocus: false,
+        animation: false,
         inputValidator: value => !value || value.trim().length < 5 ? 'Enter a reason of at least 5 characters.' : undefined,
+        preConfirm: async reason => {
+            const response = await run(() => axios.delete(route('opening-balances.remove', props.record.id), {
+                data: { version: form.version, reason },
+            }));
+            if (!response) {
+                Swal.showValidationMessage(error.value || 'Unable to remove this opening balance.');
+                return false;
+            }
+            try {
+                sessionStorage.setItem('opening-balances:removed-message', response.data?.message || 'Opening balance removed.');
+            } catch {
+                // Refresh even when browser storage is unavailable.
+            }
+            window.location.reload();
+            return response.data;
+        },
     });
-    if (!result.isConfirmed) return;
-    const response = await run(() => axios.delete(route('opening-balances.remove', props.record.id), {
-        data: { version: form.version, reason: result.value },
-    }));
-    if (response) emit('removed', props.record.id);
 }
+
 </script>
 
 <template>

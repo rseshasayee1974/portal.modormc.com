@@ -14,7 +14,7 @@ const props = defineProps({
     ledgers: { type: Array, default: () => [] },
     patrons: { type: Array, default: () => [] },
 });
-const emit = defineEmits(['saved', 'removed']);
+const emit = defineEmits(['saved']);
 const { can } = usePermissions();
 const canManage = computed(() => can('OPENING_BALANCE.UPDATE') || can('OPENING_BALANCE.DELETE'));
 const expandedRows = ref({});
@@ -89,10 +89,6 @@ function saved(record, previousId) {
     emit('saved', record, previousId);
 }
 
-function removed(id) {
-    expandedRows.value = {};
-    emit('removed', id);
-}
 
 watch([filterTab, sideFilter, () => filters.value.global.value, rows], () => { first.value = 0; });
 watch(() => props.records, records => {
@@ -298,7 +294,6 @@ watch(canManage, allowed => { if (!allowed) expandedRows.value = {}; });
                 @busy="editBusy = $event"
                 @close="toggleRow(data.id)"
                 @saved="saved"
-                @removed="removed"
             />
         </template>
         <template #empty>
