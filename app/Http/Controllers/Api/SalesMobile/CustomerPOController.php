@@ -77,9 +77,9 @@ class CustomerPOController extends Controller
 
     public function show(int $customer_po)
     {
-        $po = Access::customerPOs()->findOrFail($customer_po)->load([
+        $po = Access::customerPOsForReading()->findOrFail($customer_po)->load([
             'items.mixDesign:id,design_name',
-            'salesOrders' => fn ($q) => $q->whereIn('id', Access::orders()->select('id'))->with('mixDesign:id,design_name'),
+            'salesOrders' => fn ($q) => $q->whereIn('id', Access::customerPOSalesOrdersForReading()->select('id'))->with('mixDesign:id,design_name'),
         ]);
         $po->items->each(fn ($item) => $item->setAttribute('mix_design_name', $item->mixDesign?->design_name));
         return response()->json(['success' => true, 'data' => $po]);

@@ -43,12 +43,12 @@ class OrderController extends Controller
             'converted_by_user_id', 'created_at', 'updated_at'];
         $itemFields = ['id', 'customer_po_id', 'mix_design_id', 'quantity', 'rate', 'tax_id',
             'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'];
-        $q = Access::customerPOs()->select($fields)->with([
+        $q = Access::customerPOsForReading()->select($fields)->with([
             'patron' => fn ($q) => $q->select('id', 'legal_name')->whereIn('id', Access::customers()->select('id')),
             'site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')),
             'items' => fn ($items) => $items->select($itemFields),
             'items.mixDesign:id,design_name',
-            'salesOrders' => fn ($orders) => $orders->whereIn('id', Access::orders()->select('id'))->with('mixDesign:id,design_name'),
+            'salesOrders' => fn ($orders) => $orders->whereIn('id', Access::customerPOSalesOrdersForReading()->select('id'))->with('mixDesign:id,design_name'),
         ]);
         if ($r->filled('search')) $q->where(function ($search) use ($r) {
             $search->where('reference', 'like', '%'.$r->search.'%')
