@@ -101,7 +101,7 @@ const visibleNav = computed(() => {
     const menus = page.props.menus?.top_nav || [];
     return menus.filter(item => {
         // The server includes Reports only when an individual report is permitted.
-        if (item.alias === 'report') return true;
+        if (String(item.alias ?? '').trim().toLowerCase() === 'report') return true;
         if (!item.permission_name) return true;
         if (can(item.permission_name)) return true;
         const children = page.props.menus?.sidebar_nav?.[item.id] || [];

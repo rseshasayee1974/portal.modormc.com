@@ -162,4 +162,45 @@ class FullAccessRoleTest extends TestCase
             $this->assertSame($allowed, MobileAccess::isCommercialAdministrator());
         }
     }
+
+    public static function reportMenuCases(): array
+    {
+        return [
+            'lowercase permitted' => ['report', true],
+            'live capitalized permitted' => ['Report', true],
+            'uppercase permitted' => ['REPORT', true],
+            'whitespace permitted' => [' Report ', true],
+            'capitalized denied' => ['Report', false],
+            'lowercase denied' => ['report', false],
+        ];
+    }
+
+    #[DataProvider('reportMenuCases')]
+    public function test_reports_menu_alias_case_respects_individual_report_access(string $alias, bool $allowed): void
+    {
+        Schema::create('mm_entity_users', function (Blueprint $table) {
+            $table->id(); $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('entity_id'); $table->unsignedBigInteger('plant_id')->nullable();
+            $table->unsignedBigInteger('role_id'); $table->softDeletes();
+        });
+        Schema::create('mm_menus', function (Blueprint $table) {
+            $table->id(); $table->integer('menutype'); $table->integer('parent_id')->default(0);
+            $table->string('title'); $table->string('alias'); $table->string('link');
+            $table->string('permission_name')->nullable(); $table->boolean('published')->default(true);
+            $table->integer('ordering')->default(0); $table->softDeletes();
+        });
+        \Illuminate\Support\Facades\DB::table('mm_menus')->insert([
+            ['id' => 10, 'menutype' => 1, 'parent_id' => 0, 'title' => 'Report', 'alias' => $alias, 'link' => 'reports/report', 'permission_name' => 'REPORT.VIEW'],
+            ['id' => 11, 'menutype' => 2, 'parent_id' => 10, 'title' => 'Settings', 'alias' => 'restricted', 'link' => 'settings', 'permission_name' => 'SETTING.VIEW'],
+        ]);
+        $this->user('ADMINISTRATOR', 'Administrator');
+        $reports = \Mockery::mock(ReportPermissions::class);
+        $reports->shouldReceive('matrix')->once()->andReturn(['ledger' => ['view' => $allowed]]);
+        $this->app->instance(ReportPermissions::class, $reports);
+        request()->setLaravelSession(app('session.store'));
+        $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+        $this->assertSame($allowed, $props['menus']['top_nav']->contains('id', 10));
+        $this->assertFalse(isset($props['menus']['sidebar_nav'][10]));
+    }
+
 }

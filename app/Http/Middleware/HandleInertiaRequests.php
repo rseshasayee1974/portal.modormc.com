@@ -188,7 +188,7 @@ class HandleInertiaRequests extends Middleware
                 ->get()
                 ->filter(function ($item) use ($isSuper, $permissionIndex, $parentsWithChildren, $sideNav, $reportPermissions) {
                     if ($isSuper) return true;
-                    if ($item->alias === 'report') {
+                    if (strtolower(trim((string) $item->alias)) === 'report') {
                         return (bool) array_filter($reportPermissions, fn ($actions) => $actions['view']);
                     }
 
