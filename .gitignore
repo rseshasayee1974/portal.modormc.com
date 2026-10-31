@@ -29,6 +29,9 @@ package.json
 /tests
 !/tests/
 /tests/*
+!/tests/Unit/
+/tests/Unit/*
+!/tests/Unit/JayadhityaGroupsPlant739DriverTest.php
 !/tests/Feature/
 /tests/Feature/*
 !/tests/Feature/InvoiceClassificationTest.php
@@ -59,6 +62,7 @@ package.json
 !/tests/Standalone/dashboard-date-range.php
 !/tests/Standalone/bulk-document-pdf.php
 !/tests/Standalone/bulk-document-zip.php
+!/tests/Standalone/jayadhitya-batch-sheet.php
 Homestead.json
 Homestead.yaml
 Thumbs.db

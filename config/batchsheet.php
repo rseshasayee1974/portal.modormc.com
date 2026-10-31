@@ -2,6 +2,8 @@
 
 return [
 
+    'pdf_browser_path' => env('BATCH_SHEET_PDF_BROWSER'),
+
     /*
     |--------------------------------------------------------------------------
     | Batch Sheet Upload Configuration

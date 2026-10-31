@@ -1492,13 +1492,6 @@ class BatchController extends Controller
         }
 
         $batch = $this->resolveBatchSheetBatch($batch);
-        $sheet = $this->prepareBatchSheetData($batch);
-
-        $pdf = Pdf::loadView('pdfs.batches.batch_sheet', [
-            'batch' => $batch,
-            'sheet' => $sheet,
-            'isPreview' => false,
-        ])->setPaper('a4', 'landscape');
 
         $orderNo = $batch->salesOrder?->order_no ?? 'order';
         $safeOrderNo = str_replace(['/', '\\'], '-', $orderNo);
@@ -1507,8 +1500,13 @@ class BatchController extends Controller
             $safeOrderNo,
             $batch->batch_no ?? $batch->id
         );
+        $filename = \Illuminate\Support\Str::slug($batch->plant?->name ?? $batch->salesOrder?->plant?->name ?? 'plant').'-'.$filename;
+        $html = view('pdfs.batches.batch_sheet', ['batch' => $batch, 'isPreview' => false])->render();
+        $bytes = app(\App\Services\BatchSheetBrowserPdf::class)->render($html);
 
-        return $pdf->download($filename);
+        return response()->streamDownload(static function () use ($bytes) {
+            echo $bytes;
+        }, $filename, ['Content-Type' => 'application/pdf']);
     }
 
     public function sendEmail(Batch $batch)
@@ -1864,6 +1862,7 @@ class BatchController extends Controller
     private function resolveBatchSheetBatch(Batch $batch): Batch
     {
         $batch->load([
+            'plant',
             'salesOrder.customer',
             'salesOrder.site',
             'salesOrder.plant.entity',
