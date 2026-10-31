@@ -43,7 +43,13 @@ class OrderController extends Controller
             'converted_by_user_id', 'created_at', 'updated_at'];
         $itemFields = ['id', 'customer_po_id', 'mix_design_id', 'quantity', 'rate', 'tax_id',
             'concrete_pump', 'pump_rate', 'untaxed_amount', 'tax_amount', 'amount_total'];
-        $q = Access::customerPOs()->select($fields)->with(['patron' => fn ($q) => $q->select('id', 'legal_name')->whereIn('id', Access::customers()->select('id')), 'site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')), 'items' => fn ($items) => $items->select($itemFields)]);
+        $q = Access::customerPOs()->select($fields)->with([
+            'patron' => fn ($q) => $q->select('id', 'legal_name')->whereIn('id', Access::customers()->select('id')),
+            'site' => fn ($q) => $q->select('id', 'name')->whereIn('id', Access::sites()->select('id')),
+            'items' => fn ($items) => $items->select($itemFields),
+            'items.mixDesign:id,design_name',
+            'salesOrders' => fn ($orders) => $orders->whereIn('id', Access::orders()->select('id'))->with('mixDesign:id,design_name'),
+        ]);
         if ($r->filled('search')) $q->where(function ($search) use ($r) {
             $search->where('reference', 'like', '%'.$r->search.'%')
                 ->orWhere('customer_po_reference', 'like', '%'.$r->search.'%');
@@ -53,10 +59,13 @@ class OrderController extends Controller
         if ($r->filled('status')) $q->where('status', $r->status);
         $page = $q->latest('id')->paginate($r->integer('per_page', 20));
         $page->getCollection()->each(function ($po) use ($fields, $itemFields) {
-            $po->setAppends(['amount_untaxed', 'amount_tax', 'amount_total'])->setVisible(array_merge($fields, ['patron', 'site', 'items']));
+            $po->setAppends(['amount_untaxed', 'amount_tax', 'amount_total'])->setVisible(array_merge($fields, ['patron', 'site', 'items', 'salesOrders']));
             $po->patron?->setAppends([]);
             $po->site?->setAppends([]);
-            $po->items->each->setVisible(array_values(array_diff($itemFields, ['customer_po_id'])));
+            $po->items->each(function ($item) use ($itemFields) {
+                $item->setAttribute('mix_design_name', $item->mixDesign?->design_name)
+                    ->setVisible(array_merge(array_values(array_diff($itemFields, ['customer_po_id'])), ['mix_design_name', 'mixDesign']));
+            });
         });
         return response()->json(['success' => true, 'data' => $page]);
     }
