@@ -207,7 +207,7 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $permissionIndex, $reportMenuAllowed) {
+                ->filter(function ($item) use ($isSuper, $permissionIndex, $reportMenuAllowed, $isMasterMenu, $isSassOwnerOnly) {
                    
                     if ($isSuper) return true;
                     $reportAllowed = $reportMenuAllowed($item);
@@ -228,7 +228,7 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $permissionIndex, $parentsWithChildren, $sideNav, $reportPermissions) {
+                ->filter(function ($item) use ($isSuper, $permissionIndex, $parentsWithChildren, $sideNav, $reportPermissions, $isMasterMenu, $isSassOwnerOnly) {
                     if ($isSuper) return true;
                     if ($item->alias === 'report') {
                         return (bool) array_filter($reportPermissions, fn ($actions) => $actions['view']);
