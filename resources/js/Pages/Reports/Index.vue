@@ -294,6 +294,7 @@ const endDate = ref(props.filters.end_date);
 const isFiltersCollapsed = ref(false);
 const loading = ref(false);
 const reportData = ref(null);
+const canExecuteReport = computed(() => reportType.value !== 'ledger' || !!(selectedId.value || patronId.value));
 
 const defaultRegisterView = (type) => type === 'sales_register' && !hasReportPermission(type, 'view', 'detail') ? 'summary' : 'detail';
 const registerView = ref(['summary', 'detail'].includes(initialSelection.registerView)
@@ -379,7 +380,7 @@ const getReportComponent = (type) => {
 
 const handlePageChange = (newPage) => {
     currentPage.value = newPage;
-    generateReport();
+    generateReport({ pagination: true });
 };
 
 const returnReportContext = ref(null);
@@ -397,7 +398,7 @@ const handleViewStatement = (id) => {
     reportType.value = 'customer_outstanding';
     patronId.value = id;
     currentPage.value = 1;
-    generateReport();
+    invalidateReport();
     nextTick(() => {
         isNavigatingToStatement.value = false;
     });
@@ -406,7 +407,7 @@ const handleViewStatement = (id) => {
 const handleSelectPatron = (id) => {
     patronId.value = id;
     currentPage.value = 1;
-    generateReport();
+    invalidateReport();
 };
 
 const handleClearPatron = () => {
@@ -417,7 +418,7 @@ const handleClearPatron = () => {
         patronId.value = returnReportContext.value.patronId;
         returnReportContext.value = null;
         currentPage.value = 1;
-        generateReport();
+        invalidateReport();
         nextTick(() => {
             isNavigatingToStatement.value = false;
         });
@@ -425,7 +426,7 @@ const handleClearPatron = () => {
     }
     patronId.value = null;
     currentPage.value = 1;
-    generateReport();
+    invalidateReport();
 };
 
 const exportProgress = ref(null);
@@ -686,6 +687,7 @@ watch(selectedMonth, (newVal) => {
 
 // Watch module change to select first report automatically
 watch(selectedModuleId, (newModuleId) => {
+    invalidateReport();
     if (isNavigatingToStatement.value) return;
     const mod = modules.value.find(m => m.id === newModuleId);
     if (mod && mod.reports.length > 0) {
@@ -714,6 +716,7 @@ watch(selectedModuleId, (newModuleId) => {
 });
 
 watch(reportType, () => {
+    invalidateReport();
     if (isNavigatingToStatement.value) return;
     if (['sales_register', 'purchase_register'].includes(reportType.value)) {
         registerView.value = defaultRegisterView(reportType.value);
@@ -739,21 +742,24 @@ watch(reportType, () => {
         pollingInterval.value = null;
     }
     exportProgress.value = null;
-    generateReport();
 });
 
-watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, attendanceStatus, ledgerVoucherFilter], () => {
+watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
     currentPage.value = 1;
-    generateReport();
-});
-
-onMounted(() => {
-    generateReport();
+    invalidateReport();
 });
 
 let reportRequest = 0;
-const generateReport = async () => {
+function invalidateReport() {
+    reportRequest++;
+    reportData.value = null;
+    loading.value = false;
+}
+const executeReport = () => generateReport({ manual: true });
+const generateReport = async ({ manual = false, pagination = false } = {}) => {
+    if (!manual && !(pagination && reportData.value)) return;
     if (!hasReportPermission(reportType.value, 'view', registerView.value)) return;
+    if (!canExecuteReport.value) return;
     if (reportType.value === 'bulk_documents') {
         return;
     }
@@ -1294,13 +1300,13 @@ const shareEmail = () => {
                                         Payroll Period Scoped
                                     </span>
                                     <!-- Quick Run when Collapsed -->
-                                    <button v-if="isFiltersCollapsed" @click="generateReport" :disabled="loading"
+                                    <button v-if="isFiltersCollapsed" @click="executeReport" :disabled="loading || !canExecuteReport"
                                         class="px-3 py-1.5 bg-[#0064d2] hover:bg-[#0057b8] text-white text-xs font-bold rounded transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
                                         title="Re-run query with current filters">
                                         <span v-if="loading"
                                             class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                         <ArrowPathIcon v-else class="w-3.5 h-3.5" />
-                                        <span>Run</span>
+                                        <span>Execute Query</span>
                                     </button>
                                     <!-- Toggle Button -->
                                     <button type="button" @click="isFiltersCollapsed = !isFiltersCollapsed"
@@ -1578,7 +1584,7 @@ const shareEmail = () => {
                                         </svg>
                                         Share Report
                                     </button> -->
-                                        <button @click="generateReport" :disabled="loading"
+                                        <button @click="executeReport" :disabled="loading || !canExecuteReport"
                                             class="px-5 py-2 bg-[#0064d2] hover:bg-[#0057b8] text-white text-xs font-bold rounded transition-all flex items-center gap-1.5 shadow-sm">
                                             <span v-if="loading"
                                                 class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -1687,9 +1693,10 @@ const shareEmail = () => {
                             </div>
                             <h3 class="text-xs font-bold text-slate-700 uppercase tracking-widest">Execute Query
                                 Statement</h3>
-                            <p class="text-slate-400 max-w-xs mx-auto mt-2 text-[11px] leading-relaxed">Choose a report
-                                from the master list catalog pane, set smart filter query scopes, and click Execute to
-                                load database rows.</p>
+                            <p class="text-slate-400 max-w-xs mx-auto mt-2 text-[11px] leading-relaxed">
+                                <template v-if="reportType === 'ledger'">Select a patron or account ledger, then click Execute Query to load the statement.</template>
+                                <template v-else>Choose a report from the master list catalog pane, set smart filter query scopes, and click Execute to load database rows.</template>
+                            </p>
                         </div>
                     </template>
                 </div>

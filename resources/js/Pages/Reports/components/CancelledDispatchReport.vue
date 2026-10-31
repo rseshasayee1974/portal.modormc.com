@@ -93,6 +93,7 @@ watch([transactions, searchQuery], () => {
                 <table class="w-full text-left text-xs border-collapse">
                     <thead>
                         <tr class="border-b border-slate-200 bg-slate-100/70 text-slate-600 uppercase font-black tracking-wider text-[10px]">
+                            <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                             <th class="py-3 px-4">Dispatch #</th>
                             <th class="py-3 px-4">Batch / SO</th>
                             <th class="py-3 px-4">Customer & Site</th>
@@ -106,7 +107,8 @@ watch([transactions, searchQuery], () => {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <tr v-for="item in paginatedList" :key="item.dispatch_id" class="hover:bg-rose-50/20 transition-colors">
+                        <tr v-for="(item, serialIndex) in paginatedList" :key="item.dispatch_id" class="hover:bg-rose-50/20 transition-colors">
+                            <td class="py-3 px-3 text-center text-slate-400">{{ (sanitizedPage - 1) * perPage + serialIndex + 1 }}</td>
                             <td class="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">
                                 <div>{{ item.dispatch_no }}</div>
                                 <span class="inline-flex items-center gap-1 text-[9px] uppercase font-bold text-rose-700 bg-rose-100/70 px-1.5 py-0.5 rounded mt-0.5">
@@ -154,7 +156,7 @@ watch([transactions, searchQuery], () => {
                             </td>
                         </tr>
                         <tr v-if="paginatedList.length === 0">
-                            <td colspan="10" class="py-8 text-center text-slate-400 text-sm">
+                            <td colspan="11" class="py-8 text-center text-slate-400 text-sm">
                                 <i class="pi pi-inbox text-3xl mb-2 text-slate-300 block"></i>
                                 No cancelled dispatches found for the selected filter.
                             </td>

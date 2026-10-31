@@ -46,6 +46,7 @@ const transactionsWithBalance = computed(() => {
             <thead>
                 <tr
                     class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                    <th class="py-3 px-4 text-center whitespace-nowrap">S/No</th>
                     <th class="py-3 px-4">Date</th>
                     <th class="py-3 px-4">Ledger / Journal</th>
                     <th class="py-3 px-4">Particulars</th>
@@ -59,6 +60,7 @@ const transactionsWithBalance = computed(() => {
             <tbody class="text-[11px] font-semibold text-slate-700">
                 <!-- Opening -->
                 <tr class="bg-slate-50 border-b border-slate-200">
+                    <td class="py-3 px-4 text-center text-slate-400">—</td>
                     <td class="py-3 px-4 text-slate-400 text-[0.7rem] italic">{{ formattedStartDate }}</td>
                     <td class="py-3 px-4">---</td>
                     <td class="py-3 px-4 font-bold text-[#1d2d3e] uppercase">Opening Balance</td>
@@ -78,6 +80,7 @@ const transactionsWithBalance = computed(() => {
                 <!-- Lines -->
                 <tr v-for="(trx, idx) in transactionsWithBalance" :key="idx"
                     class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                    <td class="py-3 px-4 text-center text-slate-500">{{ idx + 1 }}</td>
                     <td class="py-3 px-4 text-slate-500 whitespace-nowrap">{{ trx.date }}</td>
                     <td class="py-3 px-4 font-bold text-slate-800">{{ trx.ledger_name || 'General Account' }}</td>
                     <td class="py-3 px-4">
@@ -103,7 +106,7 @@ const transactionsWithBalance = computed(() => {
 
                 <!-- Closing -->
                 <tr class="bg-[#1d2d3e] text-white">
-                    <td colspan="5"
+                    <td colspan="6"
                         class="py-4 px-6 text-right font-bold uppercase text-[10px] tracking-wider text-slate-300">Net
                         Closing Balance</td>
                     <td colspan="3" class="py-4 px-8 text-right font-black text-lg tracking-tight">

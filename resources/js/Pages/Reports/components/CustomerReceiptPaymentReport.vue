@@ -30,6 +30,7 @@ const showDetails = ref(false);
             <table class="w-full min-w-[650px] text-sm text-left">
                 <thead class="bg-slate-50 text-xs text-slate-600">
                     <tr>
+                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                         <th class="p-3">Customer</th>
                         <th class="p-3 text-right">Receipt Amount</th>
                         <th class="p-3 text-right">Payment Amount</th>
@@ -37,20 +38,22 @@ const showDetails = ref(false);
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in reportData.transactions || []" :key="row.customer_id"
+                    <tr v-for="(row, serialIndex) in reportData.transactions || []" :key="row.customer_id"
                         class="border-t border-slate-100">
+                        <td class="py-3 px-3 text-center text-slate-400">{{ serialIndex + 1 }}</td>
                         <td class="p-3 font-semibold">{{ row.customer_name }}</td>
                         <td class="p-3 text-right">{{ formatCurrency(row.receipt_amt) }}</td>
                         <td class="p-3 text-right">{{ formatCurrency(row.payment_amt) }}</td>
                         <td class="p-3 text-right font-semibold">{{ formatCurrency(Math.abs(row.net_amt || 0)) }}</td>
                     </tr>
                     <tr v-if="!reportData.transactions?.length">
-                        <td colspan="4" class="p-8 text-center text-slate-500">No customer receipts or payments found
+                        <td colspan="5" class="p-8 text-center text-slate-500">No customer receipts or payments found
                             for this period.</td>
                     </tr>
                 </tbody>
                 <tfoot class="border-t border-slate-200 bg-slate-50 font-bold">
                     <tr>
+                        <td class="py-3 px-3"></td>
                         <td class="p-3">Total</td>
                         <td class="p-3 text-right">{{ formatCurrency(reportData.total_receipt || 0) }}</td>
                         <td class="p-3 text-right">{{ formatCurrency(reportData.total_payment || 0) }}</td>
@@ -66,6 +69,7 @@ const showDetails = ref(false);
             <table class="w-full min-w-[850px] text-left text-xs">
                 <thead class="bg-slate-50 text-slate-600">
                     <tr>
+                        <th class="py-3 px-3 text-center whitespace-nowrap">S/No</th>
                         <th class="p-3">Date</th>
                         <th class="p-3">Customer</th>
                         <th class="p-3">Reference</th>
@@ -76,7 +80,8 @@ const showDetails = ref(false);
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in reportData.details || []" :key="row.id" class="border-t border-slate-100">
+                    <tr v-for="(row, serialIndex) in reportData.details || []" :key="row.id" class="border-t border-slate-100">
+                        <td class="py-3 px-3 text-center text-slate-400">{{ serialIndex + 1 }}</td>
                         <td class="p-3 whitespace-nowrap">{{ formatDate(row.date) }}</td>
                         <td class="p-3">{{ row.customer_name }}</td>
                         <td class="p-3">{{ row.reference }}</td>
@@ -86,7 +91,7 @@ const showDetails = ref(false);
                         <td class="p-3 text-right">{{ formatCurrency(row.amount) }}</td>
                     </tr>
                     <tr v-if="!reportData.details?.length">
-                        <td colspan="7" class="p-6 text-center text-slate-500">No vouchers found.</td>
+                        <td colspan="8" class="p-6 text-center text-slate-500">No vouchers found.</td>
                     </tr>
                 </tbody>
             </table>
