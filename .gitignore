@@ -49,6 +49,7 @@ tests/
 !/tests/Feature/ProductionReadCacheTest.php
 !/tests/Feature/InwardDetailsTest.php
 !/tests/Feature/ConcreteQualityDropdownTest.php
+!/tests/Feature/QualityControlRoutesTest.php
 !/tests/Feature/PurchaseOrderTaxInclusiveTest.php
 !/tests/Support/
 /tests/Support/*

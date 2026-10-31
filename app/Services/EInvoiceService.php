@@ -210,7 +210,7 @@ class EInvoiceService
 
     /**
      * Cancel an E-Invoice (IRN).
-     * 
+     *
      * Under GST/NIC rules, an IRN can ONLY be cancelled within 24 hours of generation.
      *
      * @param Invoice $invoice
@@ -315,8 +315,8 @@ class EInvoiceService
      */
     public function authenticate(?Plant $plant = null, ?int $userId = null): EinvoiceAuth
     {
-        $userId = $userId ?? Auth::id() ?? 1;
-        $plantId = $plant?->id ?? 1;
+        $userId = $userId ?? Auth::id();
+        $plantId = $plant?->id;
 
         // 1. Check existing unexpired token from database for THIS plant
         $existingAuth = $this->getCachedAuthToken($plantId, $userId);
@@ -981,7 +981,7 @@ class EInvoiceService
      */
     public function isProduction(?Plant $plant = null): bool
     {
-        
+
 
         $host = request()?->getHost() ?? '';
         if ($host) {
