@@ -5,8 +5,8 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
-import { 
-    PlusIcon, 
+import {
+    PlusIcon,
     ArrowPathIcon,
     TrashIcon,
     VariableIcon,
@@ -20,7 +20,7 @@ const props = defineProps<{
     products: any[];
 }>();
 
-const {can} = usePermissions();
+const { can } = usePermissions();
 const emit = defineEmits(['saved', 'cancel']);
 
 const form = useForm({
@@ -85,9 +85,9 @@ const applyCalculatedProportions = () => {
     const items: any[] = [];
 
     const findProduct = (terms: string[]) => {
-        return props.products.find(p => 
-            terms.some(t => 
-                p.title.toLowerCase().includes(t.toLowerCase()) || 
+        return props.products.find(p =>
+            terms.some(t =>
+                p.title.toLowerCase().includes(t.toLowerCase()) ||
                 (p.category?.name?.toLowerCase().includes(t.toLowerCase()))
             )
         )?.id || null;
@@ -129,10 +129,10 @@ const submit = () => {
                 form.setError(`items.${index}.product_id`, 'Material is required.');
                 hasFrontendErrors = true;
             }
-            if (item.quantity === null || item.quantity <= 0) {
-                form.setError(`items.${index}.quantity`, 'Quantity must be > 0');
-                hasFrontendErrors = true;
-            }
+            // if (item.quantity === null || item.quantity <= 0) {
+            //     form.setError(`items.${index}.quantity`, 'Quantity must be > 0');
+            //     hasFrontendErrors = true;
+            // }
         });
     }
 
@@ -159,7 +159,8 @@ const submit = () => {
                     <span>Identification</span>
                 </div>
                 <BaseInput v-model="form.name" label="Grade Name" placeholder="Mix Name" :error="form.errors.name" />
-                <BaseInput v-model="form.hsn_code" label="HSN Code" placeholder="e.g. 38245010" :error="form.errors.hsn_code" />
+                <BaseInput v-model="form.hsn_code" label="HSN Code" placeholder="e.g. 38245010"
+                    :error="form.errors.hsn_code" />
 
                 <div class="ratio-calc-compact">
                     <div class="flex items-center justify-between mb-3">
@@ -189,7 +190,8 @@ const submit = () => {
                         <span>Add Row</span>
                     </button>
                 </div>
-                <small v-if="form.errors.items" class="text-rose-500 text-[10px] block mt-1">{{ form.errors.items }}</small>
+                <small v-if="form.errors.items" class="text-rose-500 text-[10px] block mt-1">{{ form.errors.items
+                }}</small>
 
                 <div class="matrix-mini-wrap">
                     <table class="w-full">
@@ -203,15 +205,22 @@ const submit = () => {
                         <tbody>
                             <tr v-for="(item, index) in form.items" :key="index">
                                 <td>
-                                    <BaseSelect v-model="item.product_id" :options="productOptions" optionLabel="label" optionValue="value" filter placeholder="Pick Material" fluid />
-                                    <small v-if="form.errors[`items.${index}.product_id`]" class="text-rose-500 text-[10px] mt-1 block">{{ form.errors[`items.${index}.product_id`] }}</small>
+                                    <BaseSelect v-model="item.product_id" :options="productOptions" optionLabel="label"
+                                        optionValue="value" filter placeholder="Pick Material" fluid />
+                                    <small v-if="form.errors[`items.${index}.product_id`]"
+                                        class="text-rose-500 text-[10px] mt-1 block">{{
+                                            form.errors[`items.${index}.product_id`] }}</small>
                                 </td>
                                 <td>
-                                    <BaseInputNumber v-model="item.quantity" :minFractionDigits="1" fluid :inputClass="'text-right font-black'" />
-                                    <small v-if="form.errors[`items.${index}.quantity`]" class="text-rose-500 text-[10px] mt-1 block text-right">{{ form.errors[`items.${index}.quantity`] }}</small>
+                                    <BaseInputNumber v-model="item.quantity" :minFractionDigits="1" fluid
+                                        :inputClass="'text-right font-black'" />
+                                    <small v-if="form.errors[`items.${index}.quantity`]"
+                                        class="text-rose-500 text-[10px] mt-1 block text-right">{{
+                                            form.errors[`items.${index}.quantity`] }}</small>
                                 </td>
                                 <td>
-                                    <BaseDeleteButton v-if="can('CONCRETE_GRADE.update')" @click="removeItem(index)" :disabled="form.items.length <= 1" />
+                                    <BaseDeleteButton v-if="can('CONCRETE_GRADE.update')" @click="removeItem(index)"
+                                        :disabled="form.items.length <= 1" />
                                 </td>
                             </tr>
                         </tbody>
@@ -219,7 +228,7 @@ const submit = () => {
                             <tr>
                                 <td class="text-right text-[10px] font-bold text-slate-400">Yield Weight:</td>
                                 <td class="text-right font-black text-indigo-600">
-                                    {{ form.items.reduce((sum, i) => sum + Number(i.quantity || 0), 0).toFixed(0) }} Kg
+                                    {{form.items.reduce((sum, i) => sum + Number(i.quantity || 0), 0).toFixed(0)}} Kg
                                 </td>
                                 <td></td>
                             </tr>
@@ -229,34 +238,110 @@ const submit = () => {
             </div>
         </div>
 
-        <div  class="flex justify-end gap-3 mt-8 pt-6 border-t border-indigo-100">
+        <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-indigo-100">
 
-            <BaseFormActions
-                label="Update Mix Specification"
-                cancelLabel="Discard"
+            <BaseFormActions label="Update Mix Specification" cancelLabel="Discard"
                 :disabled="!can('CONCRETE_GRADE.UPDATE')""
-                :loading="form.processing"
-                @submit="submit"
-                @reset="emit('cancel')"
-            />
+                :loading="form.processing" @submit="submit" @reset="emit('cancel')" />
         </div>
     </div>
 </template>
 
 <style scoped>
-.edit-form-inner { width: 100%; }
-.section-title { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #64748b; margin-bottom: 16px; }
+.edit-form-inner {
+    width: 100%;
+}
 
-.ratio-calc-compact { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-top: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
-.refresh-link { background: none; border: none; padding: 0; color: #6366f1; font-size: 9px; font-weight: 800; text-transform: uppercase; display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.refresh-link:hover { color: #4f46e5; text-decoration: underline; }
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #64748b;
+    margin-bottom: 16px;
+}
 
-.matrix-mini-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: white; }
-.matrix-mini-wrap table th { padding: 10px 14px; background: #fafafa; font-size: 8px; font-weight: 800; text-transform: uppercase; color: #94a3b8; border-bottom: 1px solid #f1f5f9; }
-.matrix-mini-wrap table td { padding: 4px 10px; border-bottom: 1px solid #fafafa; }
+.ratio-calc-compact {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 20px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
 
-.add-btn-mini { background: #6366f1; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 8px; font-weight: 800; text-transform: uppercase; display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.del-btn { color: #cbd5e1; transition: color 0.15s; background: none; border: none; cursor: pointer; }
-.del-btn:hover:not(:disabled) { color: #ef4444; }
-.del-btn:disabled { opacity: 0.2; }
+.refresh-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #6366f1;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.refresh-link:hover {
+    color: #4f46e5;
+    text-decoration: underline;
+}
+
+.matrix-mini-wrap {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+}
+
+.matrix-mini-wrap table th {
+    padding: 10px 14px;
+    background: #fafafa;
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #94a3b8;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.matrix-mini-wrap table td {
+    padding: 4px 10px;
+    border-bottom: 1px solid #fafafa;
+}
+
+.add-btn-mini {
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.del-btn {
+    color: #cbd5e1;
+    transition: color 0.15s;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.del-btn:hover:not(:disabled) {
+    color: #ef4444;
+}
+
+.del-btn:disabled {
+    opacity: 0.2;
+}
 </style>
