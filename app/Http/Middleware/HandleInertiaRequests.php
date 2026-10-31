@@ -117,7 +117,7 @@ class HandleInertiaRequests extends Middleware
 
         $plantsCount = 0;
         if ($user && $activeEntityId) {
-            if ($user->hasFullAccess()) {
+            if ($user->hasRole('Platform Admin') || $user->hasRole('Saas Owner')) {
                 $plantsCount = Plant::where('entity_id', $activeEntityId)->where('is_active', true)->count();
             } else {
                 $entityAssignments = EntityUser::where('user_id', $user->id)
@@ -162,6 +162,43 @@ class HandleInertiaRequests extends Middleware
                 $id = strtolower(substr(explode('.', $permission)[0], 7));
                 return $reportPermissions[$id]['view'] ?? false;
             };
+             $isMasterMenu = function ($menu) {
+                // If it is the Master menu or a child of it
+                if ($menu->id === 2 || $menu->parent_id === 2) {
+                    return true;
+                }
+                
+                if ($menu->permission_name) {
+                    $prefix = strtolower(explode('.', $menu->permission_name)[0]);
+                    $masterModules = [
+                        'master',
+                        'address_type',
+                        'bank_account_type',
+                        'contact_type',
+                        'country',
+                        'leave_type',
+                        'currency',
+                        'entity_type',
+                        'invoice_status',
+                        'payment_status',
+                        'payment_method',
+                        'plan',
+                        'subscription_status',
+                        'state_code',
+                        'menu',
+                        'role',
+                        'permission'
+                    ];
+                    if (in_array($prefix, $masterModules)) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            };
+
+            $isSassOwnerOnly = $user->hasAnyRole(['Saas Owner', 'Platform Admin']);
+            
 
             $permissionIndex = array_fill_keys($tenantPermissions->map(fn ($permission) => strtolower($permission))->all(), true);
             $parentsWithChildren = array_fill_keys(\App\Models\Menu::where('menutype', 2)->distinct()->pluck('parent_id')->all(), true);
@@ -175,7 +212,12 @@ class HandleInertiaRequests extends Middleware
                     if ($isSuper) return true;
                     $reportAllowed = $reportMenuAllowed($item);
                     if ($reportAllowed !== null) return $reportAllowed;
+                    if ($isMasterMenu($item)) {
+                        return $isSassOwnerOnly;
+                    }
 
+                    if ($isSuper) return true;
+                   
                     if (!$item->permission_name) return true;
                     return isset($permissionIndex[strtolower($item->permission_name)]);
                 })
@@ -191,6 +233,12 @@ class HandleInertiaRequests extends Middleware
                     if ($item->alias === 'report') {
                         return (bool) array_filter($reportPermissions, fn ($actions) => $actions['view']);
                     }
+                      if ($isMasterMenu($item)) {
+                        return $isSassOwnerOnly;
+                    }
+
+                    if ($isSuper) return true;
+
 
                     $hasDirectPerm = $item->permission_name
                         ? isset($permissionIndex[strtolower($item->permission_name)])
@@ -259,7 +307,7 @@ class HandleInertiaRequests extends Middleware
             'gstin'            => fn () => session('gstin', $activePlant['gstin'] ?? null),
             'mixer_capacity'   => fn () => session('mixer_capacity', $activePlant['mixer_capacity'] ?? 1.25),
             'user_entities'    => $userEntities,
-            'has_full_access'  => $user?->hasFullAccess() ?? false,
+            // 'has_full_access'  => $user?->hasFullAccess() ?? false,
             'user_role'        => $tenantRoleName,
             'user_code'        => $tenantRoleCode,
             'app_env'          => app()->environment(),
