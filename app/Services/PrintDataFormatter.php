@@ -578,6 +578,22 @@ class PrintDataFormatter
         ];
     }
 
+    public static function taxInvoiceAddresses($partner, $site): array
+    {
+        $billTo = self::formatPartner($partner);
+        $shipTo = self::formatShipTo($site, $billTo);
+        $siteLines = array_filter([
+            trim((string) $site?->site_address_1),
+            trim((string) $site?->site_address_2),
+        ], fn ($line) => $line !== '');
+        if ($siteLines) {
+            $shipTo['address'] = implode(', ', $siteLines);
+        }
+        $shipTo['gstin'] = $site?->gstin ?: $billTo['gstin'];
+
+        return ['bill_to' => $billTo, 'ship_to' => $shipTo];
+    }
+
     public static function formatSalesExecutiveName($salesExec): string
     {
         if (!$salesExec) {
@@ -997,7 +1013,10 @@ class PrintDataFormatter
         }
 
         if (!empty($upiQrPath)) {
-            $cleanUpi = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $upiQrPath), '/');
+            if (preg_match('~^(https?://|data:image/)~i', $upiQrPath)) {
+                return $upiQrPath;
+            }
+            $cleanUpi = preg_replace('~^(?:(?:public|storage)/)+~', '', ltrim($upiQrPath, '/'));
             return asset('storage/' . $cleanUpi);
         }
 
@@ -1301,8 +1320,6 @@ class PrintDataFormatter
             ?: ($dispatch?->dispatch_reference
             ?: ($invoice->ref_title ?? ''))))));
 
-        $testDummyQrPath = asset('storage/plants/demo-mining-corp/parker-llc-plant/upi_qr_1784092752.png');
-
         $data['meta'] = [
             'currency_code'          => 'INR',
             'currency_symbol'        => '&#8377;',
@@ -1315,7 +1332,7 @@ class PrintDataFormatter
             'irn'                   => $invoice->einvoice_irn ?? '',
             'ack_no'                 => $invoice->einvoice_ack_no ?? '',
             'ack_date'               => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '',
-            'qr_code'                => self::formatQrCodeUrl($invoice->einvoice_qr_code, $invoice->einvoice_irn, $testDummyQrPath),
+            'qr_code'                => self::formatQrCodeUrl($invoice->einvoice_qr_code, $invoice->einvoice_irn),
             'eway_bill_no'           => $invoice->eway_bill_no ?? '',
             'so_no'                  => $salesOrder ? ($salesOrder->full_number ?? $salesOrder->order_no) : ($dispatch?->salesOrder?->order_no ?? ''),
             'acc_no'                 => $partner?->account_number ?? $partner?->code ?? ($partner ? 'AC-' . sprintf('%04d', $partner->id) : ''),

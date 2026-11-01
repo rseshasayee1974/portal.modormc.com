@@ -27,6 +27,8 @@
         'driver',
         'transport',
         'salesOrder.site',
+        'unloadSite',
+        'customerPO.site',
         'salesOrder.salesExecutive',
         'salesOrder.customerPO',
         'salesExecutive',
@@ -48,6 +50,8 @@
             'driver',
             'transport',
             'salesOrder.site',
+            'unloadSite',
+            'customerPO.site',
             'salesOrder.salesExecutive',
             'salesOrder.customerPO',
             'salesExecutive',
@@ -87,9 +91,13 @@
     $msmeNo = $entity?->msme_no ?? ($plant?->msme_no ?? '');
 
     // Customer Billing & Shipping
-    $billingAddress = $partner?->addresses()?->first() ?? $partner?->addresses()?->first();
-    $shippingSite = $salesOrder?->site ?? $firstDispatch?->site;
-    $shippingAddress = $shippingSite?->address ?? $billingAddress;
+    $partner ??= $firstDispatch?->customer ?? $salesOrder?->customer ?? $customerPO?->patron;
+    $partner?->loadMissing(['addresses', 'contacts.addresses']);
+    $shippingSite = $firstDispatch?->unloadSite ?? $salesOrder?->site ?? $customerPO?->site;
+    $customerAddresses = \App\Services\PrintDataFormatter::taxInvoiceAddresses($partner, $shippingSite);
+    $billTo = $customerAddresses['bill_to'];
+    $shipTo = $customerAddresses['ship_to'];
+    $pdfSettings = \App\Services\PrintDataFormatter::getCustomSettings((int) ($inv?->plant_id ?? $plant?->id), 'invoices')['pdf'] ?? [];
 
     // Customer Ref
     $accNo = $partner?->code ?? ($partner?->reference ?? ($partner?->id ? 'AC-' . $partner->id : ''));
@@ -743,35 +751,28 @@
             <tr>
                 <!-- Col 1: Customer Billing Address -->
                 <td>
-                    <div class="box-heading">Customer Billing Address</div>
-                    <div class="info-line font-bold">
-                        {{ strtoupper($partner?->legal_name ?? '') }}</div>
-                    <div class="info-line">
-                        @if ($billingAddress)
-                            {{ $billingAddress->line_1 }}@if ($billingAddress->line_2)
-                                , {{ $billingAddress->line_2 }}
-                            @endif,<br>
-                            {{ $billingAddress->city }} - {{ $billingAddress->zipcode }}
-                        @endif
-                    </div>
-                    <div class="info-line"><strong>GSTIN :</strong> {{ $partner?->gstin ?? '' }}</div>
+                    @if ($pdfSettings['bill_to'] ?? true)
+                        <div class="box-heading">Customer Billing Address</div>
+                        <div class="info-line font-bold">{{ strtoupper($billTo['name']) }}</div>
+                        <div class="info-line">
+                            {{ $billTo['address'] }}<br>
+                            {{ $billTo['city'] }} - {{ $billTo['pin'] }}
+                        </div>
+                        <div class="info-line"><strong>GSTIN :</strong> {{ $billTo['gstin'] }}</div>
+                    @endif
                 </td>
 
                 <!-- Col 2: Customer Shipping Address -->
                 <td>
-                    <div class="box-heading">Customer Shipping Address</div>
-                    <div class="info-line font-bold">
-                        {{ strtoupper($shippingSite?->name ?? '') }}</div>
-                    <div class="info-line">
-                        @if ($shippingAddress)
-                            {{ $shippingAddress->line_1 }}@if ($shippingAddress->line_2)
-                                , {{ $shippingAddress->line_2 }}
-                            @endif,<br>
-                            {{ $shippingAddress->city }} - {{ $shippingAddress->zipcode }}
-                        @endif
-                    </div>
-                    <div class="info-line"><strong>GSTIN :</strong>
-                        {{ $shippingSite?->gstin ?? ($partner?->gstin ?? '') }}</div>
+                    @if ($pdfSettings['ship_to'] ?? true)
+                        <div class="box-heading">Customer Shipping Address</div>
+                        <div class="info-line font-bold">{{ strtoupper($shipTo['name']) }}</div>
+                        <div class="info-line">
+                            {{ $shipTo['address'] }}<br>
+                            {{ $shipTo['city'] }} - {{ $shipTo['pin'] }}
+                        </div>
+                        <div class="info-line"><strong>GSTIN :</strong> {{ $shipTo['gstin'] }}</div>
+                    @endif
                 </td>
 
                 <!-- Col 3: Customer Ref -->
