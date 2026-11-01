@@ -154,7 +154,7 @@ class FullAccessRoleTest extends TestCase
     {
         $this->user('ACCOUNTANT', 'Accountant');
         request()->attributes->set('mobile_app_context', true);
-        foreach (['SAAS_OWNER' => true, 'SUPER_ADMIN' => true, 'PLATFORM_ADMIN' => true, 'ADMINISTRATOR' => true] as $code => $allowed) {
+        foreach (['SAAS_OWNER' => true, 'SUPER_ADMIN' => true, 'PLATFORM_ADMIN' => true, 'ADMINISTRATOR' => false] as $code => $allowed) {
             $role = new Role(['code' => $code, 'name' => 'Context role']);
             $role->setRelation('permissions', new Collection);
             request()->attributes->set('mobile_role', $role);
@@ -206,7 +206,7 @@ class FullAccessRoleTest extends TestCase
     }
 
 
-    public function test_administrator_access_is_restored_only_in_its_assigned_context_and_shared_with_frontend(): void
+    public function test_administrator_menus_and_endpoints_follow_explicit_permissions_in_the_selected_context(): void
     {
         $db = \Illuminate\Support\Facades\DB::class;
         foreach ([
@@ -232,27 +232,75 @@ class FullAccessRoleTest extends TestCase
             ['id' => 10, 'menutype' => 1, 'parent_id' => 0, 'title' => 'Report', 'alias' => 'Report', 'link' => 'reports/report', 'permission_name' => 'REPORT.VIEW'],
             ['id' => 11, 'menutype' => 1, 'parent_id' => 0, 'title' => 'Finance', 'alias' => 'finance', 'link' => 'finance', 'permission_name' => 'LEDGER.VIEW'],
             ['id' => 12, 'menutype' => 2, 'parent_id' => 11, 'title' => 'Ledger', 'alias' => 'ledger', 'link' => 'finance/ledger', 'permission_name' => 'LEDGER.VIEW'],
+            ['id' => 13, 'menutype' => 2, 'parent_id' => 2, 'title' => 'Roles', 'alias' => 'roles', 'link' => 'settings/roles', 'permission_name' => 'ROLE.VIEW'],
         ]);
         $user = $this->user('ADMINISTRATOR', 'Administrator');
         session(['active_entity_id' => 1, 'active_plant_id' => 1]);
         request()->setLaravelSession(app('session.store'));
         $this->assertFalse($user->isSystemAdmin());
-        $this->assertTrue(app(ReportPermissions::class)->allows('ledger', 'export'));
+        $this->assertFalse(app(ReportPermissions::class)->allows('ledger', 'export'));
         $controller = new class {
             use AuthorizesModule;
             protected string $module = 'ledgers';
             public function check(): void { $this->authorizeModule('create'); }
         };
+        $roleController = new class {
+            use AuthorizesModule;
+            protected string $module = 'roles';
+            public function check(): void { $this->authorizeModule('menu'); }
+        };
+        // A global grant must not override the selected role's missing permission.
+        Gate::define('ROLE.VIEW', fn () => true);
+        Gate::define('LEDGER.CREATE', fn () => true);
+        Gate::define('LEDGERS.CREATE', fn () => true);
+        foreach ([$controller, $roleController] as $guarded) {
+            try {
+                $guarded->check();
+                $this->fail('An unpermitted direct URL was authorized.');
+            } catch (HttpException $exception) {
+                $this->assertSame(403, $exception->getStatusCode());
+            }
+        }
+        $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+        $this->assertFalse($props['has_full_access']);
+        $this->assertSame('ADMINISTRATOR', $props['user_code']);
+        foreach ([2, 10, 11] as $id) $this->assertFalse($props['menus']['top_nav']->contains('id', $id));
+        $this->assertFalse(\App\Support\BatchNumberAccess::allows($user));
+
+        foreach (['LEDGER.VIEW', 'LEDGER.CREATE', 'REPORT_LEDGER.VIEW', 'REPORT_LEDGER.EXPORT', 'ROLE.VIEW', 'BATCH.CREATE'] as $index => $name) {
+            $db::table('mm_permissions')->insert(['id' => $index + 1, 'name' => $name, 'guard_name' => 'web']);
+            $db::table('mm_role_has_permissions')->insert(['role_id' => 4, 'permission_id' => $index + 1]);
+        }
         $controller->check();
+        $roleController->check();
+        $this->assertTrue(app(ReportPermissions::class)->allows('ledger', 'export'));
+        $this->assertFalse(app(ReportPermissions::class)->allows('ledger', 'share'));
         $this->assertTrue(\App\Support\BatchNumberAccess::allows($user));
         $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
-        $this->assertTrue($props['has_full_access']);
-        $this->assertSame('ADMINISTRATOR', $props['user_code']);
-        $this->assertTrue($props['menus']['top_nav']->contains('id', 10));
-        $this->assertTrue($props['menus']['top_nav']->contains('id', 11));
-        $this->assertFalse($props['menus']['top_nav']->contains('id', 2));
+        $this->assertFalse($props['has_full_access']);
+        foreach ([2, 10, 11] as $id) $this->assertTrue($props['menus']['top_nav']->contains('id', $id));
+        $this->assertSame('settings/roles', $props['menus']['top_nav']->firstWhere('id', 2)->link);
+        $this->assertTrue($props['menus']['sidebar_nav'][2]->contains('id', 13));
         $this->assertTrue($props['menus']['sidebar_nav'][11]->contains('id', 12));
 
+        // Removing a module's VIEW grant hides both its child and its parent.
+        $db::table('mm_role_has_permissions')->where('permission_id', 5)->delete();
+        $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+        $this->assertFalse($props['menus']['top_nav']->contains('id', 2));
+        try {
+            $roleController->check();
+            $this->fail('A revoked Master module permission still authorized the URL.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+
+        // Simulate permissions on a different global role while changing plant.
+        $globalPermissions = new Collection([
+            (new Permission(['name' => 'LEDGER.VIEW', 'guard_name' => 'web']))->forceFill(['id' => 1]),
+            (new Permission(['name' => 'LEDGER.CREATE', 'guard_name' => 'web']))->forceFill(['id' => 2]),
+            (new Permission(['name' => 'BATCH.CREATE', 'guard_name' => 'web']))->forceFill(['id' => 6]),
+        ]);
+        $user->roles->first()->setRelation('permissions', $globalPermissions);
         session(['active_plant_id' => 2]);
         $this->assertFalse(\App\Support\BatchNumberAccess::allows($user));
         try {
@@ -266,6 +314,13 @@ class FullAccessRoleTest extends TestCase
         $this->assertFalse($props['has_full_access']);
         $this->assertFalse($props['menus']['top_nav']->contains('id', 10));
         $this->assertFalse($props['menus']['top_nav']->contains('id', 11));
+
+        $db::table('mm_entity_users')->insert(['id' => 2, 'user_id' => 99, 'entity_id' => 1, 'plant_id' => null, 'role_id' => 4]);
+        session()->forget('active_plant_id');
+        $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+        $this->assertSame('ADMINISTRATOR', $props['user_code']);
+        $this->assertTrue($props['menus']['top_nav']->contains('id', 11));
+        $this->assertFalse($props['has_full_access']);
 
         foreach (['SAAS_OWNER', 'SUPER_ADMIN', 'PLATFORM_ADMIN'] as $code) {
             $this->user($code, 'System role');

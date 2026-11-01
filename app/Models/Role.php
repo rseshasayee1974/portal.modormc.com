@@ -61,7 +61,7 @@ class Role extends SpatieRole
 
     public function grantsFullAccess(): bool
     {
-        return $this->grantsSystemAccess() || $this->accessCode() === self::ADMINISTRATOR;
+        return $this->grantsSystemAccess();
     }
 
     public function grantsSystemAccess(): bool

@@ -69,7 +69,7 @@ trait AuthorizesModule
         if ($activeRole) {
             $tenantPermissions = $activeRole->permissions->pluck('name');
             $tenantPermissions = $tenantPermissions->merge($user->getDirectPermissions()->pluck('name'))->unique()->values();
-        } else {
+        } elseif (!$activeEntityId) {
             $tenantPermissions = $user->getAllPermissions()->pluck('name');
         }
 
@@ -77,8 +77,10 @@ trait AuthorizesModule
 
         $hasPermission = $upperTenantPermissions->contains(strtoupper($permissionSingular))
             || $upperTenantPermissions->contains(strtoupper($permissionPlural))
-            || \Illuminate\Support\Facades\Gate::allows($permissionSingular)
-            || \Illuminate\Support\Facades\Gate::allows($permissionPlural);
+            || (!$activeEntityId && (
+                \Illuminate\Support\Facades\Gate::allows($permissionSingular)
+                || \Illuminate\Support\Facades\Gate::allows($permissionPlural)
+            ));
 
         if (!$hasPermission) {
             abort(403, "Access Denied: You do not have the required permission ({$permissionPlural}) for the {$module} module.");

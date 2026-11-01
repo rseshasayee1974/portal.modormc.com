@@ -120,3 +120,7 @@ graphify-out
 !/tests/Feature/MachineTrackerReportCalculationsTest.php
 
 !/tests/Feature/ConcreteGradeMaterialOrderTest.php 
+
+!/tests/Feature/TaxInvoiceAddressTest.php
+
+!/tests/Feature/InvoiceQrCodeTest.php

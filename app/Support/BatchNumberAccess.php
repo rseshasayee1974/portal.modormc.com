@@ -28,6 +28,10 @@ class BatchNumberAccess
             return true;
         }
 
+        if ($entityId && !$activeRole) {
+            return false;
+        }
+
         // Match the active entity permissions shared with the batch forms.
         $permissions = $activeRole
             ? $activeRole->permissions->merge($user->getDirectPermissions())

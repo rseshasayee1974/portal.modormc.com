@@ -284,7 +284,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function hasFullAccess(): bool
     {
-        // Administrator bypass applies only through its assigned entity/plant role.
+        // Administrator uses explicit permissions; system roles retain full access.
         return $this->roles->contains(fn ($role) => $role->grantsSystemAccess());
     }
 
