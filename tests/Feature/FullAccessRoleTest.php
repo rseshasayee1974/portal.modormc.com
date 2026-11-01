@@ -278,10 +278,25 @@ class FullAccessRoleTest extends TestCase
         $this->assertTrue(\App\Support\BatchNumberAccess::allows($user));
         $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
         $this->assertFalse($props['has_full_access']);
-        foreach ([2, 10, 11] as $id) $this->assertTrue($props['menus']['top_nav']->contains('id', $id));
+        foreach ([10, 11] as $id) $this->assertTrue($props['menus']['top_nav']->contains('id', $id));
+        $this->assertFalse($props['menus']['top_nav']->contains('id', 2));
+        $this->assertFalse($props['menus']['sidebar_nav']->has(2));
+
+        // Child permissions alone must not bypass the Master menu grant.
+        $db::table('mm_permissions')->insert(['id' => 7, 'name' => 'MASTER.ALL', 'guard_name' => 'web']);
+        $db::table('mm_role_has_permissions')->insert(['role_id' => 4, 'permission_id' => 7]);
+        $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+        $this->assertTrue($props['menus']['top_nav']->contains('id', 2));
         $this->assertSame('settings/roles', $props['menus']['top_nav']->firstWhere('id', 2)->link);
         $this->assertTrue($props['menus']['sidebar_nav'][2]->contains('id', 13));
         $this->assertTrue($props['menus']['sidebar_nav'][11]->contains('id', 12));
+
+        $db::table('mm_role_has_permissions')->where('permission_id', 7)->delete();
+        $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+        $this->assertFalse($props['menus']['top_nav']->contains('id', 2));
+        $this->assertFalse($props['menus']['sidebar_nav']->has(2));
+
+        $db::table('mm_role_has_permissions')->insert(['role_id' => 4, 'permission_id' => 7]);
 
         // Removing a module's VIEW grant hides both its child and its parent.
         $db::table('mm_role_has_permissions')->where('permission_id', 5)->delete();

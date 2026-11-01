@@ -166,14 +166,18 @@ class HandleInertiaRequests extends Middleware
             };
             $permissionIndex = array_fill_keys($tenantPermissions->map(fn ($permission) => strtolower($permission))->all(), true);
             $parentsWithChildren = array_fill_keys(\App\Models\Menu::where('menutype', 2)->distinct()->pluck('parent_id')->all(), true);
+            $masterMenuIds = array_fill_keys(\App\Models\Menu::where('menutype', 1)
+                ->get()->filter(fn ($item) => strtolower((string) $item->permission_name) === 'master.all')
+                ->pluck('id')->all(), true);
 
             $sideNav = \App\Models\Menu::where('menutype', 2)
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $permissionIndex, $reportMenuAllowed, $contextFullAccess) {
+                ->filter(function ($item) use ($isSuper, $permissionIndex, $reportMenuAllowed, $contextFullAccess, $masterMenuIds) {
                    
                     if ($isSuper) return true;
+                    if (!$contextFullAccess && isset($masterMenuIds[$item->parent_id]) && !isset($permissionIndex['master.all'])) return false;
                     $reportAllowed = $reportMenuAllowed($item);
                     if ($reportAllowed !== null) return $reportAllowed;
 
@@ -201,6 +205,8 @@ class HandleInertiaRequests extends Middleware
                     $hasDirectPerm = $item->permission_name
                         ? isset($permissionIndex[strtolower($item->permission_name)])
                         : false;
+
+                    if (strtolower((string) $item->permission_name) === 'master.all' && !$hasDirectPerm) return false;
 
                     $hasChildrenInDb = isset($parentsWithChildren[$item->id]);
                     $hasChildSubNav = isset($sideNav[$item->id]) && $sideNav[$item->id]->isNotEmpty();

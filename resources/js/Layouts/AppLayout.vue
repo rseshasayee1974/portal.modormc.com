@@ -104,6 +104,7 @@ const visibleNav = computed(() => {
         if (String(item.alias ?? '').trim().toLowerCase() === 'report') return true;
         if (!item.permission_name) return true;
         if (can(item.permission_name)) return true;
+        if (String(item.permission_name).toUpperCase() === 'MASTER.ALL') return false;
         const children = page.props.menus?.sidebar_nav?.[item.id] || [];
         return children.some(child => !child.permission_name || can(child.permission_name));
     });
