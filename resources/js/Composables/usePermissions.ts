@@ -27,14 +27,17 @@ export function usePermissions() {
     const isSassOwner = computed(() =>
         hasFullAccess.value && (page.props.user_code === 'SAAS_OWNER' || userRole.value === 'Saas Owner')
     );
-    const isSuperAdmin = computed(() => hasFullAccess.value && !isSassOwner.value);
+    const isSuperAdmin = computed(() =>
+        hasFullAccess.value && (['SUPER_ADMIN', 'PLATFORM_ADMIN'].includes(String(page.props.user_code))
+            || ['Super Administrator', 'Super Admin', 'Platform Admin'].includes(userRole.value))
+    );
 
     // Existing forms use this flag as a permission bypass.
     const isAdmin = hasFullAccess;
 
     /**
      * Check if the current user has a specific permission.
-     * The backend grants full access only to SaaS Owner and Super Admin.
+     * The backend resolves system access and the selected entity/plant Administrator role.
      */
     const can = (permission: string): boolean => {
         const normalized = permission.toLowerCase();

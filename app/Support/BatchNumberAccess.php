@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\EntityUser;
-use App\Models\Role;
 use App\Models\User;
 
 class BatchNumberAccess
@@ -20,10 +19,9 @@ class BatchNumberAccess
 
         $activeRole = null;
         if ($entityId = session('active_entity_id')) {
-            $roleId = EntityUser::where('user_id', $user->id)
-                ->where('entity_id', $entityId)
-                ->value('role_id');
-            $activeRole = $roleId ? Role::with('permissions')->find($roleId) : null;
+            $activeRole = EntityUser::forContext(
+                $user->id, (int) $entityId, session('active_plant_id')
+            )?->role;
         }
 
         if ($activeRole?->grantsFullAccess()) {

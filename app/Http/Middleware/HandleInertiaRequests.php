@@ -140,6 +140,8 @@ class HandleInertiaRequests extends Middleware
             $activeRole = EntityUser::forContext($user->id, (int) $activeEntityId, (int) $activePlantId)?->role;
         }
 
+        $contextFullAccess = $user && ($user->hasFullAccess() || ($activeRole?->grantsFullAccess() ?? false));
+
         $tenantRoleName = $activeRole ? $activeRole->name : $user?->getRoleNames()->first();
         $tenantRoleCode = $activeRole ? $activeRole->code : $user?->getRoleCode()->first();
         
@@ -207,7 +209,7 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $permissionIndex, $reportMenuAllowed, $isMasterMenu, $isSassOwnerOnly) {
+                ->filter(function ($item) use ($isSuper, $permissionIndex, $reportMenuAllowed, $isMasterMenu, $isSassOwnerOnly, $contextFullAccess) {
                    
                     if ($isSuper) return true;
                     $reportAllowed = $reportMenuAllowed($item);
@@ -216,7 +218,7 @@ class HandleInertiaRequests extends Middleware
                         return $isSassOwnerOnly;
                     }
 
-                    if ($isSuper) return true;
+                    if ($contextFullAccess) return true;
                    
                     if (!$item->permission_name) return true;
                     return isset($permissionIndex[strtolower($item->permission_name)]);
@@ -228,7 +230,7 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $permissionIndex, $parentsWithChildren, $sideNav, $reportPermissions, $isMasterMenu, $isSassOwnerOnly) {
+                ->filter(function ($item) use ($isSuper, $permissionIndex, $parentsWithChildren, $sideNav, $reportPermissions, $isMasterMenu, $isSassOwnerOnly, $contextFullAccess) {
                     if ($isSuper) return true;
                     if (strtolower(trim((string) $item->alias)) === 'report') {
                         return (bool) array_filter($reportPermissions, fn ($actions) => $actions['view']);
@@ -237,7 +239,7 @@ class HandleInertiaRequests extends Middleware
                         return $isSassOwnerOnly;
                     }
 
-                    if ($isSuper) return true;
+                    if ($contextFullAccess) return true;
 
 
                     $hasDirectPerm = $item->permission_name
@@ -307,7 +309,7 @@ class HandleInertiaRequests extends Middleware
             'gstin'            => fn () => session('gstin', $activePlant['gstin'] ?? null),
             'mixer_capacity'   => fn () => session('mixer_capacity', $activePlant['mixer_capacity'] ?? 1.25),
             'user_entities'    => $userEntities,
-            // 'has_full_access'  => $user?->hasFullAccess() ?? false,
+            'has_full_access'  => (bool) $contextFullAccess,
             'user_role'        => $tenantRoleName,
             'user_code'        => $tenantRoleCode,
             'app_env'          => app()->environment(),

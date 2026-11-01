@@ -61,6 +61,16 @@ class Role extends SpatieRole
 
     public function grantsFullAccess(): bool
     {
+        return $this->grantsSystemAccess() || $this->accessCode() === self::ADMINISTRATOR;
+    }
+
+    public function grantsSystemAccess(): bool
+    {
+        return in_array($this->accessCode(), [self::SAAS_OWNER, self::PLATFORM_ADMIN, self::SUPER_ADMIN], true);
+    }
+
+    private function accessCode(): string
+    {
         // Codes are authoritative; names support older roles without a code.
         $code = strtoupper(trim((string) $this->code));
         if ($code === '') {
@@ -68,7 +78,7 @@ class Role extends SpatieRole
             if ($code === 'SUPER_ADMINISTRATOR') $code = self::SUPER_ADMIN;
         }
 
-        return in_array($code, [self::SAAS_OWNER, self::SUPER_ADMIN], true);
+        return $code;
     }
 
     protected static function boot()

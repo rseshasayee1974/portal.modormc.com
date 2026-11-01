@@ -38,16 +38,16 @@ class FullAccessRoleTest extends TestCase
         return [
             'owner code' => ['SAAS_OWNER', 'Renamed owner', true],
             'super code' => ['SUPER_ADMIN', 'Renamed super', true],
-            'platform admin' => ['PLATFORM_ADMIN', 'Platform Admin', false],
+            'platform admin' => ['PLATFORM_ADMIN', 'Platform Admin', true],
             'administrator' => ['ADMINISTRATOR', 'Administrator', false],
             'admin' => ['ADMIN', 'Admin', false],
             'ordinary role' => ['ACCOUNTANT', 'Accountant', false],
             'code overrides owner name' => ['ACCOUNTANT', 'Saas Owner', false],
-            'code overrides super name' => ['PLATFORM_ADMIN', 'Super Admin', false],
+            'code overrides super name' => ['PLATFORM_ADMIN', 'Super Admin', true],
             'legacy owner name' => [null, 'Saas Owner', true],
             'legacy super name' => [null, 'Super Admin', true],
             'legacy super administrator' => [null, 'Super Administrator', true],
-            'legacy platform name' => [null, 'Platform Admin', false],
+            'legacy platform name' => [null, 'Platform Admin', true],
         ];
     }
 
@@ -65,7 +65,7 @@ class FullAccessRoleTest extends TestCase
     }
 
     #[DataProvider('roles')]
-    public function test_only_two_roles_bypass_gates_modules_reports_and_mobile(?string $code, string $name, bool $allowed): void
+    public function test_system_roles_bypass_gates_modules_reports_and_mobile(?string $code, string $name, bool $allowed): void
     {
         $user = $this->user($code, $name);
         Gate::define('LEDGER.CREATE', fn () => false);
@@ -92,7 +92,7 @@ class FullAccessRoleTest extends TestCase
 
     public static function permissionBasedRoles(): array
     {
-        return [['PLATFORM_ADMIN', 'Platform Admin'], ['ADMINISTRATOR', 'Administrator']];
+        return [['ADMINISTRATOR', 'Administrator'], ['ACCOUNTANT', 'Accountant']];
     }
 
     #[DataProvider('permissionBasedRoles')]
@@ -154,7 +154,7 @@ class FullAccessRoleTest extends TestCase
     {
         $this->user('ACCOUNTANT', 'Accountant');
         request()->attributes->set('mobile_app_context', true);
-        foreach (['SAAS_OWNER' => true, 'SUPER_ADMIN' => true, 'PLATFORM_ADMIN' => false, 'ADMINISTRATOR' => false] as $code => $allowed) {
+        foreach (['SAAS_OWNER' => true, 'SUPER_ADMIN' => true, 'PLATFORM_ADMIN' => true, 'ADMINISTRATOR' => true] as $code => $allowed) {
             $role = new Role(['code' => $code, 'name' => 'Context role']);
             $role->setRelation('permissions', new Collection);
             request()->attributes->set('mobile_role', $role);
@@ -199,8 +199,80 @@ class FullAccessRoleTest extends TestCase
         $this->app->instance(ReportPermissions::class, $reports);
         request()->setLaravelSession(app('session.store'));
         $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+        $this->assertArrayHasKey('has_full_access', $props);
+        $this->assertFalse($props['has_full_access']);
         $this->assertSame($allowed, $props['menus']['top_nav']->contains('id', 10));
         $this->assertFalse(isset($props['menus']['sidebar_nav'][10]));
+    }
+
+
+    public function test_administrator_access_is_restored_only_in_its_assigned_context_and_shared_with_frontend(): void
+    {
+        $db = \Illuminate\Support\Facades\DB::class;
+        foreach ([
+            'mm_roles' => 'id INTEGER PRIMARY KEY, code TEXT, name TEXT, guard_name TEXT, deleted_at TEXT',
+            'mm_role_has_permissions' => 'role_id INTEGER, permission_id INTEGER',
+            'mm_entity_users' => 'id INTEGER PRIMARY KEY, user_id INTEGER, entity_id INTEGER, plant_id INTEGER, role_id INTEGER, deleted_at TEXT',
+            'mm_entities' => 'id INTEGER PRIMARY KEY, legal_name TEXT, is_suspended INTEGER, deleted_at TEXT',
+            'mm_plants' => 'id INTEGER PRIMARY KEY, entity_id INTEGER, name TEXT, code TEXT, is_active INTEGER, deleted_at TEXT',
+            'mm_custom_settings' => 'id INTEGER PRIMARY KEY, plant_id INTEGER, module_name TEXT, settings TEXT, deleted_at TEXT',
+            'mm_menus' => 'id INTEGER PRIMARY KEY, menutype INTEGER, parent_id INTEGER, title TEXT, alias TEXT, link TEXT, permission_name TEXT, published INTEGER DEFAULT 1, ordering INTEGER DEFAULT 0, deleted_at TEXT',
+        ] as $table => $columns) {
+            $db::statement("CREATE TABLE {$table} ({$columns})");
+        }
+        $db::table('mm_roles')->insert(['id' => 4, 'code' => 'ADMINISTRATOR', 'name' => 'Administrator', 'guard_name' => 'web']);
+        $db::table('mm_entities')->insert(['id' => 1, 'legal_name' => 'Assigned entity', 'is_suspended' => 0]);
+        $db::table('mm_plants')->insert([
+            ['id' => 1, 'entity_id' => 1, 'name' => 'Assigned plant', 'code' => 'A', 'is_active' => 1],
+            ['id' => 2, 'entity_id' => 1, 'name' => 'Other plant', 'code' => 'B', 'is_active' => 1],
+        ]);
+        $db::table('mm_entity_users')->insert(['id' => 1, 'user_id' => 99, 'entity_id' => 1, 'plant_id' => 1, 'role_id' => 4]);
+        $db::table('mm_menus')->insert([
+            ['id' => 2, 'menutype' => 1, 'parent_id' => 0, 'title' => 'Master', 'alias' => 'master', 'link' => 'master', 'permission_name' => 'MASTER.ALL'],
+            ['id' => 10, 'menutype' => 1, 'parent_id' => 0, 'title' => 'Report', 'alias' => 'Report', 'link' => 'reports/report', 'permission_name' => 'REPORT.VIEW'],
+            ['id' => 11, 'menutype' => 1, 'parent_id' => 0, 'title' => 'Finance', 'alias' => 'finance', 'link' => 'finance', 'permission_name' => 'LEDGER.VIEW'],
+            ['id' => 12, 'menutype' => 2, 'parent_id' => 11, 'title' => 'Ledger', 'alias' => 'ledger', 'link' => 'finance/ledger', 'permission_name' => 'LEDGER.VIEW'],
+        ]);
+        $user = $this->user('ADMINISTRATOR', 'Administrator');
+        session(['active_entity_id' => 1, 'active_plant_id' => 1]);
+        request()->setLaravelSession(app('session.store'));
+        $this->assertFalse($user->isSystemAdmin());
+        $this->assertTrue(app(ReportPermissions::class)->allows('ledger', 'export'));
+        $controller = new class {
+            use AuthorizesModule;
+            protected string $module = 'ledgers';
+            public function check(): void { $this->authorizeModule('create'); }
+        };
+        $controller->check();
+        $this->assertTrue(\App\Support\BatchNumberAccess::allows($user));
+        $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+        $this->assertTrue($props['has_full_access']);
+        $this->assertSame('ADMINISTRATOR', $props['user_code']);
+        $this->assertTrue($props['menus']['top_nav']->contains('id', 10));
+        $this->assertTrue($props['menus']['top_nav']->contains('id', 11));
+        $this->assertFalse($props['menus']['top_nav']->contains('id', 2));
+        $this->assertTrue($props['menus']['sidebar_nav'][11]->contains('id', 12));
+
+        session(['active_plant_id' => 2]);
+        $this->assertFalse(\App\Support\BatchNumberAccess::allows($user));
+        try {
+            $controller->check();
+            $this->fail('Administrator access leaked into an unassigned plant.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+        $this->assertFalse(app(ReportPermissions::class)->allows('ledger', 'export'));
+        $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+        $this->assertFalse($props['has_full_access']);
+        $this->assertFalse($props['menus']['top_nav']->contains('id', 10));
+        $this->assertFalse($props['menus']['top_nav']->contains('id', 11));
+
+        foreach (['SAAS_OWNER', 'SUPER_ADMIN', 'PLATFORM_ADMIN'] as $code) {
+            $this->user($code, 'System role');
+            $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
+            $this->assertTrue($props['has_full_access']);
+            $this->assertTrue($props['menus']['top_nav']->contains('id', 10));
+        }
     }
 
 }
