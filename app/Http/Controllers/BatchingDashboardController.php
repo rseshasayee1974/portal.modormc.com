@@ -22,9 +22,7 @@ class BatchingDashboardController extends Controller
     public function index(Request $request): Response
     {
         $plantId = $this->resolvePlantId();
-        $plants = Cache::remember("plants", now()->addDays(7), function () {
-            return Plant::all(['id', 'name']);
-        });
+        $plants = app(\App\Services\DashboardPlantAccess::class)->query($request->user())->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('Dashboard/BatchingDashboard', [
             'plants' => $plants,
@@ -84,7 +82,7 @@ class BatchingDashboardController extends Controller
 
     private function resolvePlantId(): ?int
     {
-        return app(\App\Services\PlantContextService::class)->requirePlantId();
+        return app(\App\Services\DashboardPlantAccess::class)->resolve(request());
     }
 
     private function getCoreKPIs(?int $plantId, Carbon $start, Carbon $end): array

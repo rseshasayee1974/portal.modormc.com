@@ -67,7 +67,7 @@ class InvoiceController extends Controller
             $validated['invoice_type'] = 'Invoice';
             $validated['invoice_label'] = $fromDispatch ? 'Dispatch' : 'Manual';
             
-            // Strictly enforce prefix from verified ledger configuration, preventing any client-side tampering
+            // Enforce the plant's numbering settings or verified ledger prefix.
             $details = Invoice::generateNumber($plantId, $validated['invoice_type'] ?? 'Invoice', $validated['account_id'] ?? null);
             $validated['prefix'] = $details['prefix'];
 
@@ -75,12 +75,7 @@ class InvoiceController extends Controller
             if (empty($validated['invoice_number'])) {
                 $validated['invoice_number'] = $details['next_number'];
             } else {
-                if (str_starts_with((string)$validated['invoice_number'], $validated['prefix'])) {
-                    $validated['invoice_number'] = substr($validated['invoice_number'], strlen($validated['prefix']));
-                }
-                if (ctype_digit((string)$validated['invoice_number'])) {
-                    $validated['invoice_number'] = str_pad((string)$validated['invoice_number'], 5, '0', STR_PAD_LEFT);
-                }
+                $validated['invoice_number'] = Invoice::normalizeNumber((string) $validated['invoice_number'], $details);
             }
 
             // Detect tax inclusive setting
@@ -156,7 +151,7 @@ class InvoiceController extends Controller
         $type = $request->query('invoice_type', 'Invoice');
         $excludeId = $request->query('exclude_id');
 
-        // Always strictly determine prefix from the ledger and plant configuration, never trust client input
+        // Determine numbering from the plant settings and ledger, never client input.
         $gen = Invoice::generateNumber($plantId, $type, $accountId ? (int)$accountId : null);
         $prefix = $gen['prefix'];
 
@@ -170,54 +165,9 @@ class InvoiceController extends Controller
             ]);
         }
 
-        // Handle case where user entered the full number with prefix
-        if (!empty($prefix) && str_starts_with($rawNumber, $prefix)) {
-            $numOnly = substr($rawNumber, strlen($prefix));
-        } else {
-            $numOnly = $rawNumber;
-        }
-
-        if (ctype_digit((string)$numOnly)) {
-            $numOnly = str_pad((string)$numOnly, 5, '0', STR_PAD_LEFT);
-        }
-        $fullNumber = (!empty($prefix) ? $prefix : '') . $numOnly;
-
-        $rawInt = ctype_digit((string)$numOnly) ? (int)$numOnly : null;
-        $unpadded = ctype_digit((string)$numOnly) ? (string)(int)$numOnly : $numOnly;
-
-        $exists = Invoice::withoutGlobalScopes()
-            ->where('plant_id', $plantId)
-            ->where('is_active', 1)
-            ->whereNull('deleted_at')
-            ->where(function ($q) use ($prefix, $numOnly, $fullNumber, $rawNumber, $unpadded, $rawInt) {
-                $q->where(function ($sub) use ($prefix, $numOnly, $unpadded, $rawInt) {
-                    if (!empty($prefix)) {
-                        $sub->where('prefix', $prefix)
-                            ->where(function ($sq) use ($numOnly, $unpadded, $rawInt) {
-                                $sq->where('invoice_number', $numOnly)
-                                   ->orWhere('invoice_number', $unpadded);
-                                if ($rawInt !== null) {
-                                    $sq->orWhere(DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
-                                }
-                            });
-                    } else {
-                        $sub->where('invoice_number', $numOnly)
-                            ->orWhere('invoice_number', $unpadded);
-                        if ($rawInt !== null) {
-                            $sub->orWhere(DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
-                        }
-                    }
-                })
-                ->orWhere('invoice_number', $rawNumber)
-                ->orWhere('invoice_number', $numOnly)
-                ->orWhere('invoice_number', $unpadded)
-                ->orWhere('invoice_number', $fullNumber)
-                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber)
-                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), CAST(invoice_number AS UNSIGNED))"), (!empty($prefix) ? $prefix : '') . $unpadded)
-                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $rawNumber);
-            })
-            ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
-            ->exists();
+        $numOnly = Invoice::normalizeNumber($rawNumber, $gen);
+        $fullNumber = $prefix . $numOnly;
+        $exists = Invoice::numberExists((int) $plantId, $prefix, $numOnly, $excludeId ? (int) $excludeId : null);
 
         return response()->json([
             'exists' => $exists,

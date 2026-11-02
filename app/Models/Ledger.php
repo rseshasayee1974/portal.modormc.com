@@ -26,6 +26,7 @@ class Ledger extends Model
         'code',
         'is_pnl',
         'title',
+        'alias',
         'slug',
         'notes',
         'description',
@@ -57,6 +58,23 @@ class Ledger extends Model
                 $ledger->plant_id = session('active_plant_id');
             }
         });
+    }
+
+    public static function documentPrefix($plantId, $ledgerId): string
+    {
+        if (!$ledgerId) return '';
+        $ledger = static::withoutGlobalScopes()->where('plant_id', $plantId)
+            ->whereNull('deleted_at')->find($ledgerId);
+        return trim((string) $ledger?->description);
+    }
+
+    public static function documentSeriesPrefix($plantId, $ledgerId, $date = null, string $fallback = 'INV', string $type = ''): string
+    {
+        $fy = Payment::getFinancialYearString($date ?? now());
+        $prefix = static::documentPrefix($plantId, $ledgerId) ?: $fallback;
+        $hasYear = stripos($prefix, '{fy}') !== false;
+        $prefix = str_ireplace(['{fy}', '{type}'], [$fy, $type ?: $fallback], $prefix);
+        return rtrim($prefix, '/') . ($hasYear ? '/' : "/{$fy}/");
     }
 
     /**

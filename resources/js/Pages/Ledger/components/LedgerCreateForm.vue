@@ -126,8 +126,8 @@ const close = () => {
                 </div>
             </div>
             <div class="col-span-12 flex flex-col gap-1">
-                <label class="text-[10px] font-bold uppercase text-gray-400">Prefix</label>
-                <BaseInput v-model="form.description" placeholder="e.g. PC-" />
+                <label class="text-[10px] font-bold uppercase text-gray-400">Prefix (document numbers)</label>
+                <BaseInput v-model="form.description" placeholder="e.g. JG" />
                 <small v-if="form.errors.description" class="text-red-500">{{ form.errors.description[0] }}</small>
             </div>
         </div>

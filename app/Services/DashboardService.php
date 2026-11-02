@@ -16,7 +16,7 @@ class DashboardService
 
     public function getSalesSummary(array $filters)
     {
-        $key = 'dashboard.sales.summary.' . auth()->id() . '.' . md5(json_encode($filters));
+        $key = $this->cacheKey('sales.summary', $filters);
         return Cache::remember($key, now()->addMinutes(5), function () use ($filters) {
             return $this->repository->getSalesSummary($filters);
         });
@@ -29,7 +29,7 @@ class DashboardService
 
     public function getTopProducts(array $filters)
     {
-        $key = 'dashboard.top.products.' . auth()->id() . '.' . md5(json_encode($filters));
+        $key = $this->cacheKey('top.products', $filters);
         return Cache::remember($key, now()->addMinutes(5), function () use ($filters) {
             return $this->repository->getTopProducts($filters);
         });
@@ -42,7 +42,7 @@ class DashboardService
 
     public function getStockDetails(array $filters)
     {
-        $key = 'dashboard.stock.details.' . auth()->id() . '.' . md5(json_encode($filters));
+        $key = $this->cacheKey('stock.details', $filters);
         return Cache::remember($key, now()->addMinutes(5), function () use ($filters) {
             return $this->repository->getStockDetails($filters);
         });
@@ -50,7 +50,7 @@ class DashboardService
 
     public function getTripsDetails(array $filters)
     {
-        $key = 'dashboard.trips.details.' . auth()->id() . '.' . md5(json_encode($filters));
+        $key = $this->cacheKey('trips.details', $filters);
         return Cache::remember($key, now()->addMinutes(5), function () use ($filters) {
             return $this->repository->getTripsDetails($filters);
         });
@@ -74,6 +74,13 @@ class DashboardService
     public function getSalesDetails(array $filters)
     {
         return $this->repository->getSalesDetailsByPaymentMode($filters);
+    }
+
+    private function cacheKey(string $view, array $filters): string
+    {
+        $plantIds = app(DashboardPlantAccess::class)->query()->orderBy('id')->pluck('id')->all();
+
+        return 'dashboard.access.v2.' . $view . '.' . auth()->id() . '.' . hash('sha256', json_encode([$plantIds, $filters]));
     }
 
     public function getDispatchSalesAmounts(array $filters)

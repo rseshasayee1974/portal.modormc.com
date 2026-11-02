@@ -35,6 +35,12 @@ class PdfTextParser implements DocumentParser
         $pdf = $pdfParser->parseFile($filePath);
         $text = $pdf->getText();
 
+        if (stripos($text, 'MCI 370') !== false) {
+            $rows = $this->positionedRows($pdf->getPages());
+            $text = implode("\n", array_column($rows, 'text'));
+            $options['layout_rows'] = $rows;
+        }
+
         Log::info("PdfTextParser: Extracted text length: " . strlen($text));
 
         // 1. Check dynamic plant driver registry for matching plant file
@@ -68,6 +74,30 @@ class PdfTextParser implements DocumentParser
             'confidence' => 95.0, // High confidence for text-extracted PDFs
             'parserUsed' => $this->getParserName(),
         ]);
+    }
+
+    private function positionedRows(array $pages): array
+    {
+        $result = [];
+        foreach ($pages as $page) {
+            $items = $page->getDataTm();
+            usort($items, fn ($a, $b) => (float) $b[0][5] <=> (float) $a[0][5]);
+            $lines = [];
+            foreach ($items as $item) {
+                [$matrix, $text] = $item;
+                if (trim($text) === '') continue;
+                $last = array_key_last($lines);
+                if ($last === null || abs($lines[$last]['y'] - (float) $matrix[5]) > 3) {
+                    $lines[] = ['y' => (float) $matrix[5], 'cells' => []];
+                }
+                $lines[array_key_last($lines)]['cells'][] = ['x' => (float) $matrix[4], 'text' => $text];
+            }
+            foreach ($lines as $line) {
+                usort($line['cells'], fn ($a, $b) => $a['x'] <=> $b['x']);
+                $result[] = ['text' => implode('  ', array_column($line['cells'], 'text')), 'cells' => $line['cells']];
+            }
+        }
+        return $result;
     }
 
     /**

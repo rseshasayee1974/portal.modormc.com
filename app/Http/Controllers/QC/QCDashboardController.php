@@ -21,8 +21,7 @@ class QCDashboardController extends Controller
     {
         $this->authorizeModule('menu');
 
-        $ctx = app(PlantContextService::class);
-        $plantId = $ctx->plantId();
+        $plantId = app(\App\Services\DashboardPlantAccess::class)->resolve($request);
 
         $samplesQuery = QcSample::query();
         $testsQuery = QcTest::query();

@@ -221,7 +221,7 @@ class ConcreteBatchingScheduleController extends Controller
         $scheduleDate = $request->input('schedule_date', now()->toDateString());
 
         return Inertia::render('Production/BatchingScheduleDashboard', [
-            'plants'         => Plant::all(['id', 'name']),
+            'plants'         => app(\App\Services\DashboardPlantAccess::class)->query($request->user())->orderBy('name')->get(['id', 'name']),
             'activePlantId'  => $plantId,
             'initialDate'    => $scheduleDate,
             'initialFilters' => [
@@ -410,14 +410,7 @@ class ConcreteBatchingScheduleController extends Controller
         $validated = $request->validate($this->getValidationRules(), $this->getValidationMessages());
 
         if (empty($validated['pour_reference'])) {
-            $month = now()->month;
-            $year = now()->format('y');
-            if ($month >= 4) {
-                $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
-            } else {
-                $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
-            }
-            $prefix = 'BS-' . $financialYear . '-';
+            $prefix = \App\Models\Ledger::documentSeriesPrefix($plantId, null, now(), 'BS');
 
             $activeRefs = ConcreteBatchingSchedule::where('pour_reference', 'like', $prefix . '%')
                 ->pluck('pour_reference')
@@ -425,7 +418,7 @@ class ConcreteBatchingScheduleController extends Controller
 
             $usedSequences = [];
             foreach ($activeRefs as $ref) {
-                if (preg_match('/-(\d+)$/', $ref, $matches)) {
+                if (preg_match('/\/(\d+)$/', $ref, $matches)) {
                     $usedSequences[] = (int) $matches[1];
                 }
             }
@@ -435,7 +428,7 @@ class ConcreteBatchingScheduleController extends Controller
                 $sequence++;
             }
 
-            $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+            $validated['pour_reference'] = $prefix . $sequence;
         }
 
 
@@ -508,14 +501,7 @@ class ConcreteBatchingScheduleController extends Controller
         $this->validatePumpConflict($plantId, $validated, $schedule->id);
 
         if (empty($validated['pour_reference'])) {
-            $month = now()->month;
-            $year = now()->format('y');
-            if ($month >= 4) {
-                $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
-            } else {
-                $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
-            }
-            $prefix = 'BS-' . $financialYear . '-';
+            $prefix = \App\Models\Ledger::documentSeriesPrefix($plantId, null, now(), 'BS');
 
             $activeRefs = ConcreteBatchingSchedule::where('pour_reference', 'like', $prefix . '%')
                 ->pluck('pour_reference')
@@ -523,7 +509,7 @@ class ConcreteBatchingScheduleController extends Controller
 
             $usedSequences = [];
             foreach ($activeRefs as $ref) {
-                if (preg_match('/-(\d+)$/', $ref, $matches)) {
+                if (preg_match('/\/(\d+)$/', $ref, $matches)) {
                     $usedSequences[] = (int) $matches[1];
                 }
             }
@@ -533,7 +519,7 @@ class ConcreteBatchingScheduleController extends Controller
                 $sequence++;
             }
 
-            $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+            $validated['pour_reference'] = $prefix . $sequence;
         }
 
         $newStatus = $validated['status'] ?? $schedule->status ?? 'scheduled';

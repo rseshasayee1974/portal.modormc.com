@@ -464,17 +464,9 @@ class BatchController extends Controller
             $shouldCreateDispatch = !empty($payload['truck_id']) || !empty($payload['transport_id']);
             
             if ($shouldCreateDispatch) {
-                $currentDate = now();
-                $startYear = $currentDate->month >= 4 ? $currentDate->year : $currentDate->year - 1;
-                $endYear = $startYear + 1;
-                $fyString = substr($startYear, -2) . substr($endYear, -2);
-                $prefix = "DP-{$fyString}-";
-                
-                $maxNumber = Dispatch::query()
-                    ->where('plant_id', $activePlantId)
-                    ->where('prefix', $prefix)
-                    ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
-                
+                $dispatchNumber = Dispatch::nextDocumentNumber($activePlantId, $salesOrder->customer_id);
+                $prefix = $dispatchNumber['prefix'];
+
                 $baseRate = (float)($batch->rate ?? $salesOrder->rate ?? 0);
                 $taxId = $batch->tax_id ?? $salesOrder->tax_id ?? null;
 
@@ -530,7 +522,7 @@ class BatchController extends Controller
                     'load_time'           => null,
                     'dispatch_status'     => 'Draft',
                     'prefix'              => $prefix,
-                    'dispatch_no'         => (string)(($maxNumber ?: 0) + 1),
+                    'dispatch_no'         => $dispatchNumber['nextNumber'],
                     'dispatch_time'       => now()->format('H:i:s'),
                     'delivered_qty'       => $units,
                     'load_rate'           => $loadRate,

@@ -19,9 +19,7 @@ class InventoryDashboardController extends Controller
     public function index(Request $request): Response
     {
         $plantId = $this->resolvePlantId();
-        $plants = Cache::remember("plants", now()->addDays(7), function () {
-            return Plant::all(['id', 'name']);
-        });
+        $plants = app(\App\Services\DashboardPlantAccess::class)->query($request->user())->orderBy('name')->get(['id', 'name']);
 
         $cacheKey = "inventory.dashboard.data.{$plantId}";
         if ($request->boolean('refresh')) {
@@ -122,11 +120,7 @@ class InventoryDashboardController extends Controller
 
     private function resolvePlantId(): ?int
     {
-        $plantId = session('active_plant_id');
-        if ($plantId) {
-            return (int) $plantId;
-        }
-        return Plant::where('is_active', true)->value('id') ?? Plant::value('id');
+        return app(\App\Services\DashboardPlantAccess::class)->resolve(request());
     }
 
     private function getStockSummary(?int $plantId, $products, $quantities): array

@@ -46,16 +46,21 @@ class PettyCash extends Model
 
         static::creating(function ($model) {
             if (!$model->ref_no) {
-                $model->ref_no = self::generateRefNo($model->plant_id);
+                $model->ref_no = self::generateRefNo($model->plant_id, null, $model->date);
             }
         });
     }
 
-    public static function generateRefNo($plantId): string
+    public static function generateRefNo($plantId, $ledgerId = null, $date = null): string
     {
-        $last = self::where('plant_id', $plantId)->orderBy('id', 'desc')->first();
-        $next = $last ? $last->id + 1 : 1;
-        return 'PC-' . date('Ym') . '-' . str_pad($next, 4, '0', STR_PAD_LEFT);
+        $prefix = Ledger::documentSeriesPrefix($plantId, $ledgerId, $date, 'PC');
+        $highest = 0;
+        foreach (self::where('plant_id', $plantId)->where('ref_no', 'like', $prefix . '%')->pluck('ref_no') as $number) {
+            if (preg_match('/^' . preg_quote($prefix, '/') . '(\d+)$/', $number, $match)) {
+                $highest = max($highest, (int) $match[1]);
+            }
+        }
+        return $prefix . ($highest + 1);
     }
 
     /**

@@ -74,7 +74,7 @@ class PurchaseOrderHistory extends Model
     public static function generateNextInwardNo($plantId, $date = null)
     {
         $finYearString = PurchaseOrder::getFinancialYearString($date);
-        $prefix = "INW-" . $finYearString . "-";
+        $prefix = "INW/" . Payment::getFinancialYearString($date ?? now()) . "/";
 
         $lastRecord = self::where('plant_id', $plantId)
             ->where('inward_no', 'like', $prefix . '%')
@@ -88,6 +88,6 @@ class PurchaseOrderHistory extends Model
             $nextNumber = 1;
         }
 
-        return sprintf('%s%04d', $prefix, $nextNumber);
+        return $prefix . $nextNumber;
     }
 }

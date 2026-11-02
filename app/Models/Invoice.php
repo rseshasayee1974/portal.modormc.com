@@ -152,8 +152,11 @@ class Invoice extends Model implements Postable
 
             // Generate default details for prefix and next number
             $details = self::generateNumber($plantId, strtolower((string) $m->invoice_type) === 'bill' ? 'bill' : ($m->invoice_label ?? $m->invoice_type ?? 'Invoice'), $m->account_id);
+            if ($details['requires_ledger'] ?? false) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['account_id' => 'Select a ledger with a prefix for document numbering.']);
+            }
 
-            if (empty($m->prefix) || in_array(trim($m->prefix), ['INV', 'INV/', 'Inv', 'Inv/'], true)) {
+            if (($details['number_suffix'] ?? null) !== null || empty($m->prefix) || in_array(trim($m->prefix), ['INV', 'INV/', 'Inv', 'Inv/'], true)) {
                 $m->prefix = $details['prefix'];
             }
 
@@ -161,13 +164,7 @@ class Invoice extends Model implements Postable
                 $m->invoice_number = $details['next_number'];
             }
 
-            if (!empty($m->prefix) && !empty($m->invoice_number) && str_starts_with((string)$m->invoice_number, $m->prefix)) {
-                $m->invoice_number = substr($m->invoice_number, strlen($m->prefix));
-            }
-
-            if (!empty($m->invoice_number) && ctype_digit((string)$m->invoice_number)) {
-                $m->invoice_number = str_pad((string)$m->invoice_number, 5, '0', STR_PAD_LEFT);
-            }
+            $m->invoice_number = self::normalizeNumber((string) $m->invoice_number, array_merge($details, ['prefix' => $m->prefix]));
 
             if ($m->numberAlreadyExists()) {
                 throw new \Exception("The invoice number '{$m->prefix}{$m->invoice_number}' is already in use and active in the database.");
@@ -193,8 +190,10 @@ class Invoice extends Model implements Postable
                 $m->invoice_number = substr($m->invoice_number, strlen($m->prefix));
             }
 
-            if (!empty($m->invoice_number) && ctype_digit((string)$m->invoice_number)) {
-                $m->invoice_number = str_pad((string)$m->invoice_number, 5, '0', STR_PAD_LEFT);
+            if ($m->exists && ctype_digit((string) $m->invoice_number)
+                && preg_match('/^(\d+)\/(\d{2}-\d{2})$/', (string) $m->getRawOriginal('invoice_number'), $parts)) {
+                $width = str_starts_with($parts[1], '0') ? strlen($parts[1]) : 0;
+                $m->invoice_number = str_pad((string) (int) $m->invoice_number, $width, '0', STR_PAD_LEFT) . '/' . $parts[2];
             }
 
             // Only check duplicate on saving if invoice_number or prefix was actually modified, and not during deactivation/deletion
@@ -280,7 +279,7 @@ class Invoice extends Model implements Postable
     // ------------------------------------------------------------------ business logic
 
     /**
-     * Auto-generate invoice number: INV-YYYYMM-0001
+     * Generate the next plant series using custom numbering or the ledger prefix.
      */
     public static function generateNumber(?int $plantId = null, ?string $label = 'sales', ?int $accountId = null): array
     {
@@ -292,18 +291,22 @@ class Invoice extends Model implements Postable
 
         $normalizedLabel = strtolower((string)$label);
         $defaultPrefix = match ($normalizedLabel) {
-            'purchase', 'bill' => "Bill/{$fy}/",
-            'credit_note' => 'CN/' . str_replace('-', '', $fy) . '/',
-            'debit_note' => 'DN/' . str_replace('-', '', $fy) . '/',
-            'batching', 'dispatch' => "Inv/{$fy}/",
-            default => "INV/{$fy}/",
+            'purchase', 'bill' => 'BILL/',
+            'credit_note' => 'CN/',
+            'debit_note' => 'DN/',
+            'batching', 'dispatch' => 'INV/',
+            default => 'INV/',
         };
 
-        $prefix = $defaultPrefix;
-        if ($accountId && !in_array($normalizedLabel, ['credit_note', 'debit_note'], true)) {
-             $ledger = \App\Models\Ledger::withoutGlobalScopes()->find($accountId);
-             if ($ledger && !empty(trim((string)$ledger->description))) {
-                 $desc = trim((string)$ledger->description);
+        $prefix = $defaultPrefix . $fy . '/';
+        $ledger = null;
+        if ($accountId) {
+             $ledger = \App\Models\Ledger::withoutGlobalScopes()->where('plant_id', $plantId)->whereNull('deleted_at')->find($accountId);
+             if (!$ledger) {
+                 throw \Illuminate\Validation\ValidationException::withMessages(['account_id' => 'Select a ledger belonging to the active plant.']);
+             }
+             if ($ledger && !empty(trim((string) $ledger->description))) {
+                 $desc = trim((string) $ledger->description);
                  if (stripos($desc, '{fy}') !== false) {
                      $prefix = str_ireplace('{fy}', $fy, $desc);
                  } else {
@@ -313,21 +316,68 @@ class Invoice extends Model implements Postable
              }
         }
 
+        $suffix = null;
+        $padding = 0;
+        $startingNumber = 1;
+        $requiresLedger = false;
+        if (!in_array($normalizedLabel, ['credit_note', 'debit_note'], true)
+            && \Illuminate\Support\Facades\Schema::hasTable('mm_custom_settings')) {
+            $settings = CustomSetting::getForModule($plantId, 'batching');
+            $module = in_array($normalizedLabel, ['bill', 'purchase'], true) ? 'billing' : 'invoice';
+            $moduleSettings = CustomSetting::getForModule($plantId, $module);
+            $settings = array_replace($settings, $moduleSettings);
+            if (in_array($settings[$module . '_number_format'] ?? 0, [1, '1', 'prefix_number_fy'], true)) {
+                $ledgerPrefix = trim((string) $ledger?->description, " \t\n\r\0\x0B/");
+                $prefix = $ledgerPrefix !== '' ? $ledgerPrefix . '/' : $defaultPrefix;
+                $suffix = $fy;
+                $padding = max(0, min(10, (int) ($settings[$module . '_number_padding'] ?? 0)));
+                $startingNumber = max(1, (int) ($settings[$module . '_number_start'] ?? 1));
+            }
+        }
+
         // A series belongs to a plant and prefix, even when several ledgers use it.
         // Only non-deleted invoices reserve a number in the series.
-        $highest = 0;
-        foreach (self::numberSeries($plantId, $prefix)->pluck('invoice_number') as $number) {
-            $sequence = self::sequenceValue((string)$number, $prefix);
+        $highest = $startingNumber - 1;
+        $numbers = $requiresLedger ? collect() : self::numberSeries($plantId, $prefix)->pluck('invoice_number');
+        foreach ($numbers as $number) {
+            $sequence = self::sequenceValue((string)$number, $prefix, $suffix);
             if ($sequence !== null) $highest = max($highest, $sequence);
         }
         $next = $highest + 1;
-        $nextNumber = str_pad((string)$next, 5, '0', STR_PAD_LEFT);
+        $nextNumber = str_pad((string)$next, $padding, '0', STR_PAD_LEFT) . ($suffix !== null ? '/' . $suffix : '');
 
         return [
             'prefix' => $prefix,
             'next_number' => $nextNumber,
-            'full_number' => $prefix . $nextNumber
+            'full_number' => $requiresLedger ? '' : $prefix . $nextNumber,
+            'number_suffix' => $suffix,
+            'number_padding' => $padding,
+            'requires_ledger' => $requiresLedger,
         ];
+    }
+
+    public static function normalizeNumber(string $number, array $details): string
+    {
+        $number = trim($number);
+        $prefix = $details['prefix'] ?? '';
+        if ($prefix !== '' && strncasecmp($number, $prefix, strlen($prefix)) === 0) {
+            $number = substr($number, strlen($prefix));
+        }
+        if ($number === '') return '';
+        $suffix = $details['number_suffix'] ?? null;
+        if ($suffix !== null) {
+            if (str_ends_with($number, '/' . $suffix)) {
+                $number = substr($number, 0, -strlen('/' . $suffix));
+            }
+            if (!ctype_digit($number) || (int) $number < 1) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'invoice_number' => 'Enter a positive sequence number or a full number ending in /' . $suffix . '.',
+                ]);
+            }
+            return str_pad((string) (int) $number, (int) ($details['number_padding'] ?? 0), '0', STR_PAD_LEFT) . '/' . $suffix;
+        }
+
+        return ctype_digit($number) ? str_pad((string) (int) $number, (int) ($details['number_padding'] ?? 0), '0', STR_PAD_LEFT) : $number;
     }
 
     private static function numberSeries(int $plantId, string $prefix)
@@ -353,7 +403,7 @@ class Invoice extends Model implements Postable
         if (!ctype_digit($number) || (int) $number < 1 || strlen($number) > 10) {
             throw \Illuminate\Validation\ValidationException::withMessages(['invoice_number' => 'Enter a positive note number or a full number using ' . $details['prefix'] . '.']);
         }
-        $number = str_pad((string) (int) $number, 5, '0', STR_PAD_LEFT);
+        $number = self::normalizeNumber($number, $details);
         $query = self::numberSeries($plantId, $details['prefix']);
         if ($excludeId !== null) {
             $query->where('id', '!=', $excludeId);
@@ -366,10 +416,14 @@ class Invoice extends Model implements Postable
         return ['prefix' => $details['prefix'], 'invoice_number' => $number, 'full_number' => $details['prefix'] . $number];
     }
 
-    private static function sequenceValue(string $number, string $prefix): ?int
+    private static function sequenceValue(string $number, string $prefix, ?string $suffix = null): ?int
     {
         if (strncasecmp($number, $prefix, strlen($prefix)) === 0) {
             $number = substr($number, strlen($prefix));
+        }
+        if ($suffix !== null) {
+            if (!str_ends_with($number, '/' . $suffix)) return null;
+            $number = substr($number, 0, -strlen('/' . $suffix));
         }
         return ctype_digit($number) ? (int)$number : null;
     }
@@ -377,13 +431,20 @@ class Invoice extends Model implements Postable
     private function numberAlreadyExists(): bool
     {
         if (empty($this->prefix) || empty($this->invoice_number) || empty($this->plant_id)) return false;
-        $sequence = self::sequenceValue((string)$this->invoice_number, $this->prefix);
-        $query = self::numberSeries((int)$this->plant_id, $this->prefix)
+
+        return self::numberExists((int) $this->plant_id, $this->prefix, (string) $this->invoice_number, $this->exists ? $this->id : null);
+    }
+
+    public static function numberExists(int $plantId, string $prefix, string $number, ?int $excludeId = null): bool
+    {
+        $suffix = preg_match('/\/(\d{2}-\d{2})$/', $number, $parts) ? $parts[1] : null;
+        $sequence = self::sequenceValue($number, $prefix, $suffix);
+        $query = self::numberSeries($plantId, $prefix)
             ->where('is_active', 1)->whereNull('deleted_at');
-        if ($this->exists) $query->where('id', '!=', $this->id);
-        foreach ($query->pluck('invoice_number') as $number) {
-            if ($sequence !== null && self::sequenceValue((string)$number, $this->prefix) === $sequence) return true;
-            if (strcasecmp((string)$number, (string)$this->invoice_number) === 0) return true;
+        if ($excludeId !== null) $query->where('id', '!=', $excludeId);
+        foreach ($query->pluck('invoice_number') as $existing) {
+            if ($sequence !== null && self::sequenceValue((string)$existing, $prefix, $suffix) === $sequence) return true;
+            if (strcasecmp((string)$existing, $number) === 0) return true;
         }
         return false;
     }
@@ -918,7 +979,7 @@ class Invoice extends Model implements Postable
             ];
 
             // Resolve prefix automatically if not supplied
-            $prefixDetails = self::generateNumber($plantId, $params['invoice_label'] ?? $type, $params['account_id'] ?? null);
+            $prefixDetails = self::generateNumber($plantId, $type === 'Bill' ? 'bill' : ($params['invoice_label'] ?? $type), $params['account_id'] ?? null);
             $autoPrefix = $params['prefix'] ?? $prefixDetails['prefix'];
 
             if (!empty($params['invoice_number'])) {
@@ -926,9 +987,7 @@ class Invoice extends Model implements Postable
                 if (!empty($autoPrefix) && str_starts_with($rawNumber, $autoPrefix)) {
                     $rawNumber = substr($rawNumber, strlen($autoPrefix));
                 }
-                if (ctype_digit((string)$rawNumber)) {
-                    $rawNumber = str_pad((string)$rawNumber, 5, '0', STR_PAD_LEFT);
-                }
+                $rawNumber = self::normalizeNumber($rawNumber, $prefixDetails);
                 $invoiceHeaderData['invoice_number'] = $rawNumber;
                 $invoiceHeaderData['prefix'] = $autoPrefix;
             } else {

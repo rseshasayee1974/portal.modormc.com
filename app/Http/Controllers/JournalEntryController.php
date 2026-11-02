@@ -132,7 +132,8 @@ class JournalEntryController extends Controller
                     $plantId,
                     $validated['voucher_type'],
                     $validated['voucher_id'] ?? null,
-                    $validated['voucher_date'] ?? null
+                    $validated['voucher_date'] ?? null,
+                    $validated['lines'][0]['account_id'] ?? null
                 );
 
             if (JournalEntry::isDuplicateVoucherNumber($plantId, $voucherNumber)) {
@@ -249,7 +250,7 @@ class JournalEntryController extends Controller
         $voucherId = $request->input('voucher_id');
         $voucherDate = $request->input('voucher_date', now()->toDateString());
 
-        $voucherNumber = JournalEntry::generateVoucherNumber($plantId, $voucherType, $voucherId, $voucherDate);
+        $voucherNumber = JournalEntry::generateVoucherNumber($plantId, $voucherType, $voucherId, $voucherDate, $request->input('account_id'));
 
         return response()->json([
             'voucher_number' => $voucherNumber

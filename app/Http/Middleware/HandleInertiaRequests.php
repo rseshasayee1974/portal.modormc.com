@@ -115,24 +115,9 @@ class HandleInertiaRequests extends Middleware
             $customSettings['orders'] = \App\Models\CustomSetting::getForModule($activePlantId, 'orders');
         }
 
-        $plantsCount = 0;
-        if ($user && $activeEntityId) {
-            if ($user->hasRole('Platform Admin') || $user->hasRole('Saas Owner')) {
-                $plantsCount = Plant::where('entity_id', $activeEntityId)->where('is_active', true)->count();
-            } else {
-                $entityAssignments = EntityUser::where('user_id', $user->id)
-                    ->where('entity_id', $activeEntityId) 
-                    ->get(['plant_id']);
-
-                $hasEntityWideAccess = $entityAssignments->contains(fn ($row) => $row->plant_id === null);
-
-                if ($hasEntityWideAccess) {
-                    $plantsCount = Plant::where('entity_id', $activeEntityId)->where('is_active', true)->count();
-                } else {
-                    $plantsCount = $entityAssignments->pluck('plant_id')->filter()->unique()->count();
-                }
-            }
-        }
+        $plantsCount = $user && $activeEntityId
+            ? app(\App\Services\DashboardPlantAccess::class)->query($user)->where('entity_id', $activeEntityId)->count()
+            : 0;
 
         // Determine Tenant-Specific Role and Permissions or user - specific roles of the logged in user
         $activeRole = null;

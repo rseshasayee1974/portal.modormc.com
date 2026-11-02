@@ -41,6 +41,18 @@ class Dispatch extends Model
 
     protected $table = 'mm_dispatches';
 
+    public static function nextDocumentNumber($plantId, $customerId = null): array
+    {
+        // Dispatch precedes the sales invoice; its numbering ledger is the customer's debit ledger.
+        $ledgerId = $customerId ? Patron::where('plant_id', $plantId)->whereKey($customerId)->value('debit_ledger_id') : null;
+        $prefix = Ledger::documentSeriesPrefix($plantId, $ledgerId, now(), 'DP');
+        $highest = 0;
+        foreach (self::where('plant_id', $plantId)->where('prefix', $prefix)->pluck('dispatch_no') as $number) {
+            if (ctype_digit((string) $number)) $highest = max($highest, (int) $number);
+        }
+        return ['prefix' => $prefix, 'nextNumber' => (string) ($highest + 1)];
+    }
+
     public function scopeWithActiveBatch(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where(function ($query) {

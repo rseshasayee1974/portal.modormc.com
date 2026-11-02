@@ -346,6 +346,7 @@ class ERPDashboardController extends Controller
             'metrics' => $this->getMetrics($plantId, $start, $end, $patronId, $stockOverview, $aggregates),
             'module_cards' => $this->getModuleCards($plantId, $start, $end, $patronId, $stockOverview, $aggregates),
             'finance_trend' => $this->getFinanceTrend($plantId, $start, $end, $patronId),
+            'performance_trajectory' => $this->getPerformanceTrajectory($plantId, $patronId),
             'dispatch_status' => $this->getDispatchStatusBreakdown($plantId, $start, $end, $patronId),
             'customer_leaderboard' => $this->getCustomerLeaderboard($plantId, $start, $end, $patronId),
             'stock_snapshot' => $stockSnapshot,
@@ -359,13 +360,7 @@ class ERPDashboardController extends Controller
 
     private function resolvePlantId(): ?int
     {
-        $plantId = session('active_plant_id');
-
-        if ($plantId) {
-            return (int) $plantId;
-        }
-
-        return null;
+        return app(\App\Services\DashboardPlantAccess::class)->resolve(request());
     }
 
     private function resolveDateRange(?string $startDate, ?string $endDate): array
@@ -622,19 +617,22 @@ class ERPDashboardController extends Controller
     {
         return $this->dispatchQuery($plantId, $start, $end, $patronId)
             ->leftJoin('mm_patrons as customers', 'customers.id', '=', 'mm_dispatches.customer_id')
+            ->leftJoin('mm_sales_orders as so', 'so.id', '=', 'mm_dispatches.sales_order_id')
+            ->leftJoin('mm_patrons as so_customers', 'so_customers.id', '=', 'so.customer_id')
             ->selectRaw('
-                mm_dispatches.customer_id,
-                COALESCE(customers.legal_name, "Walk-in Customer") as customer_name,
+                COALESCE(mm_dispatches.customer_id, so.customer_id) as resolved_customer_id,
+                COALESCE(customers.legal_name, so_customers.legal_name, "Walk-in Customer") as customer_name,
                 COUNT(mm_dispatches.id) as trips,
                 COALESCE(SUM(mm_dispatches.delivered_qty), 0) as quantity,
                 COALESCE(SUM(mm_dispatches.load_total_amount), 0) as revenue
             ')
-            ->groupBy('mm_dispatches.customer_id', 'customers.legal_name')
+            ->groupBy(DB::raw('COALESCE(mm_dispatches.customer_id, so.customer_id)'), DB::raw('COALESCE(customers.legal_name, so_customers.legal_name, "Walk-in Customer")'))
             ->orderByDesc('revenue')
             ->limit(6)
             ->get()
             ->map(fn ($row) => [
                 'customer' => $row->customer_name,
+                'customer_name' => $row->customer_name,
                 'trips' => (int) $row->trips,
                 'quantity' => round((float) $row->quantity, 3),
                 'revenue' => round((float) $row->revenue, 2),
@@ -794,6 +792,112 @@ class ERPDashboardController extends Controller
         );
     }
 
+    private function getPerformanceTrajectory(int $plantId, ?int $patronId = null): array
+    {
+        // 1. Monthly (Last 12 Months)
+        $monthlyLabels = [];
+        $monthlyKeys = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $d = now()->subMonths($i);
+            $monthlyKeys[] = $d->format('Y-m');
+            $monthlyLabels[] = $d->format('M Y');
+        }
+
+        $monthlySales = DB::table('mm_invoices')
+            ->where('plant_id', $plantId)
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
+            ->where('invoice_date', '>=', now()->subMonths(11)->startOfMonth())
+            ->when($patronId, fn ($q) => $q->where('partner_id', $patronId))
+            ->selectRaw("DATE_FORMAT(invoice_date, '%Y-%m') as m, COALESCE(SUM(total_amount), 0) as total")
+            ->groupBy('m')
+            ->pluck('total', 'm');
+
+        $monthlyPurchases = DB::table('mm_purchase_orders')
+            ->where('plant_id', $plantId)
+            ->where('date_order', '>=', now()->subMonths(11)->startOfMonth())
+            ->when($patronId, fn ($q) => $q->where('vendor_id', $patronId))
+            ->selectRaw("DATE_FORMAT(date_order, '%Y-%m') as m, COALESCE(SUM(amount_total), 0) as total")
+            ->groupBy('m')
+            ->pluck('total', 'm');
+
+        $monthlyData = [
+            'labels' => $monthlyLabels,
+            'sales' => array_map(fn($k) => round((float) ($monthlySales[$k] ?? 0), 2), $monthlyKeys),
+            'purchases' => array_map(fn($k) => round((float) ($monthlyPurchases[$k] ?? 0), 2), $monthlyKeys),
+        ];
+
+        // 2. Quarterly (Last 6 Quarters)
+        $quarterlyLabels = [];
+        $quarterlyKeys = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $d = now()->subQuarters($i);
+            $quarterNumber = (int) ceil($d->month / 3);
+            $quarterlyKeys[] = $d->year . '-Q' . $quarterNumber;
+            $quarterlyLabels[] = 'Q' . $quarterNumber . ' ' . $d->year;
+        }
+
+        $quarterlySales = DB::table('mm_invoices')
+            ->where('plant_id', $plantId)
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
+            ->where('invoice_date', '>=', now()->subQuarters(5)->firstOfQuarter())
+            ->when($patronId, fn ($q) => $q->where('partner_id', $patronId))
+            ->selectRaw("CONCAT(YEAR(invoice_date), '-Q', QUARTER(invoice_date)) as q, COALESCE(SUM(total_amount), 0) as total")
+            ->groupBy('q')
+            ->pluck('total', 'q');
+
+        $quarterlyPurchases = DB::table('mm_purchase_orders')
+            ->where('plant_id', $plantId)
+            ->where('date_order', '>=', now()->subQuarters(5)->firstOfQuarter())
+            ->when($patronId, fn ($q) => $q->where('vendor_id', $patronId))
+            ->selectRaw("CONCAT(YEAR(date_order), '-Q', QUARTER(date_order)) as q, COALESCE(SUM(amount_total), 0) as total")
+            ->groupBy('q')
+            ->pluck('total', 'q');
+
+        $quarterlyData = [
+            'labels' => $quarterlyLabels,
+            'sales' => array_map(fn($k) => round((float) ($quarterlySales[$k] ?? 0), 2), $quarterlyKeys),
+            'purchases' => array_map(fn($k) => round((float) ($quarterlyPurchases[$k] ?? 0), 2), $quarterlyKeys),
+        ];
+
+        // 3. Annually (Last 4 Years)
+        $annualLabels = [];
+        $annualKeys = [];
+        for ($i = 3; $i >= 0; $i--) {
+            $year = (int) now()->subYears($i)->format('Y');
+            $annualKeys[] = (string) $year;
+            $annualLabels[] = (string) $year;
+        }
+
+        $annualSales = DB::table('mm_invoices')
+            ->where('plant_id', $plantId)
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
+            ->where('invoice_date', '>=', now()->subYears(3)->startOfYear())
+            ->when($patronId, fn ($q) => $q->where('partner_id', $patronId))
+            ->selectRaw("YEAR(invoice_date) as y, COALESCE(SUM(total_amount), 0) as total")
+            ->groupBy('y')
+            ->pluck('total', 'y');
+
+        $annualPurchases = DB::table('mm_purchase_orders')
+            ->where('plant_id', $plantId)
+            ->where('date_order', '>=', now()->subYears(3)->startOfYear())
+            ->when($patronId, fn ($q) => $q->where('vendor_id', $patronId))
+            ->selectRaw("YEAR(date_order) as y, COALESCE(SUM(amount_total), 0) as total")
+            ->groupBy('y')
+            ->pluck('total', 'y');
+
+        $annualData = [
+            'labels' => $annualLabels,
+            'sales' => array_map(fn($k) => round((float) ($annualSales[$k] ?? 0), 2), $annualKeys),
+            'purchases' => array_map(fn($k) => round((float) ($annualPurchases[$k] ?? 0), 2), $annualKeys),
+        ];
+
+        return [
+            'monthly' => $monthlyData,
+            'quarterly' => $quarterlyData,
+            'annually' => $annualData,
+        ];
+    }
+
     private function emptyPayload(): array
     {
         return [
@@ -801,6 +905,11 @@ class ERPDashboardController extends Controller
             'metrics' => [],
             'module_cards' => [],
             'finance_trend' => ['labels' => [], 'series' => []],
+            'performance_trajectory' => [
+                'monthly' => ['labels' => [], 'sales' => [], 'purchases' => []],
+                'quarterly' => ['labels' => [], 'sales' => [], 'purchases' => []],
+                'annually' => ['labels' => [], 'sales' => [], 'purchases' => []],
+            ],
             'dispatch_status' => [],
             'customer_leaderboard' => [],
             'stock_snapshot' => [],

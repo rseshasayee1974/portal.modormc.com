@@ -341,15 +341,12 @@ const validateInvoiceNumber = async () => {
 
 const allowOnlyInvoiceChars = (e: KeyboardEvent) => {
     const char = e.key;
-    if (!/^[0-9A-Za-z\-_]$/.test(char) && !['Backspace', 'ArrowLeft', 'ArrowRight', 'Tab', 'Delete', 'Enter'].includes(char)) {
+    if (!/^[0-9A-Za-z\-_\/]$/.test(char) && !['Backspace', 'ArrowLeft', 'ArrowRight', 'Tab', 'Delete', 'Enter'].includes(char)) {
         e.preventDefault();
     }
 };
 
 const onInvoiceNumberBlur = () => {
-    if (form.invoice_number && /^\d+$/.test(form.invoice_number.trim())) {
-        form.invoice_number = form.invoice_number.trim().padStart(5, '0');
-    }
     validateInvoiceNumber();
 };
 
@@ -368,7 +365,12 @@ const onInvoiceNumberInput = () => {
 const autoInvoicePreview = ref(props.next_invoice_number || props.next_invoice_details?.full_number || '');
 
 const onAccountChange = async () => {
-    if (!form.account_id) return;
+    form.clearErrors('account_id');
+    if (!form.account_id) {
+        form.prefix = '';
+        autoInvoicePreview.value = '';
+        return;
+    }
     try {
         const response = await axios.get(route('invoices.next-number'), {
             params: {
@@ -376,24 +378,22 @@ const onAccountChange = async () => {
                 invoice_type: 'Bill'
             }
         });
-        if (response.data?.prefix) {
-            form.prefix = response.data.prefix;
-        }
-        if (response.data?.full_number) {
-            autoInvoicePreview.value = response.data.full_number;
-        }
+        form.prefix = response.data?.prefix || '';
+        autoInvoicePreview.value = response.data?.full_number || '';
         // If manual invoice number is entered, re-validate with the new prefix
         if (isManualInvoiceNumber.value && form.invoice_number?.trim()) {
             validateInvoiceNumber();
         }
-    } catch (err) {
-        console.error('Failed to get sequence for account', err);
+    } catch (err: any) {
+        form.prefix = '';
+        autoInvoicePreview.value = '';
+        form.setError('account_id', err.response?.data?.errors?.account_id?.[0] || err.response?.data?.message || 'Unable to get a number for this ledger.');
     }
 };
 
 watch(() => form.account_id, () => {
     onAccountChange();
-});
+}, { immediate: true });
 
 watch(isManualInvoiceNumber, (manual) => {
     if (!manual) {

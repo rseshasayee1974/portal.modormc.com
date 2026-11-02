@@ -34,7 +34,7 @@ class UpdateInvoiceRequest extends FormRequest
             'ref_id'           => 'nullable|integer',
             'ref_title'        => 'nullable|string|max:255',
             'truck_id'         => 'nullable|exists:mm_machines,id',
-            'prefix'           => 'nullable|string|max:10',
+            'prefix'           => 'nullable|string|max:50',
             'invoice_number'   => 'nullable|string|max:255',
             'invoice_date'     => 'required|date',
             'due_date'         => 'nullable|date',

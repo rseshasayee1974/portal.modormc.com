@@ -36,6 +36,8 @@ tests/
 !/tests/Feature/
 /tests/Feature/*
 !/tests/Feature/EinvoiceAuthTest.php
+!/tests/Feature/DashboardPlantAccessTest.php
+!/tests/Feature/InvoiceNumberFormatTest.php
 !/tests/Feature/QualityRoutesTest.php
 !/tests/Feature/InvoiceClassificationTest.php
 !/tests/Feature/PatronStatementBillTest.php

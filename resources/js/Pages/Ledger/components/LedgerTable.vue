@@ -32,7 +32,7 @@ const rows = ref(15);
             :value="ledgers" 
             v-model:filters="filters"
             v-model:rows="rows"
-            :globalFilterFields="['code', 'title', 'account_type.title']"
+            :globalFilterFields="['code', 'title', 'description', 'account_type.title']"
             showSerial 
             showSearch
             heading="General Ledger Master"
@@ -49,6 +49,7 @@ const rows = ref(15);
                 </template>
             </Column>
 
+            <Column field="description" header="Prefix" sortable />
             <Column field="title" header="Ledger Title" sortable>
                 <template #body="slotProps">
                     <span class="font-semibold text-gray-700">{{ slotProps.data.title }}</span>
@@ -76,10 +77,10 @@ const rows = ref(15);
 
             <Column header="Actions" class="text-right" style="width: 120px">
                 <template #body="slotProps">
-                    <div class="flex justify-end gap-1" v-if="!slotProps.data.is_system">
+                    <div class="flex justify-end gap-1">
                         <Button icon="pi pi-eye" text rounded severity="secondary" @click="$emit('view', slotProps.data)" />
                         <Button icon="pi pi-pencil" text rounded severity="primary" @click="$emit('edit', slotProps.data)" />
-                        <Button icon="pi pi-trash" text rounded severity="danger" @click="$emit('delete', slotProps.data.id)" />
+                        <Button v-if="!slotProps.data.is_system" icon="pi pi-trash" text rounded severity="danger" @click="$emit('delete', slotProps.data.id)" />
                     </div>
                 </template>
             </Column>

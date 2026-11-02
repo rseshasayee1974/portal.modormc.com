@@ -74,37 +74,6 @@ export const useJournalStore = defineStore('journal', {
                 this.currentVoucherNumber = data.initialVoucherNumber;
             }
         },
-        computeNextVoucherNumber(voucherType: string): string {
-            if (!voucherType) return '';
-
-            const vType = this.voucherTypes.find(
-                (v: any) => v.short_code?.toUpperCase() === voucherType.toUpperCase()
-            );
-            const prefix = vType?.prefix || `${voucherType.toUpperCase()}-`;
-
-            const usedInts = new Set<number>();
-            for (const entry of this.entries) {
-                if (entry.voucher_type?.toUpperCase() === voucherType.toUpperCase() && entry.voucher_number) {
-                    const numStr = entry.voucher_number;
-                    if (prefix && numStr.startsWith(prefix)) {
-                        const part = parseInt(numStr.slice(prefix.length), 10);
-                        if (!isNaN(part)) usedInts.add(part);
-                    } else {
-                        const digits = numStr.replace(/\D/g, '');
-                        if (digits) usedInts.add(parseInt(digits, 10));
-                    }
-                }
-            }
-
-            let nextSeq = 1;
-            while (usedInts.has(nextSeq)) {
-                nextSeq++;
-            }
-
-            const calculated = `${prefix}${String(nextSeq).padStart(5, '0')}`;
-            this.currentVoucherNumber = calculated;
-            return calculated;
-        },
         addEntry(entry: JournalEntry) {
             this.entries.unshift(entry);
         },

@@ -24,6 +24,7 @@ class DataNormalizer
 
         $normalizedHeader = [
             'batch_no' => $extractedHeader['batch_number'] ?? null,
+            'batch_date' => $extractedHeader['batch_date'] ?? null,
             'batch_size' => $this->parseDecimal($extractedHeader['batch_size'] ?? 1.0),
             'start_time' => $this->normalizeTime($extractedHeader['batch_start_time'] ?? null),
             'end_time' => $this->normalizeTime($extractedHeader['batch_end_time'] ?? null),
@@ -91,6 +92,7 @@ class DataNormalizer
                 'target_qty' => $this->parseDecimal($m['target_qty'] ?? 0),
                 'actual_qty' => $this->parseDecimal($m['actual_qty'] ?? 0),
                 'deviation_quantity' => $this->parseDecimal($m['deviation_quantity'] ?? 0),
+                'runs' => isset($m['runs']) && is_array($m['runs']) ? array_map(fn ($value) => $this->parseDecimal($value), $m['runs']) : null,
             ];
         }
 

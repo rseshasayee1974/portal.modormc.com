@@ -1,10 +1,10 @@
 <script setup>
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityLocaleDateTime } from '@/Utils/entityDateTime';
+import { entityLocaleDateTime, entityToday, entityDaysAgo } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import { computed, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
+import { computed, onUnmounted, ref, defineAsyncComponent } from 'vue';
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
 import axios from 'axios';
 import { usePage } from '@inertiajs/vue3';
@@ -15,9 +15,8 @@ import {
     BanknotesIcon,
     BuildingOffice2Icon,
     ChartBarIcon,
+    PresentationChartLineIcon,
     CircleStackIcon,
-    ClipboardDocumentListIcon,
-    CubeIcon,
     CurrencyRupeeIcon,
     ExclamationTriangleIcon,
     ReceiptPercentIcon,
@@ -25,8 +24,9 @@ import {
     WalletIcon,
     UserGroupIcon,
     InboxStackIcon,
-    SparklesIcon,
-    ArrowTopRightOnSquareIcon
+    ShoppingCartIcon,
+    CalendarDaysIcon,
+    ChevronRightIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -59,18 +59,21 @@ const loading = computed(() => {
 
 const errorMessage = ref('');
 const lastUpdated = ref(props.initialData?.generated_at || '');
-const filtersChanged = ref(false);
 let refreshController = null;
 
 const filterForm = ref({
-    start_date: props.filters.start_date,
-    end_date: props.filters.end_date,
-    patron_id: props.filters.patron_id,
+    start_date: props.filters?.start_date || '',
+    end_date: props.filters?.end_date || '',
+    patron_id: props.filters?.patron_id || null,
 });
+
+const selectedPreset = ref('30d');
 
 const defaultMetrics = {
     sales_revenue: 0,
+    sales_count: 0,
     purchase_spend: 0,
+    purchase_count: 0,
     dispatch_revenue: 0,
     dispatch_quantity: 0,
     dispatch_trips: 0,
@@ -96,7 +99,14 @@ const customerLeaderboard = ref(props.initialData?.customer_leaderboard || []);
 const stockSnapshot = ref(props.initialData?.stock_snapshot || []);
 const recentTransactions = ref(props.initialData?.recent_transactions || []);
 
+const performanceTrajectory = ref(props.initialData?.performance_trajectory || {
+    monthly: { labels: [], sales: [], purchases: [] },
+    quarterly: { labels: [], sales: [], purchases: [] },
+    annually: { labels: [], sales: [], purchases: [] },
+});
+
 const activeTimeTab = ref('Monthly');
+const salesTrendChartType = ref('bar');
 
 const queryParams = computed(() => ({
     start_date: normalizeDate(filterForm.value.start_date),
@@ -104,104 +114,208 @@ const queryParams = computed(() => ({
     patron_id: filterForm.value.patron_id || null,
 }));
 
-const plantLabel = computed(() => activePlant.value?.plant_name || 'Live ERP Command Center');
+const plantLabel = computed(() => activePlant.value?.plant_name || 'Enterprise Command Center');
 
-// Chart data mapping
+// Gross Margin calculation
+const grossMargin = computed(() => {
+    return (metrics.value.sales_revenue || 0) - (metrics.value.purchase_spend || 0);
+});
+
+const grossMarginPercent = computed(() => {
+    const sales = metrics.value.sales_revenue || 0;
+    if (sales <= 0) return 0;
+    return Number(((grossMargin.value / sales) * 100).toFixed(1));
+});
+
+// Quick Date Presets
+const applyPreset = (preset) => {
+    selectedPreset.value = preset;
+    const today = entityToday();
+    if (preset === 'today') {
+        filterForm.value.start_date = `${today} 00:00:00`;
+        filterForm.value.end_date = `${today} 23:59:59`;
+    } else if (preset === '7d') {
+        filterForm.value.start_date = `${entityDaysAgo(7)} 00:00:00`;
+        filterForm.value.end_date = `${today} 23:59:59`;
+    } else if (preset === '30d') {
+        filterForm.value.start_date = `${entityDaysAgo(30)} 00:00:00`;
+        filterForm.value.end_date = `${today} 23:59:59`;
+    } else if (preset === 'month') {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        filterForm.value.start_date = `${year}-${month}-01 00:00:00`;
+        filterForm.value.end_date = `${today} 23:59:59`;
+    }
+    fetchDashboardData();
+};
+
+const onCustomDateChange = () => {
+    selectedPreset.value = 'custom';
+    fetchDashboardData();
+};
+
+// Sales vs Purchase Comparison Chart
 const salesTrendSeries = computed(() => {
     const rawSales = financeTrend.value.series?.find(s => s.name === 'Sales')?.data || [];
     const rawPurchases = financeTrend.value.series?.find(s => s.name === 'Purchase')?.data || [];
     return [
-        { name: 'Sales', data: rawSales },
-        { name: 'Purchase', data: rawPurchases }
+        { name: 'Sales Revenue', data: rawSales },
+        { name: 'Purchase Spend', data: rawPurchases }
     ];
+});
+
+const totalPeriodSales = computed(() => {
+    const data = financeTrend.value.series?.find(s => s.name === 'Sales')?.data || [];
+    return data.reduce((sum, v) => sum + (Number(v) || 0), 0);
+});
+
+const totalPeriodPurchases = computed(() => {
+    const data = financeTrend.value.series?.find(s => s.name === 'Purchase')?.data || [];
+    return data.reduce((sum, v) => sum + (Number(v) || 0), 0);
 });
 
 const salesTrendOptions = computed(() => ({
     chart: {
-        type: 'bar',
+        type: salesTrendChartType.value,
         toolbar: { show: false },
         background: 'transparent',
     },
     plotOptions: {
         bar: {
             horizontal: false,
-            columnWidth: '55%',
-            borderRadius: 6,
+            columnWidth: '45%',
+            borderRadius: 4,
+            borderRadiusApplication: 'end'
         },
     },
-    dataLabels: { enabled: false },
     stroke: {
-        show: true,
-        width: 2,
-        colors: ['transparent']
+        curve: 'smooth',
+        width: salesTrendChartType.value === 'area' ? 3 : 0,
     },
-    colors: ['#f87171', '#f97316'], // Soft Peach & Solid Orange
+    fill: salesTrendChartType.value === 'area' ? {
+        type: 'gradient',
+        gradient: {
+            shadeIntensity: 1,
+            opacityFrom: 0.35,
+            opacityTo: 0.05,
+            stops: [0, 90, 100]
+        }
+    } : {
+        opacity: 0.95
+    },
+    dataLabels: { enabled: false },
+    colors: ['#2563eb', '#f59e0b'],
     xaxis: {
         categories: financeTrend.value.labels || [],
-        labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: 500 } }
+        labels: {
+            style: {
+                colors: '#64748b',
+                fontSize: '11px',
+                fontWeight: 600,
+                fontFamily: 'Inter, sans-serif'
+            }
+        },
+        axisBorder: { show: false },
+        axisTicks: { show: false }
     },
     yaxis: {
         labels: {
             formatter: (val) => compactCurrency(val),
-            style: { colors: '#64748b', fontSize: '11px' }
+            style: { colors: '#64748b', fontSize: '11px', fontFamily: 'Inter, sans-serif' }
         }
     },
-    fill: { opacity: 1 },
     grid: {
         borderColor: '#f1f5f9',
         strokeDashArray: 4,
     },
     tooltip: {
+        shared: true,
+        intersect: false,
+        theme: 'light',
         y: { formatter: (val) => formatCurrency(val) }
     },
     legend: {
-        position: 'bottom',
-        fontFamily: 'Inter',
-        labels: { colors: '#64748b' }
+        position: 'top',
+        horizontalAlign: 'right',
+        fontSize: '12px',
+        fontWeight: 600,
+        labels: { colors: '#334155' },
+        markers: { radius: 4, width: 10, height: 10, offsetX: -2 }
     }
 }));
 
-// Overall Information - Customers Donut Ring Chart
-const customerDonutSeries = computed(() => [65, 35]); // Mock ratio representing First Time (65%) vs Return (35%)
-const customerDonutOptions = {
+// Real Dispatch Status Fulfillment Donut
+const dispatchDonutSeries = computed(() => {
+    return (dispatchStatus.value || []).map(d => Number(d.value) || 0);
+});
+
+const dispatchDonutLabels = computed(() => {
+    return (dispatchStatus.value || []).map(d => d.label);
+});
+
+const hasDispatchData = computed(() => {
+    return dispatchDonutSeries.value.some(v => v > 0);
+});
+
+const dispatchDonutOptions = computed(() => ({
     chart: {
         type: 'donut',
+        background: 'transparent'
     },
-    labels: ['First Time', 'Returning'],
-    colors: ['#10b981', '#f59e0b'],
+    labels: dispatchDonutLabels.value,
+    colors: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'],
     dataLabels: { enabled: false },
     stroke: { width: 0 },
-    legend: { show: false },
+    legend: {
+        position: 'bottom',
+        fontSize: '11px',
+        fontWeight: 600,
+        labels: { colors: '#475569' }
+    },
     plotOptions: {
         pie: {
             donut: {
-                size: '78%',
+                size: '75%',
                 labels: {
                     show: true,
                     total: {
                         show: true,
-                        label: 'Retention',
-                        formatter: () => '65%',
+                        label: 'Total Trips',
+                        formatter: () => formatNumber(metrics.value.dispatch_trips || dispatchDonutSeries.value.reduce((a, b) => a + b, 0)),
                         color: '#0f172a',
-                        fontSize: '16px',
-                        fontWeight: '700'
+                        fontSize: '18px',
+                        fontWeight: '800'
                     }
                 }
             }
         }
     },
-    tooltip: { enabled: true }
-};
+    tooltip: {
+        y: {
+            formatter: (val) => `${formatNumber(val)} trips`
+        }
+    }
+}));
 
-// Monthly Target Semicircle progress
-const targetPercent = computed(() => {
-    const monthlyTarget = 1500000; // Target: 15 Lakhs
-    const currentSales = metrics.value.sales_revenue || 0;
-    const pct = Math.min(100, Math.max(0, (currentSales / monthlyTarget) * 100));
-    return Number(pct.toFixed(2));
+// Top Customer Leaderboard Revenue Share
+const maxCustomerRevenue = computed(() => {
+    if (!customerLeaderboard.value?.length) return 1;
+    return Math.max(...customerLeaderboard.value.map(c => Number(c.revenue) || 0), 1);
 });
 
-const monthlyTargetSeries = computed(() => [targetPercent.value]);
+// Target Progress Gauge
+const monthlyTarget = computed(() => 2500000); // 25 Lakhs reference benchmark
+
+const targetPercent = computed(() => {
+    const target = monthlyTarget.value;
+    const currentSales = metrics.value.sales_revenue || 0;
+    if (target <= 0) return 0;
+    const pct = (currentSales / target) * 100;
+    return Number(pct.toFixed(1));
+});
+
+const monthlyTargetSeries = computed(() => [Math.min(100, Math.max(0, targetPercent.value))]);
 const monthlyTargetOptions = computed(() => ({
     chart: {
         type: 'radialBar',
@@ -213,19 +327,16 @@ const monthlyTargetOptions = computed(() => ({
             endAngle: 90,
             track: {
                 background: '#f1f5f9',
-                strokeWidth: '97%',
+                strokeWidth: '95%',
                 margin: 5,
-                dropShadow: {
-                    enabled: false
-                }
             },
             dataLabels: {
                 name: { show: false },
                 value: {
-                    offsetY: -2,
-                    fontSize: '30px',
+                    offsetY: -4,
+                    fontSize: '28px',
                     fontWeight: '800',
-                    color: '#1e1b4b',
+                    color: '#0f172a',
                     formatter: (val) => `${val}%`
                 }
             }
@@ -241,60 +352,59 @@ const monthlyTargetOptions = computed(() => ({
             opacityTo: 1,
             stops: [0, 50, 100],
             colorStops: [
-                { offset: 0, color: '#6366f1', opacity: 1 },
+                { offset: 0, color: '#2563eb', opacity: 1 },
                 { offset: 100, color: '#10b981', opacity: 1 }
             ]
         }
     },
-    colors: ['#6366f1'],
-    labels: ['Monthly Target Progress']
+    colors: ['#2563eb'],
+    labels: ['Target Achievement']
 }));
 
-// Monthly Sales bar chart (vertical bars)
-const monthlySalesSeries = computed(() => {
-    const data = financeTrend.value.series?.find(s => s.name === 'Sales')?.data || [];
-    return [{ name: 'Monthly Sales', data }];
+// Multi-period Performance Trajectory (Monthly / Quarterly / Annually)
+const activeTrajectoryData = computed(() => {
+    const tabKey = (activeTimeTab.value || 'Monthly').toLowerCase();
+    const traj = performanceTrajectory.value?.[tabKey];
+    if (traj && traj.labels && traj.labels.length > 0) {
+        return traj;
+    }
+    // Fallback if not loaded
+    const sales = financeTrend.value?.series?.find(s => s.name === 'Sales')?.data || [];
+    const purchases = financeTrend.value?.series?.find(s => s.name === 'Purchase')?.data || [];
+    return {
+        labels: financeTrend.value?.labels || [],
+        sales,
+        purchases,
+    };
 });
-const monthlySalesOptions = computed(() => ({
-    chart: {
-        type: 'bar',
-        toolbar: { show: false }
-    },
-    colors: ['#4f46e5'],
-    plotOptions: {
-        bar: {
-            borderRadius: 4,
-            columnWidth: '40%',
-        }
-    },
-    dataLabels: { enabled: false },
-    xaxis: {
-        categories: financeTrend.value.labels || [],
-        labels: { style: { colors: '#64748b', fontSize: '10px' } }
-    },
-    yaxis: { show: false },
-    grid: { show: false }
-}));
 
-// Statistics area-line chart
-const statsSeries = computed(() => {
-    // Return custom timeframes. For demo, we multiply values slightly based on Monthly, Quarterly, Annually select.
-    const multiplier = activeTimeTab.value === 'Quarterly' ? 3 : activeTimeTab.value === 'Annually' ? 12 : 1;
-    
-    const rawSales = (financeTrend.value.series?.find(s => s.name === 'Sales')?.data || []).map(v => v * multiplier);
-    const rawPurchases = (financeTrend.value.series?.find(s => s.name === 'Purchase')?.data || []).map(v => v * multiplier);
-    
-    return [
-        { name: 'Target KPI', data: rawSales },
-        { name: 'Actual Performance', data: rawPurchases }
-    ];
+const statsSeries = computed(() => [
+    { name: 'Revenue Trajectory', data: activeTrajectoryData.value.sales || [] },
+    { name: 'Expenditure Profile', data: activeTrajectoryData.value.purchases || [] }
+]);
+
+const trajectorySalesTotal = computed(() => {
+    return (activeTrajectoryData.value.sales || []).reduce((a, b) => a + (Number(b) || 0), 0);
+});
+
+const trajectoryPurchasesTotal = computed(() => {
+    return (activeTrajectoryData.value.purchases || []).reduce((a, b) => a + (Number(b) || 0), 0);
+});
+
+const trajectoryNetMargin = computed(() => {
+    return trajectorySalesTotal.value - trajectoryPurchasesTotal.value;
 });
 
 const statsOptions = computed(() => ({
     chart: {
         type: 'area',
         toolbar: { show: false },
-        zoom: { enabled: false }
+        zoom: { enabled: false },
+        animations: {
+            enabled: true,
+            easing: 'easeinout',
+            speed: 350
+        }
     },
     stroke: {
         curve: 'smooth',
@@ -305,20 +415,29 @@ const statsOptions = computed(() => ({
         gradient: {
             shadeIntensity: 1,
             opacityFrom: 0.35,
-            opacityTo: 0.05,
+            opacityTo: 0.04,
             stops: [0, 90, 100]
         }
     },
-    colors: ['#4f46e5', '#38bdf8'],
+    colors: ['#2563eb', '#0891b2'],
     dataLabels: { enabled: false },
     xaxis: {
-        categories: financeTrend.value.labels || [],
-        labels: { style: { colors: '#94a3b8', fontSize: '10px' } }
+        categories: activeTrajectoryData.value.labels || [],
+        labels: {
+            style: {
+                colors: '#64748b',
+                fontSize: '11px',
+                fontWeight: 600,
+                fontFamily: 'Inter, sans-serif'
+            }
+        },
+        axisBorder: { show: false },
+        axisTicks: { show: false }
     },
     yaxis: {
         labels: {
             formatter: (val) => compactCurrency(val),
-            style: { colors: '#94a3b8' }
+            style: { colors: '#64748b', fontSize: '11px', fontFamily: 'Inter, sans-serif' }
         }
     },
     grid: {
@@ -328,7 +447,16 @@ const statsOptions = computed(() => ({
     legend: {
         position: 'top',
         horizontalAlign: 'right',
-        labels: { colors: '#64748b' }
+        fontSize: '12px',
+        fontWeight: 600,
+        labels: { colors: '#334155' },
+        markers: { radius: 4, width: 10, height: 10, offsetX: -2 }
+    },
+    tooltip: {
+        shared: true,
+        intersect: false,
+        theme: 'light',
+        y: { formatter: (val) => formatCurrency(val) }
     }
 }));
 
@@ -336,6 +464,9 @@ function applyDashboardPayload(data = {}) {
     errorMessage.value = '';
     metrics.value = { ...defaultMetrics, ...(data.metrics || {}) };
     financeTrend.value = data.finance_trend || { labels: [], series: [] };
+    if (data.performance_trajectory) {
+        performanceTrajectory.value = data.performance_trajectory;
+    }
     dispatchStatus.value = data.dispatch_status || [];
     customerLeaderboard.value = data.customer_leaderboard || [];
     stockSnapshot.value = data.stock_snapshot || [];
@@ -360,10 +491,8 @@ const fetchDashboardData = async () => {
             timeout: 120000,
         });
         if (controller.signal.aborted) return;
-        // A changed filter must not receive results for the previous selection.
         if (requestedFilters !== JSON.stringify(queryParams.value)) return;
         applyDashboardPayload(data);
-        filtersChanged.value = false;
     } catch (error) {
         if (axios.isCancel(error)) return;
         if (error?.response?.status === 401 || error?.response?.status === 419) {
@@ -378,15 +507,6 @@ const fetchDashboardData = async () => {
         if (refreshController === controller) refreshController = null;
     }
 };
-
-watch(
-    () => [filterForm.value.start_date, filterForm.value.end_date, filterForm.value.patron_id],
-    () => {
-        filtersChanged.value = true;
-        refreshController?.abort();
-        applyDashboardPayload();
-    }
-);
 
 onUnmounted(() => {
     refreshController?.abort();
@@ -438,547 +558,512 @@ function formatDateTime(value) {
 
 <template>
     <AppLayout title="SaaS ERP Analytics Center">
-        <div class="min-h-screen bg-[#f8fafc] pb-12 text-slate-900 font-sans">
+        <div class="min-h-screen bg-[#f1f2f6] text-slate-800 font-sans pb-16 selection:bg-blue-600 selection:text-white">
             <div class="mx-auto max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8">
                 
-                <!-- Main Header & Controls -->
-                <header class="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between mb-8">
+                <!-- EXECUTIVE COMMAND HEADER & TOOLBAR -->
+                <header class="rounded-md bg-white border border-slate-200/90 p-5 mb-6 shadow-xs flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
                     <div>
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-emerald-700">
-                                <span class="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                World-Class SaaS ERP
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-blue-700 border border-blue-200">
+                                <span class="size-2 rounded-full bg-blue-600 animate-pulse"></span>
+                                ERP Intelligence & Analytics Hub
                             </span>
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-indigo-700">
-                                <BuildingOffice2Icon class="size-3.5" />
-                                {{ plantLabel }}
+                            <span class="inline-flex items-center gap-1.5 rounded-md bg-[#f1f2f6] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-700 border border-slate-200">
+                                <BuildingOffice2Icon class="size-3.5 text-blue-600" />
+                                <span class="truncate max-w-[220px]">{{ plantLabel }}</span>
                             </span>
                         </div>
-                        <h1 class="text-3xl font-black tracking-tight text-slate-900">Analytics Command Center</h1>
-                        <p class="mt-1 text-slate-500 text-sm font-medium">Real-time performance metrics, target benchmarks, and visual sales trends</p>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Executive Analytics Command Center</h1>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">Consolidated financial health, sales vs. procurement trends, delivery fulfillment, and customer intelligence</p>
                     </div>
 
-                    <!-- Date & Patron Filters -->
-                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200/80 flex flex-wrap items-center gap-3">
-                        <BaseDatePicker v-model="filterForm.start_date" label="Start Date & Time" :showTime="true" hourFormat="12" placeholder="Select start date & time" class="w-56" size="small" />
-                        <BaseDatePicker v-model="filterForm.end_date" label="End Date & Time" :showTime="true" hourFormat="12" placeholder="Select end date & time" class="w-56" size="small" />
+                    <!-- Filter Toolbar -->
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <!-- Date Presets -->
+                        <div class="inline-flex bg-[#f1f2f6] border border-slate-200 p-1 rounded-md gap-1">
+                            <button
+                                v-for="preset in [
+                                    { key: 'today', label: 'Today' },
+                                    { key: '7d', label: '7D' },
+                                    { key: '30d', label: '30D' },
+                                    { key: 'month', label: 'Month' }
+                                ]"
+                                :key="preset.key"
+                                type="button"
+                                class="rounded-md px-3 py-1.5 text-xs font-bold transition"
+                                :class="selectedPreset === preset.key ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'"
+                                @click="applyPreset(preset.key)"
+                            >
+                                {{ preset.label }}
+                            </button>
+                        </div>
+
+                        <!-- Custom Date Pickers -->
+                        <div class="flex items-center gap-2 bg-[#f1f2f6] border border-slate-200 p-1 rounded-md">
+                            <BaseDatePicker 
+                                v-model="filterForm.start_date" 
+                                placeholder="Start Date" 
+                                class="w-36 text-xs" 
+                                size="small" 
+                                @change="onCustomDateChange"
+                            />
+                            <span class="text-xs font-bold text-slate-400">-</span>
+                            <BaseDatePicker 
+                                v-model="filterForm.end_date" 
+                                placeholder="End Date" 
+                                class="w-36 text-xs" 
+                                size="small" 
+                                @change="onCustomDateChange"
+                            />
+                        </div>
+
+                        <!-- Patron Dropdown -->
                         <BaseSelect
                             v-model="filterForm.patron_id"
                             :options="patrons"
                             optionLabel="legal_name"
                             optionValue="id"
-                            label="Patron Filter"
-                            placeholder="All patrons"
+                            placeholder="All Patrons"
                             filter
                             showClear
-                            class="w-56"
+                            class="w-44 text-xs"
                             size="small"
+                            @change="fetchDashboardData"
                         />
+
+                        <!-- Refresh Action -->
                         <button
                             type="button"
-                            class="inline-flex items-center justify-center p-2.5 rounded-xl bg-slate-950 text-white hover:bg-slate-800 transition shadow-md"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs disabled:opacity-50"
                             :disabled="loading || !activePlant"
                             @click="fetchDashboardData"
+                            title="Refresh Analytics Data"
                         >
-                            <ArrowPathIcon class="size-4" :class="loading ? 'animate-spin' : ''" />
-                            {{ loading ? 'Refreshing...' : 'Refresh data' }}
+                            <ArrowPathIcon class="size-3.5" :class="loading ? 'animate-spin' : ''" />
+                            <span>{{ loading ? 'Updating...' : 'Sync' }}</span>
                         </button>
                     </div>
                 </header>
 
-                <p class="mb-4 text-sm text-slate-500" role="status">
-                    <template v-if="!activePlant">Select a plant to load dashboard data.</template>
-                    <template v-else-if="loading">Refreshing dashboard data. You can continue using the portal.</template>
-                    <template v-else-if="filtersChanged">Filters changed. Click Refresh data to load this selection.</template>
-                    <template v-else-if="!lastUpdated">Click Refresh data to load the dashboard. Data updates only when you refresh.</template>
-                    <template v-else>Showing cached data from {{ formatDateTime(lastUpdated) }}. Click Refresh data for the latest figures.</template>
-                </p>
+                <!-- Status alert / timestamp banner -->
+                <div class="flex items-center justify-between text-xs text-slate-500 font-medium mb-6 px-1">
+                    <div class="flex items-center gap-2">
+                        <span class="size-2 rounded-full" :class="loading ? 'bg-amber-500 animate-ping' : 'bg-emerald-500'"></span>
+                        <span>{{ loading ? 'Synchronizing live metrics...' : (lastUpdated ? `Live data snapshot: ${formatDateTime(lastUpdated)}` : 'Click Sync to query live database metrics') }}</span>
+                    </div>
+                    <span v-if="activePlant" class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                        Plant Node: {{ activePlant.plant_name }}
+                    </span>
+                </div>
 
-                <div v-if="errorMessage" class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                <div v-if="errorMessage" class="mb-6 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
                     {{ errorMessage }}
                 </div>
 
-                <template v-if="lastUpdated || loading">
-                <!-- SECTION 1: Top Soft-Colored KPI Cards (Screenshot 1 top row) -->
-                <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <template v-if="metricsLoading">
-                        <!-- Total Sales Skeleton -->
-                        <div class="bg-[#fdf2f2] border border-red-100 rounded-3xl p-6 animate-pulse h-[142px] flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <div class="h-4 bg-red-200 rounded w-1/3"></div>
-                                <div class="size-10 bg-white/60 rounded-xl shadow-sm"></div>
-                            </div>
-                            <div class="h-8 bg-red-200 rounded w-1/2 mt-4"></div>
-                            <div class="h-3 bg-red-200/80 rounded w-1/4 mt-2"></div>
-                        </div>
-
-                        <!-- Total Purchase Skeleton -->
-                        <div class="bg-[#edfbf4] border border-emerald-100 rounded-3xl p-6 animate-pulse h-[142px] flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <div class="h-4 bg-emerald-200 rounded w-1/3"></div>
-                                <div class="size-10 bg-white/60 rounded-xl shadow-sm"></div>
-                            </div>
-                            <div class="h-8 bg-emerald-200 rounded w-1/2 mt-4"></div>
-                            <div class="h-3 bg-emerald-200/80 rounded w-1/4 mt-2"></div>
-                        </div>
-
-                        <!-- Total Expenses Skeleton -->
-                        <div class="bg-[#f0f9ff] border border-sky-100 rounded-3xl p-6 animate-pulse h-[142px] flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <div class="h-4 bg-sky-200 rounded w-1/3"></div>
-                                <div class="size-10 bg-white/60 rounded-xl shadow-sm"></div>
-                            </div>
-                            <div class="h-8 bg-sky-200 rounded w-1/2 mt-4"></div>
-                            <div class="h-3 bg-sky-200/80 rounded w-1/4 mt-2"></div>
-                        </div>
-
-                        <!-- Invoice Due Skeleton -->
-                        <div class="bg-[#fefce8] border border-amber-100 rounded-3xl p-6 animate-pulse h-[142px] flex flex-col justify-between">
-                            <div class="flex items-center justify-between">
-                                <div class="h-4 bg-amber-200 rounded w-1/3"></div>
-                                <div class="size-10 bg-white/60 rounded-xl shadow-sm"></div>
-                            </div>
-                            <div class="h-8 bg-amber-200 rounded w-1/2 mt-4"></div>
-                            <div class="h-3 bg-amber-200/80 rounded w-1/4 mt-2"></div>
-                        </div>
-                    </template>
-                    <template v-else>
-                        <!-- Total Sales -->
-                        <div class="bg-[#fdf2f2] border border-red-100 rounded-3xl p-6 transition duration-300 hover:shadow-md">
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-sm font-bold text-red-700 uppercase tracking-wider">Total Sales</span>
-                                <div class="p-2.5 bg-white rounded-xl text-red-500 shadow-sm">
-                                    <ArrowTrendingUpIcon class="size-5" />
-                                </div>
-                            </div>
-                            <h2 class="text-3xl font-black text-slate-900 tracking-tight">{{ formatCurrency(metrics.sales_revenue) }}</h2>
-                            <p class="mt-2 text-xs font-semibold text-red-600">+6% since last month</p>
-                        </div>
-
-                        <!-- Total Purchase -->
-                        <div class="bg-[#edfbf4] border border-emerald-100 rounded-3xl p-6 transition duration-300 hover:shadow-md">
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-sm font-bold text-emerald-700 uppercase tracking-wider">Total Purchase</span>
-                                <div class="p-2.5 bg-white rounded-xl text-emerald-500 shadow-sm">
-                                    <ArrowTrendingDownIcon class="size-5" />
-                                </div>
-                            </div>
-                            <h2 class="text-3xl font-black text-slate-900 tracking-tight">{{ formatCurrency(metrics.purchase_spend) }}</h2>
-                            <p class="mt-2 text-xs font-semibold text-emerald-600">+22% since last month</p>
-                        </div>
-
-                        <!-- Total Expenses -->
-                        <div class="bg-[#f0f9ff] border border-sky-100 rounded-3xl p-6 transition duration-300 hover:shadow-md">
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-sm font-bold text-sky-700 uppercase tracking-wider">Total Expenses</span>
-                                <div class="p-2.5 bg-white rounded-xl text-sky-500 shadow-sm">
-                                    <BanknotesIcon class="size-5" />
-                                </div>
-                            </div>
-                            <h2 class="text-3xl font-black text-slate-900 tracking-tight">{{ formatCurrency(metrics.payments) }}</h2>
-                            <p class="mt-2 text-xs font-semibold text-sky-600">+10% since last month</p>
-                        </div>
-
-                        <!-- Invoice Due -->
-                        <div class="bg-[#fefce8] border border-amber-100 rounded-3xl p-6 transition duration-300 hover:shadow-md">
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-sm font-bold text-amber-700 uppercase tracking-wider">Invoice Due</span>
-                                <div class="p-2.5 bg-white rounded-xl text-amber-500 shadow-sm">
-                                    <WalletIcon class="size-5" />
-                                </div>
-                            </div>
-                            <h2 class="text-3xl font-black text-slate-900 tracking-tight">{{ formatCurrency(metrics.receivables) }}</h2>
-                            <p class="mt-2 text-xs font-semibold text-amber-600">+36% since last month</p>
-                        </div>
-                    </template>
-                </section>
-
-                <!-- SECTION 2: Secondary Performance Cards (Screenshot 1 middle row) -->
-                <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <template v-if="metricsLoading">
-                        <div v-for="i in 3" :key="'sec-sk-' + i" class="bg-white border border-slate-200/80 rounded-3xl p-6 flex flex-col justify-between shadow-sm h-[178px] animate-pulse">
-                            <div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <div class="space-y-3 w-1/2">
-                                        <div class="h-8 bg-slate-200 rounded w-full"></div>
-                                        <div class="h-4 bg-slate-200 rounded w-2/3"></div>
-                                    </div>
-                                    <div class="size-8 bg-slate-100 rounded"></div>
-                                </div>
-                                <div class="h-5 bg-slate-100 rounded w-1/3 mt-4"></div>
+                <!-- TIER 1: CORE EXECUTIVE FINANCIAL HEALTH TILES (4 COLUMNS) -->
+                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+                    <!-- Total Sales Tile -->
+                    <div class="rounded-md border border-slate-200/90 bg-white p-5 shadow-xs transition hover:border-blue-300">
+                        <div class="flex items-center justify-between text-slate-500 mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-wider">Invoiced Sales</span>
+                            <div class="p-2 rounded-md bg-blue-50 text-blue-600 border border-blue-100">
+                                <ArrowTrendingUpIcon class="size-4" />
                             </div>
                         </div>
-                    </template>
-                    <template v-else>
-                        <!-- Total Profit -->
-                        <div class="bg-white border border-slate-200/80 rounded-3xl p-6 flex flex-col justify-between shadow-sm relative overflow-hidden group hover:border-indigo-200 transition">
-                            <div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 class="text-3xl font-black text-slate-950 tracking-tight">{{ formatCurrency(metrics.sales_revenue - metrics.purchase_spend) }}</h3>
-                                        <p class="text-sm font-bold text-slate-400 mt-1 uppercase tracking-wider">Total Profit</p>
-                                    </div>
-                                    <ClipboardDocumentListIcon class="size-8 text-indigo-100 group-hover:text-indigo-200 transition-colors" />
-                                </div>
-                                <span class="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-700">+35% vs Last Month</span>
-                            </div>
-                            <div class="mt-6 flex justify-end">
-                                <a href="#" class="text-xs font-bold text-red-500 hover:text-red-600 inline-flex items-center gap-1">
-                                    View <ArrowTopRightOnSquareIcon class="size-3.5" />
-                                </a>
-                            </div>
-                        </div>
-
-                        <!-- Total Payment Returns -->
-                        <div class="bg-white border border-slate-200/80 rounded-3xl p-6 flex flex-col justify-between shadow-sm relative overflow-hidden group hover:border-indigo-200 transition">
-                            <div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 class="text-3xl font-black text-slate-950 tracking-tight">{{ formatCurrency((metrics.sales_revenue * 0.04)) }}</h3>
-                                        <p class="text-sm font-bold text-slate-400 mt-1 uppercase tracking-wider">Total Payment Returns</p>
-                                    </div>
-                                    <ReceiptPercentIcon class="size-8 text-indigo-100 group-hover:text-indigo-200 transition-colors" />
-                                </div>
-                                <span class="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 text-[11px] font-bold text-rose-700">-20% vs Last Month</span>
-                            </div>
-                            <div class="mt-6 flex justify-end">
-                                <a href="#" class="text-xs font-bold text-red-500 hover:text-red-600 inline-flex items-center gap-1">
-                                    View <ArrowTopRightOnSquareIcon class="size-3.5" />
-                                </a>
-                            </div>
-                        </div>
-
-                        <!-- Total Cash Expenses -->
-                        <div class="bg-white border border-slate-200/80 rounded-3xl p-6 flex flex-col justify-between shadow-sm relative overflow-hidden group hover:border-indigo-200 transition">
-                            <div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 class="text-3xl font-black text-slate-950 tracking-tight">{{ formatCurrency(metrics.payments) }}</h3>
-                                        <p class="text-sm font-bold text-slate-400 mt-1 uppercase tracking-wider">Total Cash Paid</p>
-                                    </div>
-                                    <WalletIcon class="size-8 text-indigo-100 group-hover:text-indigo-200 transition-colors" />
-                                </div>
-                                <span class="inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 text-[11px] font-bold text-rose-700">-12% vs Last Month</span>
-                            </div>
-                            <div class="mt-6 flex justify-end">
-                                <a href="#" class="text-xs font-bold text-red-500 hover:text-red-600 inline-flex items-center gap-1">
-                                    View <ArrowTopRightOnSquareIcon class="size-3.5" />
-                                </a>
-                            </div>
-                        </div>
-                    </template>
-                </section>
-
-                <!-- SECTION 3: Layout Split & Target Gauges (Screenshot 2 elements) -->
-                <section class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                    <!-- Active Customers KPI Card -->
-                    <div v-if="leaderboardLoading" class="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm flex items-center justify-between h-[122px] animate-pulse">
-                        <div class="space-y-3 w-1/2">
-                            <div class="h-3 bg-slate-200 rounded w-1/3"></div>
-                            <div class="h-7 bg-slate-200 rounded w-3/4"></div>
-                        </div>
-                        <div class="size-14 bg-indigo-50/50 rounded-2xl"></div>
-                    </div>
-                    <div v-else class="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Customers</p>
-                            <h3 class="text-3xl font-black text-slate-950">3,782</h3>
-                            <span class="inline-flex items-center gap-1 mt-3 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700">
-                                +11.01%
+                        <h2 class="text-2xl font-black text-slate-900 tracking-tight">{{ formatCurrency(metrics.sales_revenue) }}</h2>
+                        <div class="mt-3 flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Realized Billing</span>
+                            <span class="inline-flex rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100">
+                                {{ metrics.open_sales_orders }} Orders Active
                             </span>
                         </div>
-                        <div class="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
-                            <UserGroupIcon class="size-7" />
-                        </div>
                     </div>
 
-                    <!-- Total Orders KPI Card -->
-                    <div v-if="metricsLoading" class="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm flex items-center justify-between h-[122px] animate-pulse">
-                        <div class="space-y-3 w-1/2">
-                            <div class="h-3 bg-slate-200 rounded w-1/3"></div>
-                            <div class="h-7 bg-slate-200 rounded w-3/4"></div>
+                    <!-- Total Purchases Tile -->
+                    <div class="rounded-md border border-slate-200/90 bg-white p-5 shadow-xs transition hover:border-cyan-300">
+                        <div class="flex items-center justify-between text-slate-500 mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-wider">Procurement Spend</span>
+                            <div class="p-2 rounded-md bg-cyan-50 text-cyan-600 border border-cyan-100">
+                                <ShoppingCartIcon class="size-4" />
+                            </div>
                         </div>
-                        <div class="size-14 bg-indigo-50/50 rounded-2xl"></div>
-                    </div>
-                    <div v-else class="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm flex items-center justify-between">
-                        <div>
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Active Sales Orders</p>
-                            <h3 class="text-3xl font-black text-slate-950">{{ metrics.open_sales_orders }}</h3>
-                            <span class="inline-flex items-center gap-1 mt-3 rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-bold text-rose-700">
-                                -9.05%
+                        <h2 class="text-2xl font-black text-slate-900 tracking-tight">{{ formatCurrency(metrics.purchase_spend) }}</h2>
+                        <div class="mt-3 flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Raw Material Spend</span>
+                            <span class="inline-flex rounded-md bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-700 border border-cyan-100">
+                                Stock: {{ compactCurrency(metrics.stock_value) }}
                             </span>
                         </div>
-                        <div class="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
-                            <InboxStackIcon class="size-7" />
+                    </div>
+
+                    <!-- Gross Operating Margin Tile -->
+                    <div class="rounded-md border border-slate-200/90 bg-white p-5 shadow-xs transition hover:border-emerald-300">
+                        <div class="flex items-center justify-between text-slate-500 mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-wider">Gross Operating Margin</span>
+                            <div class="p-2 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                <CurrencyRupeeIcon class="size-4" />
+                            </div>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900 tracking-tight">{{ formatCurrency(grossMargin) }}</h2>
+                        <div class="mt-3 flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sales vs. Purchase</span>
+                            <span class="inline-flex rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-100">
+                                {{ grossMarginPercent }}% Margin
+                            </span>
                         </div>
                     </div>
 
-                    <!-- Monthly Target Semicircle progress gauge (Screenshot 2 right side) -->
-                    <div class="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm lg:row-span-2 flex flex-col justify-between">
-                        <div v-if="metricsLoading" class="animate-pulse space-y-6 flex-1 flex flex-col justify-between">
-                            <div>
-                                <div class="flex items-center justify-between mb-4">
-                                    <div class="h-5 bg-slate-200 rounded w-1/3"></div>
-                                    <div class="h-4 bg-slate-100 rounded w-1/4"></div>
-                                </div>
-                                
-                                <!-- Gauge chart container -->
-                                <div class="flex flex-col items-center justify-center my-4">
-                                    <div class="size-36 rounded-full border-[12px] border-slate-100 border-t-indigo-200 flex items-center justify-center">
-                                        <div class="h-6 bg-slate-200 rounded w-12"></div>
-                                    </div>
-                                    <div class="h-4 bg-slate-100 rounded w-16 mt-4"></div>
-                                </div>
-
-                                <div class="h-4 bg-slate-200 rounded w-3/4 mx-auto mt-4"></div>
-                            </div>
-
-                            <!-- Target values list -->
-                            <div class="mt-6 pt-6 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
-                                <div v-for="i in 3" :key="i" class="space-y-2">
-                                    <div class="h-3 bg-slate-100 rounded w-2/3 mx-auto"></div>
-                                    <div class="h-4 bg-slate-200 rounded w-1/2 mx-auto"></div>
-                                </div>
+                    <!-- Outstanding Receivables Tile -->
+                    <div class="rounded-md border border-slate-200/90 bg-white p-5 shadow-xs transition hover:border-amber-300">
+                        <div class="flex items-center justify-between text-slate-500 mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-wider">Accounts Receivable</span>
+                            <div class="p-2 rounded-md bg-amber-50 text-amber-600 border border-amber-100">
+                                <WalletIcon class="size-4" />
                             </div>
                         </div>
-                        <div v-else class="flex-1 flex flex-col justify-between">
+                        <h2 class="text-2xl font-black text-slate-900 tracking-tight">{{ formatCurrency(metrics.receivables) }}</h2>
+                        <div class="mt-3 flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unsettled Dues</span>
+                            <span class="inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-100">
+                                Payables: {{ compactCurrency(metrics.payables) }}
+                            </span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TIER 2: OPERATIONAL THROUGHPUT & LIQUIDITY STRIP (4 COLUMNS) -->
+                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <!-- Delivered Volume -->
+                    <div class="flex items-center gap-3.5 p-4 rounded-md border border-slate-200/90 bg-white shadow-xs">
+                        <div class="flex size-10 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100">
+                            <TruckIcon class="size-5" />
+                        </div>
+                        <div class="min-w-0">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Dispatch Throughput</span>
+                            <h3 class="text-lg font-black text-slate-900 tracking-tight leading-tight">
+                                {{ formatNumber(metrics.dispatch_quantity, 1) }} <span class="text-xs font-semibold text-slate-500">m³</span>
+                            </h3>
+                            <p class="text-[10px] text-slate-400 font-medium">{{ metrics.dispatch_trips }} completed transit loads</p>
+                        </div>
+                    </div>
+
+                    <!-- Collections Inward -->
+                    <div class="flex items-center gap-3.5 p-4 rounded-md border border-slate-200/90 bg-white shadow-xs">
+                        <div class="flex size-10 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 border border-emerald-100">
+                            <ReceiptPercentIcon class="size-5" />
+                        </div>
+                        <div class="min-w-0">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Collections Realized</span>
+                            <h3 class="text-lg font-black text-slate-900 tracking-tight leading-tight">
+                                {{ formatCurrency(metrics.collections) }}
+                            </h3>
+                            <p class="text-[10px] text-slate-400 font-medium">Customer bank/cash inwards</p>
+                        </div>
+                    </div>
+
+                    <!-- Disbursements Outward -->
+                    <div class="flex items-center gap-3.5 p-4 rounded-md border border-slate-200/90 bg-white shadow-xs">
+                        <div class="flex size-10 shrink-0 items-center justify-center rounded-md bg-rose-50 text-rose-600 border border-rose-100">
+                            <BanknotesIcon class="size-5" />
+                        </div>
+                        <div class="min-w-0">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Disbursements Paid</span>
+                            <h3 class="text-lg font-black text-slate-900 tracking-tight leading-tight">
+                                {{ formatCurrency(metrics.payments) }}
+                            </h3>
+                            <p class="text-[10px] text-slate-400 font-medium">Operational & vendor vouchers</p>
+                        </div>
+                    </div>
+
+                    <!-- Net Cash Delta -->
+                    <div class="flex items-center gap-3.5 p-4 rounded-md border border-slate-200/90 bg-white shadow-xs">
+                        <div class="flex size-10 shrink-0 items-center justify-center rounded-md" :class="metrics.cash_delta >= 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'">
+                            <component :is="metrics.cash_delta >= 0 ? ArrowTrendingUpIcon : ArrowTrendingDownIcon" class="size-5" />
+                        </div>
+                        <div class="min-w-0">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Net Liquidity Delta</span>
+                            <h3 class="text-lg font-black tracking-tight leading-tight" :class="metrics.cash_delta >= 0 ? 'text-emerald-700' : 'text-rose-700'">
+                                {{ metrics.cash_delta > 0 ? '+' : '' }}{{ formatCurrency(metrics.cash_delta) }}
+                            </h3>
+                            <p class="text-[10px] text-slate-400 font-medium">Receipts vs Payments delta</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TIER 3: HIGH IMPACT VISUAL ANALYTICS (2/3 + 1/3 GRID) -->
+                <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Sales vs Purchase Timeline Analyzer (2/3 width) -->
+                    <div class="bg-white border border-slate-200/90 rounded-md p-5 sm:p-6 shadow-xs lg:col-span-2 flex flex-col justify-between">
+                        <!-- Chart Header -->
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
                             <div>
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-lg font-black text-slate-900">Monthly Target</h3>
-                                    <span class="text-xs font-bold text-slate-400">Target setting</span>
-                                </div>
-                                
-                                <!-- Gauge chart container -->
-                                <div class="flex flex-col items-center justify-center my-4">
-                                    <VueApexCharts type="radialBar" height="230" :options="monthlyTargetOptions" :series="monthlyTargetSeries" class="w-full" />
-                                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 mt-2">
-                                        +10%
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-lg font-extrabold text-slate-900">Sales vs. Purchase Comparison</h3>
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                                        Timeline Breakdown
                                     </span>
                                 </div>
+                                <p class="text-xs text-slate-500 mt-0.5 font-medium">Comparative evaluation of customer billing inflows against vendor purchases</p>
+                            </div>
 
-                                <p class="text-center text-sm text-slate-600 leading-relaxed font-medium px-4 mt-2">
-                                    You earned <span class="font-bold text-slate-900">{{ formatCurrency(metrics.sales_revenue) }}</span> during this period. Keep up your good work!
+                            <div class="flex items-center gap-2">
+                                <!-- Chart View Switcher -->
+                                <div class="inline-flex bg-[#f1f2f6] border border-slate-200 p-0.5 rounded-md">
+                                    <button 
+                                        type="button" 
+                                        @click="salesTrendChartType = 'bar'" 
+                                        title="Grouped Columns"
+                                        class="p-1.5 rounded-md transition"
+                                        :class="salesTrendChartType === 'bar' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'"
+                                    >
+                                        <ChartBarIcon class="size-4" />
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        @click="salesTrendChartType = 'area'" 
+                                        title="Smooth Area Trajectory"
+                                        class="p-1.5 rounded-md transition"
+                                        :class="salesTrendChartType === 'area' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'"
+                                    >
+                                        <PresentationChartLineIcon class="size-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mini stat pills -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                            <div class="p-2.5 rounded-md bg-blue-50/60 border border-blue-100">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">Total Period Sales</span>
+                                <span class="text-sm font-black text-blue-900">{{ formatCurrency(totalPeriodSales) }}</span>
+                            </div>
+                            <div class="p-2.5 rounded-md bg-amber-50/60 border border-amber-100">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Total Period Purchases</span>
+                                <span class="text-sm font-black text-amber-900">{{ formatCurrency(totalPeriodPurchases) }}</span>
+                            </div>
+                            <div class="p-2.5 rounded-md bg-emerald-50/60 border border-emerald-100 col-span-2 sm:col-span-1">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Period Operating Margin</span>
+                                <span class="text-sm font-black text-emerald-900">{{ formatCurrency(totalPeriodSales - totalPeriodPurchases) }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Chart Canvas -->
+                        <div v-if="financeLoading" class="animate-pulse h-[300px] bg-slate-50 border border-slate-100 rounded-md flex items-center justify-center text-slate-400 font-bold text-xs">
+                            Updating finance trends...
+                        </div>
+                        <VueApexCharts 
+                            v-else 
+                            :key="salesTrendChartType" 
+                            :type="salesTrendChartType" 
+                            height="300" 
+                            :options="salesTrendOptions" 
+                            :series="salesTrendSeries" 
+                        />
+                    </div>
+
+                    <!-- Dispatch Status Fulfillment Donut (1/3 width) -->
+                    <div class="bg-white border border-slate-200/90 rounded-md p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <h3 class="text-lg font-extrabold text-slate-900">Dispatch Fulfillment</h3>
+                                    <p class="text-xs text-slate-500 mt-0.5 font-medium">Real-time delivery status split</p>
+                                </div>
+                                <TruckIcon class="size-5 text-blue-600" />
+                            </div>
+
+                            <div v-if="dispatchLoading" class="animate-pulse h-[260px] bg-slate-50 border border-slate-100 rounded-md flex items-center justify-center text-slate-400 font-bold text-xs">
+                                Updating dispatch statuses...
+                            </div>
+                            <div v-else-if="!hasDispatchData" class="py-16 text-center text-xs font-semibold text-slate-400 bg-[#f1f2f6]/40 rounded-md border border-dashed border-slate-200">
+                                <TruckIcon class="size-8 text-slate-300 mx-auto mb-2" />
+                                No dispatch transit records for this period.
+                            </div>
+                            <div v-else class="flex justify-center my-3">
+                                <VueApexCharts type="donut" height="260" :options="dispatchDonutOptions" :series="dispatchDonutSeries" />
+                            </div>
+                        </div>
+
+                        <!-- Footer Trip Stats -->
+                        <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600">
+                            <span>Total Batch Loads:</span>
+                            <span class="text-slate-900 font-black">{{ formatNumber(metrics.dispatch_trips) }} trips</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TIER 4: CUSTOMER INTELLIGENCE & PERFORMANCE BENCHMARK (2 COLUMNS) -->
+                <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Top Customer Accounts Leaderboard -->
+                    <div class="bg-white border border-slate-200/90 rounded-md p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                                <div>
+                                    <h3 class="text-lg font-extrabold text-slate-900">Top Customer Accounts</h3>
+                                    <p class="text-xs text-slate-500 mt-0.5 font-medium">Ranked by delivered volume and billed revenue</p>
+                                </div>
+                                <UserGroupIcon class="size-5 text-blue-600" />
+                            </div>
+
+                            <div v-if="leaderboardLoading" class="space-y-3 py-4">
+                                <div v-for="i in 4" :key="i" class="h-12 bg-slate-100 rounded-md animate-pulse"></div>
+                            </div>
+                            <div v-else-if="!customerLeaderboard.length" class="py-16 text-center text-xs font-semibold text-slate-400 bg-[#f1f2f6]/40 rounded-md border border-dashed border-slate-200">
+                                No customer dispatch activity recorded in this period.
+                            </div>
+                            <div v-else class="space-y-3.5 max-h-[320px] overflow-y-auto pr-1">
+                                <div 
+                                    v-for="(cust, index) in customerLeaderboard.slice(0, 6)" 
+                                    :key="cust.customer || cust.customer_name || index"
+                                    class="p-3 rounded-md border border-slate-200/80 bg-white hover:bg-slate-50/60 transition"
+                                >
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span 
+                                                class="size-5 rounded-md flex items-center justify-center text-[10px] font-black shrink-0"
+                                                :class="index === 0 ? 'bg-amber-100 text-amber-800' : index === 1 ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600'"
+                                            >
+                                                #{{ index + 1 }}
+                                            </span>
+                                            <h4 class="text-xs font-bold text-slate-900 truncate" :title="cust.customer || cust.customer_name">
+                                                {{ cust.customer || cust.customer_name || 'Walk-in Customer' }}
+                                            </h4>
+                                        </div>
+                                        <span class="text-xs font-black text-slate-900 shrink-0">{{ formatCurrency(cust.revenue) }}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-[10px] text-slate-500 font-medium mb-1.5">
+                                        <span>{{ formatNumber(cust.quantity, 1) }} m³ delivered</span>
+                                        <span>{{ cust.trips }} trips</span>
+                                    </div>
+                                    <!-- Volume share progress bar -->
+                                    <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                        <div 
+                                            class="bg-blue-600 h-full rounded-full transition-all duration-500"
+                                            :style="{ width: `${Math.min(100, Math.max(5, (cust.revenue / maxCustomerRevenue) * 100))}%` }"
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-500">
+                            <span>Customer Concentration</span>
+                            <span class="text-blue-600">{{ customerLeaderboard.length }} Active Clients</span>
+                        </div>
+                    </div>
+
+                    <!-- Target Benchmark & Capacity Run-rate -->
+                    <div class="bg-white border border-slate-200/90 rounded-md p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                                <div>
+                                    <h3 class="text-lg font-extrabold text-slate-900">Period Target Benchmark</h3>
+                                    <p class="text-xs text-slate-500 mt-0.5 font-medium">Progress against standard revenue target</p>
+                                </div>
+                                <span class="text-xs font-bold text-slate-400">Target: {{ compactCurrency(monthlyTarget) }}</span>
+                            </div>
+
+                            <!-- Radial Bar Gauge -->
+                            <div class="flex flex-col items-center justify-center my-2">
+                                <VueApexCharts type="radialBar" height="230" :options="monthlyTargetOptions" :series="monthlyTargetSeries" class="w-full" />
+                                <span 
+                                    class="inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-xs font-bold mt-1 border"
+                                    :class="targetPercent >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200'"
+                                >
+                                    {{ targetPercent }}% Target Completion
+                                </span>
+                            </div>
+
+                            <p class="text-center text-xs text-slate-500 leading-relaxed font-medium px-4">
+                                Generated <span class="font-bold text-slate-900">{{ formatCurrency(metrics.sales_revenue) }}</span> in realized billing against reference quota of {{ compactCurrency(monthlyTarget) }}.
+                            </p>
+                        </div>
+
+                        <!-- Benchmark Summary Grid -->
+                        <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
+                            <div class="p-2 rounded-md bg-[#f1f2f6]">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Benchmark</p>
+                                <p class="text-xs font-black text-slate-800 mt-0.5">{{ compactCurrency(monthlyTarget) }}</p>
+                            </div>
+                            <div class="p-2 rounded-md bg-[#f1f2f6]">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Batches In Run</p>
+                                <p class="text-xs font-black text-blue-600 mt-0.5">{{ metrics.active_batches }}</p>
+                            </div>
+                            <div class="p-2 rounded-md bg-[#f1f2f6]">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Low Raw Stock</p>
+                                <p class="text-xs font-black" :class="metrics.low_stock_count > 0 ? 'text-amber-600' : 'text-slate-800'">
+                                    {{ metrics.low_stock_count }} items
                                 </p>
                             </div>
-
-                            <!-- Target values list -->
-                            <div class="mt-6 pt-6 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
-                                <div>
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target</p>
-                                    <p class="text-sm font-black text-slate-900 mt-1 flex items-center justify-center gap-0.5 text-red-500">
-                                        1.5M <span class="text-xs">↓</span>
-                                    </p>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Revenue</p>
-                                    <p class="text-sm font-black text-slate-900 mt-1 flex items-center justify-center gap-0.5 text-emerald-500">
-                                        {{ compactCurrency(metrics.sales_revenue) }} <span class="text-xs">↑</span>
-                                    </p>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payments</p>
-                                    <p class="text-sm font-black text-slate-900 mt-1 flex items-center justify-center gap-0.5 text-emerald-500">
-                                        {{ compactCurrency(metrics.payments) }} <span class="text-xs">↑</span>
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Monthly Sales Bar Chart (Screenshot 2 middle) -->
-                    <div class="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm lg:col-span-2">
-                        <div class="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 class="text-lg font-black text-slate-900">Monthly Sales</h3>
-                                <p class="text-xs text-slate-400 mt-0.5 font-medium">Breakdown across periods</p>
-                            </div>
-                        </div>
-                        <div v-if="financeLoading" class="animate-pulse h-[180px] bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 font-bold">
-                            Loading Sales Chart...
-                        </div>
-                        <VueApexCharts v-show="!financeLoading" type="bar" height="180" :options="monthlySalesOptions" :series="monthlySalesSeries" />
-                    </div>
-                </section>
-
-                <!-- SECTION 4: Sales vs Purchase and Overall Info (Screenshot 1 bottom row) -->
-                <section class="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
-                    <!-- Sales vs Purchase Bar Chart -->
-                    <div class="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm lg:col-span-3">
-                        <div class="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 class="text-lg font-black text-slate-900">Sales vs Purchase</h3>
-                                <p class="text-xs text-slate-400 mt-0.5 font-medium">Comparison analytics</p>
-                            </div>
-                            <div class="relative">
-                                <select class="text-xs font-bold text-slate-600 bg-slate-100 border-0 rounded-full px-4 py-1.5 focus:ring-0 focus:outline-none">
-                                    <option>This Year</option>
-                                    <option>Last Year</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div v-if="financeLoading" class="animate-pulse h-[340px] bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 font-bold">
-                            Loading Trends...
-                        </div>
-                        <VueApexCharts v-show="!financeLoading" type="bar" height="340" :options="salesTrendOptions" :series="salesTrendSeries" />
-                    </div>
-
-                    <!-- Overall Information Card -->
-                    <div class="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm lg:col-span-2 flex flex-col justify-between">
-                        <div v-if="leaderboardLoading" class="animate-pulse space-y-6 flex-1 flex flex-col justify-between">
-                            <div>
-                                <div class="flex items-center justify-between mb-6">
-                                    <div class="h-5 bg-slate-200 rounded w-1/3"></div>
-                                    <div class="h-7 bg-slate-100 rounded-full w-24"></div>
-                                </div>
-
-                                <p class="h-4 bg-slate-200 rounded w-1/2 mb-4"></p>
-
-                                <!-- Donut overview section -->
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center mb-6">
-                                    <div class="flex justify-center">
-                                        <div class="size-32 rounded-full border-[10px] border-slate-100 flex items-center justify-center"></div>
-                                    </div>
-                                    <div class="space-y-4">
-                                        <div>
-                                            <div class="h-3 bg-slate-100 rounded w-1/2 mb-2"></div>
-                                            <div class="h-6 bg-slate-200 rounded w-1/3"></div>
-                                        </div>
-                                        <div>
-                                            <div class="h-3 bg-slate-100 rounded w-1/2 mb-2"></div>
-                                            <div class="h-6 bg-slate-200 rounded w-1/3"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Footer mini counters -->
-                            <div class="border-t border-slate-100 pt-5 grid grid-cols-3 gap-2 text-center">
-                                <div v-for="i in 3" :key="i" class="space-y-2">
-                                    <div class="h-5 bg-slate-200 rounded w-1/2 mx-auto"></div>
-                                    <div class="h-3 bg-slate-100 rounded w-2/3 mx-auto"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-else class="flex-1 flex flex-col justify-between">
-                            <div>
-                                <div class="flex items-center justify-between mb-6">
-                                    <h3 class="text-lg font-black text-slate-900">Overall Information</h3>
-                                    <div class="relative">
-                                        <select class="text-xs font-bold text-slate-600 bg-slate-100 border-0 rounded-full px-4 py-1.5 focus:ring-0 focus:outline-none">
-                                            <option>Last 6 Months</option>
-                                            <option>This Month</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <p class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Customers Overview</p>
-
-                                <!-- Donut overview section -->
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center mb-6">
-                                    <div class="flex justify-center">
-                                        <VueApexCharts type="donut" height="150" :options="customerDonutOptions" :series="customerDonutSeries" />
-                                    </div>
-                                    <div class="space-y-4">
-                                        <div>
-                                            <div class="flex items-center gap-1.5 mb-1">
-                                                <span class="size-2 rounded-full bg-emerald-500"></span>
-                                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">First Time</span>
-                                            </div>
-                                            <p class="text-2xl font-black text-slate-900">5.5K</p>
-                                            <span class="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 mt-1">+25%</span>
-                                        </div>
-                                        <div>
-                                            <div class="flex items-center gap-1.5 mb-1">
-                                                <span class="size-2 rounded-full bg-amber-500"></span>
-                                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Return</span>
-                                            </div>
-                                            <p class="text-2xl font-black text-slate-900">3.5K</p>
-                                            <span class="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 mt-1">+21%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Footer mini counters -->
-                            <div class="border-t border-slate-100 pt-5 grid grid-cols-3 gap-2 text-center">
-                                <div>
-                                    <h4 class="text-xl font-black text-slate-900">6,987</h4>
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Suppliers</p>
-                                </div>
-                                <div>
-                                    <h4 class="text-xl font-black text-slate-900">4,896</h4>
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Customers</p>
-                                </div>
-                                <div>
-                                    <h4 class="text-xl font-black text-slate-900">487</h4>
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Orders</p>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- SECTION 5: Double Line Performance Analytics (Screenshot 2 bottom) -->
-                <section class="grid grid-cols-1 gap-8">
-                    <div class="bg-white border border-slate-200/80 rounded-[2rem] p-6 shadow-sm">
-                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+                <!-- TIER 5: MULTI-PERIOD PERFORMANCE TRAJECTORY (FULL WIDTH) -->
+                <section class="grid grid-cols-1 gap-6">
+                    <div class="bg-white border border-slate-200/90 rounded-md p-5 sm:p-6 shadow-xs">
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4 pb-4 border-b border-slate-100">
                             <div>
-                                <h3 class="text-lg font-black text-slate-900">Statistics</h3>
-                                <p class="text-xs text-slate-400 mt-0.5 font-medium">Target vs actual benchmarks</p>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-lg font-extrabold text-slate-900">Performance Trajectory & Forecast Horizon</h3>
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                                        {{ activeTimeTab }} Aggregation
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5 font-medium">Rolling multi-period revenue vs expenditure modeling</p>
                             </div>
                             
                             <!-- Annually / Monthly / Quarterly tabs -->
-                            <div class="inline-flex bg-slate-100 p-1 rounded-xl">
+                            <div class="inline-flex bg-[#f1f2f6] border border-slate-200 p-1 rounded-md gap-1">
                                 <button 
+                                    v-for="tab in ['Monthly', 'Quarterly', 'Annually']"
+                                    :key="tab"
                                     type="button" 
-                                    class="rounded-lg px-4 py-1.5 text-xs font-bold transition"
-                                    :class="activeTimeTab === 'Monthly' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
-                                    @click="activeTimeTab = 'Monthly'"
+                                    class="rounded-md px-3.5 py-1.5 text-xs font-bold transition"
+                                    :class="activeTimeTab === tab ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'"
+                                    @click="activeTimeTab = tab"
                                 >
-                                    Monthly
-                                </button>
-                                <button 
-                                    type="button" 
-                                    class="rounded-lg px-4 py-1.5 text-xs font-bold transition"
-                                    :class="activeTimeTab === 'Quarterly' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
-                                    @click="activeTimeTab = 'Quarterly'"
-                                >
-                                    Quarterly
-                                </button>
-                                <button 
-                                    type="button" 
-                                    class="rounded-lg px-4 py-1.5 text-xs font-bold transition"
-                                    :class="activeTimeTab === 'Annually' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
-                                    @click="activeTimeTab = 'Annually'"
-                                >
-                                    Annually
+                                    {{ tab }}
                                 </button>
                             </div>
                         </div>
 
-                        <div v-if="financeLoading" class="animate-pulse h-[300px] bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 font-bold">
-                            Loading Statistics Chart...
+                        <!-- Horizon Quick Summary Pills -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                            <div class="p-2.5 rounded-md bg-blue-50/60 border border-blue-100">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 block">{{ activeTimeTab }} Revenue</span>
+                                <span class="text-sm font-black text-blue-900">{{ formatCurrency(trajectorySalesTotal) }}</span>
+                            </div>
+                            <div class="p-2.5 rounded-md bg-cyan-50/60 border border-cyan-100">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-700 block">{{ activeTimeTab }} Procurement</span>
+                                <span class="text-sm font-black text-cyan-900">{{ formatCurrency(trajectoryPurchasesTotal) }}</span>
+                            </div>
+                            <div class="p-2.5 rounded-md border" :class="trajectoryNetMargin >= 0 ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50/60 border-rose-100'">
+                                <span class="text-[10px] font-bold uppercase tracking-wider block" :class="trajectoryNetMargin >= 0 ? 'text-emerald-700' : 'text-rose-700'">
+                                    {{ activeTimeTab }} Operating Margin
+                                </span>
+                                <span class="text-sm font-black" :class="trajectoryNetMargin >= 0 ? 'text-emerald-900' : 'text-rose-900'">
+                                    {{ trajectoryNetMargin > 0 ? '+' : '' }}{{ formatCurrency(trajectoryNetMargin) }}
+                                </span>
+                            </div>
                         </div>
-                        <VueApexCharts v-show="!financeLoading" type="area" height="300" :options="statsOptions" :series="statsSeries" />
+
+                        <div v-if="financeLoading" class="animate-pulse h-[280px] bg-slate-50 border border-slate-100 rounded-md flex items-center justify-center text-slate-400 font-bold text-xs">
+                            Updating trajectory forecast...
+                        </div>
+                        <VueApexCharts 
+                            v-else 
+                            :key="'trajectory-' + activeTimeTab" 
+                            type="area" 
+                            height="280" 
+                            :options="statsOptions" 
+                            :series="statsSeries" 
+                        />
                     </div>
                 </section>
 
-                </template>
             </div>
         </div>
     </AppLayout>
 </template>
-
-<style scoped>
-@keyframes auth-panel {
-    from {
-        opacity: 0;
-        transform: translateY(22px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-</style>

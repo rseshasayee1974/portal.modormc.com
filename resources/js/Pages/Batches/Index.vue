@@ -908,7 +908,7 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                     <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{{
                                         slotProps.data.sales_order?.full_number || (slotProps.data.sales_order ?
                                             (slotProps.data.sales_order.prefix || '') +
-                                            String(slotProps.data.sales_order.order_no || '').padStart(4, '0') : '-') }}
+                                            String(slotProps.data.sales_order.order_no || '') : '-') }}
                                     </div>
                                 </div>
                             </template>

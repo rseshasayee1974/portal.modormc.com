@@ -70,6 +70,7 @@ const fetchReviewData = async () => {
 
         headerData.value = {
             batch_no: norm.header?.batch_no || parsedHeader.batch_number || parsedHeader.batch_no || '',
+            batch_date: norm.header?.batch_date || parsedHeader.batch_date || null,
             batch_size: norm.header?.batch_size || parsedHeader.batch_size || parsedHeader.production_quantity || parsedHeader.order_quantity || 1.0,
             start_time: norm.header?.start_time || parsedHeader.batch_start_time || parsedHeader.start_time || '',
             end_time: norm.header?.end_time || parsedHeader.batch_end_time || parsedHeader.end_time || '',
@@ -87,6 +88,7 @@ const fetchReviewData = async () => {
             target_qty: m.target_qty ?? m.target ?? 0,
             actual_qty: m.actual_qty ?? m.actual ?? 0,
             deviation_quantity: m.deviation_quantity ?? ((m.actual_qty ?? 0) - (m.target_qty ?? 0)),
+            runs: Array.isArray(m.runs) ? m.runs : null,
         }));
     } catch (e: any) {
         error.value = e.response?.data?.error || 'Failed to load verification data.';
@@ -227,6 +229,7 @@ const saveMaterialMappingsForPlant = async () => {
 const syncTargetToActual = () => {
     materialsData.value.forEach(m => {
         m.actual_qty = m.target_qty;
+        m.runs = null;
         m.deviation_quantity = 0;
     });
     Swal.fire({
@@ -522,7 +525,7 @@ const isPdf = computed(() => {
                                             <input type="number" step="0.01" v-model="mat.target_qty" class="w-24 px-2 py-1 text-right bg-gray-50 border border-gray-200 rounded text-xs font-mono font-semibold" />
                                         </td>
                                         <td class="px-4 py-2 text-right">
-                                            <input type="number" step="0.01" v-model="mat.actual_qty" class="w-24 px-2 py-1 text-right bg-white border border-gray-300 rounded text-xs font-mono font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                                            <input type="number" step="0.01" v-model="mat.actual_qty" @input="mat.runs = null" class="w-24 px-2 py-1 text-right bg-white border border-gray-300 rounded text-xs font-mono font-bold focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
                                         </td>
                                         <td class="px-4 py-2 text-right font-mono text-[11px] font-bold">
                                             <span :class="(mat.actual_qty - mat.target_qty) === 0 ? 'text-gray-400' : ((mat.actual_qty - mat.target_qty) > 0 ? 'text-blue-600' : 'text-amber-600')">

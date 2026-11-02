@@ -150,7 +150,7 @@ class JournalEntry extends Model
      * Generate the next unique voucher number formatted as: {prefix}/{financial_year}/{sequence} (e.g. CON/26-27/00001)
      * Reassigns any soft-deleted voucher numbers by picking the lowest available sequence number.
      */
-    public static function generateVoucherNumber($plantId, ?string $voucherType = 'Journal', $voucherId = null, $voucherDate = null): string
+    public static function generateVoucherNumber($plantId, ?string $voucherType = 'Journal', $voucherId = null, $voucherDate = null, $ledgerId = null): string
     {
         $vType = null;
         if (!empty($voucherId)) {
@@ -165,7 +165,8 @@ class JournalEntry extends Model
         $rawPrefix = $vType && !empty($vType->prefix)
             ? $vType->prefix
             : ($vType && !empty($vType->short_code) ? $vType->short_code : ($voucherType ?: 'J'));
-        $prefix = trim($rawPrefix, " /-");
+        $ledgerPrefix = Ledger::documentPrefix($plantId, $ledgerId);
+        $prefix = trim($ledgerPrefix !== '' ? $ledgerPrefix : $rawPrefix, " /-");
 
         // Calculate Indian Financial Year (Apr - Mar)
         $date = $voucherDate ?? now();
@@ -180,7 +181,10 @@ class JournalEntry extends Model
         $y2 = $month < 4 ? $year : $year + 1;
         $financialYear = substr((string) $y1, -2) . '-' . substr((string) $y2, -2);
 
-        $pattern = "{$prefix}/{$financialYear}/%";
+        $hasFinancialYear = stripos($prefix, '{fy}') !== false;
+        $prefix = str_ireplace(['{type}', '{fy}'], [$vType?->short_code ?: ($voucherType ?: 'J'), $financialYear], $prefix);
+        $seriesPrefix = rtrim($prefix, '/') . ($hasFinancialYear ? '/' : "/{$financialYear}/");
+        $pattern = $seriesPrefix . '%';
 
         // Fetch all active voucher numbers for this plant, prefix, and financial year (excluding soft-deleted)
         $activeVouchers = self::where('plant_id', $plantId)
@@ -191,7 +195,7 @@ class JournalEntry extends Model
 
         $usedNumbers = [];
         foreach ($activeVouchers as $vNum) {
-            if (preg_match('/\/(\d+)$/', $vNum, $matches)) {
+            if (preg_match('/^' . preg_quote($seriesPrefix, '/') . '(\d+)$/', $vNum, $matches)) {
                 $usedNumbers[(int) $matches[1]] = true;
             }
         }
@@ -202,7 +206,7 @@ class JournalEntry extends Model
             $nextNum++;
         }
 
-        return "{$prefix}/{$financialYear}/" . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
+        return $seriesPrefix . $nextNum;
     }
 
     /**

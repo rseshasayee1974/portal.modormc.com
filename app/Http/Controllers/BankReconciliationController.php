@@ -266,17 +266,9 @@ class BankReconciliationController extends Controller
             $isWithdrawal = $statementLine->debit_amount > 0;
             $amount = $isWithdrawal ? $statementLine->debit_amount : $statementLine->credit_amount;
 
-            // 1. Determine Voucher Prefix
-            $vType = VoucherType::where('short_code', 'JOURNAL')->first();
-            $prefix = $vType ? $vType->prefix : 'JV-';
-
-            $lastEntry = JournalEntry::where('entity_id', $entityId)
-                ->where('voucher_type', 'JOURNAL')
-                ->orderBy('id', 'desc')
-                ->first();
-            
-            $nextNum = $lastEntry ? (int) filter_var($lastEntry->voucher_number, FILTER_SANITIZE_NUMBER_INT) + 1 : 1;
-            $voucherNumber = $prefix . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
+            $voucherNumber = JournalEntry::generateVoucherNumber(
+                $plantId, 'JOURNAL', null, $statementLine->transaction_date, $statementLine->bank_ledger_id
+            );
 
             // 2. Create Header
             $narrationText = $customNarration ?: "BRS Quick Entry: " . $statementLine->description;

@@ -61,7 +61,9 @@ class PettyCashController extends Controller
         DB::transaction(function () use ($validated) {
             $plantId = session('active_plant_id', 1);
 
+            $ledgerId = \App\Models\Expense::where('plant_id', $plantId)->whereKey($validated['items'][0]['expense_id'])->value('paid_through');
             $pettyCash = PettyCash::create([
+                'ref_no' => PettyCash::generateRefNo($plantId, $ledgerId, $validated['date']),
                 'plant_id'        => $plantId,
                 'date'            => $validated['date'],
                 'opening_balance' => $validated['opening_balance'],

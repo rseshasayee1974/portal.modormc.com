@@ -202,7 +202,7 @@ class PurchaseOrder extends Model
             $customPrefix = $settings['po_prefix'];
         }
 
-        $prefix = $customPrefix . "-" . $finYearString . "-";
+        $prefix = rtrim($customPrefix, '/') . "/" . Payment::getFinancialYearString($date ?? now()) . "/";
 
         $lastOrder = self::where('plant_id', $plantId)->whereNull('deleted_at')
             ->where('po_number', 'like', $prefix . '%')
@@ -218,7 +218,7 @@ class PurchaseOrder extends Model
         }
 
     // Return with 4 digit zero-padding, e.g., PO-2526-0001
-        return ['prefix'=>$prefix,'ref_no' => sprintf('%s%04d', $prefix, $nextNumber),'financial_year' => $finYearString];
+        return ['prefix'=>$prefix,'ref_no' => $prefix . $nextNumber,'financial_year' => $finYearString];
     }
 
     /**
@@ -252,7 +252,7 @@ class PurchaseOrder extends Model
                 
                 // Parse the sequence for the pure ref_no column, e.g. "0003"
                 preg_match('/(\d+)$/', $refData['ref_no'], $m);
-                $headerData['ref_no'] = isset($m[1]) ? str_pad($m[1], 4, '0', STR_PAD_LEFT) : $refData['ref_no'];
+                $headerData['ref_no'] = isset($m[1]) ? (string) (int) $m[1] : $refData['ref_no'];
             }
 
             $purchaseOrder = self::create(array_merge($headerData, [

@@ -110,7 +110,9 @@ const journalForm = useForm({
     ] as JournalLine[]
 });
 
+let voucherNumberRequest = 0;
 const refreshVoucherNumber = async () => {
+    const requestId = ++voucherNumberRequest;
     if (editingEntryId.value) return;
     try {
         const vType = journalForm.voucher_type || 'JV';
@@ -119,16 +121,22 @@ const refreshVoucherNumber = async () => {
             params: {
                 voucher_type: vType,
                 voucher_id: journalForm.voucher_id,
+                account_id: journalForm.lines[0]?.account_id,
                 voucher_date: vDate
             }
         });
+        if (requestId !== voucherNumberRequest || editingEntryId.value) return;
         if (res.data?.voucher_number) {
             journalForm.voucher_number = res.data.voucher_number;
         }
     } catch (e) {
-        // Fallback
+        if (requestId === voucherNumberRequest && !editingEntryId.value) journalForm.voucher_number = '';
     }
 };
+
+watch(() => [journalForm.lines[0]?.account_id, journalForm.voucher_id, journalForm.voucher_date], () => {
+    refreshVoucherNumber();
+});
 
 const resetForm = () => {
     editingEntryId.value = null;
@@ -416,6 +424,7 @@ const submitForm = async () => {
         const selectedVoucher = (store.voucherTypes || []).find(v => v.journal_name === journalForm.voucher_type || v.short_code === journalForm.voucher_type || v.id === journalForm.voucher_type);
         const formData = {
             ...journalForm.data(),
+            voucher_number: editingEntryId.value ? journalForm.voucher_number : null,
             voucher_id: selectedVoucher ? selectedVoucher.id : journalForm.voucher_id,
             voucher_name: selectedVoucher ? selectedVoucher.journal_name : journalForm.voucher_name,
             voucher_date: journalForm.voucher_date instanceof Date ? calendarDateString(journalForm.voucher_date) : journalForm.voucher_date,
@@ -551,6 +560,7 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                             :disabled="!editingEntryId"
                         />
                     </div>
+                    <p v-if="!editingEntryId" class="text-xs text-slate-500">The first line's ledger supplies the reference prefix.</p>
 
                     <!-- Voucher Main Narration -->
                     <div>

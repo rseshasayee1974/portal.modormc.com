@@ -22,15 +22,9 @@ class StoreInvoiceRequest extends FormRequest
             $accountId ? (int)$accountId : null
         );
 
-        $cleanNumber = trim((string)$this->input('invoice_number', ''));
-        if (!empty($gen['prefix']) && str_starts_with($cleanNumber, $gen['prefix'])) {
-            $cleanNumber = substr($cleanNumber, strlen($gen['prefix']));
-        }
-        if ($cleanNumber !== '' && ctype_digit($cleanNumber)) {
-            $cleanNumber = str_pad($cleanNumber, 5, '0', STR_PAD_LEFT);
-        }
+        $cleanNumber = \App\Models\Invoice::normalizeNumber((string) $this->input('invoice_number', ''), $gen);
 
-        // Strictly overwrite prefix with system-calculated ledger prefix
+        // Use the plant's configured format or ledger prefix, never client input.
         $this->merge([
             'prefix' => $gen['prefix'],
             'invoice_number' => $cleanNumber !== '' ? $cleanNumber : null,
@@ -60,60 +54,15 @@ class StoreInvoiceRequest extends FormRequest
             'invoice_number'   => [
                 'nullable',
                 'string',
-                'regex:/^[0-9A-Za-z\-_]+$/',
+                'regex:/^[0-9A-Za-z\-_\/]+$/',
                 'max:255',
                 function ($attribute, $value, $fail) {
-                    $plantId = (int)session('active_plant_id');
-                    $accountId = request('account_id');
-                    $gen = \App\Models\Invoice::generateNumber($plantId, request('invoice_type', 'sales'), $accountId ? (int)$accountId : null);
-                    $prefix = $gen['prefix'];
-                    $val = trim((string)$value);
-                    if ($val === '') return;
-
-                    $numOnly = (!empty($prefix) && str_starts_with($val, $prefix)) ? substr($val, strlen($prefix)) : $val;
-                    if (ctype_digit($numOnly)) {
-                        $numOnly = str_pad($numOnly, 5, '0', STR_PAD_LEFT);
-                    }
-                    $full = (!empty($prefix) ? $prefix : '') . $numOnly;
-
-                    $rawInt = ctype_digit((string)$numOnly) ? (int)$numOnly : null;
-                    $unpadded = ctype_digit((string)$numOnly) ? (string)(int)$numOnly : $numOnly;
-
-                    $exists = \App\Models\Invoice::withoutGlobalScopes()
-                        ->where('plant_id', $plantId)
-                        ->where('is_active', 1)
-                        ->whereNull('deleted_at')
-                        ->where(function ($q) use ($prefix, $numOnly, $full, $val, $unpadded, $rawInt) {
-                            $q->where(function ($sub) use ($prefix, $numOnly, $unpadded, $rawInt) {
-                                if (!empty($prefix)) {
-                                    $sub->where('prefix', $prefix)
-                                        ->where(function ($sq) use ($numOnly, $unpadded, $rawInt) {
-                                            $sq->where('invoice_number', $numOnly)
-                                               ->orWhere('invoice_number', $unpadded);
-                                            if ($rawInt !== null) {
-                                                $sq->orWhere(\Illuminate\Support\Facades\DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
-                                            }
-                                        });
-                                } else {
-                                    $sub->where('invoice_number', $numOnly)
-                                        ->orWhere('invoice_number', $unpadded);
-                                    if ($rawInt !== null) {
-                                        $sub->orWhere(\Illuminate\Support\Facades\DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
-                                    }
-                                }
-                            })
-                            ->orWhere('invoice_number', $val)
-                            ->orWhere('invoice_number', $numOnly)
-                            ->orWhere('invoice_number', $unpadded)
-                            ->orWhere('invoice_number', $full)
-                            ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $full)
-                            ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), CAST(invoice_number AS UNSIGNED))"), (!empty($prefix) ? $prefix : '') . $unpadded)
-                            ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $val);
-                        })
-                        ->exists();
-
-                    if ($exists) {
-                        $fail("Invoice number '{$full}' already exists in this plant. Duplicate not allowed.");
+                    $plantId = (int) session('active_plant_id');
+                    $accountId = $this->input('account_id');
+                    $gen = \App\Models\Invoice::generateNumber($plantId, $this->input('invoice_type', 'Invoice'), $accountId ? (int) $accountId : null);
+                    $number = \App\Models\Invoice::normalizeNumber((string) $value, $gen);
+                    if (\App\Models\Invoice::numberExists($plantId, $gen['prefix'], $number)) {
+                        $fail("Invoice number '{$gen['prefix']}{$number}' already exists in this plant. Duplicate not allowed.");
                     }
                 }
             ],

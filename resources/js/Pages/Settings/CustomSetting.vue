@@ -2,6 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import { entityToday } from '@/Utils/entityDateTime';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputSwitch from 'primevue/inputswitch';
@@ -61,6 +62,12 @@ const form = useForm({
         cpo_prefix: props.batchingSettings?.cpo_prefix || 'CPO',
         so_prefix: props.batchingSettings?.so_prefix || 'SO',
         quote_prefix: props.batchingSettings?.quote_prefix || 'QT',
+        invoice_number_format: [1, '1', 'prefix_number_fy'].includes(props.batchingSettings?.invoice_number_format) ? 1 : 0,
+        invoice_number_padding: Number(props.batchingSettings?.invoice_number_padding ?? 0),
+        invoice_number_start: Number(props.batchingSettings?.invoice_number_start ?? 1),
+        billing_number_format: [1, '1', 'prefix_number_fy'].includes(props.batchingSettings?.billing_number_format) ? 1 : 0,
+        billing_number_padding: Number(props.batchingSettings?.billing_number_padding ?? 0),
+        billing_number_start: Number(props.batchingSettings?.billing_number_start ?? 1),
         target_to_actual: props.batchingSettings?.target_to_actual == 1,
         auto_carry_pump: props.batchingSettings?.auto_carry_pump == 1,
         // schedule_to_batch: props.batchingSettings?.schedule_to_batch !== undefined 
@@ -98,6 +105,16 @@ const expanded = ref<Record<string, boolean>>({
 });
 
 const toggle = (key: string) => { expanded.value[key] = !expanded.value[key]; };
+
+const numberingModules = [{ key: 'invoice', label: 'Invoice' }, { key: 'billing', label: 'Billing' }] as const;
+const numberingPreview = (module: 'invoice' | 'billing') => {
+    const [year, month] = entityToday().split('-').map(Number);
+    const startYear = month >= 4 ? year : year - 1;
+    const fy = `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
+    const prefix = 'JG'; // Example ledger prefix; the selected ledger supplies the actual prefix.
+    const sequence = String(form.settings[`${module}_number_start`] || 1).padStart(Number(form.settings[`${module}_number_padding`] || 0), '0');
+    return `${prefix}/${sequence}/${fy}`;
+};
 
 // ─── Summary table ─────────────────────────────────────────────────────────
 const settingRows = computed(() => [
@@ -139,6 +156,7 @@ const settingRows = computed(() => [
     { section: 'Document Prefixes', key: 'so_prefix', label: 'Sales Order Prefix', value: form.settings.so_prefix, type: 'text' },
     { section: 'Document Prefixes', key: 'cpo_prefix', label: 'Customer Order Prefix', value: form.settings.cpo_prefix, type: 'text' },
     { section: 'Document Prefixes', key: 'quote_prefix', label: 'Quotation Prefix', value: form.settings.quote_prefix, type: 'text' },
+    ...numberingModules.map(module => ({ section: 'Document Prefixes', key: `${module.key}_number_format`, label: `${module.label} Number Format`, value: form.settings[`${module.key}_number_format`] === 1 ? numberingPreview(module.key) : 'Ledger description / financial year / number (no zero padding)', type: 'text' })),
     // Custom / Module-specific dynamic parameters
     ...form.settings.custom_params.map((p: any) => ({
         section: modules.find(m => m.value === p.module)?.label || 'Custom',
@@ -196,6 +214,8 @@ const newModuleForm = useForm({
 });
 
 const modules = [
+    { label: 'Invoice', value: 'invoice' },
+    { label: 'Billing', value: 'billing' },
     { label: 'Batching', value: 'batching' },
     { label: 'Inventory', value: 'inventory' },
     { label: 'Fleet', value: 'fleet' },
@@ -887,6 +907,34 @@ const deleteModule = (id: number) => {
                         </button>
 
                         <div v-if="expanded.prefixes" class="p-6 space-y-4 animate-fade-in">
+                            <div v-for="module in numberingModules" :key="module.key" class="rounded-xl border border-slate-200 p-4 space-y-3">
+                                <h3 class="text-sm font-bold text-slate-700">{{ module.label }} numbering</h3>
+                                <label class="flex flex-col gap-1.5 text-xs font-bold text-slate-500">
+                                    Enable custom number format
+                                    <select v-model="form.settings[`${module.key}_number_format`]" class="rounded-lg border-slate-300 text-sm font-normal">
+                                        <option :value="0">Default (0) - Prefix / Financial year / Number</option>
+                                        <option :value="1">Enabled (1) - Prefix / Number / Financial year</option>
+                                    </select>
+                                </label>
+                                <div v-if="form.settings[`${module.key}_number_format`] === 1" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="flex flex-col gap-1.5 text-xs text-slate-500">
+                                        <span class="font-bold">Prefix source</span>
+                                        <span>The selected ledger's description (Prefix), for example JG. Defaults: INV/ for Invoice and BILL/ for Billing.</span>
+                                    </div>
+                                    <label class="flex flex-col gap-1.5 text-xs font-bold text-slate-500">
+                                        Starting number
+                                        <input v-model.number="form.settings[`${module.key}_number_start`]" type="number" min="1" max="9999999999" class="rounded-lg border-slate-300 text-sm font-normal" />
+                                    </label>
+                                    <label class="flex flex-col gap-1.5 text-xs font-bold text-slate-500">
+                                        Minimum digits (0 = no padding)
+                                        <input v-model.number="form.settings[`${module.key}_number_padding`]" type="number" min="0" max="10" class="rounded-lg border-slate-300 text-sm font-normal" />
+                                    </label>
+                                </div>
+                                <p v-if="form.settings[`${module.key}_number_format`] === 1" class="text-xs text-indigo-700">
+                                    Example for ledger prefix JG: <strong>{{ numberingPreview(module.key) }}</strong>. The sequence increases automatically and starts again each financial year.
+                                </p>
+                            </div>
+                            <p class="text-xs text-slate-500">Changes apply to new documents in this plant. Existing numbers stay unchanged. Invoice and Billing share a sequence when their prefixes and financial years match.</p>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div class="flex flex-col gap-1.5">
                                     <label class="text-xs font-bold text-slate-500 uppercase">Purchase Order (PO)

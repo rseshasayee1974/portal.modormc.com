@@ -383,14 +383,7 @@ class PumpBoomDeploymentController extends Controller
         $validated['plant_id'] = $plantId;
         
         if (empty($validated['pour_reference'])) {
-            $month = now()->month;
-            $year = now()->format('y');
-            if ($month >= 4) {
-                $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
-            } else {
-                $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
-            }
-            $prefix = 'PS-' . $financialYear . '-';
+            $prefix = \App\Models\Ledger::documentSeriesPrefix($plantId, null, now(), 'PS');
 
             $activeRefs = PumpBoomDeploymentSchedule::where('pour_reference', 'like', $prefix . '%')
                 ->pluck('pour_reference')
@@ -398,7 +391,7 @@ class PumpBoomDeploymentController extends Controller
 
             $usedSequences = [];
             foreach ($activeRefs as $ref) {
-                if (preg_match('/-(\d+)$/', $ref, $matches)) {
+                if (preg_match('/\/(\d+)$/', $ref, $matches)) {
                     $usedSequences[] = (int) $matches[1];
                 }
             }
@@ -408,7 +401,7 @@ class PumpBoomDeploymentController extends Controller
                 $sequence++;
             }
 
-            $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+            $validated['pour_reference'] = $prefix . $sequence;
         }
 
         
@@ -443,14 +436,7 @@ class PumpBoomDeploymentController extends Controller
         $this->resolveDeploymentStatus($validated, $deployment->status ?: 'scheduled');
 
         if (empty($validated['pour_reference'])) {
-            $month = now()->month;
-            $year = now()->format('y');
-            if ($month >= 4) {
-                $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
-            } else {
-                $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
-            }
-            $prefix = 'PS-' . $financialYear . '-';
+            $prefix = \App\Models\Ledger::documentSeriesPrefix($plantId, null, now(), 'PS');
 
             $activeRefs = PumpBoomDeploymentSchedule::where('pour_reference', 'like', $prefix . '%')
                 ->pluck('pour_reference')
@@ -458,7 +444,7 @@ class PumpBoomDeploymentController extends Controller
 
             $usedSequences = [];
             foreach ($activeRefs as $ref) {
-                if (preg_match('/-(\d+)$/', $ref, $matches)) {
+                if (preg_match('/\/(\d+)$/', $ref, $matches)) {
                     $usedSequences[] = (int) $matches[1];
                 }
             }
@@ -468,7 +454,7 @@ class PumpBoomDeploymentController extends Controller
                 $sequence++;
             }
 
-            $validated['pour_reference'] = $prefix . str_pad($sequence, 2, '0', STR_PAD_LEFT);
+            $validated['pour_reference'] = $prefix . $sequence;
         }
 
         $this->validatePumpOverlap($plantId, $validated, $deployment->id);

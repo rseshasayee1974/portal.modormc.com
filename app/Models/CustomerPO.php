@@ -196,7 +196,7 @@ class CustomerPO extends Model
     {
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
-        $fyString = substr($startYear, -2).substr($startYear + 1, -2);
+        $fyString = substr($startYear, -2) . '-' . substr($startYear + 1, -2);
 
         if (empty($customPrefix)) {
             $customPrefix = 'CPO';
@@ -206,7 +206,7 @@ class CustomerPO extends Model
             }
         }
 
-        $prefix = "{$customPrefix}-{$fyString}-";
+        $prefix = rtrim($customPrefix, '/') . "/{$fyString}/";
 
         $latest = self::where('plant_id', $plantId)
             ->where('prefix', $prefix)
@@ -215,13 +215,13 @@ class CustomerPO extends Model
             ->value('reference');
 
         $sequence = 1;
-        if ($latest && preg_match('/-(\d{4})$/', $latest, $matches)) {
+        if ($latest && preg_match('/\/(\d+)$/', $latest, $matches)) {
             $sequence = ((int) $matches[1]) + 1;
         }
 
         return [
             'prefix' => $prefix,
-            'reference' => sprintf('%s%04d', $prefix, $sequence),
+            'reference' => $prefix . $sequence,
         ];
     }
 }

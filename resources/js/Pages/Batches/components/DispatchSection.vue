@@ -359,7 +359,7 @@ const showInvoiceSection = computed(() => {
 
 onMounted(async () => {
     try {
-        const response = await axios.get(route('dispatches.dropdowns'));
+        const response = await axios.get(route('dispatches.dropdowns'), { params: { customer_id: form.customer_id } });
         if (response.data.prefix && !form.prefix) {
             form.prefix = response.data.prefix;
         }

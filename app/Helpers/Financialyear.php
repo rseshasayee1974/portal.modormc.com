@@ -36,7 +36,7 @@ class Financialyear
         $seq = isset($m[1]) ? (int) $m[1] : 1;
 
         return [
-            'ref_no'         => str_pad($seq, 4, '0', STR_PAD_LEFT),
+            'ref_no'         => (string) $seq,
             'financial_year' => $fy,
             'formatted'      => $formatted['ref_no'],
             'prefix'         =>  $formatted['prefix']

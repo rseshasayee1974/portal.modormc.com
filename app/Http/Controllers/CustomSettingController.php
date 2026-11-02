@@ -24,10 +24,16 @@ class CustomSettingController extends Controller
         $customSettings = CustomSetting::where('plant_id', $plantId)->get();
         $batchingSettings = $customSettings->firstWhere('module_name', 'batching');
 
+        $numberingSettings = $batchingSettings?->settings ?? [];
+        foreach (['invoice', 'billing'] as $numberModule) {
+            $keys = array_map(fn ($part) => $numberModule . '_number_' . $part, ['format', 'padding', 'start']);
+            $moduleSettings = $customSettings->firstWhere('module_name', $numberModule)?->settings ?? [];
+            $numberingSettings = array_replace($numberingSettings, array_intersect_key($moduleSettings, array_flip($keys)));
+        }
         $plant = \App\Models\Plant::find($plantId);
 
         return Inertia::render('Settings/CustomSetting', [
-            'batchingSettings' => $batchingSettings ? $batchingSettings->settings : [],
+            'batchingSettings' => $numberingSettings,
             'batchSheetLogoUrl' => !empty($batchingSettings?->settings['batch_sheet_logo_path'])
                 ? \Illuminate\Support\Facades\Storage::disk('public')->url($batchingSettings->settings['batch_sheet_logo_path']) : null,
             'batchSheetDrivers' => array_values(array_map(fn ($driver) => [
@@ -73,6 +79,12 @@ class CustomSettingController extends Controller
         $module = $request->input('module', 'batching');
         $request->validate([
             'settings' => ['required', 'array'],
+            'settings.invoice_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy'],
+            'settings.billing_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy'],
+            'settings.invoice_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
+            'settings.billing_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
+            'settings.invoice_number_start' => ['sometimes', 'integer', 'min:1', 'max:9999999999'],
+            'settings.billing_number_start' => ['sometimes', 'integer', 'min:1', 'max:9999999999'],
             'settings.batch_creation_source' => ['sometimes', 'in:sales_order,batch_schedule,both'],
             'settings.batch_sheet_driver' => ['sometimes', 'nullable', 'string', \Illuminate\Validation\Rule::in(
                 array_keys(app(\App\Services\BatchSheet\Drivers\PlantDriverRegistry::class)->getDrivers())
@@ -81,6 +93,12 @@ class CustomSettingController extends Controller
             'remove_batch_sheet_logo' => ['sometimes', 'boolean'],
         ]);
         $settings = $request->input('settings', []);
+        foreach (['invoice', 'billing'] as $numberModule) {
+            $key = $numberModule . '_number_format';
+            if (array_key_exists($key, $settings)) {
+                $settings[$key] = in_array($settings[$key], [1, '1', 'prefix_number_fy'], true) ? 1 : 0;
+            }
+        }
         // Multipart uploads encode numbers as strings; keep toggle settings numeric.
         foreach (['manual_weight', 'weight_mandatory', 'with_inventory', 'camera', 'sheet_upload',
             'hide_batch_form', 'target_to_actual', 'auto_carry_pump', 'print_delivery_ingredients',
@@ -93,6 +111,22 @@ class CustomSettingController extends Controller
         $customSetting = CustomSetting::where('plant_id', $plantId)
             ->where('module_name', $module)
             ->first();
+
+        if (in_array($module, ['invoice', 'billing'], true)) {
+            $settings = array_replace($customSetting?->settings ?? [], $settings);
+        }
+
+        if ($module === 'batching') {
+            foreach (['invoice', 'billing'] as $numberModule) {
+                $existingNumberSettings = array_replace($customSetting?->settings ?? [], CustomSetting::getForModule($plantId, $numberModule));
+                foreach (['format', 'padding', 'start'] as $part) {
+                    $key = $numberModule . '_number_' . $part;
+                    if (!array_key_exists($key, $settings) && array_key_exists($key, $existingNumberSettings)) {
+                        $settings[$key] = $existingNumberSettings[$key];
+                    }
+                }
+            }
+        }
 
         // Older settings clients may omit the driver; preserve the plant assignment.
         if ($module === 'batching' && !array_key_exists('batch_sheet_driver', $settings)
@@ -112,17 +146,32 @@ class CustomSettingController extends Controller
         }
         if ($logoPath) $settings['batch_sheet_logo_path'] = $logoPath;
 
-        if ($customSetting) {
-            $oldSettings = $customSetting->settings;
-            $customSetting->update(['settings' => $settings]);
-        } else {
-            $customSetting = CustomSetting::create([
-                'plant_id' => $plantId,
-                'module_name' => $module,
-                'settings' => $settings,
-                'module_id' => 0 // Providing a default for the ID field
-            ]);
-        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($customSetting, $settings, $module, $plantId) {
+            if ($customSetting) {
+                $oldSettings = $customSetting->settings;
+                $customSetting->update(['settings' => $settings]);
+            } else {
+                $customSetting = CustomSetting::create([
+                    'plant_id' => $plantId,
+                    'module_name' => $module,
+                    'settings' => $settings,
+                    'module_id' => 0 // Providing a default for the ID field
+                ]);
+            }
+
+            if ($module === 'batching') {
+                foreach (['invoice', 'billing'] as $numberModule) {
+                    $keys = array_map(fn ($part) => $numberModule . '_number_' . $part, ['format', 'padding', 'start']);
+                    $numberSettings = array_intersect_key($settings, array_flip($keys));
+                    if (!$numberSettings) continue;
+                    $current = CustomSetting::firstOrNew(['plant_id' => $plantId, 'module_name' => $numberModule]);
+                    $current->module_id = $current->module_id ?? 0;
+                    $current->settings = array_replace($current->settings ?? [], $numberSettings);
+                    $current->save();
+                }
+            }
+
+        });
 
         return redirect()->back()->with('success', 'Custom settings updated successfully.');
     }

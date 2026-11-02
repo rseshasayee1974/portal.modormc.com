@@ -89,43 +89,7 @@ class Payment extends Model
     {
         $isReceipt = strtolower((string)$transactionType) === 'receipt';
         $typeShort = $isReceipt ? 'REC' : 'PAY';
-        $voucherType = $isReceipt ? 'RECEIPT' : 'PAYMENT';
-        $finYearString = self::getFinancialYearString($transactionDate);
-        $ledger = Ledger::find($ledgerId);
-        
-        $prefix = '';
-        if ($ledger && !empty(trim((string)$ledger->description))) {
-            $desc = trim((string)$ledger->description);
-            
-            // 1. If description contains template tags like {type} or {fy}
-            if (stripos($desc, '{type}') !== false || stripos($desc, '{fy}') !== false) {
-                $prefix = str_ireplace(['{type}', '{fy}'], [$typeShort, $finYearString], $desc);
-            }
-            // 2. If description already explicitly contains the type (PAY or REC)
-            elseif (stripos($desc, $typeShort) !== false) {
-                if (str_ends_with($desc, '-')) {
-                    $prefix = $desc;
-                } elseif (str_ends_with($desc, '/')) {
-                    $prefix = preg_match('/\d{4}/', $desc) ? $desc : rtrim($desc, '/') . "/{$finYearString}/";
-                } else {
-                    $prefix = "{$desc}/{$finYearString}/";
-                }
-            }
-            // 3. If description is hyphenated (e.g. 'PC-')
-            elseif (str_ends_with($desc, '-')) {
-                $cleanDesc = rtrim($desc, '-');
-                $prefix = "{$cleanDesc}-{$typeShort}-";
-            }
-            // 4. Standard ledger code (e.g. 'SBI', 'CASH', 'HDFC/')
-            else {
-                $cleanDesc = rtrim($desc, '/');
-                $prefix = "{$cleanDesc}/{$typeShort}/{$finYearString}/";
-            }
-        } else {
-            // Default fallback when ledger description is empty:
-            // Separate Payment (PAY/26-27/...) and Receipt (REC/26-27/...)
-            $prefix = "{$typeShort}/{$finYearString}/";
-        }
+        $prefix = Ledger::documentSeriesPrefix($plantId, $ledgerId, $transactionDate, $typeShort);
 
         // Gather all active references from payments
         $paymentRefs = self::where('plant_id', $plantId)
@@ -134,14 +98,13 @@ class Payment extends Model
 
         // Gather all active voucher numbers from journal entries
         $journalVouchers = \App\Models\JournalEntry::where('plant_id', $plantId)
-            ->where('voucher_type', $voucherType)
             ->where('voucher_number', 'like', $prefix . '%')
             ->where('is_deleted', 0)
             ->whereNull('deleted_at')
             ->pluck('voucher_number');
 
         $usedNumbers = [];
-        $pattern = '/' . preg_quote($prefix, '/') . '(\d+)/i';
+        $pattern = '/^' . preg_quote($prefix, '/') . '(\d+)$/i';
 
         foreach ($paymentRefs as $ref) {
             if (preg_match($pattern, $ref, $matches)) {
@@ -160,7 +123,7 @@ class Payment extends Model
             $nextNumber++;
         }
 
-        return $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        return $prefix . $nextNumber;
     }
 
     public function plant()
@@ -224,8 +187,7 @@ class Payment extends Model
             // Resolve any conflicting voucher in mm_journal_entries to avoid 1062 duplicate key error on uk_voucher
             $conflictingEntry = \App\Models\JournalEntry::withTrashed()
                 ->where('plant_id', $plantId)
-                ->where('voucher_type', $voucherType)
-                ->where('voucher_number', $voucherNo)
+                    ->where('voucher_number', $voucherNo)
                 ->first();
 
             if ($conflictingEntry) {

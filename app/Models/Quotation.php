@@ -233,7 +233,7 @@ class Quotation extends Model
     {
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
-        $fyString = substr($startYear, -2).substr($startYear + 1, -2);
+        $fyString = substr($startYear, -2) . '-' . substr($startYear + 1, -2);
 
         $customPrefix = 'QT';
         $settings = CustomSetting::getForModule($plantId, 'batching');
@@ -241,7 +241,7 @@ class Quotation extends Model
             $customPrefix = $settings['quote_prefix'];
         }
 
-        $prefixSearch = "{$customPrefix}-{$fyString}-";
+        $prefixSearch = rtrim($customPrefix, '/') . "/{$fyString}/";
 
         $latest = self::where('plant_id', $plantId)
             ->where('reference', 'LIKE', "{$prefixSearch}%")
@@ -249,11 +249,11 @@ class Quotation extends Model
             ->value('reference');
 
         $sequence = 1;
-        if ($latest && preg_match('/(\d{4})$/', $latest, $matches)) {
+        if ($latest && preg_match('/\/(\d+)$/', $latest, $matches)) {
             $sequence = ((int) $matches[1]) + 1;
         }
 
-        return sprintf('%s-%s-%04d', $customPrefix, $fyString, $sequence);
+        return $prefixSearch . $sequence;
     }
 
     public function updateTotals()

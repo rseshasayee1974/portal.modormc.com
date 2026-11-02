@@ -261,22 +261,33 @@ class BatchSheetUploadController extends Controller
 
         $request->validate([
             'header' => 'required|array',
+            'header.batch_date' => 'nullable|date',
             'materials' => 'required|array',
+            'materials.*.runs' => 'nullable|array|min:1|max:1000',
+            'materials.*.runs.*' => 'required|numeric|min:0',
         ]);
 
         $header = $request->input('header');
         $materials = $request->input('materials');
+        foreach ($materials as $index => $material) {
+            if (!empty($material['runs']) && abs(array_sum($material['runs']) - (float) ($material['actual_qty'] ?? 0)) > 0.01) {
+                throw \Illuminate\Validation\ValidationException::withMessages(["materials.$index.runs" => 'Mixer-cycle readings must add up to the actual material total.']);
+            }
+        }
 
         try {
             DB::transaction(function () use ($upload, $header, $materials) {
+                $batchDate = $header['batch_date'] ?? ($upload->parsed_json['header_fields']['batch_date'] ?? now()->toDateString());
+                $time = fn ($key) => !empty($header[$key])
+                    ? \Carbon\Carbon::parse($header[$key])->setDateFrom(\Carbon\Carbon::parse($batchDate))->format('Y-m-d H:i:s') : null;
                 // 1. Create Batch record
                 $batch = Batch::create([
                     'plant_id' => $upload->plant_id,
                     'sales_order_id' => $header['sales_order_id'] ?? null,
                     'batch_no' => $header['batch_no'] ?? 'BS-' . time(),
                     'batch_size' => (float)($header['batch_size'] ?? 1.0),
-                    'start_time' => $header['start_time'] ? date('H:i:s', strtotime($header['start_time'])) : null,
-                    'end_time' => $header['end_time'] ? date('H:i:s', strtotime($header['end_time'])) : null,
+                    'start_time' => $time('start_time'),
+                    'end_time' => $time('end_time'),
                     'status' => Batch::STATUS_COMPLETED,
                     'operator_id' => $header['operator_id'] ?? null,
                     'sync_status' => 1,
@@ -328,11 +339,13 @@ class BatchSheetUploadController extends Controller
                     $uomId = $product?->unit_id ?? null;
                     $baseName = $m['material_name'] ?? $productTitle;
 
-                    for ($i = 0; $i < count($runSizes); $i++) {
-                        $runSz = $runSizes[$i];
+                    $actualRuns = $m['runs'] ?? null;
+                    $materialRunSizes = $actualRuns ? array_fill(0, count($actualRuns), $batchSize / count($actualRuns)) : $runSizes;
+                    for ($i = 0; $i < count($materialRunSizes); $i++) {
+                        $runSz = $materialRunSizes[$i];
                         
                         $target = $totalTarget * ($runSz / $batchSize);
-                        $actual = $totalActual * ($runSz / $batchSize);
+                        $actual = $actualRuns ? (float) $actualRuns[$i] : $totalActual * ($runSz / $batchSize);
 
                         $batch->materials()->create([
                             'plant_id' => $upload->plant_id,
@@ -347,17 +360,7 @@ class BatchSheetUploadController extends Controller
                 }
 
                 // 3. Create Dispatch Trip Record
-                $currentDate = now();
-                $startYear = $currentDate->month >= 4 ? $currentDate->year : $currentDate->year - 1;
-                $endYear = $startYear + 1;
-                $fyString = substr($startYear, -2) . substr($endYear, -2);
-                $prefix = "DP-{$fyString}-";
-                
-                $maxNumber = Dispatch::where('plant_id', $upload->plant_id)
-                    ->where('prefix', $prefix)
-                    ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
-                
-                $newNumber = ($maxNumber ?: 0) + 1;
+                $number = Dispatch::nextDocumentNumber($upload->plant_id, $header['customer_id'] ?? null);
 
                 Dispatch::create([
                     'plant_id' => $upload->plant_id,
@@ -368,8 +371,8 @@ class BatchSheetUploadController extends Controller
                     'driver_id' => $header['driver_id'] ?? null,
                     'delivered_qty' => $batch->batch_size,
                     'dispatch_status' => 'Draft',
-                    'prefix' => $prefix,
-                    'dispatch_no' => (string)$newNumber,
+                    'prefix' => $number['prefix'],
+                    'dispatch_no' => $number['nextNumber'],
                 ]);
 
                 // 4. Update Upload record status

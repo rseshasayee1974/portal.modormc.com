@@ -307,9 +307,7 @@ class DashboardRepository
             ->orderBy('tonnage', 'desc')
             ->limit(5);
 
-        if (isset($filters['plant_id'])) {
-            $query->where('d.plant_id', $filters['plant_id']);
-        }
+        app(\App\Services\DashboardPlantAccess::class)->scope($query, 'd.plant_id', $filters);
 
         // Date filtering
         if (isset($filters['type'])) {
@@ -378,6 +376,7 @@ class DashboardRepository
         $query = Product::query()
             ->leftJoin('mm_quantity as qty', function ($join) {
                 $join->on('qty.product_id', '=', 'mm_products.id')
+                    ->on('qty.plant_id', '=', 'mm_products.plant_id')
                     ->whereNull('qty.deleted_at');
             })
             ->leftJoin('mm_product_units as unit', 'unit.id', '=', 'mm_products.unit_id')
@@ -401,6 +400,7 @@ class DashboardRepository
             )
             ->orderBy('mm_products.title');
 
+        app(\App\Services\DashboardPlantAccess::class)->scope($query, 'mm_products.plant_id', $filters);
         if (isset($filters['plant_id'])) {
             $query->where('mm_products.plant_id', $filters['plant_id'])
                 ->where(function ($subQuery) use ($filters) {
@@ -611,23 +611,12 @@ class DashboardRepository
     public function getAlerts(array $filters)
     {
         $query = DashboardAlert::query();
-        if (isset($filters['plant_id'])) {
-            $query->where('plant_id', $filters['plant_id']);
-        }
+        $this->applyFilters($query, $filters);
         return $query->orderBy('created_at', 'desc')->limit(10)->get();
     }
 
     public function getPlants()
     {
-        $user = auth()->user();
-        if ($user && !$user->isSystemAdmin()) {
-            $authorizedPlantIds = $user->entityUsers()
-                ->whereNotNull('plant_id')
-                ->pluck('plant_id')
-                ->unique()
-                ->toArray();
-            return Plant::whereIn('id', $authorizedPlantIds)->select('id', 'name as plant_name')->get();
-        }
-        return Plant::select('id', 'name as plant_name')->get();
+        return app(\App\Services\DashboardPlantAccess::class)->query()->orderBy('name')->get(['id', 'name as plant_name']);
     }
 }

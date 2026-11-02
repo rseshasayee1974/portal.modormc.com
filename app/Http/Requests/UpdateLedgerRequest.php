@@ -20,6 +20,7 @@ class UpdateLedgerRequest extends FormRequest
         return [
             'account_type_id' => ['required', 'integer', 'exists:mm_account_types,id'],
             'title'           => ['required', 'string', 'max:255'],
+            'alias'           => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
             'code'            => [
                 'nullable', 
                 'string', 

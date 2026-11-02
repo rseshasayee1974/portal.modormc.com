@@ -164,7 +164,7 @@ class SalesOrder extends Model
 
     public function getFullNumberAttribute()
     {
-        return sprintf('%s%04d', $this->prefix, (int) $this->order_no);
+        return $this->prefix . $this->order_no;
     }
 
     public function getRateAttribute($value)
@@ -231,7 +231,7 @@ class SalesOrder extends Model
         // Financial Year: April to March
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $endYear = $startYear + 1;
-        $fyString = substr($startYear, -2).substr($endYear, -2);
+        $fyString = substr($startYear, -2) . '-' . substr($endYear, -2);
 
         $customPrefix = $prefix;
         if ($prefix === 'SO') {
@@ -257,8 +257,8 @@ class SalesOrder extends Model
 
         return [
             'prefix' => $fullPrefix,
-            'next_number' => str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT),
-            'full_number' => $fullPrefix.str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT),
+            'next_number' => (string) $nextSequence,
+            'full_number' => $fullPrefix.(string) $nextSequence,
         ];
     }
 

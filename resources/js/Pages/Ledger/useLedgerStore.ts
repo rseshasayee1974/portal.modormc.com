@@ -7,6 +7,7 @@ export interface Ledger {
     code: string | null;
     is_pnl: boolean | number;
     title: string;
+    alias: string | null;
     slug: string | null;
     notes: string | null;
     description: string | null;

@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import axios from 'axios';
 import {
     ArrowPathIcon,
@@ -19,7 +20,9 @@ import {
     DocumentDuplicateIcon,
     CreditCardIcon,
     TicketIcon,
-    CalendarIcon
+    CalendarIcon,
+    BuildingOffice2Icon,
+    ChevronDownIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -37,6 +40,47 @@ const getPastDateString = (daysAgo) => {
 
 const startDate = ref(getPastDateString(30));
 const endDate = ref(entityToday());
+const selectedPreset = ref('30d');
+let isApplyingPreset = false;
+
+const activePlantName = computed(() => {
+    const p = (props.plants || []).find(plant => plant.id === selectedPlant.value);
+    return p ? p.name : 'All Plants';
+});
+
+const applyPreset = (preset) => {
+    isApplyingPreset = true;
+    selectedPreset.value = preset;
+    const today = entityToday();
+    if (preset === 'today') {
+        startDate.value = today;
+        endDate.value = today;
+    } else if (preset === '7d') {
+        startDate.value = getPastDateString(7);
+        endDate.value = today;
+    } else if (preset === '30d') {
+        startDate.value = getPastDateString(30);
+        endDate.value = today;
+    } else if (preset === 'month') {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        startDate.value = `${year}-${month}-01`;
+        endDate.value = today;
+    }
+    fetchDashboardData().finally(() => {
+        isApplyingPreset = false;
+    });
+};
+
+const onCustomDateChange = () => {
+    if (isApplyingPreset) return;
+    selectedPreset.value = 'custom';
+    if (startDate.value && endDate.value && startDate.value > endDate.value) {
+        endDate.value = startDate.value;
+    }
+    fetchDashboardData();
+};
 
 const dashboardData = ref({
     kpis: {
@@ -299,57 +343,101 @@ const donutChartOptions = computed(() => ({
             <div class="mx-auto max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8">
 
                 <!-- HEADER -->
-                <header class="flex flex-col xl:flex-row xl:items-center xl:justify-between mb-8 gap-6">
-                    <div>
-                        <h1 class="text-3xl font-bold tracking-tight text-slate-900">Production Dashboard</h1>
-                        <p class="text-sm text-slate-500 mt-1">Multi-module operational command center (CTO View)</p>
+                <header class="flex flex-col 2xl:flex-row 2xl:items-center 2xl:justify-between mb-8 gap-5">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-emerald-700 border border-emerald-500/20">
+                                <span class="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Live Operations
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-700 border border-slate-200">
+                                <BuildingOffice2Icon class="size-3.5 text-slate-500 shrink-0" />
+                                <span class="truncate max-w-[220px]">{{ activePlantName }}</span>
+                            </span>
+                        </div>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Production Dashboard</h1>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">Multi-module operational command center & dispatch monitoring</p>
                     </div>
 
-                    <!-- Date range & Plant Switcher widget -->
-                    <div class="flex flex-wrap items-center gap-3">
-                        <!-- Date Range Selection -->
-                        <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded-xl shadow-sm">
-                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider pl-2">Period:</span>
-                            <input 
-                                type="date" 
+                    <!-- Unified Controls Toolbar -->
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <!-- Quick Date Presets -->
+                        <div class="inline-flex items-center rounded-xl bg-slate-100/90 p-1 border border-slate-200/80 shadow-xs shrink-0">
+                            <button 
+                                v-for="preset in [
+                                    { key: 'today', label: 'Today' },
+                                    { key: '7d', label: '7D' },
+                                    { key: '30d', label: '30D' },
+                                    { key: 'month', label: 'This Month' }
+                                ]"
+                                :key="preset.key"
+                                type="button" 
+                                @click="applyPreset(preset.key)"
+                                class="px-2.5 py-1 text-xs font-bold rounded-lg transition-all"
+                                :class="selectedPreset === preset.key ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'"
+                            >
+                                {{ preset.label }}
+                            </button>
+                        </div>
+
+                        <!-- Date Range Pickers -->
+                        <div class="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-xl px-2.5 py-1 shadow-xs shrink-0">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-0.5">Period:</span>
+                            <BaseDatePicker 
                                 v-model="startDate" 
-                                @change="fetchDashboardData"
-                                class="text-xs font-semibold text-slate-700 border-0 bg-transparent p-1 focus:ring-0 focus:outline-none"
+                                dateFormat="dd-mm-yy" 
+                                placeholder="Start Date" 
+                                :showIcon="true" 
+                                iconDisplay="input"
+                                size="small"
+                                class="w-32"
+                                @change="onCustomDateChange"
                             />
-                            <span class="text-slate-400 text-xs">-</span>
-                            <input 
-                                type="date" 
+                            <span class="text-slate-400 font-bold text-xs">to</span>
+                            <BaseDatePicker 
                                 v-model="endDate" 
-                                @change="fetchDashboardData"
-                                class="text-xs font-semibold text-slate-700 border-0 bg-transparent p-1 focus:ring-0 focus:outline-none"
+                                dateFormat="dd-mm-yy" 
+                                placeholder="End Date" 
+                                :showIcon="true" 
+                                iconDisplay="input"
+                                size="small"
+                                class="w-32"
+                                @change="onCustomDateChange"
                             />
                         </div>
 
-                        <!-- Plant Switcher -->
-                        <div class="flex items-center gap-3 bg-white border border-slate-200 p-2 rounded-xl shadow-sm">
+                        <!-- Plant Switcher with proper padding & custom icons -->
+                        <div class="relative flex items-center shrink-0">
+                            <BuildingOffice2Icon class="absolute left-3 size-4 text-slate-400 pointer-events-none z-10" />
                             <select 
                                 v-model="selectedPlant" 
-                                class="text-xs font-semibold uppercase tracking-wider text-slate-700 border-0 bg-transparent rounded-lg px-4 py-2 focus:ring-0 focus:outline-none"
+                                class="appearance-none text-xs font-bold uppercase tracking-wider text-slate-700 bg-white border border-slate-200/90 rounded-xl pl-9 pr-9 py-2.5 shadow-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition min-w-[200px] max-w-[260px] sm:max-w-[320px] truncate cursor-pointer hover:border-slate-300"
                                 @change="filterPlant"
                             >
-                                <option v-for="plant in plants" :key="plant.id" :value="plant.id" class="bg-white text-slate-800">{{ plant.name }}</option>
+                                <option v-for="plant in plants" :key="plant.id" :value="plant.id" class="bg-white text-slate-800 normal-case font-medium">
+                                    {{ plant.name }}
+                                </option>
                             </select>
-                            <button 
-                                type="button" 
-                                class="p-2 rounded-lg bg-white hover:bg-slate-100 transition border border-slate-200"
-                                @click="fetchDashboardData({ refresh: true })"
-                                :disabled="loading"
-                            >
-                                <ArrowPathIcon class="size-4 text-slate-600" :class="loading ? 'animate-spin' : ''" />
-                            </button>
+                            <ChevronDownIcon class="absolute right-3 size-4 text-slate-400 pointer-events-none z-10" />
                         </div>
+
+                        <!-- Refresh Action Button -->
+                        <button 
+                            type="button" 
+                            class="p-2.5 rounded-xl bg-white hover:bg-slate-50 active:bg-slate-100 transition border border-slate-200/90 shadow-xs text-slate-600 hover:text-slate-900 disabled:opacity-50 shrink-0"
+                            @click="fetchDashboardData({ refresh: true })"
+                            :disabled="loading"
+                            title="Refresh Dashboard Data"
+                        >
+                            <ArrowPathIcon class="size-4" :class="loading ? 'animate-spin text-indigo-600' : ''" />
+                        </button>
 
                         <!-- Link to Batching & Dispatch Scheduling Dashboard -->
                         <Link 
                             :href="route('production.batching-schedules.index')" 
-                            class="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+                            class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs hover:shadow transition-all whitespace-nowrap shrink-0"
                         >
-                            <CalendarIcon class="w-4 h-4 text-sky-400" />
+                            <CalendarIcon class="size-4 text-sky-400" />
                             <span>Dispatch & Pour Schedules</span>
                         </Link>
                     </div>

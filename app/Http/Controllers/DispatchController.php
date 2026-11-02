@@ -24,30 +24,15 @@ class DispatchController extends Controller
         return collect($source)->only($fields)->toArray();
     }
 
-    protected function getNextDispatchDetails($plantId)
+    protected function getNextDispatchDetails($plantId, $customerId = null)
     {
-        $currentDate = now();
-        $startYear = $currentDate->month >= 4 ? $currentDate->year : $currentDate->year - 1;
-        $endYear = $startYear + 1;
-        $fyString = substr($startYear, -2) . substr($endYear, -2);
-        $prefix = "DP-{$fyString}-";
-        
-        $maxNumber = Dispatch::where('plant_id', $plantId)
-            ->where('prefix', $prefix)
-            ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
-        
-        $newNumber = ($maxNumber ?: 0) + 1;
-        
-        return [
-            'prefix' => $prefix,
-            'nextNumber' => (string)$newNumber,
-        ];
+        return Dispatch::nextDocumentNumber($plantId, $customerId);
     }
- 
-    public function dropdowns()
+
+    public function dropdowns(Request $request)
     {
         $plantId = session('active_plant_id');
-        $details = $this->getNextDispatchDetails($plantId);
+        $details = $this->getNextDispatchDetails($plantId, $request->input('customer_id'));
         
         return response()->json([
             'prefix' => $details['prefix'],
@@ -97,11 +82,9 @@ class DispatchController extends Controller
 
                 $dispatchData['plant_id'] = session('active_plant_id');
 
-                if (empty($dispatchData['dispatch_no'])) {
-                    $details = $this->getNextDispatchDetails($dispatchData['plant_id']);
-                    $dispatchData['prefix'] = $details['prefix'];
-                    $dispatchData['dispatch_no'] = $details['nextNumber'];
-                }
+                $details = $this->getNextDispatchDetails($dispatchData['plant_id'], $dispatchData['customer_id'] ?? null);
+                $dispatchData['prefix'] = $details['prefix'];
+                $dispatchData['dispatch_no'] = $details['nextNumber'];
 
                 // if (!empty($dispatchData['sales_order_id'])) {
                 //     $wo = \App\Models\SalesOrder::find($dispatchData['sales_order_id']);
@@ -296,42 +279,9 @@ class DispatchController extends Controller
                         $trimmed = trim((string)$value);
                         $ledgerId = $request->input('ledger_id') ? (int)$request->input('ledger_id') : null;
                         $details = \App\Models\Invoice::generateNumber($dispatch->plant_id, 'dispatch', $ledgerId);
-                        $autoPrefix = $details['prefix'] ?? '';
-
-                        $numberPart = $trimmed;
-                        if (!empty($autoPrefix) && str_starts_with($trimmed, $autoPrefix)) {
-                            $numberPart = substr($trimmed, strlen($autoPrefix));
-                        }
-                        if (ctype_digit((string)$numberPart)) {
-                            $numberPart = str_pad((string)$numberPart, 5, '0', STR_PAD_LEFT);
-                        }
-                        $fullNumber = $autoPrefix . $numberPart;
-
-                        $rawInt = ctype_digit((string)$numberPart) ? (int)$numberPart : null;
-                        $unpadded = ctype_digit((string)$numberPart) ? (string)(int)$numberPart : $numberPart;
-
-                        $query = \App\Models\Invoice::withoutGlobalScopes()
-                            ->where('plant_id', $dispatch->plant_id)
-                            ->where('is_active', 1)
-                            ->whereNull('deleted_at');
-
-                        $exists = $query->where(function ($q) use ($numberPart, $fullNumber, $autoPrefix, $unpadded, $rawInt) {
-                                $q->where(function ($sub) use ($numberPart, $autoPrefix, $unpadded, $rawInt) {
-                                    $sub->where('prefix', $autoPrefix)
-                                        ->where(function ($sq) use ($numberPart, $unpadded, $rawInt) {
-                                            $sq->where('invoice_number', $numberPart)
-                                               ->orWhere('invoice_number', $unpadded);
-                                            if ($rawInt !== null) {
-                                                $sq->orWhere(\Illuminate\Support\Facades\DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
-                                            }
-                                        });
-                                })
-                                ->orWhere('invoice_number', $numberPart)
-                                ->orWhere('invoice_number', $unpadded)
-                                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber)
-                                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), CAST(invoice_number AS UNSIGNED))"), (!empty($autoPrefix) ? $autoPrefix : '') . $unpadded);
-                            })
-                            ->exists();
+                        $numberPart = \App\Models\Invoice::normalizeNumber($trimmed, $details);
+                        $fullNumber = $details['prefix'] . $numberPart;
+                        $exists = \App\Models\Invoice::numberExists((int) $dispatch->plant_id, $details['prefix'], $numberPart);
 
                         if ($exists) {
                             $fail("The invoice number '{$fullNumber}' is already in use and active in the database.");
@@ -354,8 +304,9 @@ class DispatchController extends Controller
                 $manualNumber = (isset($validated['invoice_number']) && trim((string)$validated['invoice_number']) !== '') 
                     ? trim((string)$validated['invoice_number']) 
                     : null;
-                if ($manualNumber !== null && ctype_digit((string)$manualNumber)) {
-                    $manualNumber = str_pad((string)$manualNumber, 5, '0', STR_PAD_LEFT);
+                if ($manualNumber !== null) {
+                    $details = \App\Models\Invoice::generateNumber($dispatch->plant_id, 'dispatch', (int) $validated['ledger_id']);
+                    $manualNumber = \App\Models\Invoice::normalizeNumber($manualNumber, $details);
                 }
 
                 $invoice = \App\Models\Invoice::createFromSource($dispatch, 'Invoice', [
