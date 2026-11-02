@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MODO Sales Executive Mobile API v1",
-    "description": "Admin customer PO/order CRUD, conversion and negative cases are included and use admin_token without module permissions. Sales app /api/mobile/v1 uses api_token and shows only creator-owned leads/quotations in the selected plant. Admin app /api/mobile uses admin_token for plant-scoped lead and submitted quotation review. Import the shared environment, set both accounts and plant_id. Run Login, Create lead/quotation, Submit quotation, Admin login/review, then Refresh quotation. Run alternatives and delete actions individually.",
+    "description": "Import the companion environment, set base_url, plant_id and api_token, then run Attendance in this order: Current attendance -> Check in after login -> Check out before logout -> My attendance history. The check-in test script saves data.id to attendance_id automatically. Server time is authoritative when a shift is configured; use the no-shift alternative only when current attendance reports accepts_check_in_time=true.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -3536,7 +3536,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
-                  "const a=pm.response.json().data.attendance; if(a) pm.environment.set('attendance_id',a.id); else pm.environment.unset('attendance_id');"
+                    "const a=pm.response.json().data?.attendance; if(a?.id) pm.environment.set('attendance_id',String(a.id));"
                 ]
               }
             }
@@ -3632,7 +3632,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
-                  "const j=pm.response.json(); const d=j.data || j.schedule; if(d && d.id) pm.environment.set('attendance_id',d.id);"
+                    "const j=pm.response.json(); const d=j.data || {}; if(d?.id) pm.environment.set('attendance_id',String(d.id));"
                 ]
               }
             }
@@ -3744,7 +3744,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                    "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299)); pm.test('History is paginated', () => pm.expect(pm.response.json().data.data).to.be.an('array'));"
                 ]
               }
             }
@@ -4008,7 +4008,7 @@
             "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Alternative to Check in after login. Empty JSON is valid; notes are optional. Do not expect a new session if attendance already exists. Notification behavior: this request does not directly trigger a business push notification.",
             "body": {
               "mode": "raw",
-              "raw": "{}",
+                    "raw": "{\n  \"check_in\": \"2026-11-02 08:45:00\",\n  \"notes\": \"Starting customer visits\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

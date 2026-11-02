@@ -5,6 +5,7 @@ import { ref, computed } from 'vue';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputSwitch from 'primevue/inputswitch';
+import InputNumber from 'primevue/inputnumber';
 import Swal from 'sweetalert2';
 import {
     Cog6ToothIcon,
@@ -62,6 +63,7 @@ const form = useForm({
         so_prefix: props.batchingSettings?.so_prefix || 'SO',
         quote_prefix: props.batchingSettings?.quote_prefix || 'QT',
         target_to_actual: props.batchingSettings?.target_to_actual == 1,
+        actual_consumption_variation: Number(props.batchingSettings?.actual_consumption_variation ?? props.batchingSettings?.actual_variation_limit ?? 5),
         auto_carry_pump: props.batchingSettings?.auto_carry_pump == 1,
         // schedule_to_batch: props.batchingSettings?.schedule_to_batch !== undefined 
         //     ? (props.batchingSettings?.schedule_to_batch == 1 || props.batchingSettings?.schedule_to_batch === true || props.batchingSettings?.schedule_to_batch === "true") 
@@ -125,6 +127,7 @@ const settingRows = computed(() => [
     { section: 'Batch Sheet', key: 'sheet_upload', label: 'Upload Batch Sheet', value: form.settings.sheet_upload, type: 'bool' },
     { section: 'Batch Sheet', key: 'hide_batch_form', label: 'Hide Add & Edit Batch Forms', value: form.settings.hide_batch_form, type: 'bool' },
     { section: 'Batch Sheet', key: 'target_to_actual', label: 'One-Click Target to Actual', value: form.settings.target_to_actual, type: 'bool' },
+    { section: 'Batch Sheet', key: 'actual_consumption_variation', label: 'Actual Consumption Variation (+/-)', value: form.settings.actual_consumption_variation, type: 'text' },
     { section: 'Batch Sheet', key: 'auto_carry_pump', label: 'Auto-Select Previous Batch Pump', value: form.settings.auto_carry_pump, type: 'bool' },
     // { section: 'Batch Sheet', key: 'schedule_to_batch',  label: 'Create Real Batch from Schedule',  value: form.settings.schedule_to_batch,   type: 'bool' },
     { section: 'Defaults', key: 'default_transport', label: 'Default Transporter Name', value: form.settings.default_transport, type: 'text' },
@@ -162,6 +165,7 @@ const submit = () => {
         sheet_upload: form.settings.sheet_upload ? 1 : 0,
         hide_batch_form: form.settings.hide_batch_form ? 1 : 0,
         target_to_actual: form.settings.target_to_actual ? 1 : 0,
+        actual_consumption_variation: Math.max(0, Number(form.settings.actual_consumption_variation ?? 5)),
         auto_carry_pump: form.settings.auto_carry_pump ? 1 : 0,
         // schedule_to_batch:  form.settings.schedule_to_batch  ? 1 : 0,
         quote_validity: form.settings.quote_validity ? parseInt(form.settings.quote_validity as any, 10) : 15,
@@ -618,7 +622,7 @@ const deleteModule = (id: number) => {
                             <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
                         </button>
 
-                        <div v-if="expanded.batch_sync" class="p-6 space-y-4 animate-fade-in">
+                        <div  v-if="expanded.batch_sync" class="p-6 space-y-4 animate-fade-in">
                             <div class="p-4 bg-violet-50 rounded-xl border border-violet-100 space-y-2">
                                 <label class="font-bold text-violet-700 text-sm">Batch Sheet PDF Driver</label>
                                 <p class="text-xs text-violet-600">Assign the readable PDF format for {{ plantName }} (Plant ID: {{ plantId }}). Automatic detection uses the document's format.</p>
@@ -684,6 +688,14 @@ const deleteModule = (id: number) => {
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.target_to_actual" />
+                            </div>
+
+                            <div class="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                                <div>
+                                    <h4 class="font-bold text-indigo-700 text-sm">Actual Consumption Variation</h4>
+                                    <p class="text-xs text-indigo-500 mt-0.5">Maximum +/- quantity applied to each product's generated total actual consumption.</p>
+                                </div>
+                                <InputNumber v-model="form.settings.actual_consumption_variation" :min="0" :maxFractionDigits="3" class="w-28" />
                             </div>
 
                             <div class="flex flex-col gap-2 p-4 bg-indigo-50 rounded-xl border border-indigo-100">

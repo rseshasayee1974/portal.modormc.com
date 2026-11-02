@@ -107,7 +107,8 @@ class ProductController extends Controller
         $plant = \App\Models\Plant::findOrFail($plantId);
        // 1. Safe Early Check (Fixed potential fatal crash & scoped to active plant)
     if ($request->filled('title')) {
-        $existingProduct = Product::where('title', $request->title)
+        $normalizedTitle = mb_strtoupper(trim((string) $request->input('title')), 'UTF-8');
+        $existingProduct = Product::where('title', $normalizedTitle)
             ->where('plant_id', $plantId)
             ->first();
 
@@ -136,6 +137,9 @@ class ProductController extends Controller
             'stock_alert' => 'nullable|numeric|min:0',
             'conversion_quantity' => 'nullable|numeric|min:0',
         ]);
+        $validated['title'] = mb_strtoupper(trim($validated['title']), 'UTF-8');
+        $validated['alias'] = isset($validated['alias']) && $validated['alias'] !== null
+            ? mb_strtoupper(trim($validated['alias']), 'UTF-8') : null;
 
         Product::create(array_merge($validated, [
             'plant_id' => $plantId,
@@ -178,6 +182,9 @@ public function update(Request $request, Product $product)
         'stock_alert'         => 'nullable|numeric|min:0',
         'conversion_quantity' => 'nullable|numeric|min:0',
     ]);
+    $validated['title'] = mb_strtoupper(trim($validated['title']), 'UTF-8');
+    $validated['alias'] = isset($validated['alias']) && $validated['alias'] !== null
+        ? mb_strtoupper(trim($validated['alias']), 'UTF-8') : null;
 
     // 2. Check for Restricted Fields when Active Mix Design/Batch exists
     if ($product->isRestrictedFromModification()) {

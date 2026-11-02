@@ -60,6 +60,17 @@ class CustomSetting extends Model
         return in_array($source, ['sales_order', 'batch_schedule', 'both'], true) ? $source : 'sales_order';
     }
 
+    /**
+     * Maximum absolute variation allowed for generated actual consumption totals.
+     */
+    public static function actualConsumptionVariation($plantId): float
+    {
+        $settings = self::getForModule($plantId, 'batching');
+        $value = (float) ($settings['actual_consumption_variation'] ?? $settings['actual_variation_limit'] ?? 5);
+
+        return max(0, $value);
+    }
+
     public static function getForModule($plantId, $moduleName)
     {
         $moduleNameColumn = Schema::hasColumn('mm_custom_settings', 'module_name')

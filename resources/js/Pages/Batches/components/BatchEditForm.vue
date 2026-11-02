@@ -227,6 +227,12 @@ const runSizes = computed(() => {
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
+const actualConsumptionVariation = computed(() => {
+    const configured = customSettings?.batching?.actual_consumption_variation
+        ?? customSettings?.batching?.actual_variation_limit;
+    const value = Number(configured);
+    return Number.isFinite(value) && value >= 0 ? value : 5;
+});
 const isWeightMandatory = computed(() => customSettings?.batching?.weight_mandatory === undefined || customSettings?.batching?.weight_mandatory === 1 || customSettings?.batching?.weight_mandatory === true || customSettings?.batching?.weight_mandatory === 'true' || customSettings?.batching?.weight_mandatory === '1');
 
 const isUploadFetchEnabled = computed(() => {
@@ -834,18 +840,34 @@ const fetchConsumption = async () => {
 const copyTargetsToActuals = () => {
     form.materials.forEach((mat) => {
         const size = Number(form.batch_size || 1);
-        mat.runs = runSizes.value.map((runSz) => {
+        const targetQty = Number(mat.target_qty ?? 0);
+        const generatedRuns = runSizes.value.map((runSz) => {
             const targetForRun = Number(mat.target_qty ?? 0) * (runSz / size);
             const variation = Math.random() * 10 - 5;
             return Number(Math.max(0, targetForRun + variation).toFixed(3));
         });
+
+        if (targetQty > 0 && generatedRuns.length) {
+            // Keep the existing per-run randomness, but constrain total consumption
+            // to the configured +/- limit around the target quantity.
+            const total = generatedRuns.reduce((sum, value) => sum + value, 0);
+            const desiredTotal = targetQty + ((Math.random() * 2 - 1) * actualConsumptionVariation.value);
+            if (total > 0) {
+                const scale = desiredTotal / total;
+                generatedRuns.splice(0, generatedRuns.length, ...generatedRuns.map(value => Number((value * scale).toFixed(3))));
+                const roundedTotal = generatedRuns.reduce((sum, value) => sum + value, 0);
+                generatedRuns[generatedRuns.length - 1] = Number((generatedRuns[generatedRuns.length - 1] + (desiredTotal - roundedTotal)).toFixed(3));
+            }
+        }
+
+        mat.runs = generatedRuns;
     });
     Swal.fire({
         toast: true,
         position: 'top-end',
         icon: 'success',
         // title: 'Actual quantities generated within ±5 of run targets',
-        title: 'Actual quantities generated',
+        title: `Actual quantities generated (total +/-${actualConsumptionVariation.value})`,
         showConfirmButton: false,
         timer: 1500
     });

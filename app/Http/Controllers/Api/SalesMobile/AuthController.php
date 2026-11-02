@@ -167,7 +167,36 @@ class AuthController extends Controller
 
     private function profile(User $user): array
     {
-        return ['id' => $user->id, 'name' => $user->username, 'email' => $user->email, 'personnel_id' => $user->personnel?->id, 'mobile' => $user->mobile];
+        $personnel = $user->relationLoaded('personnel') ? $user->personnel : $user->load('personnel.shifts')->personnel;
+        $shifts = $personnel?->shifts ?? collect();
+        $today = now()->toDateString();
+        $activeShift = $shifts->first(function ($shift) use ($today) {
+            $from = $shift->pivot?->effective_from;
+            $to = $shift->pivot?->effective_to;
+            return (!$from || (string) $from <= $today) && (!$to || (string) $to >= $today);
+        }) ?? $shifts->first();
+
+        $serializeShift = static fn ($shift) => $shift ? [
+            'id' => $shift->id,
+            'name' => $shift->shift_name,
+            'start_time' => $shift->start_time,
+            'end_time' => $shift->end_time,
+            'grace_time' => $shift->grace_time,
+            'working_hours' => $shift->working_hours,
+            'is_night_shift' => (bool) $shift->is_night_shift,
+            'effective_from' => $shift->pivot?->effective_from,
+            'effective_to' => $shift->pivot?->effective_to,
+        ] : null;
+
+        return [
+            'id' => $user->id,
+            'name' => $user->username,
+            'email' => $user->email,
+            'personnel_id' => $personnel?->id,
+            'mobile' => $user->mobile,
+            'shift' => $serializeShift($activeShift),
+            'shifts' => $shifts->map($serializeShift)->values()->all(),
+        ];
     }
 
     private function plantList(User $user)
