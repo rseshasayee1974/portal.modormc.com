@@ -33,11 +33,16 @@ tests/
 !/tests/Unit/
 /tests/Unit/*
 !/tests/Unit/JayadhityaGroupsPlant739DriverTest.php
+!/tests/Unit/JayadhityaPlant2787DriverTest.php
 !/tests/Feature/
 /tests/Feature/*
 !/tests/Feature/EinvoiceAuthTest.php
 !/tests/Feature/DashboardPlantAccessTest.php
 !/tests/Feature/InvoiceNumberFormatTest.php
+!/tests/Feature/JayadhityaPlant2787BatchSheetTest.php
+!/tests/Fixtures/
+/tests/Fixtures/*
+!/tests/Fixtures/JayadhityaPlant2787Fixture.php
 !/tests/Feature/QualityRoutesTest.php
 !/tests/Feature/InvoiceClassificationTest.php
 !/tests/Feature/PatronStatementBillTest.php

@@ -42,7 +42,7 @@ class JayadhityaPlant2787Driver extends AbstractPlantDriver
             $value = $this->matchRegex('/^'.preg_quote($label, '/').':\h*:?[\h]*([^\n]*)/mi', $text);
             if ($value !== null && $value !== '') $header[$key] = trim($value, " \t:");
         }
-        if (isset($header['plant_serial']) && $header['plant_serial'] !== '2787') {
+        if (($header['plant_serial'] ?? null) !== '2787') {
             throw new UnexpectedValueException('The selected Plant 2 profile requires plant serial 2787.');
         }
         if (isset($header['batch_date'])) $header['batch_date'] = $this->normalizeDate($header['batch_date']);
@@ -54,6 +54,9 @@ class JayadhityaPlant2787Driver extends AbstractPlantDriver
         }
         // The stored batch is the full load, not the one-m3 mixer cycle.
         if (isset($header['production_qty'])) $header['batch_size'] = $header['production_qty'];
+        if (empty($header['batch_number']) || !is_numeric($header['production_qty'] ?? null) || $header['production_qty'] <= 0) {
+            throw new UnexpectedValueException('Plant 2787: a docket number and positive production quantity are required.');
+        }
 
         $set = $this->totals($text, 'Total Set Weight in Kgs.');
         $actual = $this->totals($text, 'Total Actual in Kgs.');

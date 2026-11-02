@@ -52,6 +52,8 @@ class JayadhityaPlant2787BatchSheet
                     $cells[] = $kind === 'target' ? '+/-' : ($kind === 'actual' ? '0' : '');
                 } elseif ($column === null) {
                     $cells[] = '';
+                } elseif ($column === 'MS' && $kind !== 'actual' && !isset($values[$column])) {
+                    $cells[] = '';
                 } else {
                     $precision = in_array($column, ['ADMIX 1', 'ADMIX 2'], true) ? 2 : ($report['precisions'][$column] ?? 0);
                     $cells[] = number_format((float) ($values[$column] ?? 0), $precision, '.', '');

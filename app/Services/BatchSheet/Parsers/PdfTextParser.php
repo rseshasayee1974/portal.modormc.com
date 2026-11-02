@@ -33,9 +33,10 @@ class PdfTextParser implements DocumentParser
 
         $pdfParser = new SmalotPdfParser();
         $pdf = $pdfParser->parseFile($filePath);
-        $text = $pdf->getText();
+        $text = str_replace("\xc2\xa0", ' ', $pdf->getText());
 
-        if (stripos($text, 'MCI 370') !== false) {
+        if (stripos($text, 'MCI 370') !== false
+            && !preg_match('/Plant\h+Serial\h+Number\h*:\h*[\w-]+/i', $text)) {
             $rows = $this->positionedRows($pdf->getPages());
             $text = implode("\n", array_column($rows, 'text'));
             $options['layout_rows'] = $rows;
