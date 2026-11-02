@@ -334,7 +334,12 @@ class BatchController extends Controller
             'operators'         => OperatorsDropdown(),
             'sales_executives'  => PersonnelDropdown('','Sales Executive'),
             'taxes'             => TaxesDropdown('sales'),
-            'products'          => fn () => ProductsDropdown(),
+            'products'          => fn () => ProductsDropdown(includeCategory: true)->map(function ($product) {
+                $product->setAttribute('batch_display', \App\Services\JayadhityaBatchSheet::materialDisplay(
+                    $product->title, trim(($product->category?->name ?? '').' '.($product->category?->parent?->name ?? ''))
+                ));
+                return $product;
+            }),
             'uoms'              => Productunit(),
             'statuses'          => Batch::statusOptions(),
             'payment_methods'   => PaymentMethodsDropdown(),
@@ -437,6 +442,9 @@ class BatchController extends Controller
                 ]));
                 $batch = Batch::create($batchData);
                 $this->syncMaterials($batch, $materialsData);
+                if (array_key_exists('moisture_contents', $payload)) {
+                    app(\App\Services\BatchMoistureService::class)->sync($batch, $payload['moisture_contents']);
+                }
                 
                 $batchingSettings = \App\Models\CustomSetting::getForModule($activePlantId, 'batching');
                 $withStock = filter_var($batchingSettings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN);
@@ -779,6 +787,8 @@ class BatchController extends Controller
 
         $materials = DB::table('mm_batch_materials as bm')
             ->leftJoin('mm_products as p', 'p.id', '=', 'bm.product_id')
+            ->leftJoin('mm_product_categories as pc', 'pc.id', '=', 'p.category_id')
+            ->leftJoin('mm_product_categories as parent_pc', 'parent_pc.id', '=', 'pc.parent_id')
             ->leftJoin('mm_product_units as u', 'u.id', '=', 'bm.uom_id')
             ->where('bm.batch_id', $batchId)
             ->whereNull('bm.deleted_at')
@@ -794,12 +804,17 @@ class BatchController extends Controller
                 'bm.deviation_quantity',
                 'bm.uom_id',
                 'p.title as product_title',
+                'pc.name as category_name',
+                'parent_pc.name as parent_category_name',
                 'u.unit_code',
                 'u.unit_name',
             ])
             ->get()
             ->map(function ($item) {
                 return [
+                    'batch_display' => \App\Services\JayadhityaBatchSheet::materialDisplay(
+                        $item->material_name.' '.$item->product_title, trim(($item->category_name ?? '').' '.($item->parent_category_name ?? ''))
+                    ),
                     'id' => $item->id,
                     'batch_id' => $item->batch_id,
                     'product_id' => $item->product_id,
@@ -1162,6 +1177,11 @@ class BatchController extends Controller
             'loaded_weight_truck' => (float)($primaryDispatch['loaded_weight_truck'] ?? 0),
             'net_weight' => (float)($primaryDispatch['net_weight'] ?? 0),
             'materials' => $materials,
+            'material_display' => $materials->filter(fn ($material) => $material['product_id'])->mapWithKeys(fn ($material) => [
+                $material['product_id'] => $material['batch_display'],
+            ]),
+            'moisture_contents' => \App\Models\BatchMoistureContent::where('batch_id', $batchRow->id)
+                ->where('plant_id', $activePlantId)->orderBy('id')->get(),
             'dispatches' => $mappedDispatches,
             'dispatch' => $primaryDispatch,
             'load_total_amount' => (float)($primaryDispatch['load_total_amount'] ?? 0),
@@ -1239,6 +1259,12 @@ class BatchController extends Controller
     {
         $this->authorizeModule('edit');
 
+        if ($request->isMoistureOnly()) {
+            abort_unless((int) $batch->plant_id === (int) session('active_plant_id'), 403);
+            app(\App\Services\BatchMoistureService::class)->sync($batch, $request->validated()['moisture_contents']);
+            return response()->json(['success' => true, 'moisture_contents' => $batch->moistureContents()->get()]);
+        }
+
         $user = auth()->user();
         $canEditBatchNo = BatchNumberAccess::allows($user);
 
@@ -1280,7 +1306,8 @@ class BatchController extends Controller
         try {
             DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto, $oldMaterials, $oldStatus) {
                 $materials = $payload['materials'] ?? [];
-                unset($payload['materials']);
+                $moistureContents = $payload['moisture_contents'] ?? null;
+                unset($payload['materials'], $payload['moisture_contents']);
 
                 $newStatus = $payload['status'] ?? $batch->status;
                 if ((int) $newStatus === Batch::STATUS_DISPATCHED && (int) $oldStatus !== Batch::STATUS_DISPATCHED) {
@@ -1317,6 +1344,9 @@ class BatchController extends Controller
             $batch->save();
             
             $this->syncMaterials($batch, $materials);
+            if ($moistureContents !== null) {
+                app(\App\Services\BatchMoistureService::class)->sync($batch, $moistureContents);
+            }
             
             // 2. Apply new consumption only if now dispatched/completed
             if ($withStock && in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
@@ -2193,7 +2223,10 @@ class BatchController extends Controller
                 'dispatches.salesExecutive',
                 'dispatches.creator:id,email',
                 'dispatches.modifier:id,email',
-                'dispatches.status.invoice.createdBy:id,email',
+                // Dispatch has a numeric `status` column and a legacy status() relation.
+                // Use the unambiguous relation alias here so eager loading does not
+                // attempt relationLoaded() on the integer status attribute.
+                'dispatches.invoiceStatus.invoice.createdBy:id,email',
                 'materials.product',
                 'materials.uom'
             ]);

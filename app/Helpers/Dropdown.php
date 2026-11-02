@@ -445,11 +445,15 @@ if (!function_exists('ProductsDropdown')) {
      * @param  int|null          $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function ProductsDropdown(?string $productType = null, $categoryId = null, $excludeId = null, $entityId = null)
+    function ProductsDropdown(?string $productType = null, $categoryId = null, $excludeId = null, $entityId = null, bool $includeCategory = false)
     {
-        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($productType, $categoryId, $excludeId, $entityId) {
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($productType, $categoryId, $excludeId, $entityId, $includeCategory) {
             $query = Product::where('plant_id', _activePlantId())
                 ->with('unit:id,unit_code,unit_type');
+
+            if ($includeCategory) {
+                $query->with('category:id,name,parent_id', 'category.parent:id,name');
+            }
 
             if ($productType !== null) {
                 $query->where('product_type', $productType);
@@ -465,7 +469,9 @@ if (!function_exists('ProductsDropdown')) {
 
             return $query->whereNull('deleted_at')
                 ->orderBy('title')->where('status', true)
-                ->get(['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price'])
+                ->get($includeCategory
+                    ? ['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price', 'category_id']
+                    : ['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price'])
                 ->makeHidden(['can_delete', 'can_update', 'is_in_use']);
         });
     }

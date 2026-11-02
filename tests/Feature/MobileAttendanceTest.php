@@ -90,6 +90,58 @@ class MobileAttendanceTest extends TestCase
         Carbon::setTestNow(Carbon::parse($time, 'Asia/Kolkata'));
     }
 
+    public function test_no_shift_accepts_own_check_in_time_and_reports_user_and_schedule(): void
+    {
+        DB::table('mm_personnels')->where('id', 1)->update(['shift_start_time' => null, 'shift_end_time' => null]);
+        $this->getJson('/api/mobile/v1/attendances/current')->assertOk()
+            ->assertJsonPath('data.user.id', 1)->assertJsonPath('data.accepts_check_in_time', true)
+            ->assertJsonPath('data.scheduled_start', null);
+        $id = $this->postJson('/api/mobile/v1/attendances/check-in', ['check_in' => '2026-10-21 08:15:00'])->assertCreated()
+            ->assertJsonPath('data.user_id', 1)->assertJsonPath('data.check_in', '2026-10-21 08:15:00')->json('data.id');
+        $this->postJson('/api/mobile/v1/attendances/check-in', ['check_in' => '2026-10-21 08:30:00'])->assertOk()
+            ->assertJsonPath('data.id', $id)->assertJsonPath('data.check_in', '2026-10-21 08:15:00');
+        $this->postJson('/api/mobile/v1/attendances/'.$id.'/check-out')->assertOk()->assertJsonPath('data.worked_hours', '0.75');
+        $this->getJson('/api/mobile/v1/attendances')->assertOk()->assertJsonPath('user.id', 1)
+            ->assertJsonPath('data.data.0.user_id', 1)->assertJsonPath('data.total', 1);
+    }
+
+    public function test_no_shift_rejects_future_previous_day_and_malformed_check_in(): void
+    {
+        DB::table('mm_personnels')->where('id', 1)->update(['shift_start_time' => null, 'shift_end_time' => null]);
+        foreach (['2026-10-21 09:00:01', '2026-10-20 23:00:00', '09:00', '2026-02-30 08:00:00'] as $time) {
+            $this->postJson('/api/mobile/v1/attendances/check-in', ['check_in' => $time])->assertUnprocessable()->assertJsonValidationErrors('check_in');
+        }
+        $this->assertSame(0, Attendance::count());
+    }
+
+    public function test_configured_shift_is_exposed_and_prevents_client_timestamp_override(): void
+    {
+        $this->getJson('/api/mobile/v1/attendances/current')->assertOk()
+            ->assertJsonPath('data.accepts_check_in_time', false)->assertJsonPath('data.scheduled_start', '2026-10-21 09:00:00')
+            ->assertJsonPath('data.scheduled_end', '2026-10-21 17:00:00');
+        $this->postJson('/api/mobile/v1/attendances/check-in', ['check_in' => '2026-10-21 08:00:00'])
+            ->assertUnprocessable()->assertJsonValidationErrors('check_in');
+    }
+
+    public function test_main_app_can_only_punch_and_read_own_attendance_without_sales_otp_grant(): void
+    {
+        $token = User::findOrFail(1)->createToken('main-mobile', ['*'])->plainTextToken;
+        DB::table('mm_users')->where('id', 1)->update(['is_otp_enabled' => 0]);
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
+        $this->getJson('/api/mobile/attendances/current')->assertOk()->assertJsonPath('data.user.id', 1);
+        $id = $this->postJson('/api/mobile/attendances/check-in')->assertCreated()->assertJsonPath('data.user_id', 1)->json('data.id');
+        $foreignId = DB::table('mm_attendances')->insertGetId(['plant_id' => 1, 'personnel_id' => 2, 'attendance_date' => '2026-10-21', 'status' => 'present', 'check_in' => '2026-10-21 09:00:00', 'source' => 'mobile']);
+        $this->getJson('/api/mobile/attendances')->assertOk()->assertJsonPath('data.total', 1);
+        $this->getJson('/api/mobile/attendances/'.$foreignId)->assertNotFound();
+        $this->postJson('/api/mobile/attendances/'.$foreignId.'/check-out')->assertNotFound();
+        $this->at('2026-10-21 17:00:00');
+        $this->postJson('/api/mobile/attendances/'.$id.'/check-out')->assertOk()->assertJsonPath('data.worked_hours', '8.00');
+        $this->withHeaders(['X-Plant-Id' => '2'])->getJson('/api/mobile/attendances')->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders(['Authorization' => ''])->getJson('/api/mobile/attendances')->assertUnauthorized();
+    }
+
     public function test_check_in_out_and_retries_preserve_server_timestamps_and_calculations(): void
     {
         $this->getJson('/api/mobile/v1/attendances/current')->assertOk()->assertJsonPath('data.attendance', null);

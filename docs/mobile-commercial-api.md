@@ -23,6 +23,11 @@ unassigned records. Other roles retain personal ownership restrictions.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
+| GET | `/attendances` | Logged-in user's paginated history; optional from_date/to_date/per_page/page |
+| GET | `/attendances/current` | Logged-in user, shift timings, accepts_check_in_time and current attendance |
+| POST | `/attendances/check-in` | Own check-in; optional notes and check_in when no shift timings exist |
+| GET | `/attendances/{attendance}` | Own attendance detail |
+| POST | `/attendances/{attendance}/check-out` | Own check-out at server time |
 | GET, POST | `/quotations` | Paginated listing, create |
 | GET, PUT/PATCH, DELETE | `/quotations/{quotation}` | Detail, update, delete |
 | POST | `/quotations/{quotation}/submit` | Submit for approval |
@@ -36,6 +41,8 @@ unassigned records. Other roles retain personal ownership restrictions.
 | POST | `/customer-pos/{customer_po}/convert-salesorder` | Allocate PO quantities to sales orders |
 | GET, POST | `/batch-schedules` | Paginated listing, create |
 | GET, PUT, DELETE | `/batch-schedules/{schedule}` | Detail, update, delete |
+
+Attendance always uses the logged-in user and selected plant, including administrators. Without a shift, optional `check_in` accepts `YYYY-MM-DD HH:mm:ss` in Asia/Kolkata for today, no later than server time. Omit it to use server time. Configured shifts use server time and reject a client timestamp. See `sales-executive-mobile-api.md` for attendance response fields and retry behavior.
 
 Main app lookup endpoints added: GET `/lookups`, `/customers`, `/sites`,
 `/mix-designs`, `/taxes`. These reuse the sales app lookup responses.

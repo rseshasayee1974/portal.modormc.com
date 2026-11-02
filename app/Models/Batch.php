@@ -15,11 +15,19 @@ class Batch extends Model
 
     protected static function booted(): void
     {
+        static::deleting(function (self $batch) {
+            $batch->moistureContents()->get()->each->delete();
+        });
         static::saved(function (self $batch) {
             if ($batch->wasChanged('status')) {
                 $batch->syncBatchingSchedules();
             }
         });
+    }
+
+    public function moistureContents()
+    {
+        return $this->hasMany(BatchMoistureContent::class)->orderBy('id');
     }
 
     public function syncBatchingSchedules(): void

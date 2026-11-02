@@ -126,4 +126,3 @@ graphify-out
 
 !/tests/Feature/InvoiceQrCodeTest.php
 
-!/tests/Feature/PlantDriverAssignmentTest.php

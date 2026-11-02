@@ -37,7 +37,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\MobileAccountActive::cla
 });
 
 
-// Commercial workflows shared with the sales app; authentication remains app-specific.
+// Commercial workflows and personal attendance shared with the sales app; authentication remains app-specific.
 Route::middleware(['auth:sanctum', \App\Http\Middleware\MobileAppPlantContext::class, \App\Http\Middleware\MobileSalesScope::class])
     ->withoutMiddleware(\App\Http\Middleware\TitleCaseInputs::class)
     ->group(function () {

@@ -19,6 +19,28 @@ class JayadhityaBatchSheet
         'Silica' => ['Sil'],
     ];
 
+    public static function materialDisplay(string $name, string $category = ''): array
+    {
+        $name = preg_replace('/\s*-?\s*Run\s*\d+\s*$/i', '', $name);
+        $classify = static function (string $text): ?string {
+            return match (true) {
+                (bool) preg_match('/silica|fume|\bsil\b/i', $text) => 'Silica',
+                (bool) preg_match('/admix|chemical|additive|plasticizer|retarder|\badm\s*\d*\b/i', $text) => 'Admixture',
+                (bool) preg_match('/cement|\bcem\s*\d*\b|\bopc\b|\bppc\b|\bpsc\b|fly.?ash|ggbs|slag/i', $text) => 'Cement',
+                (bool) preg_match('/water|\bice\b|\bwtr\s*\d*\b|\bwat\b|\bwc\b/i', $text) => 'Water / Ice',
+                (bool) preg_match('/aggregate|sand|gravel|stone|grit|dust|\bagg\s*\d*\b|\d+(?:\.\d+)?\s*mm\b/i', $text) => 'Aggregate',
+                default => null,
+            };
+        };
+        // Material names identify sized aggregates even under a generic or incorrect category.
+        $group = $classify($name) ?? $classify($category) ?? 'Aggregate';
+        return [
+            'group' => $group,
+            'precision' => in_array($group, ['Aggregate', 'Cement', 'Water / Ice'], true) ? 0 : 3,
+            'supports_moisture' => $group === 'Aggregate',
+        ];
+    }
+
     public static function matches(Batch $batch): bool
     {
         $order = $batch->relationLoaded('workOrder') && ! $batch->relationLoaded('salesOrder')
@@ -33,7 +55,7 @@ class JayadhityaBatchSheet
     {
         $groups = array_fill_keys(array_keys(self::GROUPS), []);
         $targets = $actuals = $runs = $productColumns = $labels = [];
-        $columns = $groupSpans = [];
+        $columns = $groupSpans = $precisions = [];
         foreach ($batch->materials as $material) {
             $rawName = trim((string) ($material->material_name ?: $material->product?->title ?: 'Material'));
             preg_match('/\s*[-–—]?\s*Run\s*[-–—]?\s*(\d+)\s*$/iu', $rawName, $runMatch);
@@ -44,7 +66,9 @@ class JayadhityaBatchSheet
             if ($alias !== '' || ! isset($labels[$column])) {
                 $labels[$column] = $alias !== '' ? $alias : $name;
             }
-            $group = self::group($column, (string) $material->product?->category?->name);
+            $display = self::materialDisplay($column, (string) $material->product?->category?->name);
+            $group = $display['group'];
+            $precisions[$column] = $display['precision'];
             if (! in_array($column, $groups[$group], true)) {
                 $groups[$group][] = $column;
                 $columns[] = $column;
@@ -95,7 +119,37 @@ class JayadhityaBatchSheet
             }
         }
 
+        $moistureRows = ['design' => [], 'consumption' => []];
+        $moistureReadings = $batch->relationLoaded('moistureContents') ? $batch->moistureContents
+            : ($batch->exists ? $batch->moistureContents()->where('plant_id', $batch->plant_id)->get() : collect());
+        foreach ($moistureReadings as $reading) {
+            $column = $productColumns[$reading->product_id] ?? null;
+            if ($reading->trashed() || (int) $reading->plant_id !== (int) $batch->plant_id
+                || $column === null || ! in_array($column, $groups['Aggregate'], true)) {
+                continue;
+            }
+            foreach (['design', 'consumption'] as $type) {
+                $percentage = $reading->{$type.'_moisture_percentage'};
+                if ($percentage !== null) {
+                    $moistureRows[$type][$column] = (float) $percentage;
+                }
+            }
+        }
+
+        $moistureDisplayRows = [];
+        if ($groups['Aggregate']) {
+            foreach ($moistureRows as $type => $values) {
+                foreach ($columns as $column) {
+                    $moistureDisplayRows[$type][$column] = in_array($column, $groups['Aggregate'], true)
+                        ? number_format($values[$column] ?? 0, 2, '.', '') : '';
+                }
+            }
+        }
+
         return [
+            'moisture_display_rows' => $moistureDisplayRows,
+            'precisions' => $precisions,
+            'moisture_rows' => $moistureRows,
             'groups' => array_filter($groups),
             'columns' => $columns,
             'group_spans' => $groupSpans,
@@ -139,24 +193,6 @@ class JayadhityaBatchSheet
             : null;
 
         return $data;
-    }
-
-    private static function group(string $column, string $category): string
-    {
-        foreach (self::GROUPS as $group => $columns) {
-            if (in_array($column, $columns, true)) {
-                return $group;
-            }
-        }
-        $name = strtoupper($category.' '.$column);
-
-        return match (true) {
-            str_contains($name, 'SIL'), str_contains($name, 'FUME') => 'Silica',
-            str_contains($name, 'CEM'), str_contains($name, 'FLY'), str_contains($name, 'GGBS') => 'Cement',
-            str_contains($name, 'WATER'), str_contains($name, 'ICE'), str_contains($name, 'WTR') => 'Water / Ice',
-            str_contains($name, 'ADM'), str_contains($name, 'CHEM') => 'Admixture',
-            default => 'Aggregate',
-        };
     }
 
     private static function column(string $name): ?string

@@ -457,6 +457,12 @@ const closeAllMenus = () => {
     }
 };
 
+const printBatchSheet = (id: number | string) => {
+    const url = new URL(route('batches.report', id), window.location.origin);
+    url.searchParams.set('print', '1');
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+};
+
 const { destroy, canDeleteBatch, downloadPdf, retrySync, statusSeverity, statusLabel } =
     useBatchActions(props);
 
@@ -1102,6 +1108,12 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                                     <i class="pi pi-eye mr-2 text-indigo-500 font-bold"></i>
                                                     Preview Batch Sheet
                                                 </button>
+                                                <button v-if="can('BATCH.BATCH_SHEET')" type="button"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="printBatchSheet(slotProps.data.encrypted_id || slotProps.data.id); activeMenuId = null;">
+                                                    <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
+                                                    Print Batch Sheet
+                                                </button>
                                                 <button v-if="can('BATCH.PDF') || can('BATCH.EXPORT')"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="downloadPdf(slotProps.data.encrypted_id || slotProps.data.id); activeMenuId = null;">
@@ -1400,11 +1412,17 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                     <!-- Group 1: General Batch Actions -->
                     <div v-if="can('BATCH.BATCH_SHEET') || can('BATCH.PDF') || can('BATCH.EXPORT') || can('BATCH.EMAIL') || can('BATCH.SHARE')"
                         class="py-1">
-                        <button v-if="can('BATCH.BATCH_SHEET')"
+                        <!-- <button v-if="can('BATCH.BATCH_SHEET')"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="router.get(route('batches.report', activeBatch.encrypted_id || activeBatch.id)); closeAllMenus();">
                             <i class="pi pi-eye mr-2 text-indigo-500 font-bold"></i>
                             Preview Batch Sheet
+                        </button> -->
+                        <button v-if="can('BATCH.BATCH_SHEET')" type="button"
+                            class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                            @click="printBatchSheet(activeBatch.encrypted_id || activeBatch.id); closeAllMenus();">
+                            <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
+                            Print Batch Sheet
                         </button>
                         <button v-if="can('BATCH.PDF') || can('BATCH.EXPORT')"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
