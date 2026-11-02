@@ -35,6 +35,8 @@ class InvoiceQrCodeTest extends TestCase
         $this->assertSame($signedQr, PrintDataFormatter::formatQrCodeUrl($signedQr, null, 'plants/payment.png'));
         $this->assertSame('', PrintDataFormatter::formatQrCodeUrl(null, null));
         $this->assertSame('', PrintDataFormatter::formatQrCodeUrl('', ''));
+        $this->assertSame('', PrintDataFormatter::formatQrCodeUrl(null, 'gateway-irn'));
+        $this->assertSame('', PrintDataFormatter::formatQrCodeUrl(null, 'gateway-irn', 'plants/payment.png'));
         $url = PrintDataFormatter::formatQrCodeUrl('signed invoice payload', null);
         $this->assertStringContainsString('data=signed+invoice+payload', $url);
     }

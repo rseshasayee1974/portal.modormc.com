@@ -24,40 +24,50 @@ class EInvoiceService
     /**
      * Generate E-Invoice (IRN) for an invoice.
      */
-    public function generate(Invoice $invoice, array $transportDetails = []): array
+    public function generate(Invoice $invoice, array $transportDetails = [], ?string $provider = null): array
     {
-        return $this->generateIrn($invoice, $transportDetails);
+        return $this->generateIrn($invoice, $transportDetails, $provider);
     }
 
     /**
      * Generate IRN with PeriOne / NIC gateway and persist results.
      */
-    public function generateIrn(Invoice $invoice, array $transportDetails = []): array
+    public function generateIrn(Invoice $invoice, array $transportDetails = [], ?string $provider = null): array
     {
+        $provider = $provider ?? config('services.einvoice.provider', 'alankit');
+        if (!in_array($provider, ['perione', 'alankit'], true)) {
+            throw new \InvalidArgumentException("Unsupported E-Invoice provider: {$provider}");
+        }
         // 0. Validate invoice, seller, buyer, item, and transport prerequisites
         $this->validateForIrn($invoice, $transportDetails);
 
         $userId = Auth::id() ?? 1;
         $plant = $invoice->plant;
 
-        // 1. Authenticate with PeriOne E-Invoice gateway first (Sandbox / Production)
-        $auth = $this->authenticate($plant, $userId);
+        // 1. Authenticate with the selected E-Invoice provider.
+        $auth = $this->authenticate($plant, $userId, $provider);
 
         // 2. Resolve Gateway settings & plant credentials
-        $this->getGatewayConfig($plant);
+        if ($provider === 'perione') {
+            $this->getGatewayConfig($plant);
+        }
         [$username, $password, $gstin] = $this->getPlantCredentials($plant);
 
         // 3. Build JSON Payload conforming to standard NIC / PeriOne E-Invoice schema
         $payload = $this->buildIrnPayload($invoice, $transportDetails);
 
         // 4. Send IRN Generation Request to Gateway
-        $headers = $this->buildGatewayHeaders($auth, $username, $password, $gstin ?: ($payload['SellerDtls']['Gstin'] ?? ''));
-        $data = $this->sendGenerateRequest($headers, $payload);
+        if ($provider === 'alankit') {
+            $data = app(AlankitInvoiceService::class)->generate($plant, $auth, $payload);
+        } else {
+            $headers = $this->buildGatewayHeaders($auth, $username, $password, $gstin ?: ($payload['SellerDtls']['Gstin'] ?? ''));
+            $data = $this->sendGenerateRequest($headers, $payload);
+        }
 
         $irn = $data['Irn'] ?? $data['irn'] ?? null;
         $ackNo = $data['AckNo'] ?? $data['ack_no'] ?? null;
         $ackDateStr = $data['AckDt'] ?? $data['ack_date'] ?? null;
-        $ackDate = $ackDateStr ? Carbon::parse($ackDateStr) : Carbon::now();
+        $ackDate = Carbon::parse($ackDateStr);
         $signedQrCode = $data['SignedQRCode'] ?? $data['signed_qrcode'] ?? $data['QrCode'] ?? null;
         $signedInvoice = $data['SignedInvoice'] ?? $data['signed_invoice'] ?? '';
 
@@ -104,7 +114,7 @@ class EInvoiceService
         $plant = $invoice->plant;
 
         // 1. Authenticate with PeriOne Gateway for this plant
-        $auth = $this->authenticate($plant, $userId);
+        $auth = $this->authenticate($plant, $userId, 'perione');
 
         // 2. Resolve credentials
         $this->getGatewayConfig($plant, true);
@@ -165,14 +175,6 @@ class EInvoiceService
             if ($this->isProduction() || !str_contains($e->getMessage(), '404')) {
                 throw $e;
             }
-        }
-
-        if (!$ewbNo && !$this->isProduction()) {
-            $ewbNo = '33' . date('ymd') . str_pad((string)rand(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $ewbDt = Carbon::now();
-            $distance = $manualDistance ?? 100;
-            $daysValid = max(1, ceil($distance / 200));
-            $ewbValidTill = Carbon::now()->addDays($daysValid);
         }
 
         if (!$ewbNo) {
@@ -243,7 +245,7 @@ class EInvoiceService
         $plant = $invoice->plant;
 
         // 1. Authenticate with PeriOne Gateway for this plant
-        $auth = $this->authenticate($plant, $userId);
+        $auth = $this->authenticate($plant, $userId, 'perione');
 
         // 2. Resolve credentials
         $this->getGatewayConfig($plant);
@@ -311,11 +313,22 @@ class EInvoiceService
     }
 
     /**
-     * Authenticate with PeriOne / GSP gateway and cache token for 6 hours in mm_einvoice_auth for specific plant.
+     * Authenticate a plant with the configured provider (Alankit by default).
      */
-    public function authenticate(?Plant $plant = null, ?int $userId = null): EinvoiceAuth
+    public function authenticate(?Plant $plant = null, ?int $userId = null, ?string $provider = null): EinvoiceAuth
     {
+        $provider = $provider ?? config('services.einvoice.provider', 'alankit');
         $userId = $userId ?? Auth::id();
+        if ($provider === 'alankit') {
+            if (!$plant || !$userId) {
+                throw new \InvalidArgumentException('Alankit authentication requires a plant and user.');
+            }
+
+            return app(AlankitAuthService::class)->authenticate($plant, $userId);
+        }
+        if ($provider !== 'perione') {
+            throw new \InvalidArgumentException("Unsupported E-Invoice provider: {$provider}");
+        }
         $plantId = $plant?->id;
 
         // 1. Check existing unexpired token from database for THIS plant
@@ -337,7 +350,7 @@ class EInvoiceService
         $authData = $this->requestAuthFromGateway($username, $password, $gstin);
 
         // 4. Save & return session in mm_einvoice_auth table for this plant
-        return $this->storeAuthRecord($plantId, $userId, $username, $authData['token'], $authData['sek'], $authData['token_expiry'], $authData['app_key'] ?? null);
+        return $this->storeAuthRecord($plantId, $userId, $username, $authData['token'], $authData['sek'], $authData['token_expiry']);
     }
 
     /**
@@ -347,6 +360,7 @@ class EInvoiceService
     {
         $existingAuth = EinvoiceAuth::where('plant_id', $plantId)
             ->where('user_id', $userId)
+            ->whereNull('app_key')
             ->latest('token_generated_at')
             ->first();
 
@@ -408,9 +422,7 @@ class EInvoiceService
         }
 
         $authRecord->user_name = $username;
-        if ($appKey) {
-            $authRecord->app_key = $appKey;
-        }
+        $authRecord->app_key = $appKey;
         $authRecord->auth_token = $authToken;
         $authRecord->sek_key = $sekKey;
         $authRecord->token_generated_at = Carbon::now();
@@ -468,8 +480,7 @@ class EInvoiceService
         return [
             'accept'        => 'application/json',
             'content-type'  => 'application/json',
-            'auth_token'    => $auth->auth_token,
-            'sek_key'       => $auth->sek_key,
+            'auth-token'    => $auth->auth_token,
             'username'      => $username,
             'password'      => $password,
             'ip_address'    => $this->ipAddress,
@@ -484,59 +495,42 @@ class EInvoiceService
      */
     public function sendGenerateRequest(array $headers, array $payload): array
     {
-        $url = rtrim($this->baseUrl, '/') . '/einvoice/generate?email=' . urlencode($this->email);
+        $url = rtrim($this->baseUrl, '/') . '/einvoice/type/GENERATE/version/V1_03?email=' . urlencode($this->email);
 
-        try {
-            $response = Http::withHeaders($headers)->timeout(30)->post($url, $payload);
-            $body = $response->json() ?? [];
+        $response = Http::withHeaders($headers)->timeout(30)->post($url, $payload);
+        $body = $response->json() ?? [];
 
-            if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {
-                $data = $body['data'] ?? $body['Data'] ?? $body ?? [];
-                if (!empty($data['Irn']) || !empty($data['irn'])) {
-                    return $data;
-                }
-            }
+        $gatewayFailed = isset($body['status_cd']) && in_array(strtolower((string) $body['status_cd']), ['0', 'error'], true);
+        if (!$response->successful() || $gatewayFailed) {
+            $fallback = trim(preg_replace('/\s+/', ' ', strip_tags($response->body()))) ?: ('HTTP ' . $response->status());
+            $errorMsg = $this->extractGatewayErrorMessage($body, $fallback);
+            Log::error('PeriOne Generate IRN Failed: ' . $errorMsg, ['response' => $body]);
+            throw new \Exception('PeriOne E-Invoice Generation Failed: ' . $errorMsg);
+        }
 
-            // If remote gateway returned an error message from IRP
-            if (!$response->successful() && $response->status() !== 404) {
-                $errorMsg = $this->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
-                Log::error('PeriOne Generate IRN Failed: ' . $errorMsg, ['response' => $body]);
-                throw new \Exception('PeriOne E-Invoice Generation Failed: ' . $errorMsg);
-            }
-        } catch (\Exception $e) {
-            if ($this->isProduction() || !str_contains($e->getMessage(), '404')) {
-                throw $e;
+        $data = $body['data'] ?? $body['Data'] ?? $body;
+        return $this->validateIrnResponse($data);
+    }
+
+    public function validateIrnResponse(mixed $data, string $provider = 'PeriOne'): array
+    {
+        if (!is_array($data) || (empty($data['Irn']) && empty($data['irn']))) {
+            throw new \Exception("{$provider} E-Invoice Gateway returned an invalid response.");
+        }
+
+        $requiredFields = [
+            'AckNo' => $data['AckNo'] ?? $data['ack_no'] ?? null,
+            'AckDt' => $data['AckDt'] ?? $data['ack_date'] ?? null,
+            'SignedQRCode' => $data['SignedQRCode'] ?? $data['signed_qrcode'] ?? $data['QrCode'] ?? null,
+            'SignedInvoice' => $data['SignedInvoice'] ?? $data['signed_invoice'] ?? null,
+        ];
+        foreach ($requiredFields as $field => $value) {
+            if ((!is_string($value) && !is_int($value)) || trim((string) $value) === '' || $value === 0) {
+                throw new \Exception("{$provider} E-Invoice Gateway did not return {$field}.");
             }
         }
 
-        // When in Sandbox/Staging/Local environment and remote gateway endpoint is not responding or 404
-        if (!$this->isProduction()) {
-            $sellerGstin = $payload['SellerDtls']['Gstin'] ?? '29AARFB4347G000';
-            $buyerGstin = $payload['BuyerDtls']['Gstin'] ?? 'URP';
-            $docNo = $payload['DocDtls']['No'] ?? 'INV-1';
-            $docDate = $payload['DocDtls']['Dt'] ?? date('d/m/Y');
-            $totVal = $payload['ValDtls']['TotInvVal'] ?? 0;
-            $itemsCount = count($payload['ItemList'] ?? []);
-
-            $rawHashInput = "{$sellerGstin}:{$docNo}:{$docDate}";
-            $irn = hash('sha256', $rawHashInput . ':' . time());
-            $ackNo = '1' . date('ymd') . str_pad((string)rand(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $ackDate = Carbon::now();
-
-            $qrData = "{$sellerGstin}|{$buyerGstin}|{$docNo}|{$docDate}|{$totVal}|{$itemsCount}|{$irn}|{$ackNo}";
-            $signedQr = base64_encode($qrData);
-
-            return [
-                'Irn'          => $irn,
-                'AckNo'        => (int)$ackNo,
-                'AckDt'        => $ackDate->toDateTimeString(),
-                'SignedQRCode' => $signedQr,
-                'SignedInvoice'=> base64_encode(json_encode($payload)),
-                'Status'       => 'ACT',
-            ];
-        }
-
-        throw new \Exception('PeriOne E-Invoice Gateway returned an invalid response.');
+        return $data;
     }
 
     /**
@@ -588,7 +582,7 @@ class EInvoiceService
 
         // 1. Build Item List directly from invoice items and order taxes
         $invoice->loadMissing(['items.orderTaxes', 'orderTaxes']);
-        $itemData = $this->buildItemList($invoice->items, $invoice->orderTaxes, $isInterState);
+        $itemData = $this->buildItemList($invoice->items, $invoice->orderTaxes, $isInterState, (bool) $invoice->is_tax_inclusive);
         $itemList = $itemData['items'];
 
         // 2. Fetch Valuation Totals directly from Invoice & mm_order_taxes
@@ -620,8 +614,10 @@ class EInvoiceService
             'SellerDtls' => $this->buildSellerDetails($plant, $entity, $sellerGstin, $sellerStateCode),
             'BuyerDtls'  => $this->buildBuyerDetails($partner, $buyerGstin, $buyerStateCode),
             'DispDtls'   => $this->buildDispatchDetails($plant, $sellerStateCode),
-            'ShipDtls'   => array_replace($this->buildShippingDetails($partner, $buyerGstin, $buyerStateCode),
-                app(EwayBillDestination::class)->forInvoice($invoice) ?? []),
+            'ShipDtls'   => array_replace(
+                $this->buildShippingDetails($partner, $buyerGstin, $buyerStateCode),
+                app(EwayBillDestination::class)->forInvoice($invoice) ?? []
+            ),
             'ItemList'   => $itemList,
             'ValDtls'    => [
                 'AssVal'      => round($assVal, 2),
@@ -668,7 +664,7 @@ class EInvoiceService
     {
         $plantAddress = $plant?->addresses()?->first();
 
-        return [
+        return array_merge([
             'Gstin' => $sellerGstin,
             'LglNm' => (string)($entity?->legal_name ?: ($entity?->name ?: ($plant?->name ?? ''))),
             'TrdNm' => (string)($plant?->name ?: ($entity?->name ?? '')),
@@ -677,9 +673,8 @@ class EInvoiceService
             'Loc'   => (string)($plantAddress?->city ?? ''),
             'Pin'   => (int)($plantAddress?->zipcode ?: ($plantAddress?->pin_code ?? 0)),
             'Stcd'  => (string)($plantAddress?->state_code ?: $sellerStateCode),
-            'Ph'    => preg_replace('/[^0-9]/', '', (string)($plant?->mobile_number ?? '')),
             'Em'    => (string)($plant?->email_address ?? ''),
-        ];
+        ], $this->buildPhoneDetails($plant?->mobile_number));
     }
 
     /**
@@ -689,7 +684,9 @@ class EInvoiceService
     {
         $partnerAddress = $partner?->addresses()?->first() ?: $partner?->contacts()?->first()?->addresses()?->first();
 
-        return [
+        $phone = $partner?->phone ?: ($partner?->contacts()?->first()?->phone ?? null);
+
+        return array_merge([
             'Gstin' => $buyerGstin ?: 'URP',
             'LglNm' => (string)($partner?->legal_name ?: ($partner?->name ?? '')),
             'TrdNm' => (string)($partner?->trade_name ?: ($partner?->name ?? '')),
@@ -699,9 +696,18 @@ class EInvoiceService
             'Loc'   => (string)($partnerAddress?->city ?? ''),
             'Pin'   => (int)($partnerAddress?->zipcode ?: ($partnerAddress?->pin_code ?? 0)),
             'Stcd'  => (string)($partnerAddress?->state_code ?: $buyerStateCode),
-            'Ph'    => preg_replace('/[^0-9]/', '', (string)($partner?->phone ?: ($partner?->contacts()?->first()?->phone ?? ''))),
             'Em'    => (string)($partner?->email ?: ($partner?->contacts()?->first()?->email ?? '')),
-        ];
+        ], $this->buildPhoneDetails($phone));
+    }
+
+    /**
+     * Include the optional phone field only when it meets the gateway schema.
+     */
+    private function buildPhoneDetails(mixed $phone): array
+    {
+        $digits = preg_replace('/[^0-9]/', '', (string) $phone);
+
+        return strlen($digits) >= 6 && strlen($digits) <= 12 ? ['Ph' => $digits] : [];
     }
 
     /**
@@ -743,7 +749,7 @@ class EInvoiceService
     /**
      * Build Item List and map line values directly from InvoiceItem and mm_order_taxes table.
      */
-    public function buildItemList($items, $orderTaxes, bool $isInterState): array
+    public function buildItemList($items, $orderTaxes, bool $isInterState, bool $isTaxInclusive = false): array
     {
         $itemList = [];
         $slNo = 1;
@@ -757,7 +763,7 @@ class EInvoiceService
             $unitPrice = (float)($item->price_unit ?: 0);
             $totAmt = round($qty * $unitPrice, 2);
             $discount = (float)($item->discount_amount ?: 0);
-            $assAmt = (float)($item->subtotal ?: ($totAmt - $discount));
+            $assAmt = $item->subtotal !== null ? round((float) $item->subtotal, 2) : round($totAmt - $discount, 2);
 
             // Read tax splits directly from mm_order_taxes for this line item
             $itemTaxes = $item->relationLoaded('orderTaxes')
@@ -787,6 +793,29 @@ class EInvoiceService
             }
 
             $totItemVal = (float)($item->line_total ?: round($assAmt + $cgstAmt + $sgstAmt + $igstAmt, 2));
+
+            $netAmount = round($totAmt - $discount, 2);
+            $taxFactor = 1 + ($gstRt / 100);
+            // Older records can retain inclusive amounts after the invoice flag changes.
+            // Recognize those only when both the stored taxable and final amounts reconcile.
+            $storedAmountsAreInclusive = $gstRt > 0
+                && abs($netAmount - $totItemVal) <= 0.02
+                && abs(round($assAmt * $taxFactor, 2) - $netAmount) <= 0.02
+                && abs($netAmount - $assAmt) > 0.02;
+            if (($isTaxInclusive || $storedAmountsAreInclusive) && $gstRt > 0) {
+                $discount = round($discount / $taxFactor, 2);
+                if ($item->subtotal === null) {
+                    $assAmt = round($netAmount / $taxFactor, 2);
+                }
+                $totAmt = round($assAmt + $discount, 2);
+                $unitPrice = round($totAmt / $qty, 8);
+            }
+
+            if (abs(round($totAmt - $discount, 2) - $assAmt) > 0.02) {
+                throw ValidationException::withMessages([
+                    "item_{$slNo}_amount" => "Item #{$slNo} ({$item->item_name}): Taxable subtotal does not match quantity, unit price and discount. Please recalculate the invoice amounts.",
+                ]);
+            }
 
             $totAssVal += $assAmt;
             $totCgst += $cgstAmt;
@@ -950,21 +979,17 @@ class EInvoiceService
                 : (config('services.perione.prod_client_secret') ?: config('services.perione.client_secret'));
             $email = $plant?->email_address ?: (config('services.perione.prod_email') ?: config('services.perione.email', 'sayee@onemodo.com'));
         } else {
-            $baseUrl = config('services.perione.sandbox_base_url') ?: (config('services.perione.base_url') ?: 'https://staging.perione.in');
-            $clientId = $forEway
-                ? (config('services.perione.sandbox_eway_client_id') ?: 'PEWAYS472417d4a8bc74b10d31d4219c6b343c')
-                : (config('services.perione.sandbox_client_id') ?: (config('services.perione.client_id') ?: 'PEINVSb3aadf99327e3ca03792510397d3136b'));
-            $clientSecret = $forEway
-                ? (config('services.perione.sandbox_eway_client_secret') ?: 'PEWAYS5376280bd5bc93b6c6ddf334a88d7a45')
-                : (config('services.perione.sandbox_client_secret') ?: (config('services.perione.client_secret') ?: 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7'));
-            $email = config('services.perione.sandbox_email') ?: (config('services.perione.email') ?: 'sayee@onemodo.com');
+            $baseUrl = 'https://staging.perione.in';
+            $clientId = 'PEINVSb3aadf99327e3ca03792510397d3136b';
+            $clientSecret = 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7';
+            $email = 'sayee@onemodo.com';
         }
 
         $this->baseUrl = rtrim($baseUrl, '/');
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
         $this->email = $email;
-        $this->ipAddress = request()?->ip() ?: (config('services.perione.ip') ?: '192.168.1.98');
+        $this->ipAddress = request()?->ip() ?: '192.168.1.98';
 
         return [
             'is_production' => $isProd,
@@ -986,8 +1011,8 @@ class EInvoiceService
         $host = request()?->getHost() ?? '';
         if ($host) {
             $isLocalOrStaging = str_contains($host, 'localhost') ||
-                                str_contains($host, '127.0.0.1') ||
-                                str_contains($host, 'curie.modormc.com');
+                str_contains($host, '127.0.0.1') ||
+                str_contains($host, 'curie.modormc.com');
 
             if ($isLocalOrStaging) {
                 return false;
@@ -1040,6 +1065,19 @@ class EInvoiceService
 
         // 2. Check ErrorDetails / error_details
         $errorDetails = $body['ErrorDetails'] ?? $body['error_details'] ?? $body['errors'] ?? $body['data']['ErrorDetails'] ?? null;
+        if (is_string($errorDetails)) {
+            $decodedErrors = json_decode($errorDetails, true);
+            if (!is_array($decodedErrors)) {
+                $decodedText = base64_decode($errorDetails, true);
+                $decodedErrors = $decodedText === false ? null : json_decode($decodedText, true);
+            }
+            if (is_array($decodedErrors)) {
+                $errorDetails = $decodedErrors;
+            }
+        }
+        if (is_array($errorDetails) && isset($errorDetails['ErrorMessage'])) {
+            $errorDetails = [$errorDetails];
+        }
         if (!empty($errorDetails)) {
             if (is_array($errorDetails)) {
                 $messages = [];

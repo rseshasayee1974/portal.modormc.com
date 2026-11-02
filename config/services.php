@@ -52,6 +52,21 @@ return [
         'api_key' => env('SARVAM_API_KEY'),
     ],
 
+    'einvoice' => [
+        'provider' => env('EINVOICE_PROVIDER', 'alankit'),
+    ],
+
+    'alankit' => [
+        'environment' => env('ALANKIT_ENV', 'auto'),
+        'subscription_key' => env('ALANKIT_SUBSCRIPTION_KEY'),
+        'sandbox_auth_url' => env('ALANKIT_SANDBOX_AUTH_URL', 'https://developers.eraahi.com/eInvoiceGateway/eivital/v1.04/auth'),
+        'production_auth_url' => env('ALANKIT_PRODUCTION_AUTH_URL', 'https://www.alankitgst.com/eInvoiceGateway/eivital/v1.04/auth'),
+        'sandbox_generate_url' => env('ALANKIT_SANDBOX_GENERATE_URL', 'https://developers.eraahi.com/eInvoiceGateway/eicore/v1.03/Invoice'),
+        'production_generate_url' => env('ALANKIT_PRODUCTION_GENERATE_URL', 'https://www.alankitgst.com/eInvoiceGateway/eicore/v1.03/Invoice'),
+        'sandbox_public_key_path' => env('ALANKIT_SANDBOX_PUBLIC_KEY_PATH', public_path('publickey/einv_sandbox.pem')),
+        'production_public_key_path' => env('ALANKIT_PRODUCTION_PUBLIC_KEY_PATH', public_path('publickey/einv_production.pem')),
+    ],
+
     'perione' => [
         'environment' => env('PERIONE_ENV', env('APP_ENV', 'sandbox')),
         'client_id' => env('PERIONE_CLIENT_ID', 'PEINVSb3aadf99327e3ca03792510397d3136b'),

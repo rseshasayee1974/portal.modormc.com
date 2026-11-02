@@ -34,6 +34,7 @@ const props = defineProps<{
     plantId: number;
     plantName: string;
     batchSheetLogoUrl?: string | null;
+    batchSheetDrivers?: { label: string; value: string }[];
 }>();
 
 // ─── Form state ───────────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ const form = useForm({
     remove_batch_sheet_logo: false,
     settings: {
         batch_creation_source: props.batchingSettings?.batch_creation_source || 'sales_order',
+        batch_sheet_driver: props.batchingSettings?.batch_sheet_driver || '',
         new_weight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
         newweight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
         manual_weight: props.batchingSettings?.manual_weight == 1,
@@ -77,6 +79,11 @@ const form = useForm({
         custom_params: props.batchingSettings?.custom_params || [],
     }
 });
+
+const batchSheetDriverOptions = computed(() => [
+    { label: 'Automatic detection', value: '' },
+    ...(props.batchSheetDrivers || []),
+]);
 
 // ─── Section expand / collapse ────────────────────────────────────────────────
 const expanded = ref<Record<string, boolean>>({
@@ -114,6 +121,7 @@ const settingRows = computed(() => [
     { section: 'Camera', key: 'camera_url_1', label: 'Camera 1 (Entry/Empty)', value: form.settings.camera_url_1, type: 'text' },
     { section: 'Camera', key: 'camera_url_2', label: 'Camera 2 (Exit/Loaded)', value: form.settings.camera_url_2, type: 'text' },
     // Batch Sheet
+    { section: 'Batch Sheet', key: 'batch_sheet_driver', label: 'Batch Sheet PDF Driver', value: batchSheetDriverOptions.value.find(driver => driver.value === form.settings.batch_sheet_driver)?.label || form.settings.batch_sheet_driver, type: 'text' },
     { section: 'Batch Sheet', key: 'sheet_upload', label: 'Upload Batch Sheet', value: form.settings.sheet_upload, type: 'bool' },
     { section: 'Batch Sheet', key: 'hide_batch_form', label: 'Hide Add & Edit Batch Forms', value: form.settings.hide_batch_form, type: 'bool' },
     { section: 'Batch Sheet', key: 'target_to_actual', label: 'One-Click Target to Actual', value: form.settings.target_to_actual, type: 'bool' },
@@ -611,6 +619,13 @@ const deleteModule = (id: number) => {
                         </button>
 
                         <div v-if="expanded.batch_sync" class="p-6 space-y-4 animate-fade-in">
+                            <div class="p-4 bg-violet-50 rounded-xl border border-violet-100 space-y-2">
+                                <label class="font-bold text-violet-700 text-sm">Batch Sheet PDF Driver</label>
+                                <p class="text-xs text-violet-600">Assign the readable PDF format for {{ plantName }} (Plant ID: {{ plantId }}). Automatic detection uses the document's format.</p>
+                                <Dropdown v-model="form.settings.batch_sheet_driver" :options="batchSheetDriverOptions" optionLabel="label" optionValue="value" filter class="w-full" />
+                                <small v-if="form.errors['settings.batch_sheet_driver']" class="text-red-600">{{ form.errors['settings.batch_sheet_driver'] }}</small>
+                            </div>
+
                             <!-- sheet_upload -->
                             <div
                                 class="flex items-center justify-between p-4 bg-violet-50 rounded-xl border border-violet-100">

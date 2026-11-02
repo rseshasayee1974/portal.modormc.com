@@ -80,31 +80,36 @@ class ProcessBatchSheetJob implements ShouldQueue
             $upload->update(['parser_used' => $parser->getParserName()]);
             Log::info("ProcessBatchSheetJob [Upload ID: {$upload->id}]: Running primary parser [{$parser->getParserName()}] for file {$upload->original_filename}");
 
+            // Queue workers must use the upload's plant, never a browser session.
+            $parseOptions = ['mime_type' => $upload->mime_type, 'plant_id' => (int) $upload->plant_id];
+            $assignedDriver = $parser instanceof \App\Services\BatchSheet\Parsers\PdfTextParser
+                ? app(\App\Services\BatchSheet\Drivers\PlantDriverRegistry::class)->assignedDriver((int) $upload->plant_id)
+                : null;
+
             $parsedDoc = null;
             try {
-                $parsedDoc = $parser->parse($filePath, [
-                    'mime_type' => $upload->mime_type
-                ]);
+                $parsedDoc = $parser->parse($filePath, $parseOptions);
 
                 // If digital PDF parser returned empty extraction, force fallback to secondary parser
                 if (empty($parsedDoc->materialRows) && empty($parsedDoc->headerFields) && $parser instanceof \App\Services\BatchSheet\Parsers\PdfTextParser) {
                     throw new \RuntimeException("Native PDF text parser could not find structured batch sheet data in text stream.");
                 }
             } catch (\Exception $primaryException) {
+                if ($assignedDriver) throw $primaryException;
                 Log::warning("ProcessBatchSheetJob [Upload ID: {$upload->id}]: Primary parser [{$parser->getParserName()}] failed: {$primaryException->getMessage()}. Attempting Python script fallback...");
 
                 $fallbackParser = $parserRegistry->getFallbackParser();
                 if ($fallbackParser && get_class($parser) !== get_class($fallbackParser)) {
                     $upload->transitionTo(BatchSheetUpload::STATUS_OCR_RUNNING, "Primary parser failed. Running secondary Python EasyOCR fallback...");
-                    $parsedDoc = $fallbackParser->parse($filePath, [
-                        'mime_type' => $upload->mime_type
-                    ]);
+                    $parsedDoc = $fallbackParser->parse($filePath, $parseOptions);
                     $upload->update(['parser_used' => $fallbackParser->getParserName() . ' (Fallback)']);
                     Log::info("ProcessBatchSheetJob [Upload ID: {$upload->id}]: Successfully parsed file using secondary fallback [{$fallbackParser->getParserName()}]");
                 } else {
                     throw $primaryException;
                 }
             }
+
+            if ($assignedDriver) $upload->update(['parser_used' => $parsedDoc->parserUsed]);
 
             $upload->transitionTo(BatchSheetUpload::STATUS_EXTRACTING, "Extracting and mapping key-value fields...");
 

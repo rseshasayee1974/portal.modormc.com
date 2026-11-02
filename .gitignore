@@ -35,6 +35,7 @@ tests/
 !/tests/Unit/JayadhityaGroupsPlant739DriverTest.php
 !/tests/Feature/
 /tests/Feature/*
+!/tests/Feature/EinvoiceAuthTest.php
 !/tests/Feature/QualityRoutesTest.php
 !/tests/Feature/InvoiceClassificationTest.php
 !/tests/Feature/PatronStatementBillTest.php
@@ -124,3 +125,5 @@ graphify-out
 !/tests/Feature/TaxInvoiceAddressTest.php
 
 !/tests/Feature/InvoiceQrCodeTest.php
+
+!/tests/Feature/PlantDriverAssignmentTest.php

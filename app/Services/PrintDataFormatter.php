@@ -1008,8 +1008,9 @@ class PrintDataFormatter
             return 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($qrCode);
         }
 
+        // An IRN alone cannot replace PeriOne's signed e-invoice QR payload.
         if (!empty($irn)) {
-            return 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($irn);
+            return '';
         }
 
         if (!empty($upiQrPath)) {

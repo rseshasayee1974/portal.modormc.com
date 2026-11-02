@@ -3,6 +3,7 @@
 namespace App\Services\BatchSheet\Drivers;
 
 use App\Services\BatchSheet\Contracts\PlantDriverInterface;
+use App\Models\CustomSetting;
 use Illuminate\Support\Facades\Log;
 
 class PlantDriverRegistry
@@ -46,12 +47,30 @@ class PlantDriverRegistry
         $this->drivers[$driver->getDriverCode()] = $driver;
     }
 
+    public function assignedDriver(int $plantId): ?PlantDriverInterface
+    {
+        $code = trim((string) (CustomSetting::getForModule($plantId, 'batching')['batch_sheet_driver'] ?? ''));
+        if ($code === '') return null;
+
+        if (!isset($this->drivers[$code])) {
+            throw new \UnexpectedValueException("The batch sheet driver '{$code}' assigned to plant {$plantId} is unavailable. Update the plant's Custom Settings.");
+        }
+
+        return $this->drivers[$code];
+    }
+
     /**
      * Automatically resolves the best matching plant driver for the given raw text and context.
      */
     public function resolve(string $rawText, array $context = []): ?PlantDriverInterface
     {
-        // 1. Check direct serial match if plant_serial or plant_id is provided
+        // The upload's plant ID takes precedence over document signatures and serials.
+        if (!empty($context['plant_id'])) {
+            $assigned = $this->assignedDriver((int) $context['plant_id']);
+            if ($assigned) return $assigned;
+        }
+
+        // 1. Check direct serial match if plant_serial is provided
         $targetSerial = $context['plant_serial'] ?? null;
         if ($targetSerial) {
             foreach ($this->drivers as $driver) {

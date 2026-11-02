@@ -30,6 +30,9 @@ class CustomSettingController extends Controller
             'batchingSettings' => $batchingSettings ? $batchingSettings->settings : [],
             'batchSheetLogoUrl' => !empty($batchingSettings?->settings['batch_sheet_logo_path'])
                 ? \Illuminate\Support\Facades\Storage::disk('public')->url($batchingSettings->settings['batch_sheet_logo_path']) : null,
+            'batchSheetDrivers' => array_values(array_map(fn ($driver) => [
+                'value' => $driver->getDriverCode(), 'label' => $driver->getDriverName(),
+            ], app(\App\Services\BatchSheet\Drivers\PlantDriverRegistry::class)->getDrivers())),
             'customSettings' => $customSettings->toArray(),
             'plantId' => $plantId,
             'plantName' => $plant ? $plant->name : 'Unknown Plant'
@@ -71,6 +74,9 @@ class CustomSettingController extends Controller
         $request->validate([
             'settings' => ['required', 'array'],
             'settings.batch_creation_source' => ['sometimes', 'in:sales_order,batch_schedule,both'],
+            'settings.batch_sheet_driver' => ['sometimes', 'nullable', 'string', \Illuminate\Validation\Rule::in(
+                array_keys(app(\App\Services\BatchSheet\Drivers\PlantDriverRegistry::class)->getDrivers())
+            )],
             'batch_sheet_logo' => ['nullable', 'file', 'image', 'mimes:png,jpg,jpeg', 'max:2048'],
             'remove_batch_sheet_logo' => ['sometimes', 'boolean'],
         ]);
@@ -87,6 +93,12 @@ class CustomSettingController extends Controller
         $customSetting = CustomSetting::where('plant_id', $plantId)
             ->where('module_name', $module)
             ->first();
+
+        // Older settings clients may omit the driver; preserve the plant assignment.
+        if ($module === 'batching' && !array_key_exists('batch_sheet_driver', $settings)
+            && isset($customSetting?->settings['batch_sheet_driver'])) {
+            $settings['batch_sheet_driver'] = $customSetting->settings['batch_sheet_driver'];
+        }
 
         // File paths belong to the server; ordinary settings saves preserve the current logo.
         unset($settings['batch_sheet_logo_path']);
