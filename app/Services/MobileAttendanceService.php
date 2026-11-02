@@ -14,6 +14,7 @@ use App\Models\Plant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class MobileAttendanceService
 {
@@ -23,8 +24,12 @@ class MobileAttendanceService
     {
         if ($lock) {
             // The user exists even when there is no personnel row to lock yet.
+            $token = $user->currentAccessToken();
             $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
-            abort_unless($user->is_active && $user->is_otp_enabled
+            if ($token) {
+                $user->withAccessToken($token);
+            }
+            abort_unless($user->is_active && ($user->is_otp_enabled || in_array('*', $user->currentAccessToken()?->abilities ?? [], true))
                 && (! $user->lockout_until || $user->lockout_until->isPast()), 403, 'Mobile app access is not available for this account.');
         }
         $query = Personnel::withoutGlobalScope('plant_id')->where('plant_id', $plantId)->where('user_id', $user->id);
@@ -77,11 +82,24 @@ class MobileAttendanceService
         }
     }
 
-    public function checkIn(User $user, int $plantId, ?string $notes): array
+    public function checkIn(User $user, int $plantId, ?string $notes, ?string $requestedCheckIn = null): array
     {
-        return DB::transaction(function () use ($user, $plantId, $notes) {
+        return DB::transaction(function () use ($user, $plantId, $notes, $requestedCheckIn) {
             // Serialize punches on an existing employee row, even before attendance exists.
             $personnel = $this->personnel($user, $plantId, true, true);
+            $now = CarbonImmutable::now(Attendance::TIMEZONE);
+            $schedule = $this->currentSchedule($personnel, $now);
+            $checkIn = $now->format('Y-m-d H:i:s');
+            if ($requestedCheckIn !== null) {
+                if ($schedule['scheduled_start'] !== null) {
+                    throw ValidationException::withMessages(['check_in' => 'Check-in time is managed by the server when shift timings are configured.']);
+                }
+                $requested = CarbonImmutable::createFromFormat('!Y-m-d H:i:s', $requestedCheckIn, Attendance::TIMEZONE);
+                if (! $requested || $requested->toDateString() !== $now->toDateString() || $requested > $now) {
+                    throw ValidationException::withMessages(['check_in' => 'Check-in must be today and cannot be in the future (Asia/Kolkata).']);
+                }
+                $checkIn = $requested->format('Y-m-d H:i:s');
+            }
             $open = Attendance::withoutGlobalScope('plant_id')->where('personnel_id', $personnel->id)
                 ->whereNotNull('check_in')->whereNull('check_out')->lockForUpdate()->get();
             abort_if($open->count() > 1, 409, 'Multiple open attendance records require HR correction.');
@@ -90,8 +108,6 @@ class MobileAttendanceService
                 abort_unless((int) $entry->plant_id === $plantId && $entry->source === 'mobile', 409, 'An attendance record is already open. Ask HR to review it.');
                 return [$entry, false];
             }
-            $now = CarbonImmutable::now(Attendance::TIMEZONE);
-            $schedule = $this->currentSchedule($personnel, $now);
             // The existing unique key is employee + date, across plants and soft deletes.
             $entry = Attendance::withoutGlobalScope('plant_id')->withTrashed()->where('personnel_id', $personnel->id)
                 ->whereDate('attendance_date', $schedule['attendance_date'])->lockForUpdate()->first();
@@ -101,7 +117,6 @@ class MobileAttendanceService
                 return [$entry, false];
             }
             $this->ensurePayrollEditable($personnel, $schedule['attendance_date']);
-            $checkIn = $now->format('Y-m-d H:i:s');
             $entry = Attendance::create(array_merge([
                 'plant_id' => $plantId, 'personnel_id' => $personnel->id,
                 'attendance_date' => $schedule['attendance_date'], 'shift_id' => $schedule['shift_id'],
@@ -139,6 +154,7 @@ class MobileAttendanceService
         $schedule = $this->metrics->schedule($entry->personnel, $entry->attendance_date->toDateString(), $timezone, $entry->shift_id);
         $data = $entry->only(['id', 'plant_id', 'personnel_id', 'shift_id', 'status', 'source', 'notes',
             'worked_hours', 'overtime_hours', 'late_hours', 'is_late', 'is_early_departure']);
+        $data['user_id'] = (int) $entry->personnel->user_id;
         $data['scheduled_hours'] = $schedule['scheduled_hours'] === null ? null : number_format($schedule['scheduled_hours'], 2, '.', '');
         $data['grace_seconds'] = $schedule['grace_seconds'];
         $data['attendance_date'] = $entry->attendance_date->toDateString();

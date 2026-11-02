@@ -83,6 +83,7 @@ class StoreBatchRequest extends FormRequest
             'status' => ['nullable', 'integer', 'in:1,2,3,4,5'],
             // 'concrete_pump' => ['nullable', 'exists:mm_machines,id'],
             'concrete_pump' => ['nullable'],
+            ...\App\Services\BatchMoistureService::rules((int) $plantId),
             'materials' => ['nullable', 'array'],
             'materials.*.product_id' => ['nullable', 'integer', 'exists:mm_products,id'],
             'materials.*.material_name' => ['nullable', 'string', 'max:255'],

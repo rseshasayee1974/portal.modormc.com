@@ -32,7 +32,7 @@ class AttendanceController extends Controller
             ->orderByDesc('attendance_date')->orderByDesc('id')->paginate($data['per_page'] ?? 20)
             ->through(fn ($entry) => $this->service->serialize($entry));
 
-        return response()->json(['success' => true, 'data' => $entries]);
+        return response()->json(['success' => true, 'user' => $request->user()->only(['id', 'username']), 'data' => $entries]);
     }
 
     public function current(Request $request)
@@ -46,6 +46,9 @@ class AttendanceController extends Controller
 
         return response()->json(['success' => true, 'data' => [
             'server_time' => $now->format('Y-m-d H:i:s'), 'timezone' => $now->timezoneName,
+            'user' => $request->user()->only(['id', 'username']),
+            'shift_id' => $schedule['shift_id'], 'scheduled_start' => $schedule['scheduled_start'],
+            'scheduled_end' => $schedule['scheduled_end'], 'accepts_check_in_time' => $schedule['scheduled_start'] === null,
             'work_date' => $schedule['attendance_date'], 'attendance' => $entry ? $this->service->serialize($entry) : null,
         ]]);
     }
@@ -59,9 +62,12 @@ class AttendanceController extends Controller
 
     public function checkIn(Request $request)
     {
-        $request->validate(['notes' => 'sometimes|nullable|string|max:1000']);
-        $this->validatePunchFields($request, ['notes']);
-        [$entry, $created] = $this->service->checkIn($request->user(), MobileAccess::plantId(), $request->input('notes'));
+        $request->validate([
+            'notes' => 'sometimes|nullable|string|max:1000',
+            'check_in' => 'sometimes|nullable|date_format:Y-m-d H:i:s',
+        ]);
+        $this->validatePunchFields($request, ['notes', 'check_in']);
+        [$entry, $created] = $this->service->checkIn($request->user(), MobileAccess::plantId(), $request->input('notes'), $request->input('check_in'));
 
         return response()->json(['success' => true, 'data' => $this->service->serialize($entry)], $created ? 201 : 200);
     }

@@ -41,6 +41,18 @@ interface BatchMaterial {
     product?: { title: string };
 }
 
+interface MoistureReading {
+    product_id: number;
+    design_moisture_percentage: number | null;
+    consumption_moisture_percentage: number | null;
+    measured_at: string | null;
+    notes: string;
+}
+
+const showMoistureDialog = ref(false);
+const savingMoisture = ref(false);
+const moistureDraft = ref<MoistureReading[]>([]);
+
 const props = withDefaults(defineProps<{
     batch?: any;
     salesOrders?: any[];
@@ -105,6 +117,7 @@ const form = useForm({
     end_time: props.batch?.end_time ? entityCalendarDate(props.batch.end_time) : entityCalendarDate(),
     empty_time: props.batch?.dispatches?.[0]?.empty_time ? entityCalendarDate(props.batch.dispatches[0].empty_time) : entityCalendarDate(),
     load_time: props.batch?.dispatches?.[0]?.load_time ? entityCalendarDate(props.batch.dispatches[0].load_time) : null,
+    moisture_contents: [] as MoistureReading[],
     materials: (() => {
         let initialMaterials = props.batch?.materials || [];
         if (!initialMaterials.length) return [blankMaterial()];
@@ -343,6 +356,14 @@ watch(
 );
 
 const applyBatchToForm = (newBatch: any) => {
+    form.moisture_contents = (newBatch?.moisture_contents || []).map((reading: any) => ({
+        product_id: Number(reading.product_id),
+        design_moisture_percentage: Number(reading.design_moisture_percentage ?? 0),
+        consumption_moisture_percentage: Number(reading.consumption_moisture_percentage ?? 0),
+        measured_at: reading.measured_at || null,
+        notes: reading.notes || '',
+    }));
+
     if (!newBatch || typeof newBatch !== 'object' || !newBatch.id) return;
 
     form.sales_order_id = newBatch.sales_order_id ?? null;
@@ -830,6 +851,68 @@ const copyTargetsToActuals = () => {
     });
 };
 
+const materialDisplay = (material: BatchMaterial) => props.batch?.material_display?.[material.product_id ?? '']
+    ?? props.products.find((product: any) => Number(product.id) === Number(material.product_id))?.batch_display;
+
+const materialPrecision = (material: BatchMaterial): number => materialDisplay(material)?.precision ?? 3;
+const displayedDeviation = (item: BatchMaterial): number => Number(getDeviation(item).toFixed(materialPrecision(item)));
+
+const moistureMaterials = computed(() => form.materials.filter((material, index, list) =>
+    material.product_id && materialDisplay(material)?.supports_moisture
+    && list.findIndex(other => Number(other.product_id) === Number(material.product_id)) === index
+));
+
+const moistureMaterialName = (productId: number) => {
+    const material = form.materials.find(item => Number(item.product_id) === productId);
+    return material?.material_name || props.products.find((product: any) => Number(product.id) === productId)?.title || 'Material';
+};
+
+const openMoistureDialog = () => {
+    moistureDraft.value = moistureMaterials.value.map(material => {
+        const saved = form.moisture_contents.find(reading => reading.product_id === Number(material.product_id));
+        return saved ? { ...saved } : {
+            product_id: Number(material.product_id), design_moisture_percentage: 0, consumption_moisture_percentage: 0, measured_at: null, notes: '',
+        };
+    });
+    showMoistureDialog.value = true;
+};
+
+const moistureValue = (material: BatchMaterial, type: 'design' | 'consumption'): string => {
+    if (!materialDisplay(material)?.supports_moisture) return '';
+    const reading = form.moisture_contents.find(reading => reading.product_id === Number(material.product_id));
+    return Number(reading?.[`${type}_moisture_percentage`] ?? 0).toFixed(2);
+};
+
+const applyMoistureReadings = async () => {
+    if (savingMoisture.value || isLocked.value) return;
+    savingMoisture.value = true;
+    try {
+        const readings = moistureDraft.value.map(reading => ({
+            ...reading,
+            design_moisture_percentage: reading.design_moisture_percentage ?? 0,
+            consumption_moisture_percentage: reading.consumption_moisture_percentage ?? 0,
+        }));
+        const response = await axios.put(route('batches.update', props.batch.id), { moisture_contents: readings });
+        form.moisture_contents = response.data.moisture_contents.map((reading: any) => ({
+            product_id: Number(reading.product_id),
+            design_moisture_percentage: Number(reading.design_moisture_percentage ?? 0),
+            consumption_moisture_percentage: Number(reading.consumption_moisture_percentage ?? 0),
+            measured_at: reading.measured_date_time || reading.measured_at || null,
+            notes: reading.notes || '',
+        }));
+        showMoistureDialog.value = false;
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Moisture saved', timer: 1500, showConfirmButton: false });
+    } catch (error: any) {
+        const errors = error.response?.data?.errors;
+        Swal.fire({
+            icon: 'error', title: 'Unable to save moisture', text: errors
+                ? Object.values(errors).flat().join('\n') : (error.response?.data?.message || 'Please try again.')
+        });
+    } finally {
+        savingMoisture.value = false;
+    }
+};
+
 const getDeviation = (item: any) => {
     const totalActual = (item.runs || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0);
     return totalActual - Number(item.target_qty || 0);
@@ -951,6 +1034,9 @@ const submit = (onSuccessCallback?: () => void) => {
         end_time: formatDateTime(data.end_time),
         empty_time: formatDateTime(data.empty_time),
         load_time: formatDateTime(data.load_time),
+        moisture_contents: data.moisture_contents.filter(reading =>
+            data.materials.some(material => Number(material.product_id) === reading.product_id)
+        ),
         materials: data.materials.map((mat: any) => {
             const pTitle = props.products.find((p: any) => p.id === mat.product_id)?.title || 'Material';
             const baseName = (mat.material_name || pTitle).replace(/\s*-\s*Run\s*\d+/gi, '').trim();
@@ -1287,6 +1373,9 @@ console.log('test');
                                         Reconciliation</h3>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
+                                    <Button type="button" label="Moisture Content" icon="pi pi-percentage" size="small"
+                                        severity="info" outlined class="!text-xs" :disabled="!moistureMaterials.length"
+                                        @click="openMoistureDialog" />
                                     <!-- Upload Batch Sheet button -->
                                     <Button v-if="!hasInvoice && isUploadFetchEnabled"
                                         :label="sheetUrl || props.batch?.sheet_url ? 'Re-upload Sheet' : 'Upload Batch Sheet'"
@@ -1461,10 +1550,24 @@ console.log('test');
                                                         class="border-r border-slate-200 px-3 py-2 bg-white">
                                                         <BaseInputNumber :modelValue="form.materials[index].target_qty"
                                                             @update:modelValue="form.materials[index].target_qty = Number($event ?? 0)"
-                                                            :disabled="isLocked" :minFractionDigits="3" size="small"
+                                                            :disabled="isLocked"
+                                                            :minFractionDigits="materialPrecision(item)"
+                                                            :maxFractionDigits="materialPrecision(item)" size="small"
                                                             :fluid="true"
                                                             :error="form.errors[`materials.${index}.target_qty`]"
                                                             class="!text-[11px] !font-bold text-center" />
+                                                    </td>
+                                                </tr>
+                                                <tr v-for="type in (['design', 'consumption'] as const)" :key="type"
+                                                    class="bg-cyan-50/30">
+                                                    <td
+                                                        class="sticky left-0 z-10 border-r border-slate-200 bg-slate-50 px-4 py-2 text-[10px] font-bold uppercase text-slate-600">
+                                                        {{ type === `design` ? `Design Moisture (%)` : `Consumption
+                                                        Moisture (%)` }}
+                                                    </td>
+                                                    <td v-for="(item, index) in form.materials" :key="index"
+                                                        class="border-r border-slate-200 px-3 py-2 text-center text-xs font-semibold text-slate-700">
+                                                        {{ moistureValue(item, type) }}
                                                     </td>
                                                 </tr>
                                                 <!-- Recipe Targets Summary -->
@@ -1474,10 +1577,11 @@ console.log('test');
                                                         <div
                                                             class="px-4 py-2 text-left text-slate-500 font-bold uppercase text-[9px] tracking-wider sticky left-0 w-max">
                                                             Total Recipe Targets:
-                                                            <span class="ml-1 text-slate-800 font-black text-xs">{{
-                                                                form.materials.reduce((sum, m) => sum +
-                                                                    Number(m.target_qty || 0),
-                                                                    0).toFixed(3)}} KGS</span>
+                                                            <span class="ml-1 text-slate-800 font-black text-xs">
+                                                                {{Math.round(form.materials.reduce((sum, m) => sum +
+                                                                    Number(m.target_qty ||
+                                                                        0), 0))}} KGS
+                                                            </span>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1492,7 +1596,9 @@ console.log('test');
                                                         <BaseInputNumber
                                                             :modelValue="form.materials[index].runs?.[runIdx - 1]"
                                                             @update:modelValue="form.materials[index].runs[runIdx - 1] = Number($event ?? 0)"
-                                                            :disabled="isLocked" :minFractionDigits="3" size="small"
+                                                            :disabled="isLocked"
+                                                            :minFractionDigits="materialPrecision(item)"
+                                                            :maxFractionDigits="materialPrecision(item)" size="small"
                                                             :fluid="true"
                                                             class="!text-[11px] !font-bold text-center bg-cyan-50/10 focus:bg-cyan-50/30" />
                                                     </td>
@@ -1505,7 +1611,7 @@ console.log('test');
                                                     <td v-for="(item, index) in form.materials" :key="index"
                                                         class="border-r border-slate-200 px-3 py-2 font-black text-center text-xs text-slate-800 bg-white">
                                                         {{(item.runs || []).reduce((sum, val) => sum + Number(val ||
-                                                            0), 0).toFixed(3)}}
+                                                            0), 0).toFixed(materialPrecision(item))}}
                                                     </td>
                                                 </tr>
                                                 <!-- Deviation Row -->
@@ -1515,9 +1621,9 @@ console.log('test');
                                                         Deviation</td>
                                                     <td v-for="(item, index) in form.materials" :key="index"
                                                         class="border-r border-slate-200 px-3 py-2.5 font-black text-center text-xs bg-white"
-                                                        :class="getDeviation(item) > 0 ? '!text-rose-600 !bg-rose-50/30' : getDeviation(item) < 0 ? '!text-emerald-600 !bg-emerald-50/30' : '!text-slate-500 !bg-slate-50/10'">
-                                                        {{ getDeviation(item) > 0 ? '+' : '' }}{{
-                                                            getDeviation(item).toFixed(3) }}
+                                                        :class="displayedDeviation(item) > 0 ? '!text-rose-600 !bg-rose-50/30' : displayedDeviation(item) < 0 ? '!text-emerald-600 !bg-emerald-50/30' : '!text-slate-500 !bg-slate-50/10'">
+                                                        {{ displayedDeviation(item) > 0 ? '+' : '' }}{{
+                                                            displayedDeviation(item).toFixed(materialPrecision(item)) }}
                                                     </td>
                                                 </tr>
                                                 <!-- Actual Set Weight Summary -->
@@ -1530,7 +1636,7 @@ console.log('test');
                                                             <span class="ml-1 text-slate-800 font-black text-xs">
                                                                 {{form.materials.reduce((sum, m) => sum + (m.runs ||
                                                                     []).reduce((s, r) => s
-                                                                        + Number(r || 0), 0), 0).toFixed(3)}} KGS
+                                                                        + Number(r || 0), 0), 0).toFixed(0)}} KGS
                                                             </span>
                                                         </div>
                                                     </td>
@@ -1584,6 +1690,33 @@ console.log('test');
             <Button label="Close" severity="secondary" outlined size="small"
                 class="!px-4 !py-1.5 !rounded-xl text-xs font-bold" @click="emit('cancel')" />
         </div>
+
+        <Dialog v-model:visible="showMoistureDialog" modal header="Aggregate Moisture (%)"
+            :style="{ width: '32rem', maxWidth: '95vw' }">
+            <div class="grid grid-cols-[minmax(0,1fr)_5.5rem_6.5rem] items-center gap-x-3 gap-y-2 text-sm">
+                <span></span>
+                <span class="text-center text-xs text-slate-500">Moisture Level</span>
+                <span class="text-center text-xs text-slate-500">Actual Moisture</span>
+                <template v-for="reading in moistureDraft" :key="reading.product_id">
+                    <span class="text-slate-700">{{ moistureMaterialName(reading.product_id) }}</span>
+                    <BaseInputNumber v-model="reading.design_moisture_percentage"
+                        :label="`${moistureMaterialName(reading.product_id)} design moisture percentage`"
+                        fieldClass="[&_label]:sr-only" :min="0" :max="100" :minFractionDigits="0" :maxFractionDigits="3"
+                        :disabled="isLocked" />
+                    <BaseInputNumber v-model="reading.consumption_moisture_percentage"
+                        :label="`${moistureMaterialName(reading.product_id)} consumption moisture percentage`"
+                        fieldClass="[&_label]:sr-only" :min="0" :max="100" :minFractionDigits="0" :maxFractionDigits="3"
+                        :disabled="isLocked" />
+                </template>
+            </div>
+            <p v-if="!moistureDraft.length" class="py-3 text-sm text-slate-500">No aggregate materials in this batch.
+            </p>
+            <template #footer>
+                <Button type="button" label="Cancel" severity="secondary" text @click="showMoistureDialog = false" />
+                <Button v-if="!isLocked" type="button" label="Apply" :loading="savingMoisture"
+                    @click="applyMoistureReadings" />
+            </template>
+        </Dialog>
 
         <!-- Fullscreen Split-Screen Document & Mapping Verification Window -->
         <Dialog :visible="activeUploadReviewId !== null" modal :closable="false" :dismissableMask="false"

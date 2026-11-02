@@ -124,3 +124,4 @@ graphify-out
 !/tests/Feature/TaxInvoiceAddressTest.php
 
 !/tests/Feature/InvoiceQrCodeTest.php
+!/tests/Feature/BatchMoistureContentTest.php

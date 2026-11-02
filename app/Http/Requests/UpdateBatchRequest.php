@@ -13,8 +13,16 @@ class UpdateBatchRequest extends FormRequest
         return true;
     }
 
+    public function isMoistureOnly(): bool
+    {
+        return array_keys($this->all()) === ['moisture_contents'];
+    }
+
     public function rules(): array
     {
+        if ($this->isMoistureOnly()) {
+            return \App\Services\BatchMoistureService::rules((int) session('active_plant_id'));
+        }
         $batchId = $this->route('batch')?->id ?? $this->route('batch');
         $batch = \App\Models\Batch::withoutGlobalScope('plant_id')->find($batchId);
         $plantId = session('active_plant_id', $batch?->plant_id);
@@ -68,6 +76,7 @@ class UpdateBatchRequest extends FormRequest
             'site_id' => ['nullable', 'integer', 'exists:mm_sites,id'],
             'status' => ['required', 'integer', 'in:1,2,3,4,5'],
             'concrete_pump' => ['nullable'],
+            ...\App\Services\BatchMoistureService::rules((int) $plantId),
             'materials' => ['nullable', 'array'],
             'materials.*.id' => ['nullable', 'integer', 'exists:mm_batch_materials,id'],
             'materials.*.product_id' => ['nullable', 'integer', 'exists:mm_products,id'],
@@ -83,6 +92,7 @@ class UpdateBatchRequest extends FormRequest
 
     public function withValidator($validator)
     {
+        if ($this->isMoistureOnly()) return;
         $validator->after(function ($validator) {
             $materials = $this->input('materials', []);
             foreach (is_array($materials) ? $materials : [] as $index => $material) {

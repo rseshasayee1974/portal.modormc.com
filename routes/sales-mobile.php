@@ -6,7 +6,6 @@ Created: 2026-10-09 18:05:42 Asia/Calcutta (UTC+05:30)
 */
 
 use App\Http\Controllers\Api\SalesMobile\AuthController;
-use App\Http\Controllers\Api\SalesMobile\AttendanceController;
 use App\Http\Controllers\Api\SalesMobile\DocumentationController;
 use App\Http\Controllers\Api\SalesMobile\LeadController;
 use App\Http\Controllers\Api\SalesMobile\NotificationController;
@@ -30,13 +29,6 @@ Route::prefix('v1')->withoutMiddleware(TitleCaseInputs::class)->group(function (
         Route::get('me', [AuthController::class, 'me']);
         Route::get('plants', [AuthController::class, 'plants']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
-        Route::middleware(MobilePlantContext::class)->prefix('attendances')->group(function () {
-            Route::get('/', [AttendanceController::class, 'index']);
-            Route::get('current', [AttendanceController::class, 'current']);
-            Route::post('check-in', [AttendanceController::class, 'checkIn']);
-            Route::post('{attendance}/check-out', [AttendanceController::class, 'checkOut'])->whereNumber('attendance');
-            Route::get('{attendance}', [AttendanceController::class, 'show'])->whereNumber('attendance');
-        });
         Route::middleware(MobilePlantContext::class)->prefix('notifications')->group(function () {
             Route::get('/', [NotificationController::class, 'index']);
             Route::get('unread-count', [NotificationController::class, 'unreadCount']);

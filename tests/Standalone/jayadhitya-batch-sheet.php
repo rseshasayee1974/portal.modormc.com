@@ -82,6 +82,14 @@ foreach ([
 }
 $batch->setRelation('materials', $materials);
 $mix->setRelation('items', $recipe);
+$batch->plant_id = 739;
+$batch->setRelation('moistureContents', collect([
+    new App\Models\BatchMoistureContent(['plant_id' => 739, 'product_id' => 1, 'design_moisture_percentage' => 5, 'consumption_moisture_percentage' => 1.01]),
+    new App\Models\BatchMoistureContent(['plant_id' => 739, 'product_id' => 2, 'design_moisture_percentage' => 5, 'consumption_moisture_percentage' => 1.01]),
+    new App\Models\BatchMoistureContent(['plant_id' => 739, 'product_id' => 3, 'design_moisture_percentage' => 0, 'consumption_moisture_percentage' => 1.45]),
+    new App\Models\BatchMoistureContent(['plant_id' => 739, 'product_id' => 4, 'design_moisture_percentage' => 0, 'consumption_moisture_percentage' => .50]),
+    new App\Models\BatchMoistureContent(['plant_id' => 739, 'product_id' => 5, 'design_moisture_percentage' => 9, 'consumption_moisture_percentage' => 9]),
+]));
 $report = JayadhityaBatchSheet::data($batch);
 $check(JayadhityaBatchSheet::matches($batch), 'Plant template not selected.');
 $check(abs($report['total_target'] - 4942) < 0.001, 'Set weight mismatch.');
@@ -89,7 +97,7 @@ $check(abs($report['total_actual'] - 4949.02) < 0.001, 'Actual weight mismatch.'
 $check(abs(array_sum($report['recipe']) - 2462) < 0.001, 'Recipe mass must differ from total set mass.');
 $check(abs($report['difference'] - 0.142047) < 0.00001, 'Percentage must be calculated from weights.');
 $html = view('pdfs.batches.batch_sheet', ['batch' => $batch, 'isPreview' => false])->render();
-foreach (['JAYADHITYA GROUPS', 'TN12AC8311', '4949.02', '2462.00', 'Difference in Percentage'] as $expected) {
+foreach (['JAYADHITYA GROUPS', 'TN12AC8311', 'Mass of Total Actual Weight in kg : 4949', 'Mass of Recipe Targets in kg : 2462', 'Difference in Percentage'] as $expected) {
     $check(str_contains($html, $expected), 'Missing rendered value: '.$expected);
 }
 $layout = JayadhityaBatchSheet::layoutData($batch);
@@ -103,12 +111,39 @@ $check(! isset($layout['tolerance_rows']), 'Unknown tolerance readings must not 
 $check(count($layout['runs']) === 2, 'Legacy totals must use the same capacity split as reconciliation.');
 $check($layout['runs'][0]['MSAND 1'] === 369.5, 'Legacy actual must be split using run volume.');
 $check(substr_count($html, 'data:image/png;base64,'.base64_encode($logoBytes)) === 3, 'Configured logo must appear in both headers and footer.');
-$check(! str_contains($html, 'SCHWING'), 'Fixed manufacturer branding must be replaced.');
+$check(str_contains($html, 'SCHWING EWIG Control System'), 'Control system footer caption must be retained.');
 $check($layout['recipe_rows'][1]['MSAND 1'] === 372.0, 'Second recipe row must use target weight per batch volume.');
 $doc = new DOMDocument;
 @$doc->loadHTML($html);
 $xpath = new DOMXPath($doc);
 $check($xpath->query('//table[@id="tbl"]//thead/tr')->length === 2, 'Material group and column headers are required.');
+foreach ($xpath->query('//table[@id="tbl"]//tr[@class="data"]/td[position() < 8] | //table[@id="info"]//td[@class="value"]') as $cell) {
+    $check(! preg_match('/-?\d+\.\d+/', $cell->textContent), 'Numeric fields must display rounded whole numbers: '.$cell->textContent);
+}
+$check($xpath->query('//tr[@data-row="actual"][1]/td[1]')->item(0)->textContent === '370', 'Half values must round up for display.');
+$check($xpath->query('//tr[@data-row="actual"][1]/td[8]')->item(0)->textContent === '2.010', 'Admixture actuals must retain three decimal places.');
+$check($xpath->query('//tr[@data-row="moisture-design"]/td[1]')->item(0)->textContent === '5.00', 'Design moisture must retain two decimals.');
+$check($xpath->query('//tr[@data-row="moisture-consumption"]/td[3]')->item(0)->textContent === '1.45', 'Consumption moisture must align with its aggregate.');
+$check($xpath->query('//tr[@data-row="moisture-design"]/td[3]')->item(0)->textContent === '0.00', 'Zero moisture must remain visible.');
+$check($xpath->query('//tr[@data-row="moisture-design"]/td[5]')->item(0)->textContent === '', 'Non-aggregate moisture must not be printed.');
+$withoutMoisture = clone $batch;
+$withoutMoisture->setRelation('moistureContents', collect());
+$check(str_contains(view('pdfs.batches.batch_sheet', ['batch' => $withoutMoisture])->render(), 'data-row="moisture-design"'), 'Missing moisture must display zero rows for aggregates.');
+foreach (['10mm', '12MM', '20MM', '30 mm', 'Coarse Aggregate 40mm', 'Fine Sand'] as $name) {
+    $display = JayadhityaBatchSheet::materialDisplay($name, 'Raw Materials');
+    $check($display['supports_moisture'] && $display['precision'] === 0, $name.' must be classified as aggregate by the backend.');
+}
+foreach (['CEMENT 1', 'Water', 'ADM 1', 'Silica'] as $name) {
+    $check(! JayadhityaBatchSheet::materialDisplay($name)['supports_moisture'], $name.' must not appear in aggregate moisture inputs.');
+}
+$sizedBatch = clone $batch;
+$sizedMaterials = $materials->map(fn ($material) => clone $material);
+$sizedMaterials[3]->material_name = '30MM';
+$sizedBatch->setRelation('materials', $sizedMaterials);
+$sizedReport = JayadhityaBatchSheet::layoutData($sizedBatch);
+$check(in_array('30MM', $sizedReport['groups']['Aggregate'], true), '30MM must appear in the Aggregate report group.');
+$check($sizedReport['moisture_display_rows']['design']['20MM'] === '0.00', '20MM design moisture must align with its column.');
+$check($sizedReport['moisture_display_rows']['consumption']['30MM'] === '0.50', '30MM consumption moisture must align with its column.');
 $fixture = base_path('tmp/pdfs/exact-batch-sheet.html');
 if (! is_dir(dirname($fixture))) {
     mkdir(dirname($fixture), 0775, true);

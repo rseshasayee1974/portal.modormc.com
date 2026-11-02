@@ -6,6 +6,16 @@ use Illuminate\Support\Facades\Route;
 /** @var string $routeNamePrefix */
 $routeNamePrefix = $routeNamePrefix ?? 'mobile';
 
+// Personal attendance shares app authentication and plant access, without business-record scope.
+Route::prefix('attendances')->withoutMiddleware(\App\Http\Middleware\MobileSalesScope::class)->group(function () {
+    $controller = \App\Http\Controllers\Api\SalesMobile\AttendanceController::class;
+    Route::get('/', [$controller, 'index']);
+    Route::get('current', [$controller, 'current']);
+    Route::post('check-in', [$controller, 'checkIn']);
+    Route::post('{attendance}/check-out', [$controller, 'checkOut'])->whereNumber('attendance');
+    Route::get('{attendance}', [$controller, 'show'])->whereNumber('attendance');
+});
+
 $quotationReviewController = $routeNamePrefix === 'mobile'
     ? \App\Http\Controllers\Api\MobileAdminQuotationController::class
     : QuotationController::class;

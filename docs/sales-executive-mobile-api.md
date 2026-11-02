@@ -428,14 +428,14 @@ Migration `2026_10_17_143900_add_audit_columns_to_push_notification_logs.php` up
 
 ## Employee attendance on mobile
 
-No new migration is required: attendance uses the existing mm_attendances, mm_personnels, mm_shifts and mm_employee_shifts tables. The **Attendance** import folder contains requests and saved response examples. Attendance is available to any active user granted Mobile App Access, regardless of role or whether a personnel profile already exists. An accessible selected plant is still required. The backend reuses the oldest non-deleted profile linked to that user and plant; legacy duplicates do not block access. If none exists, the first explicit check-in creates a minimal profile with the user link, plant/entity, display name, generated employee code and active status, because the existing attendance table requires a personnel foreign key. It does not assign roles, salaries, contacts or shifts. Existing HR profile status and joining/exit dates do not block mobile attendance or get changed. Deleted profiles are not restored. No administrator attendance-management permission is required. There is no mobile endpoint to change another employee, manually edit/delete attendance, override HR statuses, or submit offline/backdated punches.
+No new migration is required: attendance uses the existing mm_attendances, mm_personnels, mm_shifts and mm_employee_shifts tables. The **Attendance** import folder contains requests and saved response examples. Attendance is available to any active user granted Mobile App Access, regardless of role or whether a personnel profile already exists. An accessible selected plant is still required. The backend reuses the oldest non-deleted profile linked to that user and plant; legacy duplicates do not block access. If none exists, the first explicit check-in creates a minimal profile with the user link, plant/entity, display name, generated employee code and active status, because the existing attendance table requires a personnel foreign key. It does not assign roles, salaries, contacts or shifts. Existing HR profile status and joining/exit dates do not block mobile attendance or get changed. Deleted profiles are not restored. No administrator attendance-management permission is required. There is no mobile endpoint to change another employee, manually edit/delete attendance, override HR statuses, or submit previous-day punches.
 
-All paths use `/api/mobile/v1`, with `Authorization: Bearer <sales-mobile token>`, `Accept: application/json` and `X-Plant-Id`. Send JSON content type for a JSON body.
+Sales paths use `/api/mobile/v1`; the same attendance endpoints are available to the admin app under `/api/mobile` using its main app token. Send `Authorization: Bearer <sales-mobile token>`, `Accept: application/json` and `X-Plant-Id`. Send JSON content type for a JSON body.
 
 | Method | Endpoint | Result |
 |---|---|---|
-| GET | `/attendances/current` | Server time in Asia/Kolkata, current work date and open attendance (or the work-date record); attendance can be null |
-| POST | `/attendances/check-in` | Creates a server-timestamped punch; 201 initially, 200 for a retry returning the existing record |
+| GET | `/attendances/current` | Logged-in user, shift ID/start/end, accepts_check_in_time, server time in Asia/Kolkata, current work date and open attendance (or the work-date record); attendance can be null |
+| POST | `/attendances/check-in` | Creates a punch (optional check_in only without shift timings); 201 initially, 200 for a retry returning the existing record |
 | POST | `/attendances/{attendance}/check-out` | Closes that own record using server time and calculates hours; 200; repeated calls preserve its original checkout |
 | GET | `/attendances?from_date=2026-10-01&to_date=2026-10-31&per_page=20&page=1` | Own paginated history under data.data; dates optional, per_page 1–100 |
 | GET | `/attendances/{attendance}` | Own attendance detail; foreign/missing IDs return 404 |
@@ -445,7 +445,7 @@ Without a linked profile, current attendance returns `attendance: null`, history
 ### Login and logout screen sequence
 
 1. Authenticate normally and select a plant. Authentication alone does not punch attendance; the app calls the explicit attendance actions after selecting a plant.
-2. Load **Current attendance**. When the employee starts work, call **Check in after login**; the collection stores its numeric `data.id` in `attendance_id`. An optional request body is `{ "notes": "Starting work" }` (maximum 1,000 characters). An empty body is accepted. Do not send `personnel_id`, timestamps, shift, source, status or calculated hours; unexpected fields return 422.
+2. Load **Current attendance**. When the employee starts work, call **Check in after login**; the collection stores its numeric `data.id` in `attendance_id`. An optional request body is `{ "notes": "Starting work" }` (maximum 1,000 characters). An empty body is accepted. When `data.accepts_check_in_time` from current attendance is true, an optional `check_in` in `YYYY-MM-DD HH:mm:ss` format is accepted in Asia/Kolkata, for today and no later than server time (for example `{ "check_in": "2026-10-21 08:15:00" }`). Omit it to use server time. Configured shifts reject client check-in timestamps and use the actual server punch time for lateness calculations. History includes the logged-in `user` alongside the paginated `data`; each attendance includes `user_id`. Do not send `personnel_id`, shift, source, status or calculated hours; unexpected fields return 422.
 3. On the attendance logout/end-work screen call **Check out before logout** with that `attendance_id` and no body. Wait for a successful response before calling `POST /auth/logout`, which revokes the token. App termination, connectivity loss, token expiry and automatic logout do not create a guessed checkout. Recover through current attendance after re-login.
 4. After a timeout retry the same operation/attendance ID. Duplicate check-in returns the existing open record; same-work-date check-in after closure returns the closed record. This prevents retries from creating another work session. Only one attendance row per employee/work date is supported, matching the existing unique key; split shifts and lunch punches require a separate future session model.
 
@@ -519,7 +519,7 @@ At end of work run **Check out before logout** with Body set to **none**:
 POST {{base_url}}/api/mobile/v1/attendances/{{attendance_id}}/check-out
 ```
 
-Repeat checkout with the same ID to check that its original timestamp is preserved. Server time is always used, so checking in and immediately checking out may produce 0.00 hours after rounding. Use automated clock-controlled tests to verify overnight work and specific overtime durations; those times cannot be fabricated through the production API. Only call auth/logout after successful checkout.
+Repeat checkout with the same ID to check that its original timestamp is preserved. Server time is used for checkout and for check-in unless a no-shift check-in time was supplied, so an immediate server-timed check-in and checkout may produce 0.00 hours after rounding. Use automated clock-controlled tests to verify overnight work and specific overtime durations; those times cannot be fabricated through the production API. Only call auth/logout after successful checkout.
 
 **My attendance history** uses `attendance_from_date` and `attendance_to_date`, defaulting to the collection's `today` variable when empty. Update them for another day. **All my attendance history (no date filters)** omits both dates:
 
@@ -533,7 +533,7 @@ The separate **Attendance negative tests (run individually)** folder includes ex
 | Request | Dummy input | Expected status |
 |---|---|---|
 | Reject employee override | Check-in JSON: `{"personnel_id":999}` | 422 |
-| Reject client check-in time | Check-in JSON: `{"check_in":"2026-10-21 09:00:00"}` | 422 |
+| Reject client check-in time with configured shift | Check-in JSON: `{"check_in":"2026-10-21 09:00:00"}` | 422 |
 | Reject calculated hours | Check-in JSON: `{"worked_hours":8}` | 422 |
 | Reject attendance status override | Check-in JSON: `{"status":"present"}` | 422 |
 | Reject client check-out time | Checkout JSON: `{"check_out":"2026-10-21 18:30:00"}` | 422 |

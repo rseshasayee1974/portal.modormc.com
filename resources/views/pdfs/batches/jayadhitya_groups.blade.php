@@ -11,23 +11,18 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
     $driver = $dispatch?->driver;
     $batchDate = $batch->start_time ?? $batch->created_at;
     $value = fn ($value) => $value !== null && $value !== '' ? $value : '-';
-    $format = function ($value, $column) {
-        if ($value === null) return '-';
-        $value = (float) $value;
-        $precision = abs($value - round($value, 2)) > 0.000001 ? 3
-            : ($column === 'Sil' ? 1 : (in_array($column, ['ADMIX 1', 'ADMIX 2', 'Adm 3', 'Adm 4'], true) ? 2 : ($value == floor($value) ? 0 : 2)));
-        return number_format($value, $precision, '.', '');
-    };
+    $precision = $report['precisions'];
+    $format = fn ($value, $column = null) => $value === null ? '-' : number_format((float) $value, $precision[$column] ?? 0, '.', '');
     $left = [['Batch Number', $batch->batch_no], ['Batch Date', $batchDate?->format('d-m-Y')],
         ['Batch Start Time', $batch->start_time?->format('H:i:s')], ['Batch End Time', $batch->end_time?->format('H:i:s')],
         ['Customer', $order?->customer?->legal_name], ['Site', $order?->site?->name]];
     $middle = [['Recipe Name', $mix?->design_name ?? $mix?->grade], ['Recipe Code', $mix?->design_code],
         ['Truck No', $dispatch?->truck?->registration], ['Truck Driver', trim(($driver?->first_name ?? '').' '.($driver?->last_name ?? ''))],
         ['Adj / Manual Qty', null]];
-    $right = [['Mixer Capacity', isset($plant->mixer_capacity) ? number_format($plant->mixer_capacity, 2) : null],
-        ['Batch Size', number_format($report['run_size'], 4)], ['Production Qty', number_format((float) $batch->batch_size, 2)],
-        ['Order No', $order?->order_no], ['Ordered Qty', isset($order->total_qty) ? number_format((float) $order->total_qty, 2) : null],
-        ['With This Load', $report['with_this_load'] !== null ? number_format((float) $report['with_this_load'], 2) : null]];
+    $right = [['Mixer Capacity', isset($plant->mixer_capacity) ? $format($plant->mixer_capacity) : null],
+        ['Batch Size', $format($report['run_size'])], ['Production Qty', $format($batch->batch_size)],
+        ['Order No', $order?->order_no], ['Ordered Qty', isset($order->total_qty) ? $format($order->total_qty) : null],
+        ['With This Load', $report['with_this_load'] !== null ? $format($report['with_this_load']) : null]];
     $brand = \App\Services\PrintBrandHeader::resolve(['plant' => $plant, 'batchSheetBrand' => true]);
     $columnCount = max(1, count($report['columns']));
 @endphp
@@ -75,6 +70,8 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
   table.b tr.data td { padding: 4px 3px; line-height: 19px; }
   table.b tr.note td { text-align: right; font-weight: 700; font-size: 14.5px; line-height: 20px; padding: 4px 2px 1px; }
   .foot { margin-top: auto; padding-top: 28px; display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: end; font-weight: 700; font-size: 13px; }
+  .foot-brand { display: flex; flex-direction: column; align-items: flex-start; }
+  .foot-caption { font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; color: #333; line-height: 1.2; margin-top: 2px; }
   .foot > :last-child { text-align: right; }
   @media print {
     body { background: #fff; }
@@ -121,32 +118,53 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
       {{-- <tr class="label recipe-label"><td colspan="{{ $columnCount }}">{{ $loop->first ? 'Mix Design in kg per m³' : 'Set Weight in kg per m³' }}</td></tr> --}}
       <tr class="data" data-row="recipe">@foreach ($report['columns'] as $column)<td class="{{ $loop->last ? 'sil' : 'num' }}">{{ $format($row === null ? null : ($row[$column] ?? 0), $column) }}</td>@endforeach</tr>
     @endforeach
-    <tr class="note"><td colspan="{{ $columnCount }}">Mass of Recipe Targets in kg : {{ $report['recipe'] ? number_format(array_sum($report['recipe']), 2, '.', '') : '-' }}</td></tr>
+    @if ($report['moisture_display_rows'])
+      @foreach (['design' => 'Design Moisture (%)', 'consumption' => 'Consumption Moisture (%)'] as $type => $description)
+        <tr class="data moisture" data-row="moisture-{{ $type }}" aria-label="{{ $description }}" title="{{ $description }}">
+          @foreach ($report['columns'] as $column)
+            <td>{{ $report['moisture_display_rows'][$type][$column] }}</td>
+          @endforeach
+        </tr>
+      @endforeach
+    @endif
+    <tr class="note"><td colspan="{{ $columnCount }}">Mass of Recipe Targets in kg : {{ $report['recipe'] ? $format(array_sum($report['recipe'])) : '-' }}</td></tr>
     <tr class="label"><td colspan="{{ $columnCount }}">Actual Values in kg</td></tr>
     @foreach ($report['runs'] as $row)
       <tr class="data" data-row="actual">@foreach ($report['columns'] as $column)<td class="{{ $loop->last ? 'sil' : 'num' }}">{{ $format($row === null ? null : ($row[$column] ?? 0), $column) }}</td>@endforeach</tr>
     @endforeach
     <tr class="label"><td colspan="{{ $columnCount }}">Total Set Weight in kg</td></tr>
     <tr class="data">@foreach ($report['columns'] as $column)<td class="{{ $loop->last ? 'sil' : 'num' }}">{{ $format($report['targets'][$column] ?? 0, $column) }}</td>@endforeach</tr>
-    <tr class="note top"><td colspan="{{ $columnCount }}">Mass of Total Set Weight in kg : {{ number_format($report['total_target'], 2, '.', '') }}</td></tr>
+    <tr class="note top"><td colspan="{{ $columnCount }}">Mass of Total Set Weight in kg : {{ $format($report['total_target']) }}</td></tr>
     <tr class="label"><td colspan="{{ $columnCount }}">Total Actual Weight in kg</td></tr>
     <tr class="data">@foreach ($report['columns'] as $column)<td class="{{ $loop->last ? 'sil' : 'num' }}">{{ $format($report['actuals'][$column] ?? 0, $column) }}</td>@endforeach</tr>
-    <tr class="note top"><td colspan="{{ $columnCount }}">Mass of Total Actual Weight in kg : {{ number_format($report['total_actual'], 2, '.', '') }}</td></tr>
+    <tr class="note top"><td colspan="{{ $columnCount }}">Mass of Total Actual Weight in kg : {{ $format($report['total_actual']) }}</td></tr>
     <tr class="label"><td colspan="{{ $columnCount }}">Difference in Percentage</td></tr>
     <tr class="data">@foreach ($report['columns'] as $column)
       @php $target = $report['targets'][$column] ?? 0; $actual = $report['actuals'][$column] ?? 0; @endphp
-      <td class="{{ $loop->last ? 'sil' : 'num' }}">{{ number_format($target != 0 ? ($actual - $target) / $target * 100 : 0, 2, '.', '') }}</td>
+      <td class="{{ $loop->last ? 'sil' : 'num' }}">{{ $format($target != 0 ? ($actual - $target) / $target * 100 : 0, $column) }}</td>
     @endforeach</tr>
-    <tr class="note top"><td colspan="{{ $columnCount }}">Total Mass Difference in Percentage : {{ number_format($report['difference'], 2, '.', '') }}</td></tr>
+    <tr class="note top"><td colspan="{{ $columnCount }}">Total Mass Difference in Percentage : {{ $format($report['difference']) }}</td></tr>
     </tbody>
     @endif
   </table>
   </div></div>
   <div class="foot">
-    <div class="logo sm" id="logoF">@if ($brand['logo'])<img src="{{ $brand['logo'] }}" alt="{{ $brand['name'] }} logo">@endif</div>
+    <div class="foot-brand">
+      <div class="logo sm" id="logoF">@if ($brand['logo'])<img src="{{ $brand['logo'] }}" alt="{{ $brand['name'] }} logo">@endif</div>
+      <div class="foot-caption">SCHWING EWIG Control System</div>
+    </div>
     <div style="text-align:center">Page <span id="pg">1</span></div>
     <div>Date: <span id="printDate">{{ now()->format('d-m-Y g:i:s A') }}</span></div>
   </div>
 </div>
+@if (($isPreview ?? false) && request()->boolean('print'))
+<script>
+window.addEventListener('load', async () => {
+    await document.fonts.ready;
+    window.focus();
+    window.print();
+}, { once: true });
+</script>
+@endif
 </body>
 </html>
