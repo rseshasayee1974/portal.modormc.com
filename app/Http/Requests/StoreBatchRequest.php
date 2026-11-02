@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Support\BatchNumberAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 use Illuminate\Validation\Rule;
@@ -11,6 +10,8 @@ class StoreBatchRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
+        $seriesSettings = \App\Models\CustomSetting::batchSeriesSettings(session('active_plant_id'));
+        $this->merge(['batch_series' => strtoupper((string) $this->input('batch_series', $seriesSettings['default_series']))]);
         if ($this->filled('batching_schedule_id')) {
             $schedule = \App\Models\ConcreteBatchingSchedule::where('plant_id', session('active_plant_id'))
                 ->find($this->input('batching_schedule_id'));
@@ -31,14 +32,7 @@ class StoreBatchRequest extends FormRequest
         $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
         $isWeightMandatory = !isset($settings['weight_mandatory']) || filter_var($settings['weight_mandatory'], FILTER_VALIDATE_BOOLEAN);
 
-        $user = $this->user() ?? auth()->user();
-        $canEditBatchNo = BatchNumberAccess::allows($user);
-
-        $batchNoRules = ['nullable', 'integer', 'min:1'];
-        if ($canEditBatchNo) {
-            $batchNoRules[] = Rule::unique('mm_batches', 'batch_no')
-                ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at'));
-        }
+        $batchNoRules = ['nullable', 'integer', 'min:1', 'max:9999999999'];
 
         $emptyWeightRules = $isWeightMandatory
             ? ['required', 'numeric', 'gt:0']
@@ -61,6 +55,8 @@ class StoreBatchRequest extends FormRequest
                     ->whereNull('batch_id')->whereNull('dispatch_id')->where('status', 'scheduled'))],
             'sales_order_id' => ['required', 'integer', Rule::exists('mm_sales_orders', 'id')
                 ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at'))],
+            'batch_series' => ['required', Rule::in(\App\Models\CustomSetting::batchSeriesSettings($plantId, $settings)['selection_enabled']
+                ? ['B', 'P'] : [\App\Models\CustomSetting::batchSeriesSettings($plantId, $settings)['default_series']])],
             'batch_no' => $batchNoRules,
             'batch_size' => ['required', 'numeric', 'min:0.1', 'max:20'],
             'start_time' => ['nullable', 'date'],

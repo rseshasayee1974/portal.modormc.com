@@ -92,6 +92,8 @@ class BatchController extends Controller
                 DB::raw('COALESCE(dm.design_code, m.design_code) as mix_design_code'),
                 DB::raw('COALESCE(cg.name, dm.design_type, m.design_type) as concrete_grade'),
                 'd.id as dispatch_id',
+                'd.prefix as dispatch_prefix',
+                'd.dispatch_no',
                 'd.dispatch_status',
                 'd.truck_id as dispatch_truck_id',
                 'd.delivered_qty as dispatch_delivered_qty',
@@ -176,6 +178,8 @@ class BatchController extends Controller
                     'dispatches' => $row->dispatch_id ? [
                         [
                             'id' => $row->dispatch_id,
+                            'prefix' => $row->dispatch_prefix,
+                            'dispatch_no' => $row->dispatch_no,
                             'dispatch_status' => $row->dispatch_status,
                             'batch_id' => $row->id,
                             'truck_id' => $row->dispatch_truck_id,
@@ -296,10 +300,11 @@ class BatchController extends Controller
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $fyStart = Carbon::create($startYear, 4, 1, 0, 0, 0);
 
-        $nextBatchNo = (Batch::withoutGlobalScope('plant_id')
-            ->where('plant_id', $activePlantId)
-            ->whereNull('deleted_at')
-            ->max('batch_no') ?? 0) + 1;
+        $nextBatchNumbers = [
+            'B' => Batch::nextSeriesNumber((int) $activePlantId, 'B')['next_number'],
+            'P' => Batch::nextSeriesNumber((int) $activePlantId, 'P')['next_number'],
+        ];
+        $nextBatchNo = $nextBatchNumbers['B'];
 
             // return response()->json([
             //     'batches' => $batches,
@@ -345,6 +350,8 @@ class BatchController extends Controller
             'payment_methods'   => PaymentMethodsDropdown(),
             'sales_ledgers'     => toSelectOptions(LedgersDropdown('REVENUE'), 'title', 'id'),
             'nextBatchNo'       => $nextBatchNo ?: 1,
+            'nextBatchNumbers'  => $nextBatchNumbers,
+            'batchSeriesSettings' => CustomSetting::batchSeriesSettings($activePlantId, $batchingSettings),
             'batchingSettings'  => CustomSetting::getForModule($activePlantId, 'batching'),
             'concretePumpOptions' => ConcretePumpOptions(),
         ]);
@@ -385,23 +392,13 @@ class BatchController extends Controller
                 }
                 $payload['sales_order_id'] = $schedule->sales_order_id;
             }
-            if (!$canEditBatchNo || empty($payload['batch_no'])) {
-                $payload['batch_no'] = (Batch::withoutGlobalScope('plant_id')
-                    ->where('plant_id', $activePlantId)
-                    ->whereNull('deleted_at')
-                    ->lockForUpdate()
-                    ->max('batch_no') ?? 0) + 1;
-            } else {
-                $exists = Batch::withoutGlobalScope('plant_id')
-                    ->where('plant_id', $activePlantId)
-                    ->where('batch_no', $payload['batch_no'])
-                    ->whereNull('deleted_at')
-                    ->exists();
-                if ($exists) {
-                    throw ValidationException::withMessages([
-                        'batch_no' => ["Batch number #{$payload['batch_no']} already exists for this plant. Duplicate batch numbers are restricted."]
-                    ]);
-                }
+            $number = Batch::nextSeriesNumber((int) $activePlantId, $payload['batch_series'] ?? CustomSetting::batchSeriesSettings($activePlantId)['default_series']);
+            $payload['batch_no'] = $canEditBatchNo && !empty($payload['batch_no'])
+                ? $number['series'].(int) $payload['batch_no'] : $number['batch_no'];
+            $exists = Batch::withoutGlobalScopes()->where('plant_id', $activePlantId)
+                ->where('batch_no', $payload['batch_no'])->exists();
+            if ($exists) {
+                throw ValidationException::withMessages(['batch_no' => "Batch number {$payload['batch_no']} already exists in this plant."]);
             }
             $payload['status'] = $payload['status'] ?? Batch::STATUS_PLANNED;
             if ((int) $payload['status'] === Batch::STATUS_DISPATCHED) {
@@ -464,7 +461,7 @@ class BatchController extends Controller
             $shouldCreateDispatch = !empty($payload['truck_id']) || !empty($payload['transport_id']);
             
             if ($shouldCreateDispatch) {
-                $dispatchNumber = Dispatch::nextDocumentNumber($activePlantId, $salesOrder->customer_id);
+                $dispatchNumber = Dispatch::nextDocumentNumber($activePlantId, $salesOrder->customer_id, $batch);
                 $prefix = $dispatchNumber['prefix'];
 
                 $baseRate = (float)($batch->rate ?? $salesOrder->rate ?? 0);
@@ -1263,7 +1260,7 @@ class BatchController extends Controller
         $payload = $request->validated();
         if (!$canEditBatchNo) {
             $payload['batch_no'] = $batch->batch_no;
-        } elseif (isset($payload['batch_no']) && (int)$payload['batch_no'] !== (int)$batch->batch_no) {
+        } elseif (isset($payload['batch_no']) && (string)$payload['batch_no'] !== (string)$batch->batch_no) {
             $exists = Batch::withoutGlobalScope('plant_id')
                 ->where('plant_id', $batch->plant_id)
                 ->where('batch_no', $payload['batch_no'])
@@ -1883,7 +1880,7 @@ class BatchController extends Controller
             'isPreview' => false,
         ])->setPaper([0, 0, 226.77, $height], 'portrait');
 
-        $filename = sprintf('gate-pass-B%s.pdf', str_pad($batch->batch_no ?? $batch->id, 4, '0', STR_PAD_LEFT));
+        $filename = sprintf('gate-pass-%s.pdf', $batch->batch_no ?? $batch->id);
         return $pdf->download($filename);
     }
 

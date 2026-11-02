@@ -96,7 +96,7 @@
             <div class="flex justify-between items-center bg-slate-50 rounded-2xl p-4 border border-slate-100">
                 <div>
                     <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Gate Pass No</span>
-                    <div class="text-lg font-extrabold text-indigo-600 font-mono">B{{ str_pad($batch->batch_no ?? $batch->id, 4, '0', STR_PAD_LEFT) }}</div>
+                    <div class="text-lg font-extrabold text-indigo-600 font-mono">{{ ctype_digit((string) $batch->batch_no) ? 'B'.str_pad($batch->batch_no, 4, '0', STR_PAD_LEFT) : $batch->batch_no }}</div>
                 </div>
                 <div class="text-right">
                     <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Load Time</span>

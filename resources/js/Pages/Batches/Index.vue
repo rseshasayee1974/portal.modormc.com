@@ -52,6 +52,8 @@ const props = withDefaults(defineProps<{
     statuses?: { label: string; value: number }[];
     schemaWarning?: string | null;
     nextBatchNo?: number;
+    nextBatchNumbers?: Record<string, number>;
+    batchSeriesSettings?: { selection_enabled: boolean; default_series: 'B' | 'P' };
     batchingSettings?: any;
     payment_methods?: any[];
     sales_ledgers?: any[];
@@ -74,6 +76,8 @@ const props = withDefaults(defineProps<{
     uoms: () => [],
     statuses: () => [],
     nextBatchNo: 1,
+    nextBatchNumbers: () => ({}),
+    batchSeriesSettings: () => ({ selection_enabled: true, default_series: 'B' as const }),
     batchingSettings: () => ({}),
     payment_methods: () => [],
     sales_ledgers: () => [],
@@ -143,7 +147,7 @@ const refreshBatches = async () => {
         await refreshBatchRow(expandedBatchId.value);
     }
     router.reload({
-        only: ['batches', 'nextBatchNo', 'salesOrders', 'batchingSchedules', 'batchCreationSource'],
+        only: ['batches', 'nextBatchNo', 'nextBatchNumbers', 'batchSeriesSettings', 'salesOrders', 'batchingSchedules', 'batchCreationSource'],
         onFinish: () => {
             isRefreshing.value = false;
         },
@@ -526,7 +530,7 @@ const handlePreviewClose = async (batchId: number | null) => {
 };
 const handleBatchCreated = () => {
     router.reload({
-        only: ['batches', 'nextBatchNo', 'salesOrders', 'batchingSchedules', 'batchCreationSource'],
+        only: ['batches', 'nextBatchNo', 'nextBatchNumbers', 'batchSeriesSettings', 'salesOrders', 'batchingSchedules', 'batchCreationSource'],
     });
 };
 const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
@@ -561,7 +565,7 @@ const {
 
         if (reason === 'print' || reason === 'close') {
             router.reload({
-                only: ['batches', 'nextBatchNo'],
+                only: ['batches', 'nextBatchNo', 'nextBatchNumbers', 'batchSeriesSettings'],
             });
         }
     }
@@ -709,7 +713,7 @@ const handleInvoiceGenerated = (payload?: any) => {
         refreshBatchRow(payload.batchId);
     }
     router.reload({
-        only: ['batches', 'nextBatchNo'],
+        only: ['batches', 'nextBatchNo', 'nextBatchNumbers', 'batchSeriesSettings'],
         preserveScroll: true,
         preserveState: true,
     });
@@ -823,7 +827,7 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                     :batchingSchedules="batchingSchedules" :batchCreationSource="batchCreationSource"
                     :transporters="transporters" :drivers="drivers" :sales_executives="sales_executives"
                     :products="products" :uoms="uoms" :unloading_sites="unloading_sites" :loading_sites="loading_sites"
-                    :taxes="taxes" :statuses="statuses" :nextBatchNo="nextBatchNo"
+                    :taxes="taxes" :statuses="statuses" :nextBatchNo="nextBatchNo" :nextBatchNumbers="nextBatchNumbers" :batchSeriesSettings="batchSeriesSettings"
                     :concretePumpOptions="concretePumpOptions" :existingBatches="localBatches"
                     @created="handleBatchCreated" @offline-batch-added="handleOfflineBatchAdded" />
 
@@ -893,12 +897,12 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                     <div class="flex items-center gap-1.5">
                                         <span v-if="slotProps.data.is_offline_pending"
                                             class="text-slate-500 font-inter text-sm font-semibold">
-                                            B{{ slotProps.data.batch_no }}
+                                            {{ /^[BP]/.test(String(slotProps.data.batch_no)) ? slotProps.data.batch_no : 'B' + slotProps.data.batch_no }}
                                         </span>
                                         <button v-else
                                             class="text-indigo-700 font-inter text-sm font-semibold hover:underline"
                                             type="button" @click.stop="toggleExpand(slotProps.data)">
-                                            B{{ slotProps.data.batch_no }}
+                                            {{ /^[BP]/.test(String(slotProps.data.batch_no)) ? slotProps.data.batch_no : 'B' + slotProps.data.batch_no }}
                                         </button>
                                         <span v-if="isBatchCancelled(slotProps.data)"
                                             class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded shadow-xs">
@@ -1667,11 +1671,11 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                     class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs grid grid-cols-2 gap-2">
                     <div>
                         <span class="text-slate-400 block text-[10px] uppercase font-bold">Batch Number</span>
-                        <span class="font-bold text-slate-800">B{{ cancellingBatch.batch_no }}</span>
+                        <span class="font-bold text-slate-800">{{ /^[BP]/.test(String(cancellingBatch.batch_no)) ? cancellingBatch.batch_no : 'B' + cancellingBatch.batch_no }}</span>
                     </div>
                     <div>
                         <span class="text-slate-400 block text-[10px] uppercase font-bold">Dispatch Number</span>
-                        <span class="font-bold text-slate-800">{{ cancellingBatch.dispatches?.[0]?.dispatch_no || 'N/A'
+                        <span class="font-bold text-slate-800">{{ cancellingBatch.dispatches?.[0]?.dispatch_no ? ((cancellingBatch.dispatches[0].prefix || '') + cancellingBatch.dispatches[0].dispatch_no) : 'N/A'
                             }}</span>
                     </div>
                     <div>

@@ -25,6 +25,32 @@ class Batch extends Model
         });
     }
 
+    public static function nextSeriesNumber(int $plantId, string $series = 'B'): array
+    {
+        $series = strtoupper(trim($series));
+        if (!in_array($series, ['B', 'P'], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['batch_series' => 'Choose B or P batch series.']);
+        }
+        // Lock the plant row during saves, including the very first number in a series.
+        if (\Illuminate\Support\Facades\DB::transactionLevel() > 0) {
+            Plant::withoutGlobalScopes()->whereKey($plantId)->lockForUpdate()->first();
+        }
+        $highest = 0;
+        // Deleted numbers remain reserved so a series never reuses an earlier serial.
+        $numbers = static::withoutGlobalScopes()->where('plant_id', $plantId)
+            ->when($series === 'P', fn ($query) => $query->where('batch_no', 'like', 'P%'))
+            ->pluck('batch_no');
+        foreach ($numbers as $number) {
+            // Existing unprefixed machine/batch numbers belong to the continuing B series.
+            if ($series === 'B' && ctype_digit((string) $number)) {
+                $highest = max($highest, (int) $number);
+            } elseif (preg_match('/^'.preg_quote($series, '/').'([1-9][0-9]*)$/i', (string) $number, $match)) {
+                $highest = max($highest, (int) $match[1]);
+            }
+        }
+        return ['series' => $series, 'next_number' => $highest + 1, 'batch_no' => $series.($highest + 1)];
+    }
+
     public function moistureContents()
     {
         return $this->hasMany(BatchMoistureContent::class)->orderBy('id');

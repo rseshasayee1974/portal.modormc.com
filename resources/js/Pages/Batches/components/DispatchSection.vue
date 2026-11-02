@@ -359,7 +359,7 @@ const showInvoiceSection = computed(() => {
 
 onMounted(async () => {
     try {
-        const response = await axios.get(route('dispatches.dropdowns'), { params: { customer_id: form.customer_id } });
+        const response = await axios.get(route('dispatches.dropdowns'), { params: { customer_id: form.customer_id, batch_id: form.batch_id } });
         if (response.data.prefix && !form.prefix) {
             form.prefix = response.data.prefix;
         }
@@ -695,7 +695,7 @@ const handleGenerateEwayBill = () => {
         || '';
 
     const defaultDocNo = props.batch?.dispatches?.[0]?.dispatch_no 
-        ? ('DP-' + props.batch.dispatches[0].dispatch_no) 
+        ? ((props.batch.dispatches[0].prefix || 'DP-') + props.batch.dispatches[0].dispatch_no)
         : '';
 
     const defaultDocDate = entityToday();

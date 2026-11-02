@@ -33,6 +33,8 @@ const props = withDefaults(defineProps<{
     taxes?: any[];
     statuses?: { label: string; value: number }[];
     nextBatchNo?: number;
+    nextBatchNumbers?: Record<string, number>;
+    batchSeriesSettings?: { selection_enabled: boolean; default_series: 'B' | 'P' };
     concretePumpOptions?: any[];
     existingBatches?: any[];
 }>(), {
@@ -48,6 +50,8 @@ const props = withDefaults(defineProps<{
     taxes: () => [],
     statuses: () => [],
     nextBatchNo: 1,
+    nextBatchNumbers: () => ({}),
+    batchSeriesSettings: () => ({ selection_enabled: true, default_series: 'B' as const }),
     loading_sites: () => [],
     unloading_sites: () => [],
     concretePumpOptions: () => [],
@@ -64,6 +68,7 @@ const form = useForm({
     batching_schedule_id: null as number | null,
     sales_order_id: null as number | null,
     batch_no: null as number | null,
+    batch_series: props.batchSeriesSettings.default_series as 'B' | 'P',
     batch_size: 0,
     truck_id: null as number | null,
     transport_id: null as number | null,
@@ -156,16 +161,24 @@ const remainingQty = computed(() => {
     return Math.max(0, Number(rem.toFixed(3)));
 });
 
+const nextSeriesSequence = computed(() => Number(props.nextBatchNumbers[form.batch_series] ?? (form.batch_series === 'B' ? props.nextBatchNo : 1)));
 const isManualBatchNo = ref(false);
+watch([() => props.batchSeriesSettings.default_series, () => props.batchSeriesSettings.selection_enabled], () => {
+    form.batch_series = props.batchSeriesSettings.default_series;
+});
+watch(() => form.batch_series, () => {
+    form.batch_no = nextSeriesSequence.value;
+    form.clearErrors('batch_no', 'batch_series');
+});
 
 const duplicateBatchWarning = computed(() => {
     if (!canEditBatchNo.value || !isManualBatchNo.value || !form.batch_no) return null;
     const num = Number(form.batch_no);
     if (!num || num <= 0) return null;
 
-    const exists = props.existingBatches.some((b: any) => !b.deleted_at && Number(b.batch_no) === num);
+    const exists = props.existingBatches.some((b: any) => !b.deleted_at && String(b.batch_no) === `${form.batch_series}${num}`);
     if (exists) {
-        return `Batch #${num} already exists in this plant. Duplicate batch numbers are restricted.`;
+        return `Batch ${form.batch_series}${num} already exists in this plant. Duplicate batch numbers are restricted.`;
     }
     return null;
 });
@@ -176,7 +189,7 @@ watch(() => props.existingBatches, () => {
 }, { deep: true });
 watch(isManualBatchNo, () => form.clearErrors('batch_no'));
 
-watch(() => props.nextBatchNo, (newVal) => {
+watch(() => nextSeriesSequence.value, (newVal) => {
     if (!isManualBatchNo.value && newVal) {
         form.batch_no = newVal;
     }
@@ -184,12 +197,12 @@ watch(() => props.nextBatchNo, (newVal) => {
 
 watch(isManualBatchNo, (isManual) => {
     if (!isManual) {
-        form.batch_no = props.nextBatchNo;
+        form.batch_no = nextSeriesSequence.value;
     }
 });
 
 const nextBatchNoDisplay = computed(() => {
-    return props.nextBatchNo;
+    return `${form.batch_series}${nextSeriesSequence.value}`;
 });
 
 const salesOrderDetails = computed(() => {
@@ -262,7 +275,7 @@ watch(() => form.sales_order_id, (newVal) => {
         }
 
         if (!isManualBatchNo.value) {
-            form.batch_no = props.nextBatchNo;
+            form.batch_no = nextSeriesSequence.value;
         }
 
         // Reset flag after a microtask so that driver_id watcher triggered by the assignment above won't override it
@@ -271,7 +284,7 @@ watch(() => form.sales_order_id, (newVal) => {
         }, 0);
     } else {
         if (!isManualBatchNo.value) {
-            form.batch_no = props.nextBatchNo;
+            form.batch_no = nextSeriesSequence.value;
         }
         form.concrete_pump = null;
         form.sales_executive_id = null;
@@ -515,10 +528,12 @@ const submit = () => {
     };
 
     const resetForm = () => {
+        const selectedSeries = form.batch_series;
         form.reset();
+        form.batch_series = selectedSeries;
         form.sales_order_id = null;
         isManualBatchNo.value = false;
-        form.batch_no = props.nextBatchNo;
+        form.batch_no = nextSeriesSequence.value;
         form.batch_size = 0;
         form.truck_id = null;
         form.transport_id = null;
@@ -543,7 +558,7 @@ const submit = () => {
     if (!navigator.onLine) {
         const formattedBatch = {
             id: -Date.now(), // Temporary negative ID
-            batch_no: (canEditBatchNo.value && isManualBatchNo.value && form.batch_no) ? Number(form.batch_no) : props.nextBatchNo,
+            batch_no: `${form.batch_series}${(canEditBatchNo.value && isManualBatchNo.value && form.batch_no) ? Number(form.batch_no) : nextSeriesSequence.value}`,
             sales_order_id: form.sales_order_id,
             sales_order: selectedSalesOrder.value,
             batch_size: form.batch_size,
@@ -619,6 +634,15 @@ const submit = () => {
 
                 <div class="flex flex-col items-end gap-1.5 self-start sm:self-center">
                     <div class="flex items-center gap-3">
+                        <div v-if="batchSeriesSettings.selection_enabled" class="inline-flex rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label="Batch number series">
+                            <button v-for="series in (['B', 'P'] as const)" :key="series" type="button"
+                                :aria-pressed="form.batch_series === series" :disabled="form.processing"
+                                @click="form.batch_series = series"
+                                class="rounded-lg px-4 py-1.5 text-xs font-bold transition-colors"
+                                :class="form.batch_series === series ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'">
+                                {{ series }} series
+                            </button>
+                        </div>
                         <!-- Manual batch number for admins or users with batch create permission -->
                         <div v-if="canEditBatchNo"
                             class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 border border-slate-200 shadow-xs">
@@ -630,7 +654,7 @@ const submit = () => {
                             </label>
 
                             <div v-if="isManualBatchNo" class="flex items-center gap-1 pl-2 border-l border-slate-200">
-                                <span class="text-xs font-bold text-slate-400">#</span>
+                                <span class="text-xs font-bold text-slate-400">{{ form.batch_series }}</span>
                                 <input step="1" type="number" v-model.number="form.batch_no" min="1" placeholder="Batch #"
                                     class="w-24 px-2 py-1 text-xs font-bold border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                                     :class="duplicateBatchWarning || form.errors.batch_no ? '!border-rose-500 !text-rose-600 bg-rose-50/30' : 'border-indigo-200 text-slate-900'" />

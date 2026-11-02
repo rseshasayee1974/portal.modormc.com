@@ -103,7 +103,7 @@ class CancelledDispatchReportService implements ReportServiceInterface
                 'cancelled_at'        => $cnDt,
                 'cancelled_by'        => $row->cancelled_by_name ?: 'System',
                 'cancelled_notes'     => $row->cancelled_notes ?: 'No cancellation notes recorded.',
-                'batch_no'            => $row->batch_no ? ('B' . $row->batch_no) : 'N/A',
+                'batch_no'            => $row->batch_no ? (preg_match('/^[BP][0-9]+$/i', (string) $row->batch_no) ? $row->batch_no : 'B'.$row->batch_no) : 'N/A',
                 'batch_size'          => (float)($row->batch_size ?? 0),
                 'sales_order_no'      => ($row->so_prefix ?? '') . ($row->so_number ?? ''),
                 'customer_name'       => $row->customer_name,

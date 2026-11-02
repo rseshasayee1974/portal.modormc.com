@@ -8,6 +8,11 @@ use Illuminate\Validation\Rule;
 
 class UpdateBatchRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('batch_no')) $this->merge(['batch_no' => strtoupper(trim((string) $this->input('batch_no')))]);
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -50,8 +55,9 @@ class UpdateBatchRequest extends FormRequest
             'sales_order_id' => ['nullable', 'integer', 'exists:mm_sales_orders,id'],
             'batch_no' => [
                 'required',
-                'integer',
-                'min:1',
+                'string',
+                'max:40',
+                'regex:/^(?:[BP])?[1-9][0-9]*$/',
                 Rule::unique('mm_batches', 'batch_no')
                     ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at'))
                     ->ignore($batchId),
@@ -143,7 +149,7 @@ class UpdateBatchRequest extends FormRequest
 
             if (!$canEditBatchNo && $this->filled('batch_no')) {
                 $currentBatch = \App\Models\Batch::withoutGlobalScope('plant_id')->find($batchId);
-                if ($currentBatch && (int)$this->input('batch_no') !== (int)$currentBatch->batch_no) {
+                if ($currentBatch && (string)$this->input('batch_no') !== (string)$currentBatch->batch_no) {
                     $validator->errors()->add('batch_no', 'Only administrators or users with Batches create permission may modify the batch number.');
                 }
             }
@@ -155,7 +161,7 @@ class UpdateBatchRequest extends FormRequest
         return [
             'batch_no.unique' => 'Batch number #:input already exists for this plant. Duplicate batch numbers are restricted.',
             'batch_no.min' => 'Batch number must be at least 1.',
-            'batch_no.integer' => 'Batch number must be a valid integer.',
+            'batch_no.regex' => 'Enter a batch number such as B1, P1, or an existing numeric machine batch number.',
             'empty_weight_truck.required' => 'Empty Weight is required.',
             'empty_weight_truck.gt' => 'Empty Weight must be greater than 0.',
             'loaded_weight_truck.required' => 'Full Weight is required.',

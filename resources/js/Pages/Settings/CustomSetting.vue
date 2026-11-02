@@ -7,26 +7,15 @@ import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputSwitch from 'primevue/inputswitch';
 import InputNumber from 'primevue/inputnumber';
-import Swal from 'sweetalert2';
-import {
-    Cog6ToothIcon,
-    VideoCameraIcon,
-    ScaleIcon,
-    DocumentArrowUpIcon,
-    EyeSlashIcon,
-    PencilSquareIcon,
-    CheckCircleIcon,
-    XCircleIcon,
-    ChevronDownIcon,
-    ChevronUpIcon,
-    PlusIcon,
-    DocumentTextIcon,
-    PrinterIcon
-} from '@heroicons/vue/24/outline';
-import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
+import Dialog from 'primevue/dialog';
+import Swal from 'sweetalert2';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { usePermissions } from '@/Composables/usePermissions';
+import {
+    Cog6ToothIcon,
+    BuildingOffice2Icon
+} from '@heroicons/vue/24/outline';
 
 const { isSassOwner } = usePermissions();
 
@@ -39,13 +28,16 @@ const props = defineProps<{
     batchSheetDrivers?: { label: string; value: string }[];
 }>();
 
-// ─── Form state ───────────────────────────────────────────────────────────────
+
+// ─── Form State ───────────────────────────────────────────────────────────────
 const form = useForm({
     module: 'batching',
     batch_sheet_logo: null as File | null,
     remove_batch_sheet_logo: false,
     settings: {
         batch_creation_source: props.batchingSettings?.batch_creation_source || 'sales_order',
+        batch_series_enabled: Number(props.batchingSettings?.batch_series_enabled ?? 1) === 1,
+        default_batch_series: props.batchingSettings?.default_batch_series === 'P' ? 'P' : 'B',
         batch_sheet_driver: props.batchingSettings?.batch_sheet_driver || '',
         new_weight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
         newweight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
@@ -72,11 +64,8 @@ const form = useForm({
         target_to_actual: props.batchingSettings?.target_to_actual == 1,
         actual_consumption_variation: Number(props.batchingSettings?.actual_consumption_variation ?? props.batchingSettings?.actual_variation_limit ?? 5),
         auto_carry_pump: props.batchingSettings?.auto_carry_pump == 1,
-        // schedule_to_batch: props.batchingSettings?.schedule_to_batch !== undefined 
-        //     ? (props.batchingSettings?.schedule_to_batch == 1 || props.batchingSettings?.schedule_to_batch === true || props.batchingSettings?.schedule_to_batch === "true") 
-        //     : false,
         default_transport: props.batchingSettings?.default_transport || '',
-        quote_validity: props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
+        quote_validity: props.batchingSettings?.quote_validity !== undefined ? Number(props.batchingSettings.quote_validity) : 15,
         is_grade_or_is_mix_design: props.batchingSettings?.is_grade_or_is_mix_design !== undefined ? Number(props.batchingSettings.is_grade_or_is_mix_design) : 2,
         print_delivery_ingredients: props.batchingSettings?.print_delivery_ingredients !== undefined
             ? (props.batchingSettings?.print_delivery_ingredients == 1 || props.batchingSettings?.print_delivery_ingredients === true || props.batchingSettings?.print_delivery_ingredients === "true")
@@ -84,96 +73,60 @@ const form = useForm({
         quotation_price_list: props.batchingSettings?.quotation_price_list !== undefined
             ? (props.batchingSettings?.quotation_price_list == 1 || props.batchingSettings?.quotation_price_list === true || props.batchingSettings?.quotation_price_list === "true")
             : false,
-
         custom_params: props.batchingSettings?.custom_params || [],
     }
 });
 
 const batchSheetDriverOptions = computed(() => [
-    { label: 'Automatic detection', value: '' },
+    { label: 'Automatic Detection', value: '' },
     ...(props.batchSheetDrivers || []),
 ]);
 
-// ─── Section expand / collapse ────────────────────────────────────────────────
-const expanded = ref<Record<string, boolean>>({
-    weighbridge: true,
-    camera: true,
-    batch_sync: true,
-    print: true,
-    pouring_settings: true,
-    prefixes: true,
-    appearance: true,
-    custom: true,
-});
-
-const toggle = (key: string) => { expanded.value[key] = !expanded.value[key]; };
-
-const numberingModules = [{ key: 'invoice', label: 'Invoice' }, { key: 'billing', label: 'Billing' }] as const;
 const numberingPreview = (module: 'invoice' | 'billing') => {
     const [year, month] = entityToday().split('-').map(Number);
     const startYear = month >= 4 ? year : year - 1;
     const fy = `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
-    const prefix = 'JG'; // Example ledger prefix; the selected ledger supplies the actual prefix.
+    const prefix = module === 'invoice' ? 'INV' : 'BILL';
     const sequence = String(form.settings[`${module}_number_start`] || 1).padStart(Number(form.settings[`${module}_number_padding`] || 0), '0');
     return `${prefix}/${sequence}/${fy}`;
 };
 
-// ─── Summary table ─────────────────────────────────────────────────────────
-const settingRows = computed(() => [
-    { section: 'Batch Sheet', key: 'batch_creation_source', label: 'Create Batches From', value: ({ sales_order: 'Sales Order', batch_schedule: 'Batch Schedule', both: 'Sales Order or Batch Schedule' } as Record<string, string>)[form.settings.batch_creation_source], type: 'text' },
-    // Weighbridge
-    {
-        section: 'Weighbridge',
-        key: 'new_weight',
-        label: 'Local API Proxy Port',
-        value: Number(form.settings.new_weight) === 2
-            ? 'Mode 2 (Port 8074 HTTPS)'
-            : (Number(form.settings.new_weight) === 1 ? 'Mode 1 (Port 8089 HTTP)' : '0 — Disabled (Serial)'),
-        type: 'text'
-    },
-    { section: 'Weighbridge', key: 'manual_weight', label: 'Manual Weight Entry', value: form.settings.manual_weight, type: 'bool' },
-    { section: 'Weighbridge', key: 'weight_mandatory', label: 'Weighbridge Mandatory', value: form.settings.weight_mandatory, type: 'bool' },
-    { section: 'Weighbridge', key: 'with_inventory', label: 'Stock Deduction', value: form.settings.with_inventory, type: 'bool' },
-    // Camera
-    { section: 'Camera', key: 'camera', label: 'Enable Snapshots', value: form.settings.camera, type: 'bool' },
-    { section: 'Camera', key: 'camera_url', label: 'Default Camera URL', value: form.settings.camera_url, type: 'text' },
-    { section: 'Camera', key: 'camera_url_1', label: 'Camera 1 (Entry/Empty)', value: form.settings.camera_url_1, type: 'text' },
-    { section: 'Camera', key: 'camera_url_2', label: 'Camera 2 (Exit/Loaded)', value: form.settings.camera_url_2, type: 'text' },
-    // Batch Sheet
-    { section: 'Batch Sheet', key: 'batch_sheet_driver', label: 'Batch Sheet PDF Driver', value: batchSheetDriverOptions.value.find(driver => driver.value === form.settings.batch_sheet_driver)?.label || form.settings.batch_sheet_driver, type: 'text' },
-    { section: 'Batch Sheet', key: 'sheet_upload', label: 'Upload Batch Sheet', value: form.settings.sheet_upload, type: 'bool' },
-    { section: 'Batch Sheet', key: 'hide_batch_form', label: 'Hide Add & Edit Batch Forms', value: form.settings.hide_batch_form, type: 'bool' },
-    { section: 'Batch Sheet', key: 'target_to_actual', label: 'One-Click Target to Actual', value: form.settings.target_to_actual, type: 'bool' },
-    { section: 'Batch Sheet', key: 'actual_consumption_variation', label: 'Actual Consumption Variation (+/-)', value: form.settings.actual_consumption_variation, type: 'text' },
-    { section: 'Batch Sheet', key: 'auto_carry_pump', label: 'Auto-Select Previous Batch Pump', value: form.settings.auto_carry_pump, type: 'bool' },
-    // { section: 'Batch Sheet', key: 'schedule_to_batch',  label: 'Create Real Batch from Schedule',  value: form.settings.schedule_to_batch,   type: 'bool' },
-    { section: 'Defaults', key: 'default_transport', label: 'Default Transporter Name', value: form.settings.default_transport, type: 'text' },
-    { section: 'Defaults', key: 'quote_validity', label: 'Quotation Validity (Days)', value: form.settings.quote_validity, type: 'text' },
-    // Print
-    { section: 'Print', key: 'print_delivery_ingredients', label: 'Delivery Token Ingredients', value: form.settings.print_delivery_ingredients, type: 'bool' },
-    { section: 'Print', key: 'quotation_price_list', label: 'Quotation as Price List (Title & Hide Totals)', value: form.settings.quotation_price_list, type: 'bool' },
-    // Appearance
-    { section: 'Appearance', key: 'loader_gif', label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif, type: 'text' },
-    // Document Prefixes
-    { section: 'Document Prefixes', key: 'po_prefix', label: 'Purchase Order Prefix', value: form.settings.po_prefix, type: 'text' },
-    { section: 'Document Prefixes', key: 'so_prefix', label: 'Sales Order Prefix', value: form.settings.so_prefix, type: 'text' },
-    { section: 'Document Prefixes', key: 'cpo_prefix', label: 'Customer Order Prefix', value: form.settings.cpo_prefix, type: 'text' },
-    { section: 'Document Prefixes', key: 'quote_prefix', label: 'Quotation Prefix', value: form.settings.quote_prefix, type: 'text' },
-    ...numberingModules.map(module => ({ section: 'Document Prefixes', key: `${module.key}_number_format`, label: `${module.label} Number Format`, value: form.settings[`${module.key}_number_format`] === 1 ? numberingPreview(module.key) : 'Ledger description / financial year / number (no zero padding)', type: 'text' })),
-    // Custom / Module-specific dynamic parameters
-    ...form.settings.custom_params.map((p: any) => ({
-        section: modules.find(m => m.value === p.module)?.label || 'Custom',
-        key: p.key,
-        label: p.label,
-        value: p.value,
-        type: p.type
-    }))
-]);
+// ─── Logo Input ───────────────────────────────────────────────────────────────
+const batchSheetLogoInput = ref<HTMLInputElement | null>(null);
+const selectBatchSheetLogo = (event: Event) => {
+    form.batch_sheet_logo = (event.target as HTMLInputElement).files?.[0] ?? null;
+    form.remove_batch_sheet_logo = false;
+};
+
+// ─── Custom Parameters ────────────────────────────────────────────────────────
+const showParamDialog = ref(false);
+const paramForm = ref({
+    module: 'batching',
+    label: '',
+    key: '',
+    type: 'text'
+});
+
+const addParameter = () => {
+    if (!paramForm.value.key || !paramForm.value.label) return;
+    form.settings.custom_params.push({
+        ...paramForm.value,
+        value: paramForm.value.type === 'bool' ? false : ''
+    });
+    paramForm.value = { module: 'batching', label: '', key: '', type: 'text' };
+    showParamDialog.value = false;
+};
+
+const removeParameter = (index: number) => {
+    form.settings.custom_params.splice(index, 1);
+};
 
 // ─── Submit ───────────────────────────────────────────────────────────────────
 const submit = () => {
     const payload = {
         ...form.settings,
+        batch_series_enabled: form.settings.batch_series_enabled ? 1 : 0,
+        default_batch_series: form.settings.default_batch_series || 'B',
         new_weight: Number(form.settings.new_weight ?? 1),
         newweight: Number(form.settings.new_weight ?? 1),
         manual_weight: form.settings.manual_weight ? 1 : 0,
@@ -185,11 +138,10 @@ const submit = () => {
         target_to_actual: form.settings.target_to_actual ? 1 : 0,
         actual_consumption_variation: Math.max(0, Number(form.settings.actual_consumption_variation ?? 5)),
         auto_carry_pump: form.settings.auto_carry_pump ? 1 : 0,
-        // schedule_to_batch:  form.settings.schedule_to_batch  ? 1 : 0,
         quote_validity: form.settings.quote_validity ? parseInt(form.settings.quote_validity as any, 10) : 15,
         print_delivery_ingredients: form.settings.print_delivery_ingredients ? 1 : 0,
         quotation_price_list: form.settings.quotation_price_list ? 1 : 0,
-        material_print_mode: form.settings.material_print_mode || 'run',
+        is_grade_or_is_mix_design: Number(form.settings.is_grade_or_is_mix_design ?? 2),
     };
 
     form.transform((data) => ({ ...data, settings: payload }))
@@ -199,936 +151,744 @@ const submit = () => {
                 form.batch_sheet_logo = null;
                 form.remove_batch_sheet_logo = false;
                 if (batchSheetLogoInput.value) batchSheetLogoInput.value.value = '';
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Settings saved', showConfirmButton: false, timer: 1500 });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Settings saved successfully', showConfirmButton: false, timer: 1500 });
             }
         });
-};
-
-// ─── New Module Dialog ────────────────────────────────────────────────────────
-const batchSheetLogoInput = ref<HTMLInputElement | null>(null);
-const selectBatchSheetLogo = (event: Event) => {
-    form.batch_sheet_logo = (event.target as HTMLInputElement).files?.[0] ?? null;
-    form.remove_batch_sheet_logo = false;
-};
-
-const showNewDialog = ref(false);
-const newModuleForm = useForm({
-    module: '',
-    settings: {}
-});
-
-const modules = [
-    { label: 'Invoice', value: 'invoice' },
-    { label: 'Billing', value: 'billing' },
-    { label: 'Batching', value: 'batching' },
-    { label: 'Inventory', value: 'inventory' },
-    { label: 'Fleet', value: 'fleet' },
-    { label: 'Finance', value: 'finance' },
-];
-
-// ─── Custom Parameter Logic ──────────────────────────────────────────────────
-const showParamDialog = ref(false);
-const paramForm = ref({
-    module: 'batching',
-    label: '',
-    key: '',
-    type: 'text'
-});
-
-const addParameter = () => {
-    if (!paramForm.value.key || !paramForm.value.label) return;
-
-    form.settings.custom_params.push({
-        ...paramForm.value,
-        value: paramForm.value.type === 'bool' ? false : ''
-    });
-
-    paramForm.value = { module: 'batching', label: '', key: '', type: 'text' };
-    showParamDialog.value = false;
-};
-
-const removeParameter = (index: number) => {
-    form.settings.custom_params.splice(index, 1);
-};
-
-const saveNewModule = () => {
-    if (!newModuleForm.module) return;
-    newModuleForm.post(route('settings.customsetting.store'), {
-        onSuccess: () => {
-            showNewDialog.value = false;
-            newModuleForm.reset();
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Module added successfully', showConfirmButton: false, timer: 1500 });
-        }
-    });
-};
-
-const deleteModule = (id: number) => {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "You won't be able to revert this! All settings for this module will be permanently deleted.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#EF4444',
-        cancelButtonColor: '#6B7280',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const deleteForm = useForm({});
-            deleteForm.delete(route('settings.customsetting.destroy', id), {
-                onSuccess: () => {
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Module settings deleted', showConfirmButton: false, timer: 1500 });
-                }
-            });
-        }
-    });
 };
 
 </script>
 
 <template>
     <AppLayout title="Custom Settings">
-        <!-- <template #header>
-            <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Custom Settings</h2>
-                <div class="flex items-center gap-2 px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-full">
-                    <span class="text-[10px] font-bold uppercase text-indigo-400">Active Plant:</span>
-                    <span class="text-xs font-bold text-indigo-700">{{ plantName }}</span>
-                </div>
-            </div>
-        </template> -->
-
-        <div class="py-2">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="settings-page min-h-screen py-5">
+            <div class="w-full max-w-[1680px] mx-auto px-4 lg:px-8 space-y-6">
                 <ModuleSubTopNav />
-            </div>
 
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6 mt-4">
-
-                <!-- ── Summary Table ──────────────────────────────────── -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                        <div class="flex items-center gap-2">
-                            <Cog6ToothIcon class="w-5 h-5 text-slate-400" />
-                            <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Current Settings
-                                Summary</h3>
+                <!-- Header Actions Bar -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            <Cog6ToothIcon class="size-6 text-indigo-600" />
                         </div>
-                        <div class="flex items-center gap-2">
-                            <template v-if="isSassOwner">
-                                <Button icon="pi pi-plus-circle" label="Add Parameter" size="small" severity="help" text
-                                    @click="showParamDialog = true" />
-                                <Button icon="pi pi-plus" label="New Module" size="small" severity="secondary" text
-                                    @click="showNewDialog = true" />
-                            </template>
-                            <Button icon="pi pi-save" label="Save All Settings" size="small" :loading="form.processing"
-                                @click="submit" />
+                        <div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <h1 class="text-2xl font-semibold text-slate-900 tracking-tight">Custom Settings</h1>
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-700 border border-slate-200">
+                                    <BuildingOffice2Icon class="size-3.5 text-slate-500 shrink-0" />
+                                    <span>{{ plantName }}</span>
+                                </span>
+                            </div>
+                            <span class="text-sm text-slate-500 block mt-1.5">Manage how your plant operates, numbers documents, and prints.</span>
                         </div>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full border-collapse text-sm">
-                            <thead>
-                                <tr class="border-b border-slate-100 bg-slate-50/30">
-                                    <th
-                                        class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[18%]">
-                                        Section</th>
-                                    <th
-                                        class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[25%]">
-                                        Setting</th>
-                                    <th
-                                        class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[20%]">
-                                        Key</th>
-                                    <th
-                                        class="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                        Value / Status</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-50">
-                                <tr v-for="row in settingRows" :key="row.key"
-                                    class="hover:bg-slate-50/40 transition-colors">
-                                    <td class="px-5 py-3">
-                                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{
-                                            row.section }}</span>
-                                    </td>
-                                    <td class="px-5 py-3 font-semibold text-slate-700 text-xs">{{ row.label }}</td>
-                                    <td class="px-5 py-3">
-                                        <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{{ row.key
-                                        }}</code>
-                                    </td>
-                                    <td class="px-5 py-3">
-                                        <template v-if="row.type === 'bool'">
-                                            <span v-if="row.value"
-                                                class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full">
-                                                <CheckCircleIcon class="w-3 h-3" /> Enabled
-                                            </span>
-                                            <span v-else
-                                                class="inline-flex items-center gap-1 text-[10px] font-bold bg-slate-100 text-slate-400 border border-slate-200 px-2 py-0.5 rounded-full">
-                                                <XCircleIcon class="w-3 h-3" /> Disabled
-                                            </span>
-                                        </template>
-                                        <template v-else>
-                                            <span v-if="row.value"
-                                                class="text-xs text-slate-600 font-mono truncate max-w-[260px] block">{{
-                                                    row.value }}</span>
-                                            <span v-else class="text-[10px] italic text-slate-300">— not set —</span>
-                                        </template>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+
+                    <div class="flex items-center gap-2 self-end sm:self-auto">
+                        <Button
+                            v-if="isSassOwner"
+                            icon="pi pi-plus"
+                            label="Add Parameter"
+                            size="small"
+                            severity="secondary"
+                            outlined
+                            class="rounded-lg !bg-white text-xs font-bold"
+                            @click="showParamDialog = true"
+                        />
+                        <Button
+                            icon="pi pi-check"
+                            label="Save Changes"
+                            size="small"
+                            class="rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 border-indigo-600 text-white shadow-xs px-4"
+                            :loading="form.processing"
+                            @click="submit"
+                        />
                     </div>
                 </div>
 
-                <!-- Active Modules List -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Active Module
-                            Configurations</h3>
-                        <span
-                            class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase">{{
-                                customSettings.length }} Modules</span>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                        <div v-for="setting in customSettings" :key="setting.id"
-                            class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-xl hover:shadow-sm transition-all">
-                            <div class="flex items-center gap-2">
-                                <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                <span class="text-xs font-bold capitalize text-slate-700">{{ setting.module_name
-                                    }}</span>
-                            </div>
-                            <Button icon="pi pi-trash" severity="danger" size="small" text rounded
-                                @click="deleteModule(setting.id)" />
+                <!-- Grouped settings with six fields per desktop row across both panels. -->
+                <div class="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-6 items-start">
+                    <aside class="lg:sticky lg:top-6 rounded-2xl border border-slate-200 bg-white p-3">
+                        <p class="px-3 pt-2 pb-3 text-[10px] font-bold tracking-[0.16em] uppercase text-slate-400">Plant preferences</p>
+                        <nav aria-label="Settings sections" class="flex gap-1 overflow-x-auto lg:flex-col">
+                        <a href="#settings-batching" class="settings-nav-link"><i class="pi pi-box" aria-hidden="true"></i><span>Batching</span><i class="pi pi-angle-right ml-auto text-[10px]" aria-hidden="true"></i></a>
+                        <a href="#settings-weighbridge" class="settings-nav-link"><i class="pi pi-camera" aria-hidden="true"></i><span>Weighbridge &amp; Camera</span><i class="pi pi-angle-right ml-auto text-[10px]" aria-hidden="true"></i></a>
+                        <a href="#settings-numbering" class="settings-nav-link"><i class="pi pi-hashtag" aria-hidden="true"></i><span>Document Numbering</span><i class="pi pi-angle-right ml-auto text-[10px]" aria-hidden="true"></i></a>
+                        <a href="#settings-quotation" class="settings-nav-link"><i class="pi pi-file-edit" aria-hidden="true"></i><span>Quotations &amp; Sales</span><i class="pi pi-angle-right ml-auto text-[10px]" aria-hidden="true"></i></a>
+                        <a href="#settings-printing" class="settings-nav-link"><i class="pi pi-print" aria-hidden="true"></i><span>Printing &amp; Delivery</span><i class="pi pi-angle-right ml-auto text-[10px]" aria-hidden="true"></i></a>
+                        <a href="#settings-custom" class="settings-nav-link"><i class="pi pi-sliders-h" aria-hidden="true"></i><span>Appearance &amp; Custom</span><i class="pi pi-angle-right ml-auto text-[10px]" aria-hidden="true"></i></a>
+                        </nav>
+                        <p class="hidden lg:block mt-4 border-t border-slate-100 px-3 pt-4 pb-2 text-xs leading-relaxed text-slate-500">Changes apply to <strong class="font-medium text-slate-700">{{ plantName }}</strong>. Save when you are finished.</p>
+                    </aside>
+                    <div class="settings-panels min-w-0 space-y-6">
+                    <!-- TAB 1: BATCHING -->
+                    <section id="settings-batching" aria-labelledby="heading-batching" class="settings-group scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i class="pi pi-box" aria-hidden="true"></i></span>
+                            <div><h2 id="heading-batching" class="text-sm font-semibold text-slate-900">Batching</h2><p class="mt-1 text-xs leading-relaxed text-slate-500">Control batch creation, series, and material consumption.</p></div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- ── Edit Form: Accordion sections ──────────────────── -->
-                <div class="space-y-4">
-                    <p class="text-xs font-bold uppercase tracking-widest text-slate-400 px-1">Edit Settings — click a
-                        section
-                        to expand</p>
-
-                    <!-- 1. Weighbridge -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <button type="button"
-                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-emerald-50/30 transition-colors"
-                            @click="toggle('weighbridge')">
-                            <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-emerald-100 rounded-lg">
-                                    <ScaleIcon class="w-4 h-4 text-emerald-600" />
-                                </div>
-                                <span class="text-sm font-bold text-slate-700">Weighbridge Configuration</span>
-                                <span v-if="Number(form.settings.new_weight) > 0 || form.settings.manual_weight"
-                                    class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-5 p-5">
+                        <!-- batch_creation_source -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Create Batches From</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">batch_creation_source</code>
                             </div>
-                            <ChevronDownIcon v-if="!expanded.weighbridge" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
-                        </button>
-
-                        <div v-if="expanded.weighbridge" class="p-6 space-y-4 animate-fade-in">
-                            <div
-                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                <div>
-                                    <h4 class="font-bold text-slate-700 text-sm">Weighbridge & Camera API Mode <code
-                                            class="text-[9px] text-slate-400 ml-1 font-normal">[new_weight]</code></h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">Configure scale and camera proxy port
-                                        endpoints</p>
-                                </div>
-                                <select v-model.number="form.settings.new_weight"
-                                    @change="form.settings.newweight = form.settings.new_weight"
-                                    class="text-xs font-bold rounded-xl border border-slate-200 py-2 px-3 bg-white text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer">
-                                    <option :value="0">0 — Disabled (Web Serial Port)</option>
-                                    <option :value="1">1 — Port 8089 (http://localhost:8089 & http://127.0.0.1:8089)
-                                    </option>
-                                    <option :value="2">2 — Port 8074 (https://localhost:8074 & https://127.0.0.1:8074)
-                                    </option>
-                                </select>
-                            </div>
-
-                            <div
-                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                <div>
-                                    <h4 class="font-bold text-slate-700 text-sm">Manual Weight Entry <code
-                                            class="text-[9px] text-slate-400 ml-1 font-normal">[manual_weight]</code>
-                                    </h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">Allow users to type weight if scale is
-                                        disconnected
-                                    </p>
-                                </div>
-                                <InputSwitch v-model="form.settings.manual_weight" />
-                            </div>
-
-                            <div
-                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                <div>
-                                    <h4 class="font-bold text-slate-700 text-sm">Weighbridge Mandatory <code
-                                            class="text-[9px] text-slate-400 ml-1 font-normal">[weight_mandatory]</code>
-                                    </h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">Make empty and full truck weights mandatory during batch creation and editing
-                                    </p>
-                                </div>
-                                <InputSwitch v-model="form.settings.weight_mandatory" />
-                            </div>
-
-
-
-                            <div
-                                class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                                <div>
-                                    <h4 class="font-bold text-emerald-700 text-sm">Stock Deduction <code
-                                            class="text-[9px] text-emerald-400 ml-1 font-normal">[with_inventory]</code>
-                                    </h4>
-                                    <p class="text-xs text-emerald-500 mt-0.5">Deduct raw material inventory
-                                        automatically
-                                        during batch processing</p>
-                                </div>
-                                <InputSwitch v-model="form.settings.with_inventory" />
-                            </div>
-
-                            <!-- Dynamic Batching Params -->
-                            <div v-for="(p, idx) in form.settings.custom_params.filter(x => x.module === 'batching')"
-                                :key="'b-' + idx"
-                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
-                                <div class="flex-1">
-                                    <h4 class="font-bold text-slate-700 text-sm">{{ p.label }} <code
-                                            class="text-[9px] text-slate-400 ml-1 font-normal">[{{ p.key }}]</code></h4>
-                                    <div v-if="p.type === 'text'" class="mt-2 max-w-md">
-                                        <InputText v-model="p.value" class="w-full text-sm" />
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-4">
-                                    <InputSwitch v-if="p.type === 'bool'" v-model="p.value" />
-                                    <Button icon="pi pi-trash" severity="danger" text rounded
-                                        @click="removeParameter(form.settings.custom_params.indexOf(p))" />
-                                </div>
-                            </div>
-
-                            <!-- Default Transporter -->
-                            <div class="p-4 bg-orange-50 rounded-xl border border-orange-100">
-                                <h4 class="font-bold text-orange-700 text-sm">Default Transporter <code
-                                        class="text-[9px] text-orange-400 ml-1 font-normal">[default_transport]</code>
-                                </h4>
-                                <p class="text-xs text-orange-500 mt-0.5 mb-2">Enter the exact transporter name. The
-                                    batch
-                                    create form will auto-select this transporter on load.</p>
-                                <InputText v-model="form.settings.default_transport"
-                                    placeholder="e.g. ABC Logistics Pvt Ltd" class="w-full text-sm max-w-md" />
-                                <p v-if="form.settings.default_transport"
-                                    class="text-[10px] text-orange-600 mt-1 font-semibold">
-                                    ✓ Auto-selecting: {{ form.settings.default_transport }}
-                                </p>
-                            </div>
-
-                            <!-- Quotation Validity Offset -->
-                            <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                                <h4 class="font-bold text-blue-700 text-sm">Quotation Validity Offset (Days) <code
-                                        class="text-[9px] text-blue-400 ml-1 font-normal">[quote_validity]</code></h4>
-                                <p class="text-xs text-blue-500 mt-0.5 mb-2">Enter the number of days a quotation is
-                                    valid. When
-                                    creating or editing a quotation, the validity date will be automatically set to
-                                    Quote Date +
-                                    this number of days.</p>
-                                <InputText step="1" v-model="form.settings.quote_validity" type="number" placeholder="e.g. 15"
-                                    class="w-full text-sm max-w-xs" min="1" />
-                            </div>
-
-                            <!-- Add Pouring Rates to Total -->
-                            <!-- <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                                <div>
-                                    <h4 class="font-bold text-emerald-700 text-sm">Add Pouring Rates to Quotation Total <code class="text-[9px] text-emerald-400 ml-1 font-normal">[add_pouring_rates_to_total]</code></h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">If enabled, the grand total is calculated using the pouring rates (Manual/Pump/Boom Pump) matching the selected concrete type. If disabled, it uses the actual rate from line items.</p>
-                                </div>
-                                <InputSwitch v-model="form.settings.add_pouring_rates_to_total" />
-                            </div> -->
-
-                            <!-- Pouring Rates Charge Type -->
-                            <!-- <div class="flex flex-col gap-2 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h4 class="font-bold text-emerald-700 text-sm">Pouring Rate Charge Type <code class="text-[9px] text-emerald-400 ml-1 font-normal">[pouring_rate_charge_type]</code></h4>
-                                        <p class="text-xs text-slate-500 mt-0.5">Specify whether the pouring rate is charged per cubic meter (m³) or as a flat rate for the entire quotation.</p>
-                                    </div>
-                                </div>
-                                <div class="mt-2 max-w-xs">
-                                    <Dropdown
-                                        v-model="form.settings.pouring_rate_charge_type"
-                                        :options="[
-                                            { label: 'Charged Per m³', value: 'per_m3' },
-                                            { label: 'Flat Rate (Total Value)', value: 'flat_rate' }
-                                        ]"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        placeholder="Select charge type"
-                                        class="w-full text-sm animate-fade-in"
-                                    />
-                                </div>
-                            </div> -->
-                        </div>
-                    </div>
-
-                    <!-- 2. Camera -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <button type="button"
-                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-cyan-50/30 transition-colors"
-                            @click="toggle('camera')">
-                            <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-cyan-100 rounded-lg">
-                                    <VideoCameraIcon class="w-4 h-4 text-cyan-600" />
-                                </div>
-                                <span class="text-sm font-bold text-slate-700">Camera Integration</span>
-                                <span v-if="form.settings.camera"
-                                    class="text-[9px] bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
-                            </div>
-                            <ChevronDownIcon v-if="!expanded.camera" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
-                        </button>
-
-                        <div v-if="expanded.camera" class="p-6 space-y-4 animate-fade-in">
-                            <div
-                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                <div>
-                                    <h4 class="font-bold text-slate-700 text-sm">Enable Snapshots <code
-                                            class="text-[9px] text-slate-400 ml-1 font-normal">[camera]</code></h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">Capture truck images during weight capture
-                                    </p>
-                                </div>
-                                <InputSwitch v-model="form.settings.camera" />
-                            </div>
-
-                            <div v-if="form.settings.camera" class="space-y-3 animate-fade-in">
-                                <div class="flex flex-col gap-1">
-                                    <label class="text-xs font-bold text-slate-500 uppercase">Default Camera URL <code
-                                            class="text-[9px] text-slate-300 font-normal normal-case">[camera_url]</code></label>
-                                    <InputText v-model="form.settings.camera_url"
-                                        placeholder="http://127.0.0.1:8089/api/cameras/{camera-id}/snapshot"
-                                        class="w-full text-sm" />
-                                    <p class="text-xs text-slate-500">Use the local camera service's GET snapshot URL.
-                                        Inward
-                                        Tare uses Camera 1, then this default. Configure camera credentials in the local
-                                        service; no application login is needed for capture.</p>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-xs font-bold text-slate-500 uppercase">Camera 1 — Entry/Empty
-                                            <code
-                                                class="text-[9px] text-slate-300 font-normal normal-case">[camera_url_1]</code></label>
-                                        <InputText v-model="form.settings.camera_url_1"
-                                            placeholder="Optional specific URL" class="w-full text-sm" />
-                                    </div>
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-xs font-bold text-slate-500 uppercase">Camera 2 — Exit/Loaded
-                                            <code
-                                                class="text-[9px] text-slate-300 font-normal normal-case">[camera_url_2]</code></label>
-                                        <InputText v-model="form.settings.camera_url_2"
-                                            placeholder="Optional specific URL" class="w-full text-sm" />
-                                    </div>
-                                </div>
+                            <div class="min-w-0 w-full">
+                                <Dropdown
+                                    v-model="form.settings.batch_creation_source"
+                                    :options="[
+                                        { label: 'Sales Order', value: 'sales_order' },
+                                        { label: 'Batch Schedule', value: 'batch_schedule' },
+                                        { label: 'Sales Order or Batch Schedule', value: 'both' }
+                                    ]"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    class="w-full text-xs font-medium"
+                                />
                             </div>
                         </div>
-                    </div>
 
-                    <!-- 3. Batch Sheet Sync -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <button type="button"
-                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-violet-50/30 transition-colors"
-                            @click="toggle('batch_sync')">
-                            <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-violet-100 rounded-lg">
-                                    <DocumentArrowUpIcon class="w-4 h-4 text-violet-600" />
-                                </div>
-                                <span class="text-sm font-bold text-slate-700">Batch Sheet Sync</span>
-                                <span v-if="form.settings.sheet_upload || form.settings.hide_batch_form"
-                                    class="text-[9px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
+                        <!-- batch_series_enabled -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Show B/P Series Selection Toggle</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">batch_series_enabled</code>
                             </div>
-                            <ChevronDownIcon v-if="!expanded.batch_sync" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
-                        </button>
-
-                        <div  v-if="expanded.batch_sync" class="p-6 space-y-4 animate-fade-in">
-                            <div class="p-4 bg-violet-50 rounded-xl border border-violet-100 space-y-2">
-                                <label class="font-bold text-violet-700 text-sm">Batch Sheet PDF Driver</label>
-                                <p class="text-xs text-violet-600">Assign the readable PDF format for {{ plantName }} (Plant ID: {{ plantId }}). Automatic detection uses the document's format.</p>
-                                <Dropdown v-model="form.settings.batch_sheet_driver" :options="batchSheetDriverOptions" optionLabel="label" optionValue="value" filter class="w-full" />
-                                <small v-if="form.errors['settings.batch_sheet_driver']" class="text-red-600">{{ form.errors['settings.batch_sheet_driver'] }}</small>
+                            <div class="min-w-0 w-full flex items-center gap-3">
+                                <InputSwitch v-model="form.settings.batch_series_enabled" />
+                                <span class="text-xs font-bold" :class="form.settings.batch_series_enabled ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.batch_series_enabled ? 'Enabled' : 'Disabled' }}
+                                </span>
                             </div>
+                        </div>
 
-                            <!-- sheet_upload -->
-                            <div
-                                class="flex items-center justify-between p-4 bg-violet-50 rounded-xl border border-violet-100">
-                                <div>
-                                    <h4 class="font-bold text-violet-700 text-sm">Upload Batch Sheet <code
-                                            class="text-[9px] text-violet-400 ml-1 font-normal">[sheet_upload]</code>
-                                    </h4>
-                                    <p class="text-xs text-violet-500 mt-0.5">Allow users to upload a PDF or photo of
-                                        the
-                                        printed batch sheet to auto-fill Actual weights in the Input Reconciliation
-                                        table.</p>
-                                    <div v-if="form.settings.sheet_upload" class="mt-2">
-                                        <span
-                                            class="text-[9px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Upload
-                                            Button Visible in Batch Edit</span>
-                                    </div>
-                                </div>
+                        <!-- default_batch_series -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Default Batch Series</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">default_batch_series</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <Dropdown
+                                    v-model="form.settings.default_batch_series"
+                                    :options="[
+                                        { label: 'B Series (Default Numeric / B)', value: 'B' },
+                                        { label: 'P Series (Commercial Counter)', value: 'P' }
+                                    ]"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    class="w-full text-xs font-medium"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- batch_sheet_driver -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Batch Sheet PDF Driver</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">batch_sheet_driver</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <Dropdown
+                                    v-model="form.settings.batch_sheet_driver"
+                                    :options="batchSheetDriverOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    filter
+                                    class="w-full text-xs font-medium"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- sheet_upload -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Upload Batch Sheet</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">sheet_upload</code>
+                            </div>
+                            <div class="min-w-0 w-full flex items-center gap-3">
                                 <InputSwitch v-model="form.settings.sheet_upload" />
+                                <span class="text-xs font-bold" :class="form.settings.sheet_upload ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.sheet_upload ? 'Enabled' : 'Disabled' }}
+                                </span>
                             </div>
+                        </div>
 
-                            <!-- hide_batch_form -->
-                            <div
-                                class="flex items-center justify-between p-4 bg-rose-50 rounded-xl border border-rose-100">
-                                <div>
-                                    <h4 class="font-bold text-rose-700 text-sm">Hide Add &amp; Edit Batch Forms <code
-                                            class="text-[9px] text-rose-400 ml-1 font-normal">[hide_batch_form]</code>
-                                    </h4>
-                                    <p class="text-xs text-rose-500 mt-0.5">Hides the "New Batch" create form and the
-                                        inline
-                                        Edit form on the Batches page. Use when batch creation/editing is managed only
-                                        via the
-                                        batch sheet upload or an external scheduler.</p>
-                                    <div v-if="form.settings.hide_batch_form" class="mt-2">
-                                        <span
-                                            class="text-[9px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">⚠
-                                            Add &amp; Edit forms are currently HIDDEN</span>
-                                    </div>
-                                </div>
+                        <!-- hide_batch_form -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Hide Add &amp; Edit Batch Forms</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">hide_batch_form</code>
+                            </div>
+                            <div class="min-w-0 w-full flex items-center gap-3">
                                 <InputSwitch v-model="form.settings.hide_batch_form" />
+                                <span class="text-xs font-bold" :class="form.settings.hide_batch_form ? 'text-rose-600' : 'text-slate-400'">
+                                    {{ form.settings.hide_batch_form ? 'Forms Hidden' : 'Forms Visible' }}
+                                </span>
                             </div>
+                        </div>
 
-                            <!-- target_to_actual -->
-                            <div
-                                class="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                                <div>
-                                    <h4 class="font-bold text-indigo-700 text-sm">One-Click Target to Actual <code
-                                            class="text-[9px] text-indigo-400 ml-1 font-normal">[target_to_actual]</code>
-                                    </h4>
-                                    <p class="text-xs text-indigo-500 mt-0.5">Show a quick-action button in the
-                                        materials table
-                                        to copy all recipe targets directly into actual quantities.</p>
-                                    <div v-if="form.settings.target_to_actual" class="mt-2">
-                                        <span
-                                            class="text-[9px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Target
-                                            to Actual button Enabled</span>
-                                    </div>
-                                </div>
+                        <!-- target_to_actual -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">One-Click Target to Actual</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">target_to_actual</code>
+                            </div>
+                            <div class="min-w-0 w-full flex items-center gap-3">
                                 <InputSwitch v-model="form.settings.target_to_actual" />
+                                <span class="text-xs font-bold" :class="form.settings.target_to_actual ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.target_to_actual ? 'Enabled' : 'Disabled' }}
+                                </span>
                             </div>
+                        </div>
 
-                            <div class="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                                <div>
-                                    <h4 class="font-bold text-indigo-700 text-sm">Actual Consumption Variation</h4>
-                                    <p class="text-xs text-indigo-500 mt-0.5">Maximum +/- quantity applied to each product's generated total actual consumption.</p>
-                                </div>
-                                <InputNumber v-model="form.settings.actual_consumption_variation" :min="0" :maxFractionDigits="3" class="w-28" />
+                        <!-- actual_consumption_variation -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Actual Consumption Variation (+/-)</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">actual_consumption_variation</code>
                             </div>
-
-                            <div class="flex flex-col gap-2 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                                <h4 class="font-bold text-indigo-700 text-sm">Create Batches From</h4>
-                                <Dropdown v-model="form.settings.batch_creation_source"
-                                    :options="[{ label: 'Sales Order', value: 'sales_order' }, { label: 'Batch Schedule', value: 'batch_schedule' }, { label: 'Sales Order or Batch Schedule', value: 'both' }]"
-                                    optionLabel="label" optionValue="value" class="w-full" />
-                                <p class="text-xs text-indigo-600">Choose the source dropdown available in the Create Batch form for this plant.</p>
-                                <p v-if="form.errors['settings.batch_creation_source']" class="text-xs text-red-600">{{ form.errors['settings.batch_creation_source'] }}</p>
+                            <div class="min-w-0 w-full">
+                                <InputNumber
+                                    v-model="form.settings.actual_consumption_variation"
+                                    :min="0"
+                                    :maxFractionDigits="3"
+                                    class="w-full text-xs font-semibold"
+                                />
                             </div>
+                        </div>
 
-                            <!-- auto_carry_pump -->
-                            <div
-                                class="flex items-center justify-between p-4 bg-sky-50 rounded-xl border border-sky-100">
-                                <div>
-                                    <h4 class="font-bold text-sky-700 text-sm">Auto-Select Previous Batch Pump <code
-                                            class="text-[9px] text-sky-400 ml-1 font-normal">[auto_carry_pump]</code>
-                                    </h4>
-                                    <p class="text-xs text-sky-500 mt-0.5">Automatically select the concrete pump type
-                                        from the
-                                        previous batch of the same sales order.</p>
-                                    <div v-if="form.settings.auto_carry_pump" class="mt-2">
-                                        <span
-                                            class="text-[9px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pump
-                                            Auto-Selection Enabled</span>
-                                    </div>
-                                </div>
+                        <!-- auto_carry_pump -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Auto-Select Previous Batch Pump</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">auto_carry_pump</code>
+                            </div>
+                            <div class="min-w-0 w-full flex items-center gap-3">
                                 <InputSwitch v-model="form.settings.auto_carry_pump" />
-                            </div>
-
-                            <!-- schedule_to_batch -->
-                            <!-- <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                                <div>
-                                    <h4 class="font-bold text-emerald-700 text-sm">Create Real Batch from Schedule <code class="text-[9px] text-emerald-400 ml-1 font-normal">[schedule_to_batch]</code></h4>
-                                    <p class="text-xs text-emerald-500 mt-0.5">Automatically create a real batch and dispatch entry when scheduling a pour. If disabled, only the schedule slot will be created.</p>
-                                    <div v-if="form.settings.schedule_to_batch" class="mt-2">
-                                        <span class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Real Batch Creation Enabled</span>
-                                    </div>
-                                    <div v-else class="mt-2">
-                                        <span class="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Real Batch Creation Disabled (Schedule Only)</span>
-                                    </div>
-                                </div>
-                                <InputSwitch v-model="form.settings.schedule_to_batch" />
-                            </div> -->
-
-                            <!-- material_print_mode -->
-                            <!-- <div class="flex flex-col gap-2 p-4 bg-violet-50 rounded-xl border border-violet-100">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h4 class="font-bold text-violet-700 text-sm">Material Print Mode on PDFs <code class="text-[9px] text-violet-400 ml-1 font-normal">[material_print_mode]</code></h4>
-                                        <p class="text-xs text-violet-500 mt-0.5">Choose how material quantities (Target &amp; Actual) are printed on PDF tokens and passes.</p>
-                                    </div>
-                                </div>
-                                <div class="mt-2 max-w-md">
-                                    <Dropdown
-                                        v-model="form.settings.material_print_mode"
-                                        :options="[
-                                            { label: 'By Run (As Synced)', value: 'run' },
-                                            { label: 'By Batch Size (Total Load)', value: 'batch_size' },
-                                            { label: 'By Mix Design (Per m³)', value: 'mix_design' }
-                                        ]"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        placeholder="Select print mode"
-                                        class="w-full text-sm"
-                                    />
-                                </div>
-                            </div> -->
-
-                            <!-- Dynamic Sync Params -->
-                            <div v-for="(p, idx) in form.settings.custom_params.filter(x => x.module === 'sync' || (x.module === 'batching' && x.key.includes('sync')))"
-                                :key="'s-' + idx"
-                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
-                                <div class="flex-1">
-                                    <h4 class="font-bold text-slate-700 text-sm">{{ p.label }} <code
-                                            class="text-[9px] text-slate-400 ml-1 font-normal">[{{ p.key }}]</code></h4>
-                                    <div v-if="p.type === 'text'" class="mt-2 max-w-md">
-                                        <InputText v-model="p.value" class="w-full text-sm" />
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-4">
-                                    <InputSwitch v-if="p.type === 'bool'" v-model="p.value" />
-                                    <Button icon="pi pi-trash" severity="danger" text rounded
-                                        @click="removeParameter(form.settings.custom_params.indexOf(p))" />
-                                </div>
+                                <span class="text-xs font-bold" :class="form.settings.auto_carry_pump ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.auto_carry_pump ? 'Enabled' : 'Disabled' }}
+                                </span>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Print Configuration -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <button type="button"
-                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-purple-50/30 transition-colors"
-                            @click="toggle('print')">
-                            <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-purple-100 rounded-lg">
-                                    <PrinterIcon class="w-4 h-4 text-purple-600" />
-                                </div>
-                                <span class="text-sm font-bold text-slate-700">Print Configuration</span>
-                                <span
-                                    v-if="form.settings.print_delivery_ingredients || form.settings.quotation_price_list"
-                                    class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
+                        <!-- default_transport -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Default Transporter Name</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">default_transport</code>
                             </div>
-                            <ChevronDownIcon v-if="!expanded.print" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
-                        </button>
+                            <div class="min-w-0 w-full">
+                                <InputText
+                                    v-model="form.settings.default_transport"
+                                    placeholder="e.g. In-house fleet"
+                                    class="w-full text-xs font-medium"
+                                />
+                            </div>
+                        </div>
 
-                        <div v-if="expanded.print" class="p-6 space-y-4 animate-fade-in">
-                            <div class="p-4 bg-purple-50 rounded-xl border border-purple-100 space-y-3">
-                                <h4 class="font-bold text-purple-700 text-sm">Batch Sheet Logo</h4>
-                                <p class="text-xs text-purple-500">Upload a PNG or JPG (maximum 2 MB) for this plant's batch sheet previews, PDFs and email attachments. Without a custom logo, the plant or entity logo is used.</p>
-                                <img v-if="batchSheetLogoUrl && !form.remove_batch_sheet_logo" :src="batchSheetLogoUrl" alt="Current batch sheet logo" class="max-h-20 max-w-48 object-contain bg-white rounded p-2" />
-                                <input ref="batchSheetLogoInput" type="file" accept="image/png,image/jpeg" @change="selectBatchSheetLogo" class="block text-sm w-full" />
-                                <p v-if="form.errors.batch_sheet_logo" class="text-xs text-red-600">{{ form.errors.batch_sheet_logo }}</p>
-                                <label v-if="batchSheetLogoUrl" class="flex items-center gap-2 text-sm text-purple-700">
-                                    <input v-model="form.remove_batch_sheet_logo" type="checkbox" @change="form.batch_sheet_logo = null; if (batchSheetLogoInput) batchSheetLogoInput.value = ''" />
-                                    Remove custom batch sheet logo
-                                </label>
+                        <!-- is_grade_or_is_mix_design -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Document Item Name Format</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">is_grade_or_is_mix_design</code>
                             </div>
-                            <!-- print_delivery_ingredients -->
-                            <div
-                                class="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-100">
-                                <div>
-                                    <h4 class="font-bold text-purple-700 text-sm">Batching &amp; Ingredients Details on
-                                        Delivery
-                                        Token <code
-                                            class="text-[9px] text-purple-400 ml-1 font-normal">[print_delivery_ingredients]</code>
-                                    </h4>
-                                    <p class="text-xs text-purple-500 mt-0.5">Show or hide the Recipe, Actual Quantity,
-                                        and
-                                        Deviation breakdown table on the Delivery Token (A4).</p>
-                                    <div v-if="form.settings.print_delivery_ingredients" class="mt-2">
-                                        <span
-                                            class="text-[9px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Ingredients
-                                            Section Visible on Delivery Token</span>
-                                    </div>
-                                </div>
-                                <InputSwitch v-model="form.settings.print_delivery_ingredients" />
-                            </div>
-
-                            <!-- is_grade_or_is_mix_design -->
-                            <div class="flex flex-col gap-2 p-4 bg-teal-50 rounded-xl border border-teal-100">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h4 class="font-bold text-teal-700 text-sm">Grade or Mix Design Name <code
-                                                class="text-[9px] text-teal-400 ml-1 font-normal">[is_grade_or_is_mix_design]</code>
-                                        </h4>
-                                        <p class="text-xs text-teal-500 mt-0.5">Choose whether to display the Concrete
-                                            Grade or
-                                            the Mix Design name on Quotations, Sales Orders, and Invoices.</p>
-                                    </div>
-                                </div>
-                                <div class="mt-2 max-w-md">
-                                    <Dropdown v-model="form.settings.is_grade_or_is_mix_design" :options="[
-                                        { label: 'Grade', value: 0 },
-                                        { label: 'Mix Design', value: 1 },
+                            <div class="min-w-0 w-full">
+                                <Dropdown
+                                    v-model="form.settings.is_grade_or_is_mix_design"
+                                    :options="[
+                                        { label: 'Grade Only', value: 0 },
+                                        { label: 'Mix Design Only', value: 1 },
                                         { label: 'Grade + Mix Design', value: 2 }
-                                    ]" optionLabel="label" optionValue="value" placeholder="Select item name format"
-                                        class="w-full text-sm" />
+                                    ]"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    class="w-full text-xs font-medium"
+                                />
+                            </div>
+                        </div>
+                        </div>
+                    </section>
+
+                    <!-- TAB 2: WEIGHBRIDGE & CAMERA -->
+                    <section id="settings-weighbridge" aria-labelledby="heading-weighbridge" class="settings-group scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i class="pi pi-camera" aria-hidden="true"></i></span>
+                            <div><h2 id="heading-weighbridge" class="text-sm font-semibold text-slate-900">Weighbridge &amp; Camera</h2><p class="mt-1 text-xs leading-relaxed text-slate-500">Configure weighing operations and connected cameras.</p></div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-5 p-5">
+                        <!-- new_weight -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Weighbridge API Mode</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">new_weight</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <Dropdown
+                                    v-model.number="form.settings.new_weight"
+                                    @change="form.settings.newweight = form.settings.new_weight"
+                                    :options="[
+                                        { label: '0 — Disabled (Web Serial Port)', value: 0 },
+                                        { label: '1 — Port 8089 (HTTP localhost:8089)', value: 1 },
+                                        { label: '2 — Port 8074 (HTTPS localhost:8074)', value: 2 }
+                                    ]"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    class="w-full text-xs font-medium"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- manual_weight -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Manual Weight Entry</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">manual_weight</code>
+                            </div>
+                            <div class="min-w-0 w-full flex items-center gap-3">
+                                <InputSwitch v-model="form.settings.manual_weight" />
+                                <span class="text-xs font-bold" :class="form.settings.manual_weight ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.manual_weight ? 'Enabled' : 'Disabled' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- weight_mandatory -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Weighbridge Mandatory</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">weight_mandatory</code>
+                            </div>
+                            <div class="min-w-0 w-full flex items-center gap-3">
+                                <InputSwitch v-model="form.settings.weight_mandatory" />
+                                <span class="text-xs font-bold" :class="form.settings.weight_mandatory ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.weight_mandatory ? 'Mandatory' : 'Optional' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- with_inventory -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Stock Deduction with Inventory</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">with_inventory</code>
+                            </div>
+                            <div class="min-w-0 w-full flex items-center gap-3">
+                                <InputSwitch v-model="form.settings.with_inventory" />
+                                <span class="text-xs font-bold" :class="form.settings.with_inventory ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.with_inventory ? 'Enabled' : 'Disabled' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- camera -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Enable Camera Snapshots</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">camera</code>
+                            </div>
+                            <div class="min-w-0 w-full flex items-center gap-3">
+                                <InputSwitch v-model="form.settings.camera" />
+                                <span class="text-xs font-bold" :class="form.settings.camera ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.camera ? 'Enabled' : 'Disabled' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- camera_url -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Default Camera URL</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">camera_url</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <InputText
+                                    v-model="form.settings.camera_url"
+                                    placeholder="http://127.0.0.1:8089/api/cameras/{id}/snapshot"
+                                    class="w-full text-xs font-mono"
+                                    :disabled="!form.settings.camera"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- camera_url_1 -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Camera 1 URL (Entry / Empty)</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">camera_url_1</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <InputText
+                                    v-model="form.settings.camera_url_1"
+                                    placeholder="Optional specific snapshot URL"
+                                    class="w-full text-xs font-mono"
+                                    :disabled="!form.settings.camera"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- camera_url_2 -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Camera 2 URL (Exit / Loaded)</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">camera_url_2</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <InputText
+                                    v-model="form.settings.camera_url_2"
+                                    placeholder="Optional specific snapshot URL"
+                                    class="w-full text-xs font-mono"
+                                    :disabled="!form.settings.camera"
+                                />
+                            </div>
+                        </div>
+                        </div>
+                    </section>
+
+                    <!-- TAB 3: DOCUMENT NUMBERING & PREFIXES -->
+                    <section id="settings-numbering" aria-labelledby="heading-numbering" class="settings-group scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i class="pi pi-hashtag" aria-hidden="true"></i></span>
+                            <div><h2 id="heading-numbering" class="text-sm font-semibold text-slate-900">Document Numbering</h2><p class="mt-1 text-xs leading-relaxed text-slate-500">Set document prefixes and customise invoice sequences.</p></div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-5 p-5">
+                        <!-- po_prefix -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Purchase Order Prefix</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">po_prefix</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <InputText v-model="form.settings.po_prefix" placeholder="PO" class="w-full text-xs font-mono uppercase" />
+                            </div>
+                        </div>
+
+                        <!-- so_prefix -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Sales Order Prefix</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">so_prefix</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <InputText v-model="form.settings.so_prefix" placeholder="SO" class="w-full text-xs font-mono uppercase" />
+                            </div>
+                        </div>
+
+                        <!-- cpo_prefix -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Customer PO Prefix</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">cpo_prefix</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <InputText v-model="form.settings.cpo_prefix" placeholder="CPO" class="w-full text-xs font-mono uppercase" />
+                            </div>
+                        </div>
+
+                        <!-- quote_prefix -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Quotation Prefix</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">quote_prefix</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <InputText v-model="form.settings.quote_prefix" placeholder="QT" class="w-full text-xs font-mono uppercase" />
+                            </div>
+                        </div>
+
+                        <!-- invoice_number_format -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Invoice Number Format</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">invoice_number_format</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <Dropdown
+                                    v-model="form.settings.invoice_number_format"
+                                    :options="[
+                                        { label: '0 — Default: Prefix / FY / Number', value: 0 },
+                                        { label: '1 — Custom: Prefix / Number / FY', value: 1 }
+                                    ]"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    class="w-full text-xs font-medium"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- invoice_number_start & padding (if enabled) -->
+                        <div v-if="form.settings.invoice_number_format === 1" class="setting-field min-w-0 sm:col-span-2 xl:col-span-6 flex flex-col gap-2 rounded-md bg-white/40 p-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-indigo-950">Invoice Sequence Start &amp; Digits</span>
+                                <span class="text-[11px] font-mono font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded border border-indigo-200">
+                                    {{ numberingPreview('invoice') }}
+                                </span>
+                            </div>
+                            <div class="min-w-0 w-full grid grid-cols-2 gap-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] font-bold text-slate-500 whitespace-nowrap">Start:</span>
+                                    <InputNumber v-model="form.settings.invoice_number_start" :min="1" class="w-full text-xs" />
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] font-bold text-slate-500 whitespace-nowrap">Digits:</span>
+                                    <InputNumber v-model="form.settings.invoice_number_padding" :min="0" :max="10" class="w-full text-xs" />
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- quotation_price_list -->
-                            <div
-                                class="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-100">
-                                <div>
-                                    <h4 class="font-bold text-purple-700 text-sm">Quotation as Price List <code
-                                            class="text-[9px] text-purple-400 ml-1 font-normal">[quotation_price_list]</code>
-                                    </h4>
-                                    <p class="text-xs text-purple-500 mt-0.5">When enabled, quotation prints will set
-                                        the
-                                        document name to "PRICE LIST" and hide the total amount column in the items
-                                        table.</p>
-                                    <div v-if="form.settings.quotation_price_list" class="mt-2">
-                                        <span
-                                            class="text-[9px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Quotation
-                                            Print Name: PRICE LIST &bull; Totals Column Hidden</span>
-                                    </div>
+                        <!-- billing_number_format -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Billing Number Format</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">billing_number_format</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <Dropdown
+                                    v-model="form.settings.billing_number_format"
+                                    :options="[
+                                        { label: '0 — Default: Prefix / FY / Number', value: 0 },
+                                        { label: '1 — Custom: Prefix / Number / FY', value: 1 }
+                                    ]"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    class="w-full text-xs font-medium"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- billing_number_start & padding (if enabled) -->
+                        <div v-if="form.settings.billing_number_format === 1" class="setting-field min-w-0 sm:col-span-2 xl:col-span-6 flex flex-col gap-2 rounded-md bg-white/40 p-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-indigo-950">Billing Sequence Start &amp; Digits</span>
+                                <span class="text-[11px] font-mono font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded border border-indigo-200">
+                                    {{ numberingPreview('billing') }}
+                                </span>
+                            </div>
+                            <div class="min-w-0 w-full grid grid-cols-2 gap-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] font-bold text-slate-500 whitespace-nowrap">Start:</span>
+                                    <InputNumber v-model="form.settings.billing_number_start" :min="1" class="w-full text-xs" />
                                 </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] font-bold text-slate-500 whitespace-nowrap">Digits:</span>
+                                    <InputNumber v-model="form.settings.billing_number_padding" :min="0" :max="10" class="w-full text-xs" />
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    </section>
+
+                    <!-- TAB 4: QUOTATION & SALES -->
+                    <section id="settings-quotation" aria-labelledby="heading-quotation" class="settings-group scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i class="pi pi-file-edit" aria-hidden="true"></i></span>
+                            <div><h2 id="heading-quotation" class="text-sm font-semibold text-slate-900">Quotations &amp; Sales</h2><p class="mt-1 text-xs leading-relaxed text-slate-500">Choose defaults for quotations and sales workflows.</p></div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-5 p-5">
+                        <!-- quote_validity -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Quotation Validity Offset (Days)</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">quote_validity</code>
+                            </div>
+                            <div class="min-w-0 w-full">
+                                <InputNumber v-model="form.settings.quote_validity" :min="1" :max="365" class="w-full text-xs font-semibold" />
+                            </div>
+                        </div>
+
+                        <!-- quotation_price_list -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Quotation as Price List (Hide Totals)</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">quotation_price_list</code>
+                            </div>
+                            <div class="min-w-0 w-full flex items-center gap-3">
                                 <InputSwitch v-model="form.settings.quotation_price_list" />
+                                <span class="text-xs font-bold" :class="form.settings.quotation_price_list ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.quotation_price_list ? 'Price List Mode Enabled' : 'Normal Quotation' }}
+                                </span>
                             </div>
                         </div>
-                    </div>
+                        </div>
+                    </section>
 
-                    <!-- Document Prefixes -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <button type="button"
-                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-indigo-50/30 transition-colors"
-                            @click="toggle('prefixes')">
-                            <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-indigo-100 rounded-lg">
-                                    <DocumentTextIcon class="w-4 h-4 text-indigo-600" />
-                                </div>
-                                <span class="text-sm font-bold text-slate-700">Document Prefix Configuration</span>
-                                <span
-                                    v-if="form.settings.po_prefix || form.settings.so_prefix || form.settings.quote_prefix"
-                                    class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
+                    <!-- TAB 5: PRINTING & DELIVERY -->
+                    <section id="settings-printing" aria-labelledby="heading-printing" class="settings-group scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i class="pi pi-print" aria-hidden="true"></i></span>
+                            <div><h2 id="heading-printing" class="text-sm font-semibold text-slate-900">Printing &amp; Delivery</h2><p class="mt-1 text-xs leading-relaxed text-slate-500">Personalise batch sheets and delivery documents.</p></div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-5 p-5">
+                        <!-- print_delivery_ingredients -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Batching Ingredients on Delivery Token</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">print_delivery_ingredients</code>
                             </div>
-                            <ChevronDownIcon v-if="!expanded.prefixes" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
-                        </button>
+                            <div class="min-w-0 w-full flex items-center gap-3">
+                                <InputSwitch v-model="form.settings.print_delivery_ingredients" />
+                                <span class="text-xs font-bold" :class="form.settings.print_delivery_ingredients ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ form.settings.print_delivery_ingredients ? 'Print Ingredients' : 'Hide Ingredients' }}
+                                </span>
+                            </div>
+                        </div>
 
-                        <div v-if="expanded.prefixes" class="p-6 space-y-4 animate-fade-in">
-                            <div v-for="module in numberingModules" :key="module.key" class="rounded-xl border border-slate-200 p-4 space-y-3">
-                                <h3 class="text-sm font-bold text-slate-700">{{ module.label }} numbering</h3>
-                                <label class="flex flex-col gap-1.5 text-xs font-bold text-slate-500">
-                                    Enable custom number format
-                                    <select v-model="form.settings[`${module.key}_number_format`]" class="rounded-lg border-slate-300 text-sm font-normal">
-                                        <option :value="0">Default (0) - Prefix / Financial year / Number</option>
-                                        <option :value="1">Enabled (1) - Prefix / Number / Financial year</option>
-                                    </select>
+                        <!-- batch_sheet_logo -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="min-w-0 w-full space-y-1.5">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="text-xs font-bold text-slate-800">Batch Sheet Custom Logo</span>
+                                    <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">batch_sheet_logo</code>
+                                </div>
+                                <div v-if="batchSheetLogoUrl && !form.remove_batch_sheet_logo" class="pt-1">
+                                    <img :src="batchSheetLogoUrl" alt="Current Logo" class="max-h-10 max-w-36 object-contain bg-slate-50 rounded border border-slate-200 p-1" />
+                                </div>
+                            </div>
+                            <div class="min-w-0 w-full flex flex-col gap-2">
+                                <input
+                                    ref="batchSheetLogoInput"
+                                    type="file"
+                                    accept="image/png,image/jpeg"
+                                    @change="selectBatchSheetLogo"
+                                    class="text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                                />
+                                <label v-if="batchSheetLogoUrl" class="inline-flex items-center gap-1.5 text-xs text-rose-600 cursor-pointer font-medium">
+                                    <input
+                                        v-model="form.remove_batch_sheet_logo"
+                                        type="checkbox"
+                                        @change="form.batch_sheet_logo = null; if (batchSheetLogoInput) batchSheetLogoInput.value = ''"
+                                        class="rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                                    />
+                                    <span>Remove custom logo</span>
                                 </label>
-                                <div v-if="form.settings[`${module.key}_number_format`] === 1" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div class="flex flex-col gap-1.5 text-xs text-slate-500">
-                                        <span class="font-bold">Prefix source</span>
-                                        <span>The selected ledger's description (Prefix), for example JG. Defaults: INV/ for Invoice and BILL/ for Billing.</span>
-                                    </div>
-                                    <label class="flex flex-col gap-1.5 text-xs font-bold text-slate-500">
-                                        Starting number
-                                        <input v-model.number="form.settings[`${module.key}_number_start`]" type="number" min="1" max="9999999999" class="rounded-lg border-slate-300 text-sm font-normal" />
-                                    </label>
-                                    <label class="flex flex-col gap-1.5 text-xs font-bold text-slate-500">
-                                        Minimum digits (0 = no padding)
-                                        <input v-model.number="form.settings[`${module.key}_number_padding`]" type="number" min="0" max="10" class="rounded-lg border-slate-300 text-sm font-normal" />
-                                    </label>
-                                </div>
-                                <p v-if="form.settings[`${module.key}_number_format`] === 1" class="text-xs text-indigo-700">
-                                    Example for ledger prefix JG: <strong>{{ numberingPreview(module.key) }}</strong>. The sequence increases automatically and starts again each financial year.
-                                </p>
-                            </div>
-                            <p class="text-xs text-slate-500">Changes apply to new documents in this plant. Existing numbers stay unchanged. Invoice and Billing share a sequence when their prefixes and financial years match.</p>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div class="flex flex-col gap-1.5">
-                                    <label class="text-xs font-bold text-slate-500 uppercase">Purchase Order (PO)
-                                        Prefix</label>
-                                    <InputText v-model="form.settings.po_prefix" placeholder="PO"
-                                        class="w-full text-sm" />
-                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Purchase
-                                        Orders.</p>
-                                </div>
-                                <div class="flex flex-col gap-1.5">
-                                    <label class="text-xs font-bold text-slate-500 uppercase">Sales Order Prefix</label>
-                                    <InputText v-model="form.settings.so_prefix" placeholder="SO"
-                                        class="w-full text-sm" />
-                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Sales Orders.
-                                    </p>
-                                </div>
-                                <div class="flex flex-col gap-1.5">
-                                    <label class="text-xs font-bold text-slate-500 uppercase">Customer Purchase Order
-                                        Prefix</label>
-                                    <InputText v-model="form.settings.cpo_prefix" placeholder="CPO"
-                                        class="w-full text-sm" />
-                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Customer
-                                        Purchase
-                                        Orders.</p>
-                                </div>
-                                <div class="flex flex-col gap-1.5">
-                                    <label class="text-xs font-bold text-slate-500 uppercase">Quotation Prefix</label>
-                                    <InputText v-model="form.settings.quote_prefix" placeholder="QT"
-                                        class="w-full text-sm" />
-                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Quotations.
-                                    </p>
-                                </div>
                             </div>
                         </div>
-                    </div>
+                        </div>
+                    </section>
 
-                    <!-- 4. Appearance -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <button type="button"
-                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-indigo-50/30 transition-colors"
-                            @click="toggle('appearance')">
-                            <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-indigo-100 rounded-lg">
-                                    <Cog6ToothIcon class="w-4 h-4 text-indigo-600" />
-                                </div>
-                                <span class="text-sm font-bold text-slate-700">System Appearance</span>
-                                <span v-if="form.settings.loader_gif"
-                                    class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Custom
-                                    Loader Set</span>
+                    <!-- TAB 6: APPEARANCE & CUSTOM -->
+                    <section id="settings-custom" aria-labelledby="heading-custom" class="settings-group scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><i class="pi pi-sliders-h" aria-hidden="true"></i></span>
+                            <div><h2 id="heading-custom" class="text-sm font-semibold text-slate-900">Appearance &amp; Custom</h2><p class="mt-1 text-xs leading-relaxed text-slate-500">Manage your loading image and additional plant parameters.</p></div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-5 p-5">
+                        <!-- loader_gif -->
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">Global Loader GIF URL</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">loader_gif</code>
                             </div>
-                            <ChevronDownIcon v-if="!expanded.appearance" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
-                        </button>
-
-                        <div v-if="expanded.appearance" class="p-6 animate-fade-in">
-                            <div class="flex flex-col gap-1 max-w-lg">
-                                <label class="text-xs font-bold text-slate-500 uppercase">Custom Global Loader (GIF URL)
-                                    <code
-                                        class="text-[9px] text-slate-300 font-normal normal-case">[loader_gif]</code></label>
-                                <InputText v-model="form.settings.loader_gif" placeholder="/storage/loaders/truck.gif"
-                                    class="w-full text-sm" />
-                                <p class="text-[10px] text-slate-400 mt-1 italic">Use the "Image to GIF" tool to
-                                    generate your
-                                    custom loader.</p>
+                            <div class="min-w-0 w-full">
+                                <InputText
+                                    v-model="form.settings.loader_gif"
+                                    placeholder="/storage/loaders/truck.gif"
+                                    class="w-full text-xs font-mono"
+                                />
                             </div>
                         </div>
-                    </div>
 
-                    <!-- 5. Custom Parameters -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <button type="button"
-                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-amber-50/30 transition-colors"
-                            @click="toggle('custom')">
-                            <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-amber-100 rounded-lg">
-                                    <PencilSquareIcon class="w-4 h-4 text-amber-600" />
-                                </div>
-                                <span class="text-sm font-bold text-slate-700">Custom Parameters</span>
-                                <span v-if="form.settings.custom_params.length"
-                                    class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase">{{
-                                        form.settings.custom_params.length }} Set</span>
+                        <!-- Dynamic custom parameters -->
+                        <div
+                            v-for="(p, index) in form.settings.custom_params"
+                            :key="index"
+                            class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3"
+                        >
+                            <div class="setting-label min-w-0 flex flex-col items-start gap-1">
+                                <span class="text-xs font-bold text-slate-800">{{ p.label }}</span>
+                                <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">{{ p.key }}</code>
                             </div>
-                            <ChevronDownIcon v-if="!expanded.custom" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon v-else class="w-4 h-4 text-slate-400" />
-                        </button>
-
-                        <div v-if="expanded.custom" class="p-6 space-y-4 animate-fade-in">
-                            <div v-if="!form.settings.custom_params.length" class="text-center py-8">
-                                <p class="text-xs text-slate-400">No custom parameters added yet. Click "Add Parameter"
-                                    to
-                                    start.</p>
-                            </div>
-                            <div v-for="(p, index) in form.settings.custom_params" :key="index"
-                                class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <div class="min-w-0 w-full flex items-center gap-3">
                                 <div class="flex-1">
-                                    <h4 class="font-bold text-slate-700 text-sm">{{ p.label }} <code
-                                            class="text-[9px] text-slate-400 ml-1 font-normal">[{{ p.key }}]</code></h4>
-
-                                    <div v-if="p.type === 'text'" class="mt-2 max-w-md">
-                                        <InputText v-model="p.value" placeholder="Enter value" class="w-full text-sm" />
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-4">
                                     <InputSwitch v-if="p.type === 'bool'" v-model="p.value" />
-                                    <Button icon="pi pi-trash" severity="danger" text rounded
-                                        @click="removeParameter(index)" />
+                                    <InputText v-else v-model="p.value" class="w-full text-xs font-mono" />
                                 </div>
+                                <Button
+                                    icon="pi pi-trash"
+                                    severity="danger"
+                                    text
+                                    rounded
+                                    size="small"
+                                    @click="removeParameter(index)"
+                                />
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Save footer -->
-                    <div class="flex justify-end pt-2 pb-6">
-                        <Button icon="pi pi-save" label="Save All Settings" size="large" :loading="form.processing"
-                            @click="submit" />
+                        <div v-if="!form.settings.custom_params.length" class="sm:col-span-2 xl:col-span-6 py-3 text-xs text-slate-500">
+                            No additional custom parameters defined for this plant.
+                        </div>
+                        </div>
+                    </section>
+
+                </div>
+
                     </div>
+                <!-- Footer Save Action Button -->
+                <div class="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur">
+                    <p class="text-sm text-slate-500" role="status">{{ form.isDirty ? 'You have unsaved changes.' : 'Settings are up to date.' }}</p>
+                    <Button
+                        icon="pi pi-check"
+                        label="Save Changes"
+                        size="small"
+                        class="rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 border-indigo-600 text-white shadow-xs px-6 py-2.5"
+                        :loading="form.processing"
+                        @click="submit"
+                    />
                 </div>
 
             </div>
         </div>
 
-        <Dialog v-model:visible="showNewDialog" header="Add New Module Settings" :style="{ width: '400px' }" modal>
-            <div class="space-y-4 py-2">
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-slate-500 uppercase">Module Name</label>
-                    <Dropdown v-model="newModuleForm.module" :options="modules" optionLabel="label" optionValue="value"
-                        placeholder="Select a module" class="w-full" />
+        <!-- Add Custom Parameter Modal -->
+        <Dialog v-model:visible="showParamDialog" header="Add Parameter" :style="{ width: '380px' }" modal>
+            <div class="space-y-3 py-2">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-600">Label</label>
+                    <InputText v-model="paramForm.label" placeholder="e.g. Max Batch Size" class="w-full text-xs" />
                 </div>
-                <p class="text-[10px] text-slate-400 italic">Adding a module will create a default settings record for
-                    it.</p>
-            </div>
-            <template #footer>
-                <Button label="Cancel" icon="pi pi-times" text @click="showNewDialog = false" />
-                <Button label="Create" icon="pi pi-check" :loading="newModuleForm.processing" @click="saveNewModule" />
-            </template>
-        </Dialog>
-
-        <!-- New Custom Parameter Dialog -->
-        <Dialog v-model:visible="showParamDialog" header="Add Setting to Module" :style="{ width: '400px' }" modal>
-            <div class="space-y-4 py-2">
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-slate-500 uppercase">Target Module</label>
-                    <Dropdown v-model="paramForm.module" :options="modules" optionLabel="label" optionValue="value"
-                        class="w-full" />
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-600">Key (unique)</label>
+                    <InputText v-model="paramForm.key" placeholder="e.g. max_batch_size" class="w-full text-xs font-mono" />
                 </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-slate-500 uppercase">Display Label</label>
-                    <InputText v-model="paramForm.label" placeholder="e.g. Max Batch Size" class="w-full" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-slate-500 uppercase">System Key (unique)</label>
-                    <InputText v-model="paramForm.key" placeholder="e.g. max_batch_size" class="w-full" />
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs font-bold text-slate-500 uppercase">Value Type</label>
-                    <Dropdown v-model="paramForm.type"
-                        :options="[{ label: 'Text / Number', value: 'text' }, { label: 'Toggle (On/Off)', value: 'bool' }]"
-                        optionLabel="label" optionValue="value" class="w-full" />
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-600">Type</label>
+                    <Dropdown
+                        v-model="paramForm.type"
+                        :options="[{ label: 'Text / Value', value: 'text' }, { label: 'Toggle (On / Off)', value: 'bool' }]"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="w-full text-xs"
+                    />
                 </div>
             </div>
             <template #footer>
-                <Button label="Cancel" icon="pi pi-times" text @click="showParamDialog = false" />
-                <Button label="Add to Module" icon="pi pi-check" @click="addParameter" />
+                <Button label="Cancel" icon="pi pi-times" text size="small" @click="showParamDialog = false" />
+                <Button label="Add" icon="pi pi-plus" size="small" @click="addParameter" />
             </template>
         </Dialog>
     </AppLayout>
 </template>
 
 <style scoped>
-.animate-fade-in {
-    animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-6px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
+.settings-page { background: #f6f8fc; }
+.settings-nav-link { display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem; border-radius: 0.625rem; color: #475569; font-size: 0.75rem; font-weight: 500; white-space: nowrap; transition: background-color 150ms, color 150ms; }
+.settings-nav-link:hover, .settings-nav-link:focus-visible { color: #4338ca; background: #eef2ff; }
+.settings-group:target { border-color: #a5b4fc; }
+.setting-label { min-height: 2rem; justify-content: center; }
+.setting-label > span { font-weight: 500; font-size: 0.8125rem; line-height: 1.4; }
+.setting-field code { display: none; }
+.setting-field :deep(.p-inputtext),
+.setting-field :deep(.p-inputnumber),
+.setting-field :deep(.p-dropdown),
+.setting-field :deep(.p-select) { min-width: 0; width: 100%; }
+.setting-field :deep(.p-inputtext),
+.setting-field :deep(.p-dropdown),
+.setting-field :deep(.p-select),
+.setting-field input[type="file"] { background-color: #fff; color: #0f172a; border-color: #cbd5e1; border-radius: 0.5rem; }
+.setting-field :deep(.p-inputtext) { padding: 0.625rem 0.75rem; font-size: 0.8125rem; }
+.setting-field :deep(.p-dropdown-label),
+.setting-field :deep(.p-select-label) { white-space: normal; font-size: 0.75rem; }
+.setting-field :deep(.p-inputswitch) { flex-shrink: 0; }
+.setting-field input[type="file"] { width: 100%; min-width: 0; }
+.setting-field :deep(.p-inputtext:focus), .setting-field :deep(.p-dropdown:focus-within), .setting-field :deep(.p-select:focus-within) { border-color: #818cf8; box-shadow: 0 0 0 3px #eef2ff; }
+.setting-field > div:last-child:has(.p-inputswitch) { min-height: 42px; padding: 0.5rem 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
 </style>

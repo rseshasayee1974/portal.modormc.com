@@ -122,7 +122,8 @@
         $netWeight    = (float) ($dispatch?->net_weight ?? max(0, $loadedWeight - $emptyWeight));
 
 
-        $batchNo = 'B' . str_pad($batch->batch_no ?? $batch->id, 4, '0', STR_PAD_LEFT);
+        $rawBatchNo = (string) ($batch->batch_no ?? $batch->id);
+        $batchNo = ctype_digit($rawBatchNo) ? 'B'.str_pad($rawBatchNo, 4, '0', STR_PAD_LEFT) : $rawBatchNo;
         $hash = md5($batch->id . 'gatepass-secret-salt-2026');
         $qrUrl = route('public.gatepass.verify', ['batch' => $batch->id, 'hash' => $hash]);
         $qrDataUri = QrCodeGenerator::svgDataUri($qrUrl, size: 4, quiet: 2);

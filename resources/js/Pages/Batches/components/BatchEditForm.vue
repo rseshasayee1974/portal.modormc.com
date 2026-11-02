@@ -244,11 +244,11 @@ const canEditBatchNo = computed(() => Boolean(isAdmin.value || isSuperAdmin.valu
 
 const duplicateBatchWarning = computed(() => {
     if (!canEditBatchNo.value || !form.batch_no) return null;
-    const num = Number(form.batch_no);
-    if (!num || num <= 0) return null;
-    if (num === Number(props.batch?.batch_no)) return null;
+    const num = String(form.batch_no).trim().toUpperCase();
+    if (!/^(?:[BP])?[1-9][0-9]*$/.test(num)) return null;
+    if (num === String(props.batch?.batch_no)) return null;
 
-    const exists = props.existingBatches.some((b: any) => !b.deleted_at && Number(b.id) !== Number(props.batch?.id) && Number(b.batch_no) === num);
+    const exists = props.existingBatches.some((b: any) => !b.deleted_at && Number(b.id) !== Number(props.batch?.id) && String(b.batch_no).toUpperCase() === num);
     if (exists) {
         return `Batch #${num} already exists in this plant. Duplicate batch numbers are restricted.`;
     }
@@ -1019,7 +1019,7 @@ const submit = (onSuccessCallback?: () => void) => {
         }
     }
     if (canEditBatchNo.value) {
-        if (!form.batch_no || Number(form.batch_no) <= 0) {
+        if (!form.batch_no || !/^(?:[BP])?[1-9][0-9]*$/i.test(String(form.batch_no))) {
             form.setError('batch_no', 'Batch Number is required');
             hasErrors = true;
         } else if (duplicateBatchWarning.value) {
@@ -1051,7 +1051,7 @@ const submit = (onSuccessCallback?: () => void) => {
     };
     form.transform((data) => ({
         ...data,
-        batch_no: canEditBatchNo.value ? Number(data.batch_no) : (props.batch?.batch_no ?? null),
+        batch_no: canEditBatchNo.value ? String(data.batch_no).trim().toUpperCase() : (props.batch?.batch_no ?? null),
         start_time: formatDateTime(data.start_time),
         end_time: formatDateTime(data.end_time),
         empty_time: formatDateTime(data.empty_time),
@@ -1194,7 +1194,7 @@ console.log('test');
                                 <div v-if="canEditBatchNo" class="mt-0.5">
                                     <div class="flex items-center gap-1">
                                         <span class="text-xs font-bold text-slate-400">#</span>
-                                        <input step="1" type="number" v-model.number="form.batch_no" min="1"
+                                        <input type="text" v-model="form.batch_no" maxlength="40"
                                             class="w-24 px-2 py-0.5 text-xs font-bold border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white"
                                             :class="duplicateBatchWarning || form.errors.batch_no ? '!border-rose-500 !text-rose-600 bg-rose-50/30' : 'border-slate-300 text-slate-800'" />
                                     </div>

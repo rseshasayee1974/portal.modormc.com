@@ -277,7 +277,7 @@ export function useInvoiceActions(
             || '';
 
         const defaultDocNo = batchOrInvoice.dispatches?.[0]?.dispatch_no 
-            ? ('DP-' + batchOrInvoice.dispatches[0].dispatch_no) 
+            ? ((batchOrInvoice.dispatches[0].prefix || 'DP-') + batchOrInvoice.dispatches[0].dispatch_no)
             : (batchOrInvoice.full_number || batchOrInvoice.invoice_number || '');
 
         const defaultDocDate = entityToday();

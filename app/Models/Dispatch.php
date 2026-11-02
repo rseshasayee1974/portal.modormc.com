@@ -41,9 +41,17 @@ class Dispatch extends Model
 
     protected $table = 'mm_dispatches';
 
-    public static function nextDocumentNumber($plantId, $customerId = null): array
+    public static function nextDocumentNumber($plantId, $customerId = null, ?Batch $batch = null): array
     {
-        // Dispatch precedes the sales invoice; its numbering ledger is the customer's debit ledger.
+        if ($batch) {
+            if ((int) $batch->plant_id !== (int) $plantId) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['batch_id' => 'Select a batch belonging to the active plant.']);
+            }
+            if (preg_match('/^([BP])([1-9][0-9]*)$/i', (string) $batch->batch_no, $parts)) {
+                return ['prefix' => strtoupper($parts[1]), 'nextNumber' => $parts[2]];
+            }
+        }
+        // Legacy and standalone dispatches continue their existing ledger-based series.
         $ledgerId = $customerId ? Patron::where('plant_id', $plantId)->whereKey($customerId)->value('debit_ledger_id') : null;
         $prefix = Ledger::documentSeriesPrefix($plantId, $ledgerId, now(), 'DP');
         $highest = 0;

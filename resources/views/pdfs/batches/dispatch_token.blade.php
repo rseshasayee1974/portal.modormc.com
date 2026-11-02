@@ -212,7 +212,7 @@
     <table class="meta-table">
         <tr>
             <td class="meta-label">Token No:</td>
-            <td class="meta-value font-mono">B{{ $batch->batch_no }}</td>
+            <td class="meta-value font-mono">{{ ctype_digit((string) $batch->batch_no) ? 'B'.$batch->batch_no : $batch->batch_no }}</td>
         </tr>
         <tr>
             <td class="meta-label">Date/Time:</td>

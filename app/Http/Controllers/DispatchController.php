@@ -24,15 +24,20 @@ class DispatchController extends Controller
         return collect($source)->only($fields)->toArray();
     }
 
-    protected function getNextDispatchDetails($plantId, $customerId = null)
+    protected function getNextDispatchDetails($plantId, $customerId = null, $batchId = null)
     {
-        return Dispatch::nextDocumentNumber($plantId, $customerId);
+        $batch = null;
+        if ($batchId) {
+            $batch = Batch::withoutGlobalScopes()->where('plant_id', $plantId)->whereNull('deleted_at')->find($batchId);
+            if (!$batch) throw \Illuminate\Validation\ValidationException::withMessages(['batch_id' => 'Select a batch belonging to the active plant.']);
+        }
+        return Dispatch::nextDocumentNumber($plantId, $customerId, $batch);
     }
 
     public function dropdowns(Request $request)
     {
         $plantId = session('active_plant_id');
-        $details = $this->getNextDispatchDetails($plantId, $request->input('customer_id'));
+        $details = $this->getNextDispatchDetails($plantId, $request->input('customer_id'), $request->input('batch_id'));
         
         return response()->json([
             'prefix' => $details['prefix'],
@@ -82,7 +87,7 @@ class DispatchController extends Controller
 
                 $dispatchData['plant_id'] = session('active_plant_id');
 
-                $details = $this->getNextDispatchDetails($dispatchData['plant_id'], $dispatchData['customer_id'] ?? null);
+                $details = $this->getNextDispatchDetails($dispatchData['plant_id'], $dispatchData['customer_id'] ?? null, $dispatchData['batch_id'] ?? null);
                 $dispatchData['prefix'] = $details['prefix'];
                 $dispatchData['dispatch_no'] = $details['nextNumber'];
 

@@ -360,7 +360,7 @@ class BatchSheetUploadController extends Controller
                 }
 
                 // 3. Create Dispatch Trip Record
-                $number = Dispatch::nextDocumentNumber($upload->plant_id, $header['customer_id'] ?? null);
+                $number = Dispatch::nextDocumentNumber($upload->plant_id, $header['customer_id'] ?? null, $batch);
 
                 Dispatch::create([
                     'plant_id' => $upload->plant_id,

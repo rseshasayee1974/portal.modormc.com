@@ -190,27 +190,6 @@ class ConcreteBatchingScheduleController extends Controller
     }
 
     /**
-     * Generate next dispatch number & prefix matching DispatchController.
-     */
-    protected function getNextDispatchDetails(int $plantId): array
-    {
-        $currentDate = now();
-        $startYear = $currentDate->month >= 4 ? $currentDate->year : $currentDate->year - 1;
-        $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
-        $prefix = "DP-{$fyString}-";
-
-        $maxNumber = Dispatch::withTrashed()
-            ->where('plant_id', $plantId)
-            ->where('prefix', $prefix)
-            ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
-
-        return [
-            'prefix'     => $prefix,
-            'nextNumber' => (string) (($maxNumber ?: 0) + 1),
-        ];
-    }
-
-    /**
      * Display the main Batching & Dispatch Scheduling Dashboard.
      */
     public function index(Request $request): Response
@@ -605,7 +584,7 @@ class ConcreteBatchingScheduleController extends Controller
 
         return DB::transaction(function () use ($schedule) {
             $plantId = $schedule->plant_id;
-            $dispatchDetails = $this->getNextDispatchDetails($plantId);
+            $dispatchDetails = Dispatch::nextDocumentNumber($plantId, $schedule->salesOrder?->customer_id, $schedule->batch);
             $salesOrder = $schedule->salesOrder;
 
             $loadRate = (float) ($salesOrder?->rate ?? 0);

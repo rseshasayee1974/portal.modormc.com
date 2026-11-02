@@ -97,6 +97,8 @@ class BatchCreationSourceTest extends TestCase
     public function test_store_links_schedule_sales_order_to_batch_and_draft_dispatch(): void
     {
         $this->mode('both');
+        DB::statement('CREATE TABLE mm_plants (id INTEGER PRIMARY KEY)');
+        DB::table('mm_plants')->insert(['id' => 1]);
         DB::statement('CREATE TABLE mm_batches (id INTEGER PRIMARY KEY AUTOINCREMENT, plant_id INTEGER, sales_order_id INTEGER, batch_no INTEGER, batch_size REAL, status INTEGER, shift TEXT, deleted_at TEXT, created_at TEXT, updated_at TEXT)');
         DB::statement('CREATE TABLE mm_batch_materials (id INTEGER PRIMARY KEY, plant_id INTEGER, batch_id INTEGER, deleted_at TEXT, updated_at TEXT)');
         DB::statement('CREATE TABLE mm_machines (id INTEGER PRIMARY KEY)');
@@ -108,7 +110,7 @@ class BatchCreationSourceTest extends TestCase
             protected function authorizeModule(string $action, ?string $module = null): void {}
         };
         \Illuminate\Database\Eloquent\Model::withoutEvents(function () use ($controller) {
-            foreach ([[], ['batching_schedule_id' => 1, 'sales_order_id' => 2]] as $source) {
+            foreach ([[], ['batching_schedule_id' => 1, 'sales_order_id' => 2, 'batch_series' => 'P']] as $source) {
                 $request = StoreBatchRequest::create('/batches', 'POST', array_replace([
                     'sales_order_id' => 1, 'batch_size' => 6, 'empty_weight_truck' => 10, 'shift' => 'Day', 'truck_id' => 11,
                 ], $source));
@@ -122,6 +124,10 @@ class BatchCreationSourceTest extends TestCase
         $batch = DB::table('mm_batches')->find($schedule->batch_id);
         $dispatch = DB::table('mm_dispatches')->find($schedule->dispatch_id);
         $this->assertSame(2, DB::table('mm_batches')->count());
+        $this->assertSame(['B1', 'P1'], DB::table('mm_batches')->orderBy('id')->pluck('batch_no')->all());
+        $this->assertSame(['B1', 'P1'], DB::table('mm_dispatches')->orderBy('id')->get()->map(fn ($row) => $row->prefix.$row->dispatch_no)->all());
+        $this->assertSame('P', $dispatch->prefix);
+        $this->assertSame('1', $dispatch->dispatch_no);
         $this->assertSame(1, $batch->sales_order_id);
         $this->assertSame(1, $dispatch->sales_order_id);
         $this->assertSame($batch->id, $dispatch->batch_id);

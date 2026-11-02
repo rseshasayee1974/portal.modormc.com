@@ -39,6 +39,7 @@ tests/
 !/tests/Feature/EinvoiceAuthTest.php
 !/tests/Feature/DashboardPlantAccessTest.php
 !/tests/Feature/InvoiceNumberFormatTest.php
+!/tests/Feature/BatchSeriesNumberTest.php
 !/tests/Feature/JayadhityaPlant2787BatchSheetTest.php
 !/tests/Fixtures/
 /tests/Fixtures/*

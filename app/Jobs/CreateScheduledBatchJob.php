@@ -46,7 +46,7 @@ class CreateScheduledBatchJob implements ShouldQueue
 
         DB::transaction(function () use ($schedule, $plantId, $salesOrder, $mixDesignId, $chosenStatus) {
             // 1. Create Real Batch
-            $nextBatchNo = (Batch::withTrashed()->where('plant_id', $plantId)->max('batch_no') ?? 0) + 1;
+            $nextBatchNo = Batch::nextSeriesNumber((int) $plantId, \App\Models\CustomSetting::batchSeriesSettings($plantId)['default_series'])['batch_no'];
             
             $batchStatus = 'draft';
             if ($chosenStatus === 'loading') $batchStatus = 'in_progress';
@@ -84,7 +84,7 @@ class CreateScheduledBatchJob implements ShouldQueue
             }
 
             // 3. Create Dispatch
-            $dispatchDetails = $this->getNextDispatchDetails($plantId);
+            $dispatchDetails = Dispatch::nextDocumentNumber($plantId, $salesOrder?->customer_id, $batch);
             $loadRate = (float) ($salesOrder?->rate ?? 0);
             $untaxAmount = round($loadRate * (float)$schedule->qty_m3, 2);
 
@@ -127,30 +127,4 @@ class CreateScheduledBatchJob implements ShouldQueue
         });
     }
 
-    protected function getNextDispatchDetails(int $plantId): array
-    {
-        $year = date('y');
-        $month = date('n');
-        
-        if ($month >= 4) {
-            $financialYear = $year . str_pad((int)$year + 1, 2, '0', STR_PAD_LEFT);
-        } else {
-            $financialYear = str_pad((int)$year - 1, 2, '0', STR_PAD_LEFT) . $year;
-        }
-
-        $prefix = "DC-{$financialYear}-";
-        
-        $lastDispatch = Dispatch::where('plant_id', $plantId)
-            ->where('prefix', $prefix)
-            ->orderBy('dispatch_no', 'desc')
-            ->first();
-            
-        $nextNumber = $lastDispatch ? $lastDispatch->dispatch_no + 1 : 1;
-        
-        return [
-            'prefix'     => $prefix,
-            'nextNumber' => $nextNumber,
-            'fullString' => $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT)
-        ];
-    }
 }

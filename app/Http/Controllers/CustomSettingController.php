@@ -79,6 +79,8 @@ class CustomSettingController extends Controller
         $module = $request->input('module', 'batching');
         $request->validate([
             'settings' => ['required', 'array'],
+            'settings.batch_series_enabled' => ['sometimes', 'boolean'],
+            'settings.default_batch_series' => ['sometimes', 'in:B,P'],
             'settings.invoice_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy'],
             'settings.billing_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy'],
             'settings.invoice_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
@@ -102,7 +104,7 @@ class CustomSettingController extends Controller
         // Multipart uploads encode numbers as strings; keep toggle settings numeric.
         foreach (['manual_weight', 'weight_mandatory', 'with_inventory', 'camera', 'sheet_upload',
             'hide_batch_form', 'target_to_actual', 'auto_carry_pump', 'print_delivery_ingredients',
-            'quotation_price_list'] as $key) {
+            'quotation_price_list', 'batch_series_enabled'] as $key) {
             if (array_key_exists($key, $settings)) {
                 $settings[$key] = $request->boolean('settings.' . $key) ? 1 : 0;
             }
@@ -111,6 +113,14 @@ class CustomSettingController extends Controller
         $customSetting = CustomSetting::where('plant_id', $plantId)
             ->where('module_name', $module)
             ->first();
+
+        if ($module === 'batching') {
+            foreach (['batch_series_enabled', 'default_batch_series'] as $key) {
+                if (!array_key_exists($key, $settings) && array_key_exists($key, $customSetting?->settings ?? [])) {
+                    $settings[$key] = $customSetting->settings[$key];
+                }
+            }
+        }
 
         if (in_array($module, ['invoice', 'billing'], true)) {
             $settings = array_replace($customSetting?->settings ?? [], $settings);
