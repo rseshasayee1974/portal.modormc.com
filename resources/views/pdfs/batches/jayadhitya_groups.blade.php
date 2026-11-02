@@ -13,6 +13,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
     $value = fn ($value) => $value !== null && $value !== '' ? $value : '-';
     $precision = $report['precisions'];
     $format = fn ($value, $column = null) => $value === null ? '-' : number_format((float) $value, $precision[$column] ?? 0, '.', '');
+    $formatPercentage = fn ($value) => $value === null ? '-' : number_format((float) $value, 2, '.', '');
     $left = [['Batch Number', $batch->batch_no], ['Batch Date', $batchDate?->format('d-m-Y')],
         ['Batch Start Time', $batch->start_time?->format('H:i:s')], ['Batch End Time', $batch->end_time?->format('H:i:s')],
         ['Customer', $order?->customer?->legal_name], ['Site', $order?->site?->name]];
@@ -71,7 +72,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
   table.b tr.note td { text-align: right; font-weight: 700; font-size: 14.5px; line-height: 20px; padding: 4px 2px 1px; }
   .foot { margin-top: auto; padding-top: 28px; display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: end; font-weight: 700; font-size: 13px; }
   .foot-brand { display: flex; flex-direction: column; align-items: flex-start; }
-  .foot-caption { font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; color: #333; line-height: 1.2; margin-top: 2px; }
+  .foot-caption { font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; color: #333; line-height: 0.3; }
   .foot > :last-child { text-align: right; }
   @media print {
     body { background: #fff; }
@@ -86,7 +87,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
   <div class="scroll"><div style="min-width:840px">
   <div class="head">
     <div class="logo" id="logoL">@if ($brand['logo'])<img src="{{ $brand['logo'] }}" alt="{{ $brand['name'] }} logo">@endif</div>
-    <div class="mid"><b id="company">{{ $plant?->name }}</b><b>BATCH SHEET REPORT</b></div>
+    <div class="mid"><b id="company">{{ $plant?->name ? mb_strtoupper($plant->name, 'UTF-8') : '-' }}</b><b>BATCH SHEET REPORT</b></div>
     <div class="logo" id="logoR">@if ($brand['logo'])<img src="{{ $brand['logo'] }}" alt="{{ $brand['name'] }} logo">@endif</div>
   </div>
   <div class="plant">
@@ -141,9 +142,9 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
     <tr class="label"><td colspan="{{ $columnCount }}">Difference in Percentage</td></tr>
     <tr class="data">@foreach ($report['columns'] as $column)
       @php $target = $report['targets'][$column] ?? 0; $actual = $report['actuals'][$column] ?? 0; @endphp
-      <td class="{{ $loop->last ? 'sil' : 'num' }}">{{ $format($target != 0 ? ($actual - $target) / $target * 100 : 0, $column) }}</td>
+      <td class="{{ $loop->last ? 'sil' : 'num' }}">{{ $formatPercentage($target != 0 ? ($actual - $target) / $target * 100 : 0) }}</td>
     @endforeach</tr>
-    <tr class="note top"><td colspan="{{ $columnCount }}">Total Mass Difference in Percentage : {{ $format($report['difference']) }}</td></tr>
+    <tr class="note top"><td colspan="{{ $columnCount }}">Total Mass Difference in Percentage : {{ $formatPercentage($report['difference']) }}</td></tr>
     </tbody>
     @endif
   </table>

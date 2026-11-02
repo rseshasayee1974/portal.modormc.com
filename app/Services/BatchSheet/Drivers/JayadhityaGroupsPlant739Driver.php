@@ -98,6 +98,11 @@ class JayadhityaGroupsPlant739Driver extends AbstractPlantDriver
                     'target_qty' => $set[$index],
                     'actual_qty' => $actual[$index],
                     'deviation_quantity' => round($actual[$index] - $set[$index], 3),
+                    // Difference in Percentage is calculated per product from
+                    // the total set and total actual weights.
+                    'deviation_percentage' => $set[$index] != 0.0
+                        ? round((($actual[$index] - $set[$index]) / $set[$index]) * 100, 3)
+                        : 0.0,
                 ];
             }
         }

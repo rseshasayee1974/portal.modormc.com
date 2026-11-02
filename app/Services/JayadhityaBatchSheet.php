@@ -36,15 +36,14 @@ class JayadhityaBatchSheet
         $group = $classify($name) ?? $classify($category) ?? 'Aggregate';
         return [
             'group' => $group,
-            'precision' => in_array($group, ['Aggregate', 'Cement', 'Water / Ice'], true) ? 0 : 3,
+            'precision' => in_array($group, ['Aggregate', 'Cement', 'Water / Ice'], true) ? 0 :2,
             'supports_moisture' => $group === 'Aggregate',
         ];
     }
 
     public static function matches(Batch $batch): bool
     {
-        $order = $batch->relationLoaded('workOrder') && ! $batch->relationLoaded('salesOrder')
-            ? $batch->workOrder : $batch->salesOrder;
+        $order = $batch->relationLoaded('salesOrder') ? $batch->salesOrder : null;
         $plant = $batch->plant ?? $order?->plant;
 
         return $plant && ((string) $plant->code === '739'
@@ -64,7 +63,7 @@ class JayadhityaBatchSheet
             $column ??= $name;
             $alias = trim((string) $material->product?->alias);
             if ($alias !== '' || ! isset($labels[$column])) {
-                $labels[$column] = $alias !== '' ? $alias : $name;
+                $labels[$column] = mb_strtoupper($alias !== '' ? $alias : $name, 'UTF-8');
             }
             $display = self::materialDisplay($column, (string) $material->product?->category?->name);
             $group = $display['group'];
@@ -109,8 +108,8 @@ class JayadhityaBatchSheet
         }
         $totalTarget = array_sum($targets);
         $totalActual = array_sum($actuals);
-        $order = $batch->relationLoaded('workOrder') && ! $batch->relationLoaded('salesOrder')
-            ? $batch->workOrder : $batch->salesOrder;
+        $order =  $batch->relationLoaded('salesOrder')
+            ? $batch->salesOrder : null;
         $recipe = [];
         foreach ($order?->mixDesign?->items ?? [] as $item) {
             $column = $productColumns[$item->product_id] ?? self::column((string) $item->product?->title);

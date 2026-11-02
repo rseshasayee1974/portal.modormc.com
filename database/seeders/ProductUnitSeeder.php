@@ -25,14 +25,16 @@ class ProductUnitSeeder extends Seeder
             ['unit_name' => 'CARTONS', 'unit_type' => 'Measure', 'unit_code' => 'CTN'],
             ['unit_name' => 'DOZEN', 'unit_type' => 'Measure', 'unit_code' => 'DOZ'],
             ['unit_name' => 'DRUM', 'unit_type' => 'Measure', 'unit_code' => 'DRM'],
-            ['unit_name' => 'GREAT GROSS', 'unit_type' => 'Measure', 'unit_code' => 'GGR'],
+            ['unit_name' => 'GREAT GROSS', 'unit_type' => 'Measure', 'unit_code' => 'GGK'],
             ['unit_name' => 'GRAMS', 'unit_type' => 'Weight', 'unit_code' => 'GMS'],
             ['unit_name' => 'GROSS', 'unit_type' => 'Measure', 'unit_code' => 'GRS'],
             ['unit_name' => 'GROSS YARDS', 'unit_type' => 'Length', 'unit_code' => 'GYD'],
             ['unit_name' => 'KILOGRAMS', 'unit_type' => 'Weight', 'unit_code' => 'KGS'],
             ['unit_name' => 'KILOLITER', 'unit_type' => 'Volume', 'unit_code' => 'KLR'],
             ['unit_name' => 'KILOMETRE', 'unit_type' => 'Length', 'unit_code' => 'KME'],
+            ['unit_name' => 'LITRES', 'unit_type' => 'Volume', 'unit_code' => 'LTR'],
             ['unit_name' => 'MILLILITRE', 'unit_type' => 'Volume', 'unit_code' => 'MLT'],
+            ['unit_name' => 'MILLI LITRES', 'unit_type' => 'Volume', 'unit_code' => 'MLS'],
             ['unit_name' => 'METERS', 'unit_type' => 'Length', 'unit_code' => 'MTR'],
             ['unit_name' => 'METRIC TONS', 'unit_type' => 'Weight', 'unit_code' => 'MTS'],
             ['unit_name' => 'NUMBERS', 'unit_type' => 'Measure', 'unit_code' => 'NOS'],
@@ -53,18 +55,13 @@ class ProductUnitSeeder extends Seeder
             ['unit_name' => 'US GALLONS', 'unit_type' => 'Volume', 'unit_code' => 'UGS'],
             ['unit_name' => 'UNITS', 'unit_type' => 'Measure', 'unit_code' => 'UNT'],
             ['unit_name' => 'YARDS', 'unit_type' => 'Length', 'unit_code' => 'YDS'],
-            ['unit_name' => 'OTHERS', 'unit_type' => 'Other', 'unit_code' => 'OTH'],
+            ['unit_name' => 'OTHERS', 'unit_type' => 'Fallback', 'unit_code' => 'OTH'],
         ];
 
         foreach ($units as $unit) {
             ProductUnit::updateOrCreate(
-                [
-                    'unit_name' => $unit['unit_name'],
-                    'unit_type' => $unit['unit_type'],
-                ],
-                [
-                    'unit_code' => $unit['unit_code'],
-                ]
+                ['unit_code' => $unit['unit_code']],
+                ['unit_name' => $unit['unit_name'], 'unit_type' => $unit['unit_type']]
             );
         }
     }
