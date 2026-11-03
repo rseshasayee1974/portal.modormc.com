@@ -95,7 +95,7 @@
                         <tr>
                             <td class="doc-meta-label">Token No:</td>
                             <td class="doc-meta-value" style="font-family: monospace; font-size: 13px; color: #4f46e5;">
-                                {{ ctype_digit((string) $batch->batch_no) ? 'B'.$batch->batch_no : $batch->batch_no }}</td>
+                                {{ $batch->batch_no }}</td>
                         </tr>
                         <tr>
                             <td class="doc-meta-label">Date:</td>
