@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TripAssignmentSelect from '@/Components/TripAssignmentSelect.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate, entityLocaleTime } from '@/Utils/entityDateTime';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -63,6 +64,18 @@ const props = withDefaults(defineProps<{
 });
 
 const emit = defineEmits(['update:modelValue', 'generateInvoice', 'generateEInvoice', 'generateEwayBill', 'deleteInvoice', 'roundOffChanged']);
+
+const changeTruck = (truckId: number | null) => {
+    if (props.isReadOnly || props.modelValue.truck_id === truckId) return;
+    props.modelValue.truck_id = truckId;
+    // Measurements belong to the selected truck, not to the previous trip assignment.
+    for (const field of ['empty_weight_truck', 'loaded_weight_truck', 'empty_weight_unload', 'loaded_weight_unload']) {
+        props.modelValue.weights[field] = 0;
+    }
+    for (const field of ['empty_weight_time_load', 'loaded_weight_time_load', 'empty_weight_time_unload', 'loaded_weight_time_unload']) {
+        props.modelValue.weights[field] = null;
+    }
+};
 
 const { can, isAdmin, isSuperAdmin, isSassOwner, permissions, userRole } = usePermissions();
 
@@ -146,9 +159,9 @@ console.log('jkghkjgk', props.modelValue);
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">1. Logistics & Delivery</h3>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <BaseSelect v-model="modelValue.truck_id" :options="trucks" optionLabel="registration" optionValue="id" label="Truck" filter showClear :disabled="true" :error="errors.truck_id" />
+                <TripAssignmentSelect :modelValue="modelValue.truck_id" @update:modelValue="changeTruck" :options="trucks" kind="truck" :disabled="isReadOnly" :error="errors.truck_id" />
                 <BaseSelect v-model="modelValue.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" label="Transporter" filter showClear :error="errors.transport_id" :disabled="isReadOnly" />
-                <BaseSelect v-model="modelValue.driver_id" :options="drivers" optionLabel="label" optionValue="id" label="Driver" filter showClear :error="errors.driver_id" :disabled="isReadOnly" />
+                <TripAssignmentSelect v-model="modelValue.driver_id" :options="drivers" kind="driver" :error="errors.driver_id" :disabled="isReadOnly" />
                 <BaseSelect v-model="modelValue.operator_id" :options="operators" optionLabel="label" optionValue="id" label="Operator" filter showClear :error="errors.operator_id" :disabled="isReadOnly" />
                 <BaseSelect v-model="modelValue.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" label="Sales Executive" filter showClear :error="errors.sales_executive_id" :disabled="isReadOnly" />
                 <BaseSelect v-model="modelValue.unload_site_id" :options="unloading_sites" optionLabel="name" optionValue="id" label="Delivery Site" filter showClear :error="errors.unload_site_id" :disabled="isReadOnly" />
