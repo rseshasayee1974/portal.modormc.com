@@ -30,13 +30,28 @@ class BatchTripOptionTest extends TestCase
     public function test_truck_can_be_added_and_reused_from_dropdown(): void
     {
         $response = $this->postJson(route('batches.trip-options.store'), ['kind' => 'truck', 'name' => 'tn 01-ab 1234'])
-            ->assertOk()->assertJsonPath('option.registration', 'TN01AB1234');
+            ->assertOk()->assertJsonPath('option.registration', 'TN 01 AB 1234');
         $id = $response->json('option.id');
         $this->assertDatabaseHas('mm_machines', ['id' => $id, 'plant_id' => $this->plant->id,
-            'entity_id' => $this->plant->entity_id, 'vehicle_type' => 'Truck', 'is_active' => 1]);
+            'entity_id' => $this->plant->entity_id, 'vehicle_type' => 'Truck', 'is_active' => 1, 'registration' => 'TN 01 AB 1234']);
         $this->postJson(route('batches.trip-options.store'), ['kind' => 'truck', 'name' => 'TN01AB1234'])
             ->assertOk()->assertJsonPath('option.id', $id);
         $this->assertCount(1, MachinesDropdown(['Transit Mixer', 'Truck']));
+    }
+
+    public function test_compact_registration_is_formatted_and_legacy_truck_is_reused(): void
+    {
+        $this->postJson(route('batches.trip-options.store'), ['kind' => 'truck', 'name' => 'tn00aa0000'])
+            ->assertOk()->assertJsonPath('option.registration', 'TN 00 AA 0000');
+        $truck = Machine::factory()->create(['plant_id' => $this->plant->id, 'entity_id' => $this->plant->entity_id,
+            'registration' => 'TN01AB5678', 'vehicle_type' => 'Truck', 'is_active' => true]);
+        $this->postJson(route('batches.trip-options.store'), ['kind' => 'truck', 'name' => 'tn 01 ab 5678'])
+            ->assertOk()->assertJsonPath('option.id', $truck->id)->assertJsonPath('option.registration', 'TN 01 AB 5678');
+        $this->assertSame('TN 01 AB 5678', $truck->fresh()->registration);
+        foreach (['TN1AB1234', 'TN01A1234', 'TN01AB123', '1234567890'] as $invalid) {
+            $this->postJson(route('batches.trip-options.store'), ['kind' => 'truck', 'name' => $invalid])
+                ->assertUnprocessable()->assertJsonValidationErrors('name');
+        }
     }
 
     public function test_driver_is_temporary_and_available_to_the_next_trip(): void

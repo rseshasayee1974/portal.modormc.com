@@ -37,18 +37,23 @@ class BatchTripOptionController extends Controller
             }
             if ($data['kind'] === 'truck') {
                 $registration = strtoupper(preg_replace('/[\s-]+/', '', $name));
-                if (!preg_match('/^[A-Z0-9]{2,20}$/', $registration)) {
-                    throw ValidationException::withMessages(['name' => 'Enter a truck number using 2–20 letters and numbers.']);
+                if (!preg_match('/^([A-Z]{2})([0-9]{2})([A-Z]{2})([0-9]{4})$/', $registration, $parts)) {
+                    throw ValidationException::withMessages(['name' => 'Enter a truck number in TN 00 AA 0000 format (spaces are optional).']);
                 }
+                $formattedRegistration = implode(' ', array_slice($parts, 1));
                 $truck = Machine::withoutGlobalScopes()->whereNull('deleted_at')
                     ->where('entity_id', $plant->entity_id)->get()
-                    ->first(fn ($machine) => strtoupper(preg_replace('/[\s-]+/', '', $machine->registration)) === $registration);
+                    ->filter(fn ($machine) => strtoupper(preg_replace('/[\s-]+/', '', $machine->registration)) === $registration)
+                    ->sortByDesc(fn ($machine) => $machine->registration === $formattedRegistration)->first();
                 if ($truck && ((int) $truck->plant_id !== (int) $plant->id || !$truck->is_active
                     || !in_array($truck->vehicle_type, ['Truck', 'Transit Mixer'], true))) {
                     throw ValidationException::withMessages(['name' => 'This registration already exists outside the active truck list. Update it in Machines first.']);
                 }
                 $truck ??= Machine::create(['plant_id' => $plant->id, 'entity_id' => $plant->entity_id,
-                    'registration' => $registration, 'vehicle_type' => 'Truck', 'is_active' => true]);
+                    'registration' => $formattedRegistration, 'vehicle_type' => 'Truck', 'is_active' => true]);
+                if ($truck->registration !== $formattedRegistration) {
+                    $truck->update(['registration' => $formattedRegistration]);
+                }
                 return ['id' => $truck->id, 'registration' => $truck->registration];
             }
 
