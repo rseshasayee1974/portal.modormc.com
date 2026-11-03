@@ -67,7 +67,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
   table.b tr.grp th span { display: block; margin: 0 4px; padding-bottom: 3px; border-bottom: 1px solid #777; }
   table.b tr.grp th:first-child span { margin-left: 0; }
   table.b tr.grp th:last-child span { margin-right: 0; }
-  table.b tr.cols th { font-size: 12.5px; line-height: 15px; padding: 5px 3px; vertical-align: middle; }
+  table.b tr.cols th { font-size: 12.5px; line-height: 15px; padding: 5px 3px; vertical-align: middle; white-space: pre-wrap; }
   table.b tr.label td { text-align: left; font-weight: 700; font-size: 14.5px; line-height: 19px; padding: 6px 2px 1px; border-bottom: .6px solid #555; }
   table.b tr.recipe-label td { color: #333; font-size: 12px; font-weight: 400; border: 0; padding: 2px 2px 0; line-height: 15px; }
   table.b tr.data td { padding: 4px 3px; line-height: 19px; }

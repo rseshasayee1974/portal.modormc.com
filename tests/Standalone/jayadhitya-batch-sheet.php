@@ -75,7 +75,7 @@ foreach ([
     ['WATER', 256, 254, 160], ['ADMIX 1', 4, 4.02, 2],
 ] as $i => [$name, $target, $actual, $quantity]) {
     $material = new BatchMaterial(['product_id' => $i + 1, 'material_name' => $name, 'target_qty' => $target, 'actual_qty' => $actual]);
-    $product = new App\Models\Product(['title' => 'Full product title '.$i, 'alias' => $i === 0 ? 'M-SAND' : ' ']);
+    $product = new App\Models\Product(['title' => 'Full product title '.$i, 'alias' => $i === 0 ? ' m-Sand  A ' : null]);
     $product->setRelation('category', null);
     $materials->push($material->setRelation('product', $product));
     $recipe->push((new MixDesignItem(['product_id' => $i + 1, 'actual_quantity' => $quantity]))->setRelation('product', null));
@@ -101,9 +101,9 @@ foreach (['JAYADHITYA GROUPS', 'TN12AC8311', 'Mass of Total Actual Weight in kg 
     $check(str_contains($html, $expected), 'Missing rendered value: '.$expected);
 }
 $layout = JayadhityaBatchSheet::layoutData($batch);
-$check($layout['labels']['MSAND 1'] === 'M-SAND', 'Column heading must use the product alias.');
+$check($layout['labels']['MSAND 1'] === ' m-Sand  A ', 'Column heading must preserve the product alias.');
 $check($layout['labels']['MSAND 2'] === 'MSAND 2', 'Blank product aliases must fall back to the stored material name.');
-$check(str_contains($html, '>M-SAND</th>'), 'The product alias must appear in the rendered heading.');
+$check(str_contains($html, '> m-Sand  A </th>'), 'The product alias must appear verbatim in the rendered heading.');
 $check(! str_contains($html, 'Full product title'), 'Product titles must not replace available aliases.');
 $check(count($layout['columns']) === 8, 'Columns must follow stored materials, without unused fixed slots.');
 $check(count($layout['recipe_rows']) === 2, 'Both recipe rows are required.');

@@ -2,22 +2,19 @@
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { ref, computed } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { router } from '@inertiajs/vue3';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
-import BaseInput from '@/Components/Base/BaseInput.vue';
-import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import Tag from 'primevue/tag';
 import Dialog from 'primevue/dialog';
-import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import DatePicker from 'primevue/datepicker';
 import Toast from 'primevue/toast';
 import { useToast } from 'primevue/usetoast';
 import ExpenseCreateForm from './components/ExpenseCreateForm.vue';
 import Swal from 'sweetalert2';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps<{
     expenses: any[];
@@ -28,6 +25,35 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
+const { can } = usePermissions();
+const permits = (action: string) => can(`EXPENSE.${action}`) || can(`EXPENSES.${action}`);
+const editingExpense = ref<any>(null);
+const showEdit = ref(false);
+const deletingExpense = ref(false);
+
+const editExpense = (expense: any) => {
+    editingExpense.value = expense;
+    showEdit.value = true;
+};
+
+const deleteExpense = async (expense: any) => {
+    const result = await Swal.fire({
+        title: 'Delete expense?',
+        text: expense.ref_no,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+    });
+    if (!result.isConfirmed || deletingExpense.value) return;
+
+    deletingExpense.value = true;
+    router.delete(route('expenses.destroy', expense.id), {
+        preserveScroll: true,
+        onSuccess: () => toast.add({ severity: 'success', summary: 'Expense deleted', life: 2500 }),
+        onError: (errors) => toast.add({ severity: 'error', summary: 'Unable to delete expense', detail: errors.expense, life: 4500 }),
+        onFinish: () => { deletingExpense.value = false; },
+    });
+};
 
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
@@ -50,7 +76,7 @@ const formatCurrency = (val: number) => {
             <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
                 
                 <!-- Creation Form Section -->
-                <section>
+                <section v-if="permits('CREATE')">
                     <ExpenseCreateForm 
                         :expense-types="expenseTypes"
                         :ledgers="ledgers"
@@ -105,9 +131,18 @@ const formatCurrency = (val: number) => {
                                 </template>
                             </Column>
 
+                            <Column field="ledger.title" header="Paid Through" />
+                            <Column field="note" header="Notes" />
                             <Column header="Status">
-                                <template #body>
-                                    <Tag value="Recorded" severity="success" pt:root:style="font-size: 8px" />
+                                <template #body="{ data }">
+                                    <Tag :value="Number(data.status) ? 'Recorded' : 'Inactive'" :severity="Number(data.status) ? 'success' : 'secondary'" />
+                                </template>
+                            </Column>
+                            <Column v-if="permits('UPDATE') || permits('DELETE')" header="Actions">
+                                <template #body="{ data }">
+                                    <Button v-if="permits('UPDATE')" icon="pi pi-pencil" text aria-label="Edit expense" @click="editExpense(data)" />
+                                    <Button v-if="permits('DELETE')" icon="pi pi-trash" text severity="danger" aria-label="Delete expense"
+                                        :disabled="deletingExpense" @click="deleteExpense(data)" />
                                 </template>
                             </Column>
                         </BaseDataTable>
@@ -115,6 +150,11 @@ const formatCurrency = (val: number) => {
                 </section>
             </div>
         </div>
+        <Dialog v-model:visible="showEdit" modal header="Edit Expense" class="w-full max-w-5xl">
+            <ExpenseCreateForm v-if="showEdit && editingExpense" :expense="editingExpense"
+                :expense-types="expenseTypes" :ledgers="ledgers" :machines="machines" :patrons="patrons"
+                @saved="showEdit = false" />
+        </Dialog>
     </AppLayout>
 </template>
 

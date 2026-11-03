@@ -29,20 +29,22 @@ const props = defineProps<{
     ledgers: any[];
     machines: any[];
     patrons: any[];
+    expense?: any;
 }>();
+const emit = defineEmits<{ saved: [] }>();
 
 const toast = useToast();
 const isOpen = ref(true);
 
 const form = useForm({
-    expense_type_id: null,
-    paid_through: null,
-    amount: 0,
-    date: entityToday(),
-    vendor_id: null,
-    customer_id: null,
-    machine_id: null,
-    note: '',
+    expense_type_id: props.expense?.expense_type_id ?? null,
+    paid_through: props.expense?.paid_through ?? null,
+    amount: Number(props.expense?.amount ?? 0),
+    date: props.expense?.date?.slice(0, 10) ?? entityToday(),
+    vendor_id: props.expense?.vendor_id ?? null,
+    customer_id: props.expense?.customer_id ?? null,
+    machine_id: props.expense?.machine_id ?? null,
+    note: props.expense?.note ?? '',
 });
 
 const toggle = () => {
@@ -50,10 +52,12 @@ const toggle = () => {
 };
 
 const submit = () => {
-    form.post(route('expenses.store'), {
+    if (form.processing) return;
+    form.submit(props.expense ? 'put' : 'post', props.expense ? route('expenses.update', props.expense.id) : route('expenses.store'), {
         onSuccess: () => {
             form.reset();
-            toast.add({ severity: 'success', summary: 'Recorded', detail: 'Expense synchronized successfully', life: 1500 });
+            toast.add({ severity: 'success', summary: props.expense ? 'Expense updated' : 'Expense recorded', life: 1500 });
+            emit('saved');
         },
     });
 };
@@ -68,7 +72,7 @@ const submit = () => {
                     <BanknotesIcon class="w-5 h-5 text-emerald-600" />
                 </div>
                 <div class="text-left">
-                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">Record Expense</p>
+                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">{{ expense ? 'Edit Expense' : 'Record Expense' }}</p>
                     <p class="text-[11px] text-gray-400 font-medium mt-0.5">Log operational costs, maintenance, and
                         miscellaneous outflows</p>
                 </div>
@@ -81,6 +85,7 @@ const submit = () => {
         <Transition name="panel-slide">
             <div v-if="isOpen" class="create-panel__body">
                 <form @submit.prevent="submit">
+                    <p v-if="form.errors.expense" role="alert" class="mb-4 text-sm text-rose-700">{{ form.errors.expense }}</p>
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
 
                         <!-- Primary Info Section -->
@@ -124,6 +129,7 @@ const submit = () => {
                                 <Textarea v-model="form.note" rows="3"
                                     placeholder="Provide details about this transaction..."
                                     class="w-full text-xs rounded-xl border-slate-200 focus:ring-emerald-500 shadow-sm" />
+                                <small v-if="form.errors.note" class="text-rose-700">{{ form.errors.note }}</small>
                             </div>
                         </div>
 
@@ -133,7 +139,7 @@ const submit = () => {
                                 Association</h3>
 
                             <BaseSelect v-model="form.machine_id" label="Machine / Asset" :options="machines"
-                                optionLabel="label" optionValue="value" placeholder="None" required
+                                optionLabel="label" optionValue="value" placeholder="None"
                                 :error="form.errors.machine_id" filter showClear>
                                 <template #option="slotProps">
                                     <div class="flex items-center gap-2">
@@ -152,7 +158,7 @@ const submit = () => {
                                 :error="form.errors.customer_id" filter showClear />
 
                             <div class="pt-4 border-t border-slate-200 mt-4">
-                                <BaseFormActions label="Post Expense" :loading="form.processing" @submit="submit"
+                                <BaseFormActions :label="expense ? 'Save Changes' : 'Post Expense'" :loading="form.processing" @submit="submit"
                                     @reset="form.reset()"
                                     submit-class="w-full !bg-emerald-600 hover:!bg-emerald-700 shadow-lg shadow-emerald-900/10" />
                             </div>

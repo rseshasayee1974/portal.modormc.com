@@ -37,6 +37,8 @@ return Application::configure(basePath: dirname(__DIR__))
         'excluded_middleware' => [TitleCaseInputs::class],
     ])
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trimStrings(except: ['alias']);
+
         $middleware->web(append: [
             TitleCaseInputs::class,
             EnforceBrowserSession::class,

@@ -21,12 +21,16 @@ import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import BaseField from '@/Components/Base/BaseField.vue';
+import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
+import Textarea from 'primevue/textarea';
 import Popover from 'primevue/popover';
 import { CubeIcon, ListBulletIcon, PaperAirplaneIcon, ArrowPathIcon } from '@heroicons/vue/24/outline';
 
@@ -573,6 +577,10 @@ const {
 // ── Invoice Actions ──────────────────────────────────────────────────
 const {
     generateInvoiceDirect,
+    invoiceDialogVisible,
+    invoiceError,
+    invoiceForm,
+    submitInvoice,
     generateEInvoiceDirect,
     generatingEInvoice,
     generateEwayBillDirect,
@@ -584,7 +592,7 @@ const {
     deleteInvoiceDirect,
     sendWhatsAppDirect,
     sendBatchEmailDirect,
-} = useInvoiceActions(props);
+} = useInvoiceActions();
 
 const generateBatchEInvoice = (batch: any) => {
     if (isBatchCancelled(batch)) return;
@@ -827,9 +835,10 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                     :batchingSchedules="batchingSchedules" :batchCreationSource="batchCreationSource"
                     :transporters="transporters" :drivers="drivers" :sales_executives="sales_executives"
                     :products="products" :uoms="uoms" :unloading_sites="unloading_sites" :loading_sites="loading_sites"
-                    :taxes="taxes" :statuses="statuses" :nextBatchNo="nextBatchNo" :nextBatchNumbers="nextBatchNumbers" :batchSeriesSettings="batchSeriesSettings"
-                    :concretePumpOptions="concretePumpOptions" :existingBatches="localBatches"
-                    @created="handleBatchCreated" @offline-batch-added="handleOfflineBatchAdded" />
+                    :taxes="taxes" :statuses="statuses" :nextBatchNo="nextBatchNo" :nextBatchNumbers="nextBatchNumbers"
+                    :batchSeriesSettings="batchSeriesSettings" :concretePumpOptions="concretePumpOptions"
+                    :existingBatches="localBatches" @created="handleBatchCreated"
+                    @offline-batch-added="handleOfflineBatchAdded" />
 
                 <hr class="border-slate-200 border-dashed" />
 
@@ -897,12 +906,14 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                     <div class="flex items-center gap-1.5">
                                         <span v-if="slotProps.data.is_offline_pending"
                                             class="text-slate-500 font-inter text-sm font-semibold">
-                                            {{ /^[BP]/.test(String(slotProps.data.batch_no)) ? slotProps.data.batch_no : 'B' + slotProps.data.batch_no }}
+                                            {{ /^[BP]/.test(String(slotProps.data.batch_no)) ? slotProps.data.batch_no :
+                                                'B' + slotProps.data.batch_no }}
                                         </span>
                                         <button v-else
                                             class="text-indigo-700 font-inter text-sm font-semibold hover:underline"
                                             type="button" @click.stop="toggleExpand(slotProps.data)">
-                                            {{ /^[BP]/.test(String(slotProps.data.batch_no)) ? slotProps.data.batch_no : 'B' + slotProps.data.batch_no }}
+                                            {{ /^[BP]/.test(String(slotProps.data.batch_no)) ? slotProps.data.batch_no :
+                                                slotProps.data.batch_no }}
                                         </button>
                                         <span v-if="isBatchCancelled(slotProps.data)"
                                             class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded shadow-xs">
@@ -1270,7 +1281,7 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                             </template>
                                             <div class=" bg-slate-50/20">
                                                 <BatchEditForm
-                                                    v-if="!hideBatchForm && detailedBatches[slotProps.data.id]"
+                                                    v-if="detailedBatches[slotProps.data.id]"
                                                     :batch="detailedBatches[slotProps.data.id]"
                                                     :salesOrders="salesOrders" :trucks="trucks"
                                                     :transporters="transporters" :drivers="drivers"
@@ -1279,6 +1290,13 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                                                     :concretePumpOptions="concretePumpOptions"
                                                     :existingBatches="localBatches" @saved="handleBatchSaved"
                                                     @cancel="collapseExpandedRows()" />
+                                                <p v-else-if="isLoadingBatch[slotProps.data.id]" class="p-4 text-sm text-slate-500" role="status">
+                                                    Loading batch details…
+                                                </p>
+                                                <button v-else type="button" class="p-4 text-sm font-semibold text-indigo-600"
+                                                    @click="fetchBatchDetails(slotProps.data.id)">
+                                                    Batch details could not be loaded. Retry
+                                                </button>
                                             </div>
                                         </TabPanel>
 
@@ -1671,12 +1689,15 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                     class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs grid grid-cols-2 gap-2">
                     <div>
                         <span class="text-slate-400 block text-[10px] uppercase font-bold">Batch Number</span>
-                        <span class="font-bold text-slate-800">{{ /^[BP]/.test(String(cancellingBatch.batch_no)) ? cancellingBatch.batch_no : 'B' + cancellingBatch.batch_no }}</span>
+                        <span class="font-bold text-slate-800">{{ /^[BP]/.test(String(cancellingBatch.batch_no)) ?
+                            cancellingBatch.batch_no : 'B' + cancellingBatch.batch_no }}</span>
                     </div>
                     <div>
                         <span class="text-slate-400 block text-[10px] uppercase font-bold">Dispatch Number</span>
-                        <span class="font-bold text-slate-800">{{ cancellingBatch.dispatches?.[0]?.dispatch_no ? ((cancellingBatch.dispatches[0].prefix || '') + cancellingBatch.dispatches[0].dispatch_no) : 'N/A'
-                            }}</span>
+                        <span class="font-bold text-slate-800">{{ cancellingBatch.dispatches?.[0]?.dispatch_no ?
+                            ((cancellingBatch.dispatches[0].prefix || '') + cancellingBatch.dispatches[0].dispatch_no) :
+                            'N/A'
+                        }}</span>
                     </div>
                     <div>
                         <span class="text-slate-400 block text-[10px] uppercase font-bold">Customer</span>
@@ -1742,6 +1763,30 @@ console.log('batches?.[0]?.dispatches?.[0]?.mix_design', props.batches?.[0]?.dis
                     </button>
                 </div>
             </div>
+        </Dialog>
+        <Dialog v-model:visible="invoiceDialogVisible" modal header="Generate Invoice"
+            class="w-full max-w-lg mx-4" :closable="!invoiceForm.processing" :closeOnEscape="!invoiceForm.processing">
+            <form class="space-y-4" @submit.prevent="submitInvoice">
+                <p class="text-sm text-slate-500">Choose the sales ledger and invoice date for this dispatch.</p>
+                <BaseSelect v-model="invoiceForm.ledger_id" label="Sales Ledger" :options="sales_ledgers"
+                    optionLabel="label" optionValue="value" placeholder="Select a ledger" filter required
+                    :disabled="invoiceForm.processing" :error="invoiceForm.errors.ledger_id" />
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <BaseDatePicker v-model="invoiceForm.invoice_date" label="Invoice Date" required
+                        :autoFillOnSubmit="false" :disabled="invoiceForm.processing" :error="invoiceForm.errors.invoice_date" />
+                    <BaseInput v-model="invoiceForm.invoice_number" label="Invoice Number"
+                        placeholder="Generated if blank" :disabled="invoiceForm.processing" :error="invoiceForm.errors.invoice_number" />
+                </div>
+                <BaseField label="Notes" :error="invoiceForm.errors.notes" :disabled="invoiceForm.processing">
+                    <template #default="{ inputId, invalid }">
+                        <Textarea :id="inputId" v-model="invoiceForm.notes" rows="3" fluid
+                            placeholder="Enter invoice notes…" :invalid="invalid" :disabled="invoiceForm.processing" />
+                    </template>
+                </BaseField>
+                <p v-if="invoiceError" role="alert" class="text-sm text-rose-700">{{ invoiceError }}</p>
+                <BaseFormActions label="Generate Invoice" :loading="invoiceForm.processing"
+                    @cancel="invoiceDialogVisible = false" />
+            </form>
         </Dialog>
     </AppLayout>
 </template>

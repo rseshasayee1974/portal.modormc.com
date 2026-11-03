@@ -76,26 +76,6 @@ const openViewModal = (account: Account) => {
     modalMode.value = 'view';
 };
 
-// ── Automated Code Generation ─────────────────────────────
-const handleCategoryChange = async (val: string) => {
-    if (modalMode.value !== 'create') return;
-    if (!val) {
-        modalForm.value.code = '';
-        return;
-    }
-
-    try {
-        const res = await axios.get(route('accounting.nextcode'), {
-            params: { category: val, table: 'accounts' }
-        });
-        if (res.data.code) {
-            modalForm.value.code = res.data.code;
-        }
-    } catch (e) {
-        console.warn('Code gen failed', e);
-    }
-};
-
 const closeModal = () => {
     showModal.value = false;
     modalForm.value = defaultForm();
@@ -103,7 +83,7 @@ const closeModal = () => {
 
 // ── Submit ─────────────────────────────────────────────────
 const submitModal = async () => {
-    if (!modalForm.value.title || !modalForm.value.code) {
+    if (!modalForm.value.title || (modalMode.value !== 'create' && !modalForm.value.code)) {
         Swal.fire({ title: 'Validation Error', text: 'Please complete the required fields.', icon: 'warning' });
         return;
     }
@@ -114,7 +94,7 @@ const submitModal = async () => {
 
     try {
         if (modalMode.value === 'create') {
-            const response = await axios.post(route('accounts.store'), { title: modalForm.value.title, code: modalForm.value.code });
+            const response = await axios.post(route('accounts.store'), { title: modalForm.value.title, code: modalForm.value.code || null });
             store.addAccount(response.data.account);
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: response.data.message });
         } else {
@@ -234,7 +214,7 @@ watch(() => page.props.flash, (flash: any) => {
                 <div class="grid grid-cols-3 gap-4">
                     <div class="flex flex-col gap-1.5">
                         <label class="text-[9px] font-black uppercase tracking-widest text-gray-400">Code</label>
-                        <BaseInput v-model="modalForm.code" placeholder="Auto..." :disabled="modalMode === 'view'" class="w-full" :class="{'p-invalid': modalForm.errors.code}" />
+                        <BaseInput v-model="modalForm.code" placeholder="Generated on save" :disabled="modalMode === 'view'" class="w-full" :class="{'p-invalid': modalForm.errors.code}" />
                         <small v-if="modalForm.errors.code" class="p-error">{{ modalForm.errors.code }}</small>
                     </div>
 
@@ -250,7 +230,6 @@ watch(() => page.props.flash, (flash: any) => {
                             editable
                             placeholder="e.g. ASSET, EQUITY…"
                             class="w-full"
-                            @change="(e) => handleCategoryChange(e.value)"
                             :class="{'p-invalid': modalForm.errors.title}"
                         />
                         <BaseInput v-else :value="modalForm.title" disabled class="w-full" />

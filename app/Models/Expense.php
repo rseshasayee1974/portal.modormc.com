@@ -34,7 +34,7 @@ class Expense extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date:Y-m-d',
         'amount' => 'decimal:2',
     ];
 
@@ -53,7 +53,10 @@ class Expense extends Model
     {
         $prefix = Ledger::documentSeriesPrefix($plantId, $ledgerId, $date, 'EXP');
         $highest = 0;
-        foreach (self::where('plant_id', $plantId)->where('ref_no', 'like', $prefix . '%')->pluck('ref_no') as $number) {
+        $numbers = self::withTrashed()->withoutGlobalScope('plant_id')
+            ->where('plant_id', $plantId)->where('ref_no', 'like', $prefix . '%')
+            ->pluck('ref_no');
+        foreach ($numbers as $number) {
             if (preg_match('/^' . preg_quote($prefix, '/') . '(\d+)$/', $number, $match)) {
                 $highest = max($highest, (int) $match[1]);
             }

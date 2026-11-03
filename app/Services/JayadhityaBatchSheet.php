@@ -61,9 +61,9 @@ class JayadhityaBatchSheet
             $name = isset($runMatch[0]) ? trim(substr($rawName, 0, -strlen($runMatch[0]))) : $rawName;
             $column = self::column($name);
             $column ??= $name;
-            $alias = trim((string) $material->product?->alias);
+            $alias = (string) $material->product?->alias;
             if ($alias !== '' || ! isset($labels[$column])) {
-                $labels[$column] = mb_strtoupper($alias !== '' ? $alias : $name, 'UTF-8');
+                $labels[$column] = $alias !== '' ? $alias : mb_strtoupper($name, 'UTF-8');
             }
             $display = self::materialDisplay($column, (string) $material->product?->category?->name);
             $group = $display['group'];

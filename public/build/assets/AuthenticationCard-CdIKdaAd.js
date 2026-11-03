@@ -1,0 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/AuthenticationCard-C4HjIpIn.js
+import{_ as s,o as e,g as a,d as r,f as t}from"./app-CSAChbls.js";const d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},o=s({},[["render",function(s,o){return e(),a("div",d,[r("div",null,[t(s.$slots,"logo")]),r("div",l,[t(s.$slots,"default")])])}]]);export{o as A};
+========
+import{_ as s,o as e,g as a,d as r,f as t}from"./app-C3AWUKs6.js";const d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},o=s({},[["render",function(s,o){return e(),a("div",d,[r("div",null,[t(s.$slots,"logo")]),r("div",l,[t(s.$slots,"default")])])}]]);export{o as A};
+>>>>>>>> ff5c892b0cb0e16bd95233e8610fd9de0c3656b7:public/build/assets/AuthenticationCard-CdIKdaAd.js
