@@ -65,7 +65,7 @@ class DashboardRepository
 
         $results = $query->select(
             DB::raw('SUM(net_weight) as mt'),
-            DB::raw('SUM(delivered_qty) as unit_cft'),
+            DB::raw('SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)) as unit_cft'),
             DB::raw('COUNT(*) as trips')
         )->first();
 
@@ -165,7 +165,7 @@ class DashboardRepository
         $results = $query->select(
             DB::raw('COALESCE(SUM(batches.batch_size), 0) as total_batch_size_cbm'),
             DB::raw('COALESCE(SUM(mm_dispatches.net_weight), 0) as total_net_quantity_mtr'),
-            DB::raw('COALESCE(SUM(mm_dispatches.delivered_qty), 0) as total_net_quantity_cbm'),
+            DB::raw('COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)), 0) as total_net_quantity_cbm'),
             DB::raw('COUNT(mm_dispatches.id) as total_batching_count')
         )->first();
 
@@ -209,7 +209,7 @@ class DashboardRepository
                 'truck.registration as truck_registration',
                 DB::raw('COUNT(mm_dispatches.id) as total_dispatch_count'),
                 DB::raw('COALESCE(SUM(batches.batch_size), 0) as total_batch_size'),
-                DB::raw('COALESCE(SUM(mm_dispatches.delivered_qty), 0) as total_qty_cbm'),
+                DB::raw('COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)), 0) as total_qty_cbm'),
                 DB::raw('COALESCE(SUM(mm_dispatches.net_weight), 0) as total_qty_mtr')
             )
             ->groupBy('mm_dispatches.truck_id', 'truck.registration')
@@ -436,7 +436,7 @@ class DashboardRepository
     public function getTripsDetails(array $filters)
     {
         $query = Dispatch::with('truck')
-            ->select('truck_id', DB::raw('COUNT(*) as count'), DB::raw('SUM(delivered_qty) as m3'))
+            ->select('truck_id', DB::raw('COUNT(*) as count'), DB::raw('SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)) as m3'))
             ->groupBy('truck_id');
 
         $this->applyFilters($query, $filters, 'dispatch_time');

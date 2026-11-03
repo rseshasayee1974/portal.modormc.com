@@ -121,6 +121,9 @@ class BatchController extends Controller
                     'encrypted_id' => encrypt($row->id),
                     'batch_no' => $row->batch_no,
                     'batch_size' => $row->batch_size,
+                    'delivered_qty' => $row->dispatch_id
+                        ? (float) ($row->dispatch_delivered_qty ?? $row->batch_size)
+                        : null,
                     'status' => $row->status,
                     'start_time' => $row->start_time,
                     'end_time' => $row->end_time,
@@ -183,7 +186,8 @@ class BatchController extends Controller
                             'dispatch_status' => $row->dispatch_status,
                             'batch_id' => $row->id,
                             'truck_id' => $row->dispatch_truck_id,
-                            'delivered_qty' => $row->dispatch_delivered_qty,
+                            'delivered_qty' => (float) ($row->dispatch_delivered_qty ?? $row->batch_size),
+                            'delivered_qty_input' => $row->dispatch_delivered_qty === null ? null : (float) $row->dispatch_delivered_qty,
                             'truck' => [
                                 'id' => $row->dispatch_truck_id,
                                 'registration' => $row->truck_registration,
@@ -521,7 +525,7 @@ class BatchController extends Controller
                     'prefix'              => $prefix,
                     'dispatch_no'         => $dispatchNumber['nextNumber'],
                     'dispatch_time'       => now()->format('H:i:s'),
-                    'delivered_qty'       => $units,
+                    'delivered_qty'       => null,
                     'load_rate'           => $loadRate,
                     'load_tax_id'         => $taxId,
                     'load_untax_amount'   => $loadUntaxAmount,
@@ -987,7 +991,7 @@ class BatchController extends Controller
                 ->groupBy('dispatch_id');
         }
 
-        $mappedDispatches = $dispatches->map(function ($d) use ($paymentsByDispatch) {
+        $mappedDispatches = $dispatches->map(function ($d) use ($paymentsByDispatch, $batchRow) {
             $payments = ($paymentsByDispatch[$d->id] ?? collect())->map(function ($p) {
                 return [
                     'id' => $p->id,
@@ -1031,8 +1035,9 @@ class BatchController extends Controller
                 'dispatch_no' => $d->dispatch_no,
                 'dispatch_reference' => $d->dispatch_reference,
                 'dispatch_time' => $d->dispatch_time,
-                'delivered_qty' => (float)$d->delivered_qty,
-                'load_units' => (float)($d->delivered_qty ?? 0),
+                'delivered_qty' => (float) ($d->delivered_qty ?? $batchRow->batch_size),
+                'delivered_qty_input' => $d->delivered_qty === null ? null : (float) $d->delivered_qty,
+                'load_units' => (float)($d->delivered_qty ?? $batchRow->batch_size),
                 'load_rate' => (float)$d->load_rate,
                 'load_tax_id' => $d->load_tax_id,
                 'load_untax_amount' => (float)$d->load_untax_amount,
@@ -1150,6 +1155,9 @@ class BatchController extends Controller
             'sales_order_id' => $batchRow->sales_order_id,
             'batch_no' => $batchRow->batch_no,
             'batch_size' => (float)$batchRow->batch_size,
+            'delivered_qty' => $primaryDispatch
+                ? $primaryDispatch['delivered_qty']
+                : null,
             'status' => $batchRow->status,
             'start_time' => $batchRow->start_time,
             'end_time' => $batchRow->end_time,
@@ -1354,38 +1362,17 @@ class BatchController extends Controller
                 }
 
                 $batchDispatches = $batch->dispatches()->get();
-                $newBatchSize = array_key_exists('batch_size', $payload) ? (float)$payload['batch_size'] : (float)$batch->batch_size;
 
                 foreach ($batchDispatches as $dispatch) {
+                    if ($dispatch->dispatch_status !== 'Draft' || $dispatch->status()->whereNotNull('invoice_id')->exists()) continue;
                     $loadRate = (float)($dispatch->load_rate > 0 ? $dispatch->load_rate : ($batch->rate ?? $batch->salesOrder?->rate ?? 0));
                     $taxId = $dispatch->load_tax_id ?? $batch->tax_id ?? $batch->salesOrder?->tax_id ?? null;
                     $isTaxInclusive = (bool)($dispatch->status()->value('is_tax_inclusive') ?? $batch->salesOrder?->is_tax_inclusive ?? false);
+                    $deliveredQty = $dispatch->delivered_qty_input;
 
-                    $grossTotal = $newBatchSize * $loadRate;
-                    $loadUntaxAmount = $grossTotal;
-                    $loadTaxAmount = 0.0;
-
-                    if ($taxId) {
-                        $tax = \App\Models\Tax::find($taxId);
-                        $taxRate = $tax ? (float)($tax->tax_rate ?? $tax->rate ?? 0) : 0.0;
-                        if ($isTaxInclusive && $taxRate > 0) {
-                            $loadUntaxAmount = $grossTotal / (1 + ($taxRate / 100));
-                            $loadTaxAmount = $grossTotal - $loadUntaxAmount;
-                        } else {
-                            $loadUntaxAmount = $grossTotal;
-                            $loadTaxAmount = ($loadUntaxAmount * $taxRate) / 100;
-                        }
-                    }
-                    $loadTotalAmount = $isTaxInclusive ? $grossTotal : ($loadUntaxAmount + $loadTaxAmount);
-
-                    if ($dispatch->discount_tax_mode === 'before_tax') {
-                        $amounts = \App\Services\DispatchDiscountCalculator::forDispatch(array_replace($dispatch->getAttributes(), [
-                            'delivered_qty' => $newBatchSize, 'load_rate' => $loadRate, 'load_tax_id' => $taxId,
-                        ]), $isTaxInclusive);
-                        $loadUntaxAmount = $amounts['load_untax_amount'];
-                        $loadTaxAmount = $amounts['load_tax_amount'];
-                        $loadTotalAmount = $amounts['load_total_amount'];
-                    }
+                    $amounts = \App\Services\DispatchDiscountCalculator::forDispatch(array_replace($dispatch->getAttributes(), [
+                        'load_rate' => $loadRate, 'load_tax_id' => $taxId, 'delivered_qty' => $deliveredQty,
+                    ]), $isTaxInclusive);
 
                     $dispatch->update([
                         'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
@@ -1400,11 +1387,12 @@ class BatchController extends Controller
                         'uom_id' => array_key_exists('uom_id', $payload) ? $payload['uom_id'] : $dispatch->uom_id,
                         'empty_time' => array_key_exists('empty_time', $payload) ? $payload['empty_time'] : $dispatch->empty_time,
                         'load_time' => array_key_exists('load_time', $payload) ? $payload['load_time'] : $dispatch->load_time,
-                        'delivered_qty' => $newBatchSize,
                         'load_rate' => $loadRate,
-                        'load_untax_amount' => $loadUntaxAmount,
-                        'load_tax_amount' => $loadTaxAmount,
-                        'load_total_amount' => $loadTotalAmount,
+                        'delivered_qty' => $deliveredQty,
+                        'load_untax_amount' => $amounts['load_untax_amount'],
+                        'load_tax_amount' => $amounts['load_tax_amount'],
+                        'load_total_amount' => $amounts['load_total_amount'],
+                        'round_off' => $amounts['round_off'],
                         'updated_by' => auth()->id(),
                     ]);
                 }

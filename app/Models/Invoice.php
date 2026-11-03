@@ -855,6 +855,12 @@ class Invoice extends Model implements Postable
             $plantId = $params['plant_id'] ?? session('active_plant_id');
             $userId  = auth()->id();
 
+            if ($source instanceof Dispatch && $source->batch_id) {
+                $source->fill(\App\Services\DispatchDiscountCalculator::forDispatch($source->getAttributes(),
+                    (bool) ($params['is_tax_inclusive'] ?? $source->is_tax_inclusive)));
+                $source->saveQuietly();
+            }
+
             $subtotalSum = 0;
             $taxSum = 0;
             $discountSum = 0;
@@ -948,7 +954,7 @@ class Invoice extends Model implements Postable
             } else {
                 $roundOff = (float) ($source->rounding_value ?? $source->round_off ?? 0);
                 $pumpCharges = (float) ($source->pump_charges ?? 0);
-                if ($dispatchDiscountBeforeTax) $pumpCharges = 0; // Already included in the dispatch subtotal.
+                if ($source instanceof Dispatch) $pumpCharges = 0; // Already included in the dispatch subtotal.
                 $passAmount = (float) ($source->pass_amount ?? 0);
 
                 $sourceTotal = (float)($source->amount_total ?? $source->total_amount ?? 0);

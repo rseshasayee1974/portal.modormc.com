@@ -262,7 +262,7 @@ class Modormc implements Tool
 
         $dispatchStats = $dispatchQuery->selectRaw('
             COUNT(*) as total_dispatches,
-            COALESCE(SUM(delivered_qty), 0) as total_qty_m3,
+            COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)), 0) as total_qty_m3,
             COALESCE(SUM(load_total_amount), 0) as total_amount
         ')->first();
 
@@ -424,7 +424,7 @@ class Modormc implements Tool
                 'license_type' => $d->license_type,
                 'status' => $d->status,
                 'completed_dispatches_count' => (clone $dispatchQuery)->count(),
-                'total_delivered_qty_m3' => (float) (clone $dispatchQuery)->sum('delivered_qty'),
+                'total_delivered_qty_m3' => (float) (clone $dispatchQuery)->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)')),
             ];
         });
 
@@ -530,7 +530,7 @@ class Modormc implements Tool
         if ($dateTo)   $uninvoicedQuery->where('mm_dispatches.dispatch_time', '<=', $dateTo . ' 23:59:59');
 
         $uninvoicedCount = $uninvoicedQuery->count();
-        $uninvoicedQty   = $uninvoicedQuery->sum('mm_dispatches.delivered_qty');
+        $uninvoicedQty   = $uninvoicedQuery->sum(DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)'));
 
         return json_encode([
             'period' => ['from' => $dateFrom, 'to' => $dateTo],
@@ -683,7 +683,7 @@ class Modormc implements Tool
         $today = date('Y-m-d');
 
         $dispatchQuery = DB::table('mm_dispatches')->whereNull('deleted_at')->whereDate('dispatch_time', $today);
-        $dispatchStats = $dispatchQuery->selectRaw('COUNT(*) as count, COALESCE(SUM(delivered_qty), 0) as total_qty_m3, COALESCE(SUM(load_total_amount), 0) as total_amount')->first();
+        $dispatchStats = $dispatchQuery->selectRaw('COUNT(*) as count, COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)), 0) as total_qty_m3, COALESCE(SUM(load_total_amount), 0) as total_amount')->first();
 
         $invoiceQuery = DB::table('mm_invoices')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('sales'))->whereNull('deleted_at')->whereDate('invoice_date', $today);
         $invoiceStats = $invoiceQuery->selectRaw('COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total_amount')->first();

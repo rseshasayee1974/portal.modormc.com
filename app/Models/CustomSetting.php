@@ -66,6 +66,12 @@ class CustomSetting extends Model
             ? 'before_tax' : 'after_tax';
     }
 
+    public static function invoiceQuantityBasis($plantId): string
+    {
+        return (self::getForModule($plantId, 'batching')['invoice_quantity_basis'] ?? 'batch_size') === 'delivered_qty'
+            ? 'delivered_qty' : 'batch_size';
+    }
+
     /**
      * Maximum absolute variation allowed for generated actual consumption totals.
      */

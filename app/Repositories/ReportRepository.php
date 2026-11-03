@@ -613,7 +613,7 @@ class ReportRepository
             // Production cost is not recorded here; use the available transport cost.
             ->selectRaw('
                 COUNT(d.id) as total_trips,
-                SUM(CASE WHEN d.delivered_qty > 0 THEN d.delivered_qty ELSE COALESCE(b.batch_size, 0) END) as total_qty,
+                SUM(COALESCE(d.delivered_qty, b.batch_size, 0)) as total_qty,
                 SUM(COALESCE(d.net_weight, d.loaded_weight_truck - d.empty_weight_truck, 0)) as total_weight_tons,
                 SUM(COALESCE(d.load_total_amount, 0)) as total_revenue,
                 SUM(COALESCE(d.transport_expenses, 0)) as total_trip_cost

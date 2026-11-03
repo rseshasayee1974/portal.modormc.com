@@ -89,7 +89,7 @@ class SalesReportService implements ReportServiceInterface
             'd.dispatch_reference',
             'd.dispatch_time',
             'd.delivery_time',
-            'd.delivered_qty',
+            DB::raw('COALESCE(d.delivered_qty, b.batch_size, 0) as delivered_qty'),
             'd.load_rate',
             'd.load_untax_amount',
             'd.load_tax_amount',

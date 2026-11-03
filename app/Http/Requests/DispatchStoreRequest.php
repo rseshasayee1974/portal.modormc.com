@@ -34,7 +34,7 @@ class DispatchStoreRequest extends FormRequest
             'dispatch_no' => 'nullable|numeric|min:1',
             'dispatch_reference' => 'nullable|string',
             'dispatch_time' => 'nullable|date',
-            'delivered_qty' => 'nullable|numeric|min:0',
+            'delivered_qty' => 'nullable|numeric|min:0|max:9999999.999|decimal:0,3',
             'is_tax_inclusive' => 'nullable|boolean',
             'dispatch_status' => 'nullable|string',
 
