@@ -383,6 +383,8 @@ Route::middleware([
         Route::post('customer-po/{customerPO}/dispatches', [DispatchController::class, 'storeForSalesOrder'])->name('customer-po.dispatches.store');
         Route::resource('salesorders', SalesOrderController::class);
         Route::get('batches/truck-empty-weight', [BatchController::class, 'getTruckEmptyWeight'])->name('batches.truck-empty-weight');
+        Route::post('batches/trip-options', [\App\Http\Controllers\BatchTripOptionController::class, 'store'])
+            ->withoutMiddleware(TitleCaseInputs::class)->name('batches.trip-options.store');
         Route::post('batches/truck-empty-weight', [BatchController::class, 'storeTruckEmptyWeight'])->name('batches.store-truck-empty-weight');
         Route::resource('batches', BatchController::class);
         Route::post('batches/{batch}/send-email', [BatchController::class, 'sendEmail'])->name('batches.send-email');

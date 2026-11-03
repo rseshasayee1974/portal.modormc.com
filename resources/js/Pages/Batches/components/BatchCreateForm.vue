@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TripAssignmentSelect from '@/Components/TripAssignmentSelect.vue';
 import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, nextTick, onMounted, onUnmounted } from 'vue';
@@ -691,11 +692,11 @@ const submit = () => {
             <div class=" bg-slate-50/50 p-5">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div class="flex flex-col justify-center">
-                        <h3
+                        <!-- <h3
                             class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-2">
                             <span class="h-2 w-2 rounded-full bg-indigo-600"></span>
                             {{ creationSource === 'batch_schedule' ? 'Batch Schedule Link' : 'Sales Order Link' }}
-                        </h3>
+                        </h3> -->
                         <BaseSelect v-if="creationMode === 'both'" v-model="creationSource"
                             :options="[{ label: 'Sales Order', value: 'sales_order' }, { label: 'Batch Schedule', value: 'batch_schedule' }]"
                             optionLabel="label" optionValue="value" label="Create From" class="mb-3" />
@@ -758,8 +759,7 @@ const submit = () => {
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 p-4">
                     <div>
-                        <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration"
-                            optionValue="id" filter label="Assign Truck" placeholder="Select Truck" required
+                        <TripAssignmentSelect v-model="form.truck_id" :options="trucks" kind="truck" label="Assign Truck" required
                             :error="form.errors.truck_id" />
                     </div>
                     <div>
@@ -767,8 +767,7 @@ const submit = () => {
                             optionValue="id" filter label="Transporter" placeholder="Select Transporter" showClear />
                     </div>
                     <div>
-                        <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id"
-                            filter label="Driver" placeholder="Select Driver" showClear />
+                        <TripAssignmentSelect v-model="form.driver_id" :options="drivers" kind="driver" :error="form.errors.driver_id" />
                     </div>
                     <div>
                         <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label"

@@ -25,6 +25,7 @@ const props = withDefaults(
         canCreate?: boolean;
         allowEmptyCreate?: boolean;
         createLabel?: string;
+        showClear?: boolean;
     }>(),
     {
         required: false,
@@ -97,6 +98,7 @@ const creatableLabel = computed(() => props.createLabel || `Create "${filterValu
                 :optionValue="optionValue"
                 :placeholder="placeholder"
                 :disabled="disabled || creating"
+                :showClear="showClear"
                 filter
                 :size="size"
                 :fluid="fluid"

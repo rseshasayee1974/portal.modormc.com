@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TripAssignmentSelect from '@/Components/TripAssignmentSelect.vue';
 import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted, onUnmounted } from 'vue';
@@ -1291,8 +1292,8 @@ console.log('test');
                                         :error="form.errors.uom_id" :disabled="isLocked" />
                                 </div>
                                 <div>
-                                    <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration"
-                                        optionValue="id" filter label="Truck Assignment" :error="form.errors.truck_id"
+                                    <TripAssignmentSelect v-model="form.truck_id" :options="trucks" kind="truck"
+                                        label="Truck Assignment" :error="form.errors.truck_id"
                                         :disabled="isLocked" />
                                 </div>
                                 <div>
@@ -1301,8 +1302,8 @@ console.log('test');
                                         :error="form.errors.transport_id" :disabled="isLocked" />
                                 </div>
                                 <div>
-                                    <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label"
-                                        optionValue="id" filter label="Driver" showClear :error="form.errors.driver_id"
+                                    <TripAssignmentSelect v-model="form.driver_id" :options="drivers" kind="driver"
+                                        label="Driver" :error="form.errors.driver_id"
                                         :disabled="isLocked" />
                                 </div>
                                 <div>
