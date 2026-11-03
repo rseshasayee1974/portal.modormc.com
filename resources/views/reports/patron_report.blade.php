@@ -328,7 +328,15 @@
                 <td class="text-center">{{ $trx['s_no'] ?? $loop->iteration }}</td>
                 <td class="nowrap">{{ $trx['date'] }}</td>
                 <td class="font-bold">{{ $trx['transactions'] ?? ($trx['narration'] ?? '-') }}</td>
-                <td class="details-cell">{!! nl2br(e($trx['details'] ?? ($trx['narration'] ?? '-'))) !!}</td>
+                <td class="details-cell">
+                    @if(!empty($trx['detail_lines']))
+                        @foreach($trx['detail_lines'] as $line)
+                            <div>@if($line['bold'])<strong>{!! nl2br(e($line['text'])) !!}</strong>@else{!! nl2br(e($line['text'])) !!}@endif</div>
+                        @endforeach
+                    @else
+                        {!! nl2br(e($trx['details'] ?? ($trx['narration'] ?? '-'))) !!}
+                    @endif
+                </td>
                 <td class="text-center nowrap font-bold" style="font-size: 7.5pt;">{{ $trx['type'] ?? ($trx['voucher_type'] ?? '') }}</td>
                 <td class="amount-cell">{!! str_replace('₹', '&#8377;', e($trx['invoice_bill_display'] ?? (isset($trx['debit']) && $trx['debit'] > 0 ? '&#8377; ' . number_format($trx['debit'], 2) : '0'))) !!}</td>
                 <td class="amount-cell">{!! str_replace('₹', '&#8377;', e($trx['receipt_payment_display'] ?? (isset($trx['credit']) && $trx['credit'] > 0 ? '(&#8377; ' . number_format($trx['credit'], 2) . ')' : '0'))) !!}</td>

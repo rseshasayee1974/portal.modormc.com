@@ -429,7 +429,13 @@ const getBadgeStyle = (txType) => {
 
                             <!-- Details (multiline text) -->
                             <td class="py-2 px-1 whitespace-pre-line text-slate-700 text-[10.5px] leading-relaxed">
-                                {{ row.details }}
+                                <template v-if="row.detail_lines?.length">
+                                    <div v-for="(line, index) in row.detail_lines" :key="index">
+                                        <strong v-if="line.bold">{{ line.text }}</strong>
+                                        <template v-else>{{ line.text }}</template>
+                                    </div>
+                                </template>
+                                <template v-else>{{ row.details }}</template>
                             </td>
 
                             <!-- Type (Invoice Number & Prefix) -->

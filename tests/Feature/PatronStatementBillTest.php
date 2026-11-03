@@ -93,6 +93,60 @@ class PatronStatementBillTest extends TestCase
         );
     }
 
+    public function test_statement_includes_dispatch_description_and_mix_design_fallbacks(): void
+    {
+        $invoice = Invoice::withoutEvents(fn () => Invoice::factory()->create([
+            'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id,
+            'invoice_type' => 'Invoice', 'invoice_label' => 'Dispatch',
+            'invoice_date' => '2026-10-07', 'total_amount' => 1180,
+            'status' => Invoice::STATUS_APPROVED,
+        ]));
+        $design = \App\Models\MixDesign::factory()->create([
+            'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id,
+            'design_name' => 'Site mix M25',
+        ]);
+        $unit = \App\Models\ProductUnit::create(['unit_type' => 'sales', 'unit_name' => 'Cubic metre', 'unit_code' => 'M3']);
+        $truck = \App\Models\Machine::factory()->create(['plant_id' => $this->plant->id, 'registration' => 'TN01AB1234']);
+        $dispatch = \App\Models\Dispatch::withoutEvents(fn () => \App\Models\Dispatch::factory()->create([
+            'plant_id' => $this->plant->id, 'truck_id' => $truck->id,
+        ]));
+        DB::table('mm_batches')->where('id', $dispatch->batch_id)->update(['plant_id' => $this->plant->id, 'batch_no' => 'B123']);
+        Invoice::withoutEvents(fn () => $invoice->update(['ref_id' => $dispatch->id]));
+        foreach (['M30 Concrete', 'M30 Concrete', ''] as $name) {
+            \App\Models\InvoiceItem::withoutEvents(fn () => \App\Models\InvoiceItem::factory()->create([
+                'invoice_id' => $invoice->id, 'item_id' => $design->id, 'item_name' => $name,
+                'uom_id' => $unit->id, 'price_unit' => 4500,
+            ]));
+        }
+
+        $row = collect($this->statement()['transactions'])->firstWhere('voucher_no', $invoice->full_number);
+        $this->assertSame($invoice->full_number . "\n[M30 Concrete]\nUOM: M3 | Unit price: ₹ 4,500.00\n[Site mix M25]\nUOM: M3 | Unit price: ₹ 4,500.00\nTruck: TN01AB1234 | Batch No: B123", $row['details']);
+        $this->assertSame([
+            ['text' => $invoice->full_number, 'bold' => false],
+            ['text' => '[M30 Concrete]', 'bold' => true],
+            ['text' => 'UOM: M3 | Unit price: ₹ 4,500.00', 'bold' => false],
+            ['text' => '[Site mix M25]', 'bold' => true],
+            ['text' => 'UOM: M3 | Unit price: ₹ 4,500.00', 'bold' => false],
+            ['text' => 'Truck: TN01AB1234 | Batch No: B123', 'bold' => false],
+        ], $row['detail_lines']);
+        $this->assertEquals(1180, $row['debit']);
+
+        $design->update(['design_name' => '']);
+        $row = collect($this->statement()['transactions'])->firstWhere('voucher_no', $invoice->full_number);
+        $this->assertStringContainsString("\n[M25]\n", $row['details']);
+        Invoice::withoutEvents(fn () => $invoice->update(['ref_id' => null]));
+        DB::table('mm_dispatch_statuses')->updateOrInsert(['dispatch_id' => $dispatch->id], [
+            'plant_id' => $this->plant->id, 'invoice_id' => $invoice->id,
+        ]);
+        \App\Models\InvoiceItem::withoutEvents(fn () => \App\Models\InvoiceItem::factory()->create([
+            'invoice_id' => $invoice->id, 'item_name' => 'M30 Concrete', 'price_unit' => 4600, 'uom_id' => null,
+        ]));
+        $row = collect($this->statement()['transactions'])->firstWhere('voucher_no', $invoice->full_number);
+        $this->assertStringContainsString('Truck: TN01AB1234 | Batch No: B123', $row['details']);
+        $this->assertStringContainsString('UOM: - | Unit price: ₹ 4,600.00', $row['details']);
+        $this->assertSame(2, substr_count($row['details'], '[M30 Concrete]'));
+    }
+
     public function test_sales_register_net_amounts_and_totals_are_whole_rupees(): void
     {
         $rows = [];
