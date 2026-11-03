@@ -23,7 +23,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
         ['Truck No', $dispatch?->truck?->registration], ['Truck Driver', trim(($driver?->first_name ?? '').' '.($driver?->last_name ?? ''))],
         ['Adj / Manual Qty', $formatDecimal($batch->manual_qty ?? null)]];
     $right = [['Mixer Capacity', $formatDecimal($plant?->mixer_capacity)],
-        ['Batch Size', $formatDecimal($report['run_size'])], ['Production Qty', $formatDecimal($batch->batch_size)],
+        ['Batch Size', $report['run_size'] === null ? null : number_format((float) $report['run_size'], 3, '.', '')], ['Production Qty', $formatDecimal($batch->batch_size)],
         ['Order No', $formatDecimal($order?->order_no)], ['Ordered Qty', $formatDecimal($order?->total_qty)],
         ['With This Load', $formatDecimal($report['with_this_load'])]];
     $brand = \App\Services\PrintBrandHeader::resolve(['plant' => $plant, 'batchSheetBrand' => true]);

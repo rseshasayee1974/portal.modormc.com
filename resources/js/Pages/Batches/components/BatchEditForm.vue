@@ -38,7 +38,7 @@ interface BatchMaterial {
     target_qty: number;
     deviation_quantity?: number;
     uom_id: number | null;
-    runs: number[];
+    runs: (number | null)[];
     product?: { title: string };
 }
 
@@ -842,8 +842,12 @@ const copyTargetsToActuals = () => {
     form.materials.forEach((mat) => {
         const size = Number(form.batch_size || 1);
         const targetQty = Number(mat.target_qty ?? 0);
+        if (targetQty === 0) {
+            mat.runs = runSizes.value.map(() => null);
+            return;
+        }
         const generatedRuns = runSizes.value.map((runSz) => {
-            const targetForRun = Number(mat.target_qty ?? 0) * (runSz / size);
+            const targetForRun = targetQty * (runSz / size);
             const variation = Math.random() * 10 - 5;
             return Number(Math.max(0, targetForRun + variation).toFixed(3));
         });
@@ -1618,7 +1622,7 @@ console.log('test');
                                                         class="border-r border-slate-200 px-3 py-2 bg-white">
                                                         <BaseInputNumber
                                                             :modelValue="form.materials[index].runs?.[runIdx - 1]"
-                                                            @update:modelValue="form.materials[index].runs[runIdx - 1] = Number($event ?? 0)"
+                                                            @update:modelValue="form.materials[index].runs[runIdx - 1] = $event == null ? null : Number($event)"
                                                             :disabled="isLocked"
                                                             :minFractionDigits="materialPrecision(item)"
                                                             :maxFractionDigits="materialPrecision(item)" size="small"

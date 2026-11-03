@@ -46,6 +46,36 @@ class InwardDetailsTest extends TestCase
         $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
     }
 
+    public function test_inward_report_filters_by_receipt_timestamp_instead_of_entry_date(): void
+    {
+        $this->inward->forceFill([
+            'received_date' => '2026-10-03 00:00:00',
+            'created_at' => '2026-10-03 10:15:00',
+        ])->save();
+
+        $late = $this->inward->replicate();
+        $late->forceFill([
+            'inward_no' => 'INW-LATE',
+            'received_date' => '2026-10-03 12:00:00',
+            'created_at' => '2026-10-03 10:30:00',
+        ])->save();
+
+        $backdated = $this->inward->replicate();
+        $backdated->forceFill([
+            'inward_no' => 'INW-BACKDATED',
+            'received_date' => '2026-10-02 00:00:00',
+            'created_at' => '2026-10-03 10:30:00',
+        ])->save();
+
+        $report = app(\App\Services\Reports\InventoryInwardReportService::class)->generate([
+            'start' => '2026-10-03 10:15:00',
+            'end' => '2026-10-03 11:00:00',
+        ]);
+        $this->assertSame(['INW-EDIT'], $report['transactions']->pluck('inward_no')->all());
+        $this->assertSame('2026-10-03 10:15:00', $report['transactions']->first()['date']);
+        $this->assertSame(10.0, $report['total_quantity']);
+    }
+
     public function test_inward_report_party_filter_is_shared_by_view_excel_and_pdf(): void
     {
         $vendor = Patron::factory()->create(['plant_id' => $this->plant->id, 'legal_name' => 'Selected Vendor']);

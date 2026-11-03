@@ -17,6 +17,15 @@ class InventoryInwardReportService implements ReportServiceInterface
         $patronId = $params['patron_id'] ?? null;
         $truckId  = $params['truck_id'] ?? null;
 
+        // Older receipts stored a date at midnight. Use the entry time only
+        // when it belongs to that same receipt day.
+        $receiptTimestamp = "CASE
+            WHEN received_date IS NULL THEN created_at
+            WHEN (TIME(received_date) = '00:00:00' OR TIME(received_date) IS NULL)
+                AND DATE(received_date) = DATE(created_at) THEN created_at
+            ELSE received_date
+        END";
+
         $query = PurchaseOrderHistory::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->with([
@@ -26,10 +35,9 @@ class InventoryInwardReportService implements ReportServiceInterface
                 'uom',
                 'truck' => fn($q) => $q->whereNull('deleted_at')
             ])
-            ->where(function ($q) use ($start, $end) {
-                $q->whereBetween('received_date', [$start, $end])
-                  ->orWhereBetween('created_at', [$start, $end]);
-            });
+            ->select('mm_purchase_order_history.*')
+            ->selectRaw("$receiptTimestamp AS report_received_at")
+            ->whereRaw("($receiptTimestamp) BETWEEN ? AND ?", [$start, $end]);
 
         if ($patronId) {
             $query->whereHas('order', function ($q) use ($patronId) {
@@ -41,17 +49,17 @@ class InventoryInwardReportService implements ReportServiceInterface
             $query->where('truck_id', $truckId);
         }
 
-        $inwards = $query->orderBy('received_date', 'desc')->get();
+        $inwards = $query->orderByDesc('report_received_at')->orderByDesc('id')->get();
 
         return [
             'transactions' => $inwards->map(fn($i) => [
-                'date'         => $i->received_date ? \Carbon\Carbon::parse($i->received_date)->toDateString() : ($i->created_at ? $i->created_at->toDateString() : now()->toDateString()),
+                'date'         => \Carbon\Carbon::parse($i->report_received_at)->toDateTimeString(),
                 'inward_no'    => $i->inward_no ?? ('INW-' . $i->id),
                 'po_number'    => $i->order->po_number ?? 'N/A',
                 'vendor_name'  => $i->order->vendor->legal_name ?? 'N/A',
                 'product_name' => $i->product->title ?? 'N/A',
                 'uom'          => $i->uom->unit_code ?? $i->uom->unit_name ?? 'N/A',
-                'quantity'     => (float)$i->received_qty . ' ' . $i->uom->unit_code,
+                'quantity'     => trim((float) $i->received_qty . ' ' . ($i->uom?->unit_code ?? '')),
                 'truck_no'     => $i->truck->registration ?? 'N/A',
                 'truck_loaded' => (float)$i->truck_loaded,
                 'truck_empty'  => (float)$i->truck_empty,

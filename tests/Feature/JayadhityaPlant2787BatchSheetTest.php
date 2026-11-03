@@ -40,10 +40,14 @@ class JayadhityaPlant2787BatchSheetTest extends TestCase
         $doc = new \DOMDocument;
         @$doc->loadHTML($html);
         $xpath = new \DOMXPath($doc);
-        $this->assertSame('806', $xpath->query('//tr[@data-row="actual"][1]/td[1]')->item(0)->textContent);
-        $this->assertSame('907', $xpath->query('//tr[@data-row="actual"][6]/td[1]')->item(0)->textContent);
-        $this->assertSame('5061', $xpath->query('//tr[@data-row="total-actual"]/td[1]')->item(0)->textContent);
-        $this->assertSame('5100', $xpath->query('//tr[@data-row="total-set"]/td[1]')->item(0)->textContent);
+        $this->assertSame(['Aggregate', 'Cement', 'Water', 'MS / ICE', 'Admixture'],
+            array_map(fn ($cell) => $cell->textContent, iterator_to_array($xpath->query('//tr[@class="group"]/th'))));
+        $this->assertSame('Moi', $xpath->query('//tr[@class="heads"]/th[3]')->item(0)->textContent);
+        $this->assertSame('+/-', $xpath->query('//tr[@data-row="target"]/td[11]')->item(0)->textContent);
+        $this->assertSame('806', $xpath->query('//tr[@data-row="actual"][1]/td[2]')->item(0)->textContent);
+        $this->assertSame('907', $xpath->query('//tr[@data-row="actual"][6]/td[2]')->item(0)->textContent);
+        $this->assertSame('5061', $xpath->query('//tr[@data-row="total-actual"]/td[2]')->item(0)->textContent);
+        $this->assertSame('5100', $xpath->query('//tr[@data-row="total-set"]/td[2]')->item(0)->textContent);
     }
 
     public function test_unknown_cycles_remain_load_totals_and_extra_materials_are_not_lost(): void

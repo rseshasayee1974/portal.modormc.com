@@ -4,7 +4,7 @@ Created: 2026-11-02 16:46:39 Asia/Calcutta (UTC+05:30)
 -->
 @php
     $report = \App\Services\JayadhityaPlant2787BatchSheet::data($batch);
-    $order = $batch->salesOrder;
+    $order = $batch->relationLoaded('workOrder') && !$batch->relationLoaded('salesOrder') ? $batch->workOrder : $batch->salesOrder;
     $plant = $batch->plant ?? $order?->plant;
     $mix = $order?->mixDesign;
     $dispatch = $batch->dispatches->first();
@@ -34,34 +34,36 @@ Created: 2026-11-02 16:46:39 Asia/Calcutta (UTC+05:30)
 body { margin: 0; background: #e5e5e5; font-family: "Times New Roman", Times, serif; color: #000; }
 .page { width: 210mm; min-height: 297mm; margin: 10px auto; background: white; padding: 10mm 6mm 8mm; font-size: 10pt; }
 .company { text-align: center; font-weight: bold; font-size: 15pt; }
-.system { margin: 9px 0 0 14mm; font-weight: bold; font-size: 12.5pt; }
+.system { margin: 1px 0 0 15mm; font-weight: bold; font-size: 12pt; }
 .system table { border-collapse: collapse; }
 .system td { vertical-align: middle; padding: 0 6px 0 0; }
-.logo { width: 34px; height: 34px; }
-.brand { margin: 5px 0 0 14mm; line-height: 1.15; }
-.title { text-align: center; font-weight: bold; font-size: 12pt; margin: 6px 0 10px; }
+.logo { width: 44px; height: 38px; }
+.brand { margin: 8px 0 0 15mm; line-height: 1.25; }
+.title { text-align: center; font-weight: bold; font-size: 12pt; margin: 2px 0 18px; }
 .top { width: 100%; border-collapse: collapse; }
 .top td { padding: 0; vertical-align: top; }
 .times { border-collapse: collapse; line-height: 1.2; }
-.times th { width: 31mm; text-align: left; white-space: nowrap; }
+.times th { width: 29mm; text-align: left; white-space: nowrap; }
+.times { margin-left: 2mm; }
 .times td { white-space: nowrap; }
-.serial { text-align: right; padding-right: 4mm !important; }
-.info { width: 100%; border-collapse: collapse; margin-top: 4px; table-layout: fixed; }
-.info td { padding: 1px 0; vertical-align: top; }
-.info .key { font-weight: bold; width: 50mm; }
-.info .sep { width: 3mm; text-align: center; }
-.info .val { width: 72mm; padding-right: 4mm; overflow-wrap: anywhere; }
-.info .rkey { font-weight: bold; width: 39mm; }
-.info .num { width: 14mm; text-align: right; }
-.info .unit { width: 9mm; padding-left: 2mm; }
-table.batch { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 4px; font-size: 8.4pt; }
+.serial { width: 30%; text-align: left; white-space: nowrap; }
+.info { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
+.info td { padding: 2px 0; vertical-align: top; }
+.info .key { font-weight: bold; width: 26%; padding-left: 3.5mm; }
+.info .sep { width: 3%; text-align: center; }
+.info .val { width: 41%; padding: 2px 4mm 2px 1mm; overflow-wrap: anywhere; }
+.info .rkey { font-weight: bold; width: 16%; white-space: nowrap; }
+.info .rsep { width: 2%; text-align: center; }
+.info .num { width: 7%; padding-left: 2mm; }
+.info .unit { width: 5%; padding-left: 2mm; }
+table.batch { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 4px; font-size: 10pt; }
 table.batch th, table.batch td { padding: 1px 2px; text-align: center; overflow-wrap: anywhere; }
-table.batch thead .group th { font-size: 9pt; text-align: center; padding-bottom: 3px; }
+table.batch thead .group th { font-size: 12pt; text-align: center; padding-bottom: 7px; }
 table.batch thead .heads th { font-weight: normal; white-space: pre-wrap; }
 table.batch td { font-variant-numeric: tabular-nums; }
-table.batch .label td { text-align: left; font-size: 9.2pt; padding-top: 2px; }
-table.batch .rule td { padding: 0; height: 2px; border-top: 1px solid black; }
-table.batch .gap td { height: 6px; }
+table.batch .label td { text-align: left; padding-top: 2px; }
+table.batch .rule td { padding: 0; height: 6px; border-top: 1.4px solid black; }
+table.batch .gap td { height: 10px; }
 table.batch tr { break-inside: avoid; }
 .note { font-size: 8pt; margin: 8px 0; }
 .toolbar { text-align: center; padding: 10px; }
@@ -84,7 +86,7 @@ table.batch tr { break-inside: avoid; }
     @foreach ($left as $index => [$label, $val])
     <tr><td class="key">{{ $label }}</td><td class="sep">:</td><td class="val">{{ $value($val) }}</td>
       @if (isset($right[$index]))
-      <td class="rkey">{{ $right[$index][0] }}</td><td class="sep">:</td><td class="num">{{ $quantity($right[$index][1]) }}</td><td class="unit">{!! $right[$index][2] === 'M3' ? 'M<sup>3</sup>' : 'Kg' !!}</td>
+      <td class="rkey">{{ $right[$index][0] }}</td><td class="rsep">{{ $loop->index === 6 ? '' : ':' }}</td><td class="num">{{ $quantity($right[$index][1]) }}</td><td class="unit">{!! $right[$index][2] === 'M3' ? 'M<sup>3</sup>' : 'Kg' !!}</td>
       @else <td colspan="4"></td> @endif
     </tr>
     @endforeach
@@ -96,6 +98,11 @@ table.batch tr { break-inside: avoid; }
       $groups = $report['print_groups'];
   @endphp
   <table class="batch">
+    <colgroup>
+      @foreach ($slots as $slot)
+        <col @if (($slot[2] ?? false) || $slot[0] === 'correction') style="width: 4%" @endif>
+      @endforeach
+    </colgroup>
     <thead><tr class="group">@foreach ($groups as $group)<th colspan="{{ $group['span'] }}">{{ $group['name'] }}</th>@endforeach</tr>
     <tr class="heads">@foreach ($slots as [$column, $label])<th>{{ $label }}</th>@endforeach</tr></thead>
     <tbody>

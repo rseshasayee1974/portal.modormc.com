@@ -54,7 +54,7 @@ class JayadhityaBatchSheet
     {
         $groups = array_fill_keys(array_keys(self::GROUPS), []);
         $targets = $actuals = $runs = $productColumns = $labels = [];
-        $columns = $groupSpans = $precisions = [];
+        $columns = $groupSpans = $precisions = $productAliases = [];
         foreach ($batch->materials as $material) {
             $rawName = trim((string) ($material->material_name ?: $material->product?->title ?: 'Material'));
             preg_match('/\s*[-–—]?\s*Run\s*[-–—]?\s*(\d+)\s*$/iu', $rawName, $runMatch);
@@ -62,6 +62,7 @@ class JayadhityaBatchSheet
             $column = self::column($name);
             $column ??= $name;
             $alias = (string) $material->product?->alias;
+            if ($alias !== '') $productAliases[$column] = $alias;
             if ($alias !== '' || ! isset($labels[$column])) {
                 $labels[$column] = $alias !== '' ? $alias : mb_strtoupper($name, 'UTF-8');
             }
@@ -147,6 +148,7 @@ class JayadhityaBatchSheet
 
         return [
             'moisture_display_rows' => $moistureDisplayRows,
+            'product_aliases' => $productAliases,
             'precisions' => $precisions,
             'moisture_rows' => $moistureRows,
             'groups' => array_filter($groups),
@@ -198,6 +200,7 @@ class JayadhityaBatchSheet
     {
         $key = strtoupper(preg_replace('/[^a-z0-9]/i', '', $name));
         $aliases = [
+            'AGG1' => 'AGG1',
             'MSAND' => 'MSAND 1', 'MSAND1' => 'MSAND 1', 'MSA1' => 'MSAND 1',
             'MSAND2' => 'MSAND 2', 'MSA2' => 'MSAND 2', '20M' => '20MM', '12M' => '12MM',
             'CEMENT' => 'CEMENT 1', 'CEM1' => 'CEMENT 1', 'CEM2' => 'CEMENT 2',

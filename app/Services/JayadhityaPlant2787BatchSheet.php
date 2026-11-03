@@ -28,40 +28,57 @@ class JayadhityaPlant2787BatchSheet
         $slots = $groups = [];
         $offset = 0;
         $moisture = $report['moisture_rows']['consumption'];
+        $standard = $report['columns'] && !array_diff($report['columns'], JayadhityaPlant2787Driver::MATERIALS);
         foreach ($report['group_spans'] as $group) {
             $columns = array_slice($report['columns'], $offset, $group['span']);
             $offset += $group['span'];
             foreach ($columns as $column) {
                 $slots[] = [$column, $report['labels'][$column] ?? $column];
-                if (isset($moisture[$column])) {
+                if ($column === 'MSAND 1' && isset($moisture[$column])) {
                     $slots[] = [$column, 'Moi (%)', true];
                     $group['span']++;
                 }
             }
             $groups[] = $group;
         }
+        if ($standard) {
+            $slots = $groups = [];
+            foreach (JayadhityaPlant2787Driver::PRINT_GROUPS as $group => $columns) {
+                $start = count($slots);
+                if ($group === 'MS / ICE') $slots[] = ['MS', '-'];
+                foreach ($columns as $column => $label) {
+                    $slots[] = [$column, $report['product_aliases'][$column] ?? $label];
+                    if ($column === 'MSAND 1') $slots[] = [$column, 'Moi', true];
+                }
+                if ($group === 'Water') $slots[] = ['correction', ''];
+                $groups[] = ['name' => $group, 'span' => count($slots) - $start];
+            }
+        }
 
         $runs = $report['inferred_runs'] ? [] : $report['runs'];
         $targets = $report['inferred_runs'] ? [] : ($report['recipe_rows'][1] ?? []);
-        $row = static function (array $values, bool $showMoisture = false) use ($slots, $report, $moisture): array {
-            return array_map(static function (array $slot) use ($values, $report, $moisture, $showMoisture): string {
+        $row = static function (array $values, string $section) use ($slots, $report, $moisture, $standard): array {
+            return array_map(static function (array $slot) use ($values, $report, $moisture, $standard, $section): string {
                 $column = $slot[0];
 
                 if ($slot[2] ?? false) {
-                    return $showMoisture ? number_format($moisture[$column], 1, '.', '') : '';
+                    if ($section === 'target') return 'in %';
+                    return ($section === 'actual' || $section === 'load') && isset($moisture[$column])
+                        ? number_format($moisture[$column], 1, '.', '') : '';
                 }
+                if ($column === 'correction') return $section === 'target' ? '+/-' : '';
+                if ($column === 'MS') return '';
 
-                return isset($values[$column])
-                    ? number_format($values[$column], $report['precisions'][$column], '.', '')
-                    : '-';
+                $value = $values[$column] ?? ($standard ? 0 : null);
+                return $value === null ? '-' : number_format($value, $report['precisions'][$column] ?? (str_starts_with($column, 'ADMIX') ? 2 : 0), '.', '');
             }, $slots);
         };
         return $report + [
             'slots' => $slots, 'print_groups' => $groups,
-            'target_cells' => $row($targets),
-            'actual_cells' => array_map(static fn (array $run): array => $row($run, true), $runs),
-            'set_cells' => $row($report['targets']),
-            'total_cells' => $row($report['actuals'], $report['inferred_runs']),
+            'target_cells' => $row($targets, 'target'),
+            'actual_cells' => array_map(static fn (array $run): array => $row($run, 'actual'), $runs),
+            'set_cells' => $row($report['targets'], 'set'),
+            'total_cells' => $row($report['actuals'], $report['inferred_runs'] ? 'load' : 'total'),
         ];
     }
 }

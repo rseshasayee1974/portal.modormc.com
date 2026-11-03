@@ -12,6 +12,13 @@ class JayadhityaPlant2787Driver extends AbstractPlantDriver
 {
     public const CODE = 'jayadhitya_plant_2_2787';
     public const MATERIALS = ['AGG1', 'MSAND 1', '12MM', '20MM', 'Agg 6', 'CEMENT 1', 'CEMENT 2', 'CEMENT 3', 'WATER', 'Ice', 'ADMIX 1', 'ADMIX 2'];
+    public const PRINT_GROUPS = [
+        'Aggregate' => ['AGG1' => '20 M', 'MSAND 1' => 'MSAN', '12MM' => '12 MM', '20MM' => '20 MM', 'Agg 6' => '0'],
+        'Cement' => ['CEMENT 1' => 'CEM1', 'CEMENT 2' => 'CEM2', 'CEMENT 3' => 'CEM3'],
+        'Water' => ['WATER' => 'WATER'],
+        'MS / ICE' => ['Ice' => ''],
+        'Admixture' => ['ADMIX 1' => 'ADMIX1', 'ADMIX 2' => '-'],
+    ];
 
     public function getDriverCode(): string { return self::CODE; }
     public function getDriverName(): string { return 'Jayadhitya Plant 2 - Serial 2787 (Schwing MCI 370)'; }
