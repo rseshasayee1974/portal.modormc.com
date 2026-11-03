@@ -37,6 +37,7 @@ const form = useForm({
     settings: {
         batch_creation_source: props.batchingSettings?.batch_creation_source || 'sales_order',
         dispatch_discount_tax_mode: props.batchingSettings?.dispatch_discount_tax_mode || 'after_tax',
+        invoice_quantity_basis: props.batchingSettings?.invoice_quantity_basis || 'batch_size',
         batch_series_enabled: Number(props.batchingSettings?.batch_series_enabled ?? 1) === 1,
         default_batch_series: props.batchingSettings?.default_batch_series === 'P' ? 'P' : 'B',
         batch_sheet_driver: props.batchingSettings?.batch_sheet_driver || '',
@@ -365,6 +366,15 @@ const submit = () => {
                                 optionLabel="label" optionValue="value" class="w-full" />
                             <p class="text-xs text-slate-500">Before tax deducts the discount from the subtotal, then calculates tax. Applies when saving a dispatch; existing invoices stay unchanged.</p>
                             <small class="text-red-500">{{ form.errors['settings.dispatch_discount_tax_mode'] }}</small>
+                        </div>
+
+                        <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
+                            <label for="invoice-quantity-basis" class="text-xs font-bold text-slate-800">Invoice Quantity Basis</label>
+                            <Dropdown inputId="invoice-quantity-basis" v-model="form.settings.invoice_quantity_basis"
+                                :options="[{ label: 'Batch size (existing process)', value: 'batch_size' }, { label: 'Delivered quantity', value: 'delivered_qty' }]"
+                                optionLabel="label" optionValue="value" class="w-full" />
+                            <p class="text-xs text-slate-500">Uses batch size when delivered quantity is blank. Applies to draft calculations and new invoices; issued invoices remain unchanged.</p>
+                            <small class="text-red-500">{{ form.errors['settings.invoice_quantity_basis'] }}</small>
                         </div>
 
                         <!-- auto_carry_pump -->

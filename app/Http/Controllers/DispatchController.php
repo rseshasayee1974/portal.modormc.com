@@ -86,8 +86,9 @@ class DispatchController extends Controller
                 }
 
                 $dispatchData['plant_id'] = session('active_plant_id');
+                $dispatchData['delivered_qty'] ??= null;
                 $dispatchData['discount_tax_mode'] = \App\Models\CustomSetting::dispatchDiscountTaxMode($dispatchData['plant_id']);
-                if ($dispatchData['discount_tax_mode'] === 'before_tax') {
+                if ($dispatchData['discount_tax_mode'] === 'before_tax' || !empty($dispatchData['batch_id'])) {
                     $dispatchData = array_replace($dispatchData, \App\Services\DispatchDiscountCalculator::forDispatch($dispatchData, $isTaxInclusive));
                 }
 
@@ -151,14 +152,14 @@ class DispatchController extends Controller
         if (!$isAdmin) {
             if (
                 ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$dispatch->sales_order_id) ||
-                ($request->has('delivered_qty') && (float)$request->delivered_qty !== (float)$dispatch->delivered_qty) ||
+                ($request->has('delivered_qty') && ($request->delivered_qty === null ? null : (float)$request->delivered_qty) !== $dispatch->delivered_qty_input) ||
                 ($request->has('concrete_pump') && $request->concrete_pump !== $dispatch->concrete_pump)
             ) {
                 return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Delivered Qty, or Concrete Pump.']);
             }
         }
 
-        if($dispatch->dispatch_status !== 'Draft'){
+        if($dispatch->dispatch_status !== 'Draft' || $dispatch->status()->whereNotNull('invoice_id')->exists()){
             abort(403, 'Access Denied: This dispatch is already invoiced.');
         }
 
@@ -224,9 +225,8 @@ class DispatchController extends Controller
 
             // 2. Update Main Dispatch Record
             $dispatchData['discount_tax_mode'] = \App\Models\CustomSetting::dispatchDiscountTaxMode($dispatch->plant_id);
-            if ($dispatchData['discount_tax_mode'] === 'before_tax') {
+            if ($dispatchData['discount_tax_mode'] === 'before_tax' || $dispatch->batch_id || !empty($dispatchData['batch_id'])) {
                 $calculationData = array_replace($dispatch->getAttributes(), $dispatchData);
-                $calculationData['delivered_qty'] = $dispatchData['delivered_qty'] ?? $dispatch->delivered_qty;
                 $inclusive = $isTaxInclusive ?? (bool) $dispatch->status()->value('is_tax_inclusive');
                 $dispatchData = array_replace($dispatchData, \App\Services\DispatchDiscountCalculator::forDispatch($calculationData, $inclusive));
             }
@@ -265,6 +265,21 @@ class DispatchController extends Controller
             return redirect()->back()->with('success', 'Dispatch updated successfully.');
             
         });
+    }
+
+    public function updateDeliveredQuantity(Request $request, Dispatch $dispatch)
+    {
+        $this->authorizeModule('update');
+        abort_unless(auth()->user()->hasFullAccess(), 403, 'Only administrators may correct delivered quantity.');
+        abort_unless((int) $dispatch->plant_id === (int) session('active_plant_id'), 404);
+        $data = $request->validate(['delivered_qty' => ['present', 'nullable', 'numeric', 'min:0', 'max:9999999.999', 'decimal:0,3']]);
+        DB::transaction(function () use ($dispatch, $data) {
+            $locked = Dispatch::whereKey($dispatch->id)->lockForUpdate()->firstOrFail();
+            abort_unless($locked->dispatch_status !== 'Draft' || $locked->status()->whereNotNull('invoice_id')->exists()
+                || (int) $locked->batch?->status === Batch::STATUS_CANCELLED, 422, 'Save draft delivery quantity through the dispatch form.');
+            $locked->correctDeliveredQuantity($data['delivered_qty'] === null ? null : (float) $data['delivered_qty']);
+        });
+        return redirect()->back()->with('success', 'Delivered quantity updated. Issued invoice and financial amounts are unchanged.');
     }
 
     public function destroy(Dispatch $dispatch)

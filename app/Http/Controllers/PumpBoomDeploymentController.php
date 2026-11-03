@@ -302,7 +302,7 @@ class PumpBoomDeploymentController extends Controller
             ])
             ->withSum(['dispatches as dispatched_qty' => function ($query) {
                 $query->whereNotIn('dispatch_status', ['Cancelled']);
-            }], 'delivered_qty')
+            }], DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)'))
             ->orderBy('id', 'desc') 
             ->get()
             ->map(function ($so) {

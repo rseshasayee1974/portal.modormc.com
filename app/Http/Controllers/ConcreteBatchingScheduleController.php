@@ -763,7 +763,7 @@ class ConcreteBatchingScheduleController extends Controller
             $dispatchedQuery->where('id', '!=', $ignoreDispatchId);
         }
 
-        $alreadyDispatchedQty = (float) $dispatchedQuery->sum('delivered_qty');
+        $alreadyDispatchedQty = (float) $dispatchedQuery->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)'));
 
         $scheduleQuery = ConcreteBatchingSchedule::where('sales_order_id', $salesOrder->id)
             ->where('plant_id', $plantId)

@@ -145,7 +145,7 @@ class ERPDashboardController extends Controller
                 ->first();
 
             $dispatchAgg = $this->dispatchQuery($plantId, $start, $end, $patronId)
-                ->selectRaw('COALESCE(SUM(load_total_amount), 0) as total_amount, COALESCE(SUM(delivered_qty), 0) as total_qty, COUNT(*) as count')
+                ->selectRaw('COALESCE(SUM(load_total_amount), 0) as total_amount, COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)), 0) as total_qty, COUNT(*) as count')
                 ->first();
 
             $receiptsAgg = $this->journalLineQuery($plantId, $start, $end, 'RECEIPT', $patronId)
@@ -318,7 +318,7 @@ class ERPDashboardController extends Controller
             ->first();
 
         $dispatchAgg = $this->dispatchQuery($plantId, $start, $end, $patronId)
-            ->selectRaw('COALESCE(SUM(load_total_amount), 0) as total_amount, COALESCE(SUM(delivered_qty), 0) as total_qty, COUNT(*) as count')
+            ->selectRaw('COALESCE(SUM(load_total_amount), 0) as total_amount, COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)), 0) as total_qty, COUNT(*) as count')
             ->first();
 
         $receiptsAgg = $this->journalLineQuery($plantId, $start, $end, 'RECEIPT', $patronId)
@@ -623,7 +623,7 @@ class ERPDashboardController extends Controller
                 COALESCE(mm_dispatches.customer_id, so.customer_id) as resolved_customer_id,
                 COALESCE(customers.legal_name, so_customers.legal_name, "Walk-in Customer") as customer_name,
                 COUNT(mm_dispatches.id) as trips,
-                COALESCE(SUM(mm_dispatches.delivered_qty), 0) as quantity,
+                COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)), 0) as quantity,
                 COALESCE(SUM(mm_dispatches.load_total_amount), 0) as revenue
             ')
             ->groupBy(DB::raw('COALESCE(mm_dispatches.customer_id, so.customer_id)'), DB::raw('COALESCE(customers.legal_name, so_customers.legal_name, "Walk-in Customer")'))

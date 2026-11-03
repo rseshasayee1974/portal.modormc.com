@@ -396,16 +396,16 @@ class BatchingDashboardController extends Controller
         // Dispatched volume
         $todayDisp = (float) Dispatch::where('plant_id', $plantId)
             ->whereDate('dispatch_time', Carbon::today())
-            ->sum('delivered_qty');
+            ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)'));
 
         $weekDisp = (float) Dispatch::where('plant_id', $plantId)
             ->whereBetween('dispatch_time', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
-            ->sum('delivered_qty');
+            ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)'));
 
         $monthDisp = (float) Dispatch::where('plant_id', $plantId)
             ->whereMonth('dispatch_time', Carbon::now()->month)
             ->whereYear('dispatch_time', Carbon::now()->year)
-            ->sum('delivered_qty');
+            ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)'));
 
         return [
             'today_volume' => round($todayVolume, 2),

@@ -12,11 +12,16 @@ use App\Traits\TracksModelChanges;
 
 class Dispatch extends Model
 {
+    private bool $correctingDeliveredQuantity = false;
         use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
     protected static function booted()
     {
         static::saving(function (self $dispatch) {
+            if ($dispatch->correctingDeliveredQuantity) return;
+            if (!$dispatch->exists && !array_key_exists('delivered_qty', $dispatch->getAttributes())) {
+                $dispatch->delivered_qty = null;
+            }
             if ($dispatch->batch_id) {
                 $status = $dispatch->batch()->value('status');
                 if ($status !== null) {
@@ -26,6 +31,7 @@ class Dispatch extends Model
         });
 
         static::saved(function (self $dispatch) {
+            if ($dispatch->correctingDeliveredQuantity) return;
             $dispatch->syncWithBatchingSchedule();
             if ($dispatch->sales_order_id) {
                 SalesOrder::find($dispatch->sales_order_id)?->refreshProduction();
@@ -102,7 +108,7 @@ class Dispatch extends Model
         'pump_charges' => 'decimal:2',
     ];
 
-    protected $appends = ['dispatch_date', 'is_tax_inclusive'];
+    protected $appends = ['dispatch_date', 'is_tax_inclusive', 'delivered_qty_input'];
 
     protected $hidden = [
         'created_by',
@@ -123,11 +129,30 @@ class Dispatch extends Model
 
     public function getDeliveredQtyAttribute($value)
     {
-        $val = (float) $value;
-        if ($val > 0) {
-            return $val;
-        }
+        if ($value !== null) return (float) $value;
         return (float) ($this->batch?->batch_size ?? 0);
+    }
+
+    public function getDeliveredQtyInputAttribute(): ?float
+    {
+        $value = $this->attributes['delivered_qty'] ?? null;
+        return $value === null ? null : (float) $value;
+    }
+
+    public function invoiceQuantity(): float
+    {
+        return CustomSetting::invoiceQuantityBasis($this->plant_id) === 'delivered_qty'
+            ? (float) $this->delivered_qty : (float) ($this->batch?->batch_size ?? $this->delivered_qty);
+    }
+
+    public function correctDeliveredQuantity(?float $quantity): void
+    {
+        $this->correctingDeliveredQuantity = true;
+        try {
+            $this->update(['delivered_qty' => $quantity]);
+        } finally {
+            $this->correctingDeliveredQuantity = false;
+        }
     }
 
     /**
@@ -165,7 +190,7 @@ class Dispatch extends Model
             'mix_design_id' => $this->mixdesign_id ?? $this->salesOrder?->mix_design_id,
             'product_id' => null, 
             'description' => "RMC Dispatch: " . $gradeName,
-            'quantity' => (float) $this->delivered_qty,
+            'quantity' => $this->invoiceQuantity(),
             'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id ?? $this->salesOrder?->mixDesign?->unit_id,
             'unit_price' => (float) $this->load_rate,
             'discount_type' => '₹',

@@ -1857,7 +1857,7 @@ class PrintDataFormatter
             $mixDesign           = $dispatch?->mixDesign ?? $batch->salesOrder?->mixDesign;
             $printItemNameFormat = self::getPrintItemNameFormat($data['settings'], $plantId);
             $mixDesignName       = self::resolvePrintedItemName($mixDesign, $printItemNameFormat);
-            $qty                 = (float) ($dispatch?->delivered_qty ?: $batch->batch_size);
+            $qty                 = (float) ($dispatch?->delivered_qty ?? $batch->batch_size);
             $rate                = (float) ($dispatch?->load_rate ?? $batch->salesOrder?->rate ?? 0);
             $subTotal            = (float) ($dispatch?->load_untax_amount ?? ($qty * $rate));
             $taxAmount           = (float) ($dispatch?->load_tax_amount ?? 0);

@@ -369,7 +369,7 @@ class BatchSheetUploadController extends Controller
                     'customer_id' => $header['customer_id'] ?? null,
                     'truck_id' => $header['truck_id'] ?? null,
                     'driver_id' => $header['driver_id'] ?? null,
-                    'delivered_qty' => $batch->batch_size,
+                    'delivered_qty' => null,
                     'dispatch_status' => 'Draft',
                     'prefix' => $number['prefix'],
                     'dispatch_no' => $number['nextNumber'],

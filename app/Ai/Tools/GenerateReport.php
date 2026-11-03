@@ -97,7 +97,7 @@ REPORT;
         if ($plantId) $query->where('plant_id', $plantId);
 
         $total    = $query->count();
-        $totalQty = (clone $query)->sum('delivered_qty');
+        $totalQty = (clone $query)->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)'));
         $delivered = (clone $query)->where('dispatch_status', 'Delivered')->count();
 
         return <<<REPORT

@@ -55,7 +55,7 @@ class InventoryDashboardController extends Controller
                     'total_items' => $stockSummary['total_items'],
                     'low_stock_count' => $stockSummary['low_stock_count'],
                     'inbound_30d_volume' => round($plantId ? PurchaseOrderHistory::where('plant_id', $plantId)->where('received_date', '>=', now()->subDays(30))->sum('received_qty') : 0, 2),
-                    'outbound_30d_volume' => round($plantId ? DB::table('mm_dispatches')->where('plant_id', $plantId)->where('dispatch_time', '>=', now()->subDays(30))->sum('delivered_qty') * 1.5 : 0, 2),
+                    'outbound_30d_volume' => round($plantId ? DB::table('mm_dispatches')->where('plant_id', $plantId)->where('dispatch_time', '>=', now()->subDays(30))->sum(DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)')) * 1.5 : 0, 2),
                     'open_pos_count' => $plantId ? PurchaseOrder::where('plant_id', $plantId)->where('invoice_status', 0)->count() : 0,
                     'recent_inwards_count' => $plantId ? PurchaseOrderHistory::where('plant_id', $plantId)->whereMonth('received_date', now()->month)->count() : 0,
                 ],
@@ -113,7 +113,7 @@ class InventoryDashboardController extends Controller
                 'total_items' => $stockSummary['total_items'],
                 'low_stock_count' => $stockSummary['low_stock_count'],
                 'inbound_30d_volume' => round(PurchaseOrderHistory::where('plant_id', $plantId)->where('received_date', '>=', now()->subDays(30))->sum('received_qty'), 2),
-                'outbound_30d_volume' => round(DB::table('mm_dispatches')->where('plant_id', $plantId)->where('dispatch_time', '>=', now()->subDays(30))->sum('delivered_qty') * 1.5, 2),
+                'outbound_30d_volume' => round(DB::table('mm_dispatches')->where('plant_id', $plantId)->where('dispatch_time', '>=', now()->subDays(30))->sum(DB::raw('COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)')) * 1.5, 2),
             ]
         ]);
     }
@@ -288,7 +288,7 @@ class InventoryDashboardController extends Controller
             $outboundData = DB::table('mm_dispatches')
                 ->where('plant_id', $plantId)
                 ->whereBetween('dispatch_time', [$startDate, $endDate])
-                ->selectRaw("DATE_FORMAT(dispatch_time, '%Y-%m') as month_key, SUM(delivered_qty) as total_outbound")
+                ->selectRaw("DATE_FORMAT(dispatch_time, '%Y-%m') as month_key, SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)) as total_outbound")
                 ->groupBy(DB::raw("DATE_FORMAT(dispatch_time, '%Y-%m')"))
                 ->pluck('total_outbound', 'month_key');
         }

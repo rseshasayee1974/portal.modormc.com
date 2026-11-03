@@ -119,7 +119,8 @@ console.log(currentBatch,'batch');
             dispatch_no: currentDispatch.dispatch_no || '',
             dispatch_reference: currentDispatch.dispatch_reference || '',
             dispatch_time: currentDispatch.dispatch_time ? entityCalendarDate(currentDispatch.dispatch_time) : entityCalendarDate(),
-            delivered_qty: Number(currentDispatch.delivered_qty || currentBatch?.batch_size || 0),
+            delivered_qty: currentDispatch.delivered_qty_input !== undefined
+                ? currentDispatch.delivered_qty_input : (currentDispatch.delivered_qty ?? null),
             truck_id: currentDispatch.truck_id ? Number(currentDispatch.truck_id) : (currentBatch?.truck_id ? Number(currentBatch.truck_id) : null),
             transport_id: currentDispatch.transport_id ? Number(currentDispatch.transport_id) : (currentBatch?.transport_id ? Number(currentBatch.transport_id) : null),
             driver_id: currentDispatch.driver_id ? Number(currentDispatch.driver_id) : (currentBatch?.driver_id ? Number(currentBatch.driver_id) : null),
@@ -243,7 +244,7 @@ console.log(currentBatch,'batch');
         dispatch_no: '',
         dispatch_reference: '',
         dispatch_time: entityCalendarDate(),
-        delivered_qty: Number(currentBatch?.batch_size || 0),
+        delivered_qty: null,
         truck_id: truckId,
         transport_id: transportId,
         driver_id: driverId,
@@ -341,9 +342,19 @@ const isCancelled = computed(() => {
 
 const isReadOnly = computed(() => {
     if (isCancelled.value) return true;
-    if (props.dispatch?.status?.invoice_status === 1) return true;
+    if (props.dispatch?.status?.invoice_status === 1 || props.dispatch?.status?.invoice_id) return true;
+    if (props.dispatch?.dispatch_status && props.dispatch.dispatch_status !== 'Draft') return true;
     return false;
 });
+
+const quantityCorrection = useForm<{ delivered_qty: number | null }>({ delivered_qty: null });
+const saveDeliveredQuantity = () => {
+    quantityCorrection.delivered_qty = form.delivered_qty;
+    quantityCorrection.patch(route('dispatches.delivered-quantity', form.id), {
+        preserveScroll: true,
+        onSuccess: () => props.onSaved?.({ batchId: props.batch.id, type: 'dispatch' }),
+    });
+};
 
 const showInvoiceSection = computed(() => {
     if (!props.dispatch || !props.dispatch.id) return false;
@@ -403,7 +414,8 @@ watch(() => form.driver_id, (newDriverId) => {
 });
 
 const displayUnits = computed(() => {
-    return form.batch_size;
+    return props.settings?.invoice_quantity_basis === 'delivered_qty'
+        ? Number(form.delivered_qty ?? form.batch_size ?? 0) : Number(form.batch_size || 0);
 });
 
 const pumpRate = computed(() => Number(props.salesOrder?.pump_rate || props.batch?.pump_rate || 0));
@@ -414,6 +426,8 @@ const discountBeforeTax = computed(() => (isReadOnly.value
 
 watch([
     () => form.batch_size, 
+    () => form.delivered_qty,
+    () => props.settings?.invoice_quantity_basis,
     () => form.financials.load_rate, 
     () => form.financials.load_tax_id, 
     () => form.status.is_tax_inclusive, 
@@ -438,8 +452,7 @@ watch([
         form.financials.load_tax_id = baseTaxId.value;
     }
 
-    const units = Number(form.batch_size || 0);
-    form.delivered_qty = units;
+    const units = displayUnits.value;
     form.financials.load_units = units;
 
     // Calculate amounts
@@ -851,6 +864,11 @@ const handleDeleteInvoice = () => {
                 :isReadOnly="isReadOnly"
                 :showInvoiceSection="showInvoiceSection"
                 :generatingEInvoice="generatingEInvoice"
+                :canCorrectDeliveredQuantity="hasEditBypass"
+                :savingDeliveredQuantity="quantityCorrection.processing"
+                :deliveredQuantityErrors="quantityCorrection.errors"
+                :invoiceQuantityBasis="settings?.invoice_quantity_basis"
+                @saveDeliveredQuantity="saveDeliveredQuantity"
                 @submit="submit"
                 @roundOffChanged="roundOffManuallySet = true"
                 @generateInvoice="handleGenerateInvoice"
