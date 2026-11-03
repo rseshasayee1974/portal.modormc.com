@@ -1895,7 +1895,8 @@ class PrintDataFormatter
         }
 
         $data['totals'] = [
-            'sub_total'   => (float) ($dispatch?->load_untax_amount ?? 0),
+            'sub_total'   => (float) ($dispatch?->load_untax_amount ?? 0)
+                + ($dispatch?->discount_tax_mode === 'before_tax' ? (float) $dispatch->discount_amount : 0),
             'discount'    => (float) ($dispatch?->discount_amount ?? 0),
             'tax_lines'   => $taxLines,
             'shipping'    => (float) ($dispatch?->transport_expenses ?? 0),

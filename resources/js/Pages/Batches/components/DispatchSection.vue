@@ -409,6 +409,8 @@ const displayUnits = computed(() => {
 const pumpRate = computed(() => Number(props.salesOrder?.pump_rate || props.batch?.pump_rate || 0));
 const baseRate = computed(() => Number(props.salesOrder?.rate || props.batch?.rate || 0));
 const baseTaxId = computed(() => props.salesOrder?.tax_id || props.batch?.tax_id || null);
+const discountBeforeTax = computed(() => (isReadOnly.value
+    ? props.dispatch?.discount_tax_mode : props.settings?.dispatch_discount_tax_mode) === 'before_tax');
 
 watch([
     () => form.batch_size, 
@@ -417,6 +419,7 @@ watch([
     () => form.status.is_tax_inclusive, 
     () => form.pump_charge_with_tax, 
     () => form.financials.discount_amount, 
+    () => discountBeforeTax.value,
     () => form.financials.pass_amount, 
     () => form.financials.round_off, 
     () => form.financials.adjustment_amount, 
@@ -426,6 +429,7 @@ watch([
     () => baseTaxId.value,
     () => props.dropdownData.taxes
 ], () => {
+    if (isReadOnly.value) return;
     if ((form.financials.load_rate === null || form.financials.load_rate === undefined || form.financials.load_rate === 0) && baseRate.value) {
         form.financials.load_rate = baseRate.value;
     }
@@ -483,11 +487,26 @@ watch([
         pumpTax = 0;
     }
 
+    const discount = Number(form.financials.discount_amount || 0);
+    if (discountBeforeTax.value) {
+        const subtotal = roundMoney(materialUntax + pumpUntax);
+        const appliedDiscount = Math.min(Math.max(discount, 0), Math.max(subtotal, 0));
+        const materialDiscount = subtotal > 0 ? roundMoney(appliedDiscount * materialUntax / subtotal) : 0;
+        materialUntax = roundMoney(materialUntax - materialDiscount);
+        pumpUntax = roundMoney(pumpUntax - (appliedDiscount - materialDiscount));
+        materialTax = componentTax(materialUntax);
+        pumpTax = pumpWithTax ? componentTax(pumpUntax) : 0;
+        if (discount < 0 || discount > subtotal) {
+            form.setError('financials.discount_amount', 'Discount must be between zero and the subtotal before tax.');
+        } else {
+            form.clearErrors('financials.discount_amount');
+        }
+    }
     const totalUntax = materialUntax + pumpUntax;
     const totalTax = materialTax + pumpTax;
 
     const adjustments =
-        - Number(form.financials.discount_amount || 0)
+        - (discountBeforeTax.value ? 0 : discount)
         + Number(form.financials.pass_amount || 0)
         + Number(form.financials.adjustment_amount || 0)
         + Number(form.financials.transport_expenses || 0);
@@ -496,7 +515,7 @@ watch([
         roundMoney(units * loadRate) + (pumpWithTax ? roundMoney(pumpCharge) : pumpUntax) + adjustments
     );
     if (!roundOffManuallySet.value) {
-        form.financials.round_off = roundMoney((isInclusive ? inclusiveTotal : Math.round(rawTotal)) - rawTotal);
+        form.financials.round_off = roundMoney((isInclusive && !discountBeforeTax.value ? inclusiveTotal : Math.round(rawTotal)) - rawTotal);
     }
 
     form.financials.load_untax_amount = Number(totalUntax.toFixed(2));
@@ -887,7 +906,7 @@ const handleDeleteInvoice = () => {
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-1.5">
-                                        <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Gross Amount</span>
+                                        <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">{{ discountBeforeTax ? 'Subtotal after discount' : 'Gross Amount' }}</span>
                                         <span v-if="form.status?.is_tax_inclusive" class="text-[9px] font-bold text-emerald-600 uppercase bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">Inc.</span>
                                     </div>
                                     <span class="text-xs font-black text-slate-700">₹ {{ form.financials.load_untax_amount.toLocaleString(APP_LOCALE, {minimumFractionDigits: 2}) }}</span>
@@ -901,7 +920,7 @@ const handleDeleteInvoice = () => {
                                 <!-- Adjustments -->
                                 <div class="pt-2 space-y-2">
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.discount_amount" -->
-                                        <span class="text-[10px] font-bold uppercase tracking-widest text-rose-400">Discount</span>
+                                        <span class="text-[10px] font-bold uppercase tracking-widest text-rose-400">{{ discountBeforeTax ? 'Discount (included above)' : 'Discount' }}</span>
                                         <span class="text-xs font-bold text-rose-500">- ₹ {{ Number(form.financials.discount_amount || 0).toFixed(2) }}</span>
                                     </div>
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.pump_charges" -->

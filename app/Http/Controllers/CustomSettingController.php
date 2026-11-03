@@ -88,6 +88,7 @@ class CustomSettingController extends Controller
             'settings.invoice_number_start' => ['sometimes', 'integer', 'min:1', 'max:9999999999'],
             'settings.billing_number_start' => ['sometimes', 'integer', 'min:1', 'max:9999999999'],
             'settings.batch_creation_source' => ['sometimes', 'in:sales_order,batch_schedule,both'],
+            'settings.dispatch_discount_tax_mode' => ['sometimes', 'in:before_tax,after_tax'],
             'settings.batch_sheet_driver' => ['sometimes', 'nullable', 'string', \Illuminate\Validation\Rule::in(
                 array_keys(app(\App\Services\BatchSheet\Drivers\PlantDriverRegistry::class)->getDrivers())
             )],
@@ -115,7 +116,7 @@ class CustomSettingController extends Controller
             ->first();
 
         if ($module === 'batching') {
-            foreach (['batch_series_enabled', 'default_batch_series'] as $key) {
+            foreach (['batch_series_enabled', 'default_batch_series', 'dispatch_discount_tax_mode'] as $key) {
                 if (!array_key_exists($key, $settings) && array_key_exists($key, $customSetting?->settings ?? [])) {
                     $settings[$key] = $customSetting->settings[$key];
                 }

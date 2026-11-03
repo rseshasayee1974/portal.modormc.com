@@ -113,7 +113,7 @@ class Dispatch extends Model
 
     public function getIsTaxInclusiveAttribute(): bool
     {
-        return (bool) ($this->status?->is_tax_inclusive ?? false);
+        return (bool) ($this->getRelationValue('status')?->is_tax_inclusive ?? false);
     }
 
     public function getDispatchDateAttribute()
@@ -169,8 +169,8 @@ class Dispatch extends Model
             'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id ?? $this->salesOrder?->mixDesign?->unit_id,
             'unit_price' => (float) $this->load_rate,
             'discount_type' => '₹',
-            'discount_amount' => 0,
-            'total_discount' => 0,
+            'discount_amount' => $this->discount_tax_mode === 'before_tax' ? (float) $this->discount_amount : 0,
+            'total_discount' => $this->discount_tax_mode === 'before_tax' ? (float) $this->discount_amount : 0,
             'price_subtotal' => (float) $this->load_untax_amount,
             'price_tax' => (float) $this->load_tax_amount,
             'price_total' => (float) ($this->load_untax_amount + $this->load_tax_amount),

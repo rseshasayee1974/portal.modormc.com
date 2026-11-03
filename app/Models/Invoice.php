@@ -932,6 +932,11 @@ class Invoice extends Model implements Postable
 
             $subtotal = $type === 'bill' ? ($subtotalSum - $source->discount_amount) : (float)($source->amount_untaxed ?? $subtotalSum);
             $discountTotal = $type === 'bill' ? ($discountSum + $source->discount_amount) : (float)($source->discount_amount ?? 0);
+            $dispatchDiscountBeforeTax = $source instanceof Dispatch && $source->discount_tax_mode === 'before_tax';
+            if ($dispatchDiscountBeforeTax) {
+                // The discount is already included in the dispatch line's net subtotal.
+                $discountTotal = 0;
+            }
             $taxAmount = $type === 'bill' ? $taxSum : (float)($source->amount_tax ?? $taxSum);
 
             $adjustment = (float)($source->adjustment ?? 0);
@@ -943,6 +948,7 @@ class Invoice extends Model implements Postable
             } else {
                 $roundOff = (float) ($source->rounding_value ?? $source->round_off ?? 0);
                 $pumpCharges = (float) ($source->pump_charges ?? 0);
+                if ($dispatchDiscountBeforeTax) $pumpCharges = 0; // Already included in the dispatch subtotal.
                 $passAmount = (float) ($source->pass_amount ?? 0);
 
                 $sourceTotal = (float)($source->amount_total ?? $source->total_amount ?? 0);

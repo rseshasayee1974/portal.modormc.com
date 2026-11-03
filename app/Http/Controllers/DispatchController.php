@@ -86,6 +86,10 @@ class DispatchController extends Controller
                 }
 
                 $dispatchData['plant_id'] = session('active_plant_id');
+                $dispatchData['discount_tax_mode'] = \App\Models\CustomSetting::dispatchDiscountTaxMode($dispatchData['plant_id']);
+                if ($dispatchData['discount_tax_mode'] === 'before_tax') {
+                    $dispatchData = array_replace($dispatchData, \App\Services\DispatchDiscountCalculator::forDispatch($dispatchData, $isTaxInclusive));
+                }
 
                 $details = $this->getNextDispatchDetails($dispatchData['plant_id'], $dispatchData['customer_id'] ?? null, $dispatchData['batch_id'] ?? null);
                 $dispatchData['prefix'] = $details['prefix'];
@@ -219,6 +223,13 @@ class DispatchController extends Controller
             // }
 
             // 2. Update Main Dispatch Record
+            $dispatchData['discount_tax_mode'] = \App\Models\CustomSetting::dispatchDiscountTaxMode($dispatch->plant_id);
+            if ($dispatchData['discount_tax_mode'] === 'before_tax') {
+                $calculationData = array_replace($dispatch->getAttributes(), $dispatchData);
+                $calculationData['delivered_qty'] = $dispatchData['delivered_qty'] ?? $dispatch->delivered_qty;
+                $inclusive = $isTaxInclusive ?? (bool) $dispatch->status()->value('is_tax_inclusive');
+                $dispatchData = array_replace($dispatchData, \App\Services\DispatchDiscountCalculator::forDispatch($calculationData, $inclusive));
+            }
             $dispatch->update($dispatchData);
             Log::info("Dispatch updated successfully: ".$dispatch);
 

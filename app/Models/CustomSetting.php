@@ -60,6 +60,12 @@ class CustomSetting extends Model
         return in_array($source, ['sales_order', 'batch_schedule', 'both'], true) ? $source : 'sales_order';
     }
 
+    public static function dispatchDiscountTaxMode($plantId): string
+    {
+        return (self::getForModule($plantId, 'batching')['dispatch_discount_tax_mode'] ?? 'after_tax') === 'before_tax'
+            ? 'before_tax' : 'after_tax';
+    }
+
     /**
      * Maximum absolute variation allowed for generated actual consumption totals.
      */

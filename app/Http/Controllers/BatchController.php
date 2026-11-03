@@ -926,6 +926,7 @@ class BatchController extends Controller
                     'd.load_total_amount',
                     'd.pass_amount',
                     'd.discount_amount',
+                    'd.discount_tax_mode',
                     'd.transport_expenses',
                     'd.adjustment_amount',
                     'd.round_off',
@@ -1039,6 +1040,7 @@ class BatchController extends Controller
                 'load_total_amount' => (float)$d->load_total_amount,
                 'pass_amount' => (float)($d->pass_amount ?? 0),
                 'discount_amount' => (float)($d->discount_amount ?? 0),
+                'discount_tax_mode' => $d->discount_tax_mode ?? 'after_tax',
                 'transport_expenses' => (float)($d->transport_expenses ?? 0),
                 'adjustment_amount' => (float)($d->adjustment_amount ?? 0),
                 'round_off' => (float)($d->round_off ?? 0),
@@ -1357,7 +1359,7 @@ class BatchController extends Controller
                 foreach ($batchDispatches as $dispatch) {
                     $loadRate = (float)($dispatch->load_rate > 0 ? $dispatch->load_rate : ($batch->rate ?? $batch->salesOrder?->rate ?? 0));
                     $taxId = $dispatch->load_tax_id ?? $batch->tax_id ?? $batch->salesOrder?->tax_id ?? null;
-                    $isTaxInclusive = (bool)($dispatch->status?->is_tax_inclusive ?? $batch->salesOrder?->is_tax_inclusive ?? false);
+                    $isTaxInclusive = (bool)($dispatch->status()->value('is_tax_inclusive') ?? $batch->salesOrder?->is_tax_inclusive ?? false);
 
                     $grossTotal = $newBatchSize * $loadRate;
                     $loadUntaxAmount = $grossTotal;
@@ -1375,6 +1377,15 @@ class BatchController extends Controller
                         }
                     }
                     $loadTotalAmount = $isTaxInclusive ? $grossTotal : ($loadUntaxAmount + $loadTaxAmount);
+
+                    if ($dispatch->discount_tax_mode === 'before_tax') {
+                        $amounts = \App\Services\DispatchDiscountCalculator::forDispatch(array_replace($dispatch->getAttributes(), [
+                            'delivered_qty' => $newBatchSize, 'load_rate' => $loadRate, 'load_tax_id' => $taxId,
+                        ]), $isTaxInclusive);
+                        $loadUntaxAmount = $amounts['load_untax_amount'];
+                        $loadTaxAmount = $amounts['load_tax_amount'];
+                        $loadTotalAmount = $amounts['load_total_amount'];
+                    }
 
                     $dispatch->update([
                         'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
@@ -1747,7 +1758,7 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,concrete_grade_id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,discount_tax_mode,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
@@ -1784,7 +1795,7 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,concrete_grade_id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,discount_tax_mode,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
