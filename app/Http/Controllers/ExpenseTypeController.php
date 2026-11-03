@@ -2,9 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Expense;
 use App\Models\ExpenseType;
 use App\Models\Ledger;
+use App\Services\PlantContextService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
@@ -16,14 +21,14 @@ class ExpenseTypeController extends Controller
     public function index()
     {
         $this->authorizeModule('menu');
-        $plantId = session('active_plant_id');
+        $plantId = app(PlantContextService::class)->requirePlantId();
 
         return Inertia::render('Expenses/Types/Index', [
             'expenseTypes' => ExpenseType::with('ledger')
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
-            'ledgers' => Ledger::select('id', 'name', 'code')->get(),
+            'ledgers' => Ledger::where('plant_id', $plantId)->orderBy('title')->get(['id', 'title', 'code']),
         ]);
     }
 
@@ -31,14 +36,9 @@ class ExpenseTypeController extends Controller
     {
         $this->authorizeModule('create');
 
-        $validated = $request->validate([
-            'name'      => 'required|string|max:250',
-            'ledger_id' => 'nullable|exists:mm_ledgers,id',
-        ]);
-
-        $validated['plant_id'] = session('active_plant_id', 1);
-
-        ExpenseType::create($validated);
+        $plantId = app(PlantContextService::class)->requirePlantId();
+        $validated = $this->validatedType($request, $plantId);
+        DB::transaction(fn () => ExpenseType::create($validated + ['plant_id' => $plantId]), attempts: 3);
 
         return redirect()->back()->with('success', 'Expense type created.');
     }
@@ -47,13 +47,12 @@ class ExpenseTypeController extends Controller
     {
         $this->authorizeModule('edit');
 
-        $validated = $request->validate([
-            'name'      => 'required|string|max:250',
-            'ledger_id' => 'nullable|exists:mm_ledgers,id',
-            'status'    => 'boolean',
-        ]);
-
-        $expenseType->update($validated);
+        $plantId = app(PlantContextService::class)->requirePlantId();
+        abort_unless((int) $expenseType->plant_id === $plantId, 404);
+        $validated = $this->validatedType($request, $plantId);
+        DB::transaction(function () use ($expenseType, $validated) {
+            ExpenseType::query()->lockForUpdate()->findOrFail($expenseType->id)->update($validated);
+        }, attempts: 3);
 
         return redirect()->back()->with('success', 'Expense type updated.');
     }
@@ -61,7 +60,23 @@ class ExpenseTypeController extends Controller
     public function destroy(ExpenseType $expenseType)
     {
         $this->authorizeModule('delete');
-        $expenseType->delete();
+        abort_unless((int) $expenseType->plant_id === app(PlantContextService::class)->requirePlantId(), 404);
+        DB::transaction(function () use ($expenseType) {
+            $record = ExpenseType::query()->lockForUpdate()->findOrFail($expenseType->id);
+            if (Expense::withTrashed()->where('expense_type_id', $record->id)->exists()) {
+                throw ValidationException::withMessages(['expense_type' => 'This category is used by expenses. Set it to inactive instead.']);
+            }
+            $record->delete();
+        }, attempts: 3);
         return redirect()->back()->with('success', 'Expense type deleted.');
+    }
+
+    private function validatedType(Request $request, int $plantId): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:250'],
+            'ledger_id' => ['nullable', 'integer', Rule::exists('mm_ledgers', 'id')->where('plant_id', $plantId)->withoutTrashed()],
+            'status' => ['sometimes', 'boolean'],
+        ]);
     }
 }

@@ -5,6 +5,7 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import BaseButton from '@/Components/Base/BaseButton.vue';
 import { 
     ScaleIcon, 
     BanknotesIcon, 
@@ -319,15 +320,15 @@ console.log('jkghkjgk', props.modelValue);
                                 @update:modelValue="emit('update:modelValue', modelValue)"
                             />
                         </div>
-                        <div class="md:col-span-12 lg:col-span-1">
-                            <button 
+                        <div class="md:col-span-12 lg:col-span-2">
+                            <BaseButton
                                 type="button"
+                                label="Generate"
+                                size="small"
                                 @click="handleGenerateInvoice"
                                 :disabled="isReadOnly"
-                                class="w-full lg:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all text-white text-xs font-semibold tracking-wider rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            >
-                                <span>Generate</span>
-                            </button>
+                                class="w-full"
+                            />
                         </div>
                     </div>
                 </div>

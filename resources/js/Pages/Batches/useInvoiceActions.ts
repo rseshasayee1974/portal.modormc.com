@@ -1,5 +1,6 @@
 import { entityToday } from '@/Utils/entityDateTime';
-import { router } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useEInvoiceGeneration } from '@/Composables/useEInvoiceGeneration';
@@ -8,7 +9,7 @@ import { useEInvoiceGeneration } from '@/Composables/useEInvoiceGeneration';
  * Composable – useInvoiceActions
  *
  * Handles all invoice-related actions inside the Batches module:
- *  - generateInvoiceDirect  : Show Swal form → POST to create invoice
+ *  - generateInvoiceDirect  : Open the invoice form and submit it
  *  - printInvoiceDirect     : Open invoice in a new tab (view)
  *  - printOriginalInvoiceDirect     : Open invoice in a new tab (view original)
  *  - printDuplicateInvoiceDirect    : Open invoice in a new tab (view duplicate)
@@ -18,98 +19,63 @@ import { useEInvoiceGeneration } from '@/Composables/useEInvoiceGeneration';
  *  - sendWhatsAppDirect     : Submit dispatch details through Tendigit
  */
 export function useInvoiceActions(
-    props: { sales_ledgers: { label: string; value: any }[] },
     onInvoiceChange?: (batchId: number) => void
 ) {
 
     // ── Generate Invoice ─────────────────────────────────────────────────────
+    const invoiceDialogVisible = ref(false);
+    const invoiceError = ref('');
+    const invoiceDispatch = ref<any>(null);
+    const invoiceForm = useForm({
+        ledger_id: null as number | string | null,
+        invoice_date: '',
+        invoice_number: '',
+        notes: '',
+    });
+
     const generateInvoiceDirect = (dispatch: any) => {
-        if (!dispatch || !dispatch.id) return;
+        if (!dispatch?.id || invoiceForm.processing) return;
+        invoiceDispatch.value = dispatch;
+        invoiceForm.reset();
+        invoiceForm.clearErrors();
+        invoiceError.value = '';
+        invoiceForm.invoice_date = entityToday();
+        invoiceDialogVisible.value = true;
+    };
 
-        const ledgersOptionsHtml = props.sales_ledgers
-            .map(l => `<option value="${l.value}">${l.label}</option>`)
-            .join('');
-        const defaultDate = entityToday();
+    const submitInvoice = () => {
+        const dispatch = invoiceDispatch.value;
+        if (!dispatch || invoiceForm.processing) return;
 
-        Swal.fire({
-            title: 'Generate Invoice',
-            html: `
-                <div class="text-left space-y-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sales Ledger</label>
-                        <select id="swal-ledger-id" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                            <option value="">Select ...</option>
-                            ${ledgersOptionsHtml}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Invoice Date</label>
-                        <input id="swal-invoice-date" type="date" value="${defaultDate}" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Invoice Number</label>
-                        <input id="swal-invoice-number" type="text" placeholder="e.g. 101 (Prefix added automatically)" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes</label>
-                        <textarea id="swal-notes" rows="2" placeholder="Enter invoice notes..." class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white"></textarea>
-                    </div>
-                </div>
-            `,
-            focusConfirm: false,
-            showCancelButton: true,
-            confirmButtonText: 'Generate',
-            confirmButtonColor: '#4f46e5',
-            preConfirm: () => {
-                const ledgerId = (document.getElementById('swal-ledger-id') as HTMLSelectElement).value;
-                const invoiceDate = (document.getElementById('swal-invoice-date') as HTMLInputElement).value;
-                const invoiceNumber = (document.getElementById('swal-invoice-number') as HTMLInputElement).value;
-                const notes = (document.getElementById('swal-notes') as HTMLTextAreaElement).value;
-                if (!ledgerId) {
-                    Swal.showValidationMessage('Please select a Sales Ledger');
-                    return false;
-                }
-                if (!invoiceDate) {
-                    Swal.showValidationMessage('Please select an Invoice Date');
-                    return false;
-                }
-                return { ledgerId, invoiceDate, invoiceNumber, notes };
+        invoiceForm.clearErrors();
+        invoiceError.value = '';
+        if (!invoiceForm.ledger_id) invoiceForm.setError('ledger_id', 'Select a sales ledger.');
+        if (!invoiceForm.invoice_date) invoiceForm.setError('invoice_date', 'Select an invoice date.');
+        if (invoiceForm.hasErrors) return;
+
+        invoiceForm.post(route('dispatches.generate-invoice', dispatch.id), {
+            preserveScroll: true,
+            onError: (errors) => {
+                invoiceError.value = Object.entries(errors)
+                    .find(([field]) => !Object.hasOwn(invoiceForm.data(), field))?.[1] ?? '';
             },
-        }).then((result) => {
-            if (result.isConfirmed && result.value) {
-                router.post(
-                    route('dispatches.generate-invoice', dispatch.id),
-                    {
-                        ledger_id: result.value.ledgerId,
-                        invoice_date: result.value.invoiceDate,
-                        invoice_number: result.value.invoiceNumber,
-                        notes: result.value.notes,
-                    },
-                    {
-                        preserveScroll: true,
-                        onSuccess: () => {
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'success',
-                                title: 'Invoice generated successfully.',
-                                showConfirmButton: false,
-                                timer: 2000,
-                            });
-                            if (onInvoiceChange) onInvoiceChange(dispatch.batch_id);
-                        },
-                        onError: (errors: any) => {
-                            const errorMsg = errors.invoice_number || errors.error || Object.values(errors)[0] || 'Failed to generate invoice.';
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Invoice Generation Failed',
-                                text: String(errorMsg),
-                                confirmButtonColor: '#d33',
-                            });
-                        },
-                    }
-                );
-            }
+            onSuccess: (page) => {
+                const flash = page.props.flash as { error?: string } | undefined;
+                if (flash?.error) {
+                    invoiceError.value = flash.error;
+                    return;
+                }
+                invoiceDialogVisible.value = false;
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Invoice generated successfully.',
+                    showConfirmButton: false,
+                    timer: 2000,
+                });
+                onInvoiceChange?.(dispatch.batch_id);
+            },
         });
     };
 
@@ -444,6 +410,10 @@ export function useInvoiceActions(
     // ── Public API ───────────────────────────────────────────────────────────
     return {
         generateInvoiceDirect,
+        invoiceDialogVisible,
+        invoiceError,
+        invoiceForm,
+        submitInvoice,
         generateEInvoiceDirect,
         generatingEInvoice,
         generateEwayBillDirect,

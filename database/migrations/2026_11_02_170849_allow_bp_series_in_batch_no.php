@@ -25,7 +25,7 @@ return new class extends Migration
         if ($hasActiveNumber) {
             Schema::table('mm_batches', function (Blueprint $table) {
                 $table->string('active_batch_no', 40)->nullable()
-                    ->virtualAs('CASE WHEN deleted_at IS NULL THEN batch_no ELSE NULL END');
+                    ->storedAs('CASE WHEN deleted_at IS NULL THEN batch_no ELSE NULL END');
                 $table->unique(['plant_id', 'active_batch_no'], 'mm_batches_plant_active_batch_no_unique');
             });
         }

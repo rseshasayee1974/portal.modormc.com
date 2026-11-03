@@ -552,8 +552,9 @@ Route::middleware([
             Route::post('/convert', 'convert')->name('convert');
         });
 
-        Route::resource('expensetypes', ExpenseTypeController::class)->except(['create', 'edit', 'show']);
-        Route::resource('expenses', ExpenseController::class)->only(['index', 'store', 'destroy']);
+        Route::resource('expensetypes', ExpenseTypeController::class)
+            ->parameters(['expensetypes' => 'expense_type'])->except(['create', 'edit', 'show']);
+        Route::resource('expenses', ExpenseController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::resource('discounts', AccountDiscountController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
 
         Route::resource('pettycash', PettyCashController::class)->except(['create', 'edit', 'show']);

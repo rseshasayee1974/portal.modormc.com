@@ -57,7 +57,7 @@ body { margin: 0; background: #e5e5e5; font-family: "Times New Roman", Times, se
 table.batch { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 4px; font-size: 8.4pt; }
 table.batch th, table.batch td { padding: 1px 2px; text-align: center; overflow-wrap: anywhere; }
 table.batch thead .group th { font-size: 9pt; text-align: center; padding-bottom: 3px; }
-table.batch thead .heads th { font-weight: normal; white-space: nowrap; }
+table.batch thead .heads th { font-weight: normal; white-space: pre-wrap; }
 table.batch td { font-variant-numeric: tabular-nums; }
 table.batch .label td { text-align: left; font-size: 9.2pt; padding-top: 2px; }
 table.batch .rule td { padding: 0; height: 2px; border-top: 1px solid black; }

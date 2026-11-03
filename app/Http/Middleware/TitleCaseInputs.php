@@ -39,6 +39,7 @@ class TitleCaseInputs
         'email_address',
         'username',
         'slug',
+        'alias',
         'url',
         'redirect',
         'redirect_url',

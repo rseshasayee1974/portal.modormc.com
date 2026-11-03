@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Accounts;
+use App\Models\Entity;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Http\Controllers\Concerns\GeneratesAccountingCode;
@@ -60,26 +63,33 @@ class AccountsController extends Controller
             'code'  => ['nullable', 'string', 'max:50'],
         ]);
 
-        $category = strtoupper($validated['title']); // Main accounts are categories themselves
-        
-        // Automated Code Generation if not provided
-        $code = $validated['code'] ?? $this->generateNextCode($category, 'accounts');
-
-        // Validation against ranges
-        if (!$this->validateCodeRange($code, $category)) {
-            return response()->json([
-                'errors' => ['code' => ["The code '$code' is out of range for $category category."]]
-            ], 422);
+        $category = strtoupper(trim($validated['title']));
+        if (!isset($this->ranges[$category])) {
+            throw ValidationException::withMessages(['title' => 'Select a valid account category.']);
         }
+        $entityId = $this->activeEntityId();
+        abort_unless($entityId, 403, 'Select an active entity.');
 
-        $account = Accounts::create([
-            'entity_id'  => $this->activeEntityId(),
-            'code'       => $code,
-            'title'      => $validated['title'],
-            'status'     => 1,
-            'created_by' => Auth::id(),
-            'created'    => now(),
-        ]);
+        $account = DB::transaction(function () use ($entityId, $category, $validated) {
+            Entity::query()->select('id')->lockForUpdate()->findOrFail($entityId);
+            $code = $validated['code'] ?? $this->generateNextCode($category, 'accounts');
+
+            if (!$this->validateCodeRange($code, $category)) {
+                throw ValidationException::withMessages(['code' => "The code '$code' is out of range for $category category."]);
+            }
+            if (Accounts::where('entity_id', $entityId)->where('code', $code)->exists()) {
+                throw ValidationException::withMessages(['code' => "The code '$code' is already in use."]);
+            }
+
+            return Accounts::create([
+                'entity_id'  => $entityId,
+                'code'       => $code,
+                'title'      => $validated['title'],
+                'status'     => 1,
+                'created_by' => Auth::id(),
+                'created'    => now(),
+            ]);
+        }, attempts: 3);
 
         return response()->json([
             'message' => 'Account created successfully!',

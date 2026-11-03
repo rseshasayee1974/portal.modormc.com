@@ -138,8 +138,6 @@ class ProductController extends Controller
             'conversion_quantity' => 'nullable|numeric|min:0',
         ]);
         $validated['title'] = mb_strtoupper(trim($validated['title']), 'UTF-8');
-        $validated['alias'] = isset($validated['alias']) && $validated['alias'] !== null
-            ? mb_strtoupper(trim($validated['alias']), 'UTF-8') : null;
 
         Product::create(array_merge($validated, [
             'plant_id' => $plantId,
@@ -183,8 +181,6 @@ public function update(Request $request, Product $product)
         'conversion_quantity' => 'nullable|numeric|min:0',
     ]);
     $validated['title'] = mb_strtoupper(trim($validated['title']), 'UTF-8');
-    $validated['alias'] = isset($validated['alias']) && $validated['alias'] !== null
-        ? mb_strtoupper(trim($validated['alias']), 'UTF-8') : null;
 
     // 2. Check for Restricted Fields when Active Mix Design/Batch exists
     if ($product->isRestrictedFromModification()) {
