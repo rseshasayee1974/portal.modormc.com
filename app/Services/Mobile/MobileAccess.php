@@ -207,9 +207,12 @@ class MobileAccess
 
     public static function isCommercialAdministrator(): bool
     {
+        $role = request()->attributes->get('mobile_role');
+
         return request()->attributes->get('mobile_app_context') && (
             request()->user()?->hasFullAccess()
-            || (request()->attributes->get('mobile_role')?->grantsFullAccess() ?? false)
+            || $role?->grantsFullAccess()
+            || strtoupper(trim((string) $role?->code)) === 'ADMINISTRATOR'
         );
     }
 
