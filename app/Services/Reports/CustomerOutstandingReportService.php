@@ -555,11 +555,20 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
         // 5. Fetch transactions within period
         $periodInvoices = (clone $invQuery)
+            ->with(['items.mixDesign.concreteGrade', 'items.uom'])
             ->when($startDateOnly, fn($q) => $q->whereDate('invoice_date', '>=', $startDateOnly))
             ->when($endDateOnly, fn($q) => $q->whereDate('invoice_date', '<=', $endDateOnly))
             ->orderBy('invoice_date', 'asc')
             ->orderBy('id', 'asc')
             ->get();
+
+        $dispatchIds = $periodInvoices->filter(fn ($invoice) => strtolower((string) $invoice->invoice_label) === 'dispatch')
+            ->pluck('ref_id')->filter()->values();
+        $statementDispatches = \App\Models\Dispatch::query()
+            ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
+            ->where(fn ($query) => $query->whereIn('id', $dispatchIds)
+                ->orWhereHas('status', fn ($status) => $status->whereIn('invoice_id', $periodInvoices->pluck('id'))))
+            ->with(['truck', 'batch', 'status'])->get();
 
         $periodPayments = (clone $pmtQuery)
             ->when($startDateOnly, fn($q) => $q->where('transaction_date', '>=', $startDateOnly))
@@ -635,8 +644,44 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $voucherType = $isNote ? strtoupper($inv->invoice_type) : ($isBill ? 'BILL' : 'INVOICE');
             $invNum   = $inv->full_number ?: ('INV-' . $inv->id);
             $details  = $invNum;
+            $detailLines = [['text' => $invNum, 'bold' => false]];
+            if (!$isBill && !$isNote) {
+                $descriptions = $inv->items->map(function ($item) {
+                    // Prefer the description saved when the dispatch was invoiced.
+                    $name = trim((string) $item->item_name)
+                        ?: (trim((string) $item->mixDesign?->design_name)
+                            ?: (trim((string) $item->mixDesign?->concreteGrade?->name)
+                                ?: trim((string) $item->mixDesign?->grade)));
+                    return [
+                        'name' => $name,
+                        'metadata' => 'UOM: ' . ($item->uom?->unit_code ?: ($item->uom?->unit_name ?: '-'))
+                            . ' | Unit price: ' . ($item->price_unit !== null ? '₹ ' . number_format((float) $item->price_unit, 2) : '-'),
+                    ];
+                })->unique(fn ($description) => json_encode($description))->values();
+                if ($descriptions->isNotEmpty()) {
+                    foreach ($descriptions as $description) {
+                        if ($description['name'] !== '') {
+                            $productName = '[' . $description['name'] . ']';
+                            $details .= "\n" . $productName;
+                            $detailLines[] = ['text' => $productName, 'bold' => true];
+                        }
+                        $details .= "\n" . $description['metadata'];
+                        $detailLines[] = ['text' => $description['metadata'], 'bold' => false];
+                    }
+                }
+                $dispatches = $statementDispatches->filter(fn ($dispatch) =>
+                    (int) $dispatch->getRelation('status')?->invoice_id === (int) $inv->id
+                    || (strtolower((string) $inv->invoice_label) === 'dispatch' && (string) $dispatch->id === (string) $inv->ref_id));
+                foreach ($dispatches as $dispatch) {
+                    $dispatchDetails = 'Truck: ' . ($dispatch->truck?->registration ?: '-')
+                        . ' | Batch No: ' . ($dispatch->batch?->batch_no ?? '-');
+                    $details .= "\n" . $dispatchDetails;
+                    $detailLines[] = ['text' => $dispatchDetails, 'bold' => false];
+                }
+            }
             if (!empty($inv->remarks)) {
                 $details .= "\n" . $inv->remarks;
+                $detailLines[] = ['text' => $inv->remarks, 'bold' => false];
             }
 
             $items->push([
@@ -648,6 +693,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'transactions' => $label,
                 'narration'    => $label . ' ' . $invNum,
                 'details'      => $details,
+                'detail_lines' => $detailLines,
                 'type'         => $isNote ? $voucherType : ($isBill ? 'BILL' : 'INV'),
                 'voucher_type' => $voucherType,
                 'voucher_no'   => $invNum,
@@ -850,6 +896,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'transactions'            => $it['transactions'],
                 'narration'               => $it['narration'],
                 'details'                 => $it['details'],
+                'detail_lines'            => $it['detail_lines'] ?? null,
                 'type'                    => $it['type'],
                 'voucher_type'            => $it['voucher_type'],
                 'voucher_no'              => $it['voucher_no'],
