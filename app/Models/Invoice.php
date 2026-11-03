@@ -327,7 +327,8 @@ class Invoice extends Model implements Postable
             $moduleSettings = CustomSetting::getForModule($plantId, $module);
             $settings = array_replace($settings, $moduleSettings);
             if (in_array($settings[$module . '_number_format'] ?? 0, [1, '1', 'prefix_number_fy'], true)) {
-                $ledgerPrefix = trim((string) $ledger?->description, " \t\n\r\0\x0B/");
+                $ledgerPrefix = preg_replace('~/\{fy\}(?=/|$)|^\{fy\}/?~i', '', trim((string) $ledger?->description));
+                $ledgerPrefix = trim($ledgerPrefix, " \t\n\r\0\x0B/");
                 $prefix = $ledgerPrefix !== '' ? $ledgerPrefix . '/' : $defaultPrefix;
                 $suffix = $fy;
                 $padding = max(0, min(10, (int) ($settings[$module . '_number_padding'] ?? 0)));
@@ -338,12 +339,22 @@ class Invoice extends Model implements Postable
         // A series belongs to a plant and prefix, even when several ledgers use it.
         // Only non-deleted invoices reserve a number in the series.
         $highest = $startingNumber - 1;
-        $numbers = $requiresLedger ? collect() : self::numberSeries($plantId, $prefix)->pluck('invoice_number');
-        foreach ($numbers as $number) {
-            $sequence = self::sequenceValue((string)$number, $prefix, $suffix);
-            if ($sequence !== null) $highest = max($highest, $sequence);
+        $active = $deleted = [];
+        $numbers = $requiresLedger ? collect() : self::numberSeries($plantId, $prefix, includeDeleted: true)
+            ->get(['invoice_number', 'deleted_at']);
+        foreach ($numbers as $invoice) {
+            $sequence = self::sequenceValue((string) $invoice->invoice_number, $prefix, $suffix);
+            if ($sequence === null || $sequence < $startingNumber) continue;
+
+            if ($invoice->deleted_at === null) {
+                $active[$sequence] = true;
+                $highest = max($highest, $sequence);
+            } else {
+                $deleted[$sequence] = true;
+            }
         }
-        $next = $highest + 1;
+        $reusable = array_diff_key($deleted, $active);
+        $next = $reusable ? min(array_keys($reusable)) : $highest + 1;
         $nextNumber = str_pad((string)$next, $padding, '0', STR_PAD_LEFT) . ($suffix !== null ? '/' . $suffix : '');
 
         return [
@@ -380,10 +391,10 @@ class Invoice extends Model implements Postable
         return ctype_digit($number) ? str_pad((string) (int) $number, (int) ($details['number_padding'] ?? 0), '0', STR_PAD_LEFT) : $number;
     }
 
-    private static function numberSeries(int $plantId, string $prefix)
+    private static function numberSeries(int $plantId, string $prefix, bool $includeDeleted = false)
     {
         return self::withoutGlobalScopes()->where('plant_id', $plantId)
-            ->whereNull('deleted_at')
+            ->when(!$includeDeleted, fn ($query) => $query->whereNull('deleted_at'))
             ->where(function ($query) use ($prefix) {
                 $query->whereRaw('LOWER(prefix) = ?', [strtolower($prefix)])
                     ->orWhereRaw('LOWER(SUBSTR(invoice_number, 1, ?)) = ?', [strlen($prefix), strtolower($prefix)]);

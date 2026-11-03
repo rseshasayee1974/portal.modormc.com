@@ -40,10 +40,10 @@ class JayadhityaPlant2787BatchSheetTest extends TestCase
         $doc = new \DOMDocument;
         @$doc->loadHTML($html);
         $xpath = new \DOMXPath($doc);
-        $this->assertSame('806', $xpath->query('//tr[@data-row="actual"][1]/td[2]')->item(0)->textContent);
-        $this->assertSame('907', $xpath->query('//tr[@data-row="actual"][6]/td[2]')->item(0)->textContent);
-        $this->assertSame('5061', $xpath->query('//tr[@data-row="total-actual"]/td[2]')->item(0)->textContent);
-        $this->assertSame('5100', $xpath->query('//tr[@data-row="total-set"]/td[2]')->item(0)->textContent);
+        $this->assertSame('806', $xpath->query('//tr[@data-row="actual"][1]/td[1]')->item(0)->textContent);
+        $this->assertSame('907', $xpath->query('//tr[@data-row="actual"][6]/td[1]')->item(0)->textContent);
+        $this->assertSame('5061', $xpath->query('//tr[@data-row="total-actual"]/td[1]')->item(0)->textContent);
+        $this->assertSame('5100', $xpath->query('//tr[@data-row="total-set"]/td[1]')->item(0)->textContent);
     }
 
     public function test_unknown_cycles_remain_load_totals_and_extra_materials_are_not_lost(): void
@@ -51,10 +51,10 @@ class JayadhityaPlant2787BatchSheetTest extends TestCase
         $batch = JayadhityaPlant2787Fixture::batch();
         $batch->setRelation('materials', collect([(new \App\Models\BatchMaterial(['material_name' => 'SPECIAL FILLER', 'target_qty' => 15, 'actual_qty' => 16]))->setRelation('product', null)]));
         $report = JayadhityaPlant2787BatchSheet::data($batch);
-        $this->assertCount(1, $report['actual_cells']);
+        $this->assertCount(0, $report['actual_cells']);
         $this->assertTrue($report['inferred_runs']);
-        $this->assertSame(['SPECIAL FILLER', 'SPECIAL FILLER'], $report['slots'][16]);
-        $this->assertSame('16', $report['actual_cells'][0][16]);
+        $this->assertSame(['SPECIAL FILLER', 'SPECIAL FILLER'], $report['slots'][0]);
+        $this->assertSame('16', $report['total_cells'][0]);
         $html = view('pdfs.batches.batch_sheet', ['batch' => $batch])->render();
         $this->assertStringContainsString('Individual mixer-cycle readings are unavailable.', $html);
     }

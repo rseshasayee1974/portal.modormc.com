@@ -25,47 +25,43 @@ class JayadhityaPlant2787BatchSheet
     public static function data(Batch $batch): array
     {
         $report = JayadhityaBatchSheet::layoutData($batch);
-        $slots = [
-            ['AGG1', '20 M'], ['MSAND 1', 'MSAN'], [null, 'Moi'], ['12MM', '12 MM'], ['20MM', '20 MM'], ['Agg 6', '0'],
-            ['CEMENT 1', 'CEM1'], ['CEMENT 2', 'CEM2'], ['CEMENT 3', 'CEM3'], ['WATER', 'WATER'],
-            [null, ''], ['MS', '-'], ['Ice', ''], ['ADMIX 1', 'ADMIX1'], ['ADMIX 2', '-'], [null, ''],
-        ];
-        $groups = [['name' => 'Aggregate', 'span' => 6], ['name' => 'Cement', 'span' => 3],
-            ['name' => 'Water', 'span' => 2], ['name' => 'MS / ICE', 'span' => 2], ['name' => 'Admixture', 'span' => 3]];
-        $known = array_filter(array_column($slots, 0));
-        foreach (array_diff($report['columns'], $known) as $column) {
-            $slots[] = [$column, $report['labels'][$column] ?? $column];
-            $groups[] = ['name' => JayadhityaBatchSheet::materialDisplay($column)['group'], 'span' => 1];
-        }
-        // Never fabricate equal cycle readings from a stored load total.
-        $runs = $report['inferred_runs'] ? [$report['actuals']] : $report['runs'];
-        $count = count($runs);
-        $targets = !$report['inferred_runs'] && $count > 0
-            ? array_map(fn ($value) => $value / $count, $report['targets']) : ($report['recipe'] ?: []);
-        $row = static function (array $values, string $kind) use ($slots, $report): array {
-            $cells = [];
-            foreach ($slots as $index => [$column, $label]) {
-                if ($index === 2) {
-                    $cells[] = $kind === 'target' ? 'in %' : ($kind === 'actual'
-                        ? number_format($report['moisture_rows']['consumption']['MSAND 1'] ?? 0, 1, '.', '') : '');
-                } elseif ($index === 10) {
-                    $cells[] = $kind === 'target' ? '+/-' : ($kind === 'actual' ? '0' : '');
-                } elseif ($column === null) {
-                    $cells[] = '';
-                } elseif ($column === 'MS' && $kind !== 'actual' && !isset($values[$column])) {
-                    $cells[] = '';
-                } else {
-                    $precision = in_array($column, ['ADMIX 1', 'ADMIX 2'], true) ? 2 : ($report['precisions'][$column] ?? 0);
-                    $cells[] = number_format((float) ($values[$column] ?? 0), $precision, '.', '');
+        $slots = $groups = [];
+        $offset = 0;
+        $moisture = $report['moisture_rows']['consumption'];
+        foreach ($report['group_spans'] as $group) {
+            $columns = array_slice($report['columns'], $offset, $group['span']);
+            $offset += $group['span'];
+            foreach ($columns as $column) {
+                $slots[] = [$column, $report['labels'][$column] ?? $column];
+                if (isset($moisture[$column])) {
+                    $slots[] = [$column, 'Moi (%)', true];
+                    $group['span']++;
                 }
             }
-            return $cells;
+            $groups[] = $group;
+        }
+
+        $runs = $report['inferred_runs'] ? [] : $report['runs'];
+        $targets = $report['inferred_runs'] ? [] : ($report['recipe_rows'][1] ?? []);
+        $row = static function (array $values, bool $showMoisture = false) use ($slots, $report, $moisture): array {
+            return array_map(static function (array $slot) use ($values, $report, $moisture, $showMoisture): string {
+                $column = $slot[0];
+
+                if ($slot[2] ?? false) {
+                    return $showMoisture ? number_format($moisture[$column], 1, '.', '') : '';
+                }
+
+                return isset($values[$column])
+                    ? number_format($values[$column], $report['precisions'][$column], '.', '')
+                    : '-';
+            }, $slots);
         };
         return $report + [
             'slots' => $slots, 'print_groups' => $groups,
-            'target_cells' => $row($targets, 'target'),
-            'actual_cells' => array_map(fn ($values) => $row($values, 'actual'), $runs),
-            'set_cells' => $row($report['targets'], 'total'), 'total_cells' => $row($report['actuals'], 'total'),
+            'target_cells' => $row($targets),
+            'actual_cells' => array_map(static fn (array $run): array => $row($run, true), $runs),
+            'set_cells' => $row($report['targets']),
+            'total_cells' => $row($report['actuals'], $report['inferred_runs']),
         ];
     }
 }

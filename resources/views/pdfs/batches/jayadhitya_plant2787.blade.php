@@ -4,7 +4,7 @@ Created: 2026-11-02 16:46:39 Asia/Calcutta (UTC+05:30)
 -->
 @php
     $report = \App\Services\JayadhityaPlant2787BatchSheet::data($batch);
-    $order = $batch->relationLoaded('workOrder') && !$batch->relationLoaded('salesOrder') ? $batch->workOrder : $batch->salesOrder;
+    $order = $batch->salesOrder;
     $plant = $batch->plant ?? $order?->plant;
     $mix = $order?->mixDesign;
     $dispatch = $batch->dispatches->first();
@@ -21,7 +21,7 @@ Created: 2026-11-02 16:46:39 Asia/Calcutta (UTC+05:30)
         ['Mixer Capacity', $plant?->mixer_capacity, 'M3'],
         ['Batch Size', $report['inferred_runs'] ? null : $report['run_size'], 'M3'],
         ['Net Wt From W.Bridge', $dispatch?->net_weight, 'Kg']];
-    $count = count($report['slots']);
+
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -32,33 +32,34 @@ Created: 2026-11-02 16:46:39 Asia/Calcutta (UTC+05:30)
 @page { size: A4 portrait; margin: 0; }
 * { box-sizing: border-box; }
 body { margin: 0; background: #e5e5e5; font-family: "Times New Roman", Times, serif; color: #000; }
-.page { width: 210mm; min-height: 297mm; margin: 10px auto; background: white; padding: 14mm 8mm 10mm; font-size: 10pt; }
+.page { width: 210mm; min-height: 297mm; margin: 10px auto; background: white; padding: 10mm 6mm 8mm; font-size: 10pt; }
 .company { text-align: center; font-weight: bold; font-size: 15pt; }
 .system { margin: 9px 0 0 14mm; font-weight: bold; font-size: 12.5pt; }
 .system table { border-collapse: collapse; }
 .system td { vertical-align: middle; padding: 0 6px 0 0; }
 .logo { width: 34px; height: 34px; }
 .brand { margin: 5px 0 0 14mm; line-height: 1.15; }
-.title { text-align: center; font-weight: bold; font-size: 12pt; margin: 8px 0 17px; }
+.title { text-align: center; font-weight: bold; font-size: 12pt; margin: 6px 0 10px; }
 .top { width: 100%; border-collapse: collapse; }
 .top td { padding: 0; vertical-align: top; }
 .times { border-collapse: collapse; line-height: 1.2; }
 .times th { width: 31mm; text-align: left; white-space: nowrap; }
 .times td { white-space: nowrap; }
 .serial { text-align: right; padding-right: 4mm !important; }
-.info { width: 100%; border-collapse: collapse; margin-top: 7px; table-layout: fixed; }
-.info td { padding: 1.5px 0; vertical-align: top; }
-.info .key { font-weight: bold; width: 52mm; }
+.info { width: 100%; border-collapse: collapse; margin-top: 4px; table-layout: fixed; }
+.info td { padding: 1px 0; vertical-align: top; }
+.info .key { font-weight: bold; width: 50mm; }
 .info .sep { width: 3mm; text-align: center; }
-.info .val { width: 76mm; padding-right: 4mm; overflow-wrap: anywhere; }
+.info .val { width: 72mm; padding-right: 4mm; overflow-wrap: anywhere; }
 .info .rkey { font-weight: bold; width: 39mm; }
 .info .num { width: 14mm; text-align: right; }
-.info .unit { width: 7mm; padding-left: 3mm; }
-table.batch { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 7px; font-size: 8.4pt; }
-table.batch th, table.batch td { padding: 1px 2px; text-align: right; white-space: nowrap; }
-table.batch thead .group th { font-size: 11pt; text-align: center; padding-bottom: 6px; }
-table.batch thead .heads th { font-weight: normal; text-align: center; }
-table.batch .label td { text-align: left; font-size: 9.2pt; padding-top: 3px; }
+.info .unit { width: 9mm; padding-left: 2mm; }
+table.batch { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 4px; font-size: 8.4pt; }
+table.batch th, table.batch td { padding: 1px 2px; text-align: center; overflow-wrap: anywhere; }
+table.batch thead .group th { font-size: 9pt; text-align: center; padding-bottom: 3px; }
+table.batch thead .heads th { font-weight: normal; white-space: nowrap; }
+table.batch td { font-variant-numeric: tabular-nums; }
+table.batch .label td { text-align: left; font-size: 9.2pt; padding-top: 2px; }
 table.batch .rule td { padding: 0; height: 2px; border-top: 1px solid black; }
 table.batch .gap td { height: 6px; }
 table.batch tr { break-inside: avoid; }
@@ -88,16 +89,24 @@ table.batch tr { break-inside: avoid; }
     </tr>
     @endforeach
   </table>
-  <table class="batch" id="plant2787-materials">
-    <thead><tr class="group">@foreach ($report['print_groups'] as $group)<th colspan="{{ $group['span'] }}">{{ $group['name'] }}</th>@endforeach</tr>
-    <tr class="heads">@foreach ($report['slots'] as [$column, $label])<th>{{ $label }}</th>@endforeach</tr></thead>
+  @if ($report['slots'])
+  @php
+      $slots = $report['slots'];
+      $count = count($slots);
+      $groups = $report['print_groups'];
+  @endphp
+  <table class="batch">
+    <thead><tr class="group">@foreach ($groups as $group)<th colspan="{{ $group['span'] }}">{{ $group['name'] }}</th>@endforeach</tr>
+    <tr class="heads">@foreach ($slots as [$column, $label])<th>{{ $label }}</th>@endforeach</tr></thead>
     <tbody>
+      @if (!$report['inferred_runs'])
       <tr class="label"><td colspan="{{ $count }}">Targets based on batchsize in Kgs.</td></tr>
       <tr data-row="target">@foreach ($report['target_cells'] as $cell)<td>{{ $cell }}</td>@endforeach</tr>
       <tr class="rule"><td colspan="{{ $count }}"></td></tr>
       <tr class="label"><td colspan="{{ $count }}">Actual in Kgs.</td></tr>
       @foreach ($report['actual_cells'] as $cells)<tr data-row="actual">@foreach ($cells as $cell)<td>{{ $cell }}</td>@endforeach</tr>@endforeach
       <tr class="rule"><td colspan="{{ $count }}"></td></tr>
+      @endif
       <tr class="label"><td colspan="{{ $count }}">Total Set Weight in Kgs.</td></tr>
       <tr data-row="total-set">@foreach ($report['set_cells'] as $cell)<td>{{ $cell }}</td>@endforeach</tr>
       <tr class="gap"><td colspan="{{ $count }}"></td></tr>
@@ -106,6 +115,9 @@ table.batch tr { break-inside: avoid; }
       <tr class="rule"><td colspan="{{ $count }}"></td></tr>
     </tbody>
   </table>
+  @else
+  <p class="note">No material readings are recorded for this batch.</p>
+  @endif
   @if ($report['inferred_runs'])<p class="note">Stored load totals shown. Individual mixer-cycle readings are unavailable.</p>@endif
 </div>
 </body>

@@ -75,6 +75,19 @@ class InvoiceNumberFormatTest extends TestCase
         }
     }
 
+    public function test_next_invoice_reuses_a_soft_deleted_number_inside_the_series(): void
+    {
+        $attributes = ['plant_id' => 1, 'account_id' => 10, 'invoice_type' => 'Invoice'];
+        $first = Invoice::create($attributes);
+        $second = Invoice::create($attributes);
+        DB::table('mm_invoices')->where('id', $first->id)->update(['deleted_at' => now()]);
+
+        $this->assertSame('JG/12/26-27', Invoice::generateNumber(1, 'Invoice', 10)['full_number']);
+        $this->assertSame('JG/12/26-27', Invoice::create($attributes)->full_number);
+        $this->assertSame('JG/13/26-27', $second->full_number);
+        $this->assertSame('JG/14/26-27', Invoice::generateNumber(1, 'Invoice', 10)['full_number']);
+    }
+
     public function test_billing_prefix_and_padding_are_independent_of_invoice_settings(): void
     {
         $this->settings(['billing_number_start' => 7, 'billing_number_padding' => 3]);
@@ -227,12 +240,12 @@ class InvoiceNumberFormatTest extends TestCase
     public function test_invoice_and_billing_creation_normalize_description_prefixes_and_empty_defaults(): void
     {
         Schema::table('mm_ledgers', fn (Blueprint $table) => $table->dropColumn('prefix'));
-        foreach (['JG', '', null, '   '] as $description) {
+        foreach (['JG', 'JG/{FY}/', '', null, '   '] as $description) {
             DB::table('mm_ledgers')->where('id', 10)->update(['description' => $description]);
             foreach (['Invoice' => 'INV/', 'Bill' => 'BILL/'] as $type => $defaultPrefix) {
                 // Each case starts a fresh series in this isolated in-memory database.
                 DB::table('mm_invoices')->delete();
-                $prefix = $description === 'JG' ? 'JG/' : $defaultPrefix;
+                $prefix = in_array($description, ['JG', 'JG/{FY}/'], true) ? 'JG/' : $defaultPrefix;
                 $expected = $prefix . '12/26-27';
                 $this->assertSame($expected, Invoice::generateNumber(1, $type, 10)['full_number']);
                 $request = new class extends StoreInvoiceRequest {
