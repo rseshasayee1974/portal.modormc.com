@@ -93,7 +93,7 @@ class SalesMobileApiTest extends TestCase
                 'mm_patrons' => ['plant_id', 'sales_executive_id', 'legal_name', 'patron_type', 'status', 'operational_status'],
                 'mm_sites' => ['plant_id', 'patron_id', 'name'],
                 'mm_concrete_grades' => ['plant_id', 'name'],
-                'mm_mix_design_items' => ['plant_id', 'mix_design_id', 'product_id', 'uom_id', 'rate', 'actual_quantity', 'cross_quantity', 'variation_quantity'],
+                'mm_mix_design_items' => ['plant_id', 'mix_design_id', 'product_id', 'uom_id', 'rate', 'actual_quantity', 'cross_quantity', 'variation_quantity', 'display_order'],
                 'mm_products' => ['plant_id', 'title', 'code', 'material_code'],
                 'mm_mix_designs' => ['plant_id', 'design_name', 'design_code', 'is_active', 'concrete_grade_id', 'unit_id', 'rate_per_qty'],
                 'mm_product_units' => ['unit_name', 'unit_code', 'unit_type'],
@@ -558,12 +558,14 @@ class SalesMobileApiTest extends TestCase
     public function test_main_mobile_commercial_routes_require_their_own_token_and_plant(): void
     {
         $this->getJson('/api/mobile/orders')->assertForbidden();
-        $token = User::find(1)->createToken('web-login')->plainTextToken;
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        $token = User::find(2)->createToken('web-login')->plainTextToken;
         $this->withHeaders(['Authorization' => 'Bearer ' . $token, 'X-Plant-Id' => '1']);
         $this->getJson('/api/mobile/orders')->assertOk();
         $this->getJson('/api/mobile/quotations')->assertOk();
         $this->getJson('/api/mobile/customer-pos')->assertOk();
         $this->getJson('/api/mobile/batch-schedules')->assertOk();
+        $this->getJson('/api/mobile/v1/orders')->assertForbidden();
         $this->withHeaders(['X-Plant-Id' => '2']);
         $this->getJson('/api/mobile/orders')->assertForbidden();
     }
@@ -2462,7 +2464,9 @@ class SalesMobileApiTest extends TestCase
 
                 continue;
             }
-            if (str_starts_with($url, '/api/mobile/v1/notifications') || str_starts_with($url, '/api/mobile/v1/attendances')) {
+            if (str_starts_with($url, '/api/mobile/v1/notifications')
+                || str_starts_with($url, '/api/mobile/v1/attendances')
+                || str_starts_with($url, '/api/mobile/attendances')) {
                 $this->assertNotContains($scopeMiddleware, $middleware, $url);
 
                 continue;
@@ -2503,7 +2507,8 @@ class SalesMobileApiTest extends TestCase
                 continue;
             }
             foreach (array_diff($route->methods(), ['HEAD']) as $method) {
-                $endpoints[] = [$method, '/' . preg_replace('/\{([^}]+)\}/', '999', $route->uri()), $route->gatherMiddleware()];
+                $endpoints[] = [$method, '/' . preg_replace('/\{([^}]+)\}/', '999', $route->uri()),
+                    array_values(array_diff($route->gatherMiddleware(), $route->excludedMiddleware()))];
             }
         }
 
@@ -3531,6 +3536,13 @@ class SalesMobileApiTest extends TestCase
         $this->assertEqualsCanonicalizing([700, 701], array_column($response->json('data.data'), 'id'));
         $this->getJson('/api/mobile/orders/700')->assertOk();
         $this->getJson('/api/mobile/orders/702')->assertNotFound();
+        $this->withHeaders(['Authorization' => 'Bearer '.$this->token]);
+        $sales = $this->getJson('/api/mobile/v1/orders')->assertOk()->assertJsonPath('data.total', 1);
+        $this->assertSame([700], array_column($sales->json('data.data'), 'id'));
+        $this->getJson('/api/mobile/v1/orders/700')->assertOk();
+        $this->getJson('/api/mobile/v1/orders/701')->assertNotFound();
+        $this->getJson('/api/mobile/v1/orders/702')->assertNotFound();
+        $this->withHeaders(['Authorization' => 'Bearer '.$token]);
         $this->deleteJson('/api/mobile/orders/700')->assertOk();
         $this->withHeaders(['Authorization' => 'Bearer ' . $this->reviewer]);
         $this->getJson('/api/mobile/v1/orders')->assertOk()->assertJsonPath('data.total', 0);
