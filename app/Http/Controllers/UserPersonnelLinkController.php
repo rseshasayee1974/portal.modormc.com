@@ -6,7 +6,7 @@ Created: 2026-11-04 12:25:19 Asia/Calcutta (UTC+05:30)
 
 namespace App\Http\Controllers;
 
-use App\Models\{EntityUser, Personnel, User};
+use App\Models\{EntityUser, Personnel, PersonnelUserRel, User};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -63,12 +63,18 @@ class UserPersonnelLinkController extends Controller
                 }
             }
             $person->update(['user_id' => $user?->id]);
-            DB::table('mm_personnel_user_rels')->where('personnel_id', $person->id)->delete();
+            $activeLinks = PersonnelUserRel::where('personnel_id', $person->id)->lockForUpdate()->get();
+            foreach ($activeLinks as $link) {
+                if (!$user || (int) $link->user_id !== (int) $user->id) $link->delete();
+            }
             if ($user) {
-                DB::table('mm_personnel_user_rels')->insert([
-                    'user_id' => $user->id, 'personnel_id' => $person->id, 'plant_id' => $person->plant_id,
-                    'created_at' => now(), 'updated_at' => now(),
-                ]);
+                $link = PersonnelUserRel::withTrashed()->where('personnel_id', $person->id)
+                    ->where('user_id', $user->id)->lockForUpdate()->latest('id')->first();
+                if ($link?->trashed()) {
+                    $link->restore();
+                } elseif (!$link) {
+                    PersonnelUserRel::create(['user_id' => $user->id, 'personnel_id' => $person->id, 'plant_id' => $person->plant_id]);
+                }
                 $user->refresh()->forceFill(['is_otp_enabled' => (bool) $data['enabled']])->save();
             }
             return response()->json(['success' => true, 'message' => 'User link and mobile access saved.',

@@ -144,7 +144,7 @@ class Personnel extends Model
     public function linkedUsers()
     {
         return $this->belongsToMany(User::class, 'mm_personnel_user_rels', 'personnel_id', 'user_id')
-            ->withPivot('plant_id')->withTimestamps();
+            ->wherePivotNull('deleted_at')->withPivot('plant_id')->withTimestamps();
     }
 
     // removed old driver relation

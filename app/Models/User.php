@@ -158,7 +158,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function linkedPersonnel()
     {
         return $this->belongsToMany(Personnel::class, 'mm_personnel_user_rels', 'user_id', 'personnel_id')
-            ->withPivot('plant_id')->withTimestamps();
+            ->wherePivotNull('deleted_at')->withPivot('plant_id')->withTimestamps();
     }
 
 	public static function saveWithRelations(array $data)
@@ -213,9 +213,8 @@ class User extends Authenticatable implements MustVerifyEmail
                     'personnel_id' => 'This personnel is unavailable or already has a login account.',
                 ]);
                 $personnel->update(['user_id' => $user->id]);
-                DB::table('mm_personnel_user_rels')->insert([
+                PersonnelUserRel::create([
                     'personnel_id' => $personnel->id, 'user_id' => $user->id, 'plant_id' => $personnel->plant_id,
-                    'created_at' => now(), 'updated_at' => now(),
                 ]);
                 return $user;
             }

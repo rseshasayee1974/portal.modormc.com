@@ -40,6 +40,9 @@ class MobileAttendanceTest extends TestCase
         DB::table('mm_personnels')->update(['entity_id' => 1]);
         (require database_path('migrations/2026_11_04_065519_create_mm_user_personnel_table.php'))->up();
         (require database_path('migrations/2026_11_04_071941_rename_user_personnel_to_personnel_user_rels.php'))->up();
+        (require database_path('migrations/2026_11_04_112240_add_soft_deletes_to_personnel_user_rels.php'))->up();
+        (require database_path('migrations/2026_11_04_112630_remove_deleted_by_from_personnel_user_rels.php'))->up();
+        $this->assertFalse(Schema::hasColumn('mm_personnel_user_rels', 'deleted_by'));
         \Illuminate\Support\Facades\Route::put('/testing/personnel/{personnel}/user-link',
             [\App\Http\Controllers\UserPersonnelLinkController::class, 'update']);
         $this->actingAs(User::find(1));
@@ -65,7 +68,13 @@ class MobileAttendanceTest extends TestCase
         $this->assertFalse((bool) User::find(2)->is_otp_enabled);
         $this->putJson('/testing/personnel/1/user-link', ['user_id' => null, 'enabled' => false])->assertOk();
         $this->assertDatabaseHas('mm_personnels', ['id' => 1, 'user_id' => null]);
-        $this->assertDatabaseMissing('mm_personnel_user_rels', ['personnel_id' => 1]);
+        $this->assertSoftDeleted('mm_personnel_user_rels', ['personnel_id' => 1, 'user_id' => 2]);
+        $this->assertFalse(\App\Models\PersonnelUserRel::where('personnel_id', 1)->exists());
+        $this->assertCount(0, User::find(2)->linkedPersonnel);
+        $this->assertCount(0, \App\Models\Personnel::find(1)->linkedUsers);
+        $this->putJson('/testing/personnel/1/user-link', ['user_id' => 2, 'enabled' => true])->assertOk();
+        $this->assertDatabaseHas('mm_personnel_user_rels', ['personnel_id' => 1, 'user_id' => 2, 'deleted_at' => null]);
+        $this->assertSame(2, \App\Models\PersonnelUserRel::withTrashed()->where('personnel_id', 1)->count());
     }
 
     public function test_personnel_user_link_rejects_duplicate_foreign_inactive_and_missing_users(): void
