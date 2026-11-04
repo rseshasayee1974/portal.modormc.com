@@ -3450,6 +3450,15 @@ class SalesMobileApiTest extends TestCase
         ]);
         $adminToken = User::find(2)->createToken('admin-order-test')->plainTextToken;
 
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken, 'X-Plant-Id' => '1'])
+            ->postJson('/api/mobile/orders', [
+                'customer_id' => 1, 'site_id' => 1, 'mix_design_id' => 1,
+                'total_qty' => 10, 'rate' => 4500, 'tax_id' => 1, 'status' => 1,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.sales_executive_id', null)
+            ->assertJsonPath('data.sales_executive', null);
+
         $initial = [
             'customer_id' => 1,
             'site_id' => 1,
@@ -3491,6 +3500,9 @@ class SalesMobileApiTest extends TestCase
         $response->assertJsonPath('data.id', $id)
             ->assertJsonPath('data.status', 2)
             ->assertJsonPath('data.sales_executive_id', 10)
+            ->assertJsonPath('data.sales_executive.id', 10)
+            ->assertJsonPath('data.sales_executive.first_name', 'Admin')
+            ->assertJsonPath('data.sales_executive.employee_code', 'EMP-0010')
             ->assertJsonPath('data.concrete_pump', 'boom_pump')
             ->assertJsonPath('data.pump_rate', 2780)
             ->assertJsonPath('data.rate', 8500)

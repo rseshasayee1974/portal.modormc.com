@@ -199,7 +199,7 @@ class MobileAccess
                 return $requestedOwner ? (int) $requestedOwner : null;
             }
 
-            return $updating ? $existingOwner : self::personnelId();
+            return $updating ? $existingOwner : null;
         }
 
         return self::commercialOwnerId($existingOwner);
