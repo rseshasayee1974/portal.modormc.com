@@ -63,7 +63,9 @@ class InvoiceNoteController extends Controller
             'note_date' => 'required|date|after_or_equal:' . $source->invoice_date->toDateString(),
             'reason' => 'required|string|max:2000',
             'invoice_number' => 'sometimes|required|string|max:100',
-        ], $this->itemRules($note)));
+        ], $this->itemRules($note)), [
+            'items.*.tax_id.exists' => 'Select an active GST/IGST tax from this plant: Sales tax for a credit note or Purchase tax for a debit note.',
+        ]);
         $this->validateDiscounts($data);
         DB::transaction(function () use ($note, $data) {
             $note = Invoice::whereKey($note->id)->lockForUpdate()->firstOrFail();
@@ -102,7 +104,9 @@ class InvoiceNoteController extends Controller
             'invoice_number' => 'nullable|string|max:100',
             'note_date' => 'required|date|after_or_equal:' . $source->invoice_date->toDateString(),
             'reason' => 'required|string|max:2000',
-        ], $this->itemRules($source)));
+        ], $this->itemRules($source)), [
+            'items.*.tax_id.exists' => 'Select an active GST/IGST tax from this plant: Sales tax for a credit note or Purchase tax for a debit note.',
+        ]);
         $this->validateDiscounts($data);
         return $data;
     }
@@ -124,7 +128,7 @@ class InvoiceNoteController extends Controller
 
     private function itemRules(Invoice $owner): array
     {
-        $sourceType = strtolower((string) ($owner->sourceDocument?->invoice_type ?? $owner->invoice_type));
+        $sourceType = $this->itemDocumentType($owner);
         $taxType = in_array($sourceType, ['bill', 'purchase', 'debit_note'], true) ? 'purchase' : 'sales';
         return [
             'is_tax_inclusive' => 'required_with:items|boolean',
@@ -137,7 +141,7 @@ class InvoiceNoteController extends Controller
                 if ($original && (int) $original->item_id === (int) $value) {
                     return;
                 }
-                $sourceType = strtolower((string) ($owner->sourceDocument?->invoice_type ?? $owner->invoice_type));
+                $sourceType = $this->itemDocumentType($owner);
                 $isBill = in_array($sourceType, ['bill', 'purchase', 'debit_note'], true);
                 $query = $isBill ? \App\Models\Product::query() : \App\Models\MixDesign::query();
                 $query->where('plant_id', $owner->plant_id);
@@ -157,6 +161,15 @@ class InvoiceNoteController extends Controller
             'items.*.discount' => 'required|numeric|min:0',
             'items.*.tax_id' => ['nullable', 'integer', Rule::exists('mm_taxes', 'id')->where('plant_id', $owner->plant_id)->where('tax_type', $taxType)->where('status', 1)->whereNull('deleted_at')->whereNull('parent_id')->whereIn('tax_group', ['GST', 'IGST'])],
         ];
+    }
+
+    private function itemDocumentType(Invoice $owner): string
+    {
+        $type = strtolower((string) $owner->invoice_type);
+        // Only notes reference another invoice; ordinary invoices reference their source module.
+        return in_array($type, ['credit_note', 'debit_note'], true)
+            ? strtolower((string) ($owner->sourceDocument?->invoice_type ?? $type))
+            : $type;
     }
 
     private function validateDiscounts(array $data): void

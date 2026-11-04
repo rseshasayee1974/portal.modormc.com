@@ -381,11 +381,22 @@ class InvoiceNumberFormatTest extends TestCase
         $this->assertSame('JG/12/26-27', Invoice::generateNumber(1, 'Invoice', 10)['full_number']);
     }
 
-    public function test_credit_and_debit_notes_use_ledger_description_in_default_layout(): void
+    public function test_credit_and_debit_notes_use_fixed_prefixes_in_both_layouts(): void
     {
-        $this->assertSame('JG/26-27/1', Invoice::generateNumber(1, 'credit_note', 10)['full_number']);
-        $this->assertSame('JG/26-27/1', Invoice::generateNumber(1, 'debit_note', 10)['full_number']);
-        $this->assertSame('PB/26-27/1', Invoice::generateNumber(1, 'credit_note', 11)['full_number']);
+        foreach ([0, 1] as $format) {
+            $this->settings(['invoice_number_format' => $format, 'billing_number_format' => $format]);
+            foreach (['credit_note' => 'CN', 'debit_note' => 'DN'] as $type => $prefix) {
+                $expected = $format ? "$prefix/1/26-27" : "$prefix/26-27/1";
+                foreach ([10, 11, null] as $ledger) {
+                    $this->assertSame($expected, Invoice::generateNumber(1, $type, $ledger)['full_number']);
+                }
+                $this->assertSame($expected, Invoice::adjustmentNoteNumber(1, $type, $expected)['full_number']);
+                $note = Invoice::create(['plant_id' => 1, 'account_id' => 10, 'invoice_type' => $type,
+                    'invoice_label' => str_replace('_', ' ', $type), 'prefix' => 'JG/']);
+                $this->assertSame($expected, $note->full_number);
+                $this->assertSame($format ? "$prefix/2/26-27" : "$prefix/26-27/2", Invoice::generateNumber(1, $type, 11)['full_number']);
+            }
+        }
     }
 
     private function createReferenceTables(): void

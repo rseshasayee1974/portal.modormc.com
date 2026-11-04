@@ -13,7 +13,7 @@ import { useOfflineBatchSync } from "@/Composables/useOfflineBatchSync";
 import { useBatchActions } from "./useBatchActions";
 import { useBatchTokenPreview } from "./useBatchTokenPreview";
 import { useInvoiceActions } from "./useInvoiceActions";
-import { canGenerateEInvoice } from "@/Composables/useEInvoiceGeneration";
+import { canGenerateEInvoice, plantHasEwayBill } from "@/Composables/useEInvoiceGeneration";
 import BatchCreateForm from "./components/BatchCreateForm.vue";
 import BatchEditForm from "./components/BatchEditForm.vue";
 import DispatchSection from "./components/DispatchSection.vue";
@@ -3003,7 +3003,7 @@ console.log(
                         <template v-if="activeBatch.status >= 3">
                             <button
                                 v-if="
-                                    !activeBatch.eway_bill_no &&
+                                    plantHasEwayBill() && !activeBatch.eway_bill_no &&
                                     !activeBatch.dispatches?.[0]?.status
                                         ?.invoice?.eway_bill_no &&
                                     !isBatchCancelled(activeBatch) &&

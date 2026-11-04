@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
+import { plantHasEInvoice, plantHasEwayBill } from '@/Composables/useEInvoiceGeneration';
 import EwayBillRoutePreview from '@/Components/EwayBillRoutePreview.vue';
 import { entityToday, entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -229,6 +230,8 @@ const complianceForm = useForm({
 });
 
 const generateEInvoice = () => {
+    if (!plantHasEInvoice()) return;
+    if (!plantHasEwayBill()) complianceForm.generate_eway = false;
     complianceForm.post(route('invoices.generate-einvoice', props.invoice.id), {
         onSuccess: () => {
             toast.add({ severity: 'success', summary: 'E-Invoice Generated', detail: 'Compliance details recorded', life: 1500 });
@@ -571,11 +574,11 @@ const setupDemoCompliance = () => {
             </div>
 
             <!-- NOT GENERATED STATE -->
-            <div v-if="!invoice.einvoice_irn && invoice.einvoice_status !== 'cancelled'" class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div v-if="plantHasEInvoice() && !invoice.einvoice_irn && invoice.einvoice_status !== 'cancelled'" class="grid grid-cols-1 md:grid-cols-12 gap-6">
                 <div class="col-span-12 md:col-span-8 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-800 space-y-4">
                     <h4 class="text-xs font-black uppercase text-slate-500 tracking-wider">Generate E-Invoice & E-Way Bill</h4>
                     
-                    <div class="flex items-center gap-3 py-2 px-1">
+                    <div v-if="plantHasEwayBill()" class="flex items-center gap-3 py-2 px-1">
                         <input type="checkbox" id="generate_eway" v-model="complianceForm.generate_eway" class="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500" />
                         <label for="generate_eway" class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider cursor-pointer">Generate E-Way Bill along with E-Invoice</label>
                     </div>

@@ -36,7 +36,7 @@ async function ensureApplicationUI() {
     if (application) ui.install(application);
 }
 
-const appName = import.meta.env.VITE_APP_NAME || 'ModoRmc';
+const appName = 'Modormc';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,

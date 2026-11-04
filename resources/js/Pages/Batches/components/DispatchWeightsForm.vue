@@ -24,7 +24,7 @@ import {
     PaperAirplaneIcon,
 } from "@heroicons/vue/24/outline";
 import { usePermissions } from "@/Composables/usePermissions";
-import { canGenerateEInvoice } from "@/Composables/useEInvoiceGeneration";
+import { canGenerateEInvoice, plantHasEwayBill } from "@/Composables/useEInvoiceGeneration";
 import { watch, computed } from "vue";
 import Swal from "sweetalert2";
 
@@ -782,7 +782,7 @@ console.log("jkghkjgk", props.modelValue);
                                 <template v-if="modelValue.status.invoice?.id">
                                     <button
                                         v-if="
-                                            !modelValue.status.invoice
+                                            plantHasEwayBill() && !modelValue.status.invoice
                                                 ?.eway_bill_no
                                         "
                                         type="button"
@@ -796,7 +796,7 @@ console.log("jkghkjgk", props.modelValue);
                                         <span>Generate E-Way Bill</span>
                                     </button>
                                     <a
-                                        v-else
+                                        v-else-if="modelValue.status.invoice?.eway_bill_no"
                                         :href="
                                             route(
                                                 'invoices.print-ewaybill',

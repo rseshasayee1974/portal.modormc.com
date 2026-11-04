@@ -1,11 +1,20 @@
 import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { usePermissions } from '@/Composables/usePermissions';
 
 declare const route: any;
 
+export function plantHasEInvoice(): boolean {
+    return (usePage().props.active_plant as any)?.einvoice_enabled === true;
+}
+
+export function plantHasEwayBill(): boolean {
+    return (usePage().props.active_plant as any)?.ewaybill_enabled === true;
+}
+
 export function canGenerateEInvoice(invoice: any): boolean {
+    if (!plantHasEInvoice()) return false;
     if (!invoice?.id || invoice.deleted_at || invoice.einvoice_irn || invoice.einv_irn) return false;
     const status = String(invoice.einvoice_status || invoice.einv_status || '').toLowerCase();
     return !['act', 'generated', 'can', 'cancelled'].includes(status)

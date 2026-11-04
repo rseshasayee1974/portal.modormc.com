@@ -95,6 +95,10 @@ class HandleInertiaRequests extends Middleware
             $plant = Plant::find($activePlantId);
             if ($plant && $plant->is_active === 1) {
                 $mixerCapacity = (float)($plant->mixer_capacity ?: 1.25);
+                $hasClientId = static function ($value): bool {
+                    $value = trim((string) $value);
+                    return $value !== '' && (!is_numeric($value) || (float) $value > 0);
+                };
                 $activePlant = [
                     'plant_id'       => $plant->id,
                     'plant_name'     => $plant->name,
@@ -102,6 +106,8 @@ class HandleInertiaRequests extends Middleware
                     'plant_logo'     => $plant->logo_path ? "/storage/{$plant->logo_path}" : null,
                     'mixer_capacity' => $mixerCapacity,
                     'gstin'          => $plant->gstin,
+                    'einvoice_enabled' => $hasClientId($plant->einvoice_client_id),
+                    'ewaybill_enabled' => $hasClientId($plant->ewaybill_client_id),
                 ];
                 session([
                     'mixer_capacity' => $mixerCapacity,
