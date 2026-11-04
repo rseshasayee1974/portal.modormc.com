@@ -72,6 +72,7 @@ const emit = defineEmits<{
         :class="fieldClass"
     >
         <template #default="{ invalid, inputId }">
+            <div :class="$slots.append ? 'number-input-group flex items-stretch' : 'contents'">
             <InputNumber
                 :id="inputId"
                 :modelValue="modelValue"
@@ -91,16 +92,27 @@ const emit = defineEmits<{
                 :size="size"
                 :fluid="fluid"
                 :class="[
+                    $slots.append ? 'min-w-0 flex-1' : null,
                     inputClass,
                     invalid ? 'p-invalid' : null
                 ]"
                 @update:modelValue="emit('update:modelValue', $event)"
                 @input="emit('input', $event)"
             />
+                <slot name="append" />
+            </div>
         </template>
     </BaseField>
 </template>
 <style scoped>
+.number-input-group :deep(.p-inputnumber-input) {
+    width: 100%;
+    min-width: 0;
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-right-width: 0;
+}
+
 :deep(.p-component) {
    border-radius: 4px !important;
 }

@@ -58,7 +58,7 @@ return [
 
     'alankit' => [
         'environment' => env('ALANKIT_ENV', 'auto'),
-        'subscription_key' => env('ALANKIT_SUBSCRIPTION_KEY'),
+        'subscription_key' => env('ALANKIT_SUBSCRIPTION_KEY', 'AL6U3z6f85e4y7U1l'),
         'sandbox_auth_url' => env('ALANKIT_SANDBOX_AUTH_URL', 'https://developers.eraahi.com/eInvoiceGateway/eivital/v1.04/auth'),
         'production_auth_url' => env('ALANKIT_PRODUCTION_AUTH_URL', 'https://www.alankitgst.com/eInvoiceGateway/eivital/v1.04/auth'),
         'sandbox_generate_url' => env('ALANKIT_SANDBOX_GENERATE_URL', 'https://developers.eraahi.com/eInvoiceGateway/eicore/v1.03/Invoice'),

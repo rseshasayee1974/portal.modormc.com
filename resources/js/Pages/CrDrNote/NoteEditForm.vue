@@ -23,8 +23,12 @@ const reasons = {
     debit_note: ['Purchase Return', 'Bill Adjustment', 'Goods Returned to Supplier', 'Short Billing by Supplier', 'Rate / Price Adjustment', 'Additional Charges', 'Tax Correction', 'Bill Correction'],
 };
 const types = [{ label: 'Credit Note', value: 'credit_note' }, { label: 'Debit Note', value: 'debit_note' }];
+const storedNumber = String(props.note.invoice_number || '');
+const numberWithoutPrefix = props.note.prefix && storedNumber.startsWith(props.note.prefix)
+    ? storedNumber.slice(props.note.prefix.length) : storedNumber;
+const sequenceNumber = numberWithoutPrefix.replace(/\/\d{2}-\d{2}$/, '');
 const form = useForm({
-    items: [], is_tax_inclusive: false, invoice_number: props.note.invoice_number || '',
+    items: [], is_tax_inclusive: false, invoice_number: sequenceNumber,
     note_date: props.note.invoice_date?.slice(0, 10) ?? new Date(),
     reason: props.note.notes || defaults[props.note.invoice_type],
 });
@@ -59,7 +63,7 @@ const save = () => {
             <BaseSelect class="md:col-span-2" :modelValue="note.invoice_type" label="Note Type" :options="types" optionLabel="label" optionValue="value" disabled required />
             <BaseDatePicker class="md:col-span-2" v-model="form.note_date" label="Note Date" :error="form.errors.note_date" required />
             <BaseInput class="md:col-span-2" :modelValue="note.ref_title" :label="note.invoice_type === 'credit_note' ? 'Against Invoice' : 'Against Bill'" disabled />
-            <BaseInput class="md:col-span-2" v-model="form.invoice_number" :label="`Note Number (${note_number_details[note.invoice_type]?.prefix || note.prefix})`" :error="form.errors.invoice_number" :disabled="form.processing" required />
+            <BaseInput class="md:col-span-2" v-model="form.invoice_number" label="Invoice Number" placeholder="Enter invoice number" inputmode="numeric" :error="form.errors.invoice_number" :disabled="form.processing" required />
             <BaseSelect class="md:col-span-2" :modelValue="note.partner_id ?? note.partner?.id" label="Account Name" :options="partnerOptions" optionLabel="label" optionValue="value" disabled />
             <BaseSelect class="md:col-span-2" :modelValue="note.account_id ?? note.account?.id" label="Ledger Account" :options="accountOptions" optionLabel="label" optionValue="value" disabled />
             <BaseSelect class="sm:col-span-2 lg:col-span-2" v-model="form.reason" label="Reason" :options="reasonOptions" optionLabel="label" optionValue="value" filter :error="form.errors.reason" required />

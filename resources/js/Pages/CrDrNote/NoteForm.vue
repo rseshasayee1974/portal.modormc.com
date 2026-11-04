@@ -46,7 +46,6 @@ const sourceOptions = computed(() => eligibleDocuments.value
     .map(document => ({ label: document.full_number + ' — ' + (document.partner?.legal_name || ''), value: document.id })));
 const source = computed(() => props.documents.find(document => document.id === form.source_id));
 const { amounts, lineTotals, taxOptions, unitOptions, itemOptions, selectItem, removeItem } = useNoteItems(form, () => source.value, () => props.taxes, () => props.units, () => props.products, () => props.mixdesign);
-const numberDetails = computed(() => props.note_number_details[form.note_type] || {});
 const lines = computed(() => form.items);
 const taxInclusive = computed(() => form.is_tax_inclusive);
 watch(() => form.note_type, type => {
@@ -87,7 +86,7 @@ const save = () => {
             
             <BaseSelect class="md:col-span-2" v-model="selectedAccountId" label="Ledger Account" :options="accountOptions" optionLabel="label" optionValue="value" placeholder="Select Ledger Account" filter showClear />
             <BaseSelect class="sm:col-span-2 md:col-span-2" v-model="form.reason" label="Reason" :options="reasonOptions" optionLabel="label" optionValue="value" filter :error="form.errors.reason" required />
-            <BaseInput class="md:col-span-2" v-model="form.invoice_number" :label="`Note Number (${numberDetails.prefix || ''})`" :placeholder="numberDetails.next_number || 'Auto generated on save'" :error="form.errors.invoice_number" :disabled="form.processing" hint="Leave blank to generate automatically" />
+            <BaseInput class="md:col-span-2" v-model="form.invoice_number" label="Invoice Number" placeholder="Enter invoice number" inputmode="numeric" :error="form.errors.invoice_number" :disabled="form.processing" hint="Leave blank to generate automatically" />
         </div>
 
         <div>

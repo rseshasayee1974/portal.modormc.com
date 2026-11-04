@@ -508,25 +508,21 @@ console.log("jkghkjgk", props.modelValue);
                         deliveredQuantityErrors.delivered_qty ||
                         errors.delivered_qty
                     "
-                />
-
-                <button
-                    v-if="
-                        modelValue.id &&
-                        isReadOnly &&
-                        canCorrectDeliveredQuantity
-                    "
-                    type="button"
-                    @click="emit('saveDeliveredQuantity')"
-                    :disabled="savingDeliveredQuantity"
-                    class="rounded-lg bg-[#3B638E]   text-xs font-semibold text-white hover:bg-[#2A4869] disabled:opacity-50"
                 >
-                    {{
-                        savingDeliveredQuantity
-                            ? "Saving…"
-                            : "Save"
-                    }}
-                </button>
+                    <template v-if="modelValue.id && isReadOnly && canCorrectDeliveredQuantity" #append>
+                        <button
+                            type="button"
+                            @click="emit('saveDeliveredQuantity')"
+                            :disabled="savingDeliveredQuantity"
+                            :aria-busy="savingDeliveredQuantity"
+                            :aria-label="savingDeliveredQuantity ? 'Saving delivered quantity' : 'Save delivered quantity'"
+                            title="Save delivered quantity"
+                            class="inline-flex w-11 shrink-0 items-center justify-center rounded-r border border-[#3B638E] bg-[#3B638E] text-white transition-colors hover:border-[#2A4869] hover:bg-[#2A4869] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B638E] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+                        >
+                            <i :class="savingDeliveredQuantity ? 'pi pi-spinner pi-spin' : 'pi pi-save'" class="text-sm" aria-hidden="true" />
+                        </button>
+                    </template>
+                </BaseInputNumber>
             </div>
 
             <!-- Invoice Management Section -->

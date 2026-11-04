@@ -18,7 +18,7 @@ class AlankitAuthService
     {
         $einvoice = app(EInvoiceService::class);
         [$username, $password, $gstin] = $einvoice->getPlantCredentials($plant);
-        $subscriptionKey = config('services.alankit.subscription_key') ?: $plant->entity?->api_key;
+        $subscriptionKey = config('services.alankit.subscription_key') ?: 'AL6U3z6f85e4y7U1l';
 
         if (!$username || !$password || !$gstin || !$subscriptionKey) {
             throw new RuntimeException('Alankit requires E-Invoice username, password, GSTIN and subscription key.');
