@@ -57,7 +57,7 @@ const hasExactMatch = computed(() => {
     if (!filterValue.value) return true;
     const query = filterValue.value.toLowerCase().trim();
     return props.options.some(opt => {
-        const label = (props.optionLabel ? opt[props.optionLabel] : opt).toString().toLowerCase().trim();
+        const label = String((props.optionLabel ? opt?.[props.optionLabel] : opt) ?? '').toLowerCase().trim();
         return label === query;
     });
 });
@@ -100,6 +100,9 @@ const creatableLabel = computed(() => props.createLabel || `Create "${filterValu
                 :disabled="disabled || creating"
                 :showClear="showClear"
                 filter
+                autoFilterFocus
+                resetFilterOnHide
+                resetFilterOnClear
                 :size="size"
                 :fluid="fluid"
                 :class="invalid ? 'p-invalid' : null"
@@ -117,6 +120,7 @@ const creatableLabel = computed(() => props.createLabel || `Create "${filterValu
                 <template #footer>
                     <div v-if="canCreate && (allowEmptyCreate || (filterValue && !hasExactMatch))" class="p-2 border-t bg-slate-50/50">
                         <Button
+                            type="button"
                             :label="creatableLabel" 
                             icon="pi pi-plus" 
                             fluid 
@@ -134,6 +138,7 @@ const creatableLabel = computed(() => props.createLabel || `Create "${filterValu
                     <div class="p-4 text-center">
                         <p class="text-xs text-slate-500 mb-3">No results found for "{{ filterValue }}"</p>
                         <Button
+                            type="button"
                             v-if="canCreate"
                             :label="creatableLabel" 
                             icon="pi pi-plus" 

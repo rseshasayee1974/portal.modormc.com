@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import axios from 'axios';
+import PersonnelUserLink from './PersonnelUserLink.vue';
 import { usePage } from '@inertiajs/vue3';
 const page = usePage();
 import { useToast } from 'primevue/usetoast';
@@ -50,20 +51,20 @@ const loadUser = async () => {
     try {
         const { data } = await axios.get(route('users.show', props.user.id));
         form.value = {
-            username:       data.username || '',
-            email:          data.email || '',
-            mobile:         data.mobile ?? '',
-            password:       '',
-            is_active:      Boolean(data.is_active),
+            username: data.username || '',
+            email: data.email || '',
+            mobile: data.mobile ?? '',
+            password: '',
+            is_active: Boolean(data.is_active),
             is_otp_enabled: Boolean(data.is_otp_enabled),
-            entity_users:   (data.entity_users || []).map((eu: any) => ({ 
-                entity_id: eu.entity_id, 
-                plant_id:  eu.plant_id,
-                role_id:   eu.role_id 
+            entity_users: (data.entity_users || []).map((eu: any) => ({
+                entity_id: eu.entity_id,
+                plant_id: eu.plant_id,
+                role_id: eu.role_id
             })),
-            profile_photo:  null,
-            processing:     false,
-            errors:         {},
+            profile_photo: null,
+            processing: false,
+            errors: {},
         };
     } catch (err) {
         console.error('Failed to load user:', err);
@@ -75,7 +76,7 @@ const loadUser = async () => {
 
 watch(() => props.user?.id, loadUser, { immediate: true });
 
-const addEntity    = () => form.value.entity_users.push({ entity_id: null, plant_id: null, role_id: null });
+const addEntity = () => form.value.entity_users.push({ entity_id: null, plant_id: null, role_id: null });
 const removeEntity = (idx: number) => form.value.entity_users.splice(idx, 1);
 const onFileUpload = (event: any) => { form.value.profile_photo = event.files[0]; };
 
@@ -93,7 +94,7 @@ const handlePlantChange = (assignment: any) => {
 const validate = () => {
     const errors: any = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
+
     if (!form.value.email) {
         errors.email = ['Email is required'];
     } else if (!emailRegex.test(form.value.email)) {
@@ -129,18 +130,18 @@ const submit = async () => {
     form.value.errors = {};
 
     const fd = new FormData();
-    fd.append('_method',        'PUT');
-    fd.append('username',       form.value.username);
-    fd.append('email',          form.value.email);
-    fd.append('mobile',         form.value.mobile);
+    fd.append('_method', 'PUT');
+    fd.append('username', form.value.username);
+    fd.append('email', form.value.email);
+    fd.append('mobile', form.value.mobile);
     // fd.append('role_id',        form.value.entity_users[0].role_id);
     if (form.value.password) fd.append('password', form.value.password);
-    fd.append('is_active',      form.value.is_active      ? '1' : '0');
+    fd.append('is_active', form.value.is_active ? '1' : '0');
     fd.append('is_otp_enabled', form.value.is_otp_enabled ? '1' : '0');
     form.value.entity_users.forEach((eu, i) => {
         if (eu.entity_id) fd.append(`entity_users[${i}][entity_id]`, eu.entity_id.toString());
-        if (eu.plant_id)  fd.append(`entity_users[${i}][plant_id]`,  eu.plant_id.toString());
-        if (eu.role_id)   fd.append(`entity_users[${i}][role_id]`,   eu.role_id.toString());
+        if (eu.plant_id) fd.append(`entity_users[${i}][plant_id]`, eu.plant_id.toString());
+        if (eu.role_id) fd.append(`entity_users[${i}][role_id]`, eu.role_id.toString());
     });
     if (form.value.profile_photo) fd.append('profile_photo_path', form.value.profile_photo);
 
@@ -186,31 +187,29 @@ const submit = async () => {
             <div class="col-span-12 grid grid-cols-12 gap-4">
 
                 <!-- Profile Photo (edit only) -->
-                
+
 
                 <!-- Basic Fields -->
                 <div class="col-span-12 md:col-span-3">
-                    <BaseInput v-model="form.username" label="Username" :required="true" :disabled="mode === 'view'" :error="form.errors.username" />
+                    <BaseInput v-model="form.username" label="Username" :required="true" :disabled="mode === 'view'"
+                        :error="form.errors.username" />
                 </div>
                 <div class="col-span-12 md:col-span-3">
-                    <BaseInput v-model="form.email" label="Email Address" :required="true" :disabled="mode === 'view' || mode === 'edit'" :error="form.errors.email" />
+                    <BaseInput v-model="form.email" label="Email Address" :required="true"
+                        :disabled="mode === 'view' || mode === 'edit'" :error="form.errors.email" />
                 </div>
                 <div class="col-span-12 md:col-span-3">
-                    <BaseInput v-model="form.mobile" label="Mobile Number" :disabled="mode === 'view'" :error="form.errors.mobile" maxlength="10" />
+                    <BaseInput v-model="form.mobile" label="Mobile Number" :disabled="mode === 'view'"
+                        :error="form.errors.mobile" maxlength="10" />
                 </div>
 
                 <!-- Password (edit only) -->
                 <div v-if="mode === 'edit'" class="col-span-12 md:col-span-3">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">New Password</label>
-                    <Password 
-                        v-model="form.password" 
-                        toggleMask 
-                        :feedback="true" 
-                        class="w-full" 
-                        inputClass="w-full text-sm !bg-white"
-                        :class="form.errors.password ? 'p-invalid' : ''"
-                        placeholder="Leave blank to keep current"
-                    />
+                    <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">New
+                        Password</label>
+                    <Password v-model="form.password" toggleMask :feedback="true" class="w-full"
+                        inputClass="w-full text-sm !bg-white" :class="form.errors.password ? 'p-invalid' : ''"
+                        placeholder="Leave blank to keep current" />
                     <small v-if="form.errors.password" class="p-error text-[10px]">{{ form.errors.password[0] }}</small>
                 </div>
 
@@ -223,69 +222,75 @@ const submit = async () => {
                     </div>
                 </div>
                 <div class="col-span-12 md:col-span-1 flex flex-col gap-2">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Mobile App / OTP</label>
+                    <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Mobile App /
+                        OTP</label>
                     <div class="flex items-center gap-2 mt-2">
-                        <ToggleSwitch v-model="form.is_otp_enabled" :disabled="mode === 'view' || !page.props.canManageMobileAccess" />
+                        <ToggleSwitch v-model="form.is_otp_enabled"
+                            :disabled="mode === 'view' || !page.props.canManageMobileAccess" />
                         <!-- <span class="text-sm">Mobile App / OTP</span> -->
                     </div>
                 </div>
                 <div v-if="mode === 'edit'" class="col-span-12 md:col-span-3">
                     <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Profile Photo</label>
-                    <FileUpload
-                        mode="basic"
-                        :name="`photo_${user.id}[]`"
-                        accept="image/*"
-                        :maxFileSize="1000000"
-                        @select="onFileUpload"
-                        auto
-                    />
+                    <FileUpload mode="basic" :name="`photo_${user.id}[]`" accept="image/*" :maxFileSize="1000000"
+                        @select="onFileUpload" auto />
                 </div>
 
                 <div class="col-span-12">
-                    <div class="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
+                    <div
+                        class="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
                         <div class="flex items-center gap-1.5">
                             <i class="pi pi-shield text-indigo-500 text-xs"></i>
-                            <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Plant Access Roles</span>
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Plant Access
+                                Roles</span>
                         </div>
-                        <BaseActionButton v-if="mode === 'edit'" icon="pi pi-plus" severity="primary" tooltip="Add Assignment" @click="addEntity" />
+                        <BaseActionButton v-if="mode === 'edit'" icon="pi pi-plus" severity="primary"
+                            tooltip="Add Assignment" @click="addEntity" />
                     </div>
                     <div class="flex flex-col gap-3">
-                        <div
-                            v-for="(assignment, idx) in form.entity_users"
-                            :key="idx"
-                            class="grid grid-cols-12 gap-3 items-end p-3 border border-gray-100 dark:border-gray-700 rounded-lg bg-white/60 dark:bg-gray-700/40"
-                        >
+                        <div v-for="(assignment, idx) in form.entity_users" :key="idx"
+                            class="grid grid-cols-12 gap-3 items-end p-3 border border-gray-100 dark:border-gray-700 rounded-lg bg-white/60 dark:bg-gray-700/40">
                             <div class="col-span-1 flex items-center justify-center">
                                 <span class="text-xs font-bold text-gray-400">{{ idx + 1 }}</span>
                             </div>
                             <div class="col-span-11 md:col-span-5">
-                                <label class="text-[10px] font-bold uppercase text-gray-400">Plant <span class="text-red-500">*</span></label>
-                                <BaseSelect v-model="assignment.plant_id" :options="plants" optionLabel="label" optionValue="value" placeholder="Plant" filter :disabled="mode === 'view'" @update:modelValue="handlePlantChange(assignment)" />
+                                <label class="text-[10px] font-bold uppercase text-gray-400">Plant <span
+                                        class="text-red-500">*</span></label>
+                                <BaseSelect v-model="assignment.plant_id" :options="plants" optionLabel="label"
+                                    optionValue="value" placeholder="Plant" filter :disabled="mode === 'view'"
+                                    @update:modelValue="handlePlantChange(assignment)" />
                             </div>
                             <div class="col-span-11 md:col-span-5">
-                                <label class="text-[10px] font-bold uppercase text-gray-400">Role <span class="text-red-500">*</span></label>
-                                <BaseSelect v-model="assignment.role_id" :options="userGroups" optionLabel="label" optionValue="value" placeholder="Role" filter :disabled="mode === 'view'" />
+                                <label class="text-[10px] font-bold uppercase text-gray-400">Role <span
+                                        class="text-red-500">*</span></label>
+                                <BaseSelect v-model="assignment.role_id" :options="userGroups" optionLabel="label"
+                                    optionValue="value" placeholder="Role" filter :disabled="mode === 'view'" />
                             </div>
                             <div class="col-span-1 flex justify-end">
-                                <BaseActionButton v-if="mode === 'edit'" icon="pi pi-times" severity="danger" tooltip="Remove Assignment" @click="removeEntity(idx)" />
+                                <BaseActionButton v-if="mode === 'edit'" icon="pi pi-times" severity="danger"
+                                    tooltip="Remove Assignment" @click="removeEntity(idx)" />
                             </div>
                         </div>
-                        <p v-if="form.entity_users.length === 0" class="text-xs text-gray-400 italic">No plant access assigned.</p>
+                        <p v-if="form.entity_users.length === 0" class="text-xs text-gray-400 italic">No plant access
+                            assigned.</p>
                     </div>
                 </div>
 
+                <section v-if="mode === 'edit' && user.personnel && page.props.can_manage_user_links"
+                    class="col-span-12 w-full min-w-0 mt-5 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                    <h3 class="mb-3 text-sm font-semibold">Personnel &amp; Mobile Access</h3>
+                    <p class="mb-3 text-sm text-gray-500">{{ user.personnel.first_name }} {{ user.personnel.last_name }}
+                        · {{ user.personnel.employee_code }}</p>
+                    <PersonnelUserLink :personnel="{ ...user.personnel, user }"
+                        @saved="(enabled: boolean) => form.is_otp_enabled = enabled" />
+                </section>
             </div>
+
 
             <div class="col-span-12 flex justify-end gap-2 pt-4 border-t border-gray-100 dark:border-gray-700 mt-4">
                 <BaseActionButton icon="pi pi-times" severity="secondary" label="Close" @click="$emit('close')" />
-                <BaseActionButton
-                    v-if="mode === 'edit'"
-                    icon="pi pi-check"
-                    severity="primary" class="!bg-indigo-500 !text-white"
-                    label="Update User"
-                    :loading="form.processing"
-                    @click="submit"
-                />
+                <BaseActionButton v-if="mode === 'edit'" icon="pi pi-check" severity="primary"
+                    class="!bg-indigo-500 !text-white" label="Update User" :loading="form.processing" @click="submit" />
             </div>
         </div>
     </div>

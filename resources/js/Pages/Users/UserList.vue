@@ -266,6 +266,16 @@ const confirmForceDelete = (id: number) => {
                 </template>
             </Column>
 
+            <Column header="Personnel">
+                <template #body="{ data }">
+                    <template v-if="data.personnel && !data.deleted_at">
+                        <div class="text-sm font-medium">{{ data.personnel.first_name }} {{ data.personnel.last_name }}</div>
+                        <div class="text-xs text-gray-500">{{ data.personnel.employee_code }}</div>
+                    </template>
+                    <span v-else class="text-xs text-gray-400">Not linked</span>
+                </template>
+            </Column>
+
             <Column header="Actions" style="width: 180px">
                 <template #body="slotProps">
                     <div class="flex justify-end gap-1">

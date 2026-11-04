@@ -3527,7 +3527,7 @@
                 "current"
               ]
             },
-            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out."
           },
           "event": [
             {
@@ -3536,7 +3536,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
-                    "const a=pm.response.json().data?.attendance; if(a?.id) pm.environment.set('attendance_id',String(a.id));"
+                  "const a=pm.response.json().data?.attendance; if(a?.id) pm.environment.set('attendance_id',String(a.id));"
                 ]
               }
             }
@@ -3579,7 +3579,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"server_time\": \"2026-10-21 09:00:00\",\n    \"timezone\": \"Asia/Kolkata\",\n    \"work_date\": \"2026-10-21\",\n    \"attendance\": {\n      \"id\": 1,\n      \"plant_id\": 1,\n      \"personnel_id\": 1,\n      \"shift_id\": null,\n      \"attendance_date\": \"2026-10-21\",\n      \"check_in\": \"2026-10-21 09:00:00\",\n      \"check_out\": null,\n      \"worked_hours\": \"0.00\",\n      \"overtime_hours\": \"0.00\",\n      \"late_hours\": \"0.00\",\n      \"is_late\": false,\n      \"is_early_departure\": false,\n      \"status\": \"present\",\n      \"source\": \"mobile\",\n      \"notes\": \"Starting work\",\n      \"scheduled_start\": \"2026-10-21 09:00:00\",\n      \"scheduled_end\": \"2026-10-21 17:00:00\",\n      \"scheduled_hours\": \"8.00\",\n      \"grace_seconds\": 0,\n      \"timezone\": \"Asia/Kolkata\",\n      \"is_open\": true\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"server_time\": \"2026-10-21 09:00:00\",\n    \"timezone\": \"Asia/Kolkata\",\n    \"work_date\": \"2026-10-21\",\n    \"attendance\": {\n      \"id\": 1,\n      \"plant_id\": 1,\n      \"personnel_id\": 1,\n      \"shift_id\": null,\n      \"attendance_date\": \"2026-10-21\",\n      \"check_in\": \"2026-10-21 09:00:00\",\n      \"check_out\": null,\n      \"worked_hours\": \"0.00\",\n      \"overtime_hours\": \"0.00\",\n      \"late_hours\": \"0.00\",\n      \"is_late\": false,\n      \"is_early_departure\": false,\n      \"status\": \"present\",\n      \"source\": \"mobile\",\n      \"notes\": \"Starting work\",\n      \"scheduled_start\": \"2026-10-21 09:00:00\",\n      \"scheduled_end\": \"2026-10-21 17:00:00\",\n      \"scheduled_hours\": \"8.00\",\n      \"grace_seconds\": 0,\n      \"timezone\": \"Asia/Kolkata\",\n      \"is_open\": true,\n      \"shift\": {\n        \"id\": null,\n        \"name\": \"Personnel shift\",\n        \"start_time\": \"09:00:00\",\n        \"end_time\": \"17:00:00\",\n        \"grace_time\": 0,\n        \"working_hours\": 8,\n        \"is_night_shift\": false,\n        \"effective_from\": null,\n        \"effective_to\": null\n      }\n    },\n    \"shift\": {\n      \"id\": null,\n      \"name\": \"Personnel shift\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\",\n      \"grace_time\": 0,\n      \"working_hours\": 8,\n      \"is_night_shift\": false,\n      \"effective_from\": null,\n      \"effective_to\": null\n    },\n    \"shift_id\": null,\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"accepts_check_in_time\": false\n  }\n}"
             }
           ]
         },
@@ -3614,7 +3614,7 @@
                 "check-in"
               ]
             },
-            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. First check-in returns 201; retries return the same attendance with 200, even if it was already closed that work date. Notification behavior: this request does not directly trigger a business push notification.",
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. First check-in returns 201; retries return the same attendance with 200, even if it was already closed that work date. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"notes\": \"Starting work\"\n}",
@@ -3632,7 +3632,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299));",
-                    "const j=pm.response.json(); const d=j.data || {}; if(d?.id) pm.environment.set('attendance_id',String(d.id));"
+                  "const j=pm.response.json(); const d=j.data || {}; if(d?.id) pm.environment.set('attendance_id',String(d.id));"
                 ]
               }
             }
@@ -3688,7 +3688,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": null,\n    \"worked_hours\": \"0.00\",\n    \"overtime_hours\": \"0.00\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": \"Starting work\",\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": true\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": null,\n    \"worked_hours\": \"0.00\",\n    \"overtime_hours\": \"0.00\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": \"Starting work\",\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": true,\n    \"shift\": {\n      \"id\": null,\n      \"name\": \"Personnel shift\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\",\n      \"grace_time\": 0,\n      \"working_hours\": 8,\n      \"is_night_shift\": false,\n      \"effective_from\": null,\n      \"effective_to\": null\n    }\n  }\n}"
             }
           ]
         },
@@ -3736,7 +3736,7 @@
                 }
               ]
             },
-            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Both date filters are optional; remove them for all own history. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Both date filters are optional; remove them for all own history. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out."
           },
           "event": [
             {
@@ -3744,7 +3744,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                    "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299)); pm.test('History is paginated', () => pm.expect(pm.response.json().data.data).to.be.an('array'));"
+                  "pm.test('Successful response', () => pm.expect(pm.response.code).to.be.within(200, 299)); pm.test('History is paginated', () => pm.expect(pm.response.json().data.data).to.be.an('array'));"
                 ]
               }
             }
@@ -3804,7 +3804,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"current_page\": 1,\n    \"data\": [\n      {\n        \"id\": 1,\n        \"plant_id\": 1,\n        \"personnel_id\": 1,\n        \"shift_id\": null,\n        \"attendance_date\": \"2026-10-21\",\n        \"check_in\": \"2026-10-21 09:00:00\",\n        \"check_out\": null,\n        \"worked_hours\": \"0.00\",\n        \"overtime_hours\": \"0.00\",\n        \"late_hours\": \"0.00\",\n        \"is_late\": false,\n        \"is_early_departure\": false,\n        \"status\": \"present\",\n        \"source\": \"mobile\",\n        \"notes\": \"Starting work\",\n        \"scheduled_start\": \"2026-10-21 09:00:00\",\n        \"scheduled_end\": \"2026-10-21 17:00:00\",\n        \"scheduled_hours\": \"8.00\",\n        \"grace_seconds\": 0,\n        \"timezone\": \"Asia/Kolkata\",\n        \"is_open\": true\n      }\n    ],\n    \"per_page\": 20,\n    \"total\": 1\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"current_page\": 1,\n    \"data\": [\n      {\n        \"id\": 1,\n        \"plant_id\": 1,\n        \"personnel_id\": 1,\n        \"shift_id\": null,\n        \"attendance_date\": \"2026-10-21\",\n        \"check_in\": \"2026-10-21 09:00:00\",\n        \"check_out\": null,\n        \"worked_hours\": \"0.00\",\n        \"overtime_hours\": \"0.00\",\n        \"late_hours\": \"0.00\",\n        \"is_late\": false,\n        \"is_early_departure\": false,\n        \"status\": \"present\",\n        \"source\": \"mobile\",\n        \"notes\": \"Starting work\",\n        \"scheduled_start\": \"2026-10-21 09:00:00\",\n        \"scheduled_end\": \"2026-10-21 17:00:00\",\n        \"scheduled_hours\": \"8.00\",\n        \"grace_seconds\": 0,\n        \"timezone\": \"Asia/Kolkata\",\n        \"is_open\": true,\n        \"shift\": {\n          \"id\": null,\n          \"name\": \"Personnel shift\",\n          \"start_time\": \"09:00:00\",\n          \"end_time\": \"17:00:00\",\n          \"grace_time\": 0,\n          \"working_hours\": 8,\n          \"is_night_shift\": false,\n          \"effective_from\": null,\n          \"effective_to\": null\n        }\n      }\n    ],\n    \"per_page\": 20,\n    \"total\": 1\n  }\n}"
             }
           ]
         },
@@ -3835,7 +3835,7 @@
                 "{{attendance_id}}"
               ]
             },
-            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out."
           },
           "event": [
             {
@@ -3886,7 +3886,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": null,\n    \"worked_hours\": \"0.00\",\n    \"overtime_hours\": \"0.00\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": \"Starting work\",\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": true\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": null,\n    \"worked_hours\": \"0.00\",\n    \"overtime_hours\": \"0.00\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": \"Starting work\",\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": true,\n    \"shift\": {\n      \"id\": null,\n      \"name\": \"Personnel shift\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\",\n      \"grace_time\": 0,\n      \"working_hours\": 8,\n      \"is_night_shift\": false,\n      \"effective_from\": null,\n      \"effective_to\": null\n    }\n  }\n}"
             }
           ]
         },
@@ -3918,7 +3918,7 @@
                 "check-out"
               ]
             },
-            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No body. Retry with the same attendance_id after a timeout. Call auth/logout only after this succeeds. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No body. Retry with the same attendance_id after a timeout. Call auth/logout only after this succeeds. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out."
           },
           "event": [
             {
@@ -3970,7 +3970,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": \"2026-10-21 18:30:00\",\n    \"worked_hours\": \"9.50\",\n    \"overtime_hours\": \"1.50\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": \"Starting work\",\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": \"2026-10-21 18:30:00\",\n    \"worked_hours\": \"9.50\",\n    \"overtime_hours\": \"1.50\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": \"Starting work\",\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": false,\n    \"shift\": {\n      \"id\": null,\n      \"name\": \"Personnel shift\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\",\n      \"grace_time\": 0,\n      \"working_hours\": 8,\n      \"is_night_shift\": false,\n      \"effective_from\": null,\n      \"effective_to\": null\n    }\n  }\n}"
             }
           ]
         },
@@ -4005,10 +4005,10 @@
                 "check-in"
               ]
             },
-            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Alternative to Check in after login. Empty JSON is valid; notes are optional. Do not expect a new session if attendance already exists. Notification behavior: this request does not directly trigger a business push notification.",
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Alternative to Check in after login. Empty JSON is valid; notes are optional. Do not expect a new session if attendance already exists. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
             "body": {
               "mode": "raw",
-                    "raw": "{\n  \"check_in\": \"2026-11-02 08:45:00\",\n  \"notes\": \"Starting customer visits\"\n}",
+              "raw": "{\n  \"check_in\": \"2026-11-02 08:45:00\",\n  \"notes\": \"Starting customer visits\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4079,7 +4079,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": null,\n    \"worked_hours\": \"0.00\",\n    \"overtime_hours\": \"0.00\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": null,\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": true\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"plant_id\": 1,\n    \"personnel_id\": 1,\n    \"shift_id\": null,\n    \"attendance_date\": \"2026-10-21\",\n    \"check_in\": \"2026-10-21 09:00:00\",\n    \"check_out\": null,\n    \"worked_hours\": \"0.00\",\n    \"overtime_hours\": \"0.00\",\n    \"late_hours\": \"0.00\",\n    \"is_late\": false,\n    \"is_early_departure\": false,\n    \"status\": \"present\",\n    \"source\": \"mobile\",\n    \"notes\": null,\n    \"scheduled_start\": \"2026-10-21 09:00:00\",\n    \"scheduled_end\": \"2026-10-21 17:00:00\",\n    \"scheduled_hours\": \"8.00\",\n    \"grace_seconds\": 0,\n    \"timezone\": \"Asia/Kolkata\",\n    \"is_open\": true,\n    \"shift\": {\n      \"id\": null,\n      \"name\": \"Personnel shift\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\",\n      \"grace_time\": 0,\n      \"working_hours\": 8,\n      \"is_night_shift\": false,\n      \"effective_from\": null,\n      \"effective_to\": null\n    }\n  }\n}"
             }
           ]
         },
@@ -4119,7 +4119,7 @@
                 }
               ]
             },
-            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No date filters or request body; includes all own attendance history. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No date filters or request body; includes all own attendance history. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out."
           },
           "event": [
             {
@@ -4179,7 +4179,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"current_page\": 1,\n    \"data\": [\n      {\n        \"id\": 1,\n        \"plant_id\": 1,\n        \"personnel_id\": 1,\n        \"shift_id\": null,\n        \"attendance_date\": \"2026-10-21\",\n        \"check_in\": \"2026-10-21 09:00:00\",\n        \"check_out\": null,\n        \"worked_hours\": \"0.00\",\n        \"overtime_hours\": \"0.00\",\n        \"late_hours\": \"0.00\",\n        \"is_late\": false,\n        \"is_early_departure\": false,\n        \"status\": \"present\",\n        \"source\": \"mobile\",\n        \"notes\": \"Starting work\",\n        \"scheduled_start\": \"2026-10-21 09:00:00\",\n        \"scheduled_end\": \"2026-10-21 17:00:00\",\n        \"scheduled_hours\": \"8.00\",\n        \"grace_seconds\": 0,\n        \"timezone\": \"Asia/Kolkata\",\n        \"is_open\": true\n      }\n    ],\n    \"per_page\": 20,\n    \"total\": 1\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"current_page\": 1,\n    \"data\": [\n      {\n        \"id\": 1,\n        \"plant_id\": 1,\n        \"personnel_id\": 1,\n        \"shift_id\": null,\n        \"attendance_date\": \"2026-10-21\",\n        \"check_in\": \"2026-10-21 09:00:00\",\n        \"check_out\": null,\n        \"worked_hours\": \"0.00\",\n        \"overtime_hours\": \"0.00\",\n        \"late_hours\": \"0.00\",\n        \"is_late\": false,\n        \"is_early_departure\": false,\n        \"status\": \"present\",\n        \"source\": \"mobile\",\n        \"notes\": \"Starting work\",\n        \"scheduled_start\": \"2026-10-21 09:00:00\",\n        \"scheduled_end\": \"2026-10-21 17:00:00\",\n        \"scheduled_hours\": \"8.00\",\n        \"grace_seconds\": 0,\n        \"timezone\": \"Asia/Kolkata\",\n        \"is_open\": true,\n        \"shift\": {\n          \"id\": null,\n          \"name\": \"Personnel shift\",\n          \"start_time\": \"09:00:00\",\n          \"end_time\": \"17:00:00\",\n          \"grace_time\": 0,\n          \"working_hours\": 8,\n          \"is_night_shift\": false,\n          \"effective_from\": null,\n          \"effective_to\": null\n        }\n      }\n    ],\n    \"per_page\": 20,\n    \"total\": 1\n  }\n}"
             }
           ]
         }
@@ -4219,7 +4219,7 @@
                 "check-in"
               ]
             },
-            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"personnel_id\": 999\n}",
@@ -4327,7 +4327,7 @@
                 "check-in"
               ]
             },
-            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"check_in\": \"2026-10-21 09:00:00\"\n}",
@@ -4435,7 +4435,7 @@
                 "check-in"
               ]
             },
-            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"worked_hours\": 8\n}",
@@ -4543,7 +4543,7 @@
                 "check-in"
               ]
             },
-            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification.",
+            "description": "Use a valid mobile token and accessible plant. Expected 422: this field is managed by the server. No attendance should be created or changed. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"present\"\n}",
@@ -4652,7 +4652,7 @@
                 "check-out"
               ]
             },
-            "description": "Use the attendance_id captured from check-in. Expected 422: checkout time must come from the server. Notification behavior: this request does not directly trigger a business push notification.",
+            "description": "Use the attendance_id captured from check-in. Expected 422: checkout time must come from the server. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"check_out\": \"2026-10-21 18:30:00\"\n}",
@@ -4758,7 +4758,7 @@
                 "check-out"
               ]
             },
-            "description": "Set missing_attendance_id to an ID that does not exist. Requires a valid mobile token and accessible plant. No request body. Expected 404. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Set missing_attendance_id to an ID that does not exist. Requires a valid mobile token and accessible plant. No request body. Expected 404. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out."
           },
           "event": [
             {
@@ -4850,7 +4850,7 @@
                 }
               ]
             },
-            "description": "Expected 422: to_date cannot precede from_date. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Expected 422: to_date cannot precede from_date. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out."
           },
           "event": [
             {
@@ -4946,7 +4946,7 @@
                 }
               ]
             },
-            "description": "Expected 422: per_page must be between 1 and 100. Notification behavior: this request does not directly trigger a business push notification."
+            "description": "Expected 422: per_page must be between 1 and 100. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out."
           },
           "event": [
             {

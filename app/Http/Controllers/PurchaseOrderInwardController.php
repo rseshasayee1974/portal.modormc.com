@@ -169,7 +169,8 @@ class PurchaseOrderInwardController extends Controller
                 // The initial loaded-truck entry may exceed the order quantity.
                 $acceptedQty = $calcQty;
 
-                $entryDate = \Carbon\Carbon::parse($validated['received_date'])->toDateString();
+                $entryDate = \Carbon\Carbon::parse($validated['received_date'])
+                    ->setTimezone(config('app.timezone'))->toDateTimeString();
                 $newReceivedQty = (float) $item->received_quantity + $acceptedQty;
 
                 $itemProduct = $item->product;

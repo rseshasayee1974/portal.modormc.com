@@ -76,6 +76,38 @@ class InwardDetailsTest extends TestCase
         $this->assertSame(10.0, $report['total_quantity']);
     }
 
+    public function test_inward_report_date_only_and_exact_second_boundaries_are_consistent(): void
+    {
+        $this->inward->forceFill(['received_date' => '2026-10-03 23:59:59', 'created_at' => '2026-10-04 09:00:00'])->save();
+        $service = app(\App\Services\Reports\InventoryInwardReportService::class);
+        foreach ([
+            ['2026-10-03', '2026-10-03'],
+            ['2026-10-03 23:59:59', '2026-10-03 23:59:59'],
+            ['2026-10-03T18:29:59Z', '2026-10-03T18:29:59Z'],
+        ] as [$start, $end]) {
+            $result = $service->generate(['start' => $start, 'end' => $end]);
+            $this->assertSame(['INW-EDIT'], $result['transactions']->pluck('inward_no')->all());
+            $this->assertSame('2026-10-03 23:59:59', $result['transactions']->first()['date']);
+        }
+        $this->assertCount(0, $service->generate(['start' => '2026-10-03 00:00:00', 'end' => '2026-10-03 23:59:58'])['transactions']);
+    }
+
+    public function test_inward_creation_preserves_received_date_hours_minutes_and_seconds(): void
+    {
+        $this->post(route('inwards.store'), [
+            'order_id' => $this->item->order_id, 'received_date' => '2026-10-07 14:35:27',
+            'inward_no' => 'INW-TIMED', 'items' => [[
+                'order_item_id' => $this->item->id, 'received_qty' => 5, 'truck_loaded' => 5,
+            ]],
+        ])->assertRedirect(route('inwards.index'))->assertSessionHasNoErrors();
+        $entry = PurchaseOrderHistory::where('inward_no', 'INW-TIMED')->firstOrFail();
+        $this->assertSame('2026-10-07 14:35:27', $entry->getRawOriginal('received_date'));
+        $report = app(\App\Services\Reports\InventoryInwardReportService::class)->generate([
+            'start' => '2026-10-07 14:35:27', 'end' => '2026-10-07 14:35:27',
+        ]);
+        $this->assertSame(['INW-TIMED'], $report['transactions']->pluck('inward_no')->all());
+    }
+
     public function test_inward_report_party_filter_is_shared_by_view_excel_and_pdf(): void
     {
         $vendor = Patron::factory()->create(['plant_id' => $this->plant->id, 'legal_name' => 'Selected Vendor']);

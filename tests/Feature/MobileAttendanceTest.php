@@ -17,6 +17,158 @@ use Illuminate\Support\Facades\Schema;
 
 class MobileAttendanceTest extends TestCase
 {
+    public function test_attendance_endpoints_return_one_shift_object_and_accept_documented_payloads(): void
+    {
+        $this->getJson('/api/mobile/v1/attendances/current')->assertOk()
+            ->assertJsonPath('data.shift.start_time', '09:00:00')
+            ->assertJsonPath('data.shift.end_time', '17:00:00')->assertJsonMissingPath('data.shifts');
+        $id = $this->postJson('/api/mobile/v1/attendances/check-in', ['notes' => 'Starting work'])
+            ->assertCreated()->assertJsonPath('data.shift.working_hours', 8)
+            ->assertJsonMissingPath('data.shifts')->json('data.id');
+        $this->getJson('/api/mobile/v1/attendances/'.$id)->assertOk()
+            ->assertJsonPath('data.shift.name', 'Personnel shift');
+        $this->getJson('/api/mobile/v1/attendances?from_date=2026-10-21&to_date=2026-10-21&per_page=20')
+            ->assertOk()->assertJsonPath('data.data.0.shift.start_time', '09:00:00');
+        $this->at('2026-10-21 17:00:00');
+        $this->postJson('/api/mobile/v1/attendances/'.$id.'/check-out', [])->assertOk()
+            ->assertJsonPath('data.shift.end_time', '17:00:00')->assertJsonPath('data.worked_hours', '8.00');
+    }
+
+    private function prepareUserLinkTest(bool $admin = true): void
+    {
+        DB::table('mm_roles')->where('id', 1)->update(['code' => $admin ? 'ADMINISTRATOR' : 'EMPLOYEE']);
+        DB::table('mm_personnels')->update(['entity_id' => 1]);
+        (require database_path('migrations/2026_11_04_065519_create_mm_user_personnel_table.php'))->up();
+        (require database_path('migrations/2026_11_04_071941_rename_user_personnel_to_personnel_user_rels.php'))->up();
+        \Illuminate\Support\Facades\Route::put('/testing/personnel/{personnel}/user-link',
+            [\App\Http\Controllers\UserPersonnelLinkController::class, 'update']);
+        $this->actingAs(User::find(1));
+        $this->withSession(['active_entity_id' => 1, 'active_plant_id' => 1]);
+    }
+
+    public function test_personnel_user_link_backfills_relinks_and_revokes_mobile_sessions(): void
+    {
+        $this->prepareUserLinkTest();
+        $this->assertDatabaseHas('mm_personnel_user_rels', ['user_id' => 1, 'personnel_id' => 1]);
+        // Release the second employee's existing login before selecting it.
+        DB::table('mm_personnels')->where('id', 2)->update(['user_id' => null]);
+        DB::table('mm_personnel_user_rels')->where('personnel_id', 2)->delete();
+        User::find(2)->createToken('sales-mobile:app', ['sales-mobile']);
+        $this->putJson('/testing/personnel/1/user-link', ['user_id' => 2, 'enabled' => true])
+            ->assertOk()->assertJsonPath('data.user_id', 2)->assertJsonPath('data.enabled', true);
+        $this->assertDatabaseHas('mm_personnels', ['id' => 1, 'user_id' => 2]);
+        $this->assertDatabaseHas('mm_personnel_user_rels', ['personnel_id' => 1, 'user_id' => 2, 'plant_id' => 1]);
+        $this->assertSame(0, DB::table('personal_access_tokens')->count());
+        $this->assertEquals(1, User::find(2)->personnel->id);
+        $this->putJson('/testing/personnel/1/user-link', ['user_id' => 2, 'enabled' => false])
+            ->assertOk()->assertJsonPath('data.enabled', false);
+        $this->assertFalse((bool) User::find(2)->is_otp_enabled);
+        $this->putJson('/testing/personnel/1/user-link', ['user_id' => null, 'enabled' => false])->assertOk();
+        $this->assertDatabaseHas('mm_personnels', ['id' => 1, 'user_id' => null]);
+        $this->assertDatabaseMissing('mm_personnel_user_rels', ['personnel_id' => 1]);
+    }
+
+    public function test_personnel_user_link_rejects_duplicate_foreign_inactive_and_missing_users(): void
+    {
+        $this->prepareUserLinkTest();
+        $this->putJson('/testing/personnel/1/user-link', ['user_id' => 2, 'enabled' => true])
+            ->assertUnprocessable()->assertJsonValidationErrors('user_id');
+        DB::table('mm_personnels')->where('id', 2)->update(['user_id' => null]);
+        DB::table('mm_entity_users')->where('user_id', 2)->update(['plant_id' => 2]);
+        $this->putJson('/testing/personnel/1/user-link', ['user_id' => 2, 'enabled' => true])
+            ->assertUnprocessable()->assertJsonValidationErrors('user_id');
+        DB::table('mm_entity_users')->where('user_id', 2)->update(['plant_id' => 1]);
+        DB::table('mm_users')->where('id', 2)->update(['is_active' => false]);
+        foreach ([2, 9999, null] as $id) {
+            $this->putJson('/testing/personnel/1/user-link', ['user_id' => $id, 'enabled' => true])
+                ->assertUnprocessable()->assertJsonValidationErrors('user_id');
+        }
+        DB::table('mm_personnels')->where('id', 2)->update(['plant_id' => 2]);
+        $this->putJson('/testing/personnel/2/user-link', ['user_id' => null, 'enabled' => false])->assertNotFound();
+        $this->assertDatabaseHas('mm_personnels', ['id' => 1, 'user_id' => 1]);
+    }
+
+    public function test_personnel_user_link_requires_an_administrator(): void
+    {
+        $this->prepareUserLinkTest(false);
+        $this->putJson('/testing/personnel/1/user-link', ['user_id' => null, 'enabled' => false])->assertForbidden();
+        $this->assertDatabaseHas('mm_personnel_user_rels', ['personnel_id' => 1, 'user_id' => 1]);
+    }
+
+    public function test_create_login_reuses_existing_personnel_and_preserves_their_shift(): void
+    {
+        $this->prepareUserLinkTest();
+        \Illuminate\Support\Facades\Event::fake([\Illuminate\Auth\Events\Registered::class]);
+        \Illuminate\Support\Facades\Notification::fake();
+        Schema::table('mm_entity_users', function (Blueprint $table) {
+            $table->integer('created_by')->nullable();
+            $table->integer('updated_by')->nullable();
+        });
+        $admin = User::find(1);
+        $admin->setRelation('roles', new \Illuminate\Database\Eloquent\Collection([
+            new \App\Models\Role(['code' => 'SUPER_ADMIN', 'name' => 'Super Admin', 'guard_name' => 'web']),
+        ]));
+        $this->actingAs($admin);
+        \Illuminate\Support\Facades\Route::post('/testing/create-personnel-login',
+            [\App\Http\Controllers\UserController::class, 'store']);
+        DB::table('mm_personnels')->where('id', 2)->update(['user_id' => null]);
+        DB::table('mm_personnel_user_rels')->where('personnel_id', 2)->delete();
+        $payload = [
+            'personnel_id' => 2, 'username' => 'Existing Employee', 'email' => 'new-login@example.test',
+            'password' => 'Example-password-123!', 'is_active' => true, 'is_otp_enabled' => true,
+            'entity_users' => [['entity_id' => 1, 'plant_id' => 1, 'role_id' => 1]],
+        ];
+        $id = $this->postJson('/testing/create-personnel-login', $payload)->assertOk()->json('user.id');
+        $this->assertDatabaseCount('mm_personnels', 2);
+        $this->assertDatabaseHas('mm_personnels', ['id' => 2, 'user_id' => $id, 'shift_start_time' => '09:00:00', 'shift_end_time' => '17:00:00']);
+        $this->assertDatabaseHas('mm_personnel_user_rels', ['personnel_id' => 2, 'user_id' => $id]);
+        $this->assertTrue((bool) User::find($id)->is_otp_enabled);
+        $this->postJson('/testing/create-personnel-login', array_replace($payload, ['email' => 'duplicate-login@example.test']))
+            ->assertUnprocessable()->assertJsonValidationErrors('personnel_id');
+    }
+
+    public function test_users_page_lists_only_available_personnel_in_the_selected_plant(): void
+    {
+        $this->prepareUserLinkTest();
+        $admin = User::find(1);
+        $admin->setRelation('roles', new \Illuminate\Database\Eloquent\Collection([
+            new \App\Models\Role(['code' => 'SUPER_ADMIN', 'name' => 'Super Admin', 'guard_name' => 'web']),
+        ]));
+        $this->actingAs($admin);
+        DB::table('mm_personnels')->where('id', 2)->update(['user_id' => null]);
+        Schema::table('mm_personnels', function (Blueprint $table) {
+            $table->string('email')->nullable(); $table->string('mobile')->nullable(); $table->string('last_name')->nullable();
+        });
+        DB::table('mm_personnels')->insert([
+            ['id' => 3, 'plant_id' => 2, 'entity_id' => 1, 'status' => 'active', 'deleted_at' => null],
+            ['id' => 4, 'plant_id' => 1, 'entity_id' => 1, 'status' => 'inactive', 'deleted_at' => null],
+            ['id' => 5, 'plant_id' => 1, 'entity_id' => 1, 'status' => 'active', 'deleted_at' => now()],
+        ]);
+        $request = \Illuminate\Http\Request::create('/membership/users');
+        $request->setUserResolver(fn () => $admin);
+        $response = (new \App\Http\Controllers\UserController)->index($request);
+        $props = (new \ReflectionProperty($response, 'props'))->getValue($response);
+        $this->assertSame([2], $props['unlinkedPersonnel']->pluck('id')->all());
+    }
+
+    public function test_mobile_profile_includes_personnel_shift_times_without_an_assignment(): void
+    {
+        $method = new \ReflectionMethod(\App\Http\Controllers\Api\SalesMobile\AuthController::class, 'profile');
+        foreach ([['08:00:00', '18:00:00', 10, false], ['22:00:00', '06:00:00', 8, true]] as [$start, $end, $hours, $night]) {
+            DB::table('mm_personnels')->where('id', 1)->update(['shift_start_time' => $start, 'shift_end_time' => $end]);
+            $profile = $method->invoke(new \App\Http\Controllers\Api\SalesMobile\AuthController, User::find(1));
+            $this->assertSame($start, $profile['shift']['start_time']);
+            $this->assertSame($end, $profile['shift']['end_time']);
+            $this->assertEquals($hours, $profile['shift']['working_hours']);
+            $this->assertSame($night, $profile['shift']['is_night_shift']);
+            $this->assertArrayNotHasKey('shifts', $profile);
+        }
+        DB::table('mm_personnels')->where('id', 1)->update(['shift_start_time' => null, 'shift_end_time' => null]);
+        $profile = $method->invoke(new \App\Http\Controllers\Api\SalesMobile\AuthController, User::find(1));
+        $this->assertNull($profile['shift']);
+        $this->assertArrayNotHasKey('shifts', $profile);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -95,7 +247,7 @@ class MobileAttendanceTest extends TestCase
         DB::table('mm_personnels')->where('id', 1)->update(['shift_start_time' => null, 'shift_end_time' => null]);
         $this->getJson('/api/mobile/v1/attendances/current')->assertOk()
             ->assertJsonPath('data.user.id', 1)->assertJsonPath('data.accepts_check_in_time', true)
-            ->assertJsonPath('data.scheduled_start', null);
+            ->assertJsonPath('data.scheduled_start', null)->assertJsonPath('data.shift', null);
         $id = $this->postJson('/api/mobile/v1/attendances/check-in', ['check_in' => '2026-10-21 08:15:00'])->assertCreated()
             ->assertJsonPath('data.user_id', 1)->assertJsonPath('data.check_in', '2026-10-21 08:15:00')->json('data.id');
         $this->postJson('/api/mobile/v1/attendances/check-in', ['check_in' => '2026-10-21 08:30:00'])->assertOk()

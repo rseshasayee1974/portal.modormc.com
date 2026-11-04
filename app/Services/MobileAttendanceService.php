@@ -155,6 +155,7 @@ class MobileAttendanceService
         $data = $entry->only(['id', 'plant_id', 'personnel_id', 'shift_id', 'status', 'source', 'notes',
             'worked_hours', 'overtime_hours', 'late_hours', 'is_late', 'is_early_departure']);
         $data['user_id'] = (int) $entry->personnel->user_id;
+        $data['shift'] = $schedule['shift'];
         $data['scheduled_hours'] = $schedule['scheduled_hours'] === null ? null : number_format($schedule['scheduled_hours'], 2, '.', '');
         $data['grace_seconds'] = $schedule['grace_seconds'];
         $data['attendance_date'] = $entry->attendance_date->toDateString();

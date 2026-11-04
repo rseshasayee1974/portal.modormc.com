@@ -28,6 +28,9 @@ class StoreUserRequest extends FormRequest
         $user = $this->user();
 
         return [
+            'personnel_id' => ['nullable', 'integer', Rule::exists('mm_personnels', 'id')
+                ->where('plant_id', session('active_plant_id'))->where('entity_id', session('active_entity_id'))
+                ->whereNull('user_id')->whereNull('deleted_at')],
             'username' => 'required|string|max:191',
             'email' => [
                 'required',

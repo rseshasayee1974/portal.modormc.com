@@ -31,7 +31,7 @@ class UserController extends Controller
         $user = $request->user();
         $isSuperUser = $user && $user->hasFullAccess();
 
-        $query = User::with(['entityUsers.entity', 'entityUsers.plant', 'entityUsers.role'])
+        $query = User::with(['personnel' => fn ($q) => $q->withoutGlobalScope('plant_id')->where('plant_id', session('active_plant_id')), 'entityUsers.entity', 'entityUsers.plant', 'entityUsers.role'])
             ->where('id', '!=', $user->id);
 
         if ($isSuperUser) {
@@ -152,11 +152,18 @@ class UserController extends Controller
         }
 
         return Inertia::render('Users/Index', [
+            'can_manage_user_links' => UserPersonnelLinkController::canManage($user),
+            'mobile_link_users' => UserPersonnelLinkController::canManage($user)
+                ? UserPersonnelLinkController::eligibleUsers()->orderBy('username')->get(['id', 'username', 'email', 'is_otp_enabled']) : [],
+            'unlinkedPersonnel' => UserPersonnelLinkController::canManage($user)
+                ? \App\Models\Personnel::where('plant_id', session('active_plant_id'))->where('entity_id', session('active_entity_id'))
+                    ->whereNull('user_id')->whereRaw('LOWER(status) = ?', ['active'])->orderBy('first_name')
+                    ->get(['id', 'user_id', 'first_name', 'last_name', 'employee_code', 'email', 'mobile', 'plant_id', 'entity_id']) : [],
             'users' => $users,
             'entities' => fn () => $dropdowns()['entities'],
             'plants' => fn () => $dropdowns()['plants'],
             'userGroups' => fn () => $dropdowns()['userGroups'],
-            'canManageMobileAccess' => \App\Services\Mobile\MobileAccess::canManageUserAccess($user),
+            'canManageMobileAccess' => UserPersonnelLinkController::canManage($user),
             'filters' => $request->only('search')
         ]);
     }
@@ -169,8 +176,17 @@ class UserController extends Controller
         $this->authorizeModule('create');
 
         $data = $request->validated();
+        if (!empty($data['personnel_id'])) {
+            abort_unless(UserPersonnelLinkController::canManage($request->user()), 403, 'Only administrators can link personnel.');
+            $hasMembership = collect($data['entity_users'] ?? [])->contains(fn ($membership) =>
+                (int) ($membership['entity_id'] ?? 0) === (int) session('active_entity_id')
+                && (empty($membership['plant_id']) || (int) $membership['plant_id'] === (int) session('active_plant_id')));
+            if (!$hasMembership) throw \Illuminate\Validation\ValidationException::withMessages([
+                'entity_users' => 'Assign the login account to the personnel’s entity and plant.',
+            ]);
+        }
         if (!empty($data['is_otp_enabled'])) {
-            abort_unless(\App\Services\Mobile\MobileAccess::canManageUserAccess($request->user()), 403, 'Only Super Admin and higher roles can manage mobile app access.');
+            abort_unless(UserPersonnelLinkController::canManage($request->user()), 403, 'Only administrators can manage mobile app access.');
         }
 
         if (array_key_exists('profile_photo_path', $data) && $data['profile_photo_path'] === '') {
@@ -218,7 +234,7 @@ class UserController extends Controller
 
         $data = $request->validated();
         if (array_key_exists('is_otp_enabled', $data) && (bool)$data['is_otp_enabled'] !== (bool)$user->is_otp_enabled) {
-            abort_unless(\App\Services\Mobile\MobileAccess::canManageUserAccess($request->user()), 403, 'Only Super Admin and higher roles can manage mobile app access.');
+            abort_unless(UserPersonnelLinkController::canManage($request->user()), 403, 'Only administrators can manage mobile app access.');
             abort_if(!$request->user()->isSystemAdmin() && $user->isSystemAdmin(), 403, 'System administrator access can only be managed by a system administrator.');
         }
 

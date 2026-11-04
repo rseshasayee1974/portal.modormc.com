@@ -1539,13 +1539,13 @@ const shareEmail = () => {
                                         <div>
                                             <span class="text-[11px] font-bold text-slate-500 block mb-1">Start Date &
                                                 Time</span>
-                                            <BaseDatePicker v-model="startDate" :showTime="true" hourFormat="12" fluid
+                                            <BaseDatePicker v-model="startDate" :showTime="true" showSeconds hourFormat="12" fluid
                                                 placeholder="Select start date & time" />
                                         </div>
                                         <div>
                                             <span class="text-[11px] font-bold text-slate-500 block mb-1">End Date &
                                                 Time</span>
-                                            <BaseDatePicker v-model="endDate" :showTime="true" hourFormat="12" fluid
+                                            <BaseDatePicker v-model="endDate" :showTime="true" showSeconds hourFormat="12" fluid
                                                 placeholder="Select end date & time" />
                                         </div>
                                     </div>

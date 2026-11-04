@@ -47,6 +47,7 @@ class AttendanceController extends Controller
         return response()->json(['success' => true, 'data' => [
             'server_time' => $now->format('Y-m-d H:i:s'), 'timezone' => $now->timezoneName,
             'user' => $request->user()->only(['id', 'username']),
+            'shift' => $schedule['shift'],
             'shift_id' => $schedule['shift_id'], 'scheduled_start' => $schedule['scheduled_start'],
             'scheduled_end' => $schedule['scheduled_end'], 'accepts_check_in_time' => $schedule['scheduled_start'] === null,
             'work_date' => $schedule['attendance_date'], 'attendance' => $entry ? $this->service->serialize($entry) : null,

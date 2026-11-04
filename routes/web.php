@@ -342,6 +342,8 @@ Route::middleware([
         Route::delete('users/{id}/force-delete', [UserController::class, 'forceDelete'])->name('users.force-delete');
         Route::resource('users', UserController::class);
         Route::resource('personnel', PersonnelController::class);
+        Route::put('personnel/{personnel}/user-link', [\App\Http\Controllers\UserPersonnelLinkController::class, 'update'])
+            ->whereNumber('personnel')->name('personnel.user-link');
 
         // HRMS Routes
         Route::resource('departments', DepartmentController::class);
