@@ -13,6 +13,49 @@ use RuntimeException;
 
 class AlankitInvoiceService
 {
+    public function encodePayload(array $payload): string
+    {
+        foreach (['SellerDtls', 'BuyerDtls', 'DispDtls', 'ShipDtls'] as $section) {
+            foreach (['Addr2' => 3, 'Em' => 6] as $field => $minimum) {
+                if (!array_key_exists($field, $payload[$section] ?? [])) continue;
+                $value = trim((string) $payload[$section][$field]);
+                if ($value === '') {
+                    unset($payload[$section][$field]);
+                } elseif (mb_strlen($value) < $minimum || mb_strlen($value) > 100) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "$section.$field" => "$section $field must contain between $minimum and 100 characters, or be left blank.",
+                    ]);
+                } else {
+                    $payload[$section][$field] = $value;
+                }
+            }
+        }
+
+        $amountFields = ['TotAmt', 'Discount', 'PreTaxVal', 'AssAmt', 'CgstAmt', 'SgstAmt', 'IgstAmt',
+            'CesAmt', 'CesNonAdvlAmt', 'StateCesAmt', 'StateCesNonAdvlAmt', 'OthChrg', 'TotItemVal'];
+        foreach ($payload['ItemList'] ?? [] as $index => $item) {
+            foreach (array_merge($amountFields, ['UnitPrice', 'Qty', 'FreeQty', 'GstRt', 'CesRt', 'StateCesRt']) as $field) {
+                if (!isset($item[$field])) continue;
+                $payload['ItemList'][$index][$field] = round((float) $item[$field], in_array($field, $amountFields, true) ? 2 : 3);
+            }
+        }
+        foreach (['AssVal', 'CgstVal', 'SgstVal', 'IgstVal', 'CesVal', 'StCesVal', 'Discount',
+            'OthChrg', 'RndOffAmt', 'TotInvVal', 'TotInvValFc'] as $field) {
+            if (isset($payload['ValDtls'][$field])) {
+                $payload['ValDtls'][$field] = round((float) $payload['ValDtls'][$field], 2);
+            }
+        }
+
+        // Older PHP configurations serialize rounded floats with extra binary precision.
+        $precision = ini_get('serialize_precision');
+        try {
+            ini_set('serialize_precision', '-1');
+            return json_encode($payload, JSON_THROW_ON_ERROR);
+        } finally {
+            ini_set('serialize_precision', $precision);
+        }
+    }
+
     public function generate(Plant $plant, EinvoiceAuth $auth, array $payload): array
     {
         $einvoice = app(EInvoiceService::class);
@@ -33,7 +76,7 @@ class AlankitInvoiceService
             throw new RuntimeException('Unable to decrypt Alankit session key. Please authenticate again.');
         }
 
-        $encrypted = openssl_encrypt(json_encode($payload, JSON_THROW_ON_ERROR), 'aes-256-ecb', $sek, OPENSSL_RAW_DATA);
+        $encrypted = openssl_encrypt($this->encodePayload($payload), 'aes-256-ecb', $sek, OPENSSL_RAW_DATA);
         if ($encrypted === false) {
             throw new RuntimeException('Unable to encrypt Alankit invoice payload.');
         }
