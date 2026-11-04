@@ -1,4 +1,5 @@
 <script setup>
+import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { APP_LOCALE } from '@/Utils/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, watch, computed } from 'vue';
@@ -135,8 +136,8 @@ const toggleEdit = (data) => {
 
 const formatOrderDate = (date) => {
     if (!date) return '--';
-    const parsed = new Date(date);
-    if (Number.isNaN(parsed.getTime())) return '--';
+    const parsed = entityCalendarDate(date);
+    if (!parsed || Number.isNaN(parsed.getTime())) return '--';
 
     const day = String(parsed.getDate()).padStart(2, '0');
     const month = String(parsed.getMonth() + 1).padStart(2, '0');

@@ -101,6 +101,7 @@ class ReportController extends Controller
           ]);
 
         return Inertia::render('Reports/Index', [
+            'inwardProducts' => \App\Models\Product::where('plant_id', $plantId)->orderBy('title')->get(['id', 'title']),
             'ledgers'          => $ledgers,
             'patrons'          => $patrons,
             'machines'         => $machines,
@@ -128,6 +129,8 @@ class ReportController extends Controller
         $type = strtolower((string) $request->input('type'));
         if ($type === 'inventory_inward') $request->validate([
             'start_date' => 'nullable|date', 'end_date' => 'nullable|date|after_or_equal:start_date',
+            'product_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('mm_products', 'id')
+                ->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
         ]);
         if ($type === 'attendance') $request->validate([
             'employee_id' => 'nullable|integer|min:1',
@@ -180,6 +183,7 @@ class ReportController extends Controller
                 'consolidation'       => $request->input('consolidation', 'po'),
                 'plant_id'            => session('active_plant_id'),
                 'truck_id'            => $request->input('truck_id'),
+                'product_id'          => $request->input('product_id'),
                 'site_id'             => $request->input('site_id'),
                 'pump_vehicle_id'     => $request->input('pump_vehicle_id'),
                 'driver_id'           => $request->input('driver_id'),

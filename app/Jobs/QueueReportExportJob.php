@@ -136,6 +136,7 @@ class QueueReportExportJob implements ShouldQueue
                     'valuation_method' => $this->filters['valuation_method'] ?? 'FIFO',
                     'consolidation'    => $this->filters['consolidation'] ?? 'po',
                     'truck_id'           => $this->filters['truck_id'] ?? null,
+                    'product_id'         => $this->filters['product_id'] ?? null,
                     'driver_id'          => $this->filters['driver_id'] ?? null,
                     'sales_executive_id' => $this->filters['sales_executive_id'] ?? null,
                     'grade_id'           => $this->filters['grade_id'] ?? null,

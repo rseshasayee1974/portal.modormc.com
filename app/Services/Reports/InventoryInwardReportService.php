@@ -51,6 +51,9 @@ class InventoryInwardReportService implements ReportServiceInterface
         if ($truckId) {
             $query->where('truck_id', $truckId);
         }
+        if (!empty($params['product_id'])) {
+            $query->where('product_id', $params['product_id']);
+        }
 
         $inwards = $query->orderByDesc('report_received_at')->orderByDesc('id')->get();
 

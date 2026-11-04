@@ -117,15 +117,24 @@ class InwardDetailsTest extends TestCase
         $otherInward = $this->inward->replicate();
         $otherInward->fill(['order_id' => $otherOrder->id, 'inward_no' => 'INW-EXCLUDED', 'received_qty' => 25]);
         $otherInward->save();
+        $otherProduct = Product::factory()->create(['plant_id' => $this->plant->id, 'unit_id' => $this->inward->uom_id]);
+        $otherProductInward = $this->inward->replicate();
+        $otherProductInward->fill(['product_id' => $otherProduct->id, 'inward_no' => 'INW-PRODUCT-EXCLUDED', 'received_qty' => 40]);
+        $otherProductInward->save();
         $filters = ['plant_id' => $this->plant->id, 'patron_id' => $vendor->id,
+            'product_id' => $this->inward->product_id,
             'start' => '2026-10-01 00:00:00', 'end' => '2026-10-31 23:59:59'];
         $service = app(\App\Services\Reports\InventoryInwardReportService::class);
         $report = $service->generate($filters);
         $this->assertSame(['INW-EDIT'], $report['transactions']->pluck('inward_no')->all());
         $this->assertSame(10.0, $report['total_quantity']);
-        $all = $service->generate(array_replace($filters, ['patron_id' => null]));
-        $this->assertCount(2, $all['transactions']);
-        $this->assertSame(35.0, $all['total_quantity']);
+        $all = $service->generate(array_replace($filters, ['patron_id' => null, 'product_id' => null]));
+        $this->assertCount(3, $all['transactions']);
+        $this->assertSame(75.0, $all['total_quantity']);
+        $productOnly = $service->generate(array_replace($filters, ['patron_id' => null]));
+        $this->assertCount(2, $productOnly['transactions']);
+        $this->assertSame(35.0, $productOnly['total_quantity']);
+        $this->assertCount(0, $service->generate(array_replace($filters, ['product_id' => 999999]))['transactions']);
         $empty = $service->generate(array_replace($filters, ['patron_id' => 999999]));
         $this->assertCount(0, $empty['transactions']);
         $this->assertSame(0.0, $empty['total_quantity']);
@@ -142,6 +151,7 @@ class InwardDetailsTest extends TestCase
             $cells = json_encode($workbook->getActiveSheet()->toArray());
             $this->assertStringContainsString('INW-EDIT', $cells);
             $this->assertStringNotContainsString('INW-EXCLUDED', $cells);
+            $this->assertStringNotContainsString('INW-PRODUCT-EXCLUDED', $cells);
             $this->assertStringNotContainsString('Excluded Vendor', $cells);
             $workbook->disconnectWorksheets();
         } finally {
