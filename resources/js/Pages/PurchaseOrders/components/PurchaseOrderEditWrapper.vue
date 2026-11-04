@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { entityToday } from '@/Utils/entityDateTime';
+import { entityToday, calendarDateString } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
 import PurchaseOrderEditForm from './PurchaseOrderEditForm.vue';
@@ -36,9 +36,9 @@ const form = useForm({
     vehicle_id: props.purchaseOrder?.vehicle_id || null,
     po_number: props.purchaseOrder?.po_number || null,
     referencenumber: props.purchaseOrder?.ref_no || null, 
-    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : entityToday(),
-    billed_date: props.purchaseOrder?.billed_date ? props.purchaseOrder.billed_date.substring(0, 10) : null,
-    due_date: props.purchaseOrder?.due_date ? props.purchaseOrder.due_date.substring(0, 10) : null,
+    date_order: props.purchaseOrder?.date_order ? entityToday(props.purchaseOrder.date_order) : entityToday(),
+    billed_date: props.purchaseOrder?.billed_date ? entityToday(props.purchaseOrder.billed_date) : null,
+    due_date: props.purchaseOrder?.due_date ? entityToday(props.purchaseOrder.due_date) : null,
     exchange_rate: props.purchaseOrder?.exchange_rate || 0.0,
     amount_untaxed: Number(props.purchaseOrder?.amount_untaxed) || 0,
     amount_tax: Number(props.purchaseOrder?.amount_tax) || 0,
@@ -70,9 +70,9 @@ const loadDetails = () => {
             form.vehicle_id = data.vehicle_id;
             form.po_number = data.po_number;
             form.referencenumber = data.ref_no;
-            form.date_order = data.date_order ? data.date_order.substring(0, 10) : '';
-            form.billed_date = data.billed_date ? data.billed_date.substring(0, 10) : null;
-            form.due_date = data.due_date ? data.due_date.substring(0, 10) : null;
+            form.date_order = data.date_order ? entityToday(data.date_order) : '';
+            form.billed_date = data.billed_date ? entityToday(data.billed_date) : null;
+            form.due_date = data.due_date ? entityToday(data.due_date) : null;
             form.exchange_rate = data.exchange_rate;
             form.amount_untaxed = Number(data.amount_untaxed) || 0;
             form.amount_tax = Number(data.amount_tax) || 0;
@@ -203,9 +203,9 @@ watch(() => form.tax_inclusive, () => form.items.forEach((_, index) => calculate
 const submit = () => {
     form.transform(data => ({
         ...data,
-        date_order: data.date_order ? new Date(data.date_order).toISOString().split('T')[0] : null,
-        billed_date: data.billed_date ? new Date(data.billed_date).toISOString().split('T')[0] : null,
-        due_date: data.due_date ? new Date(data.due_date).toISOString().split('T')[0] : null,
+        date_order: data.date_order ? calendarDateString(data.date_order) : null,
+        billed_date: data.billed_date ? calendarDateString(data.billed_date) : null,
+        due_date: data.due_date ? calendarDateString(data.due_date) : null,
     })).put(route('purchaseorder.update', props.purchaseOrder.id), {
         onSuccess: () => {
             Swal.fire({ 

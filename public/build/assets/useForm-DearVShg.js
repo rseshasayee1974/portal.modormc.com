@@ -1,1 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/useForm-DearVShg.js
 import{k as r,j as o}from"./app-CXEtKXFf.js";function e(e){const s=r(e),n=o(()=>s.errors??{}),t=o(()=>Boolean(s.processing));return{...s,errors:n,errorFor:function(r){const o=r.replace(/\[(\d+)\]/g,".$1");return function(r){if(r)return Array.isArray(r)?r[0]:r}(n.value[o]??n.value[r])},setApiErrors:function(r){const o=r;(null==o?void 0:o.errors)&&"object"==typeof o.errors&&(s.clearErrors(),s.setError(o.errors))},isSubmitting:t}}export{e as u};
+========
+import{k as r,j as o}from"./app-Daw6eCOl.js";function e(e){const s=r(e),n=o(()=>s.errors??{}),t=o(()=>Boolean(s.processing));return{...s,errors:n,errorFor:function(r){const o=r.replace(/\[(\d+)\]/g,".$1");return function(r){if(r)return Array.isArray(r)?r[0]:r}(n.value[o]??n.value[r])},setApiErrors:function(r){const o=r;(null==o?void 0:o.errors)&&"object"==typeof o.errors&&(s.clearErrors(),s.setError(o.errors))},isSubmitting:t}}export{e as u};
+>>>>>>>> b2eacc7c8b7e1756571953ff7598b468994c0186:public/build/assets/useForm-DvkbzqA5.js

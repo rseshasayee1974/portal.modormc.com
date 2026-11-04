@@ -96,6 +96,7 @@ const props = defineProps({
     ledgers: Array,
     patrons: Array,
     machines: Array,
+    inwardProducts: { type: Array, default: () => [] },
     sites: Array,
     pumps: Array,
     drivers: Array,
@@ -282,6 +283,7 @@ const reportType = ref(initialSelection.type);
 const selectedId = ref(null);
 const patronId = ref(null);
 const truckId = ref(null);
+const productId = ref(null);
 const siteId = ref(null);
 const pumpVehicleId = ref(null);
 const driverId = ref(null);
@@ -717,6 +719,7 @@ watch(selectedModuleId, (newModuleId) => {
         patronId.value = null;
         mixDesignId.value = null;
         truckId.value = null;
+    productId.value = null;
         siteId.value = null;
         pumpVehicleId.value = null;
         driverId.value = null;
@@ -749,6 +752,7 @@ watch(reportType, () => {
     gstType.value = null;
     paymentStatus.value = null;
     truckId.value = null;
+    productId.value = null;
     siteId.value = null;
     pumpVehicleId.value = null;
     driverId.value = null;
@@ -796,6 +800,7 @@ const generateReport = async ({ manual = false, pagination = false } = {}) => {
             end_date: endDate.value,
             valuation_method: valuationMethod.value,
             truck_id: truckId.value,
+            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
             site_id: siteId.value,
             pump_vehicle_id: pumpVehicleId.value,
             driver_id: driverId.value,
@@ -911,6 +916,7 @@ const exportPdf = () => {
         voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
+            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
         site_id: siteId.value,
         pump_vehicle_id: pumpVehicleId.value,
         driver_id: driverId.value,
@@ -976,6 +982,7 @@ const exportExcel = () => {
         voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
+            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
         site_id: siteId.value,
         pump_vehicle_id: pumpVehicleId.value,
         driver_id: driverId.value,
@@ -1085,6 +1092,7 @@ const currentReportParams = computed(() => {
         payment_status: paymentStatus.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
+            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
         site_id: siteId.value,
         pump_vehicle_id: pumpVehicleId.value,
     };
@@ -1131,6 +1139,7 @@ const generateShareLink = async () => {
                 document_status: registerStatus.value,
                 payment_status: paymentStatus.value,
                 truck_id: truckId.value,
+            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
                 site_id: siteId.value,
                 pump_vehicle_id: pumpVehicleId.value,
                 employee_id: selectedEmployeeId.value,
@@ -1407,6 +1416,12 @@ const shareEmail = () => {
                                             optionValue="id"
                                             :filterFields="['legal_name', 'email', 'phone', 'contact_person']"
                                             :placeholder="patronPlaceholder" filter showClear />
+                                    </div>
+
+                                    <div v-if="reportType === 'inventory_inward'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Product</span>
+                                        <BaseSelect v-model="productId" :options="inwardProducts" optionLabel="title" optionValue="id"
+                                            placeholder="All Products" filter showClear />
                                     </div>
 
                                     <div v-if="['sales_register', 'purchase_register'].includes(reportType)"

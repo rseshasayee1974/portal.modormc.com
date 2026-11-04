@@ -509,7 +509,7 @@
         <!-- Signatures Section -->
         <table class="signatures-table">
             <tr>
-                <td>
+                {{-- <td>
                     <div style="height: 30px;"></div>
                     <div class="signature-line"></div>
                     <div class="signature-title">Prepared By (Operator)</div>
@@ -518,7 +518,7 @@
                     <div style="height: 30px;"></div>
                     <div class="signature-line"></div>
                     <div class="signature-title">Driver's Signature</div>
-                </td>
+                </td> --}}
                 <td>
                     <div style="height: 30px;"></div>
                     <div class="signature-line"></div>

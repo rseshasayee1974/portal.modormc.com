@@ -1,1 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/AuthenticationCard-BVZ-8eJR.js
 import{_ as s,o as e,g as a,d as r,f as t}from"./app-CXEtKXFf.js";const d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},o=s({},[["render",function(s,o){return e(),a("div",d,[r("div",null,[t(s.$slots,"logo")]),r("div",l,[t(s.$slots,"default")])])}]]);export{o as A};
+========
+import{_ as s,o as e,g as a,d as r,f as t}from"./app-Daw6eCOl.js";const d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},o=s({},[["render",function(s,o){return e(),a("div",d,[r("div",null,[t(s.$slots,"logo")]),r("div",l,[t(s.$slots,"default")])])}]]);export{o as A};
+>>>>>>>> b2eacc7c8b7e1756571953ff7598b468994c0186:public/build/assets/AuthenticationCard-Hyv4wthJ.js

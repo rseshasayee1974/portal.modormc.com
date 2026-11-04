@@ -1,6 +1,6 @@
 <script setup>
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday } from '@/Utils/entityDateTime';
+import { entityToday, calendarDateString } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
@@ -56,9 +56,9 @@ const form = useForm({
     prefix: props.ref_no?.prefix,
     referencenumber: props.ref_no?.formatted || props.purchaseOrder?.ref_no,
     ref_no: props.ref_no?.ref_no || props.purchaseOrder?.ref_no,
-    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : entityToday(),
-    date_planned: props.purchaseOrder?.date_planned ? props.purchaseOrder.date_planned.substring(0, 10) : null,
-    due_date: props.purchaseOrder?.due_date ? props.purchaseOrder.due_date.substring(0, 10) : null,
+    date_order: props.purchaseOrder?.date_order ? entityToday(props.purchaseOrder.date_order) : entityToday(),
+    date_planned: props.purchaseOrder?.date_planned ? entityToday(props.purchaseOrder.date_planned) : null,
+    due_date: props.purchaseOrder?.due_date ? entityToday(props.purchaseOrder.due_date) : null,
     exchange_rate: props.purchaseOrder?.exchange_rate || 1.0,
     amount_untaxed: props.purchaseOrder?.amount_untaxed || 0,
     amount_tax: props.purchaseOrder?.amount_tax || 0,
@@ -183,9 +183,9 @@ const submit = () => {
     
     form.transform(data => ({
         ...data,
-        date_order: data.date_order ? new Date(data.date_order).toISOString().split('T')[0] : null,
-        date_planned: data.date_planned ? new Date(data.date_planned).toISOString().split('T')[0] : null,
-        due_date: data.due_date ? new Date(data.due_date).toISOString().split('T')[0] : null,
+        date_order: data.date_order ? calendarDateString(data.date_order) : null,
+        date_planned: data.date_planned ? calendarDateString(data.date_planned) : null,
+        due_date: data.due_date ? calendarDateString(data.due_date) : null,
     }))[isEdit ? 'put' : 'post'](route(routeName, routeParams), {
         onSuccess: () => {
             Swal.fire({ 

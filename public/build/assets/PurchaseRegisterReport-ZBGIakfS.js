@@ -1,0 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/PurchaseRegisterReport-dKj5aZ02.js
+import e from"./RegisterReport-Budx69QR.js";import{c as r,o as t}from"./app-CXEtKXFf.js";import"./formatters-B4tjT0y_.js";const a={__name:"PurchaseRegisterReport",props:{reportData:{type:Object,required:!0},currentPage:{type:Number,default:1}},emits:["page-change"],setup:a=>(p,o)=>(t(),r(e,{"report-data":a.reportData,"current-page":a.currentPage,kind:"purchase",onPageChange:o[0]||(o[0]=e=>p.$emit("page-change",e))},null,8,["report-data","current-page"]))};export{a as default};
+========
+import e from"./RegisterReport-DBhrfjA5.js";import{o as r,c as t}from"./app-Daw6eCOl.js";import"./formatters-B2AkMRjA.js";const a={__name:"PurchaseRegisterReport",props:{reportData:{type:Object,required:!0},currentPage:{type:Number,default:1}},emits:["page-change"],setup:a=>(p,o)=>(r(),t(e,{"report-data":a.reportData,"current-page":a.currentPage,kind:"purchase",onPageChange:o[0]||(o[0]=e=>p.$emit("page-change",e))},null,8,["report-data","current-page"]))};export{a as default};
+>>>>>>>> b2eacc7c8b7e1756571953ff7598b468994c0186:public/build/assets/PurchaseRegisterReport-ZBGIakfS.js
