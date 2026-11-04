@@ -616,6 +616,7 @@ class ERPDashboardController extends Controller
     private function getCustomerLeaderboard(int $plantId, Carbon $start, Carbon $end, ?int $patronId): array
     {
         return $this->dispatchQuery($plantId, $start, $end, $patronId)
+            ->leftJoin('mm_batches as dispatch_batches', 'dispatch_batches.id', '=', 'mm_dispatches.batch_id')
             ->leftJoin('mm_patrons as customers', 'customers.id', '=', 'mm_dispatches.customer_id')
             ->leftJoin('mm_sales_orders as so', 'so.id', '=', 'mm_dispatches.sales_order_id')
             ->leftJoin('mm_patrons as so_customers', 'so_customers.id', '=', 'so.customer_id')
@@ -623,7 +624,7 @@ class ERPDashboardController extends Controller
                 COALESCE(mm_dispatches.customer_id, so.customer_id) as resolved_customer_id,
                 COALESCE(customers.legal_name, so_customers.legal_name, "Walk-in Customer") as customer_name,
                 COUNT(mm_dispatches.id) as trips,
-                COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)), 0) as quantity,
+                COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, dispatch_batches.batch_size, 0)), 0) as quantity,
                 COALESCE(SUM(mm_dispatches.load_total_amount), 0) as revenue
             ')
             ->groupBy(DB::raw('COALESCE(mm_dispatches.customer_id, so.customer_id)'), DB::raw('COALESCE(customers.legal_name, so_customers.legal_name, "Walk-in Customer")'))

@@ -192,14 +192,14 @@ class MobileAccess
             && self::permits('CUSTOMER_PO', 'VIEW');
     }
 
-    public static function orderOwnerId(?int $existingOwner = null, bool $updating = false, mixed $requestedOwner = null, bool $hasRequested = false): ?int
+    public static function orderOwnerId(?int $existingOwner = null, bool $updating = false, mixed $requestedOwner = null, bool $hasRequested = false, ?int $inheritedOwner = null): ?int
     {
         if (self::isCommercialAdministrator()) {
             if ($hasRequested) {
                 return $requestedOwner ? (int) $requestedOwner : null;
             }
 
-            return $updating ? $existingOwner : null;
+            return $updating ? $existingOwner : $inheritedOwner;
         }
 
         return self::commercialOwnerId($existingOwner);

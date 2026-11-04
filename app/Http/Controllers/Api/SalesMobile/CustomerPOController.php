@@ -146,9 +146,10 @@ class CustomerPOController extends Controller
             }
             unset($data['items']);
             // Only main-app administrators may assign an owner. Sales users remain self-owned.
-            $data['sales_executive_id'] = $quote?->sales_executive_id ?? Access::orderOwnerId(
+            $data['sales_executive_id'] = Access::orderOwnerId(
                 requestedOwner: $data['sales_executive_id'] ?? null,
                 hasRequested: array_key_exists('sales_executive_id', $data),
+                inheritedOwner: $quote?->sales_executive_id,
             );
             $number = CustomerPO::generateReference(Access::plantId());
             $po = CustomerPO::create(array_merge(['adjustment' => 0], $data, $number, ['plant_id' => Access::plantId(), 'converted_by_user_id' => $request->user()->id, 'is_sales_order' => 0, 'status' => $quote ? CustomerPO::STATUS_CONFIRMED : CustomerPO::STATUS_DRAFT]));
@@ -245,7 +246,7 @@ class CustomerPOController extends Controller
                 throw ValidationException::withMessages(['total_qty' => 'Total quantity must equal the sum of item quantities ('.$totalQuantity.').']);
             }
             unset($data['items'], $data['total_qty']);
-            $data['sales_executive_id'] = $quote?->sales_executive_id ?? Access::orderOwnerId(
+            $data['sales_executive_id'] = Access::orderOwnerId(
                 $po->sales_executive_id, true, $data['sales_executive_id'] ?? null,
                 array_key_exists('sales_executive_id', $data),
             );
@@ -279,6 +280,7 @@ class CustomerPOController extends Controller
             $data = $request->validate([
                 'order_date' => ['sometimes', 'required', 'date_format:Y-m-d'],
                 'customer_po_reference' => ['nullable', 'string', 'max:150'],
+                'sales_executive_id' => ['nullable', 'integer', Rule::exists('mm_personnels', 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')],
                 'notes' => ['nullable', 'string', 'max:10000'],
             ]);
             $conversion = clone $request;
@@ -320,10 +322,13 @@ class CustomerPOController extends Controller
             abort_if((int) $po->status === CustomerPO::STATUS_COMPLETED, 422, 'Customer PO is completed.');
             $data = $request->validate([
                 'items' => 'required|array|min:1|max:100',
+                'sales_executive_id' => ['nullable', 'integer', Rule::exists('mm_personnels', 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')],
                 'items.*.item_id' => ['required', 'integer', 'distinct', Rule::exists('mm_customer_po_items', 'id')->where('customer_po_id', $po->id)->whereNull('deleted_at')],
                 'items.*.quantity' => 'required|numeric|between:0.001,999999',
             ]);
             $orders = [];
+            $ownerId = Access::orderOwnerId($po->sales_executive_id, true,
+                $data['sales_executive_id'] ?? null, array_key_exists('sales_executive_id', $data));
             foreach ($data['items'] as $line) {
                 $item = $po->items()->findOrFail($line['item_id']);
                 $ordered = $po->items()->where('mix_design_id', $item->mix_design_id)->sum('quantity');
@@ -333,7 +338,7 @@ class CustomerPOController extends Controller
                 $orders[] = SalesOrder::create(array_merge($item->only(['mix_design_id', 'rate', 'tax_id', 'concrete_pump', 'pump_rate']), [
                     'prefix' => $number['prefix'], 'order_no' => $number['next_number'], 'plant_id' => Access::plantId(),
                     'customer_id' => $po->patron_id, 'site_id' => $po->site_id, 'customer_po_id' => $po->id,
-                    'sales_executive_id' => $po->sales_executive_id, 'is_tax_inclusive' => $po->is_tax_inclusive,
+                    'sales_executive_id' => $ownerId, 'is_tax_inclusive' => $po->is_tax_inclusive,
                     'total_qty' => $line['quantity'], 'produced_qty' => 0, 'status' => SalesOrder::STATUS_SCHEDULED,
                 ]));
             }

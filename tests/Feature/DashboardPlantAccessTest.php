@@ -26,6 +26,55 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class DashboardPlantAccessTest extends TestCase
 {
+    public function test_customer_leaderboard_aggregates_batch_fallback_without_a_grouped_subquery(): void
+    {
+        Schema::create('mm_patrons', function (Blueprint $t) {
+            $t->id(); $t->string('legal_name');
+        });
+        Schema::create('mm_sales_orders', function (Blueprint $t) {
+            $t->id(); $t->integer('customer_id')->nullable();
+        });
+        Schema::create('mm_batches', function (Blueprint $t) {
+            $t->id(); $t->decimal('batch_size');
+        });
+        Schema::create('mm_dispatches', function (Blueprint $t) {
+            $t->id(); $t->integer('plant_id'); $t->integer('customer_id')->nullable();
+            $t->integer('sales_order_id')->nullable(); $t->integer('batch_id')->nullable();
+            $t->decimal('delivered_qty')->nullable(); $t->decimal('load_total_amount');
+            $t->dateTime('dispatch_time'); $t->softDeletes();
+        });
+        DB::table('mm_patrons')->insert(['id' => 1, 'legal_name' => 'Customer']);
+        DB::table('mm_sales_orders')->insert(['id' => 1, 'customer_id' => 1]);
+        DB::table('mm_batches')->insert(['id' => 1, 'batch_size' => 8]);
+        foreach ([
+            [1, 1, 1, 3, 100], [1, null, 1, null, 200], [1, 1, 1, 0, 50],
+            [1, null, null, null, 10], [2, 1, 1, 999, 9999],
+        ] as [$plant, $customer, $batch, $quantity, $revenue]) {
+            DB::table('mm_dispatches')->insert([
+                'plant_id' => $plant, 'customer_id' => $customer,
+                'sales_order_id' => $batch ? 1 : null, 'batch_id' => $batch,
+                'delivered_qty' => $quantity, 'load_total_amount' => $revenue,
+                'dispatch_time' => '2026-11-04 12:00:00',
+            ]);
+        }
+        session(['active_plant_id' => 1]);
+        DB::enableQueryLog();
+        $method = new \ReflectionMethod(ERPDashboardController::class, 'getCustomerLeaderboard');
+        $rows = $method->invoke(new ERPDashboardController, 1,
+            \Illuminate\Support\Carbon::parse('2026-11-04')->startOfDay(),
+            \Illuminate\Support\Carbon::parse('2026-11-04')->endOfDay(), null);
+        $this->assertCount(2, $rows);
+        $this->assertSame('Customer', $rows[0]['customer']);
+        $this->assertSame(3, $rows[0]['trips']);
+        $this->assertEquals(11, $rows[0]['quantity']);
+        $this->assertEquals(350, $rows[0]['revenue']);
+        $this->assertSame('Walk-in Customer', $rows[1]['customer']);
+        $this->assertEquals(0, $rows[1]['quantity']);
+        $sql = collect(DB::getQueryLog())->last()['query'];
+        $this->assertStringContainsString('dispatch_batches', $sql);
+        $this->assertStringNotContainsString('SELECT batch_size', $sql);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
