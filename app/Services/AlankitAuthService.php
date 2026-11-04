@@ -43,7 +43,7 @@ class AlankitAuthService
             return $environment === 'production';
         }
 
-        return request()->getHost() !== 'feynman.modomines.com' && app(EInvoiceService::class)->isProduction($plant);
+        return  app(EInvoiceService::class)->isProduction($plant);
     }
 
     public function requestAuthFromGateway(string $username, string $password, string $gstin, string $subscriptionKey, bool $production = false): array
