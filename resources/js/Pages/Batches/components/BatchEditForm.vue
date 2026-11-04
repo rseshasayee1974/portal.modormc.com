@@ -240,8 +240,9 @@ const isUploadFetchEnabled = computed(() => {
     return !!customSettings?.batching?.sheet_upload;
 });
 
-const { isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
-const canEditBatchNo = computed(() => !isLocked.value && Boolean(isAdmin.value || isSuperAdmin.value || isSassOwner.value));
+const { isAdmin, isSuperAdmin } = usePermissions();
+const canEditBatchNo = computed(() => !isLocked.value
+    && String(page.props.user_code ?? '').trim().toUpperCase() === 'ADMINISTRATOR' || 'ADMIN');
 
 const duplicateBatchWarning = computed(() => {
     if (!canEditBatchNo.value || !form.batch_no) return null;
@@ -1216,7 +1217,7 @@ console.log('test');
                                 <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{{
                                     detail.label }}</span>
                                 <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">{{ detail.value
-                                }}</span>
+                                    }}</span>
                             </div>
                         </div>
                     </div>
@@ -1297,8 +1298,7 @@ console.log('test');
                                 </div>
                                 <div>
                                     <TripAssignmentSelect v-model="form.truck_id" :options="trucks" kind="truck"
-                                        label="Truck Assignment" :error="form.errors.truck_id"
-                                        :disabled="isLocked" />
+                                        label="Truck Assignment" :error="form.errors.truck_id" :disabled="isLocked" />
                                 </div>
                                 <div>
                                     <BaseSelect v-model="form.transport_id" :options="transporters"
@@ -1307,8 +1307,7 @@ console.log('test');
                                 </div>
                                 <div>
                                     <TripAssignmentSelect v-model="form.driver_id" :options="drivers" kind="driver"
-                                        label="Driver" :error="form.errors.driver_id"
-                                        :disabled="isLocked" />
+                                        label="Driver" :error="form.errors.driver_id" :disabled="isLocked" />
                                 </div>
                                 <div>
                                     <BaseSelect v-model="form.sales_executive_id" :options="sales_executives"
@@ -1366,7 +1365,7 @@ console.log('test');
                                                     form.batch_size).toFixed(3) }}
                                                 <span class="text-[9px] font-normal text-slate-400 ml-0.5">{{
                                                     item.uom?.unit_code || 'KGS'
-                                                }}</span>
+                                                    }}</span>
                                             </div>
                                         </div>
                                     </div>

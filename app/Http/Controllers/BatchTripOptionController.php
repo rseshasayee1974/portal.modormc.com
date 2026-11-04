@@ -50,7 +50,7 @@ class BatchTripOptionController extends Controller
                     throw ValidationException::withMessages(['name' => 'This registration already exists outside the active truck list. Update it in Machines first.']);
                 }
                 $truck ??= Machine::create(['plant_id' => $plant->id, 'entity_id' => $plant->entity_id,
-                    'registration' => $formattedRegistration, 'vehicle_type' => 'Truck', 'is_active' => true]);
+                    'registration' => $formattedRegistration, 'vehicle_type' => 'Transit Mixer', 'is_active' => true]);
                 if ($truck->registration !== $formattedRegistration) {
                     $truck->update(['registration' => $formattedRegistration]);
                 }
