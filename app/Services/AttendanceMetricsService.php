@@ -39,6 +39,14 @@ class AttendanceMetricsService
         }
 
         return [
+            'shift' => $scheduledStart ? [
+                'id' => $shift?->id, 'name' => $shift?->shift_name ?? 'Personnel shift',
+                'start_time' => $scheduledStart->format('H:i:s'), 'end_time' => $scheduledEnd->format('H:i:s'),
+                'grace_time' => $shift?->grace_time ?? 0, 'working_hours' => $hours,
+                'is_night_shift' => $scheduledEnd->toDateString() !== $scheduledStart->toDateString(),
+                'effective_from' => $assignment?->getRawOriginal('effective_from'),
+                'effective_to' => $assignment?->getRawOriginal('effective_to'),
+            ] : null,
             'shift_id' => $shift?->id,
             'scheduled_start' => $scheduledStart?->format('Y-m-d H:i:s'),
             'scheduled_end' => $scheduledEnd?->format('Y-m-d H:i:s'),

@@ -5547,7 +5547,7 @@
         ],
         "summary": "Current attendance",
         "operationId": "get__attendances_current",
-        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification.",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
         "security": [
           {
             "bearerAuth": []
@@ -5600,8 +5600,34 @@
                       "scheduled_hours": "8.00",
                       "grace_seconds": 0,
                       "timezone": "Asia/Kolkata",
-                      "is_open": true
-                    }
+                      "is_open": true,
+                      "shift": {
+                        "id": null,
+                        "name": "Personnel shift",
+                        "start_time": "09:00:00",
+                        "end_time": "17:00:00",
+                        "grace_time": 0,
+                        "working_hours": 8,
+                        "is_night_shift": false,
+                        "effective_from": null,
+                        "effective_to": null
+                      }
+                    },
+                    "shift": {
+                      "id": null,
+                      "name": "Personnel shift",
+                      "start_time": "09:00:00",
+                      "end_time": "17:00:00",
+                      "grace_time": 0,
+                      "working_hours": 8,
+                      "is_night_shift": false,
+                      "effective_from": null,
+                      "effective_to": null
+                    },
+                    "shift_id": null,
+                    "scheduled_start": "2026-10-21 09:00:00",
+                    "scheduled_end": "2026-10-21 17:00:00",
+                    "accepts_check_in_time": false
                   }
                 }
               }
@@ -5635,7 +5661,7 @@
         ],
         "summary": "Check in after login",
         "operationId": "post__attendances_check_in",
-        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. First check-in returns 201; retries return the same attendance with 200, even if it was already closed that work date. Notification behavior: this request does not directly trigger a business push notification.",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. First check-in returns 201; retries return the same attendance with 200, even if it was already closed that work date. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
         "security": [
           {
             "bearerAuth": []
@@ -5684,7 +5710,18 @@
                     "scheduled_hours": "8.00",
                     "grace_seconds": 0,
                     "timezone": "Asia/Kolkata",
-                    "is_open": true
+                    "is_open": true,
+                    "shift": {
+                      "id": null,
+                      "name": "Personnel shift",
+                      "start_time": "09:00:00",
+                      "end_time": "17:00:00",
+                      "grace_time": 0,
+                      "working_hours": 8,
+                      "is_night_shift": false,
+                      "effective_from": null,
+                      "effective_to": null
+                    }
                   }
                 }
               }
@@ -5720,7 +5757,18 @@
                     "scheduled_hours": "8.00",
                     "grace_seconds": 0,
                     "timezone": "Asia/Kolkata",
-                    "is_open": true
+                    "is_open": true,
+                    "shift": {
+                      "id": null,
+                      "name": "Personnel shift",
+                      "start_time": "09:00:00",
+                      "end_time": "17:00:00",
+                      "grace_time": 0,
+                      "working_hours": 8,
+                      "is_night_shift": false,
+                      "effective_from": null,
+                      "effective_to": null
+                    }
                   }
                 }
               }
@@ -5800,7 +5848,7 @@
         ],
         "summary": "My attendance history",
         "operationId": "get__attendances",
-        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Both date filters are optional; remove them for all own history. Notification behavior: this request does not directly trigger a business push notification.",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Both date filters are optional; remove them for all own history. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
         "security": [
           {
             "bearerAuth": []
@@ -5889,7 +5937,18 @@
                         "scheduled_hours": "8.00",
                         "grace_seconds": 0,
                         "timezone": "Asia/Kolkata",
-                        "is_open": true
+                        "is_open": true,
+                        "shift": {
+                          "id": null,
+                          "name": "Personnel shift",
+                          "start_time": "09:00:00",
+                          "end_time": "17:00:00",
+                          "grace_time": 0,
+                          "working_hours": 8,
+                          "is_night_shift": false,
+                          "effective_from": null,
+                          "effective_to": null
+                        }
                       }
                     ],
                     "per_page": 20,
@@ -5927,7 +5986,7 @@
         ],
         "summary": "Attendance detail",
         "operationId": "get__attendances_attendance_",
-        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification.",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
         "security": [
           {
             "bearerAuth": []
@@ -5985,7 +6044,18 @@
                     "scheduled_hours": "8.00",
                     "grace_seconds": 0,
                     "timezone": "Asia/Kolkata",
-                    "is_open": true
+                    "is_open": true,
+                    "shift": {
+                      "id": null,
+                      "name": "Personnel shift",
+                      "start_time": "09:00:00",
+                      "end_time": "17:00:00",
+                      "grace_time": 0,
+                      "working_hours": 8,
+                      "is_night_shift": false,
+                      "effective_from": null,
+                      "effective_to": null
+                    }
                   }
                 }
               }
@@ -6019,7 +6089,7 @@
         ],
         "summary": "Check out before logout",
         "operationId": "post__attendances_attendance_check_out",
-        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No body. Retry with the same attendance_id after a timeout. Call auth/logout only after this succeeds. Notification behavior: this request does not directly trigger a business push notification.",
+        "description": "Self-service attendance for any user granted mobile app access in X-Plant-Id, regardless of role or existing personnel profile. First check-in creates a minimal linked personnel record when needed; read endpoints never create HR records. Existing profile status and employment dates do not control mobile attendance access; no client personnel_id, timestamps, hours, status or shift overrides are allowed. Call check-in after login/plant selection and check-out before auth/logout. Login/logout alone do not punch attendance. Server time in Asia/Kolkata (Chennai, UTC+05:30) is authoritative. Attendance timestamps are stored and returned as YYYY-MM-DD HH:mm:ss in 24-hour India time. Repeated punches preserve timestamps; one session per employee/work date. Stale sessions over 24 hours, manual/HR records and payroll conflicts require HR correction. Attendance does not directly send business push notifications. No body. Retry with the same attendance_id after a timeout. Call auth/logout only after this succeeds. Notification behavior: this request does not directly trigger a business push notification. Responses include one shift object (or null), never a shifts array. Check-in accepts optional notes; check_in is allowed only when current attendance returns accepts_check_in_time=true. Check-out accepts an empty JSON object. Do not send user_id, personnel_id, shift_id, shift, shifts, status, hours, or check_out.",
         "security": [
           {
             "bearerAuth": []
@@ -6077,7 +6147,18 @@
                     "scheduled_hours": "8.00",
                     "grace_seconds": 0,
                     "timezone": "Asia/Kolkata",
-                    "is_open": false
+                    "is_open": false,
+                    "shift": {
+                      "id": null,
+                      "name": "Personnel shift",
+                      "start_time": "09:00:00",
+                      "end_time": "17:00:00",
+                      "grace_time": 0,
+                      "working_hours": 8,
+                      "is_night_shift": false,
+                      "effective_from": null,
+                      "effective_to": null
+                    }
                   }
                 }
               }

@@ -155,6 +155,12 @@ class User extends Authenticatable implements MustVerifyEmail
 		return $this->hasOne(Personnel::class, 'user_id');
 	}
 
+    public function linkedPersonnel()
+    {
+        return $this->belongsToMany(Personnel::class, 'mm_personnel_user_rels', 'user_id', 'personnel_id')
+            ->wherePivotNull('deleted_at')->withPivot('plant_id')->withTimestamps();
+    }
+
 	public static function saveWithRelations(array $data)
 	{
 		return DB::transaction(function () use ($data) {
@@ -197,6 +203,20 @@ class User extends Authenticatable implements MustVerifyEmail
 					'created_by' => auth()->id() ?: 1,
 					'updated_by' => auth()->id() ?: 1,
                 ]);
+            }
+
+            if (!empty($data['personnel_id'])) {
+                $personnel = Personnel::withoutGlobalScope('plant_id')->where('plant_id', session('active_plant_id'))
+                    ->where('entity_id', session('active_entity_id'))->whereNull('user_id')
+                    ->lockForUpdate()->find($data['personnel_id']);
+                if (!$personnel) throw \Illuminate\Validation\ValidationException::withMessages([
+                    'personnel_id' => 'This personnel is unavailable or already has a login account.',
+                ]);
+                $personnel->update(['user_id' => $user->id]);
+                PersonnelUserRel::create([
+                    'personnel_id' => $personnel->id, 'user_id' => $user->id, 'plant_id' => $personnel->plant_id,
+                ]);
+                return $user;
             }
 
 			// Create Personnel record

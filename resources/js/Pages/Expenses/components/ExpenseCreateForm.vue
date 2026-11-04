@@ -42,7 +42,6 @@ const form = useForm({
     amount: Number(props.expense?.amount ?? 0),
     date: props.expense?.date?.slice(0, 10) ?? entityToday(),
     vendor_id: props.expense?.vendor_id ?? null,
-    customer_id: props.expense?.customer_id ?? null,
     machine_id: props.expense?.machine_id ?? null,
     note: props.expense?.note ?? '',
 });
@@ -149,13 +148,9 @@ const submit = () => {
                                 </template>
                             </BaseSelect>
 
-                            <BaseSelect v-model="form.vendor_id" label="Vendor / Payee" :options="patrons"
-                                optionLabel="label" optionValue="value" placeholder="None"
+                            <BaseSelect v-model="form.vendor_id" label="Payee" :options="patrons"
+                                optionLabel="label" optionValue="value" placeholder="Select Payee"
                                 :error="form.errors.vendor_id" filter showClear />
-
-                            <BaseSelect v-model="form.customer_id" label="Rebill to Customer" :options="patrons"
-                                optionLabel="label" optionValue="value" placeholder="None"
-                                :error="form.errors.customer_id" filter showClear />
 
                             <div class="pt-4 border-t border-slate-200 mt-4">
                                 <BaseFormActions :label="expense ? 'Save Changes' : 'Post Expense'" :loading="form.processing" @submit="submit"

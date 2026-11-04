@@ -440,7 +440,7 @@ const submit = () => {
                             <div class="flex flex-col gap-2">
                                 <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Shift Start
                                     Time</label>
-                                <DatePicker v-model="form.shift_start_time" timeOnly showTime hourFormat="12"
+                                <DatePicker v-model="form.shift_start_time" timeOnly showTime showSeconds hourFormat="12"
                                     placeholder="e.g. 09:00:00" class="w-full"
                                     :class="{ 'p-invalid': form.errors.shift_start_time }" />
                                 <small v-if="form.errors.shift_start_time" class="p-error text-[10px]">{{
@@ -449,7 +449,7 @@ const submit = () => {
                             <div class="flex flex-col gap-2">
                                 <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Shift End
                                     Time</label>
-                                <DatePicker v-model="form.shift_end_time" timeOnly showTime hourFormat="12"
+                                <DatePicker v-model="form.shift_end_time" timeOnly showTime showSeconds hourFormat="12"
                                     placeholder="e.g. 17:00:00" class="w-full"
                                     :class="{ 'p-invalid': form.errors.shift_end_time }" />
                                 <small v-if="form.errors.shift_end_time" class="p-error text-[10px]">{{

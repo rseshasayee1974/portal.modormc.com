@@ -174,7 +174,7 @@ class AuthController extends Controller
             $from = $shift->pivot?->effective_from;
             $to = $shift->pivot?->effective_to;
             return (!$from || (string) $from <= $today) && (!$to || (string) $to >= $today);
-        }) ?? $shifts->first();
+        });
 
         $serializeShift = static fn ($shift) => $shift ? [
             'id' => $shift->id,
@@ -188,14 +188,27 @@ class AuthController extends Controller
             'effective_to' => $shift->pivot?->effective_to,
         ] : null;
 
+        $currentShift = $serializeShift($activeShift);
+        if (!$currentShift && $personnel?->shift_start_time && $personnel?->shift_end_time) {
+            $start = \Carbon\CarbonImmutable::parse($personnel->shift_start_time);
+            $end = \Carbon\CarbonImmutable::parse($personnel->shift_end_time);
+            $night = $end->lessThan($start);
+            if ($night) $end = $end->addDay();
+            $currentShift = [
+                'id' => null, 'name' => 'Personnel shift',
+                'start_time' => $start->format('H:i:s'), 'end_time' => $end->format('H:i:s'),
+                'grace_time' => 0, 'working_hours' => $start->diffInMinutes($end) / 60,
+                'is_night_shift' => $night, 'effective_from' => null, 'effective_to' => null,
+            ];
+        }
+
         return [
             'id' => $user->id,
             'name' => $user->username,
             'email' => $user->email,
             'personnel_id' => $personnel?->id,
             'mobile' => $user->mobile,
-            'shift' => $serializeShift($activeShift),
-            'shifts' => $shifts->map($serializeShift)->values()->all(),
+            'shift' => $currentShift,
         ];
     }
 

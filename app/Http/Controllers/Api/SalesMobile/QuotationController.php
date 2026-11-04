@@ -144,6 +144,8 @@ class QuotationController extends Controller
             }, $r->input('items'))]);
         }
         $data = $r->validate([
+            'sales_executive_id' => Access::isCommercialAdministrator()
+                ? ['nullable', 'integer', $exists('mm_personnels')] : ['nullable'],
             'reference' => ['nullable', 'string', 'max:100', Rule::unique('mm_quotations', 'reference')->where('plant_id', Access::plantId())->whereNull('deleted_at')->ignore($quotation?->id)],
             'patron_id' => ['required', 'integer', Access::exists(Access::customers())], 'site_id' => ['required', 'integer', Access::exists(Access::plantSites())],
             'quote_date' => 'required|date_format:Y-m-d', 'validity_date' => 'nullable|date_format:Y-m-d|after_or_equal:quote_date',
@@ -163,9 +165,10 @@ class QuotationController extends Controller
             'site_id.exists' => 'The selected site is unavailable in the selected plant.',
         ]);
         $isLeadQuotation = $fromLead || ($quotation && Access::leadQuotationIds()->where('quotation_id', $quotation->id)->exists());
-        $data['sales_executive_id'] = $isLeadQuotation
-            ? ($quotation?->sales_executive_id ?? (Access::isCommercialAdministrator() ? null : Access::personnelId()))
-            : null;
+        $data['sales_executive_id'] = Access::isCommercialAdministrator()
+            ? Access::orderOwnerId($quotation?->sales_executive_id, $quotation !== null,
+                $data['sales_executive_id'] ?? null, array_key_exists('sales_executive_id', $data))
+            : ($isLeadQuotation ? ($quotation?->sales_executive_id ?? Access::personnelId()) : null);
         $data['items'] = QuotationCalculator::items($data['items'], (bool) $data['is_tax_inclusive']);
         $baseTotal = array_sum(array_column($data['items'], 'amount_total'));
         $target = $data['is_tax_inclusive'] ? array_sum(array_map(fn ($i) => round($i['quantity'] * $i['rate'] + ($i['pump_rate'] ?? 0) - ($i['discount_amount'] ?? 0), 2), $data['items'])) : $baseTotal;
@@ -226,7 +229,9 @@ class QuotationController extends Controller
                 'discount_type' => 'nullable|in:amount,%', 'discount' => 'nullable|numeric|min:0',
                 'items' => 'sometimes|required|array|min:1|max:100',
                 'patron_id' => ['nullable', 'integer', Access::exists(Access::customers())],
-                'sales_executive_id' => 'nullable',
+                'sales_executive_id' => Access::isCommercialAdministrator()
+                    ? ['nullable', 'integer', Rule::exists('mm_personnels', 'id')->where('plant_id', Access::plantId())->whereNull('deleted_at')]
+                    : ['nullable'],
                 'mix_design_id' => ['sometimes', 'required', 'integer', Rule::exists('mm_mix_designs', 'id')->where('plant_id', Access::plantId())->where('is_active', 1)->whereNull('deleted_at')],
             ]);
             $mix = MixDesign::where('plant_id', Access::plantId())->where('is_active', 1)->find($input['mix_design_id'] ?? $source->mix_design_id);
@@ -272,7 +277,7 @@ class QuotationController extends Controller
                 $source->remarks,
             ])->filter()->implode("\n");
             $r->replace([
-                ...array_intersect_key($input, array_flip(['adjustment', 'concrete_pump', 'pump_rate'])),
+                ...array_intersect_key($input, array_flip(['adjustment', 'concrete_pump', 'pump_rate', 'sales_executive_id'])),
                 'patron_id' => $customer->id, 'site_id' => $siteId,
                 'quote_date' => $input['quote_date'] ?? now()->toDateString(),
                 'validity_date' => $input['validity_date'] ?? null,

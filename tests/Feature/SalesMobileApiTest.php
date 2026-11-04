@@ -774,7 +774,8 @@ class SalesMobileApiTest extends TestCase
         $token = User::find(2)->createToken('web-login')->plainTextToken;
         $this->withHeaders(['Authorization' => 'Bearer ' . $token]);
         $this->getJson('/api/mobile/leads/501')->assertOk();
-        $quotation = $this->postJson('/api/mobile/leads/501/quotation', ['site_id' => 1])->assertCreated()->json('data.id');
+        $quotation = $this->postJson('/api/mobile/leads/501/quotation', ['site_id' => 1, 'sales_executive_id' => 1])
+            ->assertCreated()->assertJsonPath('data.sales_executive_id', 1)->json('data.id');
         $this->assertDatabaseHas('mm_crm_deals', ['lead_id' => 501, 'quotation_id' => $quotation]);
         $this->assertDatabaseHas('mm_quotations', ['id' => $quotation, 'plant_id' => 1, 'created_by' => 2]);
         $this->postJson('/api/mobile/leads/501/quotation', ['site_id' => 1])->assertUnprocessable();
@@ -3663,6 +3664,37 @@ class SalesMobileApiTest extends TestCase
                 }
             }
         }
+    }
+
+    public function test_admin_quotation_preserves_payload_sales_executive_without_login_default(): void
+    {
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        DB::table('mm_personnels')->insert([
+            ['id' => 10, 'plant_id' => 1, 'first_name' => 'Selected', 'deleted_at' => null],
+            ['id' => 11, 'plant_id' => 2, 'first_name' => 'Foreign', 'deleted_at' => null],
+            ['id' => 12, 'plant_id' => 1, 'first_name' => 'Deleted', 'deleted_at' => now()],
+        ]);
+        $token = User::find(2)->createToken('admin-quotation-owner')->plainTextToken;
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Plant-Id' => '1']);
+        $body = array_replace($this->quote(), ['reference' => 'QT-ADMIN-PAYLOAD']);
+        $id = $this->postJson('/api/mobile/quotations', $body)
+            ->assertCreated()->assertJsonPath('data.sales_executive_id', null)->json('data.id');
+        $url = '/api/mobile/quotations/'.$id;
+        foreach ([1, 10, '10', null] as $owner) {
+            $expected = $owner === null ? null : (int) $owner;
+            $this->patchJson($url, ['sales_executive_id' => $owner])->assertOk()
+                ->assertJsonPath('data.sales_executive_id', $expected);
+            $this->patchJson($url, ['notes' => 'Preserve owner'])->assertOk()
+                ->assertJsonPath('data.sales_executive_id', $expected);
+            $this->assertEquals($expected, DB::table('mm_quotations')->where('id', $id)->value('sales_executive_id'));
+        }
+        foreach ([11, 12, 9999, 'invalid'] as $owner) {
+            $this->patchJson($url, ['sales_executive_id' => $owner])->assertUnprocessable()
+                ->assertJsonValidationErrors('sales_executive_id');
+        }
+        $this->postJson('/api/mobile/quotations', array_replace($body, [
+            'reference' => 'QT-ADMIN-SELECTED', 'sales_executive_id' => 10,
+        ]))->assertCreated()->assertJsonPath('data.sales_executive_id', 10);
     }
 
     public function test_direct_quotation_to_customer_po_conversion_in_both_mobile_apps(): void

@@ -687,6 +687,22 @@ Migration `2026_10_17_174557_add_push_notification_receive_permission.php` regis
 Eligibility is checked at recipient selection, dispatch and each queued channel. Revocation before a queued send marks that recipient's log skipped. Mobile channel auth returns 403 without permission; connection data.can_receive becomes false. Clients should refresh enabled/configured/can_receive on app resume. Previously stored own history and read acknowledgments remain accessible after revocation. Existing sockets are not forcibly disconnected by role edits, but future deliveries recheck permission; events already sent cannot be recalled.
 
 
+## Attendance payloads and single-shift responses
+
+Use `Authorization: Bearer <token>`, `Accept: application/json`, and `X-Plant-Id: <accessible plant ID>` for all attendance requests. POST requests use `Content-Type: application/json`.
+
+| Method | Endpoint | Request |
+| --- | --- | --- |
+| GET | `/api/mobile/v1/attendances/current` | No body |
+| POST | `/api/mobile/v1/attendances/check-in` | `{"notes":"Starting work"}` or `{}` |
+| GET | `/api/mobile/v1/attendances` | Optional query: `from_date=2026-11-01&to_date=2026-11-04&per_page=20&page=1` |
+| GET | `/api/mobile/v1/attendances/{attendance_id}` | No body |
+| POST | `/api/mobile/v1/attendances/{attendance_id}/check-out` | `{}` |
+
+Current attendance and each attendance record return one `shift` object, never a `shifts` array. It contains `id`, `name`, `start_time`, `end_time`, `grace_time`, `working_hours`, `is_night_shift`, `effective_from`, and `effective_to`. Personnel timings have a null shift ID. No configured timings means `shift: null`. Existing `shift_id`, `scheduled_start`, `scheduled_end`, and calculated-hours fields remain available. The same payloads apply under `/api/mobile/attendances` for the admin app.
+
+Do not send `user_id`, `personnel_id`, `shift_id`, `shift`, `shifts`, `check_out`, status, or calculated hours. The server resolves ownership and shift and records punch times. Only when current attendance returns `accepts_check_in_time: true`, check-in may optionally send `{"check_in":"2026-11-04 08:00:00","notes":"Starting work"}`; this must be a non-future time on the current India calendar date. With configured shifts, omit `check_in`. Check-out always uses server time. Use the attendance ID returned by check-in for check-out; retries return the existing record.
+
 ## Workspace module-permission behavior
 
 WorkspaceController endpoints (dashboard, lookups, marketing summary, mix designs, taxes, sites, site detail, customers and customer detail) do not require module VIEW permissions. Dashboard metrics, lookup groups and customer progress are always returned. Mobile authentication, the sales-mobile access grant, active plant membership, input validation and existing record-visibility queries still apply. Other controllers retain their module permissions, including lead mutations and notification receive eligibility.

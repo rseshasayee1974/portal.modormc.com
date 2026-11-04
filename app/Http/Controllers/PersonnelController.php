@@ -25,7 +25,7 @@ class PersonnelController extends Controller
         $activePlantId = session('active_plant_id');
 
         return Inertia::render('Personnel/Index', [
-            'personnel' => Personnel::with(['contacts', 'patrons', 'department', 'designation', 'reportingManager', 'salaryStructures.salaryComponent'])
+            'personnel' => Personnel::with(['user:id,is_otp_enabled', 'contacts', 'patrons', 'department', 'designation', 'reportingManager', 'salaryStructures.salaryComponent'])
                 ->where('plant_id', $activePlantId)
                 ->latest()
                 ->get(),

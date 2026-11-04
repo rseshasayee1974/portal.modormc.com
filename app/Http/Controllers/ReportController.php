@@ -126,6 +126,9 @@ class ReportController extends Controller
     public function generate(Request $request, ReportServiceFactory $factory, ExcelExportService $excelService)
     {
         $type = strtolower((string) $request->input('type'));
+        if ($type === 'inventory_inward') $request->validate([
+            'start_date' => 'nullable|date', 'end_date' => 'nullable|date|after_or_equal:start_date',
+        ]);
         if ($type === 'attendance') $request->validate([
             'employee_id' => 'nullable|integer|min:1',
             'attendance_status' => ['nullable', \Illuminate\Validation\Rule::in(\App\Services\Reports\AttendanceReportService::STATUSES)],
@@ -140,6 +143,13 @@ class ReportController extends Controller
             $patronId = $request->input('patron_id');
             $start    = $request->input('start_date');
             $end      = $request->input('end_date');
+            if ($type === 'inventory_inward') {
+                foreach (['start', 'end'] as $boundary) {
+                    if ($$boundary && !preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($$boundary))) {
+                        $$boundary = \Carbon\Carbon::parse($$boundary)->setTimezone(config('app.timezone'))->toDateTimeString();
+                    }
+                }
+            }
 
             try {
                 $service = $factory->make($type);

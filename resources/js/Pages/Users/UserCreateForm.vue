@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import { usePage } from '@inertiajs/vue3';
 const page = usePage();
@@ -14,6 +14,8 @@ import BaseActionButton from '@/Components/Base/BaseActionButton.vue';
 import Password from 'primevue/password';
 
 const props = defineProps<{
+    selectedPersonnel?: any;
+    unlinkedPersonnel?: any[];
     entities: Array<{ label: string; value: number }>;
     plants: Array<{ label: string; value: number; entity_id: number }>;
     userGroups: Array<{ label: string; value: number }>;
@@ -31,6 +33,7 @@ const createDefaultAssignment = (): EntityAssignment => ({
 });
 
 const form = ref({
+    personnel_id: null as number | null,
     username: '',
     email: '',
     mobile: '',
@@ -45,12 +48,27 @@ const form = ref({
 
 const reset = () => {
     form.value = {
-        username: '', email: '', mobile: '', password: '',
+        personnel_id: null, username: '', email: '', mobile: '', password: '',
         is_active: true, is_otp_enabled: false, 
         entity_users: [createDefaultAssignment()],
         profile_photo: null, processing: false, errors: {},
     };
 };
+
+const personnelOptions = computed(() => (props.unlinkedPersonnel ?? []).map(person => ({
+    label: `${person.employee_code} · ${person.first_name} ${person.last_name ?? ''}`, value: person.id,
+})));
+watch(() => props.selectedPersonnel, person => {
+    if (person) form.value.personnel_id = person.id;
+});
+watch(() => form.value.personnel_id, id => {
+    const person = props.unlinkedPersonnel?.find(person => Number(person.id) === Number(id));
+    if (!person) return;
+    form.value.username = `${person.first_name} ${person.last_name ?? ''}`.trim();
+    form.value.email = person.email ?? '';
+    form.value.mobile = person.mobile ?? '';
+    form.value.entity_users = [{ entity_id: person.entity_id, plant_id: person.plant_id, role_id: null }];
+});
 
 const addEntity    = () => {
     const assignment = createDefaultAssignment();
@@ -128,6 +146,7 @@ const submit = async () => {
     form.value.errors = {};
 
     const fd = new FormData();
+    if (form.value.personnel_id) fd.append('personnel_id', String(form.value.personnel_id));
     fd.append('username',       form.value.username);
     fd.append('email',          form.value.email);
     fd.append('mobile',         form.value.mobile);
@@ -183,6 +202,12 @@ const submit = async () => {
         </template>
 
         <div class="grid grid-cols-12 gap-4 py-4">
+            <div v-if="personnelOptions.length" class="col-span-12">
+                <BaseSelect v-model="form.personnel_id" :options="personnelOptions" optionLabel="label" optionValue="value"
+                    label="Existing personnel" placeholder="Select the personnel to create a login account" showClear
+                    :error="form.errors.personnel_id" />
+                <p class="text-xs text-gray-500 mt-1">The selected personnel keeps their existing shift and attendance records.</p>
+            </div>
 
            
 

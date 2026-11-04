@@ -12,8 +12,11 @@ class InventoryInwardReportService implements ReportServiceInterface
     public function generate(array $params): array
     {
         $plantId  = $this->ctx->requirePlantId();
-        $start    = $params['start'];
-        $end      = $params['end'];
+        $start    = $this->boundary($params['start'] ?? null, false);
+        $end      = $this->boundary($params['end'] ?? null, true);
+        if ($end < $start) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['end_date' => 'The end date and time must be on or after the start date and time.']);
+        }
         $patronId = $params['patron_id'] ?? null;
         $truckId  = $params['truck_id'] ?? null;
 
@@ -72,5 +75,15 @@ class InventoryInwardReportService implements ReportServiceInterface
     public function targetName(array $params): string
     {
         return 'Purchase Order Inward Report';
+    }
+
+    private function boundary($value, bool $end): string
+    {
+        $date = $value ? \Carbon\Carbon::parse($value, config('app.timezone'))->setTimezone(config('app.timezone'))
+            : ($end ? now() : now()->startOfYear());
+        if (!$value || preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $value))) {
+            $date = $end ? $date->endOfDay() : $date->startOfDay();
+        }
+        return $date->toDateTimeString();
     }
 }
