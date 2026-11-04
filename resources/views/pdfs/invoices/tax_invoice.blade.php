@@ -22,6 +22,7 @@
 
     // Resolve Dispatches, Sales Orders, Customer POs if available
     $dispatches = \App\Models\Dispatch::with([
+        'batch',
         'mixDesign',
         'truck',
         'driver',
@@ -45,6 +46,7 @@
     if ($dispatches->isEmpty() && $inv?->ref_id) {
         $refIds = array_filter(array_map('trim', explode(',', $inv->ref_id)));
         $dispatches = \App\Models\Dispatch::with([
+            'batch',
             'mixDesign',
             'truck',
             'driver',
@@ -63,6 +65,10 @@
     }
 
     $firstDispatch = $dispatches->first();
+    $batchNumbers = $dispatches->map(fn ($dispatch) => $dispatch->batch?->batch_no)
+        ->filter(fn ($value) => $value !== null && $value !== '')->unique()->implode(', ');
+    $siteReferences = $dispatches->pluck('dispatch_reference')
+        ->filter(fn ($value) => $value !== null && trim((string) $value) !== '')->unique()->implode(', ');
     $salesOrder = $firstDispatch?->salesOrder;
     $customerPO = $firstDispatch?->customerPO ?? $salesOrder?->customerPO;
 
@@ -738,6 +744,8 @@
                     <div class="box-heading">Invoice Information</div>
                     <div class="info-line"><strong>Invoice No :</strong> {{ $invoiceNo }}</div>
                     <div class="info-line"><strong>Date :</strong> {{ $invoiceDate }}</div>
+                    <div class="info-line"><strong>Batch No :</strong> {{ $batchNumbers ?: '-' }}</div>
+                    <div class="info-line"><strong>Site Ref :</strong> {{ $siteReferences ?: '-' }}</div>
                     <div class="info-line"><strong>SO No :</strong> {{ $soNo }}</div>
                     <div class="info-line"><strong>EWayBillNo :</strong> {{ $ewayBillNo }}</div>
                 </td>
