@@ -13,6 +13,8 @@ use RuntimeException;
 
 class AlankitInvoiceService
 {
+    private const PAYLOAD_FORMAT_VERSION = 'alankit-format-v2';
+
     public function encodePayload(array $payload): string
     {
         foreach (['SellerDtls', 'BuyerDtls', 'DispDtls', 'ShipDtls'] as $section) {
@@ -50,6 +52,9 @@ class AlankitInvoiceService
         $precision = ini_get('serialize_precision');
         try {
             ini_set('serialize_precision', '-1');
+            if (ini_get('serialize_precision') !== '-1') {
+                throw new RuntimeException('Alankit payload formatting requires PHP serialize_precision=-1. Update the web server PHP configuration.');
+            }
             return json_encode($payload, JSON_THROW_ON_ERROR);
         } finally {
             ini_set('serialize_precision', $precision);
@@ -76,7 +81,8 @@ class AlankitInvoiceService
             throw new RuntimeException('Unable to decrypt Alankit session key. Please authenticate again.');
         }
 
-        $encrypted = openssl_encrypt($this->encodePayload($payload), 'aes-256-ecb', $sek, OPENSSL_RAW_DATA);
+        $encodedPayload = $this->encodePayload($payload);
+        $encrypted = openssl_encrypt($encodedPayload, 'aes-256-ecb', $sek, OPENSSL_RAW_DATA);
         if ($encrypted === false) {
             throw new RuntimeException('Unable to encrypt Alankit invoice payload.');
         }
@@ -94,7 +100,22 @@ class AlankitInvoiceService
         $body = $response->json();
         if (!$response->successful() || !is_array($body) || (string) ($body['Status'] ?? '') !== '1') {
             $fallback = trim(preg_replace('/\s+/', ' ', strip_tags($response->body()))) ?: ('HTTP ' . $response->status());
-            throw new RuntimeException('Alankit E-Invoice Generation Failed: ' . $einvoice->extractGatewayErrorMessage($body, $fallback));
+            $sentPayload = json_decode($encodedPayload, true, 512, JSON_THROW_ON_ERROR);
+            $optionalFields = [];
+            foreach (['SellerDtls', 'BuyerDtls', 'DispDtls', 'ShipDtls'] as $section) {
+                foreach (['Addr2', 'Em'] as $field) {
+                    $optionalFields["$section.$field"] = isset($sentPayload[$section][$field])
+                        ? ['present' => true, 'length' => mb_strlen($sentPayload[$section][$field])]
+                        : ['present' => false];
+                }
+            }
+            \Illuminate\Support\Facades\Log::warning('Alankit rejected formatted invoice payload', [
+                'payload_format' => self::PAYLOAD_FORMAT_VERSION,
+                'plant_id' => $plant->id,
+                'environment' => $environment,
+                'optional_fields' => $optionalFields,
+            ]);
+            throw new RuntimeException('Alankit E-Invoice Generation Failed [' . self::PAYLOAD_FORMAT_VERSION . ']: ' . $einvoice->extractGatewayErrorMessage($body, $fallback));
         }
 
         $encryptedData = is_string($body['Data'] ?? null) ? base64_decode($body['Data'], true) : false;
