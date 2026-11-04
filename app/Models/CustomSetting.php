@@ -86,11 +86,11 @@ class CustomSetting extends Model
     public static function batchSeriesSettings($plantId, ?array $settings = null): array
     {
         $settings ??= self::getForModule($plantId, 'batching');
-        $default = strtoupper((string) ($settings['default_batch_series'] ?? 'B'));
+        $default = strtoupper((string) ($settings['default_batch_series'] ?? 'NONE'));
         return [
             'selection_enabled' => !array_key_exists('batch_series_enabled', $settings)
                 || filter_var($settings['batch_series_enabled'], FILTER_VALIDATE_BOOLEAN),
-            'default_series' => in_array($default, ['B', 'P'], true) ? $default : 'B',
+            'default_series' => in_array($default, ['NONE', 'B', 'P'], true) ? $default : 'NONE',
         ];
     }
 

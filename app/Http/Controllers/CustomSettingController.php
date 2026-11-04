@@ -80,7 +80,7 @@ class CustomSettingController extends Controller
         $request->validate([
             'settings' => ['required', 'array'],
             'settings.batch_series_enabled' => ['sometimes', 'boolean'],
-            'settings.default_batch_series' => ['sometimes', 'in:B,P'],
+            'settings.default_batch_series' => ['sometimes', 'in:NONE,B,P'],
             'settings.invoice_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy'],
             'settings.billing_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy'],
             'settings.invoice_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],

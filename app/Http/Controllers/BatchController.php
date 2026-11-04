@@ -305,10 +305,11 @@ class BatchController extends Controller
         $fyStart = Carbon::create($startYear, 4, 1, 0, 0, 0);
 
         $nextBatchNumbers = [
+            'NONE' => Batch::nextSeriesNumber((int) $activePlantId)['next_number'],
             'B' => Batch::nextSeriesNumber((int) $activePlantId, 'B')['next_number'],
             'P' => Batch::nextSeriesNumber((int) $activePlantId, 'P')['next_number'],
         ];
-        $nextBatchNo = $nextBatchNumbers['B'];
+        $nextBatchNo = $nextBatchNumbers[CustomSetting::batchSeriesSettings($activePlantId)['default_series']];
 
             // return response()->json([
             //     'batches' => $batches,

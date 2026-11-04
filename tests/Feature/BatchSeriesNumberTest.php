@@ -24,12 +24,11 @@ class BatchSeriesNumberTest extends TestCase
         Schema::create('mm_plants', fn (Blueprint $table) => $table->id());
         DB::table('mm_plants')->insert([['id' => 1], ['id' => 2]]);
         Schema::create('mm_batches', function (Blueprint $table) {
-            $table->id(); $table->integer('plant_id'); $table->integer('batch_no')->nullable(); $table->softDeletes();
-            $table->integer('active_batch_no')->nullable()->virtualAs('CASE WHEN deleted_at IS NULL THEN batch_no ELSE NULL END');
+            $table->id(); $table->integer('plant_id'); $table->string('batch_no')->nullable(); $table->softDeletes();
+            $table->string('active_batch_no')->nullable()->virtualAs('CASE WHEN deleted_at IS NULL THEN batch_no ELSE NULL END');
             $table->unique(['plant_id', 'active_batch_no'], 'mm_batches_plant_active_batch_no_unique');
         });
         DB::table('mm_batches')->insert(['plant_id' => 1, 'batch_no' => 29]);
-        (require database_path('migrations/2026_11_02_170849_allow_bp_series_in_batch_no.php'))->up();
     }
 
     protected function tearDown(): void
@@ -135,6 +134,18 @@ class BatchSeriesNumberTest extends TestCase
         }
     }
 
+    public function test_default_numbers_have_no_prefix_and_continue_existing_counters(): void
+    {
+        $this->assertSame('30', Batch::nextSeriesNumber(1)['batch_no']);
+        DB::table('mm_batches')->insert([
+            ['plant_id' => 1, 'batch_no' => 'B40', 'deleted_at' => null],
+            ['plant_id' => 1, 'batch_no' => 'P50', 'deleted_at' => '2026-11-02'],
+        ]);
+        $this->assertSame('51', Batch::nextSeriesNumber(1)['batch_no']);
+        $this->assertSame('', Batch::nextSeriesNumber(1)['series']);
+        $this->assertSame('1', Batch::nextSeriesNumber(2)['batch_no']);
+    }
+
     private function configureSeries(array $settings): void
     {
         Schema::create('mm_custom_settings', function (Blueprint $table) {
@@ -148,7 +159,7 @@ class BatchSeriesNumberTest extends TestCase
     {
         $this->configureSeries(['batch_series_enabled' => 0, 'default_batch_series' => 'P']);
         $this->assertSame(['selection_enabled' => false, 'default_series' => 'P'], \App\Models\CustomSetting::batchSeriesSettings(1));
-        $this->assertSame(['selection_enabled' => true, 'default_series' => 'B'], \App\Models\CustomSetting::batchSeriesSettings(2));
+        $this->assertSame(['selection_enabled' => true, 'default_series' => 'NONE'], \App\Models\CustomSetting::batchSeriesSettings(2));
     }
 
     public function test_hidden_selector_uses_default_and_rejects_the_other_series(): void
@@ -169,7 +180,7 @@ class BatchSeriesNumberTest extends TestCase
     public function test_enabled_selector_allows_either_series(): void
     {
         $this->configureSeries(['batch_series_enabled' => 1, 'default_batch_series' => 'P']);
-        foreach (['B', 'P'] as $series) {
+        foreach (['NONE', 'B', 'P'] as $series) {
             $request = \App\Http\Requests\StoreBatchRequest::create('/', 'POST', ['batch_series' => $series]);
             $validator = \Illuminate\Support\Facades\Validator::make(['batch_series' => $series], ['batch_series' => $request->rules()['batch_series']]);
             $this->assertTrue($validator->passes());

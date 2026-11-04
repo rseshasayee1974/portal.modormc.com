@@ -39,7 +39,7 @@ const form = useForm({
         dispatch_discount_tax_mode: props.batchingSettings?.dispatch_discount_tax_mode || 'after_tax',
         invoice_quantity_basis: props.batchingSettings?.invoice_quantity_basis || 'batch_size',
         batch_series_enabled: Number(props.batchingSettings?.batch_series_enabled ?? 1) === 1,
-        default_batch_series: props.batchingSettings?.default_batch_series === 'P' ? 'P' : 'B',
+        default_batch_series: props.batchingSettings?.default_batch_series || 'NONE',
         batch_sheet_driver: props.batchingSettings?.batch_sheet_driver || '',
         new_weight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
         newweight: props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
@@ -128,7 +128,7 @@ const submit = () => {
     const payload = {
         ...form.settings,
         batch_series_enabled: form.settings.batch_series_enabled ? 1 : 0,
-        default_batch_series: form.settings.default_batch_series || 'B',
+        default_batch_series: form.settings.default_batch_series || 'NONE',
         new_weight: Number(form.settings.new_weight ?? 1),
         newweight: Number(form.settings.new_weight ?? 1),
         manual_weight: form.settings.manual_weight ? 1 : 0,
@@ -252,7 +252,7 @@ const submit = () => {
                         <!-- batch_series_enabled -->
                         <div class="setting-field min-w-0 xl:col-span-2 flex flex-col gap-3">
                             <div class="setting-label min-w-0 flex flex-col items-start gap-1">
-                                <span class="text-xs font-bold text-slate-800">Show B/P Series Selection Toggle</span>
+                                <span class="text-xs font-bold text-slate-800">Show Batch Series Selection</span>
                                 <code class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono">batch_series_enabled</code>
                             </div>
                             <div class="min-w-0 w-full flex items-center gap-3">
@@ -273,7 +273,8 @@ const submit = () => {
                                 <Dropdown
                                     v-model="form.settings.default_batch_series"
                                     :options="[
-                                        { label: 'B Series (Default Numeric / B)', value: 'B' },
+                                        { label: 'Numeric (Default, no prefix)', value: 'NONE' },
+                                        { label: 'B Series', value: 'B' },
                                         { label: 'P Series (Commercial Counter)', value: 'P' }
                                     ]"
                                     optionLabel="label"

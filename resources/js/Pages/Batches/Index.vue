@@ -65,7 +65,7 @@ const props = withDefaults(
         nextBatchNumbers?: Record<string, number>;
         batchSeriesSettings?: {
             selection_enabled: boolean;
-            default_series: "B" | "P";
+            default_series: "NONE" | "B" | "P";
         };
         batchingSettings?: any;
         payment_methods?: any[];
@@ -93,7 +93,7 @@ const props = withDefaults(
         nextBatchNumbers: () => ({}),
         batchSeriesSettings: () => ({
             selection_enabled: true,
-            default_series: "B" as const,
+            default_series: "NONE" as const,
         }),
         batchingSettings: () => ({}),
         payment_methods: () => [],

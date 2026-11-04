@@ -56,7 +56,7 @@ class StoreBatchRequest extends FormRequest
             'sales_order_id' => ['required', 'integer', Rule::exists('mm_sales_orders', 'id')
                 ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at'))],
             'batch_series' => ['required', Rule::in(\App\Models\CustomSetting::batchSeriesSettings($plantId, $settings)['selection_enabled']
-                ? ['B', 'P'] : [\App\Models\CustomSetting::batchSeriesSettings($plantId, $settings)['default_series']])],
+                ? ['NONE', 'B', 'P'] : [\App\Models\CustomSetting::batchSeriesSettings($plantId, $settings)['default_series']])],
             'batch_no' => $batchNoRules,
             'batch_size' => ['required', 'numeric', 'min:0.1', 'max:20'],
             'start_time' => ['nullable', 'date'],

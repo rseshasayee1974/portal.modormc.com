@@ -25,10 +25,10 @@ class Batch extends Model
         });
     }
 
-    public static function nextSeriesNumber(int $plantId, string $series = 'B'): array
+    public static function nextSeriesNumber(int $plantId, string $series = 'NONE'): array
     {
         $series = strtoupper(trim($series));
-        if (!in_array($series, ['B', 'P'], true)) {
+        if (!in_array($series, ['NONE', 'B', 'P'], true)) {
             throw \Illuminate\Validation\ValidationException::withMessages(['batch_series' => 'Choose B or P batch series.']);
         }
         // Lock the plant row during saves, including the very first number in a series.
@@ -42,13 +42,16 @@ class Batch extends Model
             ->pluck('batch_no');
         foreach ($numbers as $number) {
             // Existing unprefixed machine/batch numbers belong to the continuing B series.
-            if ($series === 'B' && ctype_digit((string) $number)) {
+            if (in_array($series, ['NONE', 'B'], true) && ctype_digit((string) $number)) {
                 $highest = max($highest, (int) $number);
+            } elseif ($series === 'NONE' && preg_match('/^[BP]([1-9][0-9]*)$/i', (string) $number, $match)) {
+                $highest = max($highest, (int) $match[1]);
             } elseif (preg_match('/^'.preg_quote($series, '/').'([1-9][0-9]*)$/i', (string) $number, $match)) {
                 $highest = max($highest, (int) $match[1]);
             }
         }
-        return ['series' => $series, 'next_number' => $highest + 1, 'batch_no' => $series.($highest + 1)];
+        $prefix = $series === 'NONE' ? '' : $series;
+        return ['series' => $prefix, 'next_number' => $highest + 1, 'batch_no' => $prefix.($highest + 1)];
     }
 
     public function moistureContents()
