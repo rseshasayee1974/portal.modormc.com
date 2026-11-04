@@ -164,7 +164,7 @@ class QuotationController extends Controller
         ]);
         $isLeadQuotation = $fromLead || ($quotation && Access::leadQuotationIds()->where('quotation_id', $quotation->id)->exists());
         $data['sales_executive_id'] = $isLeadQuotation
-            ? ($quotation?->sales_executive_id ?? Access::personnelId())
+            ? ($quotation?->sales_executive_id ?? (Access::isCommercialAdministrator() ? null : Access::personnelId()))
             : null;
         $data['items'] = QuotationCalculator::items($data['items'], (bool) $data['is_tax_inclusive']);
         $baseTotal = array_sum(array_column($data['items'], 'amount_total'));

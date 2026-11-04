@@ -3141,6 +3141,7 @@ class SalesMobileApiTest extends TestCase
                 'due_date',
                 'notes',
                 'sales_executive_id',
+                'sales_executive',
                 'concrete_pump',
                 'pump_rate',
                 'adjustment',
@@ -3450,6 +3451,15 @@ class SalesMobileApiTest extends TestCase
         ]);
         $adminToken = User::find(2)->createToken('admin-order-test')->plainTextToken;
 
+        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken, 'X-Plant-Id' => '1'])
+            ->postJson('/api/mobile/orders', [
+                'customer_id' => 1, 'site_id' => 1, 'mix_design_id' => 1,
+                'total_qty' => 10, 'rate' => 4500, 'tax_id' => 1, 'status' => 1,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.sales_executive_id', null)
+            ->assertJsonPath('data.sales_executive', null);
+
         $initial = [
             'customer_id' => 1,
             'site_id' => 1,
@@ -3491,6 +3501,9 @@ class SalesMobileApiTest extends TestCase
         $response->assertJsonPath('data.id', $id)
             ->assertJsonPath('data.status', 2)
             ->assertJsonPath('data.sales_executive_id', 10)
+            ->assertJsonPath('data.sales_executive.id', 10)
+            ->assertJsonPath('data.sales_executive.first_name', 'Admin')
+            ->assertJsonPath('data.sales_executive.employee_code', 'EMP-0010')
             ->assertJsonPath('data.concrete_pump', 'boom_pump')
             ->assertJsonPath('data.pump_rate', 2780)
             ->assertJsonPath('data.rate', 8500)
@@ -3587,6 +3600,71 @@ class SalesMobileApiTest extends TestCase
         }
     }
 
+    public function test_admin_conversion_sales_executive_payload_precedence_and_validation(): void
+    {
+        DB::table('mm_roles')->where('id', 2)->update(['code' => 'ADMINISTRATOR']);
+        DB::table('mm_personnels')->insert([
+            ['id' => 10, 'plant_id' => 1, 'first_name' => 'Selected', 'employee_code' => 'EMP-10'],
+            ['id' => 11, 'plant_id' => 2, 'first_name' => 'Other plant', 'employee_code' => 'EMP-11'],
+            ['id' => 12, 'plant_id' => 1, 'first_name' => 'Deleted', 'employee_code' => 'EMP-12'],
+        ]);
+        DB::table('mm_personnels')->where('id', 12)->update(['deleted_at' => now()]);
+        $admin = User::find(2)->createToken('conversion-owner')->plainTextToken;
+
+        foreach (['endpoint', 'resource'] as $entry) {
+            foreach (['omitted', 'selected', 'numeric-string', 'clear', 'missing', 'foreign', 'deleted', 'malformed'] as $scenario) {
+                $this->withHeaders(['Authorization' => 'Bearer '.$this->token, 'X-Plant-Id' => '1']);
+                $id = $this->postJson('/api/mobile/v1/quotations', array_replace($this->quote(), [
+                    'reference' => 'QT-OWNER-'.$entry.'-'.$scenario,
+                ]))->assertCreated()->json('data.id');
+                DB::table('mm_quotations')->where('id', $id)->update(['status' => Quotation::STATUS_ACCEPTED, 'sales_executive_id' => 1]);
+                $this->withHeaders(['Authorization' => 'Bearer '.$admin, 'X-Plant-Id' => '1']);
+                $payload = $entry === 'endpoint' ? [] : [
+                    'quotation_id' => $id, 'patron_id' => 1, 'site_id' => 1,
+                    'order_date' => now()->toDateString(), 'is_tax_inclusive' => true,
+                ];
+                $owner = match ($scenario) {
+                    'selected' => 10, 'numeric-string' => '10', 'clear' => null,
+                    'missing' => 99999, 'foreign' => 11, 'deleted' => 12, 'malformed' => 'invalid', default => 1,
+                };
+                if ($scenario !== 'omitted') $payload['sales_executive_id'] = $owner;
+                $url = $entry === 'endpoint' ? '/api/mobile/quotations/'.$id.'/convert-customer-po' : '/api/mobile/customer-pos';
+                $response = $this->postJson($url, $payload);
+                if (in_array($scenario, ['missing', 'foreign', 'deleted', 'malformed'], true)) {
+                    $response->assertUnprocessable()->assertJsonValidationErrors('sales_executive_id');
+                    $this->assertFalse(DB::table('mm_customer_pos')->where('quotation_id', $id)->exists());
+                    $this->assertFalse((bool) DB::table('mm_quotations')->where('id', $id)->value('is_customer_po'));
+                    continue;
+                }
+                $expected = $scenario === 'clear' ? null : (int) $owner;
+                $po = $response->assertCreated()->assertJsonPath('data.sales_executive_id', $expected)->json('data.id');
+                $this->assertEquals($expected, DB::table('mm_customer_pos')->where('id', $po)->value('sales_executive_id'));
+                $this->assertEquals(1, DB::table('mm_quotations')->where('id', $id)->value('sales_executive_id'));
+                $this->patchJson('/api/mobile/customer-pos/'.$po, ['notes' => 'Keep selection'])
+                    ->assertOk()->assertJsonPath('data.sales_executive_id', $expected);
+                $this->patchJson('/api/mobile/customer-pos/'.$po, ['sales_executive_id' => 10])
+                    ->assertOk()->assertJsonPath('data.sales_executive_id', 10);
+                $item = DB::table('mm_customer_po_items')->where('customer_po_id', $po)->value('id');
+                foreach ([[], ['sales_executive_id' => null]] as $selection) {
+                    $this->postJson('/api/mobile/customer-pos/'.$po.'/convert-sales-order', $selection + [
+                        'items' => [['item_id' => $item, 'quantity' => 0.001]],
+                    ])->assertCreated()->assertJsonPath('data.0.sales_executive_id', $selection === [] ? 10 : null);
+                }
+                foreach (['convert-sales-order', 'convert-salesorder'] as $alias) {
+                    $this->postJson('/api/mobile/customer-pos/'.$po.'/'.$alias, [
+                        'items' => [['item_id' => $item, 'quantity' => 0.001]],
+                        'sales_executive_id' => 11,
+                    ])->assertUnprocessable()->assertJsonValidationErrors('sales_executive_id');
+                    $this->postJson('/api/mobile/customer-pos/'.$po.'/'.$alias, [
+                        'items' => [['item_id' => $item, 'quantity' => 0.001]],
+                        'sales_executive_id' => 1,
+                    ])->assertCreated()->assertJsonPath('data.0.sales_executive_id', 1)
+                        ->assertJsonPath('data.0.sales_executive.id', 1);
+                }
+            }
+        }
+    }
+
     public function test_direct_quotation_to_customer_po_conversion_in_both_mobile_apps(): void
     {
         foreach (['/api/mobile/v1', '/api/mobile'] as $prefix) {
@@ -3604,6 +3682,7 @@ class SalesMobileApiTest extends TestCase
             $url = $prefix . '/quotations/' . $id . '/convert-customer-po';
             $payload = $prefix === '/api/mobile' ? [] : [
                 'customer_po_reference' => 'CLIENT-PO-1',
+                'sales_executive_id' => 2,
                 'order_date' => '2026-10-24',
                 'patron_id' => 999,
                 'site_id' => 999,
@@ -3613,7 +3692,7 @@ class SalesMobileApiTest extends TestCase
             $response = $this->postJson($url, $payload)
                 ->assertCreated()->assertJsonPath('success', true)->assertJsonPath('data.quotation_id', fn($value) => (int) $value === (int) $id)
                 ->assertJsonPath('data.patron_id', fn($value) => (int) $value === 1)->assertJsonPath('data.site_id', fn($value) => (int) $value === 1)
-                ->assertJsonPath('data.sales_executive_id', $quote['sales_executive_id'] ?? ($prefix === '/api/mobile' ? 2 : 1))
+                ->assertJsonPath('data.sales_executive_id', $quote['sales_executive_id'] ?? ($prefix === '/api/mobile' ? null : 1))
                 ->assertJsonPath('data.notes', 'From quotation');
             $po = $response->json('data');
             $this->getJson($prefix . '/customer-pos/' . $po['id'])->assertOk();
