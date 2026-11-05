@@ -27,6 +27,7 @@ class CustomSettingController extends Controller
         $numberingSettings = $batchingSettings?->settings ?? [];
         foreach (['invoice', 'billing'] as $numberModule) {
             $keys = array_map(fn ($part) => $numberModule . '_number_' . $part, ['format', 'padding', 'start']);
+            if ($numberModule === 'invoice') $keys = array_merge($keys, ['invoice_show_batch_no', 'invoice_show_site_ref']);
             $moduleSettings = $customSettings->firstWhere('module_name', $numberModule)?->settings ?? [];
             $numberingSettings = array_replace($numberingSettings, array_intersect_key($moduleSettings, array_flip($keys)));
         }
@@ -79,6 +80,8 @@ class CustomSettingController extends Controller
         $module = $request->input('module', 'batching');
         $request->validate([
             'settings' => ['required', 'array'],
+            'settings.invoice_show_batch_no' => ['sometimes', 'boolean'],
+            'settings.invoice_show_site_ref' => ['sometimes', 'boolean'],
             'settings.batch_series_enabled' => ['sometimes', 'boolean'],
             'settings.default_batch_series' => ['sometimes', 'in:NONE,B,P'],
             'settings.invoice_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy'],
@@ -90,6 +93,7 @@ class CustomSettingController extends Controller
             'settings.batch_creation_source' => ['sometimes', 'in:sales_order,batch_schedule,both'],
             'settings.dispatch_discount_tax_mode' => ['sometimes', 'in:before_tax,after_tax'],
             'settings.invoice_quantity_basis' => ['sometimes', 'in:batch_size,delivered_qty'],
+            'settings.show_delivered_qty' => ['sometimes', 'boolean'],
             'settings.batch_sheet_driver' => ['sometimes', 'nullable', 'string', \Illuminate\Validation\Rule::in(
                 array_keys(app(\App\Services\BatchSheet\Drivers\PlantDriverRegistry::class)->getDrivers())
             )],
@@ -106,7 +110,7 @@ class CustomSettingController extends Controller
         // Multipart uploads encode numbers as strings; keep toggle settings numeric.
         foreach (['manual_weight', 'weight_mandatory', 'with_inventory', 'camera', 'sheet_upload',
             'hide_batch_form', 'target_to_actual', 'auto_carry_pump', 'print_delivery_ingredients',
-            'quotation_price_list', 'batch_series_enabled'] as $key) {
+            'quotation_price_list', 'batch_series_enabled', 'invoice_show_batch_no', 'invoice_show_site_ref', 'show_delivered_qty'] as $key) {
             if (array_key_exists($key, $settings)) {
                 $settings[$key] = $request->boolean('settings.' . $key) ? 1 : 0;
             }
@@ -117,7 +121,7 @@ class CustomSettingController extends Controller
             ->first();
 
         if ($module === 'batching') {
-            foreach (['batch_series_enabled', 'default_batch_series', 'dispatch_discount_tax_mode', 'invoice_quantity_basis'] as $key) {
+            foreach (['batch_series_enabled', 'default_batch_series', 'dispatch_discount_tax_mode', 'invoice_quantity_basis', 'show_delivered_qty'] as $key) {
                 if (!array_key_exists($key, $settings) && array_key_exists($key, $customSetting?->settings ?? [])) {
                     $settings[$key] = $customSetting->settings[$key];
                 }
@@ -174,6 +178,7 @@ class CustomSettingController extends Controller
             if ($module === 'batching') {
                 foreach (['invoice', 'billing'] as $numberModule) {
                     $keys = array_map(fn ($part) => $numberModule . '_number_' . $part, ['format', 'padding', 'start']);
+                    if ($numberModule === 'invoice') $keys = array_merge($keys, ['invoice_show_batch_no', 'invoice_show_site_ref']);
                     $numberSettings = array_intersect_key($settings, array_flip($keys));
                     if (!$numberSettings) continue;
                     $current = CustomSetting::firstOrNew(['plant_id' => $plantId, 'module_name' => $numberModule]);

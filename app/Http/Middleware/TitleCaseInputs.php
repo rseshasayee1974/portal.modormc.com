@@ -57,6 +57,7 @@ class TitleCaseInputs
         'order_no',
         'invoice_no',
         'reference_no',
+        'ref_no',
         'requirement', // Preserve product / mix design names selected in CRM.
         'challan_no',
         'batch_no',

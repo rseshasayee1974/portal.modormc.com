@@ -1215,6 +1215,8 @@ class PlantInitializationService
             [
                 'module_name' => 'batching',
                 'settings' => [
+                    'batch_series_enabled' => 1,
+                    'default_batch_series' => 'NONE',
                     'newweight' => 1,
                     'manual_weight' => 1,
                     'weight_mandatory' => 1,

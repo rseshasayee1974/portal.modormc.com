@@ -43,7 +43,7 @@ class Expense extends Model
         parent::boot();
 
         static::creating(function ($model) {
-            if (!$model->ref_no) {
+            if ($model->ref_no === null || $model->ref_no === '') {
                 $model->ref_no = self::generateRefNo($model->plant_id, $model->paid_through, $model->date);
             }
         });
@@ -62,6 +62,11 @@ class Expense extends Model
             }
         }
         return $prefix . ($highest + 1);
+    }
+
+    public function accountingEntry()
+    {
+        return $this->hasOne(JournalEntry::class, 'ref_id')->where('ref_module', 'expense');
     }
 
     public function plant()

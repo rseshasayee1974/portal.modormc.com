@@ -37,6 +37,7 @@ const toast = useToast();
 const isOpen = ref(true);
 
 const form = useForm({
+    ref_no: props.expense?.ref_no ?? '',
     expense_type_id: props.expense?.expense_type_id ?? null,
     paid_through: props.expense?.paid_through ?? null,
     amount: Number(props.expense?.amount ?? 0),
@@ -55,7 +56,7 @@ const submit = () => {
     form.submit(props.expense ? 'put' : 'post', props.expense ? route('expenses.update', props.expense.id) : route('expenses.store'), {
         onSuccess: () => {
             form.reset();
-            toast.add({ severity: 'success', summary: props.expense ? 'Expense updated' : 'Expense recorded', life: 1500 });
+            toast.add({ severity: 'success', summary: props.expense ? 'Expense and accounting updated' : 'Expense saved and posted', life: 1500 });
             emit('saved');
         },
     });
@@ -89,6 +90,8 @@ const submit = () => {
 
                         <!-- Primary Info Section -->
                         <div class="md:col-span-8 space-y-6">
+                            <BaseInput v-model="form.ref_no" label="Reference Number" :error="form.errors.ref_no"
+                                :placeholder="expense ? 'Leave blank to keep current reference' : 'Leave blank for automatic numbering'" />
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <BaseSelect v-model="form.expense_type_id" label="Expense Category"
                                     :options="expenseTypes" optionLabel="label" optionValue="value"
@@ -167,6 +170,18 @@ const submit = () => {
 </template>
 
 <style scoped>
+:deep(input.p-inputtext),
+:deep(.p-select),
+:deep(.p-datepicker-dropdown) {
+    height: 36px;
+    min-height: 36px;
+    box-sizing: border-box;
+}
+:deep(.p-select-label) {
+    display: flex;
+    align-items: center;
+    padding-block: 0;
+}
 /* Panel Slide Animation */
 .panel-slide-enter-active,
 .panel-slide-leave-active {

@@ -51,6 +51,7 @@ const props = withDefaults(
         savingDeliveredQuantity?: boolean;
         deliveredQuantityErrors?: Record<string, string>;
         invoiceQuantityBasis?: string;
+        showDeliveredQuantity?: boolean;
     }>(),
     {
         uoms: () => [],
@@ -72,6 +73,7 @@ const props = withDefaults(
         savingDeliveredQuantity: false,
         deliveredQuantityErrors: () => ({}),
         invoiceQuantityBasis: "batch_size",
+        showDeliveredQuantity: true,
     },
 );
 
@@ -498,6 +500,7 @@ console.log("jkghkjgk", props.modelValue);
 
                 <BaseInputNumber
                     v-model="modelValue.delivered_qty"
+                    v-if="showDeliveredQuantity"
                     label="Delivered Quantity (m³)"
                     :min="0"
                     :max="9999999.999"

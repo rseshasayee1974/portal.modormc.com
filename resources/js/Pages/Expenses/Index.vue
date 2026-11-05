@@ -13,6 +13,7 @@ import Dialog from 'primevue/dialog';
 import Toast from 'primevue/toast';
 import { useToast } from 'primevue/usetoast';
 import ExpenseCreateForm from './components/ExpenseCreateForm.vue';
+import ExpenseBatchForm from './components/ExpenseBatchForm.vue';
 import Swal from 'sweetalert2';
 import { usePermissions } from '@/Composables/usePermissions';
 
@@ -77,7 +78,7 @@ const formatCurrency = (val: number) => {
                 
                 <!-- Creation Form Section -->
                 <section v-if="permits('CREATE')">
-                    <ExpenseCreateForm 
+                    <ExpenseBatchForm
                         :expense-types="expenseTypes"
                         :ledgers="ledgers"
                         :machines="machines"
@@ -133,6 +134,12 @@ const formatCurrency = (val: number) => {
 
                             <Column field="ledger.title" header="Paid Through" />
                             <Column field="note" header="Notes" />
+                            <Column header="Accounting">
+                                <template #body="{ data }">
+                                    <Tag :value="data.accounting_entry?.is_status === 'POSTED' ? 'Posted' : 'Not posted'"
+                                        :severity="data.accounting_entry?.is_status === 'POSTED' ? 'success' : 'warn'" />
+                                </template>
+                            </Column>
                             <Column header="Status">
                                 <template #body="{ data }">
                                     <Tag :value="Number(data.status) ? 'Recorded' : 'Inactive'" :severity="Number(data.status) ? 'success' : 'secondary'" />

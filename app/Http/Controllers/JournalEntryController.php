@@ -232,6 +232,11 @@ class JournalEntryController extends Controller
         $this->authorizeModule('delete');
         $plantId = session('active_plant_id');
         $entry = JournalEntry::where('plant_id', $plantId)->findOrFail($id);
+        if ($entry->ref_module === 'expense') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'expense' => 'Delete the expense from Expenses to remove its accounting entry.',
+            ]);
+        }
         
         $entry->delete();
 

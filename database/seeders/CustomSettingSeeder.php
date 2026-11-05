@@ -22,6 +22,8 @@ class CustomSettingSeeder extends Seeder
                 ],
                 [
                     'settings' => [
+                        'batch_series_enabled' => 1,
+                        'default_batch_series' => 'NONE',
                         'newweight' => 1,
                         'target_to_actual' => 0
                     ]

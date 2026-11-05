@@ -1380,7 +1380,7 @@ console.log(
                             </template>
                         </Column>
 
-                        <!-- <Column field="delivered_qty" header="Delivered Qty" sortable>
+                        <Column v-if="Number(batchingSettings?.show_delivered_qty ?? 1) === 1" field="delivered_qty" header="Delivered Qty" sortable>
                             <template #body="slotProps">
                                 <div class="flex items-baseline gap-1">
                                     <span class="text-xs font-bold text-slate-800">
@@ -1392,7 +1392,7 @@ console.log(
                                     </span>
                                 </div>
                             </template>
-                        </Column> -->
+                        </Column>
 
                         <Column
                             field="invoice_number"

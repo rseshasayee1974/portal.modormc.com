@@ -868,6 +868,7 @@ const handleDeleteInvoice = () => {
                 :savingDeliveredQuantity="quantityCorrection.processing"
                 :deliveredQuantityErrors="quantityCorrection.errors"
                 :invoiceQuantityBasis="settings?.invoice_quantity_basis"
+                :showDeliveredQuantity="Number(settings?.show_delivered_qty ?? 1) === 1"
                 @saveDeliveredQuantity="saveDeliveredQuantity"
                 @submit="submit"
                 @roundOffChanged="roundOffManuallySet = true"
