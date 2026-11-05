@@ -18,11 +18,12 @@ class PurchaseOrderHistory extends Model
         'conversion_quantity', 'conversion_uom_id',
         'convert_volume',
         'unit_price', 'count_quantity', 'inward_no', 'status',
-        'truck_id', 'truck_loaded', 'truck_empty',
+        'truck_id', 'truck_loaded', 'truck_empty', 'attachments',
         'created_by', 'updated_by', 'deleted_by'
     ];
 
     protected $casts = [
+        'attachments' => 'array',
         'conversion_quantity' => 'decimal:4',
         'convert_volume' => 'decimal:6',
     ];

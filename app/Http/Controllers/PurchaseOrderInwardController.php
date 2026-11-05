@@ -11,6 +11,7 @@ use App\Models\Image;
 use App\Models\Plant;
 use App\Rules\Base64Image;
 use App\Services\PrintDataFormatter;
+use App\Services\RecordAttachments;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,6 +39,7 @@ class PurchaseOrderInwardController extends Controller
                 'conversionUom',
                 'item',
                 'order.vendor',
+                'order.billingHistory',
                 'order.items.product',
                 'order.items.uom',
                 'order.items.tax',
@@ -53,6 +55,8 @@ class PurchaseOrderInwardController extends Controller
         foreach ($inwards as $inward) {
             $inward->setAttribute('is_billed', $this->isInwardBilled($inward));
         }
+        // The registry needs only the billed flag. Serializing invoice history also runs invoice accessors.
+        $inwards->pluck('order')->filter()->unique('id')->each->unsetRelation('billingHistory');
             
         $purchaseOrders = PurchaseOrder::where('plant_id', $allowedPlantId)
             ->where('receipt_status', '<', 2)
@@ -119,6 +123,7 @@ class PurchaseOrderInwardController extends Controller
         $this->authorizeModule('create');
         
         $validated = $request->validate([
+            ...RecordAttachments::RULES,
             'order_id' => 'required|exists:mm_purchase_orders,id',
             'received_date' => 'required|date',
             'inward_no' => 'nullable|string|max:250',
@@ -149,7 +154,7 @@ class PurchaseOrderInwardController extends Controller
             return back()->withErrors(['items' => 'At least one item must have a received quantity greater than 0, or truck weight must be recorded.']);
         }
 
-        DB::transaction(function () use ($validated, $order) {
+        RecordAttachments::transaction($order->plant_id, $validated['attachments'] ?? [], function (array $attachments) use ($validated, $order) {
             PurchaseOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
             $userId = Auth::id();
             foreach ($validated['items'] as $itemData) {
@@ -236,6 +241,7 @@ class PurchaseOrderInwardController extends Controller
                     'status' => 1,
                     'created_by' => $userId,
                     'updated_by' => $userId,
+                    ...($attachments ? ['attachments' => $attachments] : []),
                 ]);
 
                 $loadedPhoto = $itemData['loaded_weight_photo'] ?? $validated['loaded_weight_photo'] ?? null;
@@ -346,7 +352,9 @@ class PurchaseOrderInwardController extends Controller
 
         abort_unless((int)$inward->plant_id === (int)session('active_plant_id'), 404);
         $validated = $request->validate([
+            ...RecordAttachments::RULES,
             'truck_id' => ['sometimes', 'nullable', \Illuminate\Validation\Rule::exists('mm_machines', 'id')->where('plant_id', $inward->plant_id)->whereNull('deleted_at')],
+            'inward_no' => 'sometimes|required|string|max:250',
             'uom_id' => ['sometimes', 'required', 'integer', \Illuminate\Validation\Rule::exists('mm_product_units', 'id')->whereNull('deleted_at')],
             'received_qty' => 'sometimes|required|numeric|min:0',
             'truck_empty' => 'nullable|numeric|min:0',
@@ -365,7 +373,7 @@ class PurchaseOrderInwardController extends Controller
             $this->authorizeModule('edit', 'purchase_orders');
         }
         $changesReceipt = count(array_intersect(array_keys($validated), ['received_qty', 'truck_empty', 'truck_loaded', 'convert_volume', 'conversion_quantity', 'conversion_uom_id'])) > 0;
-        $invoice = DB::transaction(function () use ($validated, $inward, $changesReceipt, $generateBill) {
+        $invoice = RecordAttachments::transaction($inward->plant_id, $validated['attachments'] ?? [], function (array $attachments) use ($validated, $inward, $changesReceipt, $generateBill) {
             PurchaseOrder::whereKey($inward->order_id)->lockForUpdate()->firstOrFail();
             $inward->refresh();
             $oldUomId = $inward->uom_id;
@@ -419,6 +427,9 @@ class PurchaseOrderInwardController extends Controller
             $diff = $newReceivedQty - $oldReceivedQty;
 
             // Update history record
+            if (array_key_exists('inward_no', $validated)) {
+                $inward->inward_no = $validated['inward_no'];
+            }
             $inward->uom_id = $receivedUomId;
             if (array_key_exists('truck_id', $validated)) {
                 $inward->truck_id = $validated['truck_id'];
@@ -472,6 +483,9 @@ class PurchaseOrderInwardController extends Controller
                 $inward->conversion_uom_id = $validated['conversion_uom_id'];
             }
 
+            if ($attachments) {
+                $inward->attachments = [...($inward->attachments ?? []), ...$attachments];
+            }
             $inward->updated_by = $userId;
             $inward->save();
 
@@ -569,6 +583,14 @@ class PurchaseOrderInwardController extends Controller
         return redirect()->back()->with('success', $invoice
             ? 'Inward saved and purchase bill generated: ' . $invoice->invoice_number
             : 'Inward details and stock balance updated successfully.');
+    }
+
+    public function downloadAttachment(PurchaseOrderHistory $inward, string $attachment)
+    {
+        $this->authorizeModule('show');
+        abort_unless((int) $inward->plant_id === (int) session('active_plant_id'), 404);
+
+        return RecordAttachments::download($inward->plant_id, $inward->attachments ?? [], $attachment);
     }
 
     private function billingOptions(): array

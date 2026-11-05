@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use App\Models\Dispatch;
 use App\Models\Plant;
 use App\Models\EinvoiceAuth;
 use App\Models\EinvoiceInvoiceRel;
@@ -223,69 +224,57 @@ class EInvoiceService
      */
     public function cancelIrn(Invoice $invoice, string $cancelReason = '1', string $cancelRemarks = 'Order cancelled'): array
     {
-        $irn = $invoice->einvoice_irn ?: $invoice->einv_irn;
-        if (empty($irn)) {
-            throw new \Exception('No IRN found for Invoice #' . $invoice->id . '. Cannot cancel.');
+        $record = $invoice->einvoiceRelation;
+        $irn = $record?->einv_irn;
+        if (!$irn) {
+            throw new \Exception('No registered IRN found for this invoice.');
         }
 
-        $status = $invoice->einvoice_status ?: $invoice->einv_status;
-        if ($status === 'CNL' || $status === 'CAN') {
+        if (in_array(strtolower((string) $record->einv_status), ['cnl', 'can', 'cancelled', 'canceled'], true)) {
             throw new \Exception('E-Invoice (IRN) has already been cancelled.');
         }
 
-        // Check strict 24-hour limit from ack date / generation time
-        $ackDateRaw = $invoice->einvoice_ack_date ?: $invoice->einv_ack_date;
-        $ackDate = $ackDateRaw ? Carbon::parse($ackDateRaw) : null;
-        if ($ackDate && Carbon::now()->diffInHours($ackDate, false) < -24) {
-            $hoursPassed = round(abs(Carbon::now()->diffInHours($ackDate, false)));
-            throw new \Exception("Cannot cancel E-Invoice: IRN was generated {$hoursPassed} hours ago. Under GST/NIC rules, an IRN can only be cancelled within 24 hours of generation. Please issue a Credit Note instead.");
+        if ($record->einv_ack_date && Carbon::now()->gte($record->einv_ack_date->copy()->addHours(24))) {
+            throw new \Exception('The 24-hour window for E-Invoice cancellation has expired.');
+        }
+
+        $batchIds = Dispatch::where('plant_id', $invoice->plant_id)
+            ->whereHas('invoiceStatus', fn ($query) => $query->where('invoice_id', $invoice->id))
+            ->whereNotNull('batch_id')->select('batch_id');
+        $hasActiveEwayBill = EwaybillDetail::where('plant_id', $invoice->plant_id)
+            ->whereNotNull('ewaybill_no')->where('ewaybill_status', 'ACT')
+            ->where(function ($query) use ($invoice, $batchIds) {
+                $query->where(fn ($q) => $q->whereIn('generation_type', ['invoice', 'Invoice'])->where('origin_id', $invoice->id))
+                    ->orWhere(fn ($q) => $q->whereIn('generation_type', ['batch', 'Batch'])->whereIn('origin_id', $batchIds));
+            })->exists();
+        if ($hasActiveEwayBill) {
+            throw new \Exception('Cancel the active E-Way Bill before cancelling this E-Invoice.');
         }
 
         $userId = Auth::id() ?? 1;
         $plant = $invoice->plant;
+        $provider = config('services.einvoice.provider', 'alankit');
+        if (!$plant || !in_array($provider, ['alankit', 'perione'], true)) {
+            throw new \Exception('The plant or E-Invoice gateway is not configured for cancellation.');
+        }
+        $auth = $this->authenticate($plant, $userId, $provider);
 
-        // 1. Authenticate with PeriOne Gateway for this plant
-        $auth = $this->authenticate($plant, $userId, 'perione');
-
-        // 2. Resolve credentials
-        $this->getGatewayConfig($plant);
-        [$username, $password, $gstin] = $this->getPlantCredentials($plant);
-
-        // 3. Build Cancel IRN payload
         $payload = [
-            'Irn'    => (string)$irn,
-            'CnlRsn' => (string)($cancelReason ?: '1'),
-            'CnlRem' => (string)($cancelRemarks ?: 'Cancelled by user'),
+            'Irn' => (string) $irn,
+            'CnlRsn' => $cancelReason,
+            'CnlRem' => $cancelRemarks,
         ];
-
-        // 4. Send request to /einvoice/cancel endpoint
-        $headers = $this->buildGatewayHeaders($auth, $username, $password, $gstin);
-        $url = rtrim($this->baseUrl, '/') . '/einvoice/cancel?email=' . urlencode($this->email);
-
-        $cancelDate = Carbon::now();
-
-        try {
-            $response = Http::withHeaders($headers)->timeout(30)->post($url, $payload);
-            $body = $response->json() ?? [];
-
-            if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {
-                $data = $body['data'] ?? $body['Data'] ?? $body ?? [];
-                if (!empty($data['CancelDate'])) {
-                    $cancelDate = Carbon::parse($data['CancelDate']);
-                }
-            } elseif (!$response->successful() && $response->status() !== 404) {
-                $errorMsg = $this->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
-                Log::error('PeriOne Cancel IRN Failed: ' . $errorMsg, ['response' => $body]);
-                throw new \Exception('PeriOne IRN Cancellation Failed: ' . $errorMsg);
-            }
-        } catch (\Exception $e) {
-            if ($this->isProduction() || !str_contains($e->getMessage(), '404')) {
-                throw $e;
-            }
+        $data = $provider === 'alankit'
+            ? app(AlankitInvoiceService::class)->cancel($plant, $auth, $payload)
+            : $this->cancelPeriOneIrn($plant, $auth, $payload);
+        $confirmedIrn = $data['Irn'] ?? $data['irn'] ?? null;
+        $cancelDateRaw = $data['CancelDate'] ?? $data['cancelDate'] ?? null;
+        if ($confirmedIrn !== $irn || !is_string($cancelDateRaw) || trim($cancelDateRaw) === '') {
+            throw new \Exception('The gateway did not confirm cancellation for this IRN.');
         }
 
-        // 5. Update database records in mm_einvoice_invoice_rel and mm_ewaybill_details
-        EinvoiceInvoiceRel::where('invoice_id', $invoice->id)->update([
+        $cancelDate = Carbon::parse($cancelDateRaw);
+        $record->update([
             'einv_status'    => 'CNL',
             'einv_cancel_at' => $cancelDate,
             'status'         => 0,
@@ -293,23 +282,30 @@ class EInvoiceService
             'modified_by'    => $userId,
         ]);
 
-        EwaybillDetail::where('origin_id', $invoice->id)
-            ->whereIn('generation_type', ['invoice', 'batch', 'Invoice', 'Batch'])
-            ->update([
-                'ewaybill_status'    => 'CNL',
-                'ewaybill_cancel_at' => $cancelDate,
-                'ewaybill_cancel_by' => $userId,
-                'status'             => 0,
-                'modified_at'        => Carbon::now(),
-                'modified_by'        => $userId,
-            ]);
-
         return [
             'success'     => true,
             'irn'         => $irn,
             'cancel_date' => $cancelDate->toIso8601String(),
             'message'     => 'E-Invoice (IRN) cancelled successfully.',
         ];
+    }
+
+    private function cancelPeriOneIrn(Plant $plant, EinvoiceAuth $auth, array $payload): array
+    {
+        $this->getGatewayConfig($plant);
+        [$username, $password, $gstin] = $this->getPlantCredentials($plant);
+        $headers = $this->buildGatewayHeaders($auth, $username, $password, $gstin);
+        $url = rtrim($this->baseUrl, '/') . '/einvoice/type/CANCEL/version/V1_03?email=' . urlencode($this->email);
+        $response = Http::withHeaders($headers)->timeout(30)->post($url, $payload);
+        $body = $response->json();
+        $status = strtolower((string) ($body['status_cd'] ?? $body['status'] ?? ''));
+        if (!$response->successful() || !is_array($body) || !in_array($status, ['', '1', 'success'], true)) {
+            $message = $this->extractGatewayErrorMessage($body, 'The gateway did not confirm cancellation (HTTP '.$response->status().').');
+            throw new \Exception('PeriOne IRN cancellation failed: ' . $message);
+        }
+        $data = $body['data'] ?? $body['Data'] ?? $body;
+
+        return is_array($data) ? $data : [];
     }
 
     /**

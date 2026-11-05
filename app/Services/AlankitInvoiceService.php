@@ -63,6 +63,18 @@ class AlankitInvoiceService
 
     public function generate(Plant $plant, EinvoiceAuth $auth, array $payload): array
     {
+        $data = $this->request($plant, $auth, $payload, 'generate');
+
+        return app(EInvoiceService::class)->validateIrnResponse($data, 'Alankit');
+    }
+
+    public function cancel(Plant $plant, EinvoiceAuth $auth, array $payload): array
+    {
+        return $this->request($plant, $auth, $payload, 'cancel');
+    }
+
+    private function request(Plant $plant, EinvoiceAuth $auth, array $payload, string $operation): array
+    {
         $einvoice = app(EInvoiceService::class);
         [, , $gstin] = $einvoice->getPlantCredentials($plant);
         $subscriptionKey = config('services.alankit.subscription_key') ?: 'AL6U3z6f85e4y7U1l';
@@ -81,25 +93,32 @@ class AlankitInvoiceService
             throw new RuntimeException('Unable to decrypt Alankit session key. Please authenticate again.');
         }
 
-        $encodedPayload = $this->encodePayload($payload);
+        $encodedPayload = $operation === 'generate' ? $this->encodePayload($payload) : json_encode($payload, JSON_THROW_ON_ERROR);
         $encrypted = openssl_encrypt($encodedPayload, 'aes-256-ecb', $sek, OPENSSL_RAW_DATA);
         if ($encrypted === false) {
             throw new RuntimeException('Unable to encrypt Alankit invoice payload.');
         }
 
         $environment = app(AlankitAuthService::class)->isProduction($plant) ? 'production' : 'sandbox';
+        $generateUrl = config("services.alankit.{$environment}_generate_url");
+        $url = $operation === 'cancel'
+            ? (config("services.alankit.{$environment}_cancel_url") ?: rtrim($generateUrl, '/') . '/Cancel')
+            : $generateUrl;
         $response = Http::acceptJson()->withHeaders([
             'user_name' => $auth->user_name,
             'Ocp-Apim-Subscription-Key' => $subscriptionKey,
             'gstin' => $gstin,
             'AuthToken' => $auth->auth_token,
-        ])->timeout(30)->post(config("services.alankit.{$environment}_generate_url"), [
+        ])->timeout(30)->post($url, [
             'Data' => base64_encode($encrypted),
         ]);
 
         $body = $response->json();
         if (!$response->successful() || !is_array($body) || (string) ($body['Status'] ?? '') !== '1') {
             $fallback = trim(preg_replace('/\s+/', ' ', strip_tags($response->body()))) ?: ('HTTP ' . $response->status());
+            if ($operation === 'cancel') {
+                throw new RuntimeException('Alankit IRN cancellation failed: ' . $einvoice->extractGatewayErrorMessage($body, $fallback));
+            }
             $sentPayload = json_decode($encodedPayload, true, 512, JSON_THROW_ON_ERROR);
             $optionalFields = [];
             foreach (['SellerDtls', 'BuyerDtls', 'DispDtls', 'ShipDtls'] as $section) {
@@ -128,7 +147,10 @@ class AlankitInvoiceService
         }
 
         $data = json_decode($plaintext, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data)) {
+            throw new RuntimeException('Alankit invoice response has an invalid format.');
+        }
 
-        return $einvoice->validateIrnResponse($data, 'Alankit');
+        return $data;
     }
 }

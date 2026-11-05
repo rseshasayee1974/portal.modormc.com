@@ -4,13 +4,14 @@ Created: 2026-10-08 11:16:40 Asia/Calcutta (UTC+05:30)
 -->
 <script setup lang="ts">
 import { computed } from 'vue';
+import { hasActiveEInvoice, isEInvoiceCancelled } from '@/Composables/useEInvoiceGeneration';
 import { DocumentCheckIcon, PaperAirplaneIcon, QrCodeIcon, TruckIcon, DocumentMinusIcon, DocumentPlusIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps<{ document: any }>();
 const indicators = computed(() => {
     const doc = props.document;
     const status = String(doc.status || 'draft').toLowerCase();
-    const einvoice = String(doc.einvoice_status || 'pending').toLowerCase();
+    const einvoice = isEInvoiceCancelled(doc) ? 'cancelled' : hasActiveEInvoice(doc) ? 'generated' : 'pending';
     const ewayStatus = String(doc.ewaybill_detail?.ewaybill_status || doc.eway_bill_status || '').toLowerCase();
     const ewayCancelled = ['cnl', 'cancelled', 'canceled'].includes(ewayStatus);
     const entries = [

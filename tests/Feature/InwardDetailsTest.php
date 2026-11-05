@@ -360,6 +360,21 @@ class InwardDetailsTest extends TestCase
         $this->assertEquals(20, $this->inward->fresh()->truck_empty);
     }
 
+    public function test_inward_number_can_be_corrected_without_changing_billed_quantities(): void
+    {
+        $this->item->update(['invoiced_quantity' => 10]);
+
+        $this->updateDetails(['inward_no' => 'GRN/00042-A'])
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('GRN/00042-A', $this->inward->fresh()->inward_no);
+        $this->assertEquals(10, $this->inward->fresh()->received_qty);
+        $this->assertEquals(10, $this->stock->fresh()->quantity);
+        $this->assertEquals(10, $this->item->fresh()->invoiced_quantity);
+        $this->updateDetails(['inward_no' => '  '])->assertSessionHasErrors('inward_no');
+        $this->updateDetails(['received_qty' => 5])->assertSessionHasErrors('inward');
+    }
+
     public function test_unbilled_inward_can_change_when_an_earlier_inward_is_billed(): void
     {
         $later = $this->inward->replicate();

@@ -1122,9 +1122,11 @@ class PrintDataFormatter
         return $dispatches;
     }
 
-    public static function invoiceDispatchPrintFields(int $plantId, Collection $dispatches): array
+    public static function invoiceDispatchPrintFields(int $plantId, Collection $dispatches, ?Invoice $invoice = null): array
     {
-        if ($dispatches->isEmpty()) {
+        $poFallback = \App\Support\InvoiceClassification::normalizeInvoiceType($invoice?->invoice_type) === 'Invoice'
+            ? trim((string) $invoice->ref_title) : '';
+        if ($dispatches->isEmpty() && $poFallback === '') {
             return [];
         }
 
@@ -1136,13 +1138,29 @@ class PrintDataFormatter
             ->filter(fn ($value) => $value !== '')->unique()->implode(', ');
 
         $fields = [];
-        if ($settings['invoice_show_batch_no'] ?? true) {
+        if ($dispatches->isNotEmpty() && ($settings['invoice_show_batch_no'] ?? true)) {
             $value = $format($dispatches->map(fn ($dispatch) => $dispatch->batch?->batch_no));
             $fields['Batch No'] = $value === '' ? '-' : $value;
         }
-        if ($settings['invoice_show_site_ref'] ?? true) {
+        if ($dispatches->isNotEmpty() && ($settings['invoice_show_site_ref'] ?? true)) {
             $value = $format($dispatches->pluck('dispatch_reference'));
             $fields['Site Ref'] = $value === '' ? '-' : $value;
+        }
+        if ($settings['invoice_show_customer_po_no'] ?? true) {
+            $value = $format($dispatches->map(function ($dispatch) {
+                $salesOrder = $dispatch->salesOrder;
+                $customerPO = $dispatch->customerPO ?? $salesOrder?->customerPO;
+
+                return collect([
+                    $customerPO?->customer_po_reference,
+                    $salesOrder?->customer_po_reference,
+                    $dispatch->customer_po_reference,
+                    $customerPO?->reference,
+                    $salesOrder?->po_number,
+                ])->map(fn ($reference) => trim((string) $reference))
+                    ->first(fn ($reference) => $reference !== '' && $reference !== '-');
+            }));
+            $fields['Customer PO No'] = $value !== '' ? $value : ($poFallback !== '' ? $poFallback : '-');
         }
 
         return $fields;
@@ -1360,6 +1378,7 @@ class PrintDataFormatter
             ?: ($dispatch?->dispatch_reference
             ?: ($invoice->ref_title ?? ''))))));
 
+        $threeBoxInvoiceFields = self::invoiceDispatchPrintFields((int) $invoice->plant_id, $dispatches, $invoice);
         $data['meta'] = [
             'currency_code'          => 'INR',
             'currency_symbol'        => '&#8377;',
@@ -1375,7 +1394,8 @@ class PrintDataFormatter
             'qr_code'                => self::formatQrCodeUrl($invoice->einvoice_qr_code, $invoice->einvoice_irn),
             'eway_bill_no'           => $invoice->eway_bill_no ?? '',
             'so_no'                  => $salesOrder ? ($salesOrder->full_number ?? $salesOrder->order_no) : ($dispatch?->salesOrder?->order_no ?? ''),
-            'dispatch_print_fields'  => self::invoiceDispatchPrintFields((int) $invoice->plant_id, $dispatches),
+            'three_box_invoice_fields' => $threeBoxInvoiceFields,
+            'dispatch_print_fields'  => array_diff_key($threeBoxInvoiceFields, ['Customer PO No' => true]),
             'acc_no'                 => $partner?->account_number ?? $partner?->code ?? ($partner ? 'AC-' . sprintf('%04d', $partner->id) : ''),
             'sales_person'           => $salesPersonName,
             'pump'                   => $pumpName,

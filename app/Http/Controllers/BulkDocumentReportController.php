@@ -87,6 +87,7 @@ class BulkDocumentReportController extends Controller
         $html = $documents->map(fn($invoice) => view('pdfs.invoices.tax_invoice', [
             'invoice' => $invoice,
             'copy_type' => 'ORIGINAL',
+            'is_pdf' => true,
         ])->render())->all();
         return response($pdf->render($html), 200, [
             'Content-Type' => 'application/pdf',

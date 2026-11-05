@@ -381,6 +381,7 @@ Route::middleware([
         Route::post('customer-po', [CustomerPOController::class, 'store'])->name('customer-po.store');
         Route::delete('customer-po/{customerPO}', [CustomerPOController::class, 'destroy'])->name('customer-po.destroy');
         Route::put('customer-po/{customerPO}', [CustomerPOController::class, 'update'])->name('customer-po.update');
+        Route::get('customer-po/{customerPO}/attachments/{attachment}', [CustomerPOController::class, 'downloadAttachment'])->whereUuid('attachment')->name('customer-po.attachments.download');
         Route::post('customer-po/{customerPO}/convert-salesorder', [CustomerPOController::class, 'convertToSalesOrder'])->name('customer-po.convert-salesorder');
         Route::post('customer-po/{customerPO}/dispatches', [DispatchController::class, 'storeForSalesOrder'])->name('customer-po.dispatches.store');
         Route::resource('salesorders', SalesOrderController::class);
@@ -441,6 +442,7 @@ Route::middleware([
         Route::get('inwards/create/{purchase_order?}', [PurchaseOrderInwardController::class, 'create'])->name('inwards.create');
         Route::resource('inwards', PurchaseOrderInwardController::class)->except(['create']);
         Route::post('inwards/{inward}/update-weight', [PurchaseOrderInwardController::class, 'updateWeight'])->name('inwards.update-weight');
+        Route::get('inwards/{inward}/attachments/{attachment}', [PurchaseOrderInwardController::class, 'downloadAttachment'])->whereUuid('attachment')->name('inwards.attachments.download');
         Route::get('inwards/{inward}/receipt', [PurchaseOrderInwardController::class, 'receipt'])->name('inwards.receipt');
         Route::get('inwards/{inward}/download-receipt', [PurchaseOrderInwardController::class, 'downloadReceipt'])->name('inwards.download-receipt');
 

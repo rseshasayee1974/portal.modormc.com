@@ -15,6 +15,30 @@ use Illuminate\Support\Facades\Schema;
 
 class ProductionSchemaRepairTest extends TestCase
 {
+    public function test_inventory_audit_log_to_is_required_without_losing_existing_values(): void
+    {
+        config(['database.default' => 'schema_repair_test', 'database.connections.schema_repair_test' => [
+            'driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '',
+        ]]);
+        Schema::create('mm_inventory_audit_logs', function (Blueprint $table) {
+            $table->id();
+            $table->longText('log_to')->nullable();
+        });
+        DB::table('mm_inventory_audit_logs')->insert([
+            ['id' => 1, 'log_to' => null],
+            ['id' => 2, 'log_to' => '{"quantity":75}'],
+        ]);
+
+        $migration = require database_path('migrations/2026_11_05_131745_require_log_to_on_inventory_audit_logs.php');
+        $migration->up();
+        $migration->up();
+
+        $this->assertDatabaseHas('mm_inventory_audit_logs', ['id' => 1, 'log_to' => '{}']);
+        $this->assertDatabaseHas('mm_inventory_audit_logs', ['id' => 2, 'log_to' => '{"quantity":75}']);
+        $this->expectException(\Illuminate\Database\QueryException::class);
+        DB::table('mm_inventory_audit_logs')->insert(['log_to' => null]);
+    }
+
     public function test_audit_schema_repair_preserves_account_updates_without_a_plant(): void
     {
         config(['database.default' => 'schema_repair_test', 'database.connections.schema_repair_test' => [

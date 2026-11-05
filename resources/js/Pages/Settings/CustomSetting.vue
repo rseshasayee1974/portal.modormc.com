@@ -88,6 +88,8 @@ const form = useForm({
             Number(props.batchingSettings?.invoice_show_batch_no ?? 1) === 1,
         invoice_show_site_ref:
             Number(props.batchingSettings?.invoice_show_site_ref ?? 1) === 1,
+        invoice_show_customer_po_no:
+            Number(props.batchingSettings?.invoice_show_customer_po_no ?? 1) === 1,
         invoice_number_padding: Number(
             props.batchingSettings?.invoice_number_padding ?? 0,
         ),
@@ -191,6 +193,7 @@ const submit = () => {
         invoice_show_batch_no: form.settings.invoice_show_batch_no ? 1 : 0,
         show_delivered_qty: form.settings.show_delivered_qty ? 1 : 0,
         invoice_show_site_ref: form.settings.invoice_show_site_ref ? 1 : 0,
+        invoice_show_customer_po_no: form.settings.invoice_show_customer_po_no ? 1 : 0,
         batch_series_enabled: form.settings.batch_series_enabled ? 1 : 0,
         default_batch_series: form.settings.default_batch_series || "NONE",
         new_weight: Number(form.settings.new_weight ?? 1),
@@ -1432,6 +1435,14 @@ const submit = () => {
                                         <span class="text-xs text-slate-500"
                                             >Show site reference</span
                                         >
+                                    </div>
+                                </div>
+                                <div class="setting-field min-w-0 flex flex-col gap-3">
+                                    <span class="text-xs font-bold text-slate-800">3-box Invoice PDF — Customer PO Number</span>
+                                    <div class="flex items-center gap-3">
+                                        <InputSwitch v-model="form.settings.invoice_show_customer_po_no"
+                                            aria-label="Show Customer PO Number on 3-box invoice PDF" />
+                                        <span class="text-xs text-slate-500">Show customer PO number</span>
                                     </div>
                                 </div>
                                 <div

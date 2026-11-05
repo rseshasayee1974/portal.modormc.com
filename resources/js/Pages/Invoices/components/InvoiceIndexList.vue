@@ -22,6 +22,7 @@ import InvoiceNoteActions from '@/Components/InvoiceNoteActions.vue';
 import InvoiceStatusIcons from '@/Components/InvoiceStatusIcons.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 import { usePermissions } from '@/Composables/usePermissions';
+import { hasActiveEInvoice, useEInvoiceCancellation } from '@/Composables/useEInvoiceGeneration';
 
 const props = defineProps<{
     invoices: any[];
@@ -42,6 +43,7 @@ const toggleActions = (event: any, row: any) => {
 };
 
 const { can, isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
+const { canCancel, cancelEInvoice, cancellingEInvoice } = useEInvoiceCancellation();
 
 const expandedRows = ref<Record<number, boolean>>({});
 const filters = ref({
@@ -100,6 +102,14 @@ const deleteInvoice = (invoice: any) => {
 
 const loadingRows = ref<Record<number, boolean>>({});
 const invoiceDetails = ref<Record<number, any>>({});
+
+const openInvoiceCancellation = (invoice: any) => {
+    actionsPopover.value?.hide();
+    return cancelEInvoice(invoice, () => {
+        delete invoiceDetails.value[invoice.id];
+        expandedRows.value = {};
+    });
+};
 
 const fetchInvoiceDetails = async (data: any) => {
     const id = data.id;
@@ -468,7 +478,13 @@ const formatDate = (dateString: string) => {
                 <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
 
                 <!-- Print Options -->
-                <template v-if="isAdmin || isSuperAdmin || isSassOwner">
+                <button v-if="hasActiveEInvoice(selectedRow)" type="button"
+                    @click="printInvoice(selectedRow); actionsPopover.hide()"
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 flex items-center gap-2">
+                    <span class="pi pi-print" aria-hidden="true"></span>
+                    E-Invoice Print
+                </button>
+                <template v-else-if="isAdmin || isSuperAdmin || isSassOwner">
                     <button 
                         @click="printOriginal(selectedRow); actionsPopover.hide()" 
                         class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
@@ -497,6 +513,12 @@ const formatDate = (dateString: string) => {
                 <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
 
                 <!-- Void/Delete -->
+                <button v-if="canCancel(selectedRow)" type="button" :disabled="cancellingEInvoice"
+                    @click="openInvoiceCancellation(selectedRow)"
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2">
+                    <span class="pi pi-ban" aria-hidden="true"></span>
+                    Cancel E-Invoice
+                </button>
                 <button 
                     @click="deleteInvoice(selectedRow); actionsPopover.hide()" 
                     class="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2"

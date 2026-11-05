@@ -267,6 +267,7 @@ class InvoiceController extends Controller
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.invoices.tax_invoice', [
                 'invoice' => $invoice,
                 'copy_type' => $copyType,
+                'is_pdf' => true,
             ]);
             return $pdf->download("Tax_Invoice_{$invoice->full_number}.pdf");
         }

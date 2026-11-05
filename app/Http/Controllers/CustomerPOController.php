@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CustomerPO;
 use App\Models\Quotation;
 use App\Models\SalesOrder; // This is the new SalesOrder model (formerly WorkOrder)
+use App\Services\RecordAttachments;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +55,7 @@ class CustomerPOController extends Controller
         $this->authorizeModule('create');
         
         $validated = $request->validate([
+            ...RecordAttachments::RULES,
             'prefix' => 'nullable|string|max:20',
             'reference' => 'nullable|string|max:100',
             'customer_po_reference' => 'nullable|max:150',
@@ -88,6 +90,7 @@ class CustomerPOController extends Controller
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
         $validated['order_date'] = $formattedDate;
 
+        abort_if(!empty($validated['attachments']) && !session('active_plant_id'), 404);
         $plantId = session('active_plant_id') ?: 1;
         $validated['plant_id'] = $plantId;
         
@@ -127,7 +130,7 @@ class CustomerPOController extends Controller
             return redirect()->back()->withErrors(['items' => 'At least one mix design item is required.']);
         }
 
-        DB::transaction(function () use ($validated, $plantId, $items) {
+        RecordAttachments::transaction($plantId, $validated['attachments'] ?? [], function (array $attachments) use ($validated, $plantId, $items) {
             $quote = null;
             if (!empty($validated['quotation_id'])) {
                 $quote = Quotation::find($validated['quotation_id']);
@@ -155,6 +158,7 @@ class CustomerPOController extends Controller
                 'order_date' => $validated['order_date'],
                 'status' => $validated['status'],
                 'converted_by_user_id' => $validated['converted_by_user_id'],
+                ...($attachments ? ['attachments' => $attachments] : []),
             ]);
 
             if (empty($validated['quotation_id'])) {
@@ -248,8 +252,12 @@ class CustomerPOController extends Controller
     public function update(Request $request, CustomerPO $customerPO)
     {
         $this->authorizeModule('update');
+        if ($request->hasFile('attachments')) {
+            abort_unless((int) $customerPO->plant_id === (int) session('active_plant_id'), 404);
+        }
         
         $validated = $request->validate([
+            ...RecordAttachments::RULES,
             'prefix' => 'nullable|string|max:20',
             'reference' => 'nullable|string|max:100',
             'customer_po_reference' => 'nullable|max:150',
@@ -320,7 +328,11 @@ class CustomerPOController extends Controller
             return redirect()->back()->withErrors(['items' => 'At least one mix design item is required.']);
         }
 
-        DB::transaction(function () use ($customerPO, $validated, $request, $plantId, $items) {
+        RecordAttachments::transaction($plantId, $validated['attachments'] ?? [], function (array $attachments) use ($customerPO, $validated, $request, $plantId, $items) {
+            if ($attachments) {
+                $customerPO = CustomerPO::where('plant_id', $plantId)->lockForUpdate()->findOrFail($customerPO->id);
+                $customerPO->attachments = [...($customerPO->attachments ?? []), ...$attachments];
+            }
             if ($customerPO->quotation_id && $customerPO->quotation_id != ($validated['quotation_id'] ?? null)) {
                 $otherUses = CustomerPO::where('quotation_id', $customerPO->quotation_id)
                     ->where('id', '!=', $customerPO->id)
@@ -515,6 +527,14 @@ class CustomerPOController extends Controller
         });
 
         return redirect()->back()->with('success', 'Customer PO updated successfully.');
+    }
+
+    public function downloadAttachment(CustomerPO $customerPO, string $attachment)
+    {
+        $this->authorizeModule('show');
+        abort_unless((int) $customerPO->plant_id === (int) session('active_plant_id'), 404);
+
+        return RecordAttachments::download($customerPO->plant_id, $customerPO->attachments ?? [], $attachment);
     }
 
     public function convertToSalesOrder(Request $request, CustomerPO $customerPO)

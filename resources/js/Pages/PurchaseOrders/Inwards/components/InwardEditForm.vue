@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
@@ -6,6 +7,7 @@ import Swal from 'sweetalert2';
 
 // Components
 import Dialog from 'primevue/dialog';
+import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
@@ -29,6 +31,7 @@ const emit = defineEmits<{
 }>();
 
 const data = ref({ ...props.inward });
+const attachments = ref<File[]>([]);
 const createdTrucks = ref<any[]>([]);
 const truckOptions = computed(() => [
     ...props.vehicles,
@@ -263,6 +266,10 @@ const saveInwardDetails = () => {
         return;
     }
     const payload: Record<string, any> = {};
+    const inwardNumber = String(data.value.inward_no ?? '').trim();
+    if (inwardNumber !== String(props.inward.inward_no ?? '').trim()) {
+        payload.inward_no = inwardNumber;
+    }
     for (const field of ['truck_id', 'uom_id', 'received_qty', 'convert_volume', 'conversion_uom_id', 'conversion_quantity', 'truck_loaded', 'truck_empty']) {
         const value = data.value[field] ?? null;
         const original = props.inward[field] ?? null;
@@ -272,6 +279,7 @@ const saveInwardDetails = () => {
     }
     if (data.value._loaded_snap) payload.loaded_weight_photo = data.value._loaded_snap;
     if (data.value._empty_snap) payload.empty_weight_photo = data.value._empty_snap;
+    if (attachments.value.length) payload.attachments = attachments.value;
     if (generateBill.value && canBillInward.value) {
         detailsErrors.value = {};
         if (!billForm.value.unit_price || Number(billForm.value.unit_price) <= 0) {
@@ -298,6 +306,7 @@ const saveInwardDetails = () => {
         preserveState: true,
         onSuccess: () => {
             data.value = { ...props.inward };
+            attachments.value = [];
             generateBill.value = false;
             onSaveSuccess?.();
             emit('saved', data.value);
@@ -316,8 +325,10 @@ const saveInwardDetails = () => {
         <!-- Header & Action Toolbar -->
 
         <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
-            <h4 class="text-xs font-bold text-slate-700">Edit vehicle and units</h4>
+            <h4 class="text-xs font-bold text-slate-700">Edit inward details</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <BaseInput v-model="data.inward_no" label="Inward Number" :disabled="formBusy"
+                    :error="detailsErrors.inward_no" />
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck"
                     class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving"
                     :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />
@@ -538,6 +549,9 @@ const saveInwardDetails = () => {
             </div>
 
         </div>
+        <RecordAttachments v-model="attachments" :files="props.inward.attachments"
+            :record-id="props.inward.id" download-route="inwards.attachments.download"
+            :errors="detailsErrors" :disabled="formBusy" />
     </form>
     <!-- Action Buttons -->
     <div

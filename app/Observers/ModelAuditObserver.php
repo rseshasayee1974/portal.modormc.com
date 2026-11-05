@@ -47,7 +47,7 @@ class ModelAuditObserver
                 'reference_type'   => class_basename($model),
                 'reference_id'     => $model->getKey(),
                 'log_from'         => !empty($oldValues) ? json_encode($oldValues, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
-                'log_to'           => !empty($newValues) ? json_encode($newValues, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
+                'log_to'           => json_encode($newValues, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR),
                 'user_id'          => Auth::id(),
                 'remarks'          => $remark ?: "Updated " . class_basename($model) . " (#{$model->getKey()})",
                 'ip_address'        => request()?->ip(),
@@ -77,7 +77,8 @@ class ModelAuditObserver
                 'reference_type'   => class_basename($model),
                 'reference_id'     => $model->getKey(),
                 'log_from'         => json_encode($model->getOriginal(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                'log_to'           => null,
+                // A deleted record has no after-state. Store an empty object in the required column.
+                'log_to'           => '{}',
                 'user_id'          => Auth::id(),
                 'remarks'          => "Deleted " . class_basename($model) . " (#{$model->getKey()})",
                 'ip_address'        => request()?->ip(),

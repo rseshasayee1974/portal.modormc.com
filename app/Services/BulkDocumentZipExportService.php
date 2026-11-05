@@ -92,6 +92,7 @@ class BulkDocumentZipExportService
                         $html = view('pdfs.invoices.tax_invoice', [
                             'invoice' => $invoice,
                             'copy_type' => 'ORIGINAL',
+                            'is_pdf' => true,
                         ])->render();
 
                         $sanitizedNumber = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $invoice->full_number);

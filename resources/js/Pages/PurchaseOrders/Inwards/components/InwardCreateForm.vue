@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
@@ -63,6 +64,7 @@ const poOptions = computed(() => {
 });
 
 const form = useForm({
+    attachments: [] as File[],
     order_id: props.purchase_order?.id || (null as number | null),
     received_date: entityToday(),
     inward_no: '',
@@ -452,6 +454,9 @@ const remainingToReceive = (item: any) => {
                         <p class="text-[11px] text-slate-400 mt-1">Choose an approved order to begin recording inventory
                             inward.</p>
                     </div>
+
+                    <RecordAttachments v-if="form.items.length > 0" v-model="form.attachments"
+                        :errors="form.errors" :disabled="form.processing" class="mx-5 my-4" />
 
                     <!-- Footer -->
                     <div v-if="form.items.length > 0"

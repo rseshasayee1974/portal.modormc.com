@@ -120,9 +120,10 @@ export function useInvoiceActions(
     });
 
     const printEInvoiceDirect = (invoice: any) => {
-        if (!invoice || !invoice.encrypted_id) return;
+        const id = invoice?.encrypted_id || invoice?.id;
+        if (!id) return;
         window.open(
-            route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'view' }),
+            route('print.document', { module: 'invoices', id, action: 'view' }),
             '_blank'
         );
     };

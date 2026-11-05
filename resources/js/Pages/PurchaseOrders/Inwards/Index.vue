@@ -12,6 +12,7 @@ import Column from 'primevue/column';
 import Button from 'primevue/button';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import InwardEditForm from './components/InwardEditForm.vue';
+import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import InwardCreateForm from './components/InwardCreateForm.vue';
 
 import { ArchiveBoxIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline';
@@ -212,6 +213,13 @@ const deleteInward = (inward: any) => {
                                             {{ slotProps.data.uom?.unit_code }}
                                         </span>
                                     </div>
+                                </template>
+                            </Column>
+
+                            <Column header="Attachments" style="min-width: 120px; max-width: 220px">
+                                <template #body="{ data }">
+                                    <RecordAttachments :files="data.attachments" :record-id="data.id"
+                                        download-route="inwards.attachments.download" download-only />
                                 </template>
                             </Column>
 

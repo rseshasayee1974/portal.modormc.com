@@ -17,6 +17,102 @@ use Illuminate\Support\Facades\Schema;
 
 class EinvoiceAuthTest extends TestCase
 {
+    #[\PHPUnit\Framework\Attributes\DataProvider('irnCancellationCases')]
+    public function test_irn_cancellation_saves_only_a_confirmed_gateway_result(string $provider, string $case): void
+    {
+        config([
+            'database.default' => 'irn_cancel_test',
+            'database.connections.irn_cancel_test' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => ''],
+            'services.einvoice.provider' => $provider,
+            'services.alankit.environment' => 'sandbox',
+            'services.alankit.sandbox_cancel_url' => 'https://gateway.test/Invoice/Cancel',
+        ]);
+        DB::statement('CREATE TABLE mm_einvoice_invoice_rel (id INTEGER PRIMARY KEY, invoice_id INTEGER, einv_irn TEXT, einv_status TEXT, einv_ack_date TEXT, einv_cancel_at TEXT, status INTEGER, modified TEXT, modified_by INTEGER)');
+        DB::statement('CREATE TABLE mm_ewaybill_details (id INTEGER PRIMARY KEY, plant_id INTEGER, origin_id INTEGER, generation_type TEXT, ewaybill_no TEXT, ewaybill_status TEXT)');
+        DB::statement('CREATE TABLE mm_dispatches (id INTEGER PRIMARY KEY, plant_id INTEGER, batch_id INTEGER, deleted_at TEXT)');
+        DB::statement('CREATE TABLE mm_dispatch_statuses (id INTEGER PRIMARY KEY, dispatch_id INTEGER, invoice_id INTEGER, deleted_at TEXT)');
+        $irn = str_repeat('a', 64);
+        $cancelledAt = now()->toDateTimeString();
+        DB::table('mm_einvoice_invoice_rel')->insert([
+            'id' => 1, 'invoice_id' => 42, 'einv_irn' => $irn, 'einv_status' => 'ACT',
+            'einv_ack_date' => now()->subHours($case === 'expired' ? 25 : 1)->toDateTimeString(),
+        ]);
+        if ($case === 'active e-way bill') {
+            DB::table('mm_dispatches')->insert(['id' => 1, 'plant_id' => 7, 'batch_id' => 123]);
+            DB::table('mm_dispatch_statuses')->insert(['id' => 1, 'dispatch_id' => 1, 'invoice_id' => 42]);
+            DB::table('mm_ewaybill_details')->insert([
+                'plant_id' => 7, 'origin_id' => 123, 'generation_type' => 'batch',
+                'ewaybill_no' => '123456789012', 'ewaybill_status' => 'ACT',
+            ]);
+        }
+        $record = \App\Models\EinvoiceInvoiceRel::findOrFail(1);
+        $invoice = new \App\Models\Invoice(['plant_id' => 7]);
+        $invoice->id = 42;
+        $plant = (new \App\Models\Plant(['gstin' => 'test-gstin']))->setRelation('entity', null);
+        $invoice->setRelation('plant', $plant)->setRelation('einvoiceRelation', $record);
+        $appKey = str_repeat('k', 32);
+        $sek = str_repeat('s', 32);
+        $auth = new EinvoiceAuth([
+            'auth_token' => 'test-token', 'user_name' => 'test-user', 'app_key' => base64_encode($appKey),
+            'sek_key' => base64_encode(openssl_encrypt($sek, 'aes-256-ecb', $appKey, OPENSSL_RAW_DATA)),
+        ]);
+        $service = \Mockery::mock(EInvoiceService::class)->makePartial();
+        $service->shouldReceive('authenticate')->with($plant, 1, $provider)
+            ->times(in_array($case, ['expired', 'active e-way bill'], true) ? 0 : 1)->andReturn($auth);
+        $service->baseUrl = 'https://gateway.test';
+        $service->email = 'test@example.test';
+        $service->shouldReceive('getGatewayConfig')->andReturn([]);
+
+        Http::preventStrayRequests();
+        Http::fake(['https://gateway.test/*' => function ($request) use ($provider, $case, $sek, $irn, $cancelledAt) {
+            $path = $provider === 'alankit' ? '/Invoice/Cancel' : '/einvoice/type/CANCEL/version/V1_03';
+            $this->assertSame($path, parse_url($request->url(), PHP_URL_PATH));
+            $payload = $provider === 'alankit'
+                ? json_decode(openssl_decrypt(base64_decode($request['Data']), 'aes-256-ecb', $sek, OPENSSL_RAW_DATA), true)
+                : $request->data();
+            $this->assertSame(['Irn' => $irn, 'CnlRsn' => '2', 'CnlRem' => 'Wrong details'], $payload);
+            $data = ['Irn' => $irn, 'CancelDate' => $cancelledAt];
+            return match ($case) {
+                '404' => Http::response([], 404),
+                'rejected' => Http::response(['status_cd' => '0']),
+                'wrong irn' => Http::response(['status_cd' => '1', 'data' => ['Irn' => 'different', 'CancelDate' => $cancelledAt]]),
+                default => $provider === 'alankit'
+                    ? Http::response(['Status' => 1, 'Data' => base64_encode(openssl_encrypt(json_encode($data), 'aes-256-ecb', $sek, OPENSSL_RAW_DATA))])
+                    : Http::response(['status_cd' => '1', 'data' => $data]),
+            };
+        }]);
+        try {
+            \App\Models\EinvoiceInvoiceRel::withoutEvents(fn () => $service->cancelIrn($invoice, '2', 'Wrong details'));
+            $this->assertSame('success', $case);
+        } catch (\Exception $exception) {
+            $this->assertNotSame('success', $case, $exception->getMessage());
+            $this->assertStringContainsString(match ($case) {
+                'expired' => '24-hour window',
+                'active e-way bill' => 'active E-Way Bill',
+                'wrong irn' => 'did not confirm cancellation',
+                default => 'cancellation failed',
+            }, $exception->getMessage());
+        }
+        $this->assertSame($case === 'success' ? 'CNL' : 'ACT', $record->fresh()->einv_status);
+        if ($case === 'success') {
+            $this->assertSame($cancelledAt, $record->fresh()->einv_cancel_at->toDateTimeString());
+        }
+        Http::assertSentCount(in_array($case, ['expired', 'active e-way bill'], true) ? 0 : 1);
+    }
+
+    public static function irnCancellationCases(): array
+    {
+        return [
+            'Alankit confirmed' => ['alankit', 'success'],
+            'PeriOne confirmed' => ['perione', 'success'],
+            'gateway 404' => ['perione', '404'],
+            'gateway rejection with HTTP 200' => ['perione', 'rejected'],
+            'gateway confirms a different IRN' => ['perione', 'wrong irn'],
+            'window expired' => ['perione', 'expired'],
+            'linked batch has active e-way bill' => ['perione', 'active e-way bill'],
+        ];
+    }
+
     #[\PHPUnit\Framework\Attributes\DataProvider('invoiceLineAmounts')]
     public function test_einvoice_line_amounts_use_tax_exclusive_prices(array $values, bool $inclusive, array $expected): void
     {

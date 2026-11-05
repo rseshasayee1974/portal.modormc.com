@@ -26,6 +26,7 @@ class CustomerPO extends Model
         'patron_id',
         'site_id',
         'notes',
+        'attachments',
         'sales_executive_id',
         'is_tax_inclusive',
         'amount_untaxed',
@@ -45,6 +46,7 @@ class CustomerPO extends Model
     ];
 
     protected $casts = [
+        'attachments' => 'array',
         'status' => 'integer',
         'patron_id' => 'integer',
         'site_id' => 'integer',

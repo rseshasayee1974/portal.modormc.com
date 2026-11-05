@@ -145,20 +145,24 @@ class EInvoiceController extends Controller
      */
     public function cancel(Request $request, Invoice $invoice)
     {
-        $this->authorizeModule('edit');
+        $this->authorizeModule('edit', 'invoice');
+        $plantId = app(\App\Services\PlantContextService::class)->requirePlantId();
 
         if (!$invoice->exists) {
             $invoiceId = $request->input('invoice_id') ?? $request->input('id');
             if ($invoiceId) {
-                $invoice = Invoice::findOrFail($invoiceId);
+                $invoice = Invoice::where('plant_id', $plantId)->findOrFail($invoiceId);
             }
         }
 
-        try {
-            $cancelReason = (string)$request->input('cancel_reason', '1');
-            $cancelRemarks = (string)$request->input('cancel_remarks', 'Order cancelled');
+        abort_unless($invoice->exists && !$invoice->trashed() && (int) $invoice->plant_id === $plantId, 404);
+        $validated = $request->validate([
+            'cancel_reason' => 'required|in:1,2,3,4',
+            'cancel_remarks' => 'required|string|max:100',
+        ]);
 
-            $result = $this->eInvoiceService->cancelIrn($invoice, $cancelReason, $cancelRemarks);
+        try {
+            $result = $this->eInvoiceService->cancelIrn($invoice, (string) $validated['cancel_reason'], $validated['cancel_remarks']);
 
             if ($request->wantsJson() && !$request->header('X-Inertia')) {
                 return response()->json([

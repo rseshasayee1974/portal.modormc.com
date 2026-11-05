@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref } from 'vue';
@@ -50,6 +51,7 @@ const isLocked = computed(() => {
 });
 
 const form = useForm({
+    attachments: [] as File[],
     prefix: props.customerPO?.prefix ?? 'CPO',
     reference: props.customerPO?.reference ?? '',
     customer_po_reference: props.customerPO?.customer_po_reference ?? '',
@@ -570,6 +572,8 @@ const submit = () => {
 };
 
 const performSubmit = (customerPOId: any) => {
+    // PHP reads uploaded files from POST; Laravel handles the update via method spoofing.
+    const hasFiles = form.attachments.length > 0;
     form.transform((data) => {
         const isSingleItem = !data.quotation_id && data.items.length <= 1;
         const isSingleQuote = data.quotation_id && (props.customerPO?.quotation?.items?.length === 1 || props.customerPO?.items?.length === 1);
@@ -584,6 +588,7 @@ const performSubmit = (customerPOId: any) => {
         
         return {
             ...data,
+            ...(hasFiles ? { _method: 'PUT' } : {}),
             concrete_pump: concrete_pump,
             pump_rate: pump_rate,
             items: data.items.map((item: any) => ({
@@ -595,8 +600,9 @@ const performSubmit = (customerPOId: any) => {
                     : []
             }))
         };
-    }).put(route('customer-po.update', customerPOId), {
+    }).submit(hasFiles ? 'post' : 'put', route('customer-po.update', customerPOId), {
         onSuccess: () => {
+            form.reset('attachments');
             Swal.fire({
                 toast: true,
                 position: 'top-end',
@@ -1103,6 +1109,10 @@ const performSubmit = (customerPOId: any) => {
                 </div>
             </div>
         </div>
+
+        <RecordAttachments v-model="form.attachments" :files="props.customerPO.attachments"
+            :record-id="props.customerPO.id" download-route="customer-po.attachments.download"
+            :errors="form.errors" :disabled="form.processing || isLocked || (props.customerPO.has_salesorders && !admin)" class="mt-4" />
 
         <div class="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">
             <BaseFormActions

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { ref, watch, nextTick, computed } from 'vue';
@@ -487,6 +488,13 @@ watch(() => props.customerPOs, () => {
                         <template #body="slotProps">
                             <Tag :value="getStatusLabel(slotProps.data.status)"
                                 :severity="getStatusSeverity(slotProps.data.status)" rounded />
+                        </template>
+                    </Column>
+
+                    <Column header="Attachments" style="min-width: 120px; max-width: 220px">
+                        <template #body="{ data }">
+                            <RecordAttachments :files="data.attachments" :record-id="data.id"
+                                download-route="customer-po.attachments.download" download-only />
                         </template>
                     </Column>
 

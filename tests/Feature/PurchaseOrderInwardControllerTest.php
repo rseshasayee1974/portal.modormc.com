@@ -14,6 +14,8 @@ use App\Models\PurchaseOrderHistory;
 use App\Models\Quantity;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PurchaseOrderInwardControllerTest extends TestCase
@@ -94,6 +96,34 @@ class PurchaseOrderInwardControllerTest extends TestCase
         $response = $this->get(route('inwards.create', $this->po->id));
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page->component('PurchaseOrders/Inwards/Create'));
+    }
+
+    public function test_inward_attachments_are_uploaded_validated_and_downloaded(): void
+    {
+        Storage::fake('local');
+        $this->post(route('inwards.store'), [
+            'order_id' => $this->po->id,
+            'received_date' => '2026-06-05',
+            'inward_no' => 'INW-ATTACHMENT',
+            'items' => [['order_item_id' => $this->item->id, 'received_qty' => 12.5]],
+            'attachments' => [UploadedFile::fake()->createWithContent('delivery-slip.pdf', "%PDF-1.4\n")],
+        ])->assertRedirect(route('inwards.index'))->assertSessionHasNoErrors();
+
+        $inward = PurchaseOrderHistory::where('inward_no', 'INW-ATTACHMENT')->firstOrFail();
+        $textFile = UploadedFile::fake()->createWithContent('not-a-pdf.pdf', 'Plain text');
+        $this->post(route('inwards.update-weight', $inward), [
+            'attachments' => [new UploadedFile($textFile->getPathname(), 'not-a-pdf.pdf', 'application/pdf', UPLOAD_ERR_OK, true)],
+        ])->assertSessionHasErrors('attachments.0');
+
+        $this->post(route('inwards.update-weight', $inward), [
+            'attachments' => [UploadedFile::fake()->image('delivery.jpg')],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $inward->refresh();
+        $this->assertEquals(12.5, $inward->received_qty);
+        $this->assertSame(['delivery-slip.pdf', 'delivery.jpg'], array_column($inward->attachments, 'name'));
+        $this->get(route('inwards.attachments.download', [$inward, $inward->attachments[1]['id']]))
+            ->assertDownload('delivery.jpg');
     }
 
     public function test_store_records_inward_and_updates_stock_and_receipt_status(): void
@@ -215,6 +245,12 @@ class PurchaseOrderInwardControllerTest extends TestCase
 
         // Check database for deletion and adjustments
         $this->assertNull(PurchaseOrderHistory::find($inward->id));
+        $this->assertDatabaseHas('mm_inventory_audit_logs', [
+            'action_type' => 'DELETE',
+            'reference_type' => 'PurchaseOrderHistory',
+            'reference_id' => $inward->id,
+            'log_to' => '{}',
+        ]);
 
         $this->item->refresh();
         $this->assertEquals(0, $this->item->received_quantity);

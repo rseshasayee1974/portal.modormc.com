@@ -37,8 +37,8 @@
     ]);
 
     $firstDispatch = $dispatches->first();
-    $dispatchPrintFields = $data['meta']['dispatch_print_fields']
-        ?? \App\Services\PrintDataFormatter::invoiceDispatchPrintFields((int) ($inv?->plant_id ?? $plant?->id), $dispatches);
+    $dispatchPrintFields = $data['meta']['three_box_invoice_fields']
+        ?? \App\Services\PrintDataFormatter::invoiceDispatchPrintFields((int) ($inv?->plant_id ?? $plant?->id), $dispatches, $inv);
     $salesOrder = $firstDispatch?->salesOrder;
     $customerPO = $firstDispatch?->customerPO ?? $salesOrder?->customerPO;
 
@@ -77,12 +77,6 @@
 
     // Customer Ref
     $accNo = $partner?->code ?? ($partner?->reference ?? ($partner?->id ? 'AC-' . $partner->id : ''));
-    $poRef = $customerPO?->customer_po_reference 
-        ?? ($customerPO?->reference 
-        ?? ($salesOrder?->customer_po_reference 
-        ?? ($salesOrder?->po_number 
-        ?? ($firstDispatch?->customer_po_reference 
-        ?? ($inv?->ref_title ?? '')))));
 
     $salesPerson = $firstDispatch?->salesExecutive ?? $salesOrder?->salesExecutive;
     $salesPersonName = $salesPerson
@@ -294,41 +288,6 @@
             max-width: 210mm;
             margin: 0 auto;
             border: 1.5px solid #000;
-        }
-
-        /* Top Header */
-        .header-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .header-table td {
-            vertical-align: middle;
-            padding: 4px 6px;
-        }
-
-        .company-logo {
-            max-height: 48px;
-            max-width: 120px;
-            object-fit: contain;
-        }
-
-        .company-title {
-            font-size: 13pt;
-            font-weight: bold;
-            text-align: center;
-            letter-spacing: 0.5px;
-        }
-
-        .invoice-type-tag {
-            text-align: right;
-            font-size: 8.5pt;
-            font-weight: bold;
-            line-height: 1.2;
-        }
-
-        .invoice-type-tag .copy-title {
-            font-size: 9pt;
         }
 
         /* IRN & Compliance Bar */
@@ -623,18 +582,17 @@
 <body>
 
     <!-- Web Print Actions Toolbar -->
-    <div class="print-actions-bar">
-        <button class="print-btn" onclick="window.print()">Print Invoice</button>
-    </div>
+    @unless ($is_pdf ?? false)
+        <div class="print-actions-bar">
+            <button class="print-btn" onclick="window.print()">Print Invoice</button>
+        </div>
+    @endunless
 
     <div class="invoice-container">
-@include('pdfs.partials._brand_header')
-
-
-        <!-- 1. Header Bar -->
-        <div class="invoice-type-tag" style="text-align:right; margin-bottom:6px;">
-            <div class="copy-title">{{ $copyType }}</div><div>TAX INVOICE</div>
-        </div>
+        @include('pdfs.partials._brand_header', [
+            'brandInvoiceTitle' => 'TAX INVOICE',
+            'brandInvoiceCopy' => $copyType,
+        ])
 
         <!-- 2. IRN & E-Invoice Compliance Bar -->
         @if (!empty($irn) || !empty($ackNo) || !empty($ackDate) || !empty($qrCode))
@@ -760,7 +718,9 @@
                 <td>
                     <div class="box-heading">Customer Ref</div>
                     <div class="info-line"><strong>Acc No :</strong> {{ $accNo }}</div>
-                    <div class="info-line"><strong>PO :</strong> {{ $poRef }}</div>
+                    @if ($inv?->accountingModule() === 'Purchase')
+                        <div class="info-line"><strong>PO :</strong> {{ $inv->ref_title }}</div>
+                    @endif
                     <div class="info-line"><strong>Sales Person :</strong> {{ $salesPersonName }}</div>
                     <div class="info-line"><strong>Pump :</strong> {{ $pumpName }}</div>
                     <div class="info-line"><strong>Quality InCharge :</strong> -</div>

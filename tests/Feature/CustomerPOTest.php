@@ -10,6 +10,8 @@ use App\Models\Patron;
 use App\Models\Site;
 use App\Models\Plant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CustomerPOTest extends TestCase
@@ -200,6 +202,43 @@ class CustomerPOTest extends TestCase
         $salesOrder = SalesOrder::where('customer_po_id', $customerPO->id)->first();
         $this->assertNotNull($salesOrder);
         $this->assertEquals(5.5, $salesOrder->total_qty);
+    }
+
+    public function test_customer_po_attachments_are_uploaded_appended_and_downloaded(): void
+    {
+        Storage::fake('local');
+        $this->actingAs($this->superAdmin);
+        $mix = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+        $data = [
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+            'order_date' => now()->toDateString(),
+            'items' => [['mix_design_id' => $mix->id, 'quantity' => 10, 'rate' => 500]],
+        ];
+
+        $this->post(route('customer-po.store'), $data + [
+            'attachments' => [UploadedFile::fake()->createWithContent('customer-po.pdf', "%PDF-1.4\n")],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $po = CustomerPO::firstOrFail();
+        $first = $po->attachments[0];
+        $this->get(route('customer-po.attachments.download', [$po, $first['id']]))->assertDownload('customer-po.pdf');
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $spreadsheet->getActiveSheet()->setCellValue('A1', 'Customer PO');
+        ob_start();
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save('php://output');
+        $xlsx = ob_get_clean();
+        $excelFile = UploadedFile::fake()->createWithContent('rates.xlsx', $xlsx);
+        $this->post(route('customer-po.update', $po), $data + [
+            '_method' => 'PUT',
+            'status' => $po->status,
+            'attachments' => [new UploadedFile($excelFile->getPathname(), 'rates.xlsx', null, UPLOAD_ERR_OK, true)],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(['customer-po.pdf', 'rates.xlsx'], array_column($po->fresh()->attachments, 'name'));
+        $this->withSession(['active_plant_id' => Plant::factory()->create(['entity_id' => $this->plant->entity_id])->id])
+            ->get(route('customer-po.attachments.download', [$po, $first['id']]))->assertNotFound();
     }
 
     public function test_direct_customer_po_creation_with_multiple_items()

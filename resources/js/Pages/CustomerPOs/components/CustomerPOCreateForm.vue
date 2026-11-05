@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<{
 });
 
 const form = useForm({
+    attachments: [] as File[],
     prefix: null as string | null,
     reference: null as string | null,
     customer_po_reference: null as string | null,
@@ -652,6 +654,8 @@ const submit = () => {
     </div>
 
 </div>
+
+        <RecordAttachments v-model="form.attachments" :errors="form.errors" :disabled="form.processing" class="mx-4 my-3" />
 
         <!-- Action Button -->
         <div class="flex justify-end border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/30 px-4 py-3">

@@ -24,7 +24,7 @@ import {
     PaperAirplaneIcon,
 } from "@heroicons/vue/24/outline";
 import { usePermissions } from "@/Composables/usePermissions";
-import { canGenerateEInvoice, plantHasEwayBill } from "@/Composables/useEInvoiceGeneration";
+import { canGenerateEInvoice, hasActiveEInvoice, plantHasEwayBill } from "@/Composables/useEInvoiceGeneration";
 import { watch, computed } from "vue";
 import Swal from "sweetalert2";
 
@@ -831,10 +831,7 @@ console.log("jkghkjgk", props.modelValue);
                                         (modelValue.status.invoice
                                             ?.encrypted_id ||
                                             modelValue.status.invoice?.id) &&
-                                        (modelValue.status.invoice
-                                            ?.einvoice_status === 'generated' ||
-                                            modelValue.status.invoice
-                                                ?.einvoice_irn)
+                                        hasActiveEInvoice(modelValue.status.invoice)
                                     "
                                     :href="
                                         route('print.document', {
@@ -864,6 +861,7 @@ console.log("jkghkjgk", props.modelValue);
                                 >
                                     <!-- Print Invoice Button (Original/Duplicate logic handled dynamically in backend) -->
                                     <a
+                                        v-if="!hasActiveEInvoice(modelValue.status.invoice)"
                                         :href="
                                             route('print.document', {
                                                 module: 'invoices',

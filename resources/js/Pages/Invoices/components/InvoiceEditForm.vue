@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { plantHasEInvoice, plantHasEwayBill } from '@/Composables/useEInvoiceGeneration';
+import { canCancelEInvoice, isEInvoiceCancelled, plantHasEInvoice, plantHasEwayBill, useEInvoiceCancellation } from '@/Composables/useEInvoiceGeneration';
 import EwayBillRoutePreview from '@/Components/EwayBillRoutePreview.vue';
 import { entityToday, entityLocaleDateTime } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -245,19 +245,7 @@ const generateEInvoice = () => {
     });
 };
 
-const cancelEInvoice = () => {
-    complianceForm.post(route('invoices.cancel-einvoice', props.invoice.id), {
-        onSuccess: () => {
-            toast.add({ severity: 'info', summary: 'E-Invoice Cancelled', detail: 'IRN has been cancelled', life: 1500 });
-            emit('saved');
-        },
-        onError: (errors) => {
-            if (errors.error) {
-                toast.add({ severity: 'error', summary: 'Error', detail: errors.error, life: 3000 });
-            }
-        }
-    });
-};
+const { canCancel, cancelEInvoice, cancellingEInvoice } = useEInvoiceCancellation();
 
 const generateEWayBillOnly = () => {
     complianceForm.post(route('invoices.generate-ewaybill', props.invoice.id), {
@@ -574,7 +562,7 @@ const setupDemoCompliance = () => {
             </div>
 
             <!-- NOT GENERATED STATE -->
-            <div v-if="plantHasEInvoice() && !invoice.einvoice_irn && invoice.einvoice_status !== 'cancelled'" class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div v-if="plantHasEInvoice() && !invoice.einvoice_irn && !invoice.einv_irn && !isEInvoiceCancelled(invoice)" class="grid grid-cols-1 md:grid-cols-12 gap-6">
                 <div class="col-span-12 md:col-span-8 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-800 space-y-4">
                     <h4 class="text-xs font-black uppercase text-slate-500 tracking-wider">Generate E-Invoice & E-Way Bill</h4>
                     
@@ -641,7 +629,7 @@ const setupDemoCompliance = () => {
             </div>
 
             <!-- GENERATED STATE -->
-            <div v-else-if="invoice.einvoice_status === 'generated'" class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div v-else-if="canCancelEInvoice(invoice)" class="grid grid-cols-1 md:grid-cols-12 gap-6">
                 <!-- Details Card -->
                 <div class="col-span-12 md:col-span-8 space-y-6">
                     <div class="bg-emerald-50/30 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6 space-y-4">
@@ -752,19 +740,15 @@ const setupDemoCompliance = () => {
                     </div>
 
                     <!-- Cancel E-Invoice Section -->
-                    <div class="bg-rose-50/10 dark:bg-rose-950/5 border border-rose-100 dark:border-rose-900/20 rounded-2xl p-6 space-y-4">
+                    <div v-if="canCancel(invoice)" class="bg-rose-50/10 dark:bg-rose-950/5 border border-rose-100 dark:border-rose-900/20 rounded-2xl p-6 space-y-4">
                         <h4 class="text-xs font-black uppercase text-rose-600 tracking-wider">Cancel E-Invoice IRN</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <BaseSelect v-model="complianceForm.cancel_reason" label="Cancellation Reason" :options="[{label: '1: Duplicate', value: '1'}, {label: '2: Data Entry Mistake', value: '2'}, {label: '3: Order Cancelled', value: '3'}, {label: '4: Others', value: '4'}]" optionLabel="label" optionValue="value" :error="complianceForm.errors.cancel_reason" required />
-                            <BaseInput v-model="complianceForm.cancel_remarks" label="Cancellation Remarks *" placeholder="Explain why cancellation is required" :error="complianceForm.errors.cancel_remarks" />
-                        </div>
                         <div class="flex justify-end">
                             <Button 
-                                @click="cancelEInvoice"
-                                :disabled="complianceForm.processing"
+                                @click="cancelEInvoice(invoice, () => emit('saved'))"
+                                :disabled="complianceForm.processing || cancellingEInvoice"
                                 class="!bg-rose-600 hover:!bg-rose-700 !text-white !font-black !text-[10px] !uppercase !tracking-widest !px-6 !py-2.5 !rounded-lg !flex !items-center !gap-2"
                             >
-                                <ArrowPathIcon v-if="complianceForm.processing" class="w-4 h-4 animate-spin" />
+                                <ArrowPathIcon v-if="cancellingEInvoice" class="w-4 h-4 animate-spin" />
                                 <span>Cancel E-Invoice IRN</span>
                             </Button>
                         </div>
@@ -786,7 +770,7 @@ const setupDemoCompliance = () => {
             </div>
 
             <!-- CANCELLED STATE -->
-            <div v-else class="bg-rose-50/30 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/30 rounded-2xl p-12 text-center flex flex-col items-center justify-center gap-3">
+            <div v-else-if="isEInvoiceCancelled(invoice)" class="bg-rose-50/30 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/30 rounded-2xl p-12 text-center flex flex-col items-center justify-center gap-3">
                 <XCircleIcon class="w-12 h-12 text-rose-500" />
                 <h4 class="text-sm font-black uppercase text-rose-700 tracking-wider">E-Invoice Cancelled</h4>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest max-w-md">The IRN for this invoice has been voided. A new document must be generated if billing is still active.</p>

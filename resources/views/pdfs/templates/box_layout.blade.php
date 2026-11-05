@@ -74,13 +74,6 @@
             page-break-inside: avoid;
         }
         
-        .header-table { width: 100%;
-            table-layout: fixed;
-            word-wrap: break-word;
-            border-collapse: collapse; border-bottom: 2px solid #000; }
-        .header-table td { vertical-align: top; padding: 6px 8px; }
-        .header-title { text-align: right; text-transform: uppercase; font-size: 12pt; font-weight: bold; }
-        .header-subtitle { text-align: right; text-transform: uppercase; font-size: 8.5pt; color: #333; margin-top: 1px; }
 
         .irn-bar { border-bottom: 2px solid #000; padding: 4px 8px; font-size: 8pt; width: 100%; box-sizing: border-box; }
         .irn-bar table { width: 100%;
@@ -160,23 +153,10 @@
 <body>
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
-@include('pdfs.partials._brand_header')
-
-    {{-- TOP LOGO & TITLE HEADER --}}
-    <table class="header-table">
-        <tr>
-            <td style="width: 65%;">
-                
-                @if(($pdfSettings['company_name'] ?? true) && $hasValue($data['company']['name'] ?? null))
-                    <span style="font-size: 12pt; font-weight: bold; text-transform: uppercase; vertical-align: middle;">{{ $data['company']['name'] }}</span>
-                @endif
-            </td>
-            <td style="width: 35%; text-align: right;">
-                @if($hasValue($copyType)) <div class="header-subtitle">{{ $copyType }}</div> @endif
-                <div class="header-title">{{ !empty($pdfSettings['labels']['invoice_title']) ? $pdfSettings['labels']['invoice_title'] : ($data['doc_title'] ?? 'TAX INVOICE') }}</div>
-            </td>
-        </tr>
-    </table>
+    @include('pdfs.partials._brand_header', [
+        'brandInvoiceTitle' => ($pdfSettings['labels']['invoice_title'] ?? null) ?: ($data['doc_title'] ?? 'TAX INVOICE'),
+        'brandInvoiceCopy' => $hasValue($copyType) ? $copyType : '',
+    ])
 
     {{-- E-INVOICE / IRN BAR --}}
     @php
@@ -251,7 +231,7 @@
                 @if(($pdfSettings['date'] ?? true) && $hasValue($data['doc_date'] ?? null))
                     <div class="kv-line">Date : <strong>{{ $data['doc_date'] }}</strong></div>
                 @endif
-                @foreach ($data['meta']['dispatch_print_fields'] ?? [] as $label => $value)
+                @foreach ($data['meta']['three_box_invoice_fields'] ?? $data['meta']['dispatch_print_fields'] ?? [] as $label => $value)
                     <div class="kv-line">{{ $label }} : <strong>{{ $value }}</strong></div>
                 @endforeach
                 @if($hasValue($data['meta']['so_no'] ?? null))
@@ -305,7 +285,9 @@
             <td class="block-td">
                 @if($pdfSettings['show_customer_ref'] ?? true)
                     <div class="kv-line">Acc No : <strong>{{ $data['meta']['acc_no'] ?? '-' }}</strong></div>
-                    <div class="kv-line">PO : <strong>{{ $data['meta']['po_number'] ?? '-' }}</strong></div>
+                    @if (!isset($data['meta']['three_box_invoice_fields']) || ($data['is_purchase_bill'] ?? false))
+                        <div class="kv-line">PO : <strong>{{ $data['meta']['po_number'] ?? '-' }}</strong></div>
+                    @endif
                     <div class="kv-line">Sales Person : <strong>{{ $data['meta']['sales_person'] ?? '-' }}</strong></div>
                     <div class="kv-line">Pump : <strong>{{ $data['meta']['pump'] ?? '-' }}</strong></div>
                     {{-- <div class="kv-line">Quality InCharge :-</div> --}}

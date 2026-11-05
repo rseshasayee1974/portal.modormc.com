@@ -63,6 +63,8 @@ return [
         'production_auth_url' => env('ALANKIT_PRODUCTION_AUTH_URL', 'https://www.alankitgst.com/eInvoiceGateway/eivital/v1.04/auth'),
         'sandbox_generate_url' => env('ALANKIT_SANDBOX_GENERATE_URL', 'https://developers.eraahi.com/eInvoiceGateway/eicore/v1.03/Invoice'),
         'production_generate_url' => env('ALANKIT_PRODUCTION_GENERATE_URL', 'https://www.alankitgst.com/eInvoiceGateway/eicore/v1.03/Invoice'),
+        'sandbox_cancel_url' => env('ALANKIT_SANDBOX_CANCEL_URL'),
+        'production_cancel_url' => env('ALANKIT_PRODUCTION_CANCEL_URL'),
         'sandbox_public_key_path' => env('ALANKIT_SANDBOX_PUBLIC_KEY_PATH', public_path('publickey/einv_sandbox.pem')),
         'production_public_key_path' => env('ALANKIT_PRODUCTION_PUBLIC_KEY_PATH', public_path('publickey/einv_production.pem')),
     ],

@@ -13,7 +13,7 @@ import { useOfflineBatchSync } from "@/Composables/useOfflineBatchSync";
 import { useBatchActions } from "./useBatchActions";
 import { useBatchTokenPreview } from "./useBatchTokenPreview";
 import { useInvoiceActions } from "./useInvoiceActions";
-import { canGenerateEInvoice, plantHasEwayBill } from "@/Composables/useEInvoiceGeneration";
+import { canGenerateEInvoice, hasActiveEInvoice, plantHasEwayBill, useEInvoiceCancellation } from "@/Composables/useEInvoiceGeneration";
 import BatchCreateForm from "./components/BatchCreateForm.vue";
 import BatchEditForm from "./components/BatchEditForm.vue";
 import DispatchSection from "./components/DispatchSection.vue";
@@ -527,6 +527,8 @@ const getBatchInvoice = (batch: any) => {
     }
     return null;
 };
+
+const { canCancel: canCancelBatchIRN, cancelEInvoice: cancelBatchIRN, cancellingEInvoice } = useEInvoiceCancellation();
 
 const closeAllMenus = () => {
     activeMenuId.value = null;
@@ -1774,6 +1776,7 @@ console.log(
                                                         .status?.invoice
                                                 ">
                                                     <button v-if="
+                                                        !hasActiveEInvoice(getBatchInvoice(slotProps.data)) &&
                                                         can(
                                                             'DISPATCH.PRINT_INVOICE',
                                                         )
@@ -1832,16 +1835,7 @@ console.log(
                                                         Generate E-Invoice
                                                     </button>
                                                     <button v-if="
-                                                        (slotProps.data
-                                                            .dispatches[0]
-                                                            .status.invoice
-                                                            .einvoice_status ===
-                                                            'generated' ||
-                                                            slotProps.data
-                                                                .dispatches[0]
-                                                                .status
-                                                                .invoice
-                                                                .einvoice_irn) &&
+                                                        hasActiveEInvoice(getBatchInvoice(slotProps.data)) &&
                                                         can(
                                                             'DISPATCH.PRINT_EINVOICE',
                                                         )
@@ -1858,6 +1852,13 @@ console.log(
                                                         <i
                                                             class="pi pi-check-circle mr-2 text-purple-500 font-bold"></i>
                                                         E-Invoice Print
+                                                    </button>
+                                                    <button v-if="canCancelBatchIRN(getBatchInvoice(slotProps.data))"
+                                                        type="button" :disabled="cancellingEInvoice"
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                                                        @click="closeAllMenus(); cancelBatchIRN(getBatchInvoice(slotProps.data))">
+                                                        <i class="pi pi-ban mr-2" aria-hidden="true"></i>
+                                                        Cancel E-Invoice
                                                     </button>
                                                     <button v-if="
                                                         !isBatchCancelled(
@@ -2376,6 +2377,7 @@ console.log(
                         ">
                             <button v-if="
                                 getBatchInvoice(activeBatch) &&
+                                !hasActiveEInvoice(getBatchInvoice(activeBatch)) &&
                                 can('DISPATCH.PRINT_INVOICE')
                             " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                                 @click="
@@ -2418,10 +2420,7 @@ console.log(
                             </button>
                             <!-- If IRN E-invoice is generated -->
                             <button v-if="
-                                (activeBatch.has_einvoice ||
-                                    activeBatch.einvoice_irn ||
-                                    getBatchInvoice(activeBatch)
-                                        ?.einvoice_irn) &&
+                                hasActiveEInvoice(getBatchInvoice(activeBatch)) &&
                                 can('DISPATCH.PRINT_EINVOICE')
                             " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer"
                                 @click="
@@ -2432,6 +2431,13 @@ console.log(
                                 ">
                                 <i class="pi pi-check-circle mr-2 text-purple-500 font-bold"></i>
                                 E-Invoice Print
+                            </button>
+                            <button v-if="canCancelBatchIRN(getBatchInvoice(activeBatch))"
+                                type="button" :disabled="cancellingEInvoice"
+                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                                @click="cancelBatchIRN(getBatchInvoice(activeBatch)); closeAllMenus()">
+                                <i class="pi pi-ban mr-2" aria-hidden="true"></i>
+                                Cancel E-Invoice
                             </button>
                             <button v-if="
                                 activeBatch.dispatches?.[0] &&
