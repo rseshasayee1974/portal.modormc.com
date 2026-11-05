@@ -11,6 +11,7 @@ import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import {
     HomeIcon,
+    BeakerIcon,
     Square3Stack3DIcon,
     CreditCardIcon,
     Cog6ToothIcon,
@@ -56,6 +57,7 @@ import OSAIChatDrawer from '@/Components/AI/OSAIChatDrawer.vue';
 
 const IconMap = {
     HomeIcon,
+    BeakerIcon,
     Square3Stack3DIcon,
     CreditCardIcon,
     Cog6ToothIcon,
