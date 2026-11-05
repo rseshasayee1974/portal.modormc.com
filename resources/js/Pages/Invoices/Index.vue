@@ -9,6 +9,8 @@ import InvoiceIndexList from './components/InvoiceIndexList.vue';
 
 const props = defineProps<{
     invoices: any[];
+    pagination: { total: number; page: number; per_page: number };
+    registryFilters: any;
     patrons: any[];
     taxes: any[]; 
     accounts: any[];
@@ -52,6 +54,8 @@ const moduleTaxes = computed(() => props.taxes.filter(tax => String(tax.tax_type
                 <section>
                     <InvoiceIndexList 
                         :invoices="invoices"
+                        :pagination="pagination"
+                        :registry-filters="registryFilters"
                         :patrons="patrons"
                         :taxes="moduleTaxes"
                         :accounts="accounts"

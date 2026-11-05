@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import Popover from 'primevue/popover';
 import { router, usePage } from '@inertiajs/vue3';
@@ -26,6 +26,8 @@ import { hasActiveEInvoice, useEInvoiceCancellation } from '@/Composables/useEIn
 
 const props = defineProps<{
     invoices: any[];
+    pagination: { total: number; page: number; per_page: number };
+    registryFilters: any;
     patrons: any[];
     taxes: any[];
     accounts: any[];
@@ -49,8 +51,44 @@ const canChooseInvoiceCopy = computed(() => page.props.can_choose_invoice_copy =
 
 const expandedRows = ref<Record<number, boolean>>({});
 const filters = ref({
-    global: { value: null, matchMode: 'contains' },
+    global: { value: props.registryFilters.search, matchMode: 'contains' },
 });
+
+const dateFrom = ref(props.registryFilters.start_date);
+const dateTo = ref(props.registryFilters.end_date);
+const listLoading = ref(false);
+const sortField = ref(props.registryFilters.sort);
+const sortDirection = ref(props.registryFilters.direction);
+let filterTimer: ReturnType<typeof setTimeout> | undefined;
+let cancelVisit: (() => void) | undefined;
+const loadPage = (pageNumber = 1) => {
+    clearTimeout(filterTimer);
+    cancelVisit?.();
+    expandedRows.value = {};
+    actionsPopover.value?.hide();
+    router.get(route('invoices.index'), {
+        page: pageNumber, search: filters.value.global.value || undefined,
+        start_date: dateFrom.value || undefined, end_date: dateTo.value || undefined,
+        sort: sortField.value, direction: sortDirection.value,
+    }, {
+        only: ['invoices', 'pagination', 'registryFilters'],
+        preserveState: true, preserveScroll: true, replace: true,
+        onCancelToken: token => { cancelVisit = () => token.cancel(); },
+        onStart: () => { listLoading.value = true; },
+        onFinish: () => { listLoading.value = false; },
+        onError: errors => Swal.fire('Unable to filter invoices', String(Object.values(errors)[0] || 'Please check the filters.'), 'error'),
+    });
+};
+watch([() => filters.value.global.value, dateFrom, dateTo], () => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => loadPage(1), 350);
+});
+const sortRows = (event: any) => {
+    sortField.value = event.sortField || 'created_at';
+    sortDirection.value = event.sortOrder === 1 ? 'asc' : 'desc';
+    loadPage(1);
+};
+onBeforeUnmount(() => { clearTimeout(filterTimer); cancelVisit?.(); });
 
 
 const getStatusSeverity = (status: string) => {
@@ -243,6 +281,9 @@ const formatDate = (dateString: string) => {
     <div
         class="bg-white dark:bg-slate-800 shadow-xl rounded-lg border border-slate-200 dark:border-slate-700 transition-all duration-300">
         <BaseDataTable :value="invoices" v-model:expandedRows="expandedRows" v-model:filters="filters" dataKey="id"
+            lazy :loading="listLoading" :totalRecords="pagination.total" :first="(pagination.page - 1) * 30"
+            :rowsPerPageOptions="[30]" v-model:dateFrom="dateFrom" v-model:dateTo="dateTo"
+            @page="loadPage($event.page + 1)" @sort="sortRows"
             paginator :rows="30" stripedRows class="p-datatable-sm" showSearch showSerial @rowExpand="onRowExpand"
             @row-click="toggleEdit($event.data)" heading="Invoice Directory" headingIcon="DocumentTextIcon" showExport
             exportFilename="invoice-directory-report">

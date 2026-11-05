@@ -19,39 +19,69 @@ class InvoiceController extends Controller
     use AuthorizesModule;
     protected string $module = 'invoice';
 
-    public function index()
+    public function index(Request $request)
     {
         $this->authorizeModule('menu'); 
         $plantId = session('active_plant_id');
+        $validated = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'search' => ['nullable', 'string', 'max:200'],
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d', ...($request->filled('start_date') ? ['after_or_equal:start_date'] : [])],
+            'sort' => ['nullable', 'in:created_at,invoice_number,partner.legal_name,total_amount,invoice_date'],
+            'direction' => ['nullable', 'in:asc,desc'],
+        ]);
+        $filters = [
+            'page' => (int) ($validated['page'] ?? 1), 'search' => trim($validated['search'] ?? ''),
+            'start_date' => $validated['start_date'] ?? null, 'end_date' => $validated['end_date'] ?? null,
+            'sort' => $validated['sort'] ?? 'created_at', 'direction' => $validated['direction'] ?? 'desc',
+        ];
+        $query = Invoice::query()->where('plant_id', $plantId)
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'));
+        if ($filters['start_date']) $query->where('invoice_date', '>=', $filters['start_date']);
+        if ($filters['end_date']) $query->where('invoice_date', '<', \Carbon\Carbon::parse($filters['end_date'])->addDay()->toDateString());
+        if ($filters['search'] !== '') {
+            $search = '%' . strtr($filters['search'], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+            $fullNumber = DB::getDriverName() === 'sqlite'
+                ? "COALESCE(prefix, '') || COALESCE(invoice_number, '')"
+                : "CONCAT(COALESCE(prefix, ''), COALESCE(invoice_number, ''))";
+            $query->where(function ($q) use ($search, $fullNumber) {
+                $q->whereRaw("invoice_number LIKE ? ESCAPE '!'", [$search])
+                    ->orWhereRaw("($fullNumber) LIKE ? ESCAPE '!'", [$search])
+                    ->orWhereRaw("status LIKE ? ESCAPE '!'", [$search])
+                    ->orWhereHas('partner', fn ($q) => $q->whereRaw("legal_name LIKE ? ESCAPE '!'", [$search]))
+                    ->orWhereHas('account', fn ($q) => $q->whereRaw("title LIKE ? ESCAPE '!'", [$search]));
+            });
+        }
+        if ($filters['sort'] === 'partner.legal_name') {
+            $query->orderBy(DB::table('mm_patrons')->select('legal_name')->whereColumn('mm_patrons.id', 'mm_invoices.partner_id')->limit(1), $filters['direction']);
+        } else {
+            $query->orderBy($filters['sort'], $filters['direction']);
+        }
+        $invoices = $query->orderBy('mm_invoices.id', $filters['direction'])
+            ->with(['partner:id,legal_name', 'account:id,title', 'destroyer:id,username',
+                'items.uom:id,unit_code', 'items.tax', 'adjustmentNotes', 'einvoiceRelation', 'ewaybillDetail'])
+            ->paginate(30, ['*'], 'page', $filters['page']);
+
         return Inertia::render('Invoices/Index', [
-            'invoices' => Invoice::withTrashed()
-                ->with([
-                    'partner:id,legal_name',
-                    'account:id,title',
-                    'destroyer:id,username',
-                    'items.uom:id,unit_code',
-                    'items.tax',
-                    'adjustmentNotes',
-                ])
-                ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Invoice'))
-                ->where('plant_id', $plantId)->where('deleted_at',null)
-                ->latest()
-                ->get(),
-            'patrons' => toSelectOptions(PatronsDropdown(), 'legal_name'),
-            'taxes'   => Tax::forPlant($plantId)->ofTaxType('sales')->ofGroup(['GST', 'IGST'])->parentOnly()->where('status', 1)->with('children')->orderBy('tax_name')->get()->map(fn($t) => [
+            'invoices' => $invoices->items(),
+            'pagination' => ['total' => $invoices->total(), 'page' => $invoices->currentPage(), 'per_page' => 30],
+            'registryFilters' => $filters,
+            'patrons' => fn () => toSelectOptions(PatronsDropdown(), 'legal_name'),
+            'taxes'   => fn () => Tax::forPlant($plantId)->ofTaxType('sales')->ofGroup(['GST', 'IGST'])->parentOnly()->where('status', 1)->with('children')->orderBy('tax_name')->get()->map(fn($t) => [
                 'label' => $t->tax_name,
                 'value' => $t->id,
                 'tax_type' => $t->tax_type,
                 'rate'  => $t->tax_rate,
                 'component_rates' => $t->children->pluck('tax_rate')->map(fn($rate) => (float) $rate)->all(),
             ]),
-            'accounts' => toSelectOptions(LedgersDropdown('REVENUE'), 'title'),
-            'mixdesign' => MixDesignsOptions(),
-            'units'    => toSelectOptions(Productunit(), 'unit_code'),
-            'machines' => toSelectOptions(MachinesDropdown(), 'registration', 'registration'),
-            'instant_invoice_patron' => CustomSetting::getForModule(session('active_entity_id'), 'invoice')['instant_invoice_patron'] ?? 0,
-            'next_invoice_number' => Invoice::generateNumber($plantId, 'sales')['full_number'],
-            'next_invoice_details' => Invoice::generateNumber($plantId, 'sales'),
+            'accounts' => fn () => toSelectOptions(LedgersDropdown('REVENUE'), 'title'),
+            'mixdesign' => fn () => MixDesignsOptions(),
+            'units'    => fn () => toSelectOptions(Productunit(), 'unit_code'),
+            'machines' => fn () => toSelectOptions(MachinesDropdown(), 'registration', 'registration'),
+            'instant_invoice_patron' => fn () => CustomSetting::getForModule(session('active_entity_id'), 'invoice')['instant_invoice_patron'] ?? 0,
+            'next_invoice_number' => fn () => Invoice::generateNumber($plantId, 'sales')['full_number'],
+            'next_invoice_details' => fn () => Invoice::generateNumber($plantId, 'sales'),
         ]);
     }
 

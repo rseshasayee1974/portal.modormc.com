@@ -26,7 +26,7 @@ class MenuController extends Controller
                 ['label' => 'Sidebar/Submenu', 'value' => 2],
             ],
             'iconList' => [
-                'HomeIcon', 'Square3Stack3DIcon', 'CreditCardIcon', 'Cog6ToothIcon', 'SwatchIcon', 
+                'HomeIcon', 'BeakerIcon', 'Square3Stack3DIcon', 'CreditCardIcon', 'Cog6ToothIcon', 'SwatchIcon',
                 'ClipboardDocumentListIcon', 'IdentificationIcon', 'BriefcaseIcon', 'ChartBarIcon', 
                 'BellIcon', 'UserCircleIcon', 'ArrowUpRightIcon', 'ArrowDownLeftIcon', 'ClockIcon', 
                 'DocumentTextIcon', 'ArrowDownOnSquareIcon', 'ArrowUpOnSquareIcon', 'ChartPieIcon', 
