@@ -74,10 +74,15 @@ const voucherStatuses = [
 
 const startEdit = (voucher: StockExhaust) => {
     editingVoucher.value = voucher;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    expandedRows.value = { [voucher.id]: true };
 };
 
 const cancelEdit = () => {
+    if (editingVoucher.value) {
+        const remaining = { ...expandedRows.value };
+        delete remaining[editingVoucher.value.id];
+        expandedRows.value = remaining;
+    }
     editingVoucher.value = null;
 };
 
@@ -112,47 +117,22 @@ watch(() => page.props.flash, (flash: any) => {
 
 <template>
     <AppLayout title="Stock Exhaust Management">
-        <template #header><ModuleSubTopNav /></template>
+        <template #header>
+            <ModuleSubTopNav />
+        </template>
 
         <div class="my-5">
             <div class="max-w-7xl">
 
-                <!-- ── Create / Edit Form component rendering ── -->
-                <StockExhaustEditForm 
-                    v-if="editingVoucher" 
-                    :voucher="editingVoucher"
-                    :machines="machines"
-                    :vendors="vendors"
-                    :products="products"
-                    :units="units"
-                    :ledgers="ledgers"
-                    @cancel="cancelEdit"
-                    @success="cancelEdit"
-                />
-
-                <StockExhaustCreateForm 
-                    v-else
-                    :machines="machines"
-                    :vendors="vendors"
-                    :products="products"
-                    :units="units"
-                    :ledgers="ledgers"
-                />
+                <!-- Create form -->
+                <StockExhaustCreateForm :machines="machines" :vendors="vendors" :products="products" :units="units"
+                    :ledgers="ledgers" />
 
                 <!-- ── DataTable Section ── -->
-                <BaseDataTable
-                    :value="stockExhausts"
-                    v-model:filters="filters"
+                <BaseDataTable :value="stockExhausts" v-model:filters="filters"
                     :globalFilterFields="['reference_number', 'name', 'bill_number', 'partner.legal_name', 'ledger.title', 'ledger.code']"
-                    showSearch
-                    showSerial
-                    heading="Stock Exhaust Ledger"
-                    headingIcon="ArchiveBoxIcon"
-                    v-model:expandedRows="expandedRows"
-                    :rows="30"
-                    dataKey="id"
-                    class="stock-exhaust-table text-xs"
-                >
+                    showSearch showSerial heading="Stock Exhaust Ledger" headingIcon="ArchiveBoxIcon"
+                    v-model:expandedRows="expandedRows" :rows="30" dataKey="id" class="stock-exhaust-table text-xs">
 
 
                     <!-- Reference Number -->
@@ -195,7 +175,7 @@ watch(() => page.props.flash, (flash: any) => {
                     <Column header="Billed Date">
                         <template #body="slotProps">
                             <span class="text-xs font-mono text-slate-500">
-                                {{ slotProps.data.billed_date ? entityLocaleDate(slotProps.data.billed_date, ) : '—' }}
+                                {{ slotProps.data.billed_date ? entityLocaleDate(slotProps.data.billed_date,) : '—' }}
                             </span>
                         </template>
                     </Column>
@@ -204,7 +184,8 @@ watch(() => page.props.flash, (flash: any) => {
                     <Column header="Ledger Account" sortable field="ledger.title">
                         <template #body="slotProps">
                             <span class="text-xs text-slate-600 font-semibold font-mono">
-                                {{ slotProps.data.ledger ? (slotProps.data.ledger.code ? slotProps.data.ledger.code + ' - ' : '') + slotProps.data.ledger.title : '—' }}
+                                {{ slotProps.data.ledger ? (slotProps.data.ledger.code ? slotProps.data.ledger.code + `
+                                - ` : ``) + slotProps.data.ledger.title : `—` }}
                             </span>
                         </template>
                     </Column>
@@ -213,7 +194,7 @@ watch(() => page.props.flash, (flash: any) => {
                     <Column header="Issued Date">
                         <template #body="slotProps">
                             <span class="text-xs font-mono text-slate-500">
-                                {{ entityLocaleDate(slotProps.data.issued_date, ) }}
+                                {{ entityLocaleDate(slotProps.data.issued_date,) }}
                             </span>
                         </template>
                     </Column>
@@ -221,14 +202,12 @@ watch(() => page.props.flash, (flash: any) => {
                     <!-- Voucher Status -->
                     <Column header="Status" sortable field="status">
                         <template #body="slotProps">
-                            <span 
-                                class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
+                            <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
                                 :class="{
                                     'bg-emerald-50 text-emerald-600': slotProps.data.status === 1,
                                     'bg-slate-100 text-slate-500': slotProps.data.status === 0 || slotProps.data.status === 2
-                                }"
-                            >
-                                {{ voucherStatuses.find(s => s.value === slotProps.data.status)?.label }}
+                                }">
+                                {{voucherStatuses.find(s => s.value === slotProps.data.status)?.label}}
                             </span>
                         </template>
                     </Column>
@@ -237,18 +216,14 @@ watch(() => page.props.flash, (flash: any) => {
                     <Column header="Control" style="width: 120px" align="right">
                         <template #body="slotProps">
                             <div class="flex justify-end items-center gap-2">
-                                <button
-                                    @click="startEdit(slotProps.data)"
+                                <button @click="startEdit(slotProps.data)"
                                     class="flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 hover:bg-indigo-100 transition-all active:scale-95"
-                                    title="Modify"
-                                >
+                                    title="Modify">
                                     <PencilSquareIcon class="w-4 h-4" />
                                 </button>
-                                <button
-                                    @click="deleteVoucher(slotProps.data.id)"
+                                <button @click="deleteVoucher(slotProps.data.id)"
                                     class="flex items-center justify-center w-9 h-9 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 transition-all active:scale-95"
-                                    title="Remove"
-                                >
+                                    title="Remove">
                                     <TrashIcon class="w-4 h-4" />
                                 </button>
                             </div>
@@ -257,8 +232,16 @@ watch(() => page.props.flash, (flash: any) => {
 
                     <!-- Row Expansion Template (Issued Lines) -->
                     <template #expansion="slotProps">
-                        <div class="p-6 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 m-2">
-                            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Issued Spares / Fuel Details</h4>
+                        <div v-if="editingVoucher?.id === slotProps.data.id"
+                            class=" bg-slate-50/50 dark:bg-slate-900/50" @click.stop>
+                            <StockExhaustEditForm :key="slotProps.data.id" :voucher="slotProps.data"
+                                :machines="machines" :vendors="vendors" :products="products" :units="units"
+                                :ledgers="ledgers" @cancel="cancelEdit" @success="cancelEdit" />
+                        </div>
+                        <div v-else
+                            class="p-6 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 m-2">
+                            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Issued
+                                Spares / Fuel Details</h4>
                             <DataTable :value="slotProps.data.lines" class="lines-subtable">
                                 <Column field="product.title" header="Product" />
                                 <Column field="issued_to" header="Issued To" />
@@ -273,7 +256,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 </Column>
                                 <Column header="Issue Date">
                                     <template #body="subProps">
-                                        {{ entityLocaleDateTime(subProps.data.issue_date, ) }}
+                                        {{ entityLocaleDateTime(subProps.data.issue_date,) }}
                                     </template>
                                 </Column>
                                 <Column field="notes" header="Notes" />
@@ -284,12 +267,15 @@ watch(() => page.props.flash, (flash: any) => {
                     <!-- Empty State -->
                     <template #empty>
                         <div class="py-20 flex flex-col items-center gap-4">
-                            <div class="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                            <div
+                                class="w-16 h-16 rounded-3xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
                                 <WrenchScrewdriverIcon class="w-8 h-8 text-slate-200 dark:text-slate-700" />
                             </div>
                             <div class="text-center">
-                                <p class="text-[11px] font-black text-slate-400 uppercase tracking-widest">No Stock Exhaust Vouchers</p>
-                                <p class="text-[10px] font-medium text-slate-300 dark:text-slate-600 mt-1">Submit a new stock exhaust entry above.</p>
+                                <p class="text-[11px] font-black text-slate-400 uppercase tracking-widest">No Stock
+                                    Exhaust Vouchers</p>
+                                <p class="text-[10px] font-medium text-slate-300 dark:text-slate-600 mt-1">Submit a new
+                                    stock exhaust entry above.</p>
                             </div>
                         </div>
                     </template>
@@ -304,6 +290,7 @@ watch(() => page.props.flash, (flash: any) => {
 :deep(.lines-subtable .p-datatable-thead > tr > th) {
     @apply !bg-slate-100/50 dark:!bg-slate-800/50 !text-slate-500 !font-bold !text-[9px] !uppercase !py-3;
 }
+
 :deep(.lines-subtable .p-datatable-tbody > tr > td) {
     @apply !py-2 !text-xs !text-slate-600 dark:!text-slate-300;
 }

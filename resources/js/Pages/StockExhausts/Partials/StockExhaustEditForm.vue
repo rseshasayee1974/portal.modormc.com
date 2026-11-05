@@ -3,6 +3,7 @@ import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { computed, watch, reactive } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { validateStockExhaust } from '../validateStockExhaust';
 import Swal from 'sweetalert2';
 import {
     PencilSquareIcon, PlusIcon, TrashIcon, CheckIcon, XMarkIcon
@@ -219,8 +220,13 @@ const validateQuantity = (index: number) => {
 };
 
 const submitForm = () => {
+    if (form.processing) return;
+    form.clearErrors();
+    const errors = validateStockExhaust(form);
+    const existingChecksPass = runFrontendValidation();
+    if (Object.keys(errors).length) form.setError(errors as any);
+    if (!existingChecksPass || Object.keys(errors).length) return;
     // Run frontend validation first
-    if (!runFrontendValidation()) return;
 
     // Check if any active line has quantity_issued exceeding stock_qty
     for (let i = 0; i < form.lines.length; i++) {
@@ -254,8 +260,8 @@ const submitForm = () => {
 </script>
 
 <template>
-    <div class="bg-white dark:bg-slate-900 my-6 rounded-lg shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden ring-2 ring-indigo-500 ring-offset-4 dark:ring-offset-slate-950">
-        <div class="p-8">
+    <div class="min-w-0 bg-white dark:bg-slate-900 rounded-lg border border-indigo-200 dark:border-slate-700 overflow-hidden">
+        <div class="p-4 sm:p-6">
             <div class="flex items-center gap-4 mb-8">
                 <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
                     <PencilSquareIcon class="w-6 h-6" />
@@ -271,6 +277,13 @@ const submitForm = () => {
             </div>
 
             <form @submit.prevent="submitForm" class="flex flex-col gap-6">
+                <div v-if="form.hasErrors" role="alert" aria-live="polite"
+                    class="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700">
+                    <p class="font-bold mb-2">Please correct the following fields:</p>
+                    <ul class="list-disc pl-4 space-y-1">
+                        <li v-for="(message, field) in form.errors" :key="field">{{ message }}</li>
+                    </ul>
+                </div>
                 <!-- Header Info -->
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     <div class="col-span-12 md:col-span-3 field-group">

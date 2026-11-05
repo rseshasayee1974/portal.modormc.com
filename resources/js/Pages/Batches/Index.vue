@@ -1343,7 +1343,7 @@ console.log(
                             <template #body="slotProps">
                                 <div v-if="!slotProps.data.is_offline_pending" class="batch-actions-layout">
                                     <button v-if="!isBatchCancelled(slotProps.data)" type="button"
-                                        class="batch-actions-trigger inline-flex justify-center items-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors cursor-pointer"
+                                        class="batch-actions-trigger inline-flex justify-center items-center w-8 h-8 rounded-lg text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors cursor-pointer"
                                         aria-label="Open batch actions" aria-haspopup="menu"
                                         :aria-expanded="activeMenuId === slotProps.data.id" @click.stop="
                                             toggleActionMenu(
