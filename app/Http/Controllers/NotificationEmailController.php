@@ -8,6 +8,9 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class NotificationEmailController extends Controller
@@ -41,7 +44,7 @@ class NotificationEmailController extends Controller
             'notificationEmails' => $notificationEmails,
             'plants' => $plants,
             'roles' => $roles,
-            'types' => ['Purchase Order','Batching','Quotation','Customer PO', 'Invoice', 'Dispatch', 'Payment', config('machine_notifications.type'), 'Other']
+            'types' => ['Purchase Order','Batching','Quotation','Customer PO', NotificationEmail::SALES_ORDER, 'Invoice', 'Dispatch', 'Payment', config('machine_notifications.type'), 'Other']
         ]);
     }
 
@@ -54,17 +57,54 @@ class NotificationEmailController extends Controller
         $validated = $request->validate([
             'type' => 'required|string|max:40',
             'role_name' => 'required|string|max:40',
-            'email' => 'required|email|max:100',
+            'email' => 'required|string|max:5100',
             'status' => 'required|integer|in:0,1',
         ]);
 
-        NotificationEmail::create(array_merge($validated, [
-            'plant_id' => session('active_plant_id'),
-            'created_by' => Auth::id(),
-            'created_at' => now(),
-        ]));
+        $addresses = preg_split('/[\s,;]+/', strtolower($validated['email']), -1, PREG_SPLIT_NO_EMPTY);
+        $validator = Validator::make(['addresses' => $addresses], [
+            'addresses' => 'required|array|max:50',
+            'addresses.*' => 'email|max:100',
+        ], [
+            'addresses.required' => 'Enter at least one email address.',
+            'addresses.max' => 'Enter up to 50 email addresses at a time.',
+            'addresses.*.email' => 'Email address #:position is invalid.',
+            'addresses.*.max' => 'Email address #:position must be 100 characters or fewer.',
+        ]);
+        if ($validator->fails()) {
+            throw ValidationException::withMessages(['email' => $validator->errors()->first()]);
+        }
 
-        return redirect()->back()->with('success', 'Notification email created successfully.');
+        $plantId = session('active_plant_id');
+        if (!$plantId) {
+            throw ValidationException::withMessages(['email' => 'Select a plant before adding notification emails.']);
+        }
+
+        $added = DB::transaction(function () use ($addresses, $validated, $plantId) {
+            Plant::whereKey($plantId)->lockForUpdate()->firstOrFail();
+            $existing = NotificationEmail::where('plant_id', $plantId)
+                ->whereRaw('LOWER(TRIM(type)) = ?', [strtolower($validated['type'])])
+                ->whereRaw('LOWER(TRIM(role_name)) = ?', [strtolower($validated['role_name'])])
+                ->whereIn(DB::raw('LOWER(TRIM(email))'), $addresses)->pluck('email')
+                ->map(fn (string $email) => strtolower(trim($email)))->all();
+            $newAddresses = array_diff(array_unique($addresses), $existing);
+
+            foreach ($newAddresses as $email) {
+                NotificationEmail::create(array_replace($validated, [
+                    'email' => $email, 'plant_id' => $plantId, 'created_by' => Auth::id(),
+                ]));
+            }
+
+            return count($newAddresses);
+        });
+
+        $skipped = count($addresses) - $added;
+        $message = sprintf('%d recipient(s) added.', $added);
+        if ($skipped > 0) {
+            $message .= sprintf(' %d duplicate(s) skipped.', $skipped);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**

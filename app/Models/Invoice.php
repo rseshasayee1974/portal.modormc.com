@@ -329,6 +329,9 @@ class Invoice extends Model implements Postable
             $moduleSettings = CustomSetting::getForModule($plantId, $module);
             $settings = array_replace($settings, $moduleSettings);
             $customFormat = in_array($settings[$module . '_number_format'] ?? 0, [1, '1', 'prefix_number_fy'], true);
+            if (!$isNote && ($settings[$module . '_number_format'] ?? null) === 'prefix_compact_fy_number') {
+                $prefix = str_replace($fy, str_replace('-', '', $fy), $prefix);
+            }
 
             if (!$isNote) {
                 $padding = max(0, min(10, (int) ($settings[$module . '_number_padding'] ?? 0)));

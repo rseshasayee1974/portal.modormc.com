@@ -302,6 +302,89 @@ class InvoiceNumberFormatTest extends TestCase
         $this->assertSame('PB/26-27/0026', Invoice::generateNumber(1, 'Purchase', 11)['full_number']);
     }
 
+    public function test_quotation_formats_padding_and_partial_settings_preserve_sequence(): void
+    {
+        Schema::create('mm_quotations', function (Blueprint $table) {
+            $table->id(); $table->integer('plant_id'); $table->string('reference'); $table->softDeletes();
+        });
+        $controller = \Mockery::mock(\App\Http\Controllers\CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->times(8)->with('edit');
+        foreach ([
+            ['prefix_number_fy', 0, 'QT/1/26-27'],
+            ['prefix_fy_number', 0, 'QT/26-27/2'],
+            ['prefix_compact_fy_number', 0, 'QT/2627/3'],
+            ['prefix_compact_fy_number', 4, 'QT/2627/0004'],
+        ] as [$format, $padding, $expected]) {
+            $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => [
+                'quote_number_format' => $format, 'quote_number_padding' => (string) $padding,
+            ]]));
+            $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['camera' => 1]]));
+            $this->assertSame($expected, \App\Models\Quotation::generateReference(1));
+            DB::table('mm_quotations')->insert(['plant_id' => 1, 'reference' => $expected]);
+        }
+        DB::table('mm_quotations')->where('reference', 'QT/2627/0004')->update(['deleted_at' => now()]);
+        DB::table('mm_quotations')->insert(['plant_id' => 1, 'reference' => 'QT/2627/999-invalid']);
+        $this->assertSame('QT/2627/0005', \App\Models\Quotation::generateReference(1));
+        $this->assertSame('QT/26-27/1', \App\Models\Quotation::generateReference(2));
+        Carbon::setTestNow(Carbon::parse('2027-04-01 12:00:00'));
+        $this->assertSame('QT/2728/0001', \App\Models\Quotation::generateReference(1));
+        $this->assertSame('QT/1/26-27', DB::table('mm_quotations')->orderBy('id')->value('reference'));
+    }
+
+    public function test_compact_invoice_format_saves_and_generates_padded_numbers(): void
+    {
+        $controller = \Mockery::mock(\App\Http\Controllers\CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->times(3)->with('edit');
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => [
+            'invoice_number_format' => 'prefix_compact_fy_number', 'invoice_number_start' => 1, 'invoice_number_padding' => 4,
+        ]]));
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['camera' => 1]]));
+        $details = Invoice::generateNumber(1, 'Invoice', 10);
+        $this->assertSame('JG/2627/0001', $details['full_number']);
+        $this->assertSame('0001', Invoice::normalizeNumber('JG/2627/0001', $details));
+        $first = Invoice::create(['plant_id' => 1, 'account_id' => 10, 'invoice_type' => 'Invoice']);
+        $this->assertSame('JG/2627/0001', $first->fresh()->full_number);
+        $this->assertTrue(Invoice::numberExists(1, 'JG/2627/', '1'));
+        $this->assertSame('JG/2627/0002', Invoice::generateNumber(1, 'Dispatch', 10)['full_number']);
+        $this->assertSame('INV/2627/0001', Invoice::generateNumber(1)['full_number']);
+        $this->assertSame('INV/26-27/1', Invoice::generateNumber(2)['full_number']);
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['invoice_number_padding' => 0]]));
+        $this->assertSame('JG/2627/2', Invoice::generateNumber(1, 'Invoice', 10)['full_number']);
+        Carbon::setTestNow(Carbon::parse('2027-04-01 12:00:00'));
+        $this->assertSame('JG/2728/1', Invoice::generateNumber(1, 'Invoice', 10)['full_number']);
+        $this->assertSame('JG/2627/0001', $first->fresh()->full_number);
+    }
+
+    public function test_billing_compact_format_and_padding_are_saved_independently(): void
+    {
+        $controller = \Mockery::mock(\App\Http\Controllers\CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->times(5)->with('edit');
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => [
+            'billing_number_format' => 'prefix_compact_fy_number', 'billing_number_start' => 1, 'billing_number_padding' => 4,
+        ]]));
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['camera' => 1]]));
+        $this->assertSame('BILL/2627/0001', Invoice::generateNumber(1, 'Bill')['full_number']);
+        $details = Invoice::generateNumber(1, 'Purchase', 11);
+        $this->assertSame('PB/2627/0001', $details['full_number']);
+        $this->assertSame('0001', Invoice::normalizeNumber('PB/2627/0001', $details));
+        $first = Invoice::create(['plant_id' => 1, 'account_id' => 11, 'invoice_type' => 'Bill']);
+        $this->assertSame('PB/2627/0001', $first->fresh()->full_number);
+        $this->assertTrue(Invoice::numberExists(1, 'PB/2627/', '1'));
+        $this->assertSame('PB/2627/0002', Invoice::generateNumber(1, 'Purchase', 11)['full_number']);
+        $this->assertSame('JG/12/26-27', Invoice::generateNumber(1, 'Invoice', 10)['full_number']);
+        $this->assertSame('BILL/26-27/1', Invoice::generateNumber(2, 'Bill')['full_number']);
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['billing_number_padding' => 0]]));
+        $this->assertSame('PB/2627/2', Invoice::generateNumber(1, 'Bill', 11)['full_number']);
+        Carbon::setTestNow(Carbon::parse('2027-04-01 12:00:00'));
+        $this->assertSame('PB/2728/1', Invoice::generateNumber(1, 'Bill', 11)['full_number']);
+        Carbon::setTestNow(Carbon::parse('2026-11-02 12:00:00'));
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['billing_number_format' => 0]]));
+        $this->assertSame('BILL/26-27/1', Invoice::generateNumber(1, 'Bill')['full_number']);
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['billing_number_format' => 1]]));
+        $this->assertSame('BILL/1/26-27', Invoice::generateNumber(1, 'Bill')['full_number']);
+        $this->assertSame('PB/2627/0001', $first->fresh()->full_number);
+    }
+
     public function test_other_document_generators_use_prefix_financial_year_sequence(): void
     {
         foreach (['mm_quotations', 'mm_customer_pos', 'mm_sales_orders', 'mm_purchase_orders', 'mm_purchase_order_history', 'mm_petty_cash'] as $name) {
@@ -319,23 +402,34 @@ class InvoiceNumberFormatTest extends TestCase
         $this->assertSame('CPO/26-27/1', \App\Models\CustomerPO::generateReference(1)['reference']);
         DB::table('mm_customer_pos')->insert(['plant_id' => 1, 'prefix' => 'CPO/26-27/', 'reference' => 'CPO/26-27/11']);
         $this->assertSame('CPO/26-27/12', \App\Models\CustomerPO::generateReference(1)['reference']);
-        $this->assertSame('SO/26-27/1', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        $this->settings(['cpo_number_format' => 'prefix_compact_fy_number', 'cpo_number_padding' => 4]);
+        $this->assertSame('CPO/2627/0012', \App\Models\CustomerPO::generateReference(1)['reference']);
+        DB::table('mm_customer_pos')->insert(['plant_id' => 1, 'prefix' => 'CPO/2627/', 'reference' => 'CPO/2627/0012']);
+        $this->settings(['cpo_number_format' => 'prefix_number_fy', 'cpo_number_padding' => 0]);
+        $this->assertSame('CPO/13/26-27', \App\Models\CustomerPO::generateReference(1)['reference']);
+        DB::table('mm_customer_pos')->insert(['plant_id' => 1, 'prefix' => 'CPO/', 'reference' => 'CPO/13/26-27']);
+        $this->settings(['cpo_number_format' => 'prefix_fy_number', 'cpo_number_padding' => 4]);
+        $this->assertSame('CPO/26-27/0014', \App\Models\CustomerPO::generateReference(1)['reference']);
+        $this->assertSame('ALT/26-27/0001', \App\Models\CustomerPO::generateReference(1, 'ALT')['reference']);
+        $this->assertSame('CPO/26-27/1', \App\Models\CustomerPO::generateReference(2)['reference']);
+        $this->settings();
+        $this->assertSame('SO/26-27/0001', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
         DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/26-27/', 'order_no' => '11']);
-        $this->assertSame('SO/26-27/12', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        $this->assertSame('SO/26-27/0012', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
         DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/2627/', 'order_no' => '20']);
-        $this->assertSame('SO/2627/21', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
-        $this->assertSame('SO/26-27/1', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->assertSame('SO/2627/0021', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        $this->assertSame('SO/26-27/0001', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
         DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 11, 'prefix' => 'SO/26-27/', 'order_no' => '1']);
-        $this->assertSame('SO/26-27/2', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
-        $this->assertSame('SO/26-27/1', \App\Models\SalesOrder::generateOrderNo(1, 12)['full_number']);
+        $this->assertSame('SO/26-27/0002', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->assertSame('SO/26-27/0001', \App\Models\SalesOrder::generateOrderNo(1, 12)['full_number']);
         DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/26-27/', 'order_no' => '22']);
-        $this->assertSame('SO/2627/23', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        $this->assertSame('SO/2627/0023', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
         session(['active_plant_id' => 2]);
-        $this->assertSame('SO/26-27/1', \App\Models\SalesOrder::generateOrderNo(2, 10)['full_number']);
+        $this->assertSame('SO/26-27/0001', \App\Models\SalesOrder::generateOrderNo(2, 10)['full_number']);
         session(['active_plant_id' => 1]);
         Carbon::setTestNow(Carbon::parse('2027-04-01 12:00:00'));
-        $this->assertSame('SO/2728/1', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
-        $this->assertSame('SO/27-28/1', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->assertSame('SO/2728/0001', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        $this->assertSame('SO/27-28/0001', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
         Carbon::setTestNow(Carbon::parse('2026-11-02 12:00:00'));
         $this->assertSame('PO/26-27/1', \App\Models\PurchaseOrder::generateNextRefId(1, '2026-11-02')['ref_no']);
         DB::table('mm_purchase_orders')->insert(['plant_id' => 1, 'po_number' => 'PO/26-27/11', 'created_at' => now()]);
@@ -347,6 +441,40 @@ class InvoiceNumberFormatTest extends TestCase
         $this->assertSame('JG/26-27/12', \App\Models\PettyCash::generateRefNo(1, 10, '2026-11-02'));
         $this->assertSame('BS/26-27/', \App\Models\Ledger::documentSeriesPrefix(1, null, '2026-11-02', 'BS'));
         $this->assertSame('PS/26-27/', \App\Models\Ledger::documentSeriesPrefix(1, null, '2026-11-02', 'PS'));
+    }
+
+    public function test_sales_order_format_and_padding_are_configurable_and_continue_existing_sequences(): void
+    {
+        Schema::create('mm_sales_orders', function (Blueprint $table) {
+            $table->id(); $table->integer('plant_id'); $table->integer('customer_id');
+            $table->string('prefix'); $table->string('order_no'); $table->softDeletes();
+        });
+        DB::table('mm_sales_orders')->insert([
+            'plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/2627/', 'order_no' => '00122',
+        ]);
+        $details = \App\Models\SalesOrder::generateOrderNo(1, 10);
+        $this->assertSame('0123', $details['next_number']);
+        $this->assertSame('SO/2627/0123', $details['full_number']);
+
+        $controller = \Mockery::mock(\App\Http\Controllers\CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->times(5)->with('edit');
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['so_number_padding' => '5']]));
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['camera' => 1]]));
+        $this->assertSame('SO/2627/00123', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['so_number_padding' => 0]]));
+        $this->assertSame('SO/2627/123', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        $this->assertSame('00122', DB::table('mm_sales_orders')->value('order_no'));
+
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['so_number_format' => 'prefix_number_fy', 'so_number_padding' => 4]]));
+        $this->assertSame('SO/0001/26-27', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->assertSame('SO/0123/26-27', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/', 'order_no' => '0123/26-27']);
+        DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/', 'order_no' => '0999/25-26']);
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['so_number_padding' => 0]]));
+        $this->assertSame('SO/124/26-27', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        $this->assertSame('SO/1/26-27', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->settings(['so_number_format' => 'auto', 'so_number_padding' => 4]);
+        $this->assertSame('SO/2627/0124', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
     }
 
     public function test_preview_and_creation_use_default_prefix_without_a_ledger(): void
@@ -452,6 +580,33 @@ class InvoiceNumberFormatTest extends TestCase
             $table->id(); $table->integer('plant_id'); $table->integer('paid_through')->nullable();
             $table->date('date')->nullable(); $table->string('ref_no'); $table->timestamps(); $table->softDeletes();
         });
+    }
+
+    public function test_payment_formats_padding_and_journal_reservations(): void
+    {
+        $this->createReferenceTables();
+        $controller = \Mockery::mock(\App\Http\Controllers\CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->times(8)->with('edit');
+        foreach ([
+            ['prefix_number_fy', 0, 'PAY/1/26-27'],
+            ['prefix_fy_number', 0, 'PAY/26-27/2'],
+            ['prefix_compact_fy_number', 0, 'PAY/2627/3'],
+            ['prefix_compact_fy_number', 4, 'PAY/2627/0004'],
+        ] as [$format, $padding, $expected]) {
+            $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => [
+                'payment_number_format' => $format, 'payment_number_padding' => (string) $padding,
+            ]]));
+            $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['camera' => 1]]));
+            $this->assertSame($expected, \App\Models\Payment::generateReferenceNumber(1, null, 'Payment', '2026-11-05'));
+            DB::table('mm_payments')->insert(['plant_id' => 1, 'reference' => $expected]);
+        }
+        DB::table('mm_journal_entries')->insert(['plant_id' => 1, 'voucher_type' => 'PAYMENT', 'voucher_number' => 'PAY/5/26-27']);
+        $this->assertSame('PAY/2627/0006', \App\Models\Payment::generateReferenceNumber(1, null, 'Payment', '2026-11-05'));
+        $this->assertSame('PAY/2728/0001', \App\Models\Payment::generateReferenceNumber(1, null, 'Payment', '2027-04-01'));
+        $this->assertSame('PAY/26-27/1', \App\Models\Payment::generateReferenceNumber(2, null, 'Payment', '2026-11-05'));
+        $this->assertSame('REC/26-27/1', \App\Models\Payment::generateReferenceNumber(1, null, 'Receipt', '2026-11-05'));
+        $this->assertSame('JG/2627/0001', \App\Models\Payment::generateReferenceNumber(1, 10, 'Payment', '2026-11-05'));
+        $this->assertSame('PAY/1/26-27', DB::table('mm_payments')->orderBy('id')->value('reference'));
     }
 
     public function test_payment_and_receipt_use_prefix_and_reserve_posted_journal_references(): void

@@ -28,16 +28,11 @@ class Financialyear
      */
     public static function generatePurchaseOrderRefNo($plantId, ?string $date = null): array
     {
-        $fy        = self::getFinancialYear();
         $formatted = PurchaseOrder::generateNextRefId($plantId, $date);
-// dd($formatted);
-        // Parse the numeric sequence from the formatted ref (e.g. "PO-2526-0007" → 7)
-        preg_match('/(\d+)$/', $formatted['ref_no'], $m);
-        $seq = isset($m[1]) ? (int) $m[1] : 1;
 
         return [
-            'ref_no'         => (string) $seq,
-            'financial_year' => $fy,
+            'ref_no'         => $formatted['next_number'],
+            'financial_year' => $formatted['financial_year'],
             'formatted'      => $formatted['ref_no'],
             'prefix'         =>  $formatted['prefix']
         ];

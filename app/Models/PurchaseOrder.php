@@ -194,31 +194,41 @@ class PurchaseOrder extends Model
 
     public static function generateNextRefId($plantId, $date = null)
     {
-        $finYearString = self::getFinancialYearString($date);
-        
-        $customPrefix = 'PO';
         $settings = CustomSetting::getForModule($plantId, 'batching');
-        if (!empty($settings['po_prefix'])) {
-            $customPrefix = $settings['po_prefix'];
+        $basePrefix = rtrim(($settings['po_prefix'] ?? '') ?: 'PO', '/') . '/';
+        $year = Payment::getFinancialYearString($date ?? now());
+        $compactYear = str_replace('-', '', $year);
+        $displayYear = ($settings['po_number_format'] ?? null) === 'prefix_compact_fy_number' ? $compactYear : $year;
+        $yearPrefix = $basePrefix . $displayYear . '/';
+        $yearSuffix = '/' . $year;
+        $patternPrefix = strtr($basePrefix, ['!' => '!!', '%' => '!%', '_' => '!_']);
+
+        $orders = self::where('plant_id', $plantId)->select('po_number')
+            ->where(function ($query) use ($patternPrefix, $year, $yearSuffix, $compactYear) {
+                $query->whereRaw("po_number LIKE ? ESCAPE '!'", [$patternPrefix . $year . '/%'])
+                    ->orWhereRaw("po_number LIKE ? ESCAPE '!'", [$patternPrefix . $compactYear . '/%'])
+                    ->orWhereRaw("po_number LIKE ? ESCAPE '!'", [$patternPrefix . '%' . $yearSuffix]);
+            });
+        $pattern = '~\A' . preg_quote($basePrefix, '~') . '(?:(?:' . preg_quote($year, '~') . '|' . $compactYear . ')/'
+            . '([0-9]+)|([0-9]+)' . preg_quote($yearSuffix, '~') . ')\z~i';
+        $highest = 0;
+        foreach ($orders->toBase()->cursor() as $order) {
+            if (preg_match($pattern, (string) $order->po_number, $matches, PREG_UNMATCHED_AS_NULL)) {
+                $highest = max($highest, (int) ($matches[1] ?? $matches[2]));
+            }
         }
 
-        $prefix = rtrim($customPrefix, '/') . "/" . Payment::getFinancialYearString($date ?? now()) . "/";
+        $nextNumber = (string) ($highest + 1);
+        $displayNumber = str_pad($nextNumber, max(0, min(10, (int) ($settings['po_number_padding'] ?? 0))), '0', STR_PAD_LEFT);
+        $yearAfterNumber = ($settings['po_number_format'] ?? null) === 'prefix_number_fy';
+        $prefix = $yearAfterNumber ? $basePrefix : $yearPrefix;
 
-        $lastOrder = self::where('plant_id', $plantId)->whereNull('deleted_at')
-            ->where('po_number', 'like', $prefix . '%')
-            ->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        if ($lastOrder && preg_match('/' . preg_quote($prefix, '/') . '(\d+)/i', $lastOrder->po_number, $matches)) {
-            $lastNumber = (int) $matches[1];
-            $nextNumber = $lastNumber + 1;
-        } else {
-            $nextNumber = 1;
-        }
-
-    // Return with 4 digit zero-padding, e.g., PO-2526-0001
-        return ['prefix'=>$prefix,'ref_no' => $prefix . $nextNumber,'financial_year' => $finYearString];
+        return [
+            'prefix' => $prefix,
+            'ref_no' => $prefix . $displayNumber . ($yearAfterNumber ? $yearSuffix : ''),
+            'financial_year' => str_replace('-', '', $year),
+            'next_number' => $nextNumber,
+        ];
     }
 
     /**
@@ -247,12 +257,10 @@ class PurchaseOrder extends Model
 
             // Handle PO Number generation if not provided
             if (empty($headerData['po_number'])) {
+                Plant::whereKey($plantId)->lockForUpdate()->first();
                 $refData = self::generateNextRefId($plantId, $headerData['date_order'] ?? null);
                 $headerData['po_number'] = $refData['ref_no'];
-                
-                // Parse the sequence for the pure ref_no column, e.g. "0003"
-                preg_match('/(\d+)$/', $refData['ref_no'], $m);
-                $headerData['ref_no'] = isset($m[1]) ? (string) (int) $m[1] : $refData['ref_no'];
+                $headerData['ref_no'] = $refData['next_number'];
             }
 
             $purchaseOrder = self::create(array_merge($headerData, [

@@ -37,6 +37,7 @@ tests/
 !/tests/Feature/
 /tests/Feature/*
 !/tests/Feature/EinvoiceAuthTest.php
+!/tests/Feature/SalesOrderEmailTest.php
 !/tests/Feature/DashboardPlantAccessTest.php
 !/tests/Feature/InvoiceNumberFormatTest.php
 !/tests/Feature/BatchSeriesNumberTest.php

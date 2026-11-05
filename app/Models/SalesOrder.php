@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SalesOrders\SalesOrderEmails;
 use App\Traits\LogsPushNotifications;
 use App\Traits\PlantScoping;
 use App\Traits\TracksModelChanges;
@@ -14,6 +15,11 @@ class SalesOrder extends Model
     use HasFactory, LogsPushNotifications, PlantScoping, SoftDeletes, TracksModelChanges;
 
     protected $table = 'mm_sales_orders';
+
+    protected static function booted(): void
+    {
+        static::created(fn (SalesOrder $order) => app(SalesOrderEmails::class)->record($order));
+    }
 
     protected $fillable = [
         'prefix',
@@ -234,8 +240,8 @@ class SalesOrder extends Model
         $fyString = substr($startYear, -2) . '-' . substr($endYear, -2);
 
         $customPrefix = $prefix;
+        $settings = CustomSetting::getForModule($plantId, 'batching');
         if ($prefix === 'SO') {
-            $settings = CustomSetting::getForModule($plantId, 'batching');
             if (! empty($settings['so_prefix'])) {
                 $customPrefix = $settings['so_prefix'];
             }
@@ -244,6 +250,8 @@ class SalesOrder extends Model
         $fullPrefix = "{$customPrefix}/{$fyString}/";
         $legacyYear = str_replace('-', '', $fyString);
         $legacyPrefix = "{$customPrefix}/{$legacyYear}/";
+        $sequencePrefix = "{$customPrefix}/";
+        $yearSuffix = "/{$fyString}";
         $orders = self::where('plant_id', $plantId)->where('customer_id', $customerId);
 
         // Keep the customer's compact format across financial years for this series.
@@ -252,10 +260,14 @@ class SalesOrder extends Model
             ->whereRaw("prefix LIKE ? ESCAPE '!'", ["{$prefixPattern}/____/"])
             ->exists();
 
-        // Both financial year formats share the same sales order sequence.
+        // All layouts for the same financial year share the customer sequence.
         $latest = $orders
-            ->whereIn('prefix', [$fullPrefix, $legacyPrefix])
-            ->orderByRaw('CAST(order_no AS UNSIGNED) DESC')
+            ->where(function ($query) use ($fullPrefix, $legacyPrefix, $sequencePrefix, $yearSuffix) {
+                $query->whereIn('prefix', [$fullPrefix, $legacyPrefix])
+                    ->orWhere(fn ($suffixSeries) => $suffixSeries->where('prefix', $sequencePrefix)
+                        ->where('order_no', 'like', '%' . $yearSuffix));
+            })
+            ->orderByRaw("CAST(REPLACE(order_no, ?, '') AS UNSIGNED) DESC", [$yearSuffix])
             ->value('order_no');
 
         $nextSequence = 1;
@@ -263,12 +275,18 @@ class SalesOrder extends Model
             $nextSequence = (int) $latest + 1;
         }
 
-        $numberPrefix = $usesLegacyFormat ? $legacyPrefix : $fullPrefix;
+        $yearAfterNumber = ($settings['so_number_format'] ?? null) === 'prefix_number_fy';
+        $numberPrefix = $yearAfterNumber ? $sequencePrefix : ($usesLegacyFormat ? $legacyPrefix : $fullPrefix);
+        $padding = max(0, min(10, (int) ($settings['so_number_padding'] ?? 4)));
+        $nextNumber = str_pad((string) $nextSequence, $padding, '0', STR_PAD_LEFT);
+        if ($yearAfterNumber) {
+            $nextNumber .= $yearSuffix;
+        }
 
         return [
             'prefix' => $numberPrefix,
-            'next_number' => (string) $nextSequence,
-            'full_number' => $numberPrefix.(string) $nextSequence,
+            'next_number' => $nextNumber,
+            'full_number' => $numberPrefix . $nextNumber,
         ];
     }
 

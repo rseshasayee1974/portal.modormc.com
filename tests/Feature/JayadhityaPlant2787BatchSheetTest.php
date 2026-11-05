@@ -112,6 +112,7 @@ class JayadhityaPlant2787BatchSheetTest extends TestCase
         DB::table('mm_sales_orders')->insert([
             ['id' => 1, 'plant_id' => 2, 'customer_id' => 10, 'prefix' => 'SO/26-27/', 'order_no' => '1'],
             ['id' => 2, 'plant_id' => 2, 'customer_id' => 11, 'prefix' => 'SO/26-27/', 'order_no' => '1'],
+            ['id' => 3, 'plant_id' => 2, 'customer_id' => 11, 'prefix' => 'SO/', 'order_no' => '0002/26-27'],
         ]);
         $normalizer = new class extends \App\Services\BatchSheet\DataNormalizer {
             public function resolveSalesOrder(string $orderNo, int $plantId, ?int $customerId = null): ?int
@@ -120,6 +121,7 @@ class JayadhityaPlant2787BatchSheetTest extends TestCase
             }
         };
         $this->assertSame(2, $normalizer->resolveSalesOrder('SO/26-27/1', 2, 11));
+        $this->assertSame(3, $normalizer->resolveSalesOrder('SO/0002/26-27', 2, 11));
         $this->assertNull($normalizer->resolveSalesOrder('SO/26-27/1', 2));
     }
 }

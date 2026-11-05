@@ -199,31 +199,40 @@ class CustomerPO extends Model
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $fyString = substr($startYear, -2) . '-' . substr($startYear + 1, -2);
+        $settings = CustomSetting::getForModule($plantId, 'batching');
 
         if (empty($customPrefix)) {
             $customPrefix = 'CPO';
-            $settings = CustomSetting::getForModule($plantId, 'batching');
             if (! empty($settings['cpo_prefix'])) {
                 $customPrefix = $settings['cpo_prefix'];
             }
         }
 
-        $prefix = rtrim($customPrefix, '/') . "/{$fyString}/";
-
-        $latest = self::where('plant_id', $plantId)
-            ->where('prefix', $prefix)
-            ->whereNull('deleted_at')
-            ->orderBy('id', 'desc')
-            ->value('reference');
-
-        $sequence = 1;
-        if ($latest && preg_match('/\/(\d+)$/', $latest, $matches)) {
-            $sequence = ((int) $matches[1]) + 1;
+        $basePrefix = rtrim($customPrefix, '/') . '/';
+        $compactYear = str_replace('-', '', $fyString);
+        $patternPrefix = strtr($basePrefix, ['!' => '!!', '%' => '!%', '_' => '!_']);
+        $orders = self::withTrashed()->where('plant_id', $plantId)->select('reference')
+            ->where(function ($query) use ($patternPrefix, $fyString, $compactYear) {
+                $query->whereRaw("reference LIKE ? ESCAPE '!'", [$patternPrefix . $fyString . '/%'])
+                    ->orWhereRaw("reference LIKE ? ESCAPE '!'", [$patternPrefix . $compactYear . '/%'])
+                    ->orWhereRaw("reference LIKE ? ESCAPE '!'", [$patternPrefix . '%/' . $fyString]);
+            });
+        $pattern = '~\A' . preg_quote($basePrefix, '~') . '(?:(?:' . preg_quote($fyString, '~') . '|' . $compactYear
+            . ')/([0-9]+)|([0-9]+)/' . preg_quote($fyString, '~') . ')\z~i';
+        $highest = 0;
+        foreach ($orders->toBase()->cursor() as $order) {
+            if (preg_match($pattern, (string) $order->reference, $matches, PREG_UNMATCHED_AS_NULL)) {
+                $highest = max($highest, (int) ($matches[1] ?? $matches[2]));
+            }
         }
+        $sequence = str_pad((string) ($highest + 1), max(0, min(10, (int) ($settings['cpo_number_padding'] ?? 0))), '0', STR_PAD_LEFT);
+        $format = $settings['cpo_number_format'] ?? 'prefix_fy_number';
+        $yearAfterNumber = $format === 'prefix_number_fy';
+        $prefix = $yearAfterNumber ? $basePrefix : $basePrefix . ($format === 'prefix_compact_fy_number' ? $compactYear : $fyString) . '/';
 
         return [
             'prefix' => $prefix,
-            'reference' => $prefix . $sequence,
+            'reference' => $prefix . $sequence . ($yearAfterNumber ? '/' . $fyString : ''),
         ];
     }
 }

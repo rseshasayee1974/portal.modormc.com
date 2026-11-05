@@ -211,12 +211,13 @@ class DataNormalizer
             $orders->where('customer_id', $customerId);
         }
 
-        $separator = strrpos($cleanNo, '/');
-        $exact = (clone $orders)->where(function ($query) use ($cleanNo, $separator) {
+        $exact = (clone $orders)->where(function ($query) use ($cleanNo) {
             $query->where('order_no', $cleanNo);
-            if ($separator !== false) {
+            $separator = strrpos($cleanNo, '/');
+            for ($part = 0; $part < 2 && $separator !== false; $part++) {
                 $query->orWhere(fn ($reference) => $reference->where('prefix', substr($cleanNo, 0, $separator + 1))
                     ->where('order_no', substr($cleanNo, $separator + 1)));
+                $separator = strrpos(substr($cleanNo, 0, $separator), '/');
             }
         });
         $matches = $exact->limit(2)->pluck('id');

@@ -76,10 +76,23 @@ const form = useForm({
         sheet_upload: props.batchingSettings?.sheet_upload == 1,
         hide_batch_form: props.batchingSettings?.hide_batch_form == 1,
         po_prefix: props.batchingSettings?.po_prefix || "PO",
+        po_number_format: props.batchingSettings?.po_number_format || 'prefix_fy_number',
+        po_number_padding: Number(props.batchingSettings?.po_number_padding ?? 0),
+        inward_number_format: props.batchingSettings?.inward_number_format || 'prefix_fy_number',
+        inward_number_padding: Number(props.batchingSettings?.inward_number_padding ?? 0),
+        cpo_number_format: props.batchingSettings?.cpo_number_format || 'prefix_fy_number',
+        cpo_number_padding: Number(props.batchingSettings?.cpo_number_padding ?? 0),
         cpo_prefix: props.batchingSettings?.cpo_prefix || "CPO",
         so_prefix: props.batchingSettings?.so_prefix || "SO",
+        so_number_format: props.batchingSettings?.so_number_format === 'prefix_number_fy' ? 'prefix_number_fy' : 'auto',
+        so_number_padding: Number(props.batchingSettings?.so_number_padding ?? 4),
+        quote_number_format: props.batchingSettings?.quote_number_format || 'prefix_fy_number',
+        quote_number_padding: Number(props.batchingSettings?.quote_number_padding ?? 0),
+        payment_number_format: props.batchingSettings?.payment_number_format || 'prefix_fy_number',
+        payment_number_padding: Number(props.batchingSettings?.payment_number_padding ?? 0),
         quote_prefix: props.batchingSettings?.quote_prefix || "QT",
-        invoice_number_format: [1, "1", "prefix_number_fy"].includes(
+        invoice_number_format: props.batchingSettings?.invoice_number_format === 'prefix_compact_fy_number'
+            ? 'prefix_compact_fy_number' : [1, "1", "prefix_number_fy"].includes(
             props.batchingSettings?.invoice_number_format,
         )
             ? 1
@@ -96,7 +109,8 @@ const form = useForm({
         invoice_number_start: Number(
             props.batchingSettings?.invoice_number_start ?? 1,
         ),
-        billing_number_format: [1, "1", "prefix_number_fy"].includes(
+        billing_number_format: props.batchingSettings?.billing_number_format === 'prefix_compact_fy_number'
+            ? 'prefix_compact_fy_number' : [1, "1", "prefix_number_fy"].includes(
             props.batchingSettings?.billing_number_format,
         )
             ? 1
@@ -144,10 +158,71 @@ const batchSheetDriverOptions = computed(() => [
     ...(props.batchSheetDrivers || []),
 ]);
 
-const numberingPreview = (module: "invoice" | "billing") => {
-    const [year, month] = entityToday().split("-").map(Number);
+const numberingFinancialYear = computed(() => {
+    const [year, month] = entityToday().split('-').map(Number);
     const startYear = month >= 4 ? year : year - 1;
-    const fy = `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
+    return `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
+});
+
+const purchaseOrderNumberExample = computed(() => {
+    const prefix = (form.settings.po_prefix || 'PO').replace(/\/+$/, '');
+    const financialYear = form.settings.po_number_format === 'prefix_compact_fy_number'
+        ? numberingFinancialYear.value.replace('-', '') : numberingFinancialYear.value;
+    const sequence = '1'.padStart(form.settings.po_number_padding ?? 0, '0');
+    return form.settings.po_number_format === 'prefix_number_fy'
+        ? `${prefix}/${sequence}/${financialYear}`
+        : `${prefix}/${financialYear}/${sequence}`;
+});
+
+const inwardNumberExample = computed(() => {
+    const year = form.settings.inward_number_format === 'prefix_compact_fy_number'
+        ? numberingFinancialYear.value.replace('-', '') : numberingFinancialYear.value;
+    const number = '1'.padStart(form.settings.inward_number_padding ?? 0, '0');
+    return form.settings.inward_number_format === 'prefix_number_fy'
+        ? `INW/${number}/${year}` : `INW/${year}/${number}`;
+});
+
+const customerPONumberExample = computed(() => {
+    const prefix = (form.settings.cpo_prefix || 'CPO').replace(/\/+$/, '');
+    const year = form.settings.cpo_number_format === 'prefix_compact_fy_number'
+        ? numberingFinancialYear.value.replace('-', '') : numberingFinancialYear.value;
+    const number = '1'.padStart(form.settings.cpo_number_padding ?? 0, '0');
+    return form.settings.cpo_number_format === 'prefix_number_fy'
+        ? `${prefix}/${number}/${year}` : `${prefix}/${year}/${number}`;
+});
+
+const quotationNumberExample = computed(() => {
+    const prefix = (form.settings.quote_prefix || 'QT').replace(/\/+$/, '');
+    const year = form.settings.quote_number_format === 'prefix_compact_fy_number'
+        ? numberingFinancialYear.value.replace('-', '') : numberingFinancialYear.value;
+    const number = '1'.padStart(form.settings.quote_number_padding ?? 0, '0');
+    return form.settings.quote_number_format === 'prefix_number_fy'
+        ? `${prefix}/${number}/${year}` : `${prefix}/${year}/${number}`;
+});
+
+const paymentNumberExample = computed(() => {
+    const prefix = 'PAY';
+    const year = form.settings.payment_number_format === 'prefix_compact_fy_number'
+        ? numberingFinancialYear.value.replace('-', '') : numberingFinancialYear.value;
+    const number = '1'.padStart(form.settings.payment_number_padding ?? 0, '0');
+    return form.settings.payment_number_format === 'prefix_number_fy'
+        ? `${prefix}/${number}/${year}` : `${prefix}/${year}/${number}`;
+});
+
+const salesOrderNumberExample = computed(() => {
+    const financialYear = numberingFinancialYear.value;
+    const prefix = form.settings.so_prefix || 'SO';
+    if (form.settings.so_number_format === 'prefix_number_fy') {
+        const sequence = '1'.padStart(form.settings.so_number_padding ?? 4, '0');
+        return `${prefix}/${sequence}/${financialYear}`;
+    }
+    const sequence = '123'.padStart(form.settings.so_number_padding ?? 4, '0');
+    return `${prefix}/${financialYear.replace('-', '')}/${sequence}`;
+});
+
+const numberingPreview = (module: "invoice" | "billing") => {
+    const fy = form.settings[`${module}_number_format`] === 'prefix_compact_fy_number'
+        ? numberingFinancialYear.value.replace('-', '') : numberingFinancialYear.value;
     const prefix = module === "invoice" ? "INV" : "BILL";
     const sequence = String(
         form.settings[`${module}_number_start`] || 1,
@@ -192,6 +267,7 @@ const removeParameter = (index: number) => {
 const submit = () => {
     const payload = {
         ...form.settings,
+        so_number_padding: form.settings.so_number_padding ?? 4,
         invoice_show_batch_no: form.settings.invoice_show_batch_no ? 1 : 0,
         show_delivered_qty: form.settings.show_delivered_qty ? 1 : 0,
         invoice_show_site_ref: form.settings.invoice_show_site_ref ? 1 : 0,
@@ -1299,6 +1375,27 @@ const submit = () => {
                                 class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 p-5"
                             >
                                 <!-- po_prefix -->
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="inward-number-format" class="text-xs font-bold text-slate-800">Inward Number Format</label>
+                                    <Dropdown v-model="form.settings.inward_number_format" input-id="inward-number-format"
+                                        :options="[
+                                            { label: 'Prefix / Financial Year (26-27) / Number', value: 'prefix_fy_number' },
+                                            { label: 'Prefix / Financial Year (2627) / Number', value: 'prefix_compact_fy_number' },
+                                            { label: 'Prefix / Number / Financial Year', value: 'prefix_number_fy' },
+                                        ]"
+                                        option-label="label" option-value="value" class="w-full text-xs" />
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ inwardNumberExample }}</p>
+                                    <small v-if="form.errors['settings.inward_number_format']" class="text-red-500">{{ form.errors['settings.inward_number_format'] }}</small>
+                                </div>
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="inward-number-padding" class="text-xs font-bold text-slate-800">Inward Number Padding</label>
+                                    <InputNumber v-model="form.settings.inward_number_padding" input-id="inward-number-padding"
+                                        :min="0" :max="10" :use-grouping="false" class="w-full text-xs" />
+                                    <p class="text-[11px] text-slate-500">Use 0 for no padding (1), or 4 for four digits (0001). Default 0.</p>
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ inwardNumberExample }}</p>
+                                    <small v-if="form.errors['settings.inward_number_padding']" class="text-red-500">{{ form.errors['settings.inward_number_padding'] }}</small>
+                                </div>
+
                                 <div
                                     class="setting-field min-w-0 col-span-1 lg:col-span-1 flex flex-col gap-3"
                                 >
@@ -1323,7 +1420,34 @@ const submit = () => {
                                     </div>
                                 </div>
 
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="po-number-format" class="text-xs font-bold text-slate-800">Purchase Order Number Format</label>
+                                    <Dropdown
+                                        v-model="form.settings.po_number_format"
+                                        input-id="po-number-format"
+                                        :options="[
+                                            { label: 'Prefix / Financial Year (26-27) / Number', value: 'prefix_fy_number' },
+                                            { label: 'Prefix / Financial Year (2627) / Number', value: 'prefix_compact_fy_number' },
+                                            { label: 'Prefix / Number / Financial Year', value: 'prefix_number_fy' },
+                                        ]"
+                                        option-label="label"
+                                        option-value="value"
+                                        class="w-full text-xs"
+                                    />
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ purchaseOrderNumberExample }}</p>
+                                    <small v-if="form.errors['settings.po_number_format']" class="text-red-500">{{ form.errors['settings.po_number_format'] }}</small>
+                                </div>
+
                                 <!-- so_prefix -->
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="po-number-padding" class="text-xs font-bold text-slate-800">Purchase Order Number Padding</label>
+                                    <InputNumber v-model="form.settings.po_number_padding" input-id="po-number-padding"
+                                        :min="0" :max="10" :use-grouping="false" class="w-full text-xs" />
+                                    <p class="text-[11px] text-slate-500">Use 0 for no padding (1), or 4 for four digits (0001). Default 0.</p>
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ purchaseOrderNumberExample }}</p>
+                                    <small v-if="form.errors['settings.po_number_padding']" class="text-red-500">{{ form.errors['settings.po_number_padding'] }}</small>
+                                </div>
+
                                 <div
                                     class="setting-field min-w-0 col-span-1 lg:col-span-1 flex flex-col gap-3"
                                 >
@@ -1346,6 +1470,37 @@ const submit = () => {
                                             class="w-full text-xs font-mono uppercase"
                                         />
                                     </div>
+                                </div>
+
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="so-number-format" class="text-xs font-bold text-slate-800">Sales Order Number Format</label>
+                                    <Dropdown
+                                        v-model="form.settings.so_number_format"
+                                        input-id="so-number-format"
+                                        :options="[
+                                            { label: 'Automatic · Prefix / Financial Year / Number', value: 'auto' },
+                                            { label: 'Prefix / Number / Financial Year', value: 'prefix_number_fy' },
+                                        ]"
+                                        option-label="label"
+                                        option-value="value"
+                                        class="w-full text-xs"
+                                    />
+                                    <small v-if="form.errors['settings.so_number_format']" class="text-red-500">{{ form.errors['settings.so_number_format'] }}</small>
+                                </div>
+
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="so-number-padding" class="text-xs font-bold text-slate-800">Sales Order Number Padding</label>
+                                    <InputNumber
+                                        v-model="form.settings.so_number_padding"
+                                        input-id="so-number-padding"
+                                        :min="0"
+                                        :max="10"
+                                        :use-grouping="false"
+                                        class="w-full text-xs"
+                                    />
+                                    <p class="text-[11px] text-slate-500">Default 4 digits. Use 0 for no padding.</p>
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ salesOrderNumberExample }}</p>
+                                    <small v-if="form.errors['settings.so_number_padding']" class="text-red-500">{{ form.errors['settings.so_number_padding'] }}</small>
                                 </div>
 
                                 <!-- cpo_prefix -->
@@ -1373,6 +1528,27 @@ const submit = () => {
                                     </div>
                                 </div>
 
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="cpo-number-format" class="text-xs font-bold text-slate-800">Customer PO Number Format</label>
+                                    <Dropdown v-model="form.settings.cpo_number_format" input-id="cpo-number-format"
+                                        :options="[
+                                            { label: 'Prefix / Financial Year (26-27) / Number', value: 'prefix_fy_number' },
+                                            { label: 'Prefix / Financial Year (2627) / Number', value: 'prefix_compact_fy_number' },
+                                            { label: 'Prefix / Number / Financial Year', value: 'prefix_number_fy' },
+                                        ]"
+                                        option-label="label" option-value="value" class="w-full text-xs" />
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ customerPONumberExample }}</p>
+                                    <small v-if="form.errors['settings.cpo_number_format']" class="text-red-500">{{ form.errors['settings.cpo_number_format'] }}</small>
+                                </div>
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="cpo-number-padding" class="text-xs font-bold text-slate-800">Customer PO Number Padding</label>
+                                    <InputNumber v-model="form.settings.cpo_number_padding" input-id="cpo-number-padding"
+                                        :min="0" :max="10" :use-grouping="false" class="w-full text-xs" />
+                                    <p class="text-[11px] text-slate-500">Use 0 for no padding (1), or 4 for four digits (0001). Default 0.</p>
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ customerPONumberExample }}</p>
+                                    <small v-if="form.errors['settings.cpo_number_padding']" class="text-red-500">{{ form.errors['settings.cpo_number_padding'] }}</small>
+                                </div>
+
                                 <!-- quote_prefix -->
                                 <div
                                     class="setting-field min-w-0 col-span-1 lg:col-span-1 flex flex-col gap-3"
@@ -1397,6 +1573,52 @@ const submit = () => {
                                         />
                                     </div>
                                 </div>
+
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="quote-number-format" class="text-xs font-bold text-slate-800">Quotation Number Format</label>
+                                    <Dropdown v-model="form.settings.quote_number_format" input-id="quote-number-format"
+                                        :options="[
+                                            { label: 'Prefix / Financial Year (26-27) / Number', value: 'prefix_fy_number' },
+                                            { label: 'Prefix / Financial Year (2627) / Number', value: 'prefix_compact_fy_number' },
+                                            { label: 'Prefix / Number / Financial Year', value: 'prefix_number_fy' },
+                                        ]"
+                                        option-label="label" option-value="value" class="w-full text-xs" />
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ quotationNumberExample }}</p>
+                                    <small v-if="form.errors['settings.quote_number_format']" class="text-red-500">{{ form.errors['settings.quote_number_format'] }}</small>
+                                </div>
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="quote-number-padding" class="text-xs font-bold text-slate-800">Quotation Number Padding</label>
+                                    <InputNumber v-model="form.settings.quote_number_padding" input-id="quote-number-padding"
+                                        :min="0" :max="10" :use-grouping="false" class="w-full text-xs" />
+                                    <p class="text-[11px] text-slate-500">Use 0 for no padding (1), or 4 for four digits (0001). Default 0.</p>
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ quotationNumberExample }}</p>
+                                    <small v-if="form.errors['settings.quote_number_padding']" class="text-red-500">{{ form.errors['settings.quote_number_padding'] }}</small>
+                                </div>
+
+
+
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="payment-number-format" class="text-xs font-bold text-slate-800">Payment Number Format</label>
+                                    <Dropdown v-model="form.settings.payment_number_format" input-id="payment-number-format"
+                                        :options="[
+                                            { label: 'Prefix / Financial Year (26-27) / Number', value: 'prefix_fy_number' },
+                                            { label: 'Prefix / Financial Year (2627) / Number', value: 'prefix_compact_fy_number' },
+                                            { label: 'Prefix / Number / Financial Year', value: 'prefix_number_fy' },
+                                        ]"
+                                        option-label="label" option-value="value" class="w-full text-xs" />
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ paymentNumberExample }}</p>
+                                    <small v-if="form.errors['settings.payment_number_format']" class="text-red-500">{{ form.errors['settings.payment_number_format'] }}</small>
+                                </div>
+                                <div class="setting-field min-w-0 flex flex-col gap-2">
+                                    <label for="payment-number-padding" class="text-xs font-bold text-slate-800">Payment Number Padding</label>
+                                    <InputNumber v-model="form.settings.payment_number_padding" input-id="payment-number-padding"
+                                        :min="0" :max="10" :use-grouping="false" class="w-full text-xs" />
+                                    <p class="text-[11px] text-slate-500">Use 0 for no padding (1), or 4 for four digits (0001). Default 0.</p>
+                                    <p class="text-[11px] font-mono text-indigo-700">Example {{ paymentNumberExample }}</p>
+                                    <small v-if="form.errors['settings.payment_number_padding']" class="text-red-500">{{ form.errors['settings.payment_number_padding'] }}</small>
+                                </div>
+
+
 
                                 <!-- invoice_number_format -->
                                 <div
@@ -1470,12 +1692,16 @@ const submit = () => {
                                             "
                                             :options="[
                                                 {
-                                                    label: '0 — Default: Prefix / FY / Number',
+                                                    label: 'Prefix / Financial Year (26-27) / Number',
                                                     value: 0,
                                                 },
                                                 {
-                                                    label: '1 — Custom: Prefix / Number / FY',
+                                                    label: 'Prefix / Number / Financial Year',
                                                     value: 1,
+                                                },
+                                                {
+                                                    label: 'Prefix / Financial Year (2627) / Number',
+                                                    value: 'prefix_compact_fy_number',
                                                 },
                                             ]"
                                             optionLabel="label"
@@ -1495,7 +1721,7 @@ const submit = () => {
                                         <span
                                             class="text-xs font-bold text-indigo-950"
                                             >Invoice Sequence Start &amp;
-                                            Digits</span
+                                            Number Padding</span
                                         >
                                         <span
                                             class="text-[11px] font-mono font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded border border-indigo-200"
@@ -1528,7 +1754,7 @@ const submit = () => {
                                         <div class="flex items-center gap-2">
                                             <span
                                                 class="text-[11px] font-bold text-slate-500 whitespace-nowrap"
-                                                >Digits:</span
+                                                >Invoice Number Padding:</span
                                             >
                                             <InputNumber
                                                 v-model="
@@ -1567,12 +1793,16 @@ const submit = () => {
                                             "
                                             :options="[
                                                 {
-                                                    label: '0 — Default: Prefix / FY / Number',
+                                                    label: 'Prefix / Financial Year (26-27) / Number',
                                                     value: 0,
                                                 },
                                                 {
-                                                    label: '1 — Custom: Prefix / Number / FY',
+                                                    label: 'Prefix / Number / Financial Year',
                                                     value: 1,
+                                                },
+                                                {
+                                                    label: 'Prefix / Financial Year (2627) / Number',
+                                                    value: 'prefix_compact_fy_number',
                                                 },
                                             ]"
                                             optionLabel="label"
@@ -1592,7 +1822,7 @@ const submit = () => {
                                         <span
                                             class="text-xs font-bold text-indigo-950"
                                             >Billing Sequence Start &amp;
-                                            Digits</span
+                                            Number Padding</span
                                         >
                                         <span
                                             class="text-[11px] font-mono font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded border border-indigo-200"
@@ -1625,7 +1855,7 @@ const submit = () => {
                                         <div class="flex items-center gap-2">
                                             <span
                                                 class="text-[11px] font-bold text-slate-500 whitespace-nowrap"
-                                                >Digits:</span
+                                                >Billing Number Padding:</span
                                             >
                                             <InputNumber
                                                 v-model="

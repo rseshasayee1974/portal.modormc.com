@@ -85,10 +85,22 @@ class CustomSettingController extends Controller
             'settings.invoice_show_customer_po_no' => ['sometimes', 'boolean'],
             'settings.batch_series_enabled' => ['sometimes', 'boolean'],
             'settings.default_batch_series' => ['sometimes', 'in:NONE,B,P'],
-            'settings.invoice_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy'],
-            'settings.billing_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy'],
+            'settings.invoice_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy,prefix_compact_fy_number'],
+            'settings.billing_number_format' => ['sometimes', 'in:0,1,ledger,prefix_number_fy,prefix_compact_fy_number'],
             'settings.invoice_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
             'settings.billing_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
+            'settings.so_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
+            'settings.so_number_format' => ['sometimes', 'in:auto,prefix_number_fy'],
+            'settings.po_number_format' => ['sometimes', 'in:prefix_fy_number,prefix_number_fy,prefix_compact_fy_number'],
+            'settings.po_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
+            'settings.inward_number_format' => ['sometimes', 'in:prefix_fy_number,prefix_number_fy,prefix_compact_fy_number'],
+            'settings.payment_number_format' => ['sometimes', 'in:prefix_fy_number,prefix_number_fy,prefix_compact_fy_number'],
+            'settings.payment_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
+            'settings.quote_number_format' => ['sometimes', 'in:prefix_fy_number,prefix_number_fy,prefix_compact_fy_number'],
+            'settings.quote_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
+            'settings.cpo_number_format' => ['sometimes', 'in:prefix_fy_number,prefix_number_fy,prefix_compact_fy_number'],
+            'settings.cpo_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
+            'settings.inward_number_padding' => ['sometimes', 'integer', 'min:0', 'max:10'],
             'settings.invoice_number_start' => ['sometimes', 'integer', 'min:1', 'max:9999999999'],
             'settings.billing_number_start' => ['sometimes', 'integer', 'min:1', 'max:9999999999'],
             'settings.batch_creation_source' => ['sometimes', 'in:sales_order,batch_schedule,both'],
@@ -102,9 +114,30 @@ class CustomSettingController extends Controller
             'remove_batch_sheet_logo' => ['sometimes', 'boolean'],
         ]);
         $settings = $request->input('settings', []);
+        if (array_key_exists('payment_number_padding', $settings)) {
+            $settings['payment_number_padding'] = (int) $settings['payment_number_padding'];
+        }
+        if (array_key_exists('quote_number_padding', $settings)) {
+            $settings['quote_number_padding'] = (int) $settings['quote_number_padding'];
+        }
+        if (array_key_exists('cpo_number_padding', $settings)) {
+            $settings['cpo_number_padding'] = (int) $settings['cpo_number_padding'];
+        }
+        if (array_key_exists('inward_number_padding', $settings)) {
+            $settings['inward_number_padding'] = (int) $settings['inward_number_padding'];
+        }
+        if (array_key_exists('po_number_padding', $settings)) {
+            $settings['po_number_padding'] = (int) $settings['po_number_padding'];
+        }
+        if (array_key_exists('so_number_padding', $settings)) {
+            $settings['so_number_padding'] = (int) $settings['so_number_padding'];
+        }
         foreach (['invoice', 'billing'] as $numberModule) {
             $key = $numberModule . '_number_format';
             if (array_key_exists($key, $settings)) {
+                if ($settings[$key] === 'prefix_compact_fy_number') {
+                    continue;
+                }
                 $settings[$key] = in_array($settings[$key], [1, '1', 'prefix_number_fy'], true) ? 1 : 0;
             }
         }
@@ -123,7 +156,7 @@ class CustomSettingController extends Controller
             ->first();
 
         if ($module === 'batching') {
-            foreach (['batch_series_enabled', 'default_batch_series', 'dispatch_discount_tax_mode', 'invoice_quantity_basis', 'show_delivered_qty'] as $key) {
+            foreach (['batch_series_enabled', 'default_batch_series', 'dispatch_discount_tax_mode', 'invoice_quantity_basis', 'show_delivered_qty', 'so_number_padding', 'so_number_format', 'po_number_format', 'po_number_padding', 'inward_number_format', 'inward_number_padding', 'cpo_number_format', 'cpo_number_padding', 'quote_number_format', 'quote_number_padding', 'payment_number_format', 'payment_number_padding'] as $key) {
                 if (!array_key_exists($key, $settings) && array_key_exists($key, $customSetting?->settings ?? [])) {
                     $settings[$key] = $customSetting->settings[$key];
                 }

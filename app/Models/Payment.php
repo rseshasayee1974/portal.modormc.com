@@ -90,31 +90,43 @@ class Payment extends Model
         $isReceipt = strtolower((string)$transactionType) === 'receipt';
         $typeShort = $isReceipt ? 'REC' : 'PAY';
         $prefix = Ledger::documentSeriesPrefix($plantId, $ledgerId, $transactionDate, $typeShort);
+        $year = self::getFinancialYearString($transactionDate ?? now());
+        $compactPrefix = str_replace($year, str_replace('-', '', $year), $prefix);
+        $basePrefix = str_replace($year . '/', '', $prefix);
+        $series = [
+            'prefix_fy_number' => [$prefix, ''],
+            'prefix_compact_fy_number' => [$compactPrefix, ''],
+            'prefix_number_fy' => [$basePrefix, '/' . $year],
+        ];
+        $settings = $isReceipt ? [] : CustomSetting::getForModule($plantId, 'batching');
+        [$outputPrefix, $suffix] = $series[$settings['payment_number_format'] ?? 'prefix_fy_number'] ?? $series['prefix_fy_number'];
+        $padding = max(0, min(10, (int) ($settings['payment_number_padding'] ?? 0)));
+        $matchSeries = function ($query, string $column) use ($series) {
+            foreach ($series as [$seriesPrefix, $seriesSuffix]) {
+                $escaped = strtr($seriesPrefix, ['!' => '!!', '%' => '!%', '_' => '!_']);
+                $query->orWhereRaw($column . " LIKE ? ESCAPE '!'", [$escaped . '%' . $seriesSuffix]);
+            }
+        };
 
         // Gather all active references from payments
         $paymentRefs = self::where('plant_id', $plantId)
-            ->where('reference', 'like', $prefix . '%')
+            ->where(fn ($query) => $matchSeries($query, 'reference'))
             ->pluck('reference');
 
         // Gather all active voucher numbers from journal entries
         $journalVouchers = \App\Models\JournalEntry::where('plant_id', $plantId)
-            ->where('voucher_number', 'like', $prefix . '%')
+            ->where(fn ($query) => $matchSeries($query, 'voucher_number'))
             ->where('is_deleted', 0)
             ->whereNull('deleted_at')
             ->pluck('voucher_number');
 
         $usedNumbers = [];
-        $pattern = '/^' . preg_quote($prefix, '/') . '(\d+)$/i';
-
-        foreach ($paymentRefs as $ref) {
-            if (preg_match($pattern, $ref, $matches)) {
-                $usedNumbers[(int) $matches[1]] = true;
-            }
-        }
-
-        foreach ($journalVouchers as $vNum) {
-            if (preg_match($pattern, $vNum, $matches)) {
-                $usedNumbers[(int) $matches[1]] = true;
+        foreach ($series as [$seriesPrefix, $seriesSuffix]) {
+            $pattern = '~\A' . preg_quote($seriesPrefix, '~') . '([0-9]+)' . preg_quote($seriesSuffix, '~') . '\z~i';
+            foreach ($paymentRefs->concat($journalVouchers) as $reference) {
+                if (preg_match($pattern, $reference, $matches)) {
+                    $usedNumbers[(int) $matches[1]] = true;
+                }
             }
         }
 
@@ -123,7 +135,7 @@ class Payment extends Model
             $nextNumber++;
         }
 
-        return $prefix . $nextNumber;
+        return $outputPrefix . str_pad((string) $nextNumber, $padding, '0', STR_PAD_LEFT) . $suffix;
     }
 
     public function plant()

@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\SalesOrders\SalesOrderEmails;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Artisan;
@@ -10,6 +11,11 @@ Schedule::command('website:monitor modormc.com')->everyFiveMinutes();
 Schedule::command('fleet:check-maintenance')->daily();
 Schedule::command('fleet:notify-document-expiry --scheduled')->everyFifteenMinutes()->withoutOverlapping(120);
 Schedule::command('reports:send-scheduled')->everyMinute();
+Schedule::command('sales-orders:send-emails')->everyMinute()->withoutOverlapping(10);
+
+Artisan::command('sales-orders:send-emails', function () {
+    app(SalesOrderEmails::class)->sendPending();
+})->purpose('Send pending sales order emails to configured administrators');
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

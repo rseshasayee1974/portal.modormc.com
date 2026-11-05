@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { ref, computed } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { EnvelopeIcon } from '@heroicons/vue/24/outline';
 
@@ -10,6 +10,7 @@ import { EnvelopeIcon } from '@heroicons/vue/24/outline';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
+import Textarea from 'primevue/textarea';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Tag from 'primevue/tag';
@@ -89,8 +90,9 @@ const submit = () => {
         });
     } else {
         form.post(route('notificationemails.store'), {
-            onSuccess: () => {
-                toast.add({ severity: 'success', summary: 'Success', detail: 'Notification email created', life: 2000 });
+            onSuccess: (page) => {
+                const flash = page.props.flash as { success?: string } | undefined;
+                toast.add({ severity: 'success', summary: 'Success', detail: flash?.success ?? 'Recipients saved.', life: 3500 });
                 closeModal();
             },
         });
@@ -127,7 +129,7 @@ const deleteItem = (id: number) => {
             <p class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-800">
                 Choose <strong>Machine Document Expiry</strong> to receive FC, permit, road tax, insurance, PUC and other document reminders for the plant.
                 Alerts are sent 30, 15, 7 and 1 day before expiry, on expiry, then weekly until renewed.
-                Add one active notification entry for each recipient email. New entries use the currently selected plant.
+                You can add several recipient emails at once for the currently selected plant.
             </p>
             <BaseDataTable 
                 :value="props.notificationEmails" 
@@ -193,8 +195,16 @@ const deleteItem = (id: number) => {
                 </div>
 
                 <div class="flex flex-col gap-2 col-span-2">
-                    <label class="text-xs font-semibold uppercase text-gray-500">Email Address</label>
-                    <BaseInput v-model="form.email" fluid type="email" />
+                    <template v-if="modalMode === 'create'">
+                        <label for="notification-email-addresses" class="text-xs font-semibold uppercase text-gray-500">Email Addresses</label>
+                        <Textarea id="notification-email-addresses" v-model="form.email" rows="4" maxlength="5100" fluid
+                            placeholder="admin@example.com, operations@example.com" aria-describedby="notification-email-help" />
+                        <small id="notification-email-help" class="text-gray-500">Enter up to 50 addresses, separated by commas, semicolons, or new lines.</small>
+                    </template>
+                    <template v-else>
+                        <label class="text-xs font-semibold uppercase text-gray-500">Email Address</label>
+                        <BaseInput v-model="form.email" fluid type="email" />
+                    </template>
                     <small v-if="form.errors.email" class="text-red-500">{{ form.errors.email }}</small>
                 </div>
 

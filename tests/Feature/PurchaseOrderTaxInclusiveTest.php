@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\CustomSettingController;
+use App\Helpers\Financialyear;
 use App\Models\{Invoice, InvoiceItem, Patron, Plant, Product, ProductUnit, PurchaseOrder, Tax, User};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase;
@@ -46,6 +48,58 @@ class PurchaseOrderTaxInclusiveTest extends TestCase
         $this->assertEquals(118, $item->total_discount);
         $this->assertEquals(1062, $item->price_total);
         $this->assertEquals(1062, $order->amount_total);
+    }
+
+    public function test_purchase_order_format_switch_preserves_the_sequence_and_numeric_reference(): void
+    {
+        $payload = $this->payload;
+        unset($payload['po_number']);
+        $plantId = $payload['plant_id'];
+        $first = PurchaseOrder::storeWithItems($payload);
+        $this->assertSame('PO/26-27/1', $first->po_number);
+
+        $controller = \Mockery::mock(CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->times(3)->with('edit');
+        $controller->update(Request::create('/', 'POST', ['settings' => ['po_number_format' => 'prefix_number_fy']]));
+        $controller->update(Request::create('/', 'POST', ['settings' => ['camera' => 1]]));
+
+        $preview = Financialyear::generatePurchaseOrderRefNo($plantId, '2026-10-03');
+        $this->assertSame('PO/2/26-27', $preview['formatted']);
+        $this->assertSame('2', $preview['ref_no']);
+        $this->assertSame('2627', $preview['financial_year']);
+        $second = PurchaseOrder::storeWithItems($payload);
+        $this->assertSame('PO/2/26-27', $second->fresh()->po_number);
+        $this->assertSame('2', (string) $second->fresh()->ref_no);
+
+        $controller->update(Request::create('/', 'POST', ['settings' => ['po_number_format' => 'prefix_fy_number']]));
+        $this->assertSame('PO/26-27/3', PurchaseOrder::storeWithItems($payload)->po_number);
+        $this->assertSame('PO/27-28/1', PurchaseOrder::generateNextRefId($plantId, '2027-04-01')['ref_no']);
+        $this->assertSame('PO/26-27/1', $first->fresh()->po_number);
+    }
+
+    public function test_compact_purchase_order_year_and_padding_continue_sequence_across_formats(): void
+    {
+        $payload = $this->payload;
+        unset($payload['po_number']);
+        $controller = \Mockery::mock(CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->times(5)->with('edit');
+        $controller->update(Request::create('/', 'POST', ['settings' => [
+            'po_number_format' => 'prefix_compact_fy_number', 'po_number_padding' => 4,
+        ]]));
+        $controller->update(Request::create('/', 'POST', ['settings' => ['camera' => 1]]));
+        $first = PurchaseOrder::storeWithItems($payload);
+        $this->assertSame('PO/2627/0001', $first->po_number);
+        $this->assertSame('1', (string) $first->fresh()->ref_no);
+        $controller->update(Request::create('/', 'POST', ['settings' => ['po_number_padding' => 0]]));
+        $this->assertSame('PO/2627/2', PurchaseOrder::storeWithItems($payload)->po_number);
+        $controller->update(Request::create('/', 'POST', ['settings' => ['po_number_format' => 'prefix_fy_number']]));
+        $this->assertSame('PO/26-27/3', PurchaseOrder::storeWithItems($payload)->po_number);
+        $controller->update(Request::create('/', 'POST', ['settings' => [
+            'po_number_format' => 'prefix_number_fy', 'po_number_padding' => 4,
+        ]]));
+        $this->assertSame('PO/0004/26-27', PurchaseOrder::storeWithItems($payload)->po_number);
+        $this->assertSame('PO/0001/27-28', PurchaseOrder::generateNextRefId($payload['plant_id'], '2027-04-01')['ref_no']);
+        $this->assertSame('PO/2627/0001', $first->fresh()->po_number);
     }
 
     public function test_existing_exclusive_orders_keep_tax_added_and_header_toggle_recalculates_lines(): void

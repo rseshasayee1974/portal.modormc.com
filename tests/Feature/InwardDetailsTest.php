@@ -46,6 +46,34 @@ class InwardDetailsTest extends TestCase
         $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
     }
 
+    public function test_inward_number_formats_and_padding_preserve_sequence_and_settings(): void
+    {
+        $controller = \Mockery::mock(\App\Http\Controllers\CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->times(8)->with('edit');
+        $plantId = $this->plant->id;
+        $this->assertSame('INW/26-27/1', PurchaseOrderHistory::generateNextInwardNo($plantId, '2026-11-05'));
+        foreach ([
+            ['prefix_number_fy', 0, 'INW/1/26-27'],
+            ['prefix_fy_number', 0, 'INW/26-27/2'],
+            ['prefix_compact_fy_number', 0, 'INW/2627/3'],
+            ['prefix_compact_fy_number', 4, 'INW/2627/0004'],
+        ] as [$format, $padding, $expected]) {
+            $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => [
+                'inward_number_format' => $format, 'inward_number_padding' => (string) $padding,
+            ]]));
+            $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['camera' => 1]]));
+            $this->assertSame($expected, PurchaseOrderHistory::generateNextInwardNo($plantId, '2026-11-05'));
+            $record = $this->inward->replicate();
+            $record->inward_no = $expected;
+            $record->save();
+        }
+        $record->delete();
+        $this->assertSame('INW/2627/0005', PurchaseOrderHistory::generateNextInwardNo($plantId, '2027-03-31'));
+        $this->assertSame('INW/2728/0001', PurchaseOrderHistory::generateNextInwardNo($plantId, '2027-04-01'));
+        $this->assertSame('INW/26-27/1', PurchaseOrderHistory::generateNextInwardNo(Plant::factory()->create()->id, '2026-11-05'));
+        $this->assertSame('INW-EDIT', $this->inward->fresh()->inward_no);
+    }
+
     public function test_inward_report_filters_by_receipt_timestamp_instead_of_entry_date(): void
     {
         $this->inward->forceFill([

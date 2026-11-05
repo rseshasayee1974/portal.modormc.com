@@ -175,8 +175,7 @@ class AppServiceProvider extends ServiceProvider
                     $email = MessageConverter::toEmail($message->getOriginalMessage());
 
                     $token = config('mail.mailers.zeptomail_api.token');
-                    $fromAddress = config('mail.from.address', 'noreply@modormc.com');
-                    $fromName = config('mail.from.name', 'ModoRmc');
+                    $from = $email->getFrom()[0] ?? $message->getEnvelope()->getSender();
 
                     $to = [];
                     foreach ($email->getTo() as $address) {
@@ -210,8 +209,8 @@ class AppServiceProvider extends ServiceProvider
 
                     $payload = [
                         'from' => [
-                            'address' => $fromAddress,
-                            'name' => $fromName,
+                            'address' => $from->getAddress(),
+                            'name' => $from->getName() ?: config('mail.from.name', 'ModoRmc'),
                         ],
                         'to' => $to,
                         'subject' => $email->getSubject(),

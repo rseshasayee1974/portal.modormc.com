@@ -12,6 +12,8 @@ class NotificationEmail extends Model
 
     protected $table = 'mm_notification_emails';
 
+    public const SALES_ORDER = 'Sales Order';
+
     protected $fillable = [
         'plant_id',
         'type',

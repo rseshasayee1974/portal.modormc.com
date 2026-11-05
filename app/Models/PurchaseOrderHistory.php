@@ -74,21 +74,28 @@ class PurchaseOrderHistory extends Model
 
     public static function generateNextInwardNo($plantId, $date = null)
     {
-        $finYearString = PurchaseOrder::getFinancialYearString($date);
-        $prefix = "INW/" . Payment::getFinancialYearString($date ?? now()) . "/";
-
-        $lastRecord = self::where('plant_id', $plantId)
-            ->where('inward_no', 'like', $prefix . '%')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        if ($lastRecord && preg_match('/' . preg_quote($prefix, '/') . '(\d+)/i', $lastRecord->inward_no, $matches)) {
-            $lastNumber = (int) $matches[1];
-            $nextNumber = $lastNumber + 1;
-        } else {
-            $nextNumber = 1;
+        $settings = CustomSetting::getForModule($plantId, 'batching');
+        $year = Payment::getFinancialYearString($date ?? now());
+        $compactYear = str_replace('-', '', $year);
+        $pattern = '~\AINW/(?:(?:' . preg_quote($year, '~') . '|' . $compactYear
+            . ')/([0-9]+)|([0-9]+)/' . preg_quote($year, '~') . ')\z~i';
+        $orders = self::withTrashed()->where('plant_id', $plantId)->select('inward_no')
+            ->where(function ($query) use ($year, $compactYear) {
+                $query->where('inward_no', 'like', 'INW/' . $year . '/%')
+                    ->orWhere('inward_no', 'like', 'INW/' . $compactYear . '/%')
+                    ->orWhere('inward_no', 'like', 'INW/%/' . $year);
+            });
+        $highest = 0;
+        foreach ($orders->toBase()->cursor() as $order) {
+            if (preg_match($pattern, (string) $order->inward_no, $matches, PREG_UNMATCHED_AS_NULL)) {
+                $highest = max($highest, (int) ($matches[1] ?? $matches[2]));
+            }
         }
-
-        return $prefix . $nextNumber;
+        $number = str_pad((string) ($highest + 1), max(0, min(10, (int) ($settings['inward_number_padding'] ?? 0))), '0', STR_PAD_LEFT);
+        $format = $settings['inward_number_format'] ?? 'prefix_fy_number';
+        if ($format === 'prefix_number_fy') {
+            return 'INW/' . $number . '/' . $year;
+        }
+        return 'INW/' . ($format === 'prefix_compact_fy_number' ? $compactYear : $year) . '/' . $number;
     }
 }
