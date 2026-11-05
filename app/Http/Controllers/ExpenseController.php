@@ -7,6 +7,7 @@ use App\Models\Expense;
 use App\Models\ExpenseType;
 use App\Models\PettyCashItem;
 use App\Models\Plant;
+use App\Models\Personnel;
 use App\Services\PlantContextService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -26,11 +27,14 @@ class ExpenseController extends Controller
         $plantId = app(PlantContextService::class)->requirePlantId();
 
         return Inertia::render('Expenses/Index', [
-            'expenses' => Expense::with(['expenseType', 'madeBy', 'ledger', 'machine', 'vendor', 'customer', 'accountingEntry'])
+            'expenses' => Expense::with(['expenseType', 'madeByEmployee', 'ledger', 'machine', 'vendor', 'customer', 'accountingEntry'])
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
             'expenseTypes' => toSelectOptions(ExpenseTypesDropdown(), 'name'),
+            'employees' => Personnel::expenseMakers($plantId)->orderBy('first_name')->get()
+                ->map(fn ($employee) => ['value' => $employee->id,
+                    'label' => trim($employee->first_name . ' ' . $employee->last_name) . ' (' . $employee->employee_code . ')']),
             'ledgers'  => toSelectOptions(LedgersDropdown(), 'title'),
             'machines' => toSelectOptions(MachinesDropdown(plantId: $plantId), 'registration'),
             'patrons'  => toSelectOptions(PatronsDropdown(plantId: $plantId), 'legal_name'),
@@ -43,7 +47,7 @@ class ExpenseController extends Controller
         $plantId = app(PlantContextService::class)->requirePlantId();
         if ($request->has('expenses')) {
             $rules = ['expenses' => ['required', 'array', 'min:1', 'max:100'],
-                'expenses.*' => ['required', 'array:ref_no,expense_type_id,paid_through,amount,date,vendor_id,customer_id,machine_id,note']];
+                'expenses.*' => ['required', 'array:ref_no,expense_type_id,paid_through,amount,date,vendor_id,customer_id,machine_id,made_by_personnel_id,note']];
             foreach ($this->expenseRules($plantId) as $field => $fieldRules) {
                 $rules['expenses.*.' . $field] = $fieldRules;
             }
@@ -115,6 +119,11 @@ class ExpenseController extends Controller
 
         return [
             'ref_no' => ['nullable', 'string', 'max:50'],
+            'made_by_personnel_id' => ['nullable', 'integer', function ($attribute, $value, $fail) use ($plantId) {
+                if (!Personnel::expenseMakers($plantId)->whereKey($value)->exists()) {
+                    $fail('Select an active employee linked to an Employee patron in this plant.');
+                }
+            }],
             'expense_type_id' => ['required', 'integer', $exists('mm_expense_types')],
             'paid_through' => ['required', 'integer', $exists('mm_ledgers')],
             'amount' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'lt:1000000000000000'],

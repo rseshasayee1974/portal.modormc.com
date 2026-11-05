@@ -1561,8 +1561,8 @@ class ExcelExportService
                     //     'rows' => $drvTripRows,
                     // ];
                 }
-            } elseif ($type === 'credit_debit_note_register') {
-                $title = 'CREDIT NOTE & DEBIT NOTE REGISTER';
+            } elseif (in_array($type, ['credit_debit_note_register', 'expense'], true)) {
+                $title = $type === 'expense' ? 'EXPENSE REPORT' : 'CREDIT NOTE & DEBIT NOTE REGISTER';
                 $headersList = $data['headers'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = array_map(fn ($field) => $row[$field] ?? '', $data['fields']);

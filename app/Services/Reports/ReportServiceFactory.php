@@ -16,6 +16,7 @@ class ReportServiceFactory
     {
         $serviceClass = match (strtolower($type)) {
             'ledger'               => LedgerReportService::class,
+            'expense'              => ExpenseReportService::class,
             'patron'               => PatronReportService::class,
             'purchase'             => PurchaseReportService::class,
             'sales'                 => SalesReportService::class,

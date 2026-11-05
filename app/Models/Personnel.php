@@ -169,6 +169,14 @@ class Personnel extends Model
         return $this->belongsToMany(Patron::class, 'mm_personnel_patron_rels', 'employee_id', 'patron_id');
     }
 
+    public function scopeExpenseMakers($query, int $plantId)
+    {
+        return $query->where('mm_personnels.plant_id', $plantId)->where('mm_personnels.status', 'active')
+            ->whereHas('patrons', fn ($patrons) => $patrons->where('mm_patrons.plant_id', $plantId)
+                ->whereJsonContains('patron_type', 'Employee')
+                ->whereNull('mm_personnel_patron_rels.deleted_at'));
+    }
+
     public function department()
     {
         return $this->belongsTo(Department::class, 'department_id');

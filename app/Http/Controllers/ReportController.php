@@ -241,6 +241,7 @@ class ReportController extends Controller
     private function exportPdf($type, $targetName, $start, $end, $data, $ledgerId = null, $patronId = null, $consolidation = 'po')
     {
         $viewMap = [
+            'EXPENSE' => 'reports.generic_report',
             'LEDGER'                    => 'reports.ledger_report',
             'PATRON'                    => 'reports.patron_report',
             'SALES'                     => 'reports.sales_report',
@@ -362,7 +363,7 @@ class ReportController extends Controller
 
         $css = $this->getReportCss($type);
 
-        if (strtolower($type) === 'attendance') $orientation = 'landscape';
+        if (in_array(strtolower($type), ['attendance', 'expense'], true)) $orientation = 'landscape';
         if (strtolower($type) === 'machine_tracker') {
             $paperSize = 'a3';
             $orientation = 'landscape';

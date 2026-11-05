@@ -193,6 +193,7 @@ class QueueReportExportJob implements ShouldQueue
     private function generateAndSaveUnifiedPdf(string $type, string $targetName, array $params, array $data, string $filePath): void
     {
         $viewMap = [
+            'EXPENSE' => 'reports.generic_report',
             'LEDGER'                    => 'reports.ledger_report',
             'PATRON'                    => 'reports.patron_report',
             'SALES'                     => 'reports.sales_report',
@@ -311,7 +312,7 @@ class QueueReportExportJob implements ShouldQueue
             $paperSize = 'a5';
         }
 
-        if (strtolower($type) === 'attendance') $orientation = 'landscape';
+        if (in_array(strtolower($type), ['attendance', 'expense'], true)) $orientation = 'landscape';
         if (strtolower($type) === 'machine_tracker') {
             $paperSize = 'a3';
             $orientation = 'landscape';

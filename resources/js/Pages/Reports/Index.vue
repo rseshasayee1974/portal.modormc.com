@@ -45,6 +45,7 @@ import Gstr3bReport from './components/Gstr3bReport.vue';
 import TdsCertificateReport from './components/TdsCertificateReport.vue';
 import EsiPfChallanReport from './components/EsiPfChallanReport.vue';
 import VoucherReport from './components/VoucherReport.vue';
+import ExpenseReport from './components/ExpenseReport.vue';
 import CustomerOutstandingReport from './components/CustomerOutstandingReport.vue';
 import OverallReport from './components/OverallReport.vue';
 import BulkDocumentReport from './components/BulkDocumentReport.vue';
@@ -130,6 +131,7 @@ const reportIcons = {
     ledger: BookOpenIcon,
     customer_outstanding: ClockIcon,
     patron: UserGroupIcon,
+    expense: BanknotesIcon,
     payment: ArrowUpOnSquareIcon,
     receipt: ArrowDownOnSquareIcon,
     inventory_stock: ArchiveBoxIcon,
@@ -178,6 +180,7 @@ const reportCatalog = [
             { id: 'ledger', name: 'General Ledger', description: 'Account balances, running ledgers and transaction history' },
             { id: 'customer_outstanding', name: 'Customer Outstanding Report', description: 'Customer receivables, billed vs received, outstanding balance and aging analysis' },
             { id: 'patron', name: 'Patron Statement', description: 'Partner transactions, invoice status and balances' },
+            { id: 'expense', name: 'Expense Report', description: 'Expense register with category totals, payment ledger, payee, made by and accounting status' },
             { id: 'payment', name: 'Payment Log', description: 'Cash outflow logs, paid vouchers and reference numbers' },
             { id: 'receipt', name: 'Receipt Log', description: 'Cash inflow logs, receipt vouchers and reference numbers' },
         ]
@@ -379,6 +382,7 @@ const getReportComponent = (type) => {
         case 'deleted_report': return DeletedReport;
         case 'payment':
         case 'receipt': return VoucherReport;
+        case 'expense': return ExpenseReport;
         default: return StandardLedgerReport;
     }
 };
@@ -534,7 +538,7 @@ const reportGroups = computed(() => {
     const groups = activeModule.value?.id === 'accounting' ? [
         { name: 'Registers', ids: ['sales_register', 'purchase_register', 'credit_debit_note_register'] },
         { name: 'Accounts & balances', ids: ['ledger', 'customer_outstanding', 'patron'] },
-        { name: 'Cash movements', ids: ['payment', 'receipt'] },
+        { name: 'Cash movements', ids: ['payment', 'receipt', 'expense'] },
         { name: 'Exports & audit', ids: ['bulk_documents', 'deleted_report'] },
     ] : [{ name: 'Available reports', ids: reports.map(report => report.id) }];
     return groups.map(group => ({ ...group, reports: reports.filter(report => group.ids.includes(report.id)) }))
@@ -551,6 +555,7 @@ const isSupplierReport = computed(() => {
 });
 
 const patronLabel = computed(() => {
+    if (reportType.value === 'expense') return 'Select Payee';
     if (reportType.value === 'inventory_inward') return 'Select Customer / Supplier';
     if (isCustomerReport.value) return 'Select Customer';
     if (isSupplierReport.value) return 'Select Supplier';
@@ -558,6 +563,7 @@ const patronLabel = computed(() => {
 });
 
 const patronPlaceholder = computed(() => {
+    if (reportType.value === 'expense') return '-- All Payees --';
     if (reportType.value === 'inventory_inward') return '-- All Customers / Suppliers --';
     if (isCustomerReport.value) return '-- All Customers --';
     if (isSupplierReport.value) return '-- All Suppliers --';
@@ -1380,7 +1386,7 @@ const shareEmail = () => {
                             <div v-show="!isFiltersCollapsed" class="p-5">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
                                     <!-- Target Dropdown (Ledger / Bank & Cash Account) -->
-                                    <div v-if="['ledger', 'payment', 'receipt'].includes(reportType)"
+                                    <div v-if="['ledger', 'payment', 'receipt', 'expense'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                             {{ ['payment', 'receipt'].includes(reportType) ? 'Bank / Cash Account' :
@@ -1407,7 +1413,7 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Patron / Customer Dropdown -->
-                                    <div v-if="['credit_debit_note_register', 'customer_receipt_payment', 'overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
+                                    <div v-if="['expense', 'credit_debit_note_register', 'customer_receipt_payment', 'overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                             {{ patronLabel }}

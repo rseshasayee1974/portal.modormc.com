@@ -20,6 +20,7 @@ class Expense extends Model
         'ref_no',
         'expense_type_id',
         'made_by',
+        'made_by_personnel_id',
         'paid_through',
         'amount',
         'date',
@@ -82,6 +83,11 @@ class Expense extends Model
     public function madeBy()
     {
         return $this->belongsTo(User::class, 'made_by');
+    }
+
+    public function madeByEmployee()
+    {
+        return $this->belongsTo(Personnel::class, 'made_by_personnel_id')->withTrashed();
     }
 
     public function ledger()

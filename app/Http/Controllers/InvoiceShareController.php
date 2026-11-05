@@ -301,7 +301,7 @@ class InvoiceShareController extends Controller
 
         $pdfData = $this->compileReportData($link);
 
-        $landscapeTypes = ['batching_schedule', 'sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl', 'silo_stock_valuation', 'gstr1', 'gstr3b'];
+        $landscapeTypes = ['expense', 'batching_schedule', 'sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl', 'silo_stock_valuation', 'gstr1', 'gstr3b'];
         $isOutstandingSummary = strtolower($pdfData['type']) === 'customer_outstanding'
             && empty($pdfData['pdfData']['is_single_patron']);
         $orientation = in_array(strtolower($pdfData['type']), $landscapeTypes) || $isOutstandingSummary ? 'landscape' : 'portrait';
@@ -435,6 +435,7 @@ class InvoiceShareController extends Controller
         $targetName = method_exists($service, 'targetName') ? $service->targetName($reportParams) : 'All';
 
         $viewMap = [
+            'EXPENSE' => 'reports.generic_report',
             'LEDGER'               => 'reports.ledger_report',
             'PATRON'               => 'reports.patron_report',
             'SALES'                => 'reports.sales_report',

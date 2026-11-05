@@ -18,6 +18,7 @@ class ReportPermissions
         'ledger' => 'General Ledger',
         'patron' => 'Patron Statement',
         'payment' => 'Payment Log',
+        'expense' => 'Expense Report',
         'receipt' => 'Receipt Log',
         'customer_outstanding' => 'Customer Outstanding',
         'deleted_report' => 'Deleted Report',

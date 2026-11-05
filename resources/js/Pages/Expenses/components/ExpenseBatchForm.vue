@@ -16,6 +16,7 @@ import BaseInputNumber from "@/Components/Base/BaseInputNumber.vue";
 declare const route: any;
 defineProps<{
     expenseTypes: any[];
+    employees: any[];
     ledgers: any[];
     machines: any[];
     patrons: any[];
@@ -30,6 +31,7 @@ const newRow = () => ({
     amount: null as number | null,
     vendor_id: null as number | null,
     machine_id: null as number | null,
+    made_by_personnel_id: null as number | null,
     note: "",
 });
 const form = useForm({
@@ -236,8 +238,11 @@ const submit = () => {
                     filter
                     showClear
                 />
+                <BaseSelect class="min-w-0" v-model="row.made_by_personnel_id" label="Made By"
+                    :options="employees" optionLabel="label" optionValue="value" placeholder="Select employee"
+                    :error="fieldError(index, 'made_by_personnel_id')" :disabled="form.processing" filter showClear />
                 <BaseInput
-                     class="w-[240px]"
+                     class="min-w-0"
                     label="Notes"
                     v-model="row.note"
                     :aria-label="`Expense ${index + 1} notes`"
@@ -323,7 +328,7 @@ const submit = () => {
 }
 .expense-row {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1.25fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.3fr) auto;
+    grid-template-columns: auto auto minmax(0, 1.25fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.3fr) auto;
     gap: 0.5rem;
     align-items: start;
 }
