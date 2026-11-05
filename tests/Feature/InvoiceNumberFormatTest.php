@@ -463,10 +463,10 @@ class InvoiceNumberFormatTest extends TestCase
         $this->assertSame('SO/26-27/0012', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
         DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/2627/', 'order_no' => '20']);
         $this->assertSame('SO/2627/0021', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
-        $this->assertSame('SO/26-27/0001', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->assertSame('SO/2627/0021', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
         DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 11, 'prefix' => 'SO/26-27/', 'order_no' => '1']);
-        $this->assertSame('SO/26-27/0002', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
-        $this->assertSame('SO/26-27/0001', \App\Models\SalesOrder::generateOrderNo(1, 12)['full_number']);
+        $this->assertSame('SO/2627/0021', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->assertSame('SO/2627/0021', \App\Models\SalesOrder::generateOrderNo(1, 12)['full_number']);
         DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/26-27/', 'order_no' => '22']);
         $this->assertSame('SO/2627/0023', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
         session(['active_plant_id' => 2]);
@@ -474,7 +474,7 @@ class InvoiceNumberFormatTest extends TestCase
         session(['active_plant_id' => 1]);
         Carbon::setTestNow(Carbon::parse('2027-04-01 12:00:00'));
         $this->assertSame('SO/2728/0001', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
-        $this->assertSame('SO/27-28/0001', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->assertSame('SO/2728/0001', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
         Carbon::setTestNow(Carbon::parse('2026-11-02 12:00:00'));
         $this->assertSame('PO/26-27/1', \App\Models\PurchaseOrder::generateNextRefId(1, '2026-11-02')['ref_no']);
         DB::table('mm_purchase_orders')->insert(['plant_id' => 1, 'po_number' => 'PO/26-27/11', 'created_at' => now()]);
@@ -511,15 +511,23 @@ class InvoiceNumberFormatTest extends TestCase
         $this->assertSame('00122', DB::table('mm_sales_orders')->value('order_no'));
 
         $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['so_number_format' => 'prefix_number_fy', 'so_number_padding' => 4]]));
-        $this->assertSame('SO/0001/26-27', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->assertSame('SO/0123/26-27', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
         $this->assertSame('SO/0123/26-27', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
         DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/', 'order_no' => '0123/26-27']);
         DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/', 'order_no' => '0999/25-26']);
         $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['so_number_padding' => 0]]));
         $this->assertSame('SO/124/26-27', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
-        $this->assertSame('SO/1/26-27', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
+        $this->assertSame('SO/124/26-27', \App\Models\SalesOrder::generateOrderNo(1, 11)['full_number']);
         $this->settings(['so_number_format' => 'auto', 'so_number_padding' => 4]);
         $this->assertSame('SO/2627/0124', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        DB::table('mm_sales_orders')->insert([
+            'plant_id' => 1, 'customer_id' => 11, 'prefix' => 'SO/2627/', 'order_no' => '0124',
+        ]);
+        $this->assertSame('SO/2627/0125', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
+        $this->assertSame('SO/2627/0125', \App\Models\SalesOrder::generateOrderNo(1, 12)['full_number']);
+        DB::table('mm_sales_orders')->where('customer_id', 11)->update(['deleted_at' => now()]);
+        $this->assertSame('SO/2627/0125', \App\Models\SalesOrder::generateOrderNo(1, null)['full_number']);
+        $this->assertSame('SO/26-27/0001', \App\Models\SalesOrder::generateOrderNo(2, 10)['full_number']);
     }
 
     public function test_preview_and_creation_use_default_prefix_without_a_ledger(): void
