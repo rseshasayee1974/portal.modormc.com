@@ -427,6 +427,7 @@ class InvoiceShareController extends Controller
             'truck_id'         => $params['truck_id'] ?? null,
             'site_id'          => $params['site_id'] ?? null,
             'pump_vehicle_id'  => $params['pump_vehicle_id'] ?? null,
+            'employee_id'      => $params['employee_id'] ?? null,
             'mix_design_id'    => $params['mix_design_id'] ?? null,
             'plant_id'         => $link->plant_id,
         ];

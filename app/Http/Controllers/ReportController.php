@@ -110,6 +110,8 @@ class ReportController extends Controller
             'drivers'          => $drivers,
             'salesExecutives'  => $salesExecutives,
             'employees'        => $employees,
+            'expenseEmployees' => \App\Models\Personnel::expenseMakers((int) $plantId)->orderBy('first_name')->get()
+                ->map(fn ($employee) => ['id' => $employee->id, 'name' => trim($employee->first_name . ' ' . $employee->last_name) . ' (' . $employee->employee_code . ')']),
             'payrollPeriods'   => $payrollPeriods,
             'concreteGrades'   => $concreteGrades,
             'mixDesigns'       => $mixDesigns,

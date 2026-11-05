@@ -31,7 +31,7 @@ const form = useForm({
     date: props.expense?.date?.slice(0, 10) ?? entityToday(),
     vendor_id: props.expense?.vendor_id ?? null,
     machine_id: props.expense?.machine_id ?? null,
-    made_by_personnel_id: props.expense?.made_by_personnel_id ?? null,
+    made_by: props.expense?.made_by ?? null,
     note: props.expense?.note ?? '',
 });
 
@@ -69,7 +69,7 @@ const submit = () => {
             <BaseInputNumber class="min-w-0" v-model="form.amount" label="Amount" :min="0.01" :maxFractionDigits="2" placeholder="0.00" :error="form.errors.amount" :disabled="form.processing" required />
             <BaseSelect class="min-w-0" v-model="form.vendor_id" label="Payee" :options="patrons" optionLabel="label" optionValue="value" placeholder="Optional" :error="form.errors.vendor_id" :disabled="form.processing" filter showClear />
             <BaseSelect class="min-w-0" v-model="form.machine_id" label="Asset" :options="machines" optionLabel="label" optionValue="value" placeholder="Optional" :error="form.errors.machine_id" :disabled="form.processing" filter showClear />
-            <BaseSelect class="min-w-0" v-model="form.made_by_personnel_id" label="Made By" :options="employees" optionLabel="label" optionValue="value" placeholder="Select employee" :error="form.errors.made_by_personnel_id" :disabled="form.processing" filter showClear />
+            <BaseSelect class="min-w-0" v-model="form.made_by" label="Made By" :options="employees" optionLabel="label" optionValue="value" placeholder="Select employee" :error="form.errors.made_by" :disabled="form.processing" filter showClear />
             <BaseInput class="min-w-0" v-model="form.note" label="Notes" placeholder="What was this expense for?" :error="form.errors.note" :disabled="form.processing" />
         </div>
         <div class="border-t border-slate-200 px-5 py-4 text-right">

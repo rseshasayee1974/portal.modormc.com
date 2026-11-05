@@ -103,6 +103,7 @@ const props = defineProps({
     drivers: Array,
     salesExecutives: Array,
     employees: Array,
+    expenseEmployees: { type: Array, default: () => [] },
     payrollPeriods: Array,
     concreteGrades: Array,
     mixDesigns: Array,
@@ -642,7 +643,7 @@ const salesExecutiveOptions = computed(() => {
 });
 
 const employeeOptions = computed(() => {
-    const list = props.employees || [];
+    const list = reportType.value === 'expense' ? props.expenseEmployees : (props.employees || []);
     return [
         { id: null, name: '-- All Employees --' },
         ...list
@@ -1089,6 +1090,7 @@ const deleteSchedule = async (id) => {
 
 const currentReportParams = computed(() => {
     return {
+        employee_id: selectedEmployeeId.value,
         id: selectedId.value,
         patron_id: patronId.value,
         voucher_type_filter: ledgerVoucherFilter.value,
@@ -1533,9 +1535,8 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Employee Dropdown (Payroll & Personnel Directory) -->
-                                    <div v-if="['payroll_personnel', 'attendance'].includes(reportType)" class="lg:col-span-1">
-                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Select
-                                            Employee</span>
+                                    <div v-if="['payroll_personnel', 'attendance', 'expense'].includes(reportType)" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">{{ reportType === 'expense' ? 'Made By (Employee)' : 'Select Employee' }}</span>
                                         <BaseSelect v-model="selectedEmployeeId" :options="employeeOptions"
                                             optionLabel="name" optionValue="id" placeholder="-- All Employees --" filter
                                             showClear />

@@ -47,7 +47,7 @@ class ExpenseController extends Controller
         $plantId = app(PlantContextService::class)->requirePlantId();
         if ($request->has('expenses')) {
             $rules = ['expenses' => ['required', 'array', 'min:1', 'max:100'],
-                'expenses.*' => ['required', 'array:ref_no,expense_type_id,paid_through,amount,date,vendor_id,customer_id,machine_id,made_by_personnel_id,note']];
+                'expenses.*' => ['required', 'array:ref_no,expense_type_id,paid_through,amount,date,vendor_id,customer_id,machine_id,made_by,note']];
             foreach ($this->expenseRules($plantId) as $field => $fieldRules) {
                 $rules['expenses.*.' . $field] = $fieldRules;
             }
@@ -61,7 +61,7 @@ class ExpenseController extends Controller
             foreach ($rows as $index => $row) {
                 $this->lockExpenseType($row['expense_type_id'], $plantId);
                 $this->validateReference($row['ref_no'] ?? null, $plantId, $request->has('expenses') ? "expenses.$index.ref_no" : 'ref_no');
-                $expense = Expense::create($row + ['plant_id' => $plantId, 'made_by' => auth()->id()]);
+                $expense = Expense::create($row + ['plant_id' => $plantId]);
                 app(ExpenseAccountingService::class)->post($expense, $request->has('expenses') ? "expenses.$index." : '');
             }
         }, attempts: 3);
@@ -119,7 +119,7 @@ class ExpenseController extends Controller
 
         return [
             'ref_no' => ['nullable', 'string', 'max:50'],
-            'made_by_personnel_id' => ['nullable', 'integer', function ($attribute, $value, $fail) use ($plantId) {
+            'made_by' => ['nullable', 'integer', function ($attribute, $value, $fail) use ($plantId) {
                 if (!Personnel::expenseMakers($plantId)->whereKey($value)->exists()) {
                     $fail('Select an active employee linked to an Employee patron in this plant.');
                 }

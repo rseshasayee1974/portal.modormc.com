@@ -31,7 +31,7 @@ const newRow = () => ({
     amount: null as number | null,
     vendor_id: null as number | null,
     machine_id: null as number | null,
-    made_by_personnel_id: null as number | null,
+    made_by: null as number | null,
     note: "",
 });
 const form = useForm({
@@ -238,9 +238,9 @@ const submit = () => {
                     filter
                     showClear
                 />
-                <BaseSelect class="min-w-0" v-model="row.made_by_personnel_id" label="Made By"
+                <BaseSelect class="min-w-0" v-model="row.made_by" label="Made By"
                     :options="employees" optionLabel="label" optionValue="value" placeholder="Select employee"
-                    :error="fieldError(index, 'made_by_personnel_id')" :disabled="form.processing" filter showClear />
+                    :error="fieldError(index, 'made_by')" :disabled="form.processing" filter showClear />
                 <BaseInput
                      class="min-w-0"
                     label="Notes"

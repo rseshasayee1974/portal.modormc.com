@@ -196,10 +196,7 @@ class DashboardRepository
     public function getDispatchDetailsByTruck(array $filters)
     {
         $query = Dispatch::query()
-            ->leftJoin('mm_batches as batches', function ($join) {
-                $join->on('batches.id', '=', 'mm_dispatches.batch_id')
-                    ->whereNull('batches.deleted_at');
-            })
+            ->leftJoin('mm_batches as batches', 'batches.id', '=', 'mm_dispatches.batch_id')
             ->leftJoin('mm_machines as truck', function ($join) {
                 $join->on('truck.id', '=', 'mm_dispatches.truck_id')
                     ->whereNull('truck.deleted_at');
@@ -208,8 +205,9 @@ class DashboardRepository
                 'mm_dispatches.truck_id',
                 'truck.registration as truck_registration',
                 DB::raw('COUNT(mm_dispatches.id) as total_dispatch_count'),
-                DB::raw('COALESCE(SUM(batches.batch_size), 0) as total_batch_size'),
-                DB::raw('COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, (SELECT batch_size FROM mm_batches WHERE mm_batches.id = mm_dispatches.batch_id), 0)), 0) as total_qty_cbm'),
+                // Deleted batches are excluded from batch size but still supply historical delivered quantities.
+                DB::raw('COALESCE(SUM(CASE WHEN batches.deleted_at IS NULL THEN batches.batch_size END), 0) as total_batch_size'),
+                DB::raw('COALESCE(SUM(COALESCE(mm_dispatches.delivered_qty, batches.batch_size, 0)), 0) as total_qty_cbm'),
                 DB::raw('COALESCE(SUM(mm_dispatches.net_weight), 0) as total_qty_mtr')
             )
             ->groupBy('mm_dispatches.truck_id', 'truck.registration')

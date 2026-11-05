@@ -22,10 +22,12 @@ class ExpenseReportService implements ReportServiceInterface
 
     public function generate(array $params): array
     {
+        \Illuminate\Support\Facades\Validator::make($params, ['employee_id' => 'nullable|integer|min:1'])->validate();
         $start = Carbon::parse($params['start'])->toDateString();
         $end = Carbon::parse($params['end'])->toDateString();
         $expenses = Expense::where('plant_id', $this->ctx->requirePlantId())
             ->whereBetween('date', [$start, $end])
+            ->when(!empty($params['employee_id']), fn ($q) => $q->where('made_by', $params['employee_id']))
             ->when(!empty($params['id']), fn ($q) => $q->where('paid_through', $params['id']))
             ->when(!empty($params['patron_id']), fn ($q) => $q->where(fn ($payee) =>
                 $payee->where('vendor_id', $params['patron_id'])->orWhere('customer_id', $params['patron_id'])))
