@@ -155,6 +155,7 @@ const setBatchActiveTab = (batchId: number, tabIndex: number) => {
 };
 
 const page = usePage();
+const canChooseInvoiceCopy = computed(() => page.props.can_choose_invoice_copy === true);
 const customSettings = page.props.custom_settings as any;
 const isWeightMandatory = computed(
     () =>
@@ -701,6 +702,13 @@ const {
     sendWhatsAppDirect,
     sendBatchEmailDirect,
 } = useInvoiceActions();
+
+const invoicePrintOptions = computed(() => canChooseInvoiceCopy.value
+    ? [
+        { label: 'Print Original', print: printOriginalInvoiceDirect },
+        { label: 'Print Duplicate', print: printDuplicateInvoiceDirect },
+    ]
+    : [{ label: 'Print Invoice', print: printInvoiceDirect }]);
 
 const generateBatchEInvoice = (batch: any) => {
     if (isBatchCancelled(batch)) return;
@@ -1345,7 +1353,7 @@ console.log(
                             <template #body="slotProps">
                                 <div v-if="!slotProps.data.is_offline_pending" class="batch-actions-layout">
                                     <button v-if="!isBatchCancelled(slotProps.data)" type="button"
-                                        class="batch-actions-trigger inline-flex justify-center items-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors cursor-pointer"
+                                        class="batch-actions-trigger inline-flex justify-center items-center w-8 h-8 rounded-lg text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors cursor-pointer"
                                         aria-label="Open batch actions" aria-haspopup="menu"
                                         :aria-expanded="activeMenuId === slotProps.data.id" @click.stop="
                                             toggleActionMenu(
@@ -1775,14 +1783,18 @@ console.log(
                                                         .dispatches[0]
                                                         .status?.invoice
                                                 ">
+<<<<<<< HEAD
                                                     <button v-if="
                                                         !hasActiveEInvoice(getBatchInvoice(slotProps.data)) &&
+=======
+                                                    <button v-for="printOption in invoicePrintOptions" :key="printOption.label" v-if="
+>>>>>>> f8efbd76eadce633ecb7843a9cccfbacdd71075f
                                                         can(
                                                             'DISPATCH.PRINT_INVOICE',
                                                         )
                                                     " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                         @click="
-                                                            printInvoiceDirect(
+                                                            printOption.print(
                                                                 slotProps.data
                                                                     .dispatches[0]
                                                                     .status
@@ -1791,7 +1803,7 @@ console.log(
                                                         activeMenuId = null;
                                                         ">
                                                         <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
-                                                        Print Invoice
+                                                        {{ printOption.label }}
                                                     </button>
                                                     <button v-if="
                                                         can(
@@ -2375,19 +2387,19 @@ console.log(
                                 activeBatch.dispatches?.[0]?.status
                                     ?.invoice)
                         ">
-                            <button v-if="
+                            <button v-for="printOption in invoicePrintOptions" :key="printOption.label" v-if="
                                 getBatchInvoice(activeBatch) &&
                                 !hasActiveEInvoice(getBatchInvoice(activeBatch)) &&
                                 can('DISPATCH.PRINT_INVOICE')
                             " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                                 @click="
-                                    printInvoiceDirect(
+                                    printOption.print(
                                         getBatchInvoice(activeBatch),
                                     );
                                 closeAllMenus();
                                 ">
                                 <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
-                                Print Invoice
+                                {{ printOption.label }}
                             </button>
                             <button v-if="
                                 getBatchInvoice(activeBatch) &&

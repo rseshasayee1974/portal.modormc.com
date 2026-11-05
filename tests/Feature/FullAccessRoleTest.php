@@ -65,6 +65,15 @@ class FullAccessRoleTest extends TestCase
     }
 
     #[DataProvider('roles')]
+    public function test_invoice_copy_selection_does_not_grant_full_access(?string $code, string $name, bool $fullAccess): void
+    {
+        $user = $this->user($code, $name);
+        $expected = $fullAccess || in_array($code, ['ADMINISTRATOR', 'ADMIN'], true);
+        $this->assertSame($expected, $user->canChooseInvoiceCopy());
+        $this->assertSame($fullAccess, $user->hasFullAccess());
+    }
+
+    #[DataProvider('roles')]
     public function test_system_roles_bypass_gates_modules_reports_and_mobile(?string $code, string $name, bool $allowed): void
     {
         $user = $this->user($code, $name);

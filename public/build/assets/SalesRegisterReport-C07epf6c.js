@@ -1,0 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/SalesRegisterReport-D87QPzM2.js
+import e from"./RegisterReport-DvXwF7QU.js";import{c as r,o as t}from"./app-CtfyEIc5.js";import"./formatters-Bq0FpJKi.js";const a={__name:"SalesRegisterReport",props:{reportData:{type:Object,required:!0},currentPage:{type:Number,default:1}},emits:["page-change"],setup:a=>(p,o)=>(t(),r(e,{"report-data":a.reportData,"current-page":a.currentPage,kind:"sales",onPageChange:o[0]||(o[0]=e=>p.$emit("page-change",e))},null,8,["report-data","current-page"]))};export{a as default};
+========
+import e from"./RegisterReport-Hf7NMpxw.js";import{o as r,c as t}from"./app-MWMamt28.js";import"./formatters-D91P1rIt.js";const a={__name:"SalesRegisterReport",props:{reportData:{type:Object,required:!0},currentPage:{type:Number,default:1}},emits:["page-change"],setup:a=>(p,o)=>(r(),t(e,{"report-data":a.reportData,"current-page":a.currentPage,kind:"sales",onPageChange:o[0]||(o[0]=e=>p.$emit("page-change",e))},null,8,["report-data","current-page"]))};export{a as default};
+>>>>>>>> f8efbd76eadce633ecb7843a9cccfbacdd71075f:public/build/assets/SalesRegisterReport-C07epf6c.js

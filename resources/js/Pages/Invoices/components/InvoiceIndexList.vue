@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axios from 'axios';
 import Popover from 'primevue/popover';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
@@ -42,8 +42,14 @@ const toggleActions = (event: any, row: any) => {
     actionsPopover.value.toggle(event);
 };
 
+<<<<<<< HEAD
 const { can, isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
 const { canCancel, cancelEInvoice, cancellingEInvoice } = useEInvoiceCancellation();
+=======
+const { can } = usePermissions();
+const page = usePage();
+const canChooseInvoiceCopy = computed(() => page.props.can_choose_invoice_copy === true);
+>>>>>>> f8efbd76eadce633ecb7843a9cccfbacdd71075f
 
 const expandedRows = ref<Record<number, boolean>>({});
 const filters = ref({
@@ -478,6 +484,7 @@ const formatDate = (dateString: string) => {
                 <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
 
                 <!-- Print Options -->
+<<<<<<< HEAD
                 <button v-if="hasActiveEInvoice(selectedRow)" type="button"
                     @click="printInvoice(selectedRow); actionsPopover.hide()"
                     class="w-full text-left px-4 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 flex items-center gap-2">
@@ -485,6 +492,9 @@ const formatDate = (dateString: string) => {
                     E-Invoice Print
                 </button>
                 <template v-else-if="isAdmin || isSuperAdmin || isSassOwner">
+=======
+                <template v-if="canChooseInvoiceCopy">
+>>>>>>> f8efbd76eadce633ecb7843a9cccfbacdd71075f
                     <button 
                         @click="printOriginal(selectedRow); actionsPopover.hide()" 
                         class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"

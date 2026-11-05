@@ -308,6 +308,23 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->roles->contains(fn ($role) => $role->grantsSystemAccess());
     }
 
+    public function canChooseInvoiceCopy(): bool
+    {
+        if ($this->hasFullAccess()) {
+            return true;
+        }
+
+        if ($entityId = session('active_entity_id')) {
+            $role = EntityUser::forContext(
+                $this->id, (int) $entityId, session('active_plant_id')
+            )?->role;
+
+            return $role?->allowsInvoiceCopySelection() ?? false;
+        }
+
+        return $this->roles->contains(fn ($role) => $role->allowsInvoiceCopySelection());
+    }
+
     /**
      * Get the codes of all roles assigned to the user.
      *

@@ -3,6 +3,7 @@ import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { computed, reactive } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { validateStockExhaust } from '../validateStockExhaust';
 import Swal from 'sweetalert2';
 import {
     WrenchScrewdriverIcon, PlusIcon, TrashIcon, CheckIcon
@@ -210,8 +211,13 @@ const validateQuantity = (index: number) => {
 };
 
 const submitForm = () => {
+    if (form.processing) return;
+    form.clearErrors();
+    const errors = validateStockExhaust(form);
+    const existingChecksPass = runFrontendValidation();
+    if (Object.keys(errors).length) form.setError(errors as any);
+    if (!existingChecksPass || Object.keys(errors).length) return;
     // Run frontend validation first
-    if (!runFrontendValidation()) return;
 
     // Check if any active line has quantity_issued exceeding stock_qty
     for (let i = 0; i < form.lines.length; i++) {
@@ -270,6 +276,13 @@ const submitForm = () => {
             </div>
 
             <form @submit.prevent="submitForm" class="flex flex-col gap-6">
+                <div v-if="form.hasErrors" role="alert" aria-live="polite"
+                    class="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700">
+                    <p class="font-bold mb-2">Please correct the following fields:</p>
+                    <ul class="list-disc pl-4 space-y-1">
+                        <li v-for="(message, field) in form.errors" :key="field">{{ message }}</li>
+                    </ul>
+                </div>
                 <!-- Header Info -->
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     <div class="col-span-12 md:col-span-3 field-group">
