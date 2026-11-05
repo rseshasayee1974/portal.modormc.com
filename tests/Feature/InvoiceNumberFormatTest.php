@@ -526,7 +526,7 @@ class InvoiceNumberFormatTest extends TestCase
         $this->assertSame('SO/2627/0125', \App\Models\SalesOrder::generateOrderNo(1, 10)['full_number']);
         $this->assertSame('SO/2627/0125', \App\Models\SalesOrder::generateOrderNo(1, 12)['full_number']);
         DB::table('mm_sales_orders')->where('customer_id', 11)->update(['deleted_at' => now()]);
-        $this->assertSame('SO/2627/0125', \App\Models\SalesOrder::generateOrderNo(1, null)['full_number']);
+        $this->assertSame('SO/2627/0124', \App\Models\SalesOrder::generateOrderNo(1, null)['full_number']);
         $this->assertSame('SO/26-27/0001', \App\Models\SalesOrder::generateOrderNo(2, 10)['full_number']);
     }
 

@@ -38,7 +38,7 @@ class BatchController extends Controller
         $this->authorizeModule('menu');
         $activePlantId = app(\App\Services\PlantContextService::class)->requirePlantId();
 
-        $batches = app(\App\Services\ProductionReadCache::class)->remember('batch-grid', $activePlantId, [], function () use ($activePlantId) {
+        $batches = app(\App\Services\ProductionReadCache::class)->remember('batch-grid', $activePlantId, ['empty_time_v1'], function () use ($activePlantId) {
             return DB::table('mm_batches as b')
             ->join('mm_sales_orders as so', 'so.id', '=', 'b.sales_order_id')
             ->leftJoin('mm_dispatches as d', function ($join) {
@@ -92,6 +92,7 @@ class BatchController extends Controller
                 DB::raw('COALESCE(dm.design_code, m.design_code) as mix_design_code'),
                 DB::raw('COALESCE(cg.name, dm.design_type, m.design_type) as concrete_grade'),
                 'd.id as dispatch_id',
+                'd.empty_time',
                 'd.prefix as dispatch_prefix',
                 'd.dispatch_no',
                 'd.dispatch_status',
@@ -126,6 +127,7 @@ class BatchController extends Controller
                         : null,
                     'status' => $row->status,
                     'start_time' => $row->start_time,
+                    'empty_time' => $row->empty_time,
                     'end_time' => $row->end_time,
                     'is_verified' => (bool)$row->is_verified,
                     'sync_status' => $row->sync_status,
@@ -1161,6 +1163,7 @@ class BatchController extends Controller
                 : null,
             'status' => $batchRow->status,
             'start_time' => $batchRow->start_time,
+            'empty_time' => $primaryDispatch['empty_time'] ?? null,
             'end_time' => $batchRow->end_time,
             'operator_id' => $batchRow->operator_id,
             'shift' => $batchRow->shift,

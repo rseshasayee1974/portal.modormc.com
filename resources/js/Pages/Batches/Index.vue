@@ -1056,13 +1056,13 @@ console.log(
                                     class="!h-9 !text-xs !rounded-lg" filter />
                             </div>
                         </template>
-                        <Column field="start_time" header="Date" sortable>
+                        <Column field="empty_time" header="Empty Time" sortable>
                             <template #body="slotProps">
-                                <div v-if="slotProps.data.start_time" class="flex flex-col">
+                                <div v-if="slotProps.data.empty_time" class="flex flex-col">
                                     <span class="text-xs font-bold text-slate-700">
                                         {{
                                             entityLocaleDate(
-                                                slotProps.data.start_time,
+                                                slotProps.data.empty_time,
                                                 APP_LOCALE,
                                                 {
                                                     day: "2-digit",
@@ -1075,7 +1075,7 @@ console.log(
                                     <span class="text-[10px] text-slate-400 font-medium uppercase">
                                         {{
                                             entityLocaleTime(
-                                                slotProps.data.start_time,
+                                                slotProps.data.empty_time,
                                                 APP_LOCALE,
                                                 {
                                                     hour: "2-digit",
