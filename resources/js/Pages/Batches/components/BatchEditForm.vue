@@ -993,8 +993,8 @@ const submit = (onSuccessCallback?: () => void) => {
     // console.trace();
     form.clearErrors();
 
-    if (!isLocked.value || form.load_time === null) {
-        form.load_time = new Date();
+    if (!form.load_time) {
+        form.load_time = entityCalendarDate();
     }
 
     let hasErrors = false;
