@@ -674,7 +674,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                     || (strtolower((string) $inv->invoice_label) === 'dispatch' && (string) $dispatch->id === (string) $inv->ref_id));
                 foreach ($dispatches as $dispatch) {
                     $dispatchDetails = 'Truck: ' . ($dispatch->truck?->registration ?: '-')
-                        . ' | Batch No: ' . ($dispatch->batch?->batch_no ?? '-');
+                        . ' | Batch No: ' . ($dispatch->batch?->batch_no ?? '-')
+                        . ' | Delivered Qty: ' . number_format((float) $dispatch->delivered_qty, 3) . ' m³';
                     $details .= "\n" . $dispatchDetails;
                     $detailLines[] = ['text' => $dispatchDetails, 'bold' => false];
                 }

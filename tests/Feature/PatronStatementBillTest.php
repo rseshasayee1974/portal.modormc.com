@@ -108,7 +108,7 @@ class PatronStatementBillTest extends TestCase
         $unit = \App\Models\ProductUnit::create(['unit_type' => 'sales', 'unit_name' => 'Cubic metre', 'unit_code' => 'M3']);
         $truck = \App\Models\Machine::factory()->create(['plant_id' => $this->plant->id, 'registration' => 'TN01AB1234']);
         $dispatch = \App\Models\Dispatch::withoutEvents(fn () => \App\Models\Dispatch::factory()->create([
-            'plant_id' => $this->plant->id, 'truck_id' => $truck->id,
+            'plant_id' => $this->plant->id, 'truck_id' => $truck->id, 'delivered_qty' => 4.25,
         ]));
         DB::table('mm_batches')->where('id', $dispatch->batch_id)->update(['plant_id' => $this->plant->id, 'batch_no' => 'B123']);
         Invoice::withoutEvents(fn () => $invoice->update(['ref_id' => $dispatch->id]));
@@ -120,14 +120,14 @@ class PatronStatementBillTest extends TestCase
         }
 
         $row = collect($this->statement()['transactions'])->firstWhere('voucher_no', $invoice->full_number);
-        $this->assertSame($invoice->full_number . "\n[M30 Concrete]\nUOM: M3 | Unit price: ₹ 4,500.00\n[Site mix M25]\nUOM: M3 | Unit price: ₹ 4,500.00\nTruck: TN01AB1234 | Batch No: B123", $row['details']);
+        $this->assertSame($invoice->full_number . "\n[M30 Concrete]\nUOM: M3 | Unit price: ₹ 4,500.00\n[Site mix M25]\nUOM: M3 | Unit price: ₹ 4,500.00\nTruck: TN01AB1234 | Batch No: B123 | Delivered Qty: 4.250 m³", $row['details']);
         $this->assertSame([
             ['text' => $invoice->full_number, 'bold' => false],
             ['text' => '[M30 Concrete]', 'bold' => true],
             ['text' => 'UOM: M3 | Unit price: ₹ 4,500.00', 'bold' => false],
             ['text' => '[Site mix M25]', 'bold' => true],
             ['text' => 'UOM: M3 | Unit price: ₹ 4,500.00', 'bold' => false],
-            ['text' => 'Truck: TN01AB1234 | Batch No: B123', 'bold' => false],
+            ['text' => 'Truck: TN01AB1234 | Batch No: B123 | Delivered Qty: 4.250 m³', 'bold' => false],
         ], $row['detail_lines']);
         $this->assertEquals(1180, $row['debit']);
 
@@ -145,6 +145,13 @@ class PatronStatementBillTest extends TestCase
         $this->assertStringContainsString('Truck: TN01AB1234 | Batch No: B123', $row['details']);
         $this->assertStringContainsString('UOM: - | Unit price: ₹ 4,600.00', $row['details']);
         $this->assertSame(2, substr_count($row['details'], '[M30 Concrete]'));
+        DB::table('mm_batches')->where('id', $dispatch->batch_id)->update(['batch_size' => 5]);
+        foreach ([[0, '0.000'], [null, '5.000']] as [$quantity, $expected]) {
+            DB::table('mm_dispatches')->where('id', $dispatch->id)->update(['delivered_qty' => $quantity]);
+            $row = collect($this->statement()['transactions'])->firstWhere('voucher_no', $invoice->full_number);
+            $this->assertStringContainsString('Delivered Qty: ' . $expected . ' m³', $row['details']);
+            $this->assertEquals(1180, $row['debit']);
+        }
     }
 
     public function test_sales_register_net_amounts_and_totals_are_whole_rupees(): void
