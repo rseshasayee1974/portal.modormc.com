@@ -2,26 +2,12 @@
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import {
-    BanknotesIcon,
-    CalendarIcon,
-    DocumentTextIcon,
-    TruckIcon,
-    UserIcon,
-    BuildingOfficeIcon,
-    IdentificationIcon,
-    ChevronDownIcon,
-    ChevronUpIcon
-} from '@heroicons/vue/24/outline';
 
 // Components
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
-import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
-import Textarea from 'primevue/textarea';
 import { useToast } from 'primevue/usetoast';
 
 const props = defineProps<{
@@ -34,7 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{ saved: [] }>();
 
 const toast = useToast();
-const isOpen = ref(true);
+
 
 const form = useForm({
     ref_no: props.expense?.ref_no ?? '',
@@ -47,9 +33,6 @@ const form = useForm({
     note: props.expense?.note ?? '',
 });
 
-const toggle = () => {
-    isOpen.value = !isOpen.value;
-};
 
 const submit = () => {
     if (form.processing) return;
@@ -65,111 +48,51 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="create-panel" :class="{ 'create-panel--open': isOpen }">
-        <button class="create-panel__header" @click="toggle" type="button">
-            <div class="flex items-center gap-3">
-                <div class="create-panel__icon">
-                    <BanknotesIcon class="w-5 h-5 text-emerald-600" />
-                </div>
-                <div class="text-left">
-                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">{{ expense ? 'Edit Expense' : 'Record Expense' }}</p>
-                    <p class="text-[11px] text-gray-400 font-medium mt-0.5">Log operational costs, maintenance, and
-                        miscellaneous outflows</p>
-                </div>
+    <form class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" @submit.prevent="submit">
+        <div class="flex items-center gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
+            <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-[#E6EEF6] text-[#3B638E]"><i class="pi pi-wallet" aria-hidden="true" /></span>
+            <div>
+                <h2 class="text-sm font-bold text-slate-800">{{ expense ? 'Edit expense' : 'Record expense' }}</h2>
+                <p class="mt-1 text-xs text-slate-500">{{ expense ? 'Update the expense details and save to update accounting.' : 'Enter expense details and save to post accounting.' }}</p>
             </div>
-            <div class="flex items-center gap-2">
-                <component :is="isOpen ? ChevronUpIcon : ChevronDownIcon" class="w-4 h-4 text-gray-400" />
-            </div>
-        </button>
-
-        <Transition name="panel-slide">
-            <div v-if="isOpen" class="create-panel__body">
-                <form @submit.prevent="submit">
-                    <p v-if="form.errors.expense" role="alert" class="mb-4 text-sm text-rose-700">{{ form.errors.expense }}</p>
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-
-                        <!-- Primary Info Section -->
-                        <div class="md:col-span-8 space-y-6">
-                            <BaseInput v-model="form.ref_no" label="Reference Number" :error="form.errors.ref_no"
-                                :placeholder="expense ? 'Leave blank to keep current reference' : 'Leave blank for automatic numbering'" />
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <BaseSelect v-model="form.expense_type_id" label="Expense Category"
-                                    :options="expenseTypes" optionLabel="label" optionValue="value"
-                                    placeholder="Select Category" :error="form.errors.expense_type_id" filter required>
-                                    <template #option="slotProps">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-2 h-2 rounded-full bg-indigo-400"></div>
-                                            <span>{{ slotProps.option.label }}</span>
-                                        </div>
-                                    </template>
-                                </BaseSelect>
-
-                                <BaseSelect v-model="form.paid_through" label="Payment Source / Ledger"
-                                    :options="ledgers" optionLabel="label" optionValue="value"
-                                    placeholder="Select Ledger" :error="form.errors.paid_through" filter required />
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <BaseDatePicker v-model="form.date" label="Expense Date" required
-                                    :error="form.errors.date" />
-
-                                <div class="md:col-span-2">
-                                    <label
-                                        class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 px-1">Amount
-                                        (INR)</label>
-                                    <BaseInputNumber v-model="form.amount" mode="currency" currency="INR" :locale="APP_LOCALE"
-                                        inputClass="text-lg font-black text-slate-800 !bg-emerald-50/30 !border-emerald-100"
-                                        class="w-full" :error="form.errors.amount" />
-                                </div>
-                            </div>
-
-                            <div class="field-group">
-                                <label
-                                    class="text-[10px] uppercase font-black text-slate-400 tracking-widest block mb-2 px-1">Narration
-                                    /
-                                    Notes</label>
-                                <Textarea v-model="form.note" rows="3"
-                                    placeholder="Provide details about this transaction..."
-                                    class="w-full text-xs rounded-xl border-slate-200 focus:ring-emerald-500 shadow-sm" />
-                                <small v-if="form.errors.note" class="text-rose-700">{{ form.errors.note }}</small>
-                            </div>
-                        </div>
-
-                        <!-- Sidebar / Optional Refs -->
-                        <div class="md:col-span-4 bg-slate-50/50 rounded-2xl p-6 border border-slate-100 space-y-5">
-                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Entity
-                                Association</h3>
-
-                            <BaseSelect v-model="form.machine_id" label="Machine / Asset" :options="machines"
-                                optionLabel="label" optionValue="value" placeholder="None"
-                                :error="form.errors.machine_id" filter showClear>
-                                <template #option="slotProps">
-                                    <div class="flex items-center gap-2">
-                                        <TruckIcon class="w-4 h-4 text-slate-400" />
-                                        <span class="text-xs font-bold">{{ slotProps.option.label }}</span>
-                                    </div>
-                                </template>
-                            </BaseSelect>
-
-                            <BaseSelect v-model="form.vendor_id" label="Payee" :options="patrons"
-                                optionLabel="label" optionValue="value" placeholder="Select Payee"
-                                :error="form.errors.vendor_id" filter showClear />
-
-                            <div class="pt-4 border-t border-slate-200 mt-4">
-                                <BaseFormActions :label="expense ? 'Save Changes' : 'Post Expense'" :loading="form.processing" @submit="submit"
-                                    @reset="form.reset()"
-                                    submit-class="w-full !bg-emerald-600 hover:!bg-emerald-700 shadow-lg shadow-emerald-900/10" />
-                            </div>
-                        </div>
-
-                    </div>
-                </form>
-            </div>
-        </Transition>
-    </div>
+        </div>
+        <div class="grid grid-cols-1 gap-4 border-b border-slate-200 p-5 sm:grid-cols-2 lg:grid-cols-5">
+            <BaseDatePicker v-model="form.date" label="Expense Date" :error="form.errors.date" :disabled="form.processing" required />
+            <BaseSelect v-model="form.paid_through" label="Payment Source / Ledger" :options="ledgers" optionLabel="label" optionValue="value" placeholder="Select ledger" :error="form.errors.paid_through" :disabled="form.processing" filter required />
+        </div>
+        <p v-if="form.errors.expense" role="alert" class="mx-5 mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{{ form.errors.expense }}</p>
+        <div class="expense-row px-3 py-4">
+            <BaseInput class="w-[60px]" v-model="form.ref_no" label="Ref #" :error="form.errors.ref_no" :disabled="form.processing" :placeholder="expense ? 'Keep if blank' : 'Auto if blank'" />
+            <BaseSelect class="min-w-0" v-model="form.expense_type_id" label="Category" :options="expenseTypes" optionLabel="label" optionValue="value" placeholder="Select category" :error="form.errors.expense_type_id" :disabled="form.processing" filter required />
+            <BaseInputNumber class="min-w-0" v-model="form.amount" label="Amount" :min="0.01" :maxFractionDigits="2" placeholder="0.00" :error="form.errors.amount" :disabled="form.processing" required />
+            <BaseSelect class="min-w-0" v-model="form.vendor_id" label="Payee" :options="patrons" optionLabel="label" optionValue="value" placeholder="Optional" :error="form.errors.vendor_id" :disabled="form.processing" filter showClear />
+            <BaseSelect class="min-w-0" v-model="form.machine_id" label="Asset" :options="machines" optionLabel="label" optionValue="value" placeholder="Optional" :error="form.errors.machine_id" :disabled="form.processing" filter showClear />
+            <BaseInput class="min-w-0" v-model="form.note" label="Notes" placeholder="What was this expense for?" :error="form.errors.note" :disabled="form.processing" />
+        </div>
+        <div class="border-t border-slate-200 px-5 py-4 text-right">
+            <p class="text-xs text-slate-500">Total amount</p>
+            <p class="mt-1 text-xl font-bold tabular-nums text-slate-800">{{ new Intl.NumberFormat(APP_LOCALE, { style: 'currency', currency: 'INR' }).format(Number(form.amount || 0)) }}</p>
+        </div>
+        <div class="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4">
+            <button type="button" @click="form.reset(); form.clearErrors()" :disabled="form.processing" class="rounded-lg px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 disabled:opacity-50">Reset</button>
+            <button type="submit" :disabled="form.processing" class="inline-flex items-center gap-2 rounded-lg bg-[#3B638E] px-5 py-2.5 text-xs font-semibold text-white hover:bg-[#2A4869] focus-visible:ring-2 focus-visible:ring-[#3B638E] focus-visible:ring-offset-2 disabled:opacity-50">
+                <i :class="form.processing ? 'pi pi-spinner pi-spin' : 'pi pi-check'" aria-hidden="true" />
+                {{ form.processing ? 'Saving…' : expense ? 'Save Changes' : 'Save Expense' }}
+            </button>
+        </div>
+    </form>
 </template>
 
 <style scoped>
+.expense-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1.25fr) minmax(0, .8fr) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+    gap: .5rem;
+    align-items: start;
+}
+.expense-row :deep(label) { font-size: .7rem; }
+.expense-row :deep(.p-inputtext),
+.expense-row :deep(.p-select-label) { padding-inline: .5rem; font-size: .75rem; }
 :deep(input.p-inputtext),
 :deep(.p-select),
 :deep(.p-datepicker-dropdown) {
@@ -177,21 +100,8 @@ const submit = () => {
     min-height: 36px;
     box-sizing: border-box;
 }
-:deep(.p-select-label) {
-    display: flex;
-    align-items: center;
-    padding-block: 0;
-}
-/* Panel Slide Animation */
-.panel-slide-enter-active,
-.panel-slide-leave-active {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.panel-slide-enter-from,
-.panel-slide-leave-to {
-    opacity: 0;
-    transform: translateY(-20px);
-    max-height: 0;
-}
+.expense-row :deep(.p-inputtext),
+.expense-row :deep(.p-inputnumber),
+.expense-row :deep(.p-select) { width: 100%; min-width: 0; max-width: 100%; }
+:deep(.p-select-label) { display: flex; align-items: center; padding-block: 0; min-width: 0; }
 </style>

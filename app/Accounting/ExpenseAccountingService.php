@@ -69,13 +69,16 @@ class ExpenseAccountingService
         ])->save();
         // Preserve old lines as audit history while replacing their active version.
         $entry->lines()->get()->each->delete();
-        foreach ([[$category->ledger_id, $expense->amount, 0, 'Expense'],
-            [$expense->paid_through, 0, $expense->amount, 'Payment']] as [$ledgerId, $debit, $credit, $label]) {
+        $partnerId = $expense->vendor_id ?? $expense->customer_id;
+        foreach ([[$category->ledger_id, $expense->amount, 0, 'Paid through: ' . $ledgers->get($expense->paid_through)->title],
+            [$expense->paid_through, 0, $expense->amount, 'Paid to: ' . $category->name]] as [$ledgerId, $debit, $credit, $narration]) {
             $entry->lines()->create([
                 'plant_id' => $expense->plant_id, 'account_id' => $ledgerId,
                 'debit_amount' => $debit, 'credit_amount' => $credit,
-                'narration_name' => $label, 'narration_label' => 'Expense',
-                'line_narration' => $expense->note ?: 'Expense ' . $expense->ref_no,
+                'partner_id' => $partnerId,
+                'partner_type' => $partnerId !== null ? 'Patron' : null,
+                'narration_name' => $debit > 0 ? 'Expense' : 'Payment', 'narration_label' => 'Expense',
+                'line_narration' => $narration,
             ]);
         }
         return $entry;

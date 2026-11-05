@@ -157,7 +157,7 @@ const formatCurrency = (val: number) => {
                 </section>
             </div>
         </div>
-        <Dialog v-model:visible="showEdit" modal header="Edit Expense" class="w-full max-w-5xl">
+        <Dialog v-model:visible="showEdit" modal header="Edit Expense" class="w-[95vw] max-w-7xl">
             <ExpenseCreateForm v-if="showEdit && editingExpense" :expense="editingExpense"
                 :expense-types="expenseTypes" :ledgers="ledgers" :machines="machines" :patrons="patrons"
                 @saved="showEdit = false" />
