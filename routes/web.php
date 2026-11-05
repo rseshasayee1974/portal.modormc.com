@@ -384,6 +384,7 @@ Route::middleware([
         Route::get('customer-po/{customerPO}/attachments/{attachment}', [CustomerPOController::class, 'downloadAttachment'])->whereUuid('attachment')->name('customer-po.attachments.download');
         Route::post('customer-po/{customerPO}/convert-salesorder', [CustomerPOController::class, 'convertToSalesOrder'])->name('customer-po.convert-salesorder');
         Route::post('customer-po/{customerPO}/dispatches', [DispatchController::class, 'storeForSalesOrder'])->name('customer-po.dispatches.store');
+        Route::get('salesorders/next-reference', [SalesOrderController::class, 'nextReference'])->name('salesorders.next-reference');
         Route::resource('salesorders', SalesOrderController::class);
         Route::get('batches/truck-empty-weight', [BatchController::class, 'getTruckEmptyWeight'])->name('batches.truck-empty-weight');
         Route::post('batches/trip-options', [\App\Http\Controllers\BatchTripOptionController::class, 'store'])

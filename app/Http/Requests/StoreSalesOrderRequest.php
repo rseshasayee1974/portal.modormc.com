@@ -40,6 +40,7 @@ class StoreSalesOrderRequest extends FormRequest
                 'max:100', 
                 Rule::unique('mm_sales_orders', 'order_no')->where(function ($query) {
                     return $query->where('plant_id', $this->input('plant_id', session('active_plant_id')))
+                                 ->where('customer_id', $this->input('customer_id'))
                                  ->where('prefix', $this->input('prefix'))
                                  ->whereNull('deleted_at');
                 })

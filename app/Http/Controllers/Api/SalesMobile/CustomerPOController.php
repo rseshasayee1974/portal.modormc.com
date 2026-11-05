@@ -334,7 +334,7 @@ class CustomerPOController extends Controller
                 $ordered = $po->items()->where('mix_design_id', $item->mix_design_id)->sum('quantity');
                 $allocated = $po->salesOrders()->where('mix_design_id', $item->mix_design_id)->where('status', '!=', SalesOrder::STATUS_CANCELLED)->sum('total_qty');
                 abort_if($allocated + $line['quantity'] > $ordered + 0.00001, 422, 'Quantity exceeds the remaining customer PO quantity.');
-                $number = SalesOrder::generateOrderNo(Access::plantId());
+                $number = SalesOrder::generateOrderNo(Access::plantId(), $po->patron_id);
                 $orders[] = SalesOrder::create(array_merge($item->only(['mix_design_id', 'rate', 'tax_id', 'concrete_pump', 'pump_rate']), [
                     'prefix' => $number['prefix'], 'order_no' => $number['next_number'], 'plant_id' => Access::plantId(),
                     'customer_id' => $po->patron_id, 'site_id' => $po->site_id, 'customer_po_id' => $po->id,

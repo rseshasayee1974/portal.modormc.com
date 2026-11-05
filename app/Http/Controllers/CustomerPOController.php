@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CustomerPO;
+use App\Models\Plant;
 use App\Models\Quotation;
 use App\Models\SalesOrder; // This is the new SalesOrder model (formerly WorkOrder)
 use App\Services\RecordAttachments;
@@ -557,6 +558,7 @@ class CustomerPOController extends Controller
             ]);
             
             DB::transaction(function () use ($customerPO, $validated) {
+                Plant::whereKey($customerPO->plant_id)->lockForUpdate()->firstOrFail();
                 if ((int)$customerPO->status === CustomerPO::STATUS_DRAFT) {
                     $customerPO->update(['status' => CustomerPO::STATUS_CONFIRMED]);
                 }
@@ -569,7 +571,7 @@ class CustomerPOController extends Controller
                     $poItem = $customerPO->items()->find($itemData['item_id']);
                     if (!$poItem) continue;
 
-                    $details = SalesOrder::generateOrderNo($customerPO->plant_id, 'SO');
+                    $details = SalesOrder::generateOrderNo($customerPO->plant_id, $customerPO->patron_id);
                     $pumpRateVal = $poItem->pump_rate ?? 0;
                     $concretePumpVal = $itemData['concrete_pump'] ?? $poItem->concrete_pump;
 
@@ -607,12 +609,13 @@ class CustomerPOController extends Controller
             ]);
             
             DB::transaction(function () use ($customerPO, $validated) {
+                Plant::whereKey($customerPO->plant_id)->lockForUpdate()->firstOrFail();
                 if ((int)$customerPO->status === CustomerPO::STATUS_DRAFT) {
                     $customerPO->update(['status' => CustomerPO::STATUS_CONFIRMED]);
                 }
 
                 foreach ($customerPO->items as $item) {
-                    $details = SalesOrder::generateOrderNo($customerPO->plant_id, 'SO');
+                    $details = SalesOrder::generateOrderNo($customerPO->plant_id, $customerPO->patron_id);
                     $pumpRateVal = $item->pump_rate ?? 0;
                     $concretePumpVal = $item->concrete_pump;
 

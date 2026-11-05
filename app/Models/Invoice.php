@@ -328,13 +328,18 @@ class Invoice extends Model implements Postable
             $module = in_array($normalizedLabel, ['bill', 'purchase', 'debit_note'], true) ? 'billing' : 'invoice';
             $moduleSettings = CustomSetting::getForModule($plantId, $module);
             $settings = array_replace($settings, $moduleSettings);
-            if (in_array($settings[$module . '_number_format'] ?? 0, [1, '1', 'prefix_number_fy'], true)) {
+            $customFormat = in_array($settings[$module . '_number_format'] ?? 0, [1, '1', 'prefix_number_fy'], true);
+
+            if (!$isNote) {
+                $padding = max(0, min(10, (int) ($settings[$module . '_number_padding'] ?? 0)));
+                $startingNumber = max(1, (int) ($settings[$module . '_number_start'] ?? 1));
+            }
+
+            if ($customFormat) {
                 $ledgerPrefix = preg_replace('~/\{fy\}(?=/|$)|^\{fy\}/?~i', '', trim((string) $ledger?->description));
                 $ledgerPrefix = trim($ledgerPrefix, " \t\n\r\0\x0B/");
                 $prefix = !$isNote && $ledgerPrefix !== '' ? $ledgerPrefix . '/' : $defaultPrefix;
                 $suffix = $fy;
-                $padding = $isNote ? 0 : max(0, min(10, (int) ($settings[$module . '_number_padding'] ?? 0)));
-                $startingNumber = $isNote ? 1 : max(1, (int) ($settings[$module . '_number_start'] ?? 1));
             }
         }
 

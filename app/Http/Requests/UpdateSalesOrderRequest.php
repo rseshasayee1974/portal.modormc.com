@@ -42,6 +42,7 @@ class UpdateSalesOrderRequest extends FormRequest
                         $plantId = $plantId ?? session('active_plant_id');
 
                         return $query->where('plant_id', $plantId)
+                                     ->where('customer_id', $this->input('customer_id'))
                                      ->where('prefix', $prefix)
                                      ->whereNull('deleted_at');
                     })

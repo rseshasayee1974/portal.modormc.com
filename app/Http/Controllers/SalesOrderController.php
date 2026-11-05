@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Http\Requests\StoreSalesOrderRequest;
 use App\Http\Requests\UpdateSalesOrderRequest;
+use App\Models\Plant;
 use App\Models\SalesOrder;
 use App\Services\SalesOrders\SalesOrderIndexDataFactory;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class SalesOrderController extends Controller
@@ -33,6 +36,18 @@ class SalesOrderController extends Controller
         );
     }
 
+    public function nextReference(Request $request)
+    {
+        $this->authorizeModule('create');
+        $plantId = (int) session('active_plant_id');
+        abort_unless($plantId, 404);
+        $data = $request->validate([
+            'customer_id' => ['required', 'integer', Rule::exists('mm_patrons', 'id')->where('plant_id', $plantId)->whereNull('deleted_at')],
+        ]);
+
+        return response()->json(['reference' => SalesOrder::generateOrderNo($plantId, $data['customer_id'])['full_number']]);
+    }
+
     public function store(StoreSalesOrderRequest $request)
     {
         $this->authorizeModule('create');
@@ -46,12 +61,6 @@ class SalesOrderController extends Controller
                 $payload['site_id'] = $payload['site_id'] ?? $po->site_id;
                 $payload['is_tax_inclusive'] = $payload['is_tax_inclusive'] ?? $po->is_tax_inclusive;
             }
-        }
-
-        if (empty($payload['order_no'])) {
-            $details = SalesOrder::generateOrderNo(session('active_plant_id'), $payload['prefix'] ?? 'SO');
-            $payload['prefix'] = $details['prefix'];
-            $payload['order_no'] = $details['next_number'];
         }
 
         $tableColumns = Schema::getColumnListing('mm_sales_orders');
@@ -76,6 +85,14 @@ class SalesOrderController extends Controller
         $payload = array_intersect_key($payload, array_flip($tableColumns));
 
         DB::transaction(function () use ($payload) {
+            if (empty($payload['order_no'])) {
+                $plantId = (int) ($payload['plant_id'] ?? session('active_plant_id'));
+                Plant::whereKey($plantId)->lockForUpdate()->firstOrFail();
+                $details = SalesOrder::generateOrderNo($plantId, $payload['customer_id'] ?? null, $payload['prefix'] ?? 'SO');
+                $payload['prefix'] = $details['prefix'];
+                $payload['order_no'] = $details['next_number'];
+            }
+
             SalesOrder::create($payload);
         });
 

@@ -152,7 +152,9 @@ const numberingPreview = (module: "invoice" | "billing") => {
     const sequence = String(
         form.settings[`${module}_number_start`] || 1,
     ).padStart(Number(form.settings[`${module}_number_padding`] || 0), "0");
-    return `${prefix}/${sequence}/${fy}`;
+    return form.settings[`${module}_number_format`] === 1
+        ? `${prefix}/${sequence}/${fy}`
+        : `${prefix}/${fy}/${sequence}`;
 };
 
 // ─── Logo Input ───────────────────────────────────────────────────────────────
@@ -1483,12 +1485,8 @@ const submit = () => {
                                     </div>
                                 </div>
 
-                                <!-- invoice_number_start & padding (if enabled) -->
+                                <!-- invoice_number_start & padding -->
                                 <div
-                                    v-if="
-                                        form.settings.invoice_number_format ===
-                                        1
-                                    "
                                     class="setting-field min-w-0 sm:col-span-2 lg:col-span-6 flex flex-col gap-2 rounded-md bg-white/40 p-3"
                                 >
                                     <div
@@ -1504,6 +1502,10 @@ const submit = () => {
                                         >
                                             {{ numberingPreview("invoice") }}
                                         </span>
+                                        <p class="text-[11px] text-slate-500">
+                                            By default, the sequence starts at 1
+                                            with no zero padding (0 digits).
+                                        </p>
                                     </div>
                                     <div
                                         class="min-w-0 w-full grid grid-cols-2 gap-3"
@@ -1519,6 +1521,7 @@ const submit = () => {
                                                         .invoice_number_start
                                                 "
                                                 :min="1"
+                                                :max="9999999999"
                                                 class="w-full text-xs"
                                             />
                                         </div>
@@ -1579,12 +1582,8 @@ const submit = () => {
                                     </div>
                                 </div>
 
-                                <!-- billing_number_start & padding (if enabled) -->
+                                <!-- billing_number_start & padding -->
                                 <div
-                                    v-if="
-                                        form.settings.billing_number_format ===
-                                        1
-                                    "
                                     class="setting-field min-w-0 sm:col-span-2 lg:col-span-6 flex flex-col gap-2 rounded-md bg-white/40 p-3"
                                 >
                                     <div
@@ -1600,6 +1599,10 @@ const submit = () => {
                                         >
                                             {{ numberingPreview("billing") }}
                                         </span>
+                                        <p class="text-[11px] text-slate-500">
+                                            By default, the sequence starts at 1
+                                            with no zero padding (0 digits).
+                                        </p>
                                     </div>
                                     <div
                                         class="min-w-0 w-full grid grid-cols-2 gap-3"
@@ -1615,6 +1618,7 @@ const submit = () => {
                                                         .billing_number_start
                                                 "
                                                 :min="1"
+                                                :max="9999999999"
                                                 class="w-full text-xs"
                                             />
                                         </div>

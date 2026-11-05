@@ -59,7 +59,7 @@ class DataNormalizer
         // Resolve sales order
         $orderNo = $extractedHeader['order_number'] ?? null;
         if (!empty($orderNo)) {
-            $normalizedHeader['sales_order_id'] = $this->resolveSalesOrder($orderNo, $plantId);
+            $normalizedHeader['sales_order_id'] = $this->resolveSalesOrder($orderNo, $plantId, $normalizedHeader['customer_id']);
         }
 
         // Saved Plant Material Mappings
@@ -201,18 +201,30 @@ class DataNormalizer
         return $op ? $op->id : null;
     }
 
-    protected function resolveSalesOrder(string $orderNo, int $plantId): ?int
+    protected function resolveSalesOrder(string $orderNo, int $plantId, ?int $customerId = null): ?int
     {
         $cleanNo = trim($orderNo);
         if (empty($cleanNo)) return null;
 
-        $so = SalesOrder::where('plant_id', $plantId)->where('order_no', $cleanNo)->first();
-        if ($so) return $so->id;
+        $orders = SalesOrder::where('plant_id', $plantId);
+        if ($customerId !== null) {
+            $orders->where('customer_id', $customerId);
+        }
 
-        $so = SalesOrder::where('plant_id', $plantId)->where('order_no', 'like', "%{$cleanNo}%")->first();
-        if ($so) return $so->id;
+        $separator = strrpos($cleanNo, '/');
+        $exact = (clone $orders)->where(function ($query) use ($cleanNo, $separator) {
+            $query->where('order_no', $cleanNo);
+            if ($separator !== false) {
+                $query->orWhere(fn ($reference) => $reference->where('prefix', substr($cleanNo, 0, $separator + 1))
+                    ->where('order_no', substr($cleanNo, $separator + 1)));
+            }
+        });
+        $matches = $exact->limit(2)->pluck('id');
+        if ($matches->isEmpty()) {
+            $matches = $orders->where('order_no', 'like', "%{$cleanNo}%")->limit(2)->pluck('id');
+        }
 
-        return null;
+        return $matches->count() === 1 ? $matches->first() : null;
     }
 
     protected function resolveProduct(string $name, int $plantId): ?int

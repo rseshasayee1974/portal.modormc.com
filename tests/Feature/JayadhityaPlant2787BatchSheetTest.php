@@ -102,4 +102,24 @@ class JayadhityaPlant2787BatchSheetTest extends TestCase
         $this->expectException(\Illuminate\Validation\ValidationException::class);
         app(\App\Http\Controllers\Api\BatchSheetUploadController::class)->saveToDatabase($request, 1);
     }
+
+    public function test_sales_order_matching_uses_customer_for_shared_references(): void
+    {
+        Schema::create('mm_sales_orders', function (Blueprint $table) {
+            $table->id(); $table->integer('plant_id'); $table->integer('customer_id');
+            $table->string('prefix'); $table->string('order_no'); $table->softDeletes();
+        });
+        DB::table('mm_sales_orders')->insert([
+            ['id' => 1, 'plant_id' => 2, 'customer_id' => 10, 'prefix' => 'SO/26-27/', 'order_no' => '1'],
+            ['id' => 2, 'plant_id' => 2, 'customer_id' => 11, 'prefix' => 'SO/26-27/', 'order_no' => '1'],
+        ]);
+        $normalizer = new class extends \App\Services\BatchSheet\DataNormalizer {
+            public function resolveSalesOrder(string $orderNo, int $plantId, ?int $customerId = null): ?int
+            {
+                return parent::resolveSalesOrder($orderNo, $plantId, $customerId);
+            }
+        };
+        $this->assertSame(2, $normalizer->resolveSalesOrder('SO/26-27/1', 2, 11));
+        $this->assertNull($normalizer->resolveSalesOrder('SO/26-27/1', 2));
+    }
 }

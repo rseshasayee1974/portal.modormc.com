@@ -13,6 +13,7 @@ import Swal from 'sweetalert2';
 import { 
     PlusCircleIcon, 
     DocumentCheckIcon,
+    InformationCircleIcon,
     SparklesIcon
 } from '@heroicons/vue/24/outline';
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
@@ -26,7 +27,6 @@ const props = withDefaults(defineProps<{
     customerPOs?: any[];
     statuses?: { label: string; value: number }[];
     activePlantId?: number;
-    nextReference?: string;
     concretePumpOptions?: any[];
     products?: any[];
     units?: any[];
@@ -41,7 +41,6 @@ const props = withDefaults(defineProps<{
     customerPOs: () => [],
     statuses: () => [],
     activePlantId: 0,
-    nextReference: '',
     concretePumpOptions: () => [],
     products: () => [],
     units: () => [],
@@ -173,6 +172,24 @@ const lineCalc = computed(() => {
 const subtotal = computed(() => lineCalc.value.untaxedAmount);
 const taxAmount = computed(() => lineCalc.value.taxAmount);
 const estimatedTotal = computed(() => lineCalc.value.amountTotal);
+
+const nextReference = ref('');
+watch(() => form.customer_id, async (customerId, _previous, onCleanup) => {
+    nextReference.value = '';
+    if (!customerId) return;
+
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    try {
+        const { data } = await axios.get(route('salesorders.next-reference'), {
+            params: { customer_id: customerId },
+            signal: controller.signal,
+        });
+        if (!controller.signal.aborted) nextReference.value = data.reference;
+    } catch {
+        // The reference will still be assigned when the order is saved.
+    }
+});
 
 watch(() => form.customer_po_id, (newVal) => {
     if (newVal) {

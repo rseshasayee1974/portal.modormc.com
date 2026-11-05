@@ -250,7 +250,7 @@ class OrderController extends Controller
         return DB::transaction(function () use ($r) {
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
             $data = $this->data($r);
-            $number = SalesOrder::generateOrderNo(Access::plantId());
+            $number = SalesOrder::generateOrderNo(Access::plantId(), $data['customer_id']);
             $model = SalesOrder::create(array_merge($data, ['plant_id' => Access::plantId(), 'prefix' => $number['prefix'], 'order_no' => $number['next_number'], 'status' => $data['status'] ?? SalesOrder::STATUS_CONFIRMED, 'produced_qty' => 0]));
             return response()->json(['success' => true, 'data' => $model->fresh()], 201);
         });
@@ -261,7 +261,13 @@ class OrderController extends Controller
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
             $model = Access::orders()->lockForUpdate()->findOrFail($order);
             $this->editable($model);
-            $model->update($this->data($r, $model));
+            $data = $this->data($r, $model);
+            if ((int) $data['customer_id'] !== (int) $model->customer_id && $model->order_no !== null
+                && SalesOrder::where('plant_id', Access::plantId())->where('customer_id', $data['customer_id'])
+                    ->where('prefix', $model->prefix)->where('order_no', $model->order_no)->exists()) {
+                throw ValidationException::withMessages(['customer_id' => 'This customer already has a sales order with this reference.']);
+            }
+            $model->update($data);
             return response()->json(['success' => true, 'data' => $model->fresh()]);
         });
     }

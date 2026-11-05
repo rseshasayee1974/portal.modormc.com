@@ -12,7 +12,6 @@ const props = withDefaults(defineProps<{
     mixDesigns?: any[];
     statuses?: { label: string; value: number }[];
     activePlantId?: number;
-    nextReference?: string;
     concretePumpOptions?: any[];
     products?: any[];
     units?: any[];
@@ -27,7 +26,6 @@ const props = withDefaults(defineProps<{
     mixDesigns: () => [],
     statuses: () => [],
     activePlantId: 0,
-    nextReference: '',
     concretePumpOptions: () => [],
     products: () => [],
     units: () => [],
@@ -64,7 +62,6 @@ const props = withDefaults(defineProps<{
                 :customerPOs="customerPOs"
                 :statuses="statuses"
                 :activePlantId="activePlantId"
-                :nextReference="nextReference"
                 :concretePumpOptions="concretePumpOptions"
                 :products="products"
                 :units="units"

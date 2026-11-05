@@ -225,7 +225,7 @@ class SalesOrder extends Model
         return null;
     }
 
-    public static function generateOrderNo(int $plantId, string $prefix = 'SO'): array
+    public static function generateOrderNo(int $plantId, ?int $customerId, string $prefix = 'SO'): array
     {
         $now = now();
         // Financial Year: April to March
@@ -242,11 +242,19 @@ class SalesOrder extends Model
         }
 
         $fullPrefix = "{$customPrefix}/{$fyString}/";
+        $legacyYear = str_replace('-', '', $fyString);
+        $legacyPrefix = "{$customPrefix}/{$legacyYear}/";
+        $orders = self::where('plant_id', $plantId)->where('customer_id', $customerId);
 
-        // Get the latest order number for this plant and prefix
-        $latest = self::where('plant_id', $plantId)
-            ->where('prefix', $fullPrefix)
-            ->whereNull('deleted_at')
+        // Keep the customer's compact format across financial years for this series.
+        $prefixPattern = strtr($customPrefix, ['!' => '!!', '%' => '!%', '_' => '!_']);
+        $usesLegacyFormat = (clone $orders)->withTrashed()
+            ->whereRaw("prefix LIKE ? ESCAPE '!'", ["{$prefixPattern}/____/"])
+            ->exists();
+
+        // Both financial year formats share the same sales order sequence.
+        $latest = $orders
+            ->whereIn('prefix', [$fullPrefix, $legacyPrefix])
             ->orderByRaw('CAST(order_no AS UNSIGNED) DESC')
             ->value('order_no');
 
@@ -255,10 +263,12 @@ class SalesOrder extends Model
             $nextSequence = (int) $latest + 1;
         }
 
+        $numberPrefix = $usesLegacyFormat ? $legacyPrefix : $fullPrefix;
+
         return [
-            'prefix' => $fullPrefix,
+            'prefix' => $numberPrefix,
             'next_number' => (string) $nextSequence,
-            'full_number' => $fullPrefix.(string) $nextSequence,
+            'full_number' => $numberPrefix.(string) $nextSequence,
         ];
     }
 
