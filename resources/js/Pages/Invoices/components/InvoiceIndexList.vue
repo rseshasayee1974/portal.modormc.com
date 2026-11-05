@@ -11,9 +11,9 @@ import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import Dialog from 'primevue/dialog';
 import Swal from 'sweetalert2';
-import { 
-    ListBulletIcon, 
-    TruckIcon, 
+import {
+    ListBulletIcon,
+    TruckIcon,
     ExclamationCircleIcon,
     CheckCircleIcon
 } from '@heroicons/vue/24/outline';
@@ -42,6 +42,7 @@ const toggleActions = (event: any, row: any) => {
     actionsPopover.value.toggle(event);
 };
 
+const { canCancel, cancelEInvoice, cancellingEInvoice } = useEInvoiceCancellation();
 const { can } = usePermissions();
 const page = usePage();
 const canChooseInvoiceCopy = computed(() => page.props.can_choose_invoice_copy === true);
@@ -116,7 +117,7 @@ const fetchInvoiceDetails = async (data: any) => {
     const id = data.id;
     const encryptedId = data.encrypted_id;
     if (loadingRows.value[id] || invoiceDetails.value[id]) return;
-    
+
     loadingRows.value[id] = true;
     try {
         const response = await axios.get(route('invoices.show', encryptedId));
@@ -130,17 +131,17 @@ const fetchInvoiceDetails = async (data: any) => {
 const toggleEdit = async (data: any) => {
     const id = data.id;
     const isExpanded = !!expandedRows.value[id];
-    
+
     if (!isExpanded) {
         await fetchInvoiceDetails(data);
     }
-    
+
     // Reset all expanded rows to ensure only one is open at a time
     const nextExpanded = {};
     if (!isExpanded) {
         nextExpanded[id] = true;
     }
-    
+
     expandedRows.value = nextExpanded;
 };
 
@@ -181,7 +182,7 @@ const openShareInvoice = (invoice: any) => {
 
 const generateShareLink = async () => {
     if (!selectedShareInvoice.value) return;
-    
+
     isGeneratingLink.value = true;
     try {
         const response = await axios.post(route('invoices.share', { id: selectedShareInvoice.value.encrypted_id }), {
@@ -189,7 +190,7 @@ const generateShareLink = async () => {
             document_id: selectedShareInvoice.value.id,
             expiry: shareExpiry.value
         });
-        
+
         if (response.data && response.data.url) {
             shareLink.value = response.data.url;
         } else {
@@ -239,57 +240,47 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-    <div class="bg-white dark:bg-slate-800 shadow-xl rounded-lg border border-slate-200 dark:border-slate-700 transition-all duration-300">
-        <BaseDataTable
-            :value="invoices" 
-            v-model:expandedRows="expandedRows"
-            v-model:filters="filters"
-            dataKey="id"
-            paginator 
-            :rows="30"
-            stripedRows
-            class="p-datatable-sm"
-            showSearch
-            showSerial
-            @rowExpand="onRowExpand"
-            @row-click="toggleEdit($event.data)"
-            heading="Invoice Directory"
-            headingIcon="DocumentTextIcon"
-            showExport
-            exportFilename="invoice-directory-report"
-        >
+    <div
+        class="bg-white dark:bg-slate-800 shadow-xl rounded-lg border border-slate-200 dark:border-slate-700 transition-all duration-300">
+        <BaseDataTable :value="invoices" v-model:expandedRows="expandedRows" v-model:filters="filters" dataKey="id"
+            paginator :rows="30" stripedRows class="p-datatable-sm" showSearch showSerial @rowExpand="onRowExpand"
+            @row-click="toggleEdit($event.data)" heading="Invoice Directory" headingIcon="DocumentTextIcon" showExport
+            exportFilename="invoice-directory-report">
             <Column field="invoice_number" header="Invoice #" sortable>
                 <template #body="slotProps">
                     <div class="flex flex-col">
                         <div class="flex items-center gap-2">
-                            <span 
-                                class="text-sm font-semibold text-indigo-800 hover:underline"
-                            >
+                            <span class="text-sm font-semibold text-indigo-800 hover:underline">
                                 {{ slotProps.data.full_number }}
                             </span>
                             <!-- <Tag v-if="slotProps.data.is_duplicate" value="DUPE" severity="danger" class="!text-[7px] !px-1" /> -->
                         </div>
                         <div class="flex items-center gap-1.5 mt-1">
-                             <Tag 
-                                :severity="getTypeSeverity(String(slotProps.data.invoice_type).toLowerCase())" 
+                            <Tag :severity="getTypeSeverity(String(slotProps.data.invoice_type).toLowerCase())"
                                 :value="slotProps.data.invoice_type"
-                                class="!text-[8px] !font-black !uppercase !tracking-widest !rounded !px-1.5"
-                            />
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ entityLocaleDate(slotProps.data.invoice_date, APP_LOCALE) }}</span>
-                            <span v-if="slotProps.data.period" class="text-[9px] font-bold text-slate-300 ml-1">({{ slotProps.data.period }})</span>
+                                class="!text-[8px] !font-black !uppercase !tracking-widest !rounded !px-1.5" />
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{
+                                entityLocaleDate(slotProps.data.invoice_date, APP_LOCALE) }}</span>
+                            <span v-if="slotProps.data.period" class="text-[9px] font-bold text-slate-300 ml-1">({{
+                                slotProps.data.period }})</span>
                         </div>
                     </div>
                 </template>
             </Column>
             <Column field="partner.legal_name" header="Patron" sortable>
                 <template #body="slotProps">
-                    <span class="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight block truncate max-w-[200px]">{{ slotProps.data.partner?.legal_name }}</span>
+                    <span
+                        class="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight block truncate max-w-[200px]">{{
+                            slotProps.data.partner?.legal_name }}</span>
                     <div class="flex items-center gap-2 mt-0.5">
                         <div v-if="slotProps.data.truck" class="flex items-center gap-1">
                             <TruckIcon class="w-3 h-3 text-slate-400" />
-                            <span class="text-[10px] font-bold text-indigo-500 uppercase">{{ slotProps.data.truck?.registration }}</span>
+                            <span class="text-[10px] font-bold text-indigo-500 uppercase">{{
+                                slotProps.data.truck?.registration }}</span>
                         </div>
-                        <p v-if="slotProps.data.account" class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Acc: {{ slotProps.data.account?.title }}</p>
+                        <p v-if="slotProps.data.account"
+                            class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Acc: {{
+                                slotProps.data.account?.title }}</p>
                     </div>
                 </template>
             </Column>
@@ -297,18 +288,15 @@ const formatDate = (dateString: string) => {
             <Column field="total_amount" header="Total Amount" sortable class="text-right font-black">
                 <template #body="slotProps">
                     <div class="flex flex-col items-end">
-                        <span class="text-sm text-slate-800">₹ {{ Number(slotProps.data.total_amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                        <span class="text-sm text-slate-800">₹ {{
+                            Number(slotProps.data.total_amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 })
+                        }}</span>
                         <div class="flex gap-1 mt-1">
-                             <Tag 
-                                v-if="Number(slotProps.data.shipping_charges) > 0"
+                            <Tag v-if="Number(slotProps.data.shipping_charges) > 0"
                                 :value="`Ship: ₹ ${Number(slotProps.data.shipping_charges).toLocaleString(APP_LOCALE)}`"
-                                class="!bg-slate-50 !text-slate-500 !text-[8px] font-black"
-                            />
-                            <Tag 
-                                v-if="slotProps.data.tax_amount > 0"
-                                :value="`GST Incl.`" 
-                                class="!bg-emerald-50 !text-emerald-600 !text-[8px] font-black"
-                            />
+                                class="!bg-slate-50 !text-slate-500 !text-[8px] font-black" />
+                            <Tag v-if="slotProps.data.tax_amount > 0" :value="`GST Incl.`"
+                                class="!bg-emerald-50 !text-emerald-600 !text-[8px] font-black" />
                         </div>
                     </div>
                 </template>
@@ -316,7 +304,9 @@ const formatDate = (dateString: string) => {
 
             <Column field="invoice_date" header="Invoice Date" sortable>
                 <template #body="slotProps">
-                    <span class="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight block truncate max-w-[200px]">{{ formatDate(slotProps.data.invoice_date) }}</span>
+                    <span
+                        class="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight block truncate max-w-[200px]">{{
+                            formatDate(slotProps.data.invoice_date) }}</span>
                 </template>
             </Column>
 
@@ -328,49 +318,40 @@ const formatDate = (dateString: string) => {
 
             <Column header="Actions" class="text-right w-24">
                 <template #body="slotProps">
-                    <Button 
-                        icon="pi pi-ellipsis-v" 
-                        text 
-                        rounded 
-                        severity="secondary" 
-                        @click.stop="toggleActions($event, slotProps.data)" 
-                        title="Actions"
-                    />
+                    <Button icon="pi pi-ellipsis-v" text rounded severity="secondary"
+                        @click.stop="toggleActions($event, slotProps.data)" title="Actions" />
                 </template>
             </Column>
 
             <template #expansion="slotProps">
                 <div class="">
                     <div class="max-w-6xl mx-auto">
-                        <div v-if="loadingRows[slotProps.data.id]" class="flex flex-col items-center justify-center py-12 gap-4">
-                            <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Retrieving Document Details...</p>
+                        <div v-if="loadingRows[slotProps.data.id]"
+                            class="flex flex-col items-center justify-center py-12 gap-4">
+                            <div
+                                class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin">
+                            </div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
+                                Retrieving Document Details...</p>
                         </div>
-                        <InvoiceEditForm 
-                            v-else-if="invoiceDetails[slotProps.data.id]"
-                            :key="slotProps.data.id"
-                            :invoice="invoiceDetails[slotProps.data.id]" 
-                            :patrons="patrons"
-                            :taxes="taxes"
-                            :accounts="accounts"
-                            :mixdesign="mixdesign"
-                            :units="units"
-                            :machines="machines"
-                            @saved="expandedRows = {}"
-                            @cancel="expandedRows = {}"
-                        />
+                        <InvoiceEditForm v-else-if="invoiceDetails[slotProps.data.id]" :key="slotProps.data.id"
+                            :invoice="invoiceDetails[slotProps.data.id]" :patrons="patrons" :taxes="taxes"
+                            :accounts="accounts" :mixdesign="mixdesign" :units="units" :machines="machines"
+                            @saved="expandedRows = {}" @cancel="expandedRows = {}" />
                     </div>
                 </div>
             </template>
         </BaseDataTable>
 
         <!-- Share Invoice Dialog -->
-        <Dialog v-model:visible="showShareModal" modal header="Share Invoice Link" :style="{ width: '90vw', maxWidth: '500px' }">
+        <Dialog v-model:visible="showShareModal" modal header="Share Invoice Link"
+            :style="{ width: '90vw', maxWidth: '500px' }">
             <div class="space-y-6 pt-4">
                 <div class="flex flex-col items-center justify-center space-y-4">
                     <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center">
                         <svg class="w-8 h-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                         </svg>
                     </div>
                     <div class="text-center">
@@ -381,69 +362,48 @@ const formatDate = (dateString: string) => {
 
                 <div v-if="!shareLink" class="space-y-4">
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-2 tracking-wider">Link Expiry</label>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-2 tracking-wider">Link
+                            Expiry</label>
                         <div class="grid grid-cols-4 gap-2">
-                            <button 
-                                v-for="opt in [
-                                    { label: '1 Day', value: '1' },
-                                    { label: '7 Days', value: '7' },
-                                    { label: '30 Days', value: '30' },
-                                    { label: 'Never', value: '0' }
-                                ]" 
-                                :key="opt.value"
-                                type="button"
-                                @click="shareExpiry = opt.value"
+                            <button v-for="opt in [
+                                { label: '1 Day', value: '1' },
+                                { label: '7 Days', value: '7' },
+                                { label: '30 Days', value: '30' },
+                                { label: 'Never', value: '0' }
+                            ]" :key="opt.value" type="button" @click="shareExpiry = opt.value"
                                 class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all"
                                 :class="[
                                     shareExpiry === opt.value
-                                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                                ]"
-                            >
+                                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                ]">
                                 {{ opt.label }}
                             </button>
                         </div>
                     </div>
-                    <Button 
-                        label="Generate Link" 
-                        icon="pi pi-link" 
-                        class="w-full"
-                        severity="primary"
-                        :loading="isGeneratingLink"
-                        @click="generateShareLink"
-                    />
+                    <Button label="Generate Link" icon="pi pi-link" class="w-full" severity="primary"
+                        :loading="isGeneratingLink" @click="generateShareLink" />
                 </div>
 
                 <div v-else class="space-y-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Secure Link Generated</label>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Secure Link
+                            Generated</label>
                         <div class="flex relative">
-                            <input 
-                                type="text" 
-                                :value="shareLink" 
-                                readonly 
-                                class="w-full text-sm border-slate-200 rounded-l-xl bg-slate-50 text-slate-600 focus:ring-0 pr-10"
-                            />
-                            <Button 
-                                icon="pi pi-copy" 
-                                class="rounded-l-none"
-                                @click="copyShareLink"
-                            />
+                            <input type="text" :value="shareLink" readonly
+                                class="w-full text-sm border-slate-200 rounded-l-xl bg-slate-50 text-slate-600 focus:ring-0 pr-10" />
+                            <Button icon="pi pi-copy" class="rounded-l-none" @click="copyShareLink" />
                         </div>
                     </div>
                     <!-- Social Share Action Buttons -->
                     <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
-                        <button 
-                            @click="shareWhatsApp"
-                            class="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                        >
+                        <button @click="shareWhatsApp"
+                            class="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm">
                             <i class="pi pi-whatsapp text-sm"></i>
                             WhatsApp
                         </button>
-                        <button 
-                            @click="shareEmail"
-                            class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                        >
+                        <button @click="shareEmail"
+                            class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm">
                             <i class="pi pi-envelope text-sm"></i>
                             Email
                         </button>
@@ -457,20 +417,16 @@ const formatDate = (dateString: string) => {
             <div class="flex flex-col w-48 py-1" v-if="selectedRow">
                 <InvoiceNoteActions :document="invoices.find(row => row.id === selectedRow.id) || selectedRow" />
                 <!-- Edit -->
-                <button 
-                    @click="toggleEdit(selectedRow); actionsPopover.hide()" 
+                <button @click="toggleEdit(selectedRow); actionsPopover.hide()"
                     :disabled="selectedRow.status !== 'draft'"
-                    class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                     <span class="pi pi-pencil text-indigo-500"></span>
                     Edit Invoice
                 </button>
 
                 <!-- Share -->
-                <button 
-                    @click="openShareInvoice(selectedRow); actionsPopover.hide()" 
-                    class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
-                >
+                <button @click="openShareInvoice(selectedRow); actionsPopover.hide()"
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2">
                     <span class="pi pi-share-alt text-cyan-500"></span>
                     Share Invoice
                 </button>
@@ -479,27 +435,26 @@ const formatDate = (dateString: string) => {
                 <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
 
                 <!-- Print Options -->
-                <template v-if="canChooseInvoiceCopy">
-                    <button 
-                        @click="printOriginal(selectedRow); actionsPopover.hide()" 
-                        class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
-                    >
+                <button v-if="hasActiveEInvoice(selectedRow)" type="button"
+                    @click="printInvoice(selectedRow); actionsPopover.hide()"
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 flex items-center gap-2">
+                    <span class="pi pi-print" aria-hidden="true"></span>
+                    E-Invoice Print
+                </button>
+                <template v-else-if="canChooseInvoiceCopy">
+                    <button @click="printOriginal(selectedRow); actionsPopover.hide()"
+                        class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2">
                         <span class="pi pi-file text-slate-500"></span>
                         Print Original
                     </button>
-                    <button 
-                        @click="printDuplicate(selectedRow); actionsPopover.hide()" 
-                        class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
-                    >
+                    <button @click="printDuplicate(selectedRow); actionsPopover.hide()"
+                        class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2">
                         <span class="pi pi-copy text-slate-500"></span>
                         Print Duplicate
                     </button>
                 </template>
-                <button 
-                    v-else
-                    @click="printInvoice(selectedRow); actionsPopover.hide()" 
-                    class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
-                >
+                <button v-else @click="printInvoice(selectedRow); actionsPopover.hide()"
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2">
                     <span class="pi pi-print text-slate-500"></span>
                     Print Invoice
                 </button>
@@ -514,10 +469,8 @@ const formatDate = (dateString: string) => {
                     <span class="pi pi-ban" aria-hidden="true"></span>
                     Cancel E-Invoice
                 </button>
-                <button 
-                    @click="deleteInvoice(selectedRow); actionsPopover.hide()" 
-                    class="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2"
-                >
+                <button @click="deleteInvoice(selectedRow); actionsPopover.hide()"
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2">
                     <span class="pi pi-trash text-rose-500"></span>
                     Void Invoice
                 </button>

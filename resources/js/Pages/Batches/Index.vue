@@ -1784,6 +1784,7 @@ console.log(
                                                         .status?.invoice
                                                 ">
                                                     <button v-for="printOption in invoicePrintOptions" :key="printOption.label" v-if="
+                                                        !hasActiveEInvoice(getBatchInvoice(slotProps.data)) &&
                                                         can(
                                                             'DISPATCH.PRINT_INVOICE',
                                                         )
