@@ -18,7 +18,7 @@ final class ProductionReadCache
     public function remember(string $view, int $plantId, array $filters, Closure $load, bool $refresh = false): mixed
     {
         if (! config('production_cache.enabled') || $plantId < 1 ||
-            ! in_array($view, ['batch-grid', 'dispatch-grid', 'dashboard', 'schedules'], true)) {
+            ! in_array($view, ['batch-grid', 'dispatch-grid', 'dashboard', 'schedules', 'inward-grid'], true)) {
             return $load();
         }
         foreach (DB::getConnections() as $connection) {
@@ -55,7 +55,11 @@ final class ProductionReadCache
         // Database/validation errors propagate; only cache transport errors fall back.
         $value = $load();
         try {
-            $ttl = (int) config($view === 'schedules' ? 'production_cache.schedule_ttl' : 'production_cache.ttl');
+            $ttl = (int) config(match ($view) {
+                'schedules' => 'production_cache.schedule_ttl',
+                'inward-grid' => 'production_cache.inward_ttl',
+                default => 'production_cache.ttl',
+            });
             if ($ttl > 0) {
                 $cache->put($key, ['value' => $value], $ttl);
             }

@@ -441,6 +441,7 @@ Route::middleware([
         Route::resource('stock-exhausts', StockExhaustController::class);
         Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
         Route::get('inwards/create/{purchase_order?}', [PurchaseOrderInwardController::class, 'create'])->name('inwards.create');
+        Route::get('inwards/export', [PurchaseOrderInwardController::class, 'export'])->name('inwards.export');
         Route::resource('inwards', PurchaseOrderInwardController::class)->except(['create']);
         Route::post('inwards/{inward}/update-weight', [PurchaseOrderInwardController::class, 'updateWeight'])->name('inwards.update-weight');
         Route::get('inwards/{inward}/attachments/{attachment}', [PurchaseOrderInwardController::class, 'downloadAttachment'])->whereUuid('attachment')->name('inwards.attachments.download');

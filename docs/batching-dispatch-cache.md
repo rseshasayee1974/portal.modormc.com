@@ -3,7 +3,7 @@ Author: ragul-onemodo
 Created: 2026-10-25 19:55:07 Asia/Calcutta (UTC+05:30)
 -->
 
-# Batching and dispatch Redis cache
+# Batching, dispatch and inward Redis cache
 
 Only production read views use the explicit Redis store through `ProductionReadCache`:
 
@@ -13,6 +13,11 @@ Only production read views use the explicit Redis store through `ProductionReadC
 | Batch detail | Dispatch ticket query results for the selected batch | 15 seconds |
 | Production dashboard | KPIs, charts, production metrics and recipe data | 15 seconds |
 | Batching schedules | Filtered schedule rows, pour tracking and metrics | 10 seconds |
+| Inventory inwards | One 30-row page, filtered total, shared purchase orders and eligible PO choices | 30 seconds |
+
+The inward registry at `/inventory/inwards` uses the `inward-grid` view. Menu access and bill-generation permissions are checked for each request. Vehicle/unit dropdowns and permission-dependent account options remain outside this payload. Inward, purchase order, purchase order item, invoice item, image and tax writes invalidate the cache in addition to the existing invoice and master-data dependencies. Use `/inventory/inwards?refresh=1` to bypass a cached result. Cache hits reduce database work; they do not reduce the response size or browser rendering cost.
+
+The registry applies `search`, `start_date`, `end_date`, `sort` and `direction` in SQL before paginating, with those values and `page` included in the cache key. Date bounds include the entire end date. `/inventory/inwards/export` streams a CSV of all matching rows in chunks, ignoring the visible page and bypassing the page cache. Deploy the controller, export route and rebuilt Inwards frontend together.
 
 Authorization remains before controller cache reads. Keys include database/connection, plant, entity, user, role, locale, timezone, view and filters. Batch index/detail and dashboard/schedules require an active plant; they never substitute an arbitrary first plant. Batch detail enforces batch and dispatch plant ownership before returning cached dispatch data.
 

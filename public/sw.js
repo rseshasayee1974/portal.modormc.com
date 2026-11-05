@@ -1,4 +1,4 @@
-const CACHE_NAME = 'modormc-pwa-v2';
+const CACHE_NAME = 'modormc-pwa-v3';
 const ASSETS_TO_CACHE = [
     '/orders/batches',
     '/assets/modormc_favicon.png',
@@ -22,7 +22,7 @@ self.addEventListener('activate', (event) => {
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
+                    if (cacheName.startsWith('modormc-pwa-') && cacheName !== CACHE_NAME) {
                         console.log('[Service Worker] Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
@@ -38,6 +38,8 @@ self.addEventListener('fetch', (event) => {
 
     // Only handle GET requests
     if (request.method !== 'GET') return;
+    // Browser cache-only probes cannot reliably be replayed with fetch().
+    if (request.cache === 'only-if-cached') return;
 
     const url = new URL(request.url);
 
@@ -46,6 +48,10 @@ self.addEventListener('fetch', (event) => {
 
     // Ignore cross-origin requests (e.g., local weighbridge API at localhost:8089, external CDNs)
     if (url.origin !== self.location.origin) return;
+
+    // Inertia and API responses depend on the current user and active plant.
+    // Leave them to the browser instead of substituting cached pages or data.
+    if (request.headers.has('X-Inertia') || request.headers.get('Accept')?.includes('application/json')) return;
 
     // Live export status must go straight to the server, without cached fallbacks.
     if (url.pathname.startsWith('/reports/export-status/')) return;
@@ -74,10 +80,11 @@ self.addEventListener('fetch', (event) => {
     }
 
     // 2. Navigation / Page Requests (HTML shell) -> Network-First, fall back to cached shell
-    if (request.mode === 'navigate' || url.pathname === '/orders/batches') {
+    if (request.mode === 'navigate' && url.pathname === '/orders/batches') {
         event.respondWith(
             fetch(request).then((networkResponse) => {
-                if (networkResponse && networkResponse.status === 200) {
+                if (networkResponse && networkResponse.status === 200 && !networkResponse.redirected
+                    && networkResponse.headers.get('Content-Type')?.includes('text/html')) {
                     const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put('/orders/batches', responseToCache);
@@ -93,14 +100,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Default request behavior (Network First)
-    event.respondWith(
-        fetch(request).catch(async () => {
-            const cachedResponse = await caches.match(request);
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-            return Response.error();
-        })
-    );
+    // All other requests (including products and other page navigations) use
+    // normal browser networking; a cached batches page is not a valid fallback.
 });

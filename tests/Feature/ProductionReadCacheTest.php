@@ -61,6 +61,30 @@ class ProductionReadCacheTest extends TestCase
         $this->assertSame(7, $calls);
     }
 
+    public function test_inward_cache_hits_expiry_refresh_and_related_writes(): void
+    {
+        $calls = 0;
+        $load = function () use (&$calls) {
+            return ['inwards' => [['id' => ++$calls]], 'inwardOrders' => [], 'purchaseOrders' => []];
+        };
+        $read = fn ($plant = 1, $refresh = false) => $this->cache->remember('inward-grid', $plant, [], $load, $refresh)['inwards'][0]['id'];
+        $this->assertSame(1, $read());
+        $this->assertSame(1, $read());
+        $this->assertSame(2, $read(2));
+        $this->assertSame(3, $read(refresh: true));
+        $this->travel(31)->seconds();
+        $this->assertSame(4, $read());
+        $expected = 4;
+        foreach (['mm_purchase_order_history', 'mm_purchase_orders', 'mm_purchase_order_items', 'mm_invoice_items', 'mm_images', 'mm_taxes'] as $table) {
+            DB::statement("CREATE TABLE $table (id INTEGER PRIMARY KEY)");
+            DB::table($table)->insert(['id' => 1]);
+            $this->assertSame(++$expected, $read(), "$table writes invalidate inward reads");
+            $this->assertSame($expected, $read());
+        }
+        config(['production_cache.store' => 'unavailable-production-store']);
+        $this->assertSame(++$expected, $read());
+    }
+
     public function test_expiry_and_refresh_reload_operational_values(): void
     {
         $calls = 0;

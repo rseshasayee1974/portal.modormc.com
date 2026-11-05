@@ -151,6 +151,39 @@ class ConcreteGradeMaterialOrderTest extends TestCase
         $this->assertEquals(900, $mix->items()->sum('actual_quantity'));
     }
 
+    public function test_deleted_mix_name_can_be_reused_but_active_duplicate_is_validated(): void
+    {
+        session(['active_plant_id' => 1]);
+        $payload = ['partner_id' => null, 'design_name' => 'Reusable Mix', 'design_code' => null, 'design_type' => 'M25', 'unit_id' => 1, 'rate_per_qty' => 100,
+            'items' => [['product_id' => 10, 'uom_id' => 1, 'rate' => 2, 'actual_quantity' => 300, 'cross_quantity' => 300, 'variation_quantity' => 0]]];
+        DB::table('mm_mix_designs')->insert(['plant_id' => 1, 'design_name' => 'Reusable Mix', 'deleted_at' => now()]);
+        EloquentModel::withoutEvents(fn () => $this->mixController()->store(Request::create('/', 'POST', $payload)));
+        $this->assertSame(2, MixDesign::withTrashed()->where('design_name', 'Reusable Mix')->count());
+        try {
+            $this->mixController()->store(Request::create('/', 'POST', $payload));
+            $this->fail('Active duplicate should fail validation');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('design_name', $e->errors());
+        }
+    }
+
+    public function test_mix_design_database_index_only_reserves_non_deleted_names(): void
+    {
+        DB::statement('CREATE UNIQUE INDEX mm_mix_designs_plant_id_partner_id_design_name_unique ON mm_mix_designs (plant_id, partner_id, design_name)');
+        DB::table('mm_mix_designs')->insert(['plant_id' => 6, 'partner_id' => 149, 'design_name' => 'M25 Kaarunesh', 'deleted_at' => now()]);
+        $migration = require base_path('database/migrations/2026_11_05_165443_allow_reuse_of_deleted_mix_design_names.php');
+        $migration->up();
+        $migration->up();
+        $id = DB::table('mm_mix_designs')->insertGetId(['plant_id' => 6, 'partner_id' => 149, 'design_name' => 'M25 Kaarunesh']);
+        DB::table('mm_mix_designs')->where('id', $id)->update(['deleted_at' => now()]);
+        DB::table('mm_mix_designs')->insert(['plant_id' => 6, 'partner_id' => 149, 'design_name' => 'M25 Kaarunesh']);
+        DB::table('mm_mix_designs')->insert(['plant_id' => 7, 'partner_id' => 149, 'design_name' => 'M25 Kaarunesh']);
+        DB::table('mm_mix_designs')->insert(['plant_id' => 6, 'partner_id' => 150, 'design_name' => 'M25 Kaarunesh']);
+        $this->assertSame(5, DB::table('mm_mix_designs')->where('design_name', 'M25 Kaarunesh')->count());
+        $this->expectException(\Illuminate\Database\UniqueConstraintViolationException::class);
+        DB::table('mm_mix_designs')->insert(['plant_id' => 6, 'partner_id' => 149, 'design_name' => 'M25 Kaarunesh']);
+    }
+
     public function test_mix_item_order_rejects_negative_values(): void
     {
         session(['active_plant_id' => 1]);

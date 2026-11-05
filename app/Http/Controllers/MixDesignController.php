@@ -57,7 +57,8 @@ class MixDesignController extends Controller
                 'required',
                 'string',
                 'max:255',
-               
+                Rule::unique('mm_mix_designs', 'design_name')
+                    ->where('plant_id', $plantId)->where('partner_id', $request->input('partner_id'))->whereNull('deleted_at'),
             ],
             'design_code' => [
                 'nullable',
@@ -136,7 +137,8 @@ class MixDesignController extends Controller
                 'required',
                 'string',
                 'max:255',
-                
+                Rule::unique('mm_mix_designs', 'design_name')->ignore($mixdesign->id)
+                    ->where('plant_id', $plantId)->where('partner_id', $request->input('partner_id'))->whereNull('deleted_at'),
             ],
             'design_code' => [
                 'nullable',

@@ -2,7 +2,7 @@
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { router } from '@inertiajs/vue3';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import Swal from 'sweetalert2';
@@ -18,7 +18,7 @@ import InwardCreateForm from './components/InwardCreateForm.vue';
 import { ArchiveBoxIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline';
 import PurchaseOrderPreviewDialog from '../components/PurchaseOrderPreviewDialog.vue';
 
-const props = defineProps<{ inwards: any[]; purchaseOrders: any[]; vehicles: any[]; units?: any[]; accounts?: any[]; canGenerateBill?: boolean }>();
+const props = defineProps<{ inwards: any[]; pagination: { total: number; page: number; per_page: number }; registryFilters: any; inwardOrders: any[]; purchaseOrders: any[]; vehicles: any[]; units?: any[]; accounts?: any[]; canGenerateBill?: boolean }>();
 // --- List Logic ---
 const entriesPerPage = ref(30);
 const expandedRows = ref<Record<string, boolean>>({});
@@ -33,29 +33,56 @@ const closeExpandedRow = (id?: number | string) => {
     }
 };
 const filters = ref({
-    global: { value: null, matchMode: 'contains' },
+    global: { value: props.registryFilters.search, matchMode: 'contains' },
 });
 
-const dateFrom = ref(null);
-const dateTo = ref(null);
+const dateFrom = ref(props.registryFilters.start_date);
+const dateTo = ref(props.registryFilters.end_date);
 
 const filteredInwards = computed(() => {
-    let result = props.inwards;
-
-    if (dateFrom.value) {
-        const from = new Date(dateFrom.value);
-        from.setHours(0, 0, 0, 0);
-        result = result.filter(i => new Date(i.received_date) >= from);
-    }
-
-    if (dateTo.value) {
-        const to = new Date(dateTo.value);
-        to.setHours(23, 59, 59, 999);
-        result = result.filter(i => new Date(i.received_date) <= to);
-    }
+    const orders = new Map((props.inwardOrders || []).map(order => [order.id, order]));
+    let result = props.inwards.map(inward => ({ ...inward, order: orders.get(inward.order_id) ?? inward.order }));
 
     return result;
 });
+
+const loading = ref(false);
+const sortField = ref(props.registryFilters.sort);
+const sortDirection = ref(props.registryFilters.direction);
+let filterTimer: ReturnType<typeof setTimeout> | undefined;
+let cancelVisit: (() => void) | undefined;
+const queryParams = () => ({
+    search: filters.value.global.value || undefined,
+    start_date: dateFrom.value || undefined,
+    end_date: dateTo.value || undefined,
+    sort: sortField.value,
+    direction: sortDirection.value,
+});
+const loadPage = (page = 1) => {
+    clearTimeout(filterTimer);
+    cancelVisit?.();
+    expandedRows.value = {};
+    router.get(route('inwards.index'), { ...queryParams(), page }, {
+        preserveState: true, preserveScroll: true, replace: true,
+        only: ['inwards', 'inwardOrders', 'pagination', 'registryFilters'],
+        onCancelToken: token => { cancelVisit = () => token.cancel(); },
+        onStart: () => { loading.value = true; },
+        onFinish: () => { loading.value = false; },
+    });
+};
+watch([() => filters.value.global.value, dateFrom, dateTo], () => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => loadPage(1), 350);
+});
+const sortRows = (event: any) => {
+    sortField.value = event.sortField || 'created_at';
+    sortDirection.value = event.sortOrder === 1 ? 'asc' : 'desc';
+    loadPage(1);
+};
+const exportAll = () => {
+    window.location.assign(route('inwards.export', queryParams()));
+};
+onBeforeUnmount(() => { clearTimeout(filterTimer); cancelVisit?.(); });
 
 const formatDate = (date: string) => {
     if (!date) return '--';
@@ -112,15 +139,18 @@ const deleteInward = (inward: any) => {
                     <div class="bg-white rounded-sm shadow-sm border border-slate-200 overflow-hidden">
                         <BaseDataTable :value="filteredInwards" v-model:filters="filters" v-model:rows="entriesPerPage"
                             v-model:dateFrom="dateFrom" v-model:dateTo="dateTo" v-model:expandedRows="expandedRows"
-                            dataKey="id" :rowsPerPageOptions="[30, 50, 100, 200]"
+                            dataKey="id" :rowsPerPageOptions="[30]" lazy :loading="loading"
+                            :first="(pagination.page - 1) * 30" :totalRecords="pagination.total"
+                            @page="loadPage($event.page + 1)" @sort="sortRows"
                             :globalFilterFields="['inward_no', 'order.po_number', 'product.title', 'order.vendor.legal_name']"
                             showSearch showSerial stripedRows heading="Stock Inward Registry"
-                            headingIcon="ArchiveBoxIcon" showExport exportFilename="stock-inward-report">
+                            headingIcon="ArchiveBoxIcon">
                             <template #toolbar>
+                                <Button label="Export all matching (CSV)" icon="pi pi-download" size="small" @click="exportAll" />
                                 <div
                                     class="flex items-center gap-2 px-3 py-1 bg-indigo-50 rounded-lg border border-indigo-100">
                                     <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{{
-                                        filteredInwards.length }} arrivals recorded</span>
+                                        pagination.total }} arrivals recorded</span>
                                 </div>
                             </template>
 

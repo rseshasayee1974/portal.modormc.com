@@ -10,6 +10,7 @@ return [
     'store' => env('PRODUCTION_READ_CACHE_STORE', 'redis'),
     'ttl' => 15,
     'schedule_ttl' => 10,
+    'inward_ttl' => 30,
     // Changes invalidate production reads only, including query-builder and job writes.
     'tables' => [
         'mm_batches', 'mm_batch_materials', 'mm_dispatches', 'mm_dispatch_statuses',
@@ -19,5 +20,7 @@ return [
         'mm_personnels', 'mm_users', 'mm_mix_designs', 'mm_mix_design_items',
         'mm_concrete_grades', 'mm_concrete_grade_items', 'mm_products', 'mm_product_units', 'mm_quotations',
         'mm_quotation_items', 'mm_customer_pos', 'mm_customer_po_items',
+        'mm_purchase_orders', 'mm_purchase_order_items', 'mm_purchase_order_history',
+        'mm_invoice_items', 'mm_images', 'mm_taxes',
     ],
 ];

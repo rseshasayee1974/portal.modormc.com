@@ -26,12 +26,30 @@ class PurchaseOrderInwardController extends Controller
     use AuthorizesModule;
     protected string $module = 'inward';
 
-    public function index()
+    public function index(Request $request)
     {
         $this->authorizeModule('menu');
         $allowedPlantId = session('active_plant_id');
+        $filters = $this->registryFilters($request);
 
-        $inwards = PurchaseOrderHistory::where('plant_id', $allowedPlantId)
+        $data = app(\App\Services\ProductionReadCache::class)->remember(
+            'inward-grid', (int) $allowedPlantId, ['pagination_v2', $filters],
+            fn () => $this->inwardRegistryData((int) $allowedPlantId, $filters),
+            request()->boolean('refresh')
+        );
+
+        return Inertia::render('PurchaseOrders/Inwards/Index', [
+            ...$data,
+            'registryFilters' => $filters,
+            'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
+            'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
+            ...$this->billingOptions(),
+        ]);
+    }
+
+    private function inwardRegistryData(int $allowedPlantId, array $filters): array
+    {
+        $paginator = $this->registryQuery($allowedPlantId, $filters)
             ->with([
                 'order', 
                 'product', 
@@ -39,24 +57,28 @@ class PurchaseOrderInwardController extends Controller
                 'conversionUom',
                 'item',
                 'order.vendor',
-                'order.billingHistory',
+                'order.billingHistory.items',
                 'order.items.product',
                 'order.items.uom',
                 'order.items.tax',
                 'order.items.history',
-                'order.items.history.uom',
-                'order.items.history.conversionUom',
                 'truck',
                 'loadedWeightImage',
                 'emptyWeightImage',
             ])
-            ->latest()
-            ->get();
+            ->paginate(30, ['*'], 'page', $filters['page']);
+        $inwards = $paginator->getCollection();
         foreach ($inwards as $inward) {
             $inward->setAttribute('is_billed', $this->isInwardBilled($inward));
         }
-        // The registry needs only the billed flag. Serializing invoice history also runs invoice accessors.
-        $inwards->pluck('order')->filter()->unique('id')->each->unsetRelation('billingHistory');
+        // Keep billing history server-side and serialize each shared PO only once.
+        // The inline editor and PO preview do not consume receipt histories.
+        $inwardOrders = $inwards->pluck('order')->filter()->unique('id')->values();
+        foreach ($inwardOrders as $order) {
+            $order->unsetRelation('billingHistory');
+            $order->items->each->unsetRelation('history');
+        }
+        $inwards->each->unsetRelation('order');
             
         $purchaseOrders = PurchaseOrder::where('plant_id', $allowedPlantId)
             ->where('receipt_status', '<', 2)
@@ -65,13 +87,78 @@ class PurchaseOrderInwardController extends Controller
             ->latest()
             ->get();
 
-        return Inertia::render('PurchaseOrders/Inwards/Index', [
-            'inwards' => $inwards,
-            'purchaseOrders' => $purchaseOrders,
-            'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
-            'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
-            ...$this->billingOptions(),
+        return [
+            'pagination' => ['total' => $paginator->total(), 'page' => $paginator->currentPage(), 'per_page' => 30],
+            'inwards' => $inwards->toArray(),
+            'inwardOrders' => $inwardOrders->toArray(),
+            'purchaseOrders' => $purchaseOrders->toArray(),
+        ];
+    }
+
+    private function registryFilters(Request $request): array
+    {
+        $values = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'search' => ['nullable', 'string', 'max:200'],
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d', ...($request->filled('start_date') ? ['after_or_equal:start_date'] : [])],
+            'sort' => ['nullable', 'in:created_at,inward_no,order.po_number,product.title,truck.registration,unit_price,received_qty'],
+            'direction' => ['nullable', 'in:asc,desc'],
         ]);
+        return [
+            'page' => (int) ($values['page'] ?? 1), 'search' => trim($values['search'] ?? ''),
+            'start_date' => $values['start_date'] ?? null, 'end_date' => $values['end_date'] ?? null,
+            'sort' => $values['sort'] ?? 'created_at', 'direction' => $values['direction'] ?? 'desc',
+        ];
+    }
+
+    private function registryQuery(int $plantId, array $filters)
+    {
+        $query = PurchaseOrderHistory::where('plant_id', $plantId);
+        if ($filters['start_date']) $query->where('received_date', '>=', $filters['start_date'] . ' 00:00:00');
+        if ($filters['end_date']) $query->where('received_date', '<', \Carbon\Carbon::parse($filters['end_date'])->addDay()->toDateString());
+        if ($filters['search'] !== '') {
+            $search = '%' . strtr($filters['search'], ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw("inward_no LIKE ? ESCAPE '!'", [$search])
+                    ->orWhereHas('order', fn ($q) => $q->whereRaw("po_number LIKE ? ESCAPE '!'", [$search]))
+                    ->orWhereHas('order.vendor', fn ($q) => $q->whereRaw("legal_name LIKE ? ESCAPE '!'", [$search]))
+                    ->orWhereHas('product', fn ($q) => $q->whereRaw("title LIKE ? ESCAPE '!'", [$search]))
+                    ->orWhereHas('truck', fn ($q) => $q->whereRaw("registration LIKE ? ESCAPE '!'", [$search]));
+            });
+        }
+        $related = [
+            'order.po_number' => ['mm_purchase_orders', 'po_number', 'order_id'],
+            'product.title' => ['mm_products', 'title', 'product_id'],
+            'truck.registration' => ['mm_machines', 'registration', 'truck_id'],
+        ];
+        if (isset($related[$filters['sort']])) {
+            [$table, $column, $foreignKey] = $related[$filters['sort']];
+            $query->orderBy(DB::table($table)->select($column)->whereColumn($table . '.id', 'mm_purchase_order_history.' . $foreignKey)->limit(1), $filters['direction']);
+        } else {
+            $query->orderBy($filters['sort'], $filters['direction']);
+        }
+        return $query->orderBy('mm_purchase_order_history.id', $filters['direction']);
+    }
+
+    public function export(Request $request)
+    {
+        $this->authorizeModule('menu');
+        $query = $this->registryQuery((int) session('active_plant_id'), $this->registryFilters($request))
+            ->with(['order.vendor', 'product', 'uom', 'item', 'truck']);
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Inward No', 'Received Date', 'PO No', 'Vendor', 'Product', 'Truck', 'Unit Price', 'Received Qty', 'Order Qty', 'Unit']);
+            foreach ($query->lazy(500) as $row) {
+                $values = [$row->inward_no, $row->received_date, $row->order?->po_number, $row->order?->vendor?->legal_name,
+                    $row->product?->title, $row->truck?->registration, $row->unit_price, $row->received_qty, $row->item?->product_quantity, $row->uom?->unit_code];
+                // Prevent spreadsheet programs from treating user-entered text as formulas.
+                $values = array_map(fn ($value) => preg_match('/^[\s]*[=+@-]/u', (string) $value) ? "'" . $value : $value, $values);
+                fputcsv($out, $values);
+            }
+            fclose($out);
+        }, 'stock-inward-report.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function edit(PurchaseOrderHistory $inward)

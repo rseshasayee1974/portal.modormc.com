@@ -74,6 +74,61 @@ class InwardDetailsTest extends TestCase
         $this->assertSame('INW-EDIT', $this->inward->fresh()->inward_no);
     }
 
+    public function test_registry_paginates_searches_filters_and_exports_all_matching_rows(): void
+    {
+        for ($i = 1; $i <= 35; $i++) {
+            $record = $this->inward->replicate();
+            $record->inward_no = 'BULK-' . str_pad((string) $i, 3, '0', STR_PAD_LEFT);
+            $record->received_date = '2026-10-04 23:59:59';
+            $record->save();
+        }
+        $outside = $this->inward->replicate();
+        $outside->plant_id = Plant::factory()->create()->id;
+        $outside->inward_no = 'OTHER-PLANT';
+        $outside->save();
+        $this->get(route('inwards.index'))->assertOk()->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->has('inwards', 30)->where('pagination.total', 36)->where('pagination.page', 1));
+        $this->get(route('inwards.index', ['page' => 2]))->assertOk()->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->has('inwards', 6)->where('pagination.total', 36)->where('pagination.page', 2));
+        $this->get(route('inwards.index', ['search' => 'INW-EDIT']))->assertOk()->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->has('inwards', 1)->where('inwards.0.inward_no', 'INW-EDIT'));
+        $this->get(route('inwards.index', ['start_date' => '2026-10-04', 'end_date' => '2026-10-04', 'sort' => 'inward_no', 'direction' => 'asc']))
+            ->assertOk()->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+                ->has('inwards', 30)->where('pagination.total', 35)->where('inwards.0.inward_no', 'BULK-001'));
+        $this->get(route('inwards.index', ['end_date' => '2026-10-03']))->assertOk()->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->has('inwards', 1)->where('pagination.total', 1));
+        $export = $this->get(route('inwards.export', ['search' => 'BULK', 'start_date' => '2026-10-04', 'end_date' => '2026-10-04', 'page' => 2]));
+        $export->assertOk()->assertDownload('stock-inward-report.csv');
+        $csv = $export->streamedContent();
+        $this->assertSame(36, substr_count($csv, "\n"), 'Header plus all 35 matching rows, regardless of page');
+        $this->assertStringContainsString('BULK-001', $csv);
+        $this->assertStringContainsString('BULK-035', $csv);
+        $this->assertStringNotContainsString('INW-EDIT', $csv);
+        $this->assertStringNotContainsString('OTHER-PLANT', $csv);
+    }
+
+    public function test_registry_sends_shared_purchase_order_once_without_receipt_histories(): void
+    {
+        $second = $this->inward->replicate();
+        $second->inward_no = 'INW-SECOND';
+        $second->save();
+
+        $this->get(route('inwards.index'))->assertOk()->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->component('PurchaseOrders/Inwards/Index')
+            ->has('inwards', 2)
+            ->has('inwardOrders', 1)
+            ->where('inwardOrders.0.id', $this->inward->order_id)
+            ->has('inwardOrders.0.items', 1)
+            ->missing('inwardOrders.0.billing_history')
+            ->missing('inwardOrders.0.items.0.history')
+            ->missing('inwards.0.order')
+            ->where('inwards.0.order_id', $this->inward->order_id)
+            ->has('inwards.0.is_billed')
+            ->has('inwards.0.item')
+            ->has('purchaseOrders')
+        );
+    }
+
     public function test_inward_report_filters_by_receipt_timestamp_instead_of_entry_date(): void
     {
         $this->inward->forceFill([
