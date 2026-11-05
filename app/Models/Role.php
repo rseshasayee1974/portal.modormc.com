@@ -69,6 +69,12 @@ class Role extends SpatieRole
         return in_array($this->accessCode(), [self::SAAS_OWNER, self::PLATFORM_ADMIN, self::SUPER_ADMIN], true);
     }
 
+    public function allowsInvoiceCopySelection(): bool
+    {
+        return $this->grantsSystemAccess()
+            || in_array($this->accessCode(), [self::ADMINISTRATOR, 'ADMIN'], true);
+    }
+
     private function accessCode(): string
     {
         // Codes are authoritative; names support older roles without a code.

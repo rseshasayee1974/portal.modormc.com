@@ -45,7 +45,7 @@ class PrintController extends Controller
             $invoice = \App\Models\Invoice::find($realId);
             if ($invoice) {
                 $user = auth()->user();
-                $isAdmin = $user && $user->hasFullAccess();
+                $isAdmin = $user && $user->canChooseInvoiceCopy();
                 $forceParam = $request->query('force');
 
                 if ($isAdmin) {

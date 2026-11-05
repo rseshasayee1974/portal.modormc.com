@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axios from 'axios';
 import Popover from 'primevue/popover';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
@@ -41,7 +41,9 @@ const toggleActions = (event: any, row: any) => {
     actionsPopover.value.toggle(event);
 };
 
-const { can, isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
+const { can } = usePermissions();
+const page = usePage();
+const canChooseInvoiceCopy = computed(() => page.props.can_choose_invoice_copy === true);
 
 const expandedRows = ref<Record<number, boolean>>({});
 const filters = ref({
@@ -468,7 +470,7 @@ const formatDate = (dateString: string) => {
                 <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
 
                 <!-- Print Options -->
-                <template v-if="isAdmin || isSuperAdmin || isSassOwner">
+                <template v-if="canChooseInvoiceCopy">
                     <button 
                         @click="printOriginal(selectedRow); actionsPopover.hide()" 
                         class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
