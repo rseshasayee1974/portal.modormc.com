@@ -668,6 +668,7 @@
         </div>
 
         <!-- 2. IRN & E-Invoice Compliance Bar -->
+        @if (!empty($irn) || !empty($ackNo) || !empty($ackDate) || !empty($qrCode))
         <table class="compliance-bar">
             <tr>
                 <td style="width: 75%;">
@@ -701,6 +702,9 @@
                 </td>
             </tr>
         </table>
+        @else
+            <div style="border-top: 1px solid #000;"></div>
+        @endif
 
         <!-- 3. Top 3-Column Info (Reg Address, Plant Address, Invoice Info) -->
         <table class="info-grid-table">
