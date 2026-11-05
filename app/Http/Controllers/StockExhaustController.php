@@ -80,6 +80,7 @@ class StockExhaustController extends Controller
         $this->authorizeModule('create');
         $validated = $request->validate([
             'partner_id' => 'required|exists:mm_patrons,id',
+            'name' => 'nullable|string|max:250',
             'bill_number' => 'nullable|string|max:150',
             'billed_date' => 'nullable|date',
             'invoice_status' => 'nullable|integer',
@@ -107,6 +108,7 @@ class StockExhaustController extends Controller
 
             $headerData = collect($validated)->except('lines')->toArray();
             $headerData['plant_id'] = $plantId;
+            $headerData['name'] = trim($headerData['name'] ?? '') ?: 'Stock Exhaust - '.now()->toDateString();
 
             $stockExhaust = StockExhaust::create($headerData);
 

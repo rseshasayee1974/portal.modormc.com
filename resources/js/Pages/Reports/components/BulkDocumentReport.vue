@@ -411,7 +411,7 @@ const printReport = async () => {
                         </span>
                     </BaseButton>
 
-                    <BaseButton v-if="allowExport" variant="filled" severity="success"
+                    <!-- <BaseButton v-if="allowExport" variant="filled" severity="success"
                         :disabled="!canExportZip || exportingZip" :loading="exportingZip" @click="runZipExport"
                         title="Export all documents as individual PDFs inside a ZIP archive (Supports 10,000+)">
                         <FolderArrowDownIcon class="h-4 w-4 mr-1.5" />
@@ -420,7 +420,7 @@ const printReport = async () => {
                             class="ml-1.5 px-1.5 py-0.5 text-[10px] font-black rounded-full bg-white/20">
                             {{ result.count }}
                         </span>
-                    </BaseButton>
+                    </BaseButton> -->
                 </div>
             </div>
 
@@ -480,8 +480,8 @@ const printReport = async () => {
                         <MultiSelect inputId="bulk-invoice-numbers" v-model="filters.invoice_ids"
                             :options="invoiceOptions" optionLabel="label" optionValue="id" filter showClear
                             :maxSelectedLabels="3" selectedItemsLabel="{0} documents selected" :selectionLimit="1000"
-                            :virtualScrollerOptions="{ itemSize: 44 }" :loading="optionsLoading" @show="loadInvoiceOptions"
-                            :disabled="optionsLoading || !!optionsError" class="w-full" />
+                            :virtualScrollerOptions="{ itemSize: 44 }" :loading="optionsLoading"
+                            @show="loadInvoiceOptions" :disabled="optionsLoading || !!optionsError" class="w-full" />
                         <!-- <p v-if="optionsError" class="mt-2 text-sm text-red-600">{{ optionsError }}</p>
                         <p v-else class="mt-2 text-xs text-slate-500">
                             {{ filters.invoice_ids.length ? `${filters.invoice_ids.length} selected — preview, PDF and ZIP include only these documents.` : 'Leave empty to export all matching documents. Numbers follow the date range, subtype and other filters.' }}
@@ -551,8 +551,8 @@ const printReport = async () => {
                     </p>
                 </div>
             </div>
-            <BaseButton v-if="allowExport" variant="filled" severity="success" size="small" :loading="exportingZip" @click="runZipExport"
-                class="shrink-0 self-start sm:self-center">
+            <BaseButton v-if="allowExport" variant="filled" severity="success" size="small" :loading="exportingZip"
+                @click="runZipExport" class="shrink-0 self-start sm:self-center">
                 <FolderArrowDownIcon class="w-4 h-4 mr-1.5" />
                 {{ filters.invoice_ids.length ? 'Export Selected to ZIP' : 'Export All to ZIP' }} ({{ result.count }})
             </BaseButton>
@@ -592,7 +592,7 @@ const printReport = async () => {
                         <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Tax
                             Breakdown</span>
                         <span class="text-xl font-black text-[#1d2d3e] mt-1 block">{{ formatCurrency(totalTaxAmount)
-                        }}</span>
+                            }}</span>
                         <span class="text-[10px] font-semibold text-slate-500 mt-0.5 block">CGST + SGST + IGST</span>
                     </div>
                     <div class="p-2.5 bg-slate-100 rounded text-slate-600 border border-slate-200">
@@ -606,7 +606,7 @@ const printReport = async () => {
                         <span class="text-[9px] font-bold text-[#385723] uppercase tracking-wider block">Grand Invoiced
                             Value</span>
                         <span class="text-xl font-black text-[#385723] mt-1 block">{{ formatCurrency(totalGrossAmount)
-                        }}</span>
+                            }}</span>
                         <span class="text-[10px] font-semibold text-[#385723]/80 mt-0.5 block">Cumulative Gross
                             Total</span>
                     </div>

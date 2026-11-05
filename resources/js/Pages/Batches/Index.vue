@@ -455,15 +455,15 @@ const canAccessDispatchTab = (batch: any, detailedBatch?: any): boolean => {
     const dispatch = batch?.dispatches?.[0] || batch?.dispatch;
     const fullWeight = Number(
         detailedDispatch?.loaded_weight_truck ??
-            detailedBatch?.loaded_weight_truck ??
-            dispatch?.loaded_weight_truck ??
-            batch?.loaded_weight_truck,
+        detailedBatch?.loaded_weight_truck ??
+        dispatch?.loaded_weight_truck ??
+        batch?.loaded_weight_truck,
     );
     const emptyWeight = Number(
         detailedDispatch?.empty_weight_truck ??
-            detailedBatch?.empty_weight_truck ??
-            dispatch?.empty_weight_truck ??
-            batch?.empty_weight_truck,
+        detailedBatch?.empty_weight_truck ??
+        dispatch?.empty_weight_truck ??
+        batch?.empty_weight_truck,
     );
     return (
         Number.isFinite(fullWeight) &&
@@ -916,7 +916,7 @@ const generateShareBatchLink = async () => {
         Swal.fire(
             "Error",
             error.response?.data?.message ||
-                "An error occurred while generating the link.",
+            "An error occurred while generating the link.",
             "error",
         );
     } finally {
@@ -973,58 +973,27 @@ console.log(
             <ModuleSubTopNav />
 
             <div class="max-w-7xl mx-auto mt-4 space-y-4">
-                <div
-                    v-if="schemaWarning"
-                    class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700"
-                >
+                <div v-if="schemaWarning"
+                    class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
                     {{ schemaWarning }}
                 </div>
 
-                <BatchCreateForm
-                    :key="batchFormKey"
-                    v-if="!hideBatchForm"
-                    :salesOrders="salesOrders"
-                    :trucks="trucks"
-                    :batchingSchedules="batchingSchedules"
-                    :batchCreationSource="batchCreationSource"
-                    :transporters="transporters"
-                    :drivers="drivers"
-                    :sales_executives="sales_executives"
-                    :products="products"
-                    :uoms="uoms"
-                    :unloading_sites="unloading_sites"
-                    :loading_sites="loading_sites"
-                    :taxes="taxes"
-                    :statuses="statuses"
-                    :nextBatchNo="nextBatchNo"
-                    :nextBatchNumbers="nextBatchNumbers"
-                    :batchSeriesSettings="batchSeriesSettings"
-                    :concretePumpOptions="concretePumpOptions"
-                    :existingBatches="localBatches"
-                    @created="handleBatchCreated"
-                    @offline-batch-added="handleOfflineBatchAdded"
-                />
+                <BatchCreateForm :key="batchFormKey" v-if="!hideBatchForm" :salesOrders="salesOrders" :trucks="trucks"
+                    :batchingSchedules="batchingSchedules" :batchCreationSource="batchCreationSource"
+                    :transporters="transporters" :drivers="drivers" :sales_executives="sales_executives"
+                    :products="products" :uoms="uoms" :unloading_sites="unloading_sites" :loading_sites="loading_sites"
+                    :taxes="taxes" :statuses="statuses" :nextBatchNo="nextBatchNo" :nextBatchNumbers="nextBatchNumbers"
+                    :batchSeriesSettings="batchSeriesSettings" :concretePumpOptions="concretePumpOptions"
+                    :existingBatches="localBatches" @created="handleBatchCreated"
+                    @offline-batch-added="handleOfflineBatchAdded" />
 
                 <hr class="border-slate-200 border-dashed" />
 
-                <div class="bg-white shadow-xl sm:rounded-lg">
-                    <BaseDataTable
-                        :value="filteredBatches"
-                        :loading="isRefreshing"
-                        v-model:first="first"
-                        v-model:rows="rows"
-                        v-model:filters="filters"
-                        v-model:expandedRows="expandedRows"
-                        v-model:dateFrom="dateFrom"
-                        v-model:dateTo="dateTo"
-                        dataKey="id"
-                        paginator
-                        stripedRows
-                        removableSort
-                        rowHover
-                        filterDisplay="menu"
-                        class="cursor-pointer"
-                        :globalFilterFields="[
+                <div class="batches-table-shell min-w-0 w-full bg-white shadow-xl sm:rounded-lg">
+                    <BaseDataTable :value="filteredBatches" :loading="isRefreshing" v-model:first="first"
+                        v-model:rows="rows" v-model:filters="filters" v-model:expandedRows="expandedRows"
+                        v-model:dateFrom="dateFrom" v-model:dateTo="dateTo" dataKey="id" paginator stripedRows
+                        removableSort rowHover filterDisplay="menu" class="cursor-pointer" :globalFilterFields="[
                             'batch_no',
                             'sales_order.order_no',
                             'sales_order.full_number',
@@ -1035,89 +1004,52 @@ console.log(
                             'invoice_number',
                             'sales_order.customer.legal_name',
                             'sales_order.mix_design.design_name',
-                        ]"
-                        showSerial
-                        heading="List Of Batches"
-                        headingIcon="ListBulletIcon"
-                        showSearch
-                        showExport
-                        exportFilename="batch-report"
-                        :rowClass="getRowClass"
-                        @rowExpand="onRowExpand"
-                        @row-click="onRowClick"
-                    >
+                        ]" showSerial heading="List Of Batches" headingIcon="ListBulletIcon" showSearch showExport
+                        exportFilename="batch-report" :rowClass="getRowClass" @rowExpand="onRowExpand"
+                        @row-click="onRowClick">
                         <template #toolbar>
-                            <button
-                                type="button"
-                                @click="handleRefreshTable"
-                                :disabled="isRefreshingTable"
+                            <button type="button" @click="handleRefreshTable" :disabled="isRefreshingTable"
                                 class="inline-flex items-center gap-1.5 px-3 py-2 h-10 border border-slate-200 bg-white hover:bg-slate-50 active:scale-[0.98] text-slate-700 hover:text-indigo-600 rounded-lg shadow-sm text-xs font-bold tracking-tight transition-all disabled:opacity-60 cursor-pointer"
-                                title="Refresh table data"
-                            >
-                                <ArrowPathIcon
-                                    :class="[
-                                        'w-4 h-4 transition-transform duration-500',
-                                        isRefreshingTable
-                                            ? 'animate-spin text-indigo-600'
-                                            : 'text-slate-500',
-                                    ]"
-                                />
+                                title="Refresh table data">
+                                <ArrowPathIcon :class="[
+                                    'w-4 h-4 transition-transform duration-500',
+                                    isRefreshingTable
+                                        ? 'animate-spin text-indigo-600'
+                                        : 'text-slate-500',
+                                ]" />
                                 <span class="hidden sm:inline">Refresh</span>
                             </button>
                         </template>
 
                         <template #filters>
                             <div class="flex flex-col gap-1.5">
-                                <label
-                                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
-                                    >Filter by Sales Order</label
-                                >
-                                <BaseSelect
-                                    v-model="filters['sales_order.id'].value"
-                                    :options="[
-                                        { order_no: 'All Orders', id: null },
-                                        ...salesOrders,
-                                    ]"
-                                    optionLabel="order_no"
-                                    optionValue="id"
-                                    placeholder="Select Order"
-                                    class="!h-9 !text-xs !rounded-lg"
-                                />
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by
+                                    Sales Order</label>
+                                <BaseSelect v-model="filters['sales_order.id'].value" :options="[
+                                    { order_no: 'All Orders', id: null },
+                                    ...salesOrders,
+                                ]" optionLabel="order_no" optionValue="id" placeholder="Select Order"
+                                    class="!h-9 !text-xs !rounded-lg" />
                             </div>
 
                             <div class="flex flex-col gap-1.5">
-                                <label
-                                    class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
-                                    >Filter by Customer</label
-                                >
-                                <BaseSelect
-                                    v-model="
-                                        filters['sales_order.customer.id'].value
-                                    "
-                                    :options="[
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by
+                                    Customer</label>
+                                <BaseSelect v-model="filters['sales_order.customer.id'].value
+                                    " :options="[
                                         {
                                             legal_name: 'All Customers',
                                             id: null,
                                         },
                                         ...customers,
-                                    ]"
-                                    optionLabel="legal_name"
-                                    optionValue="id"
-                                    placeholder="Select Customer"
-                                    class="!h-9 !text-xs !rounded-lg"
-                                    filter
-                                />
+                                    ]" optionLabel="legal_name" optionValue="id" placeholder="Select Customer"
+                                    class="!h-9 !text-xs !rounded-lg" filter />
                             </div>
                         </template>
                         <Column field="start_time" header="Date" sortable>
                             <template #body="slotProps">
-                                <div
-                                    v-if="slotProps.data.start_time"
-                                    class="flex flex-col"
-                                >
-                                    <span
-                                        class="text-xs font-bold text-slate-700"
-                                    >
+                                <div v-if="slotProps.data.start_time" class="flex flex-col">
+                                    <span class="text-xs font-bold text-slate-700">
                                         {{
                                             entityLocaleDate(
                                                 slotProps.data.start_time,
@@ -1130,9 +1062,7 @@ console.log(
                                             ).replace(/\//g, "-")
                                         }}
                                     </span>
-                                    <span
-                                        class="text-[10px] text-slate-400 font-medium uppercase"
-                                    >
+                                    <span class="text-[10px] text-slate-400 font-medium uppercase">
                                         {{
                                             entityLocaleTime(
                                                 slotProps.data.start_time,
@@ -1145,24 +1075,17 @@ console.log(
                                         }}
                                     </span>
                                 </div>
-                                <span
-                                    v-else
-                                    class="text-xs text-slate-300 italic"
-                                    >N/A</span
-                                >
+                                <span v-else class="text-xs text-slate-300 italic">N/A</span>
                             </template>
                         </Column>
                         <Column field="batch_no" header="Batch" sortable>
                             <template #body="slotProps">
                                 <div>
                                     <div class="flex items-center gap-1.5">
-                                        <span
-                                            v-if="
-                                                slotProps.data
-                                                    .is_offline_pending
-                                            "
-                                            class="text-slate-500 font-inter text-sm font-semibold"
-                                        >
+                                        <span v-if="
+                                            slotProps.data
+                                                .is_offline_pending
+                                        " class="text-slate-500 font-inter text-sm font-semibold">
                                             {{
                                                 /^[BP]/.test(
                                                     String(
@@ -1171,17 +1094,14 @@ console.log(
                                                 )
                                                     ? slotProps.data.batch_no
                                                     : "B" +
-                                                      slotProps.data.batch_no
+                                                    slotProps.data.batch_no
                                             }}
                                         </span>
-                                        <button
-                                            v-else
+                                        <button v-else
                                             class="text-indigo-700 font-inter text-sm font-semibold hover:underline"
-                                            type="button"
-                                            @click.stop="
+                                            type="button" @click.stop="
                                                 toggleExpand(slotProps.data)
-                                            "
-                                        >
+                                                ">
                                             {{
                                                 /^[BP]/.test(
                                                     String(
@@ -1192,31 +1112,25 @@ console.log(
                                                     : slotProps.data.batch_no
                                             }}
                                         </button>
-                                        <span
-                                            v-if="
-                                                isBatchCancelled(slotProps.data)
-                                            "
-                                            class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded shadow-xs"
-                                        >
-                                            <i
-                                                class="pi pi-times-circle text-[9px]"
-                                            ></i>
+                                        <span v-if="
+                                            isBatchCancelled(slotProps.data)
+                                        "
+                                            class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded shadow-xs">
+                                            <i class="pi pi-times-circle text-[9px]"></i>
                                             Cancelled
                                         </span>
                                     </div>
-                                    <div
-                                        class="text-[10px] font-black text-indigo-400 uppercase tracking-widest"
-                                    >
+                                    <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
                                         {{
                                             slotProps.data.sales_order
                                                 ?.full_number ||
                                             (slotProps.data.sales_order
                                                 ? (slotProps.data.sales_order
-                                                      .prefix || "") +
-                                                  String(
-                                                      slotProps.data.sales_order
-                                                          .order_no || "",
-                                                  )
+                                                    .prefix || "") +
+                                                String(
+                                                    slotProps.data.sales_order
+                                                        .order_no || "",
+                                                )
                                                 : "-")
                                         }}
                                     </div>
@@ -1224,24 +1138,16 @@ console.log(
                             </template>
                         </Column>
 
-                        <Column
-                            field="customer_name"
-                            class="max-w-[200px]"
-                            header="Customer"
-                            sortable
-                        >
+                        <Column field="customer_name" class="max-w-[200px]" style="width: 17%" header="Customer"
+                            sortable>
                             <template #body="slotProps">
                                 <div class="flex flex-col min-w-0">
-                                    <span
-                                        class="text-xs font-bold text-slate-700 truncate"
-                                        :title="
-                                            slotProps.data.dispatches?.[0]
-                                                ?.customer?.legal_name ||
-                                            slotProps.data.customer_name ||
-                                            slotProps.data.sales_order?.customer
-                                                ?.legal_name
-                                        "
-                                    >
+                                    <span class="text-xs font-bold text-slate-700 truncate" :title="slotProps.data.dispatches?.[0]
+                                        ?.customer?.legal_name ||
+                                        slotProps.data.customer_name ||
+                                        slotProps.data.sales_order?.customer
+                                            ?.legal_name
+                                        ">
                                         {{
                                             slotProps.data.dispatches?.[0]
                                                 ?.customer?.legal_name ||
@@ -1251,17 +1157,13 @@ console.log(
                                             "-"
                                         }}
                                     </span>
-                                    <span
-                                        class="text-[10px] text-slate-400 font-medium uppercase truncate"
-                                        :title="
-                                            slotProps.data.dispatches?.[0]?.site
-                                                ?.name ||
-                                            slotProps.data.site_name ||
-                                            slotProps.data.sales_order?.site
-                                                ?.name ||
-                                            'Main Site'
-                                        "
-                                    >
+                                    <span class="text-[10px] text-slate-400 font-medium uppercase truncate" :title="slotProps.data.dispatches?.[0]?.site
+                                        ?.name ||
+                                        slotProps.data.site_name ||
+                                        slotProps.data.sales_order?.site
+                                            ?.name ||
+                                        'Main Site'
+                                        ">
                                         {{
                                             slotProps.data.dispatches?.[0]?.site
                                                 ?.name ||
@@ -1275,23 +1177,15 @@ console.log(
                             </template>
                         </Column>
 
-                        <Column
-                            field="mix_design_name"
-                            class="max-w-[220px]"
-                            header="Design"
-                            sortable
-                        >
+                        <Column field="mix_design_name" class="max-w-[220px]" style="width: 17%" header="Design"
+                            sortable>
                             <template #body="slotProps">
                                 <div class="flex flex-col min-w-0">
-                                    <span
-                                        class="text-xs font-bold text-slate-800 truncate leading-snug"
-                                        :title="
-                                            slotProps.data.dispatches?.[0]
-                                                ?.mix_design?.design_name ||
-                                            slotProps.data.mix_design_name ||
-                                            '-'
-                                        "
-                                    >
+                                    <span class="text-xs font-bold text-slate-800 truncate leading-snug" :title="slotProps.data.dispatches?.[0]
+                                        ?.mix_design?.design_name ||
+                                        slotProps.data.mix_design_name ||
+                                        '-'
+                                        ">
                                         {{
                                             slotProps.data.dispatches?.[0]
                                                 ?.mix_design?.design_name ||
@@ -1299,30 +1193,24 @@ console.log(
                                             "-"
                                         }}
                                     </span>
-                                    <div
-                                        class="flex items-center gap-1.5 mt-0.5"
-                                    >
-                                        <span
-                                            v-if="
-                                                slotProps.data.dispatches?.[0]
-                                                    ?.mix_design
-                                                    ?.concrete_grade ||
+                                    <div class="flex items-center gap-1.5 mt-0.5">
+                                        <span v-if="
+                                            slotProps.data.dispatches?.[0]
+                                                ?.mix_design
+                                                ?.concrete_grade ||
+                                            slotProps.data.concrete_grade ||
+                                            slotProps.data.dispatches?.[0]
+                                                ?.mix_design?.design_code ||
+                                            slotProps.data.mix_design_code
+                                        " class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100/90 text-slate-600 font-mono text-[10px] font-semibold tracking-wider border border-slate-200/80"
+                                            :title="slotProps.data.dispatches?.[0]
+                                                ?.mix_design
+                                                ?.concrete_grade ||
                                                 slotProps.data.concrete_grade ||
                                                 slotProps.data.dispatches?.[0]
                                                     ?.mix_design?.design_code ||
                                                 slotProps.data.mix_design_code
-                                            "
-                                            class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100/90 text-slate-600 font-mono text-[10px] font-semibold tracking-wider border border-slate-200/80"
-                                            :title="
-                                                slotProps.data.dispatches?.[0]
-                                                    ?.mix_design
-                                                    ?.concrete_grade ||
-                                                slotProps.data.concrete_grade ||
-                                                slotProps.data.dispatches?.[0]
-                                                    ?.mix_design?.design_code ||
-                                                slotProps.data.mix_design_code
-                                            "
-                                        >
+                                                ">
                                             {{
                                                 slotProps.data.dispatches?.[0]
                                                     ?.mix_design
@@ -1333,25 +1221,15 @@ console.log(
                                                 slotProps.data.mix_design_code
                                             }}
                                         </span>
-                                        <span
-                                            v-else
-                                            class="text-[10px] text-slate-400 font-medium"
-                                            >-</span
-                                        >
+                                        <span v-else class="text-[10px] text-slate-400 font-medium">-</span>
                                     </div>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column
-                            field="truck_registration"
-                            header="Truck"
-                            sortable
-                        >
+                        <Column field="truck_registration" header="Truck" sortable>
                             <template #body="slotProps">
-                                <span
-                                    class="text-xs font-semibold text-slate-700"
-                                >
+                                <span class="text-xs font-semibold text-slate-700">
                                     {{
                                         slotProps.data.dispatches?.[0]?.truck
                                             ?.registration ||
@@ -1365,22 +1243,19 @@ console.log(
                         <Column field="batch_size" header="Batch Size" sortable>
                             <template #body="slotProps">
                                 <div class="flex items-baseline gap-1">
-                                    <span
-                                        class="text-xs font-bold text-slate-800"
-                                    >
+                                    <span class="text-xs font-bold text-slate-800">
                                         {{ slotProps.data.batch_size ?? "-" }}
                                     </span>
-                                    <span
-                                        v-if="slotProps.data.batch_size != null"
-                                        class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"
-                                    >
+                                    <span v-if="slotProps.data.batch_size != null"
+                                        class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                         CBM
                                     </span>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column v-if="Number(batchingSettings?.show_delivered_qty ?? 1) === 1" field="delivered_qty" header="Delivered Qty" sortable>
+                        <!-- <Column v-if="Number(batchingSettings?.show_delivered_qty ?? 1) === 1" field="delivered_qty"
+                            header="D.Qty" sortable>
                             <template #body="slotProps">
                                 <div class="flex items-baseline gap-1">
                                     <span class="text-xs font-bold text-slate-800">
@@ -1392,74 +1267,58 @@ console.log(
                                     </span>
                                 </div>
                             </template>
-                        </Column>
+                        </Column> -->
 
-                        <Column
-                            field="invoice_number"
-                            header="Invoice No"
-                            sortable
-                        >
+                        <Column field="invoice_number" style="width: 10%" header="Invoice No" sortable>
                             <template #body="slotProps">
                                 <div class="flex flex-col min-w-0">
-                                    <span
-                                        class="text-xs font-black tracking-tight"
-                                        :class="
-                                            formatAmount(
-                                                slotProps.data
-                                                    .load_total_amount ??
-                                                    slotProps.data
-                                                        .dispatches?.[0]
-                                                        ?.load_total_amount ??
-                                                    slotProps.data.dispatch
-                                                        ?.load_total_amount ??
-                                                    slotProps.data
-                                                        .dispatches?.[0]?.status
-                                                        ?.invoice?.total_amount,
-                                            )
-                                                ? 'text-slate-800'
-                                                : 'text-slate-300 font-medium italic'
-                                        "
-                                    >
+                                    <span class="text-xs font-black tracking-tight" :class="formatAmount(
+                                        slotProps.data
+                                            .load_total_amount ??
+                                        slotProps.data
+                                            .dispatches?.[0]
+                                            ?.load_total_amount ??
+                                        slotProps.data.dispatch
+                                            ?.load_total_amount ??
+                                        slotProps.data
+                                            .dispatches?.[0]?.status
+                                            ?.invoice?.total_amount,
+                                    )
+                                        ? 'text-slate-800'
+                                        : 'text-slate-300 font-medium italic'
+                                        ">
                                         {{
                                             formatAmount(
                                                 slotProps.data
                                                     .load_total_amount ??
-                                                    slotProps.data
-                                                        .dispatches?.[0]
-                                                        ?.load_total_amount ??
-                                                    slotProps.data.dispatch
-                                                        ?.load_total_amount ??
-                                                    slotProps.data
-                                                        .dispatches?.[0]?.status
-                                                        ?.invoice?.total_amount,
+                                                slotProps.data
+                                                    .dispatches?.[0]
+                                                    ?.load_total_amount ??
+                                                slotProps.data.dispatch
+                                                    ?.load_total_amount ??
+                                                slotProps.data
+                                                    .dispatches?.[0]?.status
+                                                    ?.invoice?.total_amount,
                                             ) || "-"
                                         }}
                                     </span>
-                                    <div
-                                        v-if="
-                                            slotProps.data.invoice_number ||
+                                    <div v-if="
+                                        slotProps.data.invoice_number ||
+                                        slotProps.data.dispatches?.[0]
+                                            ?.status?.invoice_number ||
+                                        slotProps.data.dispatches?.[0]
+                                            ?.status?.invoice?.full_number
+                                    " class="flex items-center gap-1 mt-0.5" :title="'Invoice #' +
+                                        (slotProps.data.invoice_number ||
                                             slotProps.data.dispatches?.[0]
                                                 ?.status?.invoice_number ||
                                             slotProps.data.dispatches?.[0]
-                                                ?.status?.invoice?.full_number
-                                        "
-                                        class="flex items-center gap-1 mt-0.5"
-                                        :title="
-                                            'Invoice #' +
-                                            (slotProps.data.invoice_number ||
-                                                slotProps.data.dispatches?.[0]
-                                                    ?.status?.invoice_number ||
-                                                slotProps.data.dispatches?.[0]
-                                                    ?.status?.invoice
-                                                    ?.full_number)
-                                        "
-                                    >
-                                        <i
-                                            class="pi pi-receipt text-[9px] text-indigo-500"
-                                        ></i>
+                                                ?.status?.invoice
+                                                ?.full_number)
+                                        ">
+                                        <i class="pi pi-receipt text-[9px] text-indigo-500"></i>
                                         <span
-                                            class="text-[10px] font-black text-indigo-600 uppercase tracking-wider truncate"
-                                        >
+                                            class="text-[10px] font-black text-indigo-600 uppercase tracking-wider truncate">
                                             {{
                                                 slotProps.data.invoice_number ||
                                                 slotProps.data.dispatches?.[0]
@@ -1470,600 +1329,455 @@ console.log(
                                             }}
                                         </span>
                                     </div>
-                                    <span
-                                        v-else
-                                        class="text-[10px] text-slate-400 font-medium uppercase tracking-tight"
-                                    >
+                                    <span v-else
+                                        class="text-[10px] text-slate-400 font-medium uppercase tracking-tight">
                                         -
                                     </span>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column
-                            header=""
-                            headerStyle="width: 2rem; text-align: center"
-                            bodyStyle="overflow: visible; text-align: center"
-                        >
+                        <Column header="Actions" headerClass="batch-actions-header" bodyClass="batch-actions-cell"
+                            headerStyle="width: 8.5rem; text-align: center"
+                            bodyStyle="overflow: visible; text-align: center">
                             <template #body="slotProps">
-                                <div
-                                    v-if="!slotProps.data.is_offline_pending"
-                                    class="flex items-center justify-center gap-2"
-                                >
-                                    <button
-                                        v-if="!isBatchCancelled(slotProps.data)"
-                                        type="button"
-                                        class="inline-flex justify-center items-center w-8 h-8 rounded-full text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-700 focus:outline-none transition-all duration-200 cursor-pointer"
-                                        @click.stop="
+                                <div v-if="!slotProps.data.is_offline_pending" class="batch-actions-layout">
+                                    <button v-if="!isBatchCancelled(slotProps.data)" type="button"
+                                        class="batch-actions-trigger inline-flex justify-center items-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors cursor-pointer"
+                                        aria-label="Open batch actions" aria-haspopup="menu"
+                                        :aria-expanded="activeMenuId === slotProps.data.id" @click.stop="
                                             toggleActionMenu(
                                                 $event,
                                                 slotProps.data,
                                             )
-                                        "
-                                        v-tooltip.top="'Actions'"
-                                    >
-                                        <i
-                                            class="pi pi-ellipsis-v text-sm font-bold pointer-events-none"
-                                        ></i>
+                                            " v-tooltip.top="'Actions'">
+                                        <i class="pi pi-ellipsis-v text-sm font-bold pointer-events-none"></i>
                                     </button>
 
                                     <!-- Status Menu -->
-                                    <div class="flex items-center gap-2">
-                                        <template
-                                            v-if="
-                                                slotProps.data
-                                                    .is_offline_pending
-                                            "
-                                        >
-                                            <Tag
-                                                value="Offline Pending"
-                                                severity="warn"
-                                                rounded
-                                            />
-                                            <i
-                                                class="pi pi-spinner animate-spin text-amber-500 text-lg"
-                                                v-tooltip.top="
-                                                    'Pending Network Sync'
-                                                "
-                                            ></i>
+                                    <div class="batch-status-badges">
+                                        <template v-if="
+                                            slotProps.data
+                                                .is_offline_pending
+                                        ">
+                                            <Tag value="Offline Pending" severity="warn" rounded />
+                                            <i class="pi pi-spinner animate-spin text-amber-500 text-lg" v-tooltip.top="'Pending Network Sync'
+                                                "></i>
                                         </template>
-                                        <template
-                                            v-else-if="
-                                                isBatchCancelled(slotProps.data)
-                                            "
-                                        >
-                                            <Tag
-                                                value="Cancelled"
-                                                severity="danger"
-                                                rounded
+                                        <template v-else-if="
+                                            isBatchCancelled(slotProps.data)
+                                        ">
+                                            <Tag value="Cancelled" severity="danger" rounded
                                                 class="!bg-rose-600 !text-white font-black text-[10px] px-2.5 py-0.5 shadow-xs uppercase tracking-wider select-none cursor-pointer"
-                                                v-tooltip.top="
+                                                v-tooltip.top="slotProps.data
+                                                    .dispatches?.[0]
+                                                    ?.cancelled_notes
+                                                    ? 'Cancelled: ' +
                                                     slotProps.data
-                                                        .dispatches?.[0]
-                                                        ?.cancelled_notes
-                                                        ? 'Cancelled: ' +
-                                                          slotProps.data
-                                                              .dispatches[0]
-                                                              .cancelled_notes
-                                                        : 'Dispatch & Batch Cancelled'
-                                                "
-                                                @click.stop="
-                                                    onStatusClick(
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                            />
+                                                        .dispatches[0]
+                                                        .cancelled_notes
+                                                    : 'Dispatch & Batch Cancelled'
+                                                    " @click.stop="
+                                                        onStatusClick(
+                                                            slotProps.data,
+                                                        )
+                                                        " />
                                         </template>
                                         <template v-else>
                                             <!-- E-Invoice Generated -->
-                                            <Tag
-                                                v-if="
-                                                    slotProps.data
-                                                        .has_einvoice ||
-                                                    slotProps.data
-                                                        .einvoice_irn ||
-                                                    slotProps.data
-                                                        .einvoice_status ===
-                                                        'generated' ||
-                                                    slotProps.data
-                                                        .dispatches?.[0]?.status
-                                                        ?.invoice
-                                                        ?.einvoice_irn ||
-                                                    slotProps.data
-                                                        .dispatches?.[0]?.status
-                                                        ?.invoice
-                                                        ?.einvoice_status ===
-                                                        'generated'
-                                                "
-                                                value="E"
-                                                severity="help"
-                                                rounded
+                                            <Tag v-if="
+                                                slotProps.data
+                                                    .has_einvoice ||
+                                                slotProps.data
+                                                    .einvoice_irn ||
+                                                slotProps.data
+                                                    .einvoice_status ===
+                                                'generated' ||
+                                                slotProps.data
+                                                    .dispatches?.[0]?.status
+                                                    ?.invoice
+                                                    ?.einvoice_irn ||
+                                                slotProps.data
+                                                    .dispatches?.[0]?.status
+                                                    ?.invoice
+                                                    ?.einvoice_status ===
+                                                'generated'
+                                            " value="E" severity="help" rounded
                                                 class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm !bg-purple-600 !text-white font-black"
-                                                v-tooltip.top="
-                                                    slotProps.data
-                                                        .invoice_number
-                                                        ? 'E-Invoiced (#' +
-                                                          slotProps.data.invoice_number.toUpperCase() +
-                                                          ') - Click to open'
-                                                        : 'E-Invoiced - Click to open'
-                                                "
-                                                @click.stop="
-                                                    onStatusClick(
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                            />
+                                                v-tooltip.top="slotProps.data
+                                                    .invoice_number
+                                                    ? 'E-Invoiced (#' +
+                                                    slotProps.data.invoice_number.toUpperCase() +
+                                                    ') - Click to open'
+                                                    : 'E-Invoiced - Click to open'
+                                                    " @click.stop="
+                                                        onStatusClick(
+                                                            slotProps.data,
+                                                        )
+                                                        " />
                                             <!-- Standard Invoice Generated -->
-                                            <Tag
-                                                v-else-if="
-                                                    slotProps.data
-                                                        .has_invoice ||
-                                                    slotProps.data.invoice_id ||
-                                                    slotProps.data
-                                                        .dispatches?.[0]?.status
-                                                        ?.invoice_id ||
-                                                    slotProps.data
-                                                        .dispatches?.[0]?.status
-                                                        ?.invoice_status === 1
-                                                "
-                                                value="I"
-                                                severity="success"
-                                                rounded
+                                            <Tag v-else-if="
+                                                slotProps.data
+                                                    .has_invoice ||
+                                                slotProps.data.invoice_id ||
+                                                slotProps.data
+                                                    .dispatches?.[0]?.status
+                                                    ?.invoice_id ||
+                                                slotProps.data
+                                                    .dispatches?.[0]?.status
+                                                    ?.invoice_status === 1
+                                            " value="I" severity="success" rounded
                                                 class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm !bg-emerald-600 !text-white font-black"
-                                                v-tooltip.top="
-                                                    slotProps.data
-                                                        .invoice_number
-                                                        ? 'Invoiced (#' +
-                                                          slotProps.data.invoice_number.toUpperCase() +
-                                                          ') - Click to open'
-                                                        : 'Invoiced - Click to open Dispatch & Invoicing'
-                                                "
-                                                @click.stop="
-                                                    onStatusClick(
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                            />
+                                                v-tooltip.top="slotProps.data
+                                                    .invoice_number
+                                                    ? 'Invoiced (#' +
+                                                    slotProps.data.invoice_number.toUpperCase() +
+                                                    ') - Click to open'
+                                                    : 'Invoiced - Click to open Dispatch & Invoicing'
+                                                    " @click.stop="
+                                                        onStatusClick(
+                                                            slotProps.data,
+                                                        )
+                                                        " />
                                             <!-- E-Way Bill Generated Tag -->
-                                            <Tag
-                                                v-if="
-                                                    slotProps.data
-                                                        .eway_bill_no ||
-                                                    slotProps.data
-                                                        .has_eway_bill ||
-                                                    slotProps.data
-                                                        .dispatches?.[0]?.status
-                                                        ?.invoice?.eway_bill_no
-                                                "
-                                                value="W"
-                                                rounded
+                                            <Tag v-if="
+                                                slotProps.data
+                                                    .eway_bill_no ||
+                                                slotProps.data
+                                                    .has_eway_bill ||
+                                                slotProps.data
+                                                    .dispatches?.[0]?.status
+                                                    ?.invoice?.eway_bill_no
+                                            " value="W" rounded
                                                 class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm !bg-teal-600 !text-white font-black"
-                                                v-tooltip.top="
-                                                    'E-Way Bill: #' +
+                                                v-tooltip.top="'E-Way Bill: #' +
                                                     (slotProps.data
                                                         .eway_bill_no ||
                                                         slotProps.data
                                                             .dispatches?.[0]
                                                             ?.status?.invoice
                                                             ?.eway_bill_no)
-                                                "
-                                                @click.stop="
-                                                    onStatusClick(
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                            />
+                                                    " @click.stop="
+                                                        onStatusClick(
+                                                            slotProps.data,
+                                                        )
+                                                        " />
                                             <!-- Other Statuses (Dispatched, Batching, Pending, etc.) -->
-                                            <Tag
-                                                v-if="
-                                                    !slotProps.data
-                                                        .has_invoice &&
-                                                    !slotProps.data
-                                                        .invoice_id &&
-                                                    !slotProps.data
-                                                        .dispatches?.[0]?.status
-                                                        ?.invoice_id &&
-                                                    slotProps.data
-                                                        .dispatches?.[0]?.status
-                                                        ?.invoice_status !== 1
-                                                "
-                                                :value="
-                                                    statusLabel(
-                                                        slotProps.data.status,
-                                                        slotProps.data,
-                                                    )?.charAt(0)
-                                                "
-                                                :severity="
-                                                    statusSeverity(
-                                                        slotProps.data.status,
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                                rounded
-                                                :class="[
-                                                    'cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm font-bold',
-                                                    slotProps.data.status === 3
-                                                        ? '!bg-cyan-600 !text-white'
-                                                        : '',
-                                                ]"
-                                                v-tooltip.top="
-                                                    slotProps.data.status ===
+                                            <Tag v-if="
+                                                !slotProps.data
+                                                    .has_invoice &&
+                                                !slotProps.data
+                                                    .invoice_id &&
+                                                !slotProps.data
+                                                    .dispatches?.[0]?.status
+                                                    ?.invoice_id &&
+                                                slotProps.data
+                                                    .dispatches?.[0]?.status
+                                                    ?.invoice_status !== 1
+                                            " :value="statusLabel(
+                                                slotProps.data.status,
+                                                slotProps.data,
+                                            )?.charAt(0)
+                                                " :severity="statusSeverity(
+                                                    slotProps.data.status,
+                                                    slotProps.data,
+                                                )
+                                                    " rounded :class="[
+                                                        'cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm font-bold',
+                                                        slotProps.data.status === 3
+                                                            ? '!bg-cyan-600 !text-white'
+                                                            : '',
+                                                    ]" v-tooltip.top="slotProps.data.status ===
                                                         3 ||
-                                                    slotProps.data.status === 4
+                                                        slotProps.data.status === 4
                                                         ? 'Dispatched (Pre-Invoice) - Click to open'
                                                         : 'Click to open Production & Materials'
-                                                "
-                                                @click.stop="
-                                                    onStatusClick(
-                                                        slotProps.data,
-                                                    )
-                                                "
-                                            />
-                                            <Tag
-                                                v-if="
-                                                    slotProps.data.is_verified
-                                                "
-                                                value="Verified"
-                                                severity="success"
-                                                rounded
-                                                class="!bg-emerald-500/10 !text-emerald-600 !border-emerald-500/20"
-                                            />
+                                                        " @click.stop="
+                                                            onStatusClick(
+                                                                slotProps.data,
+                                                            )
+                                                            " />
+                                            <Tag v-if="
+                                                slotProps.data.is_verified
+                                            " value="Verified" severity="success" rounded
+                                                class="!bg-emerald-500/10 !text-emerald-600 !border-emerald-500/20" />
                                         </template>
                                     </div>
-                                    <transition
-                                        enter-active-class="transition ease-out duration-100"
+                                    <transition enter-active-class="transition ease-out duration-100"
                                         enter-from-class="transform opacity-0 scale-95"
                                         enter-to-class="transform opacity-100 scale-100"
                                         leave-active-class="transition ease-in duration-75"
                                         leave-from-class="transform opacity-100 scale-100"
-                                        leave-to-class="transform opacity-0 scale-95"
-                                    >
-                                        <div
-                                            v-if="
-                                                activeMenuId ===
-                                                    slotProps.data.id &&
-                                                !isBatchCancelled(
-                                                    slotProps.data,
-                                                )
-                                            "
-                                            class="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200/80 dark:border-slate-700/80 z-[1000] focus:outline-none divide-y divide-slate-100 dark:divide-slate-700/50 py-1"
-                                            @click.stop
-                                        >
-                                            <div
-                                                v-if="
-                                                    slotProps.data.sync_status
-                                                "
-                                                class="py-1 text-left"
-                                            >
-                                                <button
-                                                    v-if="
-                                                        slotProps.data
-                                                            .sync_status ===
-                                                        'success'
-                                                    "
-                                                    type="button"
-                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-default"
-                                                >
-                                                    <i
-                                                        class="pi pi-check-circle mr-2 text-emerald-500 text-sm"
-                                                    ></i>
+                                        leave-to-class="transform opacity-0 scale-95">
+                                        <div v-if="
+                                            activeMenuId ===
+                                            slotProps.data.id &&
+                                            !isBatchCancelled(
+                                                slotProps.data,
+                                            )
+                                        " class="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200/80 dark:border-slate-700/80 z-[1000] focus:outline-none divide-y divide-slate-100 dark:divide-slate-700/50 py-1"
+                                            @click.stop>
+                                            <div v-if="
+                                                slotProps.data.sync_status
+                                            " class="py-1 text-left">
+                                                <button v-if="
+                                                    slotProps.data
+                                                        .sync_status ===
+                                                    'success'
+                                                " type="button"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-default">
+                                                    <i class="pi pi-check-circle mr-2 text-emerald-500 text-sm"></i>
                                                     Synced to Scheduler
                                                 </button>
-                                                <button
-                                                    v-else-if="
-                                                        slotProps.data
-                                                            .sync_status ===
-                                                            'failed' &&
-                                                        can('BATCH.SYNC')
-                                                    "
-                                                    type="button"
+                                                <button v-else-if="
+                                                    slotProps.data
+                                                        .sync_status ===
+                                                    'failed' &&
+                                                    can('BATCH.SYNC')
+                                                " type="button"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                                                     @click="
                                                         retrySync(
                                                             slotProps.data.id,
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-times-circle mr-2 text-rose-500 text-sm"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-times-circle mr-2 text-rose-500 text-sm"></i>
                                                     Sync Failed - Retry
                                                 </button>
-                                                <button
-                                                    v-else-if="
-                                                        slotProps.data
-                                                            .sync_status ===
-                                                            'pending' &&
-                                                        can('BATCH.SYNC')
-                                                    "
-                                                    type="button"
+                                                <button v-else-if="
+                                                    slotProps.data
+                                                        .sync_status ===
+                                                    'pending' &&
+                                                    can('BATCH.SYNC')
+                                                " type="button"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                                                     @click="
                                                         retrySync(
                                                             slotProps.data.id,
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-cloud-upload mr-2 text-amber-500 text-sm"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-cloud-upload mr-2 text-amber-500 text-sm"></i>
                                                     Pending - Click to Post
                                                 </button>
                                             </div>
 
                                             <div class="py-1 text-left">
-                                                <button
-                                                    v-if="
-                                                        can('BATCH.BATCH_SHEET')
-                                                    "
-                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                <button v-if="
+                                                    can('BATCH.BATCH_SHEET')
+                                                " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
                                                         router.get(
                                                             route(
                                                                 'batches.report',
                                                                 slotProps.data
                                                                     .encrypted_id ||
-                                                                    slotProps
-                                                                        .data
-                                                                        .id,
+                                                                slotProps
+                                                                    .data
+                                                                    .id,
                                                             ),
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-eye mr-2 text-indigo-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-eye mr-2 text-indigo-500 font-bold"></i>
                                                     Preview Batch Sheet
                                                 </button>
-                                                <button
-                                                    v-if="
-                                                        can('BATCH.BATCH_SHEET')
-                                                    "
-                                                    type="button"
+                                                <button v-if="
+                                                    can('BATCH.BATCH_SHEET')
+                                                " type="button"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
                                                         printBatchSheet(
                                                             slotProps.data
                                                                 .encrypted_id ||
-                                                                slotProps.data
-                                                                    .id,
+                                                            slotProps.data
+                                                                .id,
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-print mr-2 text-indigo-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
                                                     Print Batch Sheet
                                                 </button>
-                                                <button
-                                                    v-if="
-                                                        can('BATCH.PDF') ||
-                                                        can('BATCH.EXPORT')
-                                                    "
-                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                <button v-if="
+                                                    can('BATCH.PDF') ||
+                                                    can('BATCH.EXPORT')
+                                                " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
                                                         downloadPdf(
                                                             slotProps.data
                                                                 .encrypted_id ||
-                                                                slotProps.data
-                                                                    .id,
+                                                            slotProps.data
+                                                                .id,
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-download mr-2 text-blue-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
                                                     Download PDF Report
                                                 </button>
-                                                <button
-                                                    v-if="can('BATCH.EMAIL')"
+                                                <button v-if="can('BATCH.EMAIL')"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
                                                         sendBatchEmailDirect(
                                                             slotProps.data,
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-envelope mr-2 text-sky-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-envelope mr-2 text-sky-500 font-bold"></i>
                                                     Send Email Report
                                                 </button>
-                                                <button
-                                                    v-if="can('BATCH.SHARE')"
+                                                <button v-if="can('BATCH.SHARE')"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
                                                         openShareBatch(
                                                             slotProps.data,
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-share-alt mr-2 text-indigo-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-share-alt mr-2 text-indigo-500 font-bold"></i>
                                                     Share Batch Report
                                                 </button>
                                             </div>
 
-                                            <div
-                                                v-if="can('BATCH.PRINT_TOKEN')"
-                                                class="py-1 text-left"
-                                            >
+                                            <div v-if="can('BATCH.PRINT_TOKEN')" class="py-1 text-left">
                                                 <button
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
                                                         viewToken(
                                                             slotProps.data
                                                                 .encrypted_id ||
-                                                                slotProps.data
-                                                                    .id,
+                                                            slotProps.data
+                                                                .id,
                                                             'batching',
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-print mr-2 text-amber-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-print mr-2 text-amber-500 font-bold"></i>
                                                     Print Batching Token
                                                 </button>
-                                                <button
-                                                    v-if="
-                                                        slotProps.data.status >=
-                                                            3 &&
-                                                        can('BATCH.PRINT_TOKEN')
-                                                    "
-                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                <button v-if="
+                                                    slotProps.data.status >=
+                                                    3 &&
+                                                    can('BATCH.PRINT_TOKEN')
+                                                " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
                                                         viewToken(
                                                             slotProps.data
                                                                 .encrypted_id ||
-                                                                slotProps.data
-                                                                    .id,
+                                                            slotProps.data
+                                                                .id,
                                                             'dispatch',
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-ticket mr-2 text-emerald-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-ticket mr-2 text-emerald-500 font-bold"></i>
                                                     Print Dispatch Token
                                                 </button>
-                                                <button
-                                                    v-if="
-                                                        slotProps.data.status >=
-                                                            3 &&
-                                                        can('BATCH.PRINT_TOKEN')
-                                                    "
-                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                <button v-if="
+                                                    slotProps.data.status >=
+                                                    3 &&
+                                                    can('BATCH.PRINT_TOKEN')
+                                                " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
                                                         viewToken(
                                                             slotProps.data
                                                                 .encrypted_id ||
-                                                                slotProps.data
-                                                                    .id,
+                                                            slotProps.data
+                                                                .id,
                                                             'delivery',
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-file mr-2 text-sky-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-file mr-2 text-sky-500 font-bold"></i>
                                                     Print Delivery Challan (A4)
                                                 </button>
-                                                <button
-                                                    v-if="
-                                                        slotProps.data.status >=
-                                                            3 &&
-                                                        can('BATCH.PRINT_TOKEN')
-                                                    "
-                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-rose-600 dark:hover:rose-400 transition-colors"
+                                                <button v-if="
+                                                    slotProps.data.status >=
+                                                    3 &&
+                                                    can('BATCH.PRINT_TOKEN')
+                                                " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-rose-600 dark:hover:rose-400 transition-colors"
                                                     @click="
                                                         viewToken(
                                                             slotProps.data
                                                                 .encrypted_id ||
-                                                                slotProps.data
-                                                                    .id,
+                                                            slotProps.data
+                                                                .id,
                                                             'gate-pass',
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-id-card mr-2 text-rose-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-id-card mr-2 text-rose-500 font-bold"></i>
                                                     Print Gate Pass
                                                 </button>
                                             </div>
 
-                                            <div
-                                                v-if="
-                                                    slotProps.data
-                                                        .dispatches?.[0]
-                                                "
-                                                class="py-1 text-left"
-                                            >
-                                                <button
-                                                    v-if="
-                                                        Number(
-                                                            slotProps.data
-                                                                .status,
-                                                        ) === 3 &&
-                                                        Number(
-                                                            slotProps.data
-                                                                .dispatches[0]
-                                                                .load_rate,
-                                                        ) > 0 &&
-                                                        Number(
-                                                            slotProps.data
-                                                                .dispatches[0]
-                                                                .delivered_qty ||
-                                                                slotProps.data
-                                                                    .dispatches[0]
-                                                                    .load_units ||
-                                                                0,
-                                                        ) > 0 &&
+                                            <div v-if="
+                                                slotProps.data
+                                                    .dispatches?.[0]
+                                            " class="py-1 text-left">
+                                                <button v-if="
+                                                    Number(
+                                                        slotProps.data
+                                                            .status,
+                                                    ) === 3 &&
+                                                    Number(
                                                         slotProps.data
                                                             .dispatches[0]
-                                                            .uom_id &&
-                                                        (!slotProps.data
+                                                            .load_rate,
+                                                    ) > 0 &&
+                                                    Number(
+                                                        slotProps.data
                                                             .dispatches[0]
-                                                            .status ||
-                                                            slotProps.data
-                                                                .dispatches[0]
-                                                                .status
-                                                                .invoice_status !==
-                                                                1) &&
-                                                        !isBatchCancelled(
-                                                            slotProps.data,
-                                                        ) &&
-                                                        can(
-                                                            'DISPATCH.GENERATE_INVOICE',
-                                                        )
-                                                    "
-                                                    class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors"
+                                                            .delivered_qty ||
+                                                        slotProps.data
+                                                            .dispatches[0]
+                                                            .load_units ||
+                                                        0,
+                                                    ) > 0 &&
+                                                    slotProps.data
+                                                        .dispatches[0]
+                                                        .uom_id &&
+                                                    (!slotProps.data
+                                                        .dispatches[0]
+                                                        .status ||
+                                                        slotProps.data
+                                                            .dispatches[0]
+                                                            .status
+                                                            .invoice_status !==
+                                                        1) &&
+                                                    !isBatchCancelled(
+                                                        slotProps.data,
+                                                    ) &&
+                                                    can(
+                                                        'DISPATCH.GENERATE_INVOICE',
+                                                    )
+                                                " class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors"
                                                     @click="
                                                         generateInvoiceDirect(
                                                             slotProps.data
                                                                 .dispatches[0],
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"></i>
                                                     Generate Invoice
                                                 </button>
 
-                                                <template
-                                                    v-if="
-                                                        slotProps.data
-                                                            .dispatches[0]
-                                                            .status
-                                                            ?.invoice_status ===
-                                                            1 &&
-                                                        slotProps.data
-                                                            .dispatches[0]
-                                                            .status?.invoice
-                                                    "
-                                                >
-                                                    <button
-                                                        v-if="
-                                                            can(
-                                                                'DISPATCH.PRINT_INVOICE',
-                                                            )
-                                                        "
-                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                <template v-if="
+                                                    slotProps.data
+                                                        .dispatches[0]
+                                                        .status
+                                                        ?.invoice_status ===
+                                                    1 &&
+                                                    slotProps.data
+                                                        .dispatches[0]
+                                                        .status?.invoice
+                                                ">
+                                                    <button v-if="
+                                                        can(
+                                                            'DISPATCH.PRINT_INVOICE',
+                                                        )
+                                                    " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                         @click="
                                                             printInvoiceDirect(
                                                                 slotProps.data
@@ -2071,21 +1785,16 @@ console.log(
                                                                     .status
                                                                     .invoice,
                                                             );
-                                                            activeMenuId = null;
-                                                        "
-                                                    >
-                                                        <i
-                                                            class="pi pi-print mr-2 text-indigo-500 font-bold"
-                                                        ></i>
+                                                        activeMenuId = null;
+                                                        ">
+                                                        <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
                                                         Print Invoice
                                                     </button>
-                                                    <button
-                                                        v-if="
-                                                            can(
-                                                                'DISPATCH.DOWNLOAD_INVOICE',
-                                                            )
-                                                        "
-                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    <button v-if="
+                                                        can(
+                                                            'DISPATCH.DOWNLOAD_INVOICE',
+                                                        )
+                                                    " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                         @click="
                                                             downloadInvoiceDirect(
                                                                 slotProps.data
@@ -2093,61 +1802,50 @@ console.log(
                                                                     .status
                                                                     .invoice,
                                                             );
-                                                            activeMenuId = null;
-                                                        "
-                                                    >
-                                                        <i
-                                                            class="pi pi-download mr-2 text-blue-500 font-bold"
-                                                        ></i>
+                                                        activeMenuId = null;
+                                                        ">
+                                                        <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
                                                         Download Invoice PDF
                                                     </button>
-                                                    <button
-                                                        v-if="
-                                                            canGenerateEInvoice(
-                                                                getBatchInvoice(
-                                                                    slotProps.data,
-                                                                ),
-                                                            ) &&
-                                                            !isBatchCancelled(
+                                                    <button v-if="
+                                                        canGenerateEInvoice(
+                                                            getBatchInvoice(
                                                                 slotProps.data,
-                                                            ) &&
-                                                            can(
-                                                                'DISPATCH.GENERATE_EINVOICE',
-                                                            )
-                                                        "
-                                                        :disabled="
-                                                            generatingEInvoice
+                                                            ),
+                                                        ) &&
+                                                        !isBatchCancelled(
+                                                            slotProps.data,
+                                                        ) &&
+                                                        can(
+                                                            'DISPATCH.GENERATE_EINVOICE',
+                                                        )
+                                                    " :disabled="generatingEInvoice
                                                         "
                                                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors"
                                                         @click="
                                                             generateBatchEInvoice(
                                                                 slotProps.data,
                                                             );
-                                                            activeMenuId = null;
-                                                        "
-                                                    >
-                                                        <i
-                                                            class="pi pi-bolt mr-2 text-purple-500 font-bold"
-                                                        ></i>
+                                                        activeMenuId = null;
+                                                        ">
+                                                        <i class="pi pi-bolt mr-2 text-purple-500 font-bold"></i>
                                                         Generate E-Invoice
                                                     </button>
-                                                    <button
-                                                        v-if="
-                                                            (slotProps.data
+                                                    <button v-if="
+                                                        (slotProps.data
+                                                            .dispatches[0]
+                                                            .status.invoice
+                                                            .einvoice_status ===
+                                                            'generated' ||
+                                                            slotProps.data
                                                                 .dispatches[0]
-                                                                .status.invoice
-                                                                .einvoice_status ===
-                                                                'generated' ||
-                                                                slotProps.data
-                                                                    .dispatches[0]
-                                                                    .status
-                                                                    .invoice
-                                                                    .einvoice_irn) &&
-                                                            can(
-                                                                'DISPATCH.PRINT_EINVOICE',
-                                                            )
-                                                        "
-                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
+                                                                .status
+                                                                .invoice
+                                                                .einvoice_irn) &&
+                                                        can(
+                                                            'DISPATCH.PRINT_EINVOICE',
+                                                        )
+                                                    " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
                                                         @click="
                                                             printEInvoiceDirect(
                                                                 slotProps.data
@@ -2155,351 +1853,249 @@ console.log(
                                                                     .status
                                                                     .invoice,
                                                             );
-                                                            activeMenuId = null;
-                                                        "
-                                                    >
+                                                        activeMenuId = null;
+                                                        ">
                                                         <i
-                                                            class="pi pi-check-circle mr-2 text-purple-500 font-bold"
-                                                        ></i>
+                                                            class="pi pi-check-circle mr-2 text-purple-500 font-bold"></i>
                                                         E-Invoice Print
                                                     </button>
-                                                    <button
-                                                        v-if="
-                                                            !isBatchCancelled(
-                                                                slotProps.data,
-                                                            ) &&
-                                                            can(
-                                                                'DISPATCH.DELETE_INVOICE',
-                                                            )
-                                                        "
-                                                        class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                                                    <button v-if="
+                                                        !isBatchCancelled(
+                                                            slotProps.data,
+                                                        ) &&
+                                                        can(
+                                                            'DISPATCH.DELETE_INVOICE',
+                                                        )
+                                                    " class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
                                                         @click="
                                                             deleteInvoiceDirect(
                                                                 slotProps.data
                                                                     .dispatches[0],
                                                             );
-                                                            activeMenuId = null;
-                                                        "
-                                                    >
-                                                        <i
-                                                            class="pi pi-trash mr-2 text-rose-500 font-bold"
-                                                        ></i>
+                                                        activeMenuId = null;
+                                                        ">
+                                                        <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
                                                         Delete Invoice
                                                     </button>
                                                 </template>
 
-                                                <button
-                                                    v-if="
-                                                        slotProps.data.status >=
-                                                            3 &&
-                                                        can('DISPATCH.WHATSAPP')
-                                                    "
-                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-emerald-700 transition-colors"
+                                                <button v-if="
+                                                    slotProps.data.status >=
+                                                    3 &&
+                                                    can('DISPATCH.WHATSAPP')
+                                                " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-emerald-700 transition-colors"
                                                     @click="
                                                         sendWhatsAppDirect(
                                                             slotProps.data
                                                                 .dispatches[0],
                                                         );
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"></i>
                                                     WhatsApp Send
                                                 </button>
                                             </div>
 
-                                            <div
-                                                v-if="
-                                                    canDeleteBatch(
-                                                        slotProps.data,
-                                                    ) &&
-                                                    (canDeleteDispatchedBatches ||
-                                                        can('BATCH.DELETE'))
-                                                "
-                                                class="py-1 text-left"
-                                            >
+                                            <div v-if="
+                                                canDeleteBatch(
+                                                    slotProps.data,
+                                                ) &&
+                                                (canDeleteDispatchedBatches ||
+                                                    can('BATCH.DELETE'))
+                                            " class="py-1 text-left">
                                                 <button
                                                     class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
                                                     @click="
                                                         destroy(slotProps.data);
-                                                        activeMenuId = null;
-                                                    "
-                                                >
-                                                    <i
-                                                        class="pi pi-trash mr-2 text-rose-500 font-bold"
-                                                    ></i>
+                                                    activeMenuId = null;
+                                                    ">
+                                                    <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
                                                     Delete Batch
                                                 </button>
                                             </div>
                                         </div>
                                     </transition>
                                 </div>
-                                <span
-                                    v-else
-                                    class="text-[10px] text-slate-400 font-bold uppercase"
-                                    >Syncing...</span
-                                >
+                                <span v-else class="text-[10px] text-slate-400 font-bold uppercase">Syncing...</span>
                             </template>
                         </Column>
 
                         <template #expansion="slotProps">
-                            <div
-                                class="bg-slate-50/50 border-y border-slate-100 relative min-h-[100px]"
-                            >
-                                <div
-                                    v-if="isLoadingBatch[slotProps.data.id]"
-                                    class="absolute inset-0 z-10 flex items-center justify-center bg-white/80"
-                                >
-                                    <div
-                                        class="flex flex-col items-center gap-2"
-                                    >
-                                        <i
-                                            class="pi pi-spinner animate-spin text-indigo-600 text-2xl"
-                                        ></i>
+                            <div class="bg-slate-50/50 border-y border-slate-100 relative min-h-[100px]">
+                                <div v-if="isLoadingBatch[slotProps.data.id]"
+                                    class="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
+                                    <div class="flex flex-col items-center gap-2">
+                                        <i class="pi pi-spinner animate-spin text-indigo-600 text-2xl"></i>
                                         <span
-                                            class="text-[10px] font-bold text-slate-500 uppercase tracking-widest"
-                                            >Loading Details...</span
-                                        >
+                                            class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Loading
+                                            Details...</span>
                                     </div>
                                 </div>
 
                                 <!-- Unified Tabbed Layout for Batch Edit & Dispatch -->
                                 <div
-                                    class="relative bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
-                                >
-                                    <TabView
-                                        :activeIndex="
-                                            getBatchActiveTab(slotProps.data.id)
-                                        "
-                                        @update:activeIndex="
+                                    class="relative bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <TabView :activeIndex="getBatchActiveTab(slotProps.data.id)
+                                        " @update:activeIndex="
                                             (val) =>
                                                 setBatchActiveTab(
                                                     slotProps.data.id,
                                                     val,
                                                 )
-                                        "
-                                        class="expanded-batch-tabview"
-                                    >
+                                        " class="expanded-batch-tabview">
                                         <TabPanel>
                                             <template #header>
-                                                <div
-                                                    :class="[
-                                                        'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
+                                                <div :class="[
+                                                    'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
+                                                    getBatchActiveTab(
+                                                        slotProps.data.id,
+                                                    ) === 0
+                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-1 ring-indigo-500'
+                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800',
+                                                ]">
+                                                    <CubeIcon :class="[
+                                                        'w-4 h-4 transition-colors',
                                                         getBatchActiveTab(
-                                                            slotProps.data.id,
+                                                            slotProps.data
+                                                                .id,
                                                         ) === 0
-                                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-1 ring-indigo-500'
-                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800',
-                                                    ]"
-                                                >
-                                                    <CubeIcon
-                                                        :class="[
-                                                            'w-4 h-4 transition-colors',
-                                                            getBatchActiveTab(
-                                                                slotProps.data
-                                                                    .id,
-                                                            ) === 0
-                                                                ? 'text-white'
-                                                                : 'text-slate-500',
-                                                        ]"
-                                                    />
-                                                    <span
-                                                        >1. Production &
-                                                        Materials</span
-                                                    >
+                                                            ? 'text-white'
+                                                            : 'text-slate-500',
+                                                    ]" />
+                                                    <span>1. Production &
+                                                        Materials</span>
                                                 </div>
                                             </template>
                                             <div class="bg-slate-50/20">
-                                                <BatchEditForm
-                                                    v-if="
-                                                        detailedBatches[
-                                                            slotProps.data.id
-                                                        ]
-                                                    "
-                                                    :batch="
-                                                        detailedBatches[
-                                                            slotProps.data.id
-                                                        ]
-                                                    "
-                                                    :salesOrders="salesOrders"
-                                                    :trucks="trucks"
-                                                    :transporters="transporters"
-                                                    :drivers="drivers"
-                                                    :sales_executives="
-                                                        sales_executives
-                                                    "
-                                                    :products="products"
-                                                    :uoms="uoms"
-                                                    :statuses="statuses"
-                                                    :loading_sites="
-                                                        loading_sites
-                                                    "
-                                                    :concretePumpOptions="
-                                                        concretePumpOptions
-                                                    "
-                                                    :existingBatches="
-                                                        localBatches
-                                                    "
-                                                    @saved="handleBatchSaved"
-                                                    @cancel="
-                                                        collapseExpandedRows()
-                                                    "
-                                                />
-                                                <p
-                                                    v-else-if="
-                                                        isLoadingBatch[
-                                                            slotProps.data.id
-                                                        ]
-                                                    "
-                                                    class="p-4 text-sm text-slate-500"
-                                                    role="status"
-                                                >
+                                                <BatchEditForm v-if="
+                                                    detailedBatches[
+                                                    slotProps.data.id
+                                                    ]
+                                                " :batch="detailedBatches[
+                                                    slotProps.data.id
+                                                ]
+                                                    " :salesOrders="salesOrders" :trucks="trucks"
+                                                    :transporters="transporters" :drivers="drivers" :sales_executives="sales_executives
+                                                        " :products="products" :uoms="uoms" :statuses="statuses"
+                                                    :loading_sites="loading_sites
+                                                        " :concretePumpOptions="concretePumpOptions
+                                                            " :existingBatches="localBatches
+                                                                " @saved="handleBatchSaved" @cancel="
+                                                                    collapseExpandedRows()
+                                                                    " />
+                                                <p v-else-if="
+                                                    isLoadingBatch[
+                                                    slotProps.data.id
+                                                    ]
+                                                " class="p-4 text-sm text-slate-500" role="status">
                                                     Loading batch details…
                                                 </p>
-                                                <button
-                                                    v-else
-                                                    type="button"
-                                                    class="p-4 text-sm font-semibold text-indigo-600"
-                                                    @click="
+                                                <button v-else type="button"
+                                                    class="p-4 text-sm font-semibold text-indigo-600" @click="
                                                         fetchBatchDetails(
                                                             slotProps.data.id,
                                                         )
-                                                    "
-                                                >
+                                                        ">
                                                     Batch details could not be
                                                     loaded. Retry
                                                 </button>
                                             </div>
                                         </TabPanel>
 
-                                        <TabPanel
-                                            :disabled="
-                                                !canAccessDispatchTab(
-                                                    slotProps.data,
-                                                    detailedBatches[
-                                                        slotProps.data.id
-                                                    ],
-                                                )
-                                            "
-                                        >
+                                        <TabPanel :disabled="!canAccessDispatchTab(
+                                            slotProps.data,
+                                            detailedBatches[
+                                            slotProps.data.id
+                                            ],
+                                        )
+                                            ">
                                             <template #header>
-                                                <div
-                                                    :class="[
-                                                        'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
-                                                        !canAccessDispatchTab(
-                                                            slotProps.data,
-                                                            detailedBatches[
-                                                                slotProps.data
-                                                                    .id
-                                                            ],
-                                                        )
-                                                            ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400'
-                                                            : getBatchActiveTab(
-                                                                    slotProps
-                                                                        .data
-                                                                        .id,
-                                                                ) === 1
-                                                              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-1 ring-indigo-500'
-                                                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800',
-                                                    ]"
-                                                >
-                                                    <PaperAirplaneIcon
-                                                        :class="[
-                                                            'w-4 h-4 transition-colors',
-                                                            getBatchActiveTab(
-                                                                slotProps.data
-                                                                    .id,
-                                                            ) === 1
-                                                                ? 'text-white'
-                                                                : 'text-slate-500',
-                                                        ]"
-                                                    />
-                                                    <span
-                                                        >2. Dispatch &
-                                                        Invoicing</span
-                                                    >
+                                                <div :class="[
+                                                    'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
+                                                    !canAccessDispatchTab(
+                                                        slotProps.data,
+                                                        detailedBatches[
+                                                        slotProps.data
+                                                            .id
+                                                        ],
+                                                    )
+                                                        ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400'
+                                                        : getBatchActiveTab(
+                                                            slotProps
+                                                                .data
+                                                                .id,
+                                                        ) === 1
+                                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-1 ring-indigo-500'
+                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800',
+                                                ]">
+                                                    <PaperAirplaneIcon :class="[
+                                                        'w-4 h-4 transition-colors',
+                                                        getBatchActiveTab(
+                                                            slotProps.data
+                                                                .id,
+                                                        ) === 1
+                                                            ? 'text-white'
+                                                            : 'text-slate-500',
+                                                    ]" />
+                                                    <span>2. Dispatch &
+                                                        Invoicing</span>
                                                 </div>
                                             </template>
                                             <div class="bg-slate-50/20">
-                                                <DispatchSection
-                                                    v-if="
-                                                        canAccessDispatchTab(
-                                                            slotProps.data,
-                                                            detailedBatches[
-                                                                slotProps.data
-                                                                    .id
-                                                            ],
-                                                        ) &&
+                                                <DispatchSection v-if="
+                                                    canAccessDispatchTab(
+                                                        slotProps.data,
                                                         detailedBatches[
-                                                            slotProps.data.id
-                                                        ]
-                                                    "
-                                                    :key="
-                                                        'dispatch-' +
-                                                        slotProps.data.id +
-                                                        '-' +
-                                                        (detailedBatches[
-                                                            slotProps.data.id
-                                                        ].dispatches?.[0]?.id ||
-                                                            detailedBatches[
-                                                                slotProps.data
-                                                                    .id
-                                                            ].dispatch?.id ||
-                                                            'new')
-                                                    "
-                                                    :batch="
+                                                        slotProps.data
+                                                            .id
+                                                        ],
+                                                    ) &&
+                                                    detailedBatches[
+                                                    slotProps.data.id
+                                                    ]
+                                                " :key="'dispatch-' +
+                                                    slotProps.data.id +
+                                                    '-' +
+                                                    (detailedBatches[
+                                                        slotProps.data.id
+                                                    ].dispatches?.[0]?.id ||
                                                         detailedBatches[
-                                                            slotProps.data.id
-                                                        ]
-                                                    "
-                                                    :salesOrder="
-                                                        detailedBatches[
+                                                            slotProps.data
+                                                                .id
+                                                        ].dispatch?.id ||
+                                                        'new')
+                                                    " :batch="detailedBatches[
+                                                        slotProps.data.id
+                                                    ]
+                                                        " :salesOrder="detailedBatches[
                                                             slotProps.data.id
                                                         ].sales_order ||
-                                                        detailedBatches[
-                                                            slotProps.data.id
-                                                        ].salesOrder ||
-                                                        slotProps.data
-                                                            .sales_order
-                                                    "
-                                                    :dispatch="
-                                                        detailedBatches[
-                                                            slotProps.data.id
-                                                        ].dispatches?.[0] ||
-                                                        detailedBatches[
-                                                            slotProps.data.id
-                                                        ].dispatch
-                                                    "
-                                                    :dropdownData="dropdownData"
-                                                    :drivers="drivers"
-                                                    :operators="operators"
-                                                    :sales_executives="
-                                                        sales_executives
-                                                    "
-                                                    :settings="batchingSettings"
-                                                    :onSaved="handleBatchSaved"
+                                                            detailedBatches[
+                                                                slotProps.data.id
+                                                            ].salesOrder ||
+                                                            slotProps.data
+                                                                .sales_order
+                                                            " :dispatch="detailedBatches[
+                                                                slotProps.data.id
+                                                            ].dispatches?.[0] ||
+                                                                detailedBatches[
+                                                                    slotProps.data.id
+                                                                ].dispatch
+                                                                " :dropdownData="dropdownData" :drivers="drivers"
+                                                    :operators="operators" :sales_executives="sales_executives
+                                                        " :settings="batchingSettings" :onSaved="handleBatchSaved"
                                                     @tripSaved="
                                                         handleBatchSaved
-                                                    "
-                                                    @generateInvoice="
+                                                    " @generateInvoice="
                                                         handleInvoiceGenerated
-                                                    "
-                                                    @generateEInvoice="
+                                                    " @generateEInvoice="
                                                         handleInvoiceGenerated
-                                                    "
-                                                    @deleteInvoice="
+                                                    " @deleteInvoice="
                                                         handleInvoiceGenerated
-                                                    "
-                                                    @cancel="
+                                                    " @cancel="
                                                         collapseExpandedRows()
-                                                    "
-                                                />
-                                                <div
-                                                    v-else
-                                                    class="text-center py-8 text-slate-400 font-medium"
-                                                >
+                                                        " />
+                                                <div v-else class="text-center py-8 text-slate-400 font-medium">
                                                     Save a full truck weight
                                                     greater than the empty
                                                     weight to enable Dispatch
@@ -2509,10 +2105,9 @@ console.log(
                                         </TabPanel>
                                     </TabView>
                                     <span
-                                        class="absolute top-0 right-0 z-10 px-3 py-2 text-[11px] font-black text-slate-600 tracking-widest select-none pointer-events-none"
-                                        >Batch # :
-                                        {{ slotProps.data.batch_no }}</span
-                                    >
+                                        class="absolute top-0 right-0 z-10 px-3 py-2 text-[11px] font-black text-slate-600 tracking-widest select-none pointer-events-none">Batch
+                                        # :
+                                        {{ slotProps.data.batch_no }}</span>
                                 </div>
                             </div>
                         </template>
@@ -2520,13 +2115,8 @@ console.log(
                 </div>
             </div>
         </div>
-        <Dialog
-            v-model:visible="tokenPreviewVisible"
-            modal
-            @hide="closeTokenPreview"
-            :style="{ width: previewWidth, maxWidth: '95vw' }"
-            class="token-preview-dialog"
-            :pt="{
+        <Dialog v-model:visible="tokenPreviewVisible" modal @hide="closeTokenPreview"
+            :style="{ width: previewWidth, maxWidth: '95vw' }" class="token-preview-dialog" :pt="{
                 mask: { class: 'backdrop-blur-sm bg-slate-900/30' },
 
                 root: {
@@ -2539,30 +2129,21 @@ console.log(
                 footer: {
                     class: 'bg-white border-t border-slate-100 py-2 px-4 flex justify-end gap-2',
                 },
-            }"
-        >
+            }">
             <template #header>
                 <div class="flex items-center gap-2">
                     <i class="pi pi-print text-indigo-600 text-sm"></i>
-                    <span
-                        class="text-xs font-black text-slate-700 uppercase tracking-widest"
-                        >{{ previewTitle }}</span
-                    >
+                    <span class="text-xs font-black text-slate-700 uppercase tracking-widest">{{ previewTitle }}</span>
                 </div>
             </template>
 
             <div
-                class="w-full flex justify-center bg-slate-100 py-2.5 px-1 overflow-x-hidden overflow-y-auto max-h-[75vh] border-b border-slate-100"
-            >
-                <iframe
-                    v-if="tokenPreviewUrl"
-                    :src="tokenPreviewUrl"
-                    :style="{
-                        height: iframeHeight,
-                        width: previewIframeWidth,
-                        maxWidth: '100%',
-                    }"
-                    style="
+                class="w-full flex justify-center bg-slate-100 py-2.5 px-1 overflow-x-hidden overflow-y-auto max-h-[75vh] border-b border-slate-100">
+                <iframe v-if="tokenPreviewUrl" :src="tokenPreviewUrl" :style="{
+                    height: iframeHeight,
+                    width: previewIframeWidth,
+                    maxWidth: '100%',
+                }" style="
                         border: none;
                         background: white;
                         box-shadow:
@@ -2570,468 +2151,327 @@ console.log(
                             0 4px 6px -4px rgb(0 0 0 / 0.1);
                         border-radius: 6px;
                         display: block;
-                    "
-                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                    @load="adjustIframeHeight"
-                ></iframe>
+                    " sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                    @load="adjustIframeHeight"></iframe>
             </div>
 
             <template #footer>
-                <Button
-                    label="Close"
-                    icon="pi pi-times"
-                    @click="closeTokenPreview"
-                    text
-                    severity="secondary"
-                    class="!text-[10px] !font-bold !uppercase !tracking-wider"
-                />
-                <Button
-                    label="Print Token"
-                    icon="pi pi-print"
-                    @click="printTokenIframe"
-                    severity="primary"
-                    class="!text-[10px] !font-bold !uppercase !tracking-wider !px-4"
-                />
+                <Button label="Close" icon="pi pi-times" @click="closeTokenPreview" text severity="secondary"
+                    class="!text-[10px] !font-bold !uppercase !tracking-wider" />
+                <Button label="Print Token" icon="pi pi-print" @click="printTokenIframe" severity="primary"
+                    class="!text-[10px] !font-bold !uppercase !tracking-wider !px-4" />
             </template>
         </Dialog>
 
-        <Popover
-            ref="actionMenu"
+        <Popover ref="actionMenu"
             class="z-50 !shadow-2xl !border !border-slate-200/80 dark:!border-slate-700/80 !rounded-xl overflow-hidden"
-            style="padding: 0; min-width: 14rem"
-            :pt="{ root: { id: 'batch-action-menu' } }"
-        >
-            <div
-                v-if="activeBatch"
-                class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left"
-            >
+            style="padding: 0; min-width: 14rem" :pt="{ root: { id: 'batch-action-menu' } }">
+            <div v-if="activeBatch"
+                class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left">
                 <!-- Cancelled Notice (No other actions shown) -->
-                <div
-                    v-if="isBatchCancelled(activeBatch)"
-                    class="p-3.5 space-y-2 text-left bg-rose-50/70"
-                >
-                    <div
-                        class="flex items-center gap-2 text-rose-700 font-bold text-xs"
-                    >
-                        <i
-                            class="pi pi-times-circle text-rose-600 text-base"
-                        ></i>
+                <div v-if="isBatchCancelled(activeBatch)" class="p-3.5 space-y-2 text-left bg-rose-50/70">
+                    <div class="flex items-center gap-2 text-rose-700 font-bold text-xs">
+                        <i class="pi pi-times-circle text-rose-600 text-base"></i>
                         <span>Dispatch &amp; Batch Cancelled</span>
                     </div>
-                    <p
-                        class="text-[11px] text-rose-600 font-medium leading-snug"
-                    >
+                    <p class="text-[11px] text-rose-600 font-medium leading-snug">
                         This dispatch is cancelled. All other actions are
                         disabled.
                     </p>
-                    <div
-                        v-if="activeBatch.dispatches?.[0]?.cancelled_notes"
-                        class="text-[10px] text-slate-700 bg-white/90 p-2.5 rounded border border-rose-200 italic"
-                    >
-                        <strong class="text-rose-900 not-italic font-semibold"
-                            >Notes:</strong
-                        >
+                    <div v-if="activeBatch.dispatches?.[0]?.cancelled_notes"
+                        class="text-[10px] text-slate-700 bg-white/90 p-2.5 rounded border border-rose-200 italic">
+                        <strong class="text-rose-900 not-italic font-semibold">Notes:</strong>
                         {{ activeBatch.dispatches[0].cancelled_notes }}
                     </div>
                 </div>
 
                 <template v-else>
                     <!-- Group: Sync Actions -->
-                    <div
-                        v-if="activeBatch.sync_status && can('BATCH.SYNC')"
-                        class="py-1 text-left"
-                    >
-                        <button
-                            v-if="
-                                activeBatch.sync_status === 'success' ||
-                                activeBatch.sync_status === 1 ||
-                                activeBatch.sync_status === '1'
-                            "
-                            type="button"
-                            class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-default"
-                        >
-                            <i
-                                class="pi pi-check-circle mr-2 text-emerald-500 text-sm"
-                            ></i>
+                    <div v-if="activeBatch.sync_status && can('BATCH.SYNC')" class="py-1 text-left">
+                        <button v-if="
+                            activeBatch.sync_status === 'success' ||
+                            activeBatch.sync_status === 1 ||
+                            activeBatch.sync_status === '1'
+                        " type="button"
+                            class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-default">
+                            <i class="pi pi-check-circle mr-2 text-emerald-500 text-sm"></i>
                             Synced to Scheduler
                         </button>
-                        <button
-                            v-else-if="
-                                activeBatch.sync_status === 'failed' &&
-                                can('BATCH.SYNC')
-                            "
-                            type="button"
+                        <button v-else-if="
+                            activeBatch.sync_status === 'failed' &&
+                            can('BATCH.SYNC')
+                        " type="button"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                            :disabled="isSyncingBatch[activeBatch.id]"
-                            @click="syncToScheduler(activeBatch.id)"
-                        >
-                            <i
-                                v-if="isSyncingBatch[activeBatch.id]"
-                                class="pi pi-spinner animate-spin mr-2 text-rose-500 text-sm"
-                            ></i>
-                            <i
-                                v-else
-                                class="pi pi-times-circle mr-2 text-rose-500 text-sm"
-                            ></i>
+                            :disabled="isSyncingBatch[activeBatch.id]" @click="syncToScheduler(activeBatch.id)">
+                            <i v-if="isSyncingBatch[activeBatch.id]"
+                                class="pi pi-spinner animate-spin mr-2 text-rose-500 text-sm"></i>
+                            <i v-else class="pi pi-times-circle mr-2 text-rose-500 text-sm"></i>
                             Sync Failed - Retry
                         </button>
-                        <button
-                            v-else-if="
-                                activeBatch.sync_status === 'pending' &&
-                                can('BATCH.SYNC')
-                            "
-                            type="button"
+                        <button v-else-if="
+                            activeBatch.sync_status === 'pending' &&
+                            can('BATCH.SYNC')
+                        " type="button"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                            :disabled="isSyncingBatch[activeBatch.id]"
-                            @click="syncToScheduler(activeBatch.id)"
-                        >
-                            <i
-                                v-if="isSyncingBatch[activeBatch.id]"
-                                class="pi pi-spinner animate-spin mr-2 text-amber-500 text-sm"
-                            ></i>
-                            <i
-                                v-else
-                                class="pi pi-cloud-upload mr-2 text-amber-500 text-sm"
-                            ></i>
+                            :disabled="isSyncingBatch[activeBatch.id]" @click="syncToScheduler(activeBatch.id)">
+                            <i v-if="isSyncingBatch[activeBatch.id]"
+                                class="pi pi-spinner animate-spin mr-2 text-amber-500 text-sm"></i>
+                            <i v-else class="pi pi-cloud-upload mr-2 text-amber-500 text-sm"></i>
                             Pending - Click to Post
                         </button>
                     </div>
 
                     <!-- Group 1: General Batch Actions -->
-                    <div
-                        v-if="
-                            can('BATCH.BATCH_SHEET') ||
-                            can('BATCH.PDF') ||
-                            can('BATCH.EXPORT') ||
-                            can('BATCH.EMAIL') ||
-                            can('BATCH.SHARE')
-                        "
-                        class="py-1"
-                    >
+                    <div v-if="
+                        can('BATCH.BATCH_SHEET') ||
+                        can('BATCH.PDF') ||
+                        can('BATCH.EXPORT') ||
+                        can('BATCH.EMAIL') ||
+                        can('BATCH.SHARE')
+                    " class="py-1">
                         <!-- <button v-if="can('BATCH.BATCH_SHEET')"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="router.get(route('batches.report', activeBatch.encrypted_id || activeBatch.id)); closeAllMenus();">
                             <i class="pi pi-eye mr-2 text-indigo-500 font-bold"></i>
                             Preview Batch Sheet
                         </button> -->
-                        <button
-                            v-if="can('BATCH.BATCH_SHEET')"
-                            type="button"
+                        <button v-if="can('BATCH.BATCH_SHEET')" type="button"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="
                                 printBatchSheet(
                                     activeBatch.encrypted_id || activeBatch.id,
                                 );
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-print mr-2 text-indigo-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
                             Print Batch Sheet
                         </button>
-                        <button
-                            v-if="can('BATCH.PDF') || can('BATCH.EXPORT')"
+                        <button v-if="can('BATCH.PDF') || can('BATCH.EXPORT')"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="
                                 downloadPdf(
                                     activeBatch.encrypted_id || activeBatch.id,
                                 );
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-download mr-2 text-blue-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
                             Download PDF Report
                         </button>
-                        <button
-                            v-if="can('BATCH.EMAIL')"
+                        <button v-if="can('BATCH.EMAIL')"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="
                                 sendBatchEmailDirect(activeBatch);
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-envelope mr-2 text-sky-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-envelope mr-2 text-sky-500 font-bold"></i>
                             Send Email Report
                         </button>
-                        <button
-                            v-if="can('BATCH.SHARE')"
+                        <button v-if="can('BATCH.SHARE')"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="
                                 openShareBatch(activeBatch);
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-share-alt mr-2 text-indigo-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-share-alt mr-2 text-indigo-500 font-bold"></i>
                             Share Batch Report
                         </button>
                     </div>
 
                     <!-- Group 2: Token Printing Actions -->
                     <div v-if="can('BATCH.PRINT_TOKEN')" class="py-1">
-                        <button
-                            v-if="can('BATCH.PRINT_TOKEN')"
+                        <button v-if="can('BATCH.PRINT_TOKEN')"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="
                                 viewToken(
                                     activeBatch.encrypted_id || activeBatch.id,
                                     'batching',
                                 );
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-print mr-2 text-amber-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-print mr-2 text-amber-500 font-bold"></i>
                             Print Batching Token
                         </button>
-                        <button
-                            v-if="
-                                activeBatch.status >= 3 &&
-                                can('BATCH.PRINT_TOKEN')
-                            "
-                            class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        <button v-if="
+                            activeBatch.status >= 3 &&
+                            can('BATCH.PRINT_TOKEN')
+                        " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="
                                 viewToken(
                                     activeBatch.encrypted_id || activeBatch.id,
                                     'dispatch',
                                 );
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-ticket mr-2 text-emerald-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-ticket mr-2 text-emerald-500 font-bold"></i>
                             Print Dispatch Token
                         </button>
-                        <button
-                            v-if="
-                                activeBatch.status >= 3 &&
-                                can('BATCH.PRINT_TOKEN')
-                            "
-                            class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        <button v-if="
+                            activeBatch.status >= 3 &&
+                            can('BATCH.PRINT_TOKEN')
+                        " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="
                                 viewToken(
                                     activeBatch.encrypted_id || activeBatch.id,
                                     'delivery',
                                 );
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-file mr-2 text-sky-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-file mr-2 text-sky-500 font-bold"></i>
                             Print Delivery Challan (A4)
                         </button>
-                        <button
-                            v-if="
-                                activeBatch.status >= 3 &&
-                                can('BATCH.PRINT_TOKEN')
-                            "
-                            class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                        <button v-if="
+                            activeBatch.status >= 3 &&
+                            can('BATCH.PRINT_TOKEN')
+                        " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
                             @click="
                                 viewToken(
                                     activeBatch.encrypted_id || activeBatch.id,
                                     'gate-pass',
                                 );
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-id-card mr-2 text-rose-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-id-card mr-2 text-rose-500 font-bold"></i>
                             Print Gate Pass
                         </button>
                     </div>
 
                     <!-- Group 3: Invoice & Invoicing Actions -->
-                    <div
-                        v-if="
-                            (activeBatch.dispatches?.[0] ||
-                                activeBatch.status >= 3) &&
-                            (can('DISPATCH.GENERATE_INVOICE') ||
-                                can('DISPATCH.PRINT_INVOICE') ||
-                                can('DISPATCH.DOWNLOAD_INVOICE') ||
-                                can('DISPATCH.GENERATE_EINVOICE') ||
-                                can('DISPATCH.PRINT_EINVOICE') ||
-                                can('DISPATCH.DELETE_INVOICE') ||
-                                can('DISPATCH.WHATSAPP'))
-                        "
-                        class="py-1"
-                    >
+                    <div v-if="
+                        (activeBatch.dispatches?.[0] ||
+                            activeBatch.status >= 3) &&
+                        (can('DISPATCH.GENERATE_INVOICE') ||
+                            can('DISPATCH.PRINT_INVOICE') ||
+                            can('DISPATCH.DOWNLOAD_INVOICE') ||
+                            can('DISPATCH.GENERATE_EINVOICE') ||
+                            can('DISPATCH.PRINT_EINVOICE') ||
+                            can('DISPATCH.DELETE_INVOICE') ||
+                            can('DISPATCH.WHATSAPP'))
+                    " class="py-1">
                         <!-- If Invoice not yet generated -->
-                        <button
-                            v-if="
-                                !activeBatch.has_invoice &&
-                                !activeBatch.invoice_id &&
-                                Number(activeBatch.status) === 3 &&
-                                activeBatch.dispatches?.[0] &&
-                                can('DISPATCH.GENERATE_INVOICE')
-                            "
-                            class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors cursor-pointer"
+                        <button v-if="
+                            !activeBatch.has_invoice &&
+                            !activeBatch.invoice_id &&
+                            Number(activeBatch.status) === 3 &&
+                            activeBatch.dispatches?.[0] &&
+                            can('DISPATCH.GENERATE_INVOICE')
+                        " class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors cursor-pointer"
                             @click="
                                 generateInvoiceDirect(
                                     activeBatch.dispatches[0],
                                 );
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"></i>
                             Generate Invoice
                         </button>
 
                         <!-- If Invoice is generated -->
-                        <template
-                            v-if="
-                                activeBatch.has_invoice ||
-                                activeBatch.invoice_id ||
-                                (activeBatch.dispatches?.[0]?.status
-                                    ?.invoice_status === 1 &&
-                                    activeBatch.dispatches?.[0]?.status
-                                        ?.invoice)
-                            "
-                        >
-                            <button
-                                v-if="
-                                    getBatchInvoice(activeBatch) &&
-                                    can('DISPATCH.PRINT_INVOICE')
-                                "
-                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        <template v-if="
+                            activeBatch.has_invoice ||
+                            activeBatch.invoice_id ||
+                            (activeBatch.dispatches?.[0]?.status
+                                ?.invoice_status === 1 &&
+                                activeBatch.dispatches?.[0]?.status
+                                    ?.invoice)
+                        ">
+                            <button v-if="
+                                getBatchInvoice(activeBatch) &&
+                                can('DISPATCH.PRINT_INVOICE')
+                            " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                                 @click="
                                     printInvoiceDirect(
                                         getBatchInvoice(activeBatch),
                                     );
-                                    closeAllMenus();
-                                "
-                            >
-                                <i
-                                    class="pi pi-print mr-2 text-indigo-500 font-bold"
-                                ></i>
+                                closeAllMenus();
+                                ">
+                                <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
                                 Print Invoice
                             </button>
-                            <button
-                                v-if="
-                                    getBatchInvoice(activeBatch) &&
-                                    can('DISPATCH.DOWNLOAD_INVOICE')
-                                "
-                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                            <button v-if="
+                                getBatchInvoice(activeBatch) &&
+                                can('DISPATCH.DOWNLOAD_INVOICE')
+                            " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                                 @click="
                                     downloadInvoiceDirect(
                                         getBatchInvoice(activeBatch),
                                     );
-                                    closeAllMenus();
-                                "
-                            >
-                                <i
-                                    class="pi pi-download mr-2 text-blue-500 font-bold"
-                                ></i>
+                                closeAllMenus();
+                                ">
+                                <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
                                 Download Invoice PDF
                             </button>
                             <!-- Generate E-Invoice (if not yet generated) -->
-                            <button
-                                v-if="
-                                    canGenerateEInvoice(
-                                        getBatchInvoice(activeBatch),
-                                    ) &&
-                                    !isBatchCancelled(activeBatch) &&
-                                    can('DISPATCH.GENERATE_EINVOICE')
-                                "
-                                :disabled="generatingEInvoice"
+                            <button v-if="
+                                canGenerateEInvoice(
+                                    getBatchInvoice(activeBatch),
+                                ) &&
+                                !isBatchCancelled(activeBatch) &&
+                                can('DISPATCH.GENERATE_EINVOICE')
+                            " :disabled="generatingEInvoice"
                                 class="flex w-full items-center px-4 py-2 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors cursor-pointer"
                                 @click="
                                     generateBatchEInvoice(activeBatch);
-                                    closeAllMenus();
-                                "
-                            >
-                                <i
-                                    class="pi pi-bolt mr-2 text-purple-500 font-bold"
-                                ></i>
+                                closeAllMenus();
+                                ">
+                                <i class="pi pi-bolt mr-2 text-purple-500 font-bold"></i>
                                 Generate E-Invoice
                             </button>
                             <!-- If IRN E-invoice is generated -->
-                            <button
-                                v-if="
-                                    (activeBatch.has_einvoice ||
-                                        activeBatch.einvoice_irn ||
-                                        getBatchInvoice(activeBatch)
-                                            ?.einvoice_irn) &&
-                                    can('DISPATCH.PRINT_EINVOICE')
-                                "
-                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer"
+                            <button v-if="
+                                (activeBatch.has_einvoice ||
+                                    activeBatch.einvoice_irn ||
+                                    getBatchInvoice(activeBatch)
+                                        ?.einvoice_irn) &&
+                                can('DISPATCH.PRINT_EINVOICE')
+                            " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer"
                                 @click="
                                     printEInvoiceDirect(
                                         getBatchInvoice(activeBatch),
                                     );
-                                    closeAllMenus();
-                                "
-                            >
-                                <i
-                                    class="pi pi-check-circle mr-2 text-purple-500 font-bold"
-                                ></i>
+                                closeAllMenus();
+                                ">
+                                <i class="pi pi-check-circle mr-2 text-purple-500 font-bold"></i>
                                 E-Invoice Print
                             </button>
-                            <button
-                                v-if="
-                                    activeBatch.dispatches?.[0] &&
-                                    !isBatchCancelled(activeBatch) &&
-                                    can('DISPATCH.DELETE_INVOICE')
-                                "
-                                class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
+                            <button v-if="
+                                activeBatch.dispatches?.[0] &&
+                                !isBatchCancelled(activeBatch) &&
+                                can('DISPATCH.DELETE_INVOICE')
+                            " class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
                                 @click="
                                     deleteInvoiceDirect(
                                         activeBatch.dispatches[0],
                                     );
-                                    closeAllMenus();
-                                "
-                            >
-                                <i
-                                    class="pi pi-trash mr-2 text-rose-500 font-bold"
-                                ></i>
+                                closeAllMenus();
+                                ">
+                                <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
                                 Delete Invoice
                             </button>
                         </template>
 
                         <!-- Standalone E-Way Bill (Always visible once batch is dispatched, status >= 3) -->
                         <template v-if="activeBatch.status >= 3">
-                            <button
-                                v-if="
-                                    plantHasEwayBill() && !activeBatch.eway_bill_no &&
-                                    !activeBatch.dispatches?.[0]?.status
-                                        ?.invoice?.eway_bill_no &&
-                                    !isBatchCancelled(activeBatch) &&
-                                    can('EWAYBILL.CREATE')
-                                "
-                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/20 transition-colors cursor-pointer"
+                            <button v-if="
+                                plantHasEwayBill() && !activeBatch.eway_bill_no &&
+                                !activeBatch.dispatches?.[0]?.status
+                                    ?.invoice?.eway_bill_no &&
+                                !isBatchCancelled(activeBatch) &&
+                                can('EWAYBILL.CREATE')
+                            " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/20 transition-colors cursor-pointer"
                                 @click="
                                     generateEwayBillDirect(activeBatch);
-                                    closeAllMenus();
-                                "
-                            >
-                                <i
-                                    class="pi pi-send mr-2 text-teal-500 font-bold"
-                                ></i>
+                                closeAllMenus();
+                                ">
+                                <i class="pi pi-send mr-2 text-teal-500 font-bold"></i>
                                 Generate E-Way Bill
                             </button>
-                            <div
-                                v-else-if="
-                                    activeBatch.eway_bill_no ||
-                                    activeBatch.dispatches?.[0]?.status?.invoice
-                                        ?.eway_bill_no
-                                "
-                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-teal-700 dark:text-teal-300 bg-teal-50/50 dark:bg-teal-950/20 select-none"
-                                v-tooltip.top="'E-Way Bill Active'"
-                            >
-                                <i
-                                    class="pi pi-check-circle mr-2 text-teal-500 font-bold"
-                                ></i>
+                            <div v-else-if="
+                                activeBatch.eway_bill_no ||
+                                activeBatch.dispatches?.[0]?.status?.invoice
+                                    ?.eway_bill_no
+                            " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-teal-700 dark:text-teal-300 bg-teal-50/50 dark:bg-teal-950/20 select-none"
+                                v-tooltip.top="'E-Way Bill Active'">
+                                <i class="pi pi-check-circle mr-2 text-teal-500 font-bold"></i>
                                 EWB #{{
                                     activeBatch.eway_bill_no ||
                                     activeBatch.dispatches?.[0]?.status?.invoice
@@ -3041,56 +2481,41 @@ console.log(
                         </template>
 
                         <!-- WhatsApp (if dispatched) -->
-                        <button
-                            v-if="
-                                activeBatch.status >= 3 &&
-                                activeBatch.dispatches?.[0] &&
-                                can('DISPATCH.WHATSAPP')
-                            "
-                            class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-emerald-700 transition-colors cursor-pointer"
+                        <button v-if="
+                            activeBatch.status >= 3 &&
+                            activeBatch.dispatches?.[0] &&
+                            can('DISPATCH.WHATSAPP')
+                        " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-emerald-700 transition-colors cursor-pointer"
                             @click="
                                 sendWhatsAppDirect(activeBatch.dispatches[0]);
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"></i>
                             WhatsApp Send
                         </button>
 
-                        <div
-                            v-if="
-                                activeBatch.dispatches?.[0]?.dispatch_status ===
-                                    'Cancelled' || activeBatch.status === 5
-                            "
-                            class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-700 bg-rose-50 dark:bg-rose-950/30 select-none border-t border-slate-100 dark:border-slate-800"
-                        >
-                            <i
-                                class="pi pi-times-circle mr-2 text-rose-500 font-bold"
-                            ></i>
+                        <div v-if="
+                            activeBatch.dispatches?.[0]?.dispatch_status ===
+                            'Cancelled' || activeBatch.status === 5
+                        "
+                            class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-700 bg-rose-50 dark:bg-rose-950/30 select-none border-t border-slate-100 dark:border-slate-800">
+                            <i class="pi pi-times-circle mr-2 text-rose-500 font-bold"></i>
                             Dispatch Cancelled
                         </div>
                     </div>
 
                     <!-- Group 4: Delete Batch -->
-                    <div
-                        v-if="
-                            canDeleteBatch(activeBatch) &&
-                            (canDeleteDispatchedBatches || can('BATCH.DELETE'))
-                        "
-                        class="py-1"
-                    >
+                    <div v-if="
+                        canDeleteBatch(activeBatch) &&
+                        (canDeleteDispatchedBatches || can('BATCH.DELETE'))
+                    " class="py-1">
                         <button
                             class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
                             @click="
                                 destroy(activeBatch);
-                                closeAllMenus();
-                            "
-                        >
-                            <i
-                                class="pi pi-trash mr-2 text-rose-500 font-bold"
-                            ></i>
+                            closeAllMenus();
+                            ">
+                            <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
                             Delete Batch
                         </button>
                     </div>
@@ -3098,13 +2523,8 @@ console.log(
             </div>
         </Popover>
         <!-- Premium Share Batch Dialog -->
-        <Dialog
-            v-model:visible="showShareBatchModal"
-            modal
-            header="Share Batch Report"
-            :style="{ width: '450px' }"
-            class="premium-dialog"
-        >
+        <Dialog v-model:visible="showShareBatchModal" modal header="Share Batch Report" :style="{ width: '450px' }"
+            class="premium-dialog">
             <div class="p-2">
                 <p class="text-xs text-slate-500 mb-4">
                     Generate a secure, read-only link to share this batch sheet
@@ -3113,28 +2533,20 @@ console.log(
 
                 <!-- Expiry Options -->
                 <div class="mb-5">
-                    <label
-                        class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2"
-                        >Link Expiry</label
-                    >
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Link
+                        Expiry</label>
                     <div class="grid grid-cols-4 gap-2">
-                        <button
-                            v-for="opt in [
-                                { label: '1 Day', value: '1' },
-                                { label: '7 Days', value: '7' },
-                                { label: '30 Days', value: '30' },
-                                { label: 'Never', value: '0' },
-                            ]"
-                            :key="opt.value"
-                            type="button"
-                            @click="shareBatchExpiry = opt.value"
-                            class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all"
-                            :class="[
+                        <button v-for="opt in [
+                            { label: '1 Day', value: '1' },
+                            { label: '7 Days', value: '7' },
+                            { label: '30 Days', value: '30' },
+                            { label: 'Never', value: '0' },
+                        ]" :key="opt.value" type="button" @click="shareBatchExpiry = opt.value"
+                            class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all" :class="[
                                 shareBatchExpiry === opt.value
                                     ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                                     : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100',
-                            ]"
-                        >
+                            ]">
                             {{ opt.label }}
                         </button>
                     </div>
@@ -3142,45 +2554,24 @@ console.log(
 
                 <!-- Action Button or Generated Link Display -->
                 <div v-if="!shareBatchLink" class="mt-6 flex justify-end gap-2">
-                    <Button
-                        label="Cancel"
-                        icon="pi pi-times"
-                        text
-                        severity="secondary"
-                        @click="showShareBatchModal = false"
-                        class="!text-xs font-bold uppercase"
-                    />
-                    <Button
-                        label="Generate Link"
-                        icon="pi pi-link"
-                        severity="primary"
-                        @click="generateShareBatchLink"
+                    <Button label="Cancel" icon="pi pi-times" text severity="secondary"
+                        @click="showShareBatchModal = false" class="!text-xs font-bold uppercase" />
+                    <Button label="Generate Link" icon="pi pi-link" severity="primary" @click="generateShareBatchLink"
                         :loading="isGeneratingBatchLink"
-                        class="!text-xs font-bold uppercase bg-indigo-600 hover:bg-indigo-700 text-white border-0"
-                    />
+                        class="!text-xs font-bold uppercase bg-indigo-600 hover:bg-indigo-700 text-white border-0" />
                 </div>
 
-                <div
-                    v-else
-                    class="mt-6 space-y-4 animate-in fade-in duration-200"
-                >
+                <div v-else class="mt-6 space-y-4 animate-in fade-in duration-200">
                     <!-- Link Textbox -->
                     <div>
-                        <label
-                            class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5"
-                            >Secure Share Link</label
-                        >
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Secure
+                            Share
+                            Link</label>
                         <div class="flex gap-2">
-                            <input
-                                type="text"
-                                readonly
-                                :value="shareBatchLink"
-                                class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-300 font-mono focus:outline-none"
-                            />
-                            <button
-                                @click="copyShareBatchLink"
-                                class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
-                            >
+                            <input type="text" readonly :value="shareBatchLink"
+                                class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-300 font-mono focus:outline-none" />
+                            <button @click="copyShareBatchLink"
+                                class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all">
                                 <i class="pi pi-copy"></i>
                                 Copy
                             </button>
@@ -3188,20 +2579,14 @@ console.log(
                     </div>
 
                     <!-- Social Share Action Buttons -->
-                    <div
-                        class="pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2"
-                    >
-                        <button
-                            @click="shareBatchWhatsApp"
-                            class="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                        >
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
+                        <button @click="shareBatchWhatsApp"
+                            class="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm">
                             <i class="pi pi-whatsapp text-sm"></i>
                             WhatsApp
                         </button>
-                        <button
-                            @click="shareBatchEmail"
-                            class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                        >
+                        <button @click="shareBatchEmail"
+                            class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm">
                             <i class="pi pi-envelope text-sm"></i>
                             Email
                         </button>
@@ -3211,27 +2596,16 @@ console.log(
         </Dialog>
 
         <!-- Cancel Dispatch & Batch Modal Dialog -->
-        <Dialog
-            v-model:visible="showCancelDispatchModal"
-            modal
-            header="Cancel Dispatch & Batch"
-            :style="{ width: '560px' }"
-            class="premium-dialog"
-        >
+        <Dialog v-model:visible="showCancelDispatchModal" modal header="Cancel Dispatch & Batch"
+            :style="{ width: '560px' }" class="premium-dialog">
             <div class="p-2 space-y-4">
                 <!-- Alert Banner -->
-                <div
-                    class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1"
-                >
-                    <div
-                        class="flex items-center gap-2 font-bold text-rose-900"
-                    >
+                <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1">
+                    <div class="flex items-center gap-2 font-bold text-rose-900">
                         <i class="pi pi-exclamation-triangle text-rose-600"></i>
                         <span>Reversal Actions on Cancellation</span>
                     </div>
-                    <ul
-                        class="list-disc pl-5 text-[11px] space-y-0.5 text-rose-700"
-                    >
+                    <ul class="list-disc pl-5 text-[11px] space-y-0.5 text-rose-700">
                         <li>
                             Dispatch and Batch status will be permanently marked
                             as <strong>Cancelled</strong>.
@@ -3249,15 +2623,10 @@ console.log(
                 </div>
 
                 <!-- Trip Details Summary -->
-                <div
-                    v-if="cancellingBatch"
-                    class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs grid grid-cols-2 gap-2"
-                >
+                <div v-if="cancellingBatch"
+                    class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs grid grid-cols-2 gap-2">
                     <div>
-                        <span
-                            class="text-slate-400 block text-[10px] uppercase font-bold"
-                            >Batch Number</span
-                        >
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Batch Number</span>
                         <span class="font-bold text-slate-800">{{
                             /^[BP]/.test(String(cancellingBatch.batch_no))
                                 ? cancellingBatch.batch_no
@@ -3265,38 +2634,26 @@ console.log(
                         }}</span>
                     </div>
                     <div>
-                        <span
-                            class="text-slate-400 block text-[10px] uppercase font-bold"
-                            >Dispatch Number</span
-                        >
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Dispatch Number</span>
                         <span class="font-bold text-slate-800">{{
                             cancellingBatch.dispatches?.[0]?.dispatch_no
                                 ? (cancellingBatch.dispatches[0].prefix || "") +
-                                  cancellingBatch.dispatches[0].dispatch_no
+                                cancellingBatch.dispatches[0].dispatch_no
                                 : "N/A"
                         }}</span>
                     </div>
                     <div>
-                        <span
-                            class="text-slate-400 block text-[10px] uppercase font-bold"
-                            >Customer</span
-                        >
-                        <span
-                            class="font-semibold text-slate-700 truncate block"
-                            >{{
-                                cancellingBatch.dispatches?.[0]?.customer
-                                    ?.legal_name ||
-                                cancellingBatch.salesOrder?.customer
-                                    ?.legal_name ||
-                                "N/A"
-                            }}</span
-                        >
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Customer</span>
+                        <span class="font-semibold text-slate-700 truncate block">{{
+                            cancellingBatch.dispatches?.[0]?.customer
+                                ?.legal_name ||
+                            cancellingBatch.salesOrder?.customer
+                                ?.legal_name ||
+                            "N/A"
+                        }}</span>
                     </div>
                     <div>
-                        <span
-                            class="text-slate-400 block text-[10px] uppercase font-bold"
-                            >Truck Registration</span
-                        >
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Truck Registration</span>
                         <span class="font-semibold text-slate-700">{{
                             cancellingBatch.dispatches?.[0]?.truck
                                 ?.registration || "N/A"
@@ -3311,28 +2668,21 @@ console.log(
                             Cancellation Reason & Audit Notes
                             <span class="text-rose-500">*</span>
                         </label>
-                        <span
-                            :class="[
-                                'text-[11px] font-bold px-2 py-0.5 rounded-full border',
-                                isCancellationValid
-                                    ? 'text-emerald-700 bg-emerald-50 border-emerald-300'
-                                    : 'text-rose-700 bg-rose-50 border-rose-300',
-                            ]"
-                        >
+                        <span :class="[
+                            'text-[11px] font-bold px-2 py-0.5 rounded-full border',
+                            isCancellationValid
+                                ? 'text-emerald-700 bg-emerald-50 border-emerald-300'
+                                : 'text-rose-700 bg-rose-50 border-rose-300',
+                        ]">
                             Words: {{ cancellationWordCount }} / 50 minimum
                             required
                         </span>
                     </div>
-                    <textarea
-                        v-model="cancellationNotes"
-                        rows="5"
+                    <textarea v-model="cancellationNotes" rows="5"
                         placeholder="Provide detailed, comprehensive notes explaining why this dispatch is being cancelled (minimum 5 words required by policy)..."
-                        class="w-full text-xs rounded-xl border border-slate-300 p-3 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none resize-none"
-                    ></textarea>
-                    <p
-                        v-if="!isCancellationValid"
-                        class="text-[11px] text-rose-500 mt-1 flex items-center gap-1 font-medium"
-                    >
+                        class="w-full text-xs rounded-xl border border-slate-300 p-3 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none resize-none"></textarea>
+                    <p v-if="!isCancellationValid"
+                        class="text-[11px] text-rose-500 mt-1 flex items-center gap-1 font-medium">
                         <i class="pi pi-info-circle text-[10px]"></i>
                         Please write at least
                         {{ 50 - cancellationWordCount }} more word{{
@@ -3340,123 +2690,160 @@ console.log(
                         }}
                         to enable cancellation.
                     </p>
-                    <p
-                        v-else
-                        class="text-[11px] text-emerald-600 mt-1 flex items-center gap-1 font-medium"
-                    >
+                    <p v-else class="text-[11px] text-emerald-600 mt-1 flex items-center gap-1 font-medium">
                         <i class="pi pi-check text-[10px]"></i>
                         Minimum word requirement met. You may proceed.
                     </p>
                 </div>
 
                 <!-- Footer Buttons -->
-                <div
-                    class="flex justify-end gap-2 pt-2 border-t border-slate-100"
-                >
-                    <button
-                        type="button"
-                        @click="showCancelDispatchModal = false"
-                        class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                    >
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button type="button" @click="showCancelDispatchModal = false"
+                        class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                         Close
                     </button>
-                    <button
-                        type="button"
-                        :disabled="!isCancellationValid || isSubmittingCancel"
-                        @click="submitCancelDispatch"
-                        :class="[
+                    <button type="button" :disabled="!isCancellationValid || isSubmittingCancel"
+                        @click="submitCancelDispatch" :class="[
                             'flex items-center gap-2 px-5 py-2 text-xs font-bold text-white rounded-lg shadow-sm transition-all',
                             isCancellationValid && !isSubmittingCancel
                                 ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20 cursor-pointer'
                                 : 'bg-slate-300 cursor-not-allowed text-slate-500',
-                        ]"
-                    >
-                        <i
-                            v-if="isSubmittingCancel"
-                            class="pi pi-spinner animate-spin"
-                        ></i>
+                        ]">
+                        <i v-if="isSubmittingCancel" class="pi pi-spinner animate-spin"></i>
                         <i v-else class="pi pi-ban"></i>
                         <span>Confirm Cancellation</span>
                     </button>
                 </div>
             </div>
         </Dialog>
-        <Dialog
-            v-model:visible="invoiceDialogVisible"
-            modal
-            header="Generate Invoice"
-            class="w-full max-w-lg mx-4"
-            :closable="!invoiceForm.processing"
-            :closeOnEscape="!invoiceForm.processing"
-        >
+        <Dialog v-model:visible="invoiceDialogVisible" modal header="Generate Invoice" class="w-full max-w-lg mx-4"
+            :closable="!invoiceForm.processing" :closeOnEscape="!invoiceForm.processing">
             <form class="space-y-4" @submit.prevent="submitInvoice">
                 <p class="text-sm text-slate-500">
                     Choose the sales ledger and invoice date for this dispatch.
                 </p>
-                <BaseSelect
-                    v-model="invoiceForm.ledger_id"
-                    label="Sales Ledger"
-                    :options="sales_ledgers"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select a ledger"
-                    filter
-                    required
-                    :disabled="invoiceForm.processing"
-                    :error="invoiceForm.errors.ledger_id"
-                />
+                <BaseSelect v-model="invoiceForm.ledger_id" label="Sales Ledger" :options="sales_ledgers"
+                    optionLabel="label" optionValue="value" placeholder="Select a ledger" filter required
+                    :disabled="invoiceForm.processing" :error="invoiceForm.errors.ledger_id" />
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <BaseDatePicker
-                        v-model="invoiceForm.invoice_date"
-                        label="Invoice Date"
-                        required
-                        :autoFillOnSubmit="false"
-                        :disabled="invoiceForm.processing"
-                        :error="invoiceForm.errors.invoice_date"
-                    />
-                    <BaseInput
-                        v-model="invoiceForm.invoice_number"
-                        label="Invoice Number"
-                        placeholder="Generated if blank"
-                        :disabled="invoiceForm.processing"
-                        :error="invoiceForm.errors.invoice_number"
-                    />
+                    <BaseDatePicker v-model="invoiceForm.invoice_date" label="Invoice Date" required
+                        :autoFillOnSubmit="false" :disabled="invoiceForm.processing"
+                        :error="invoiceForm.errors.invoice_date" />
+                    <BaseInput v-model="invoiceForm.invoice_number" label="Invoice Number"
+                        placeholder="Generated if blank" :disabled="invoiceForm.processing"
+                        :error="invoiceForm.errors.invoice_number" />
                 </div>
-                <BaseField
-                    label="Notes"
-                    :error="invoiceForm.errors.notes"
-                    :disabled="invoiceForm.processing"
-                >
+                <BaseField label="Notes" :error="invoiceForm.errors.notes" :disabled="invoiceForm.processing">
                     <template #default="{ inputId, invalid }">
-                        <Textarea
-                            :id="inputId"
-                            v-model="invoiceForm.notes"
-                            rows="3"
-                            fluid
-                            placeholder="Enter invoice notes…"
-                            :invalid="invalid"
-                            :disabled="invoiceForm.processing"
-                        />
+                        <Textarea :id="inputId" v-model="invoiceForm.notes" rows="3" fluid
+                            placeholder="Enter invoice notes…" :invalid="invalid" :disabled="invoiceForm.processing" />
                     </template>
                 </BaseField>
-                <p
-                    v-if="invoiceError"
-                    role="alert"
-                    class="text-sm text-rose-700"
-                >
+                <p v-if="invoiceError" role="alert" class="text-sm text-rose-700">
                     {{ invoiceError }}
                 </p>
-                <BaseFormActions
-                    label="Generate Invoice"
-                    :loading="invoiceForm.processing"
-                    @cancel="invoiceDialogVisible = false"
-                />
+                <BaseFormActions label="Generate Invoice" :loading="invoiceForm.processing"
+                    @cancel="invoiceDialogVisible = false" />
             </form>
         </Dialog>
     </AppLayout>
 </template>
 
 <style scoped>
+.batches-table-shell :deep(.batch-actions-header .p-datatable-column-header-content),
+.batches-table-shell :deep(.batch-actions-header .p-column-header-content) {
+    justify-content: center !important;
+}
+
+.batch-actions-layout {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.batch-actions-trigger {
+    grid-column: 1;
+    grid-row: 1;
+    flex-shrink: 0;
+}
+
+.batch-status-badges {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.batch-status-badges :deep(.p-tag) {
+    min-width: 20px;
+    min-height: 20px;
+    max-width: 100%;
+    padding: 2px 5px;
+    font-size: 9px;
+    line-height: 1.2;
+    white-space: normal;
+}
+
+.batches-table-shell {
+    max-width: 100%;
+}
+
+.batches-table-shell :deep(.base-datatable-wrapper),
+.batches-table-shell :deep(.p-datatable) {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.batches-table-shell :deep(.p-datatable-table-container > .p-datatable-table) {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+}
+
+.batches-table-shell :deep(.p-datatable-table > .p-datatable-thead > tr > th),
+.batches-table-shell :deep(.p-datatable-table > .p-datatable-tbody > tr:not(.p-datatable-row-expansion) > td) {
+    padding: 10px 8px !important;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.batches-table-shell :deep(.p-datatable-table > .p-datatable-thead > tr > th:first-child) {
+    width: 3.5rem !important;
+}
+
+.batches-table-shell :deep(.p-datatable-column-header-content),
+.batches-table-shell :deep(.p-column-header-content) {
+    min-width: 0;
+    gap: 4px;
+}
+
+.batches-table-shell :deep(.p-datatable-column-title),
+.batches-table-shell :deep(.p-column-title) {
+    min-width: 0;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+}
+
+.batches-table-shell :deep(.p-datatable-table > .p-datatable-tbody > tr:not(.p-datatable-row-expansion) > td .flex) {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+}
+
+.batches-table-shell :deep(.p-datatable-table > .p-datatable-tbody > tr:not(.p-datatable-row-expansion) > td .truncate) {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 :deep(.expanded-batch-tabview .p-tabview-nav) {
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;

@@ -49,6 +49,14 @@ const plantLogoUrl = computed(() => {
 });
 
 // Address formatters
+const addressText = (value) => {
+    if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+    if (value && typeof value === 'object') {
+        return addressText(value.name || value.title || value.state_name || '');
+    }
+    return '';
+};
+
 const patronAddress = computed(() => {
     const p = patron.value;
     if (p.addresses && p.addresses.length > 0) {
@@ -60,7 +68,7 @@ const patronAddress = computed(() => {
             addr.district,
             addr.state?.name || addr.state,
             addr.postal_code ? `- ${addr.postal_code}` : ''
-        ].filter(Boolean);
+        ].map(addressText).filter(Boolean);
         return parts.join(', ');
     }
     return '';
@@ -70,13 +78,16 @@ const plantAddress = computed(() => {
     const pl = plant.value;
     if (pl.addresses && pl.addresses.length > 0) {
         const addr = pl.addresses[0];
+        const city = addressText(addr.city);
+        const district = addressText(addr.district);
+        const state = addressText(addr.state);
+        const postalCode = addressText(addr.postal_code || addr.zipcode);
         const parts = [
-            addr.address_line_1,
-            addr.address_line_2,
-            addr.city ? `${addr.city} (Po)` : '',
-            addr.district ? `${addr.district} (Dt)` : '',
-            addr.state?.name || addr.state,
-            addr.postal_code ? `-${addr.postal_code}` : ''
+            addressText(addr.address_line_1 || addr.line_1),
+            addressText(addr.address_line_2 || addr.line_2),
+            city,
+            district,
+            [state, postalCode].filter(Boolean).join(' - ')
         ].filter(Boolean);
         return parts.join(',\n');
     }
@@ -230,20 +241,16 @@ const getBadgeStyle = (txType) => {
                     <img v-if="plantLogoUrl" :src="plantLogoUrl" :alt="plant.legal_name || plant.name || 'Plant Logo'"
                         class="h-12 max-h-14 w-auto max-w-[220px] object-contain" />
                     <div v-else class="text-xl font-black tracking-tight text-slate-900">
-                        {{ plant.legal_name || plant.name || 'DEMO LOGIN' }}
+                        {{ plant.legal_name || plant.name || '' }}
                     </div>
                 </div>
 
                 <!-- Right: Plant Legal & Address -->
                 <div class="text-right text-[11px] text-slate-600 leading-tight">
                     <div class="font-bold text-slate-500 uppercase text-[9px] tracking-wider mb-0.5">Address:</div>
-                    <div class="font-bold text-slate-900 text-xs">{{ plant.legal_name || plant.name || 'DEMO LOGIN' }}
+                    <div class="font-bold text-slate-900 text-xs">{{ plant.legal_name || plant.name || '' }}
                     </div>
                     <div v-if="plantAddress" class="whitespace-pre-line text-slate-600 mt-0.5">{{ plantAddress }}</div>
-                    <div v-else class="text-slate-500 mt-0.5">
-                        3/150, Akkiyampatti (Po), Sendamangalam (Tk),<br />
-                        Namakkal (Dt), Tamil Nadu -637409
-                    </div>
                     <div class="mt-1 text-slate-700">
                         <span class="font-semibold">GSTIN/UIN #:</span> {{ plant.gstin || '-' }}
                     </div>

@@ -1,1 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/AuthenticationCard-IX4-X7uw.js
 import{_ as s,o as e,g as a,d as r,f as t}from"./app-0xtBPEm_.js";const d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},o=s({},[["render",function(s,o){return e(),a("div",d,[r("div",null,[t(s.$slots,"logo")]),r("div",l,[t(s.$slots,"default")])])}]]);export{o as A};
+========
+import{_ as s,o as e,g as a,d as r,f as t}from"./app-DHpKorK0.js";const d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},o=s({},[["render",function(s,o){return e(),a("div",d,[r("div",null,[t(s.$slots,"logo")]),r("div",l,[t(s.$slots,"default")])])}]]);export{o as A};
+>>>>>>>> f8d809c10ec01bbc4be07deb0238b1e8bb59f4d2:public/build/assets/AuthenticationCard-TKsWSIcL.js
