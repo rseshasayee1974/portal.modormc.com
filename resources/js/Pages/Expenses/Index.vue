@@ -113,15 +113,15 @@ const formatCurrency = (val: number) => {
                             showSerial
                             heading="Expense History"
                             headingIcon="CreditCardIcon"
-                            :rows="15"
+                            :rows="30"
                         >
-                            <Column v-if="permits('UPDATE')" header="" style="width: 2.5rem">
+                            <!-- <Column v-if="permits('UPDATE')" header="" style="width: 2.5rem">
                                 <template #body="{ data }">
                                     <Button :icon="expandedRows[data.id] ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" text
                                         :aria-label="expandedRows[data.id] ? 'Close expense edit' : 'Expand expense edit'"
                                         :aria-expanded="Boolean(expandedRows[data.id])" @click.stop="editExpense(data)" />
                                 </template>
-                            </Column>
+                            </Column> -->
                             <Column field="date" header="Date" sortable>
                                 <template #body="slotProps">
                                     <span class="text-xs font-bold text-slate-600">{{ entityLocaleDate(slotProps.data.date, APP_LOCALE, { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
@@ -156,14 +156,14 @@ const formatCurrency = (val: number) => {
                             </Column>
 
                             <Column field="ledger.title" header="Paid Through" />
-                            <Column field="made_by_employee.first_name" header="Made By" sortable>
+                            <!-- <Column field="made_by_employee.first_name" header="Made By" sortable>
                                 <template #body="{ data }">
                                     <span class="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
                                         <i class="pi pi-user text-[#3B638E]" aria-hidden="true" />{{ data.made_by_employee ? [data.made_by_employee.first_name, data.made_by_employee.last_name].filter(Boolean).join(' ') : '—' }}
                                     </span>
                                 </template>
-                            </Column>
-                            <Column field="note" header="Notes" />
+                            </Column> -->
+                            <!-- <Column field="note" header="Notes" />
                             <Column header="Accounting">
                                 <template #body="{ data }">
                                     <Tag :value="data.accounting_entry?.is_status === 'POSTED' ? 'Posted' : 'Not posted'"
@@ -174,7 +174,7 @@ const formatCurrency = (val: number) => {
                                 <template #body="{ data }">
                                     <Tag :value="Number(data.status) ? 'Recorded' : 'Inactive'" :severity="Number(data.status) ? 'success' : 'secondary'" />
                                 </template>
-                            </Column>
+                            </Column> -->
                             <Column v-if="permits('UPDATE') || permits('DELETE')" header="Actions">
                                 <template #body="{ data }">
                                     <Button icon="pi pi-ellipsis-v" text aria-label="Expense actions" aria-haspopup="true"

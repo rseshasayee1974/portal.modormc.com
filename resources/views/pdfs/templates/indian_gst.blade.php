@@ -141,6 +141,9 @@
             <td class="block-td">
                 <div class="kv-line">Invoice No : <strong>{{ strtoupper($data['doc_no']) }}</strong></div>
                 <div class="kv-line">Date : <strong>{{ $data['doc_date'] }}</strong></div>
+                @foreach ($data['meta']['dispatch_print_fields'] ?? [] as $label => $value)
+                    <div class="kv-line">{{ $label }} : <strong>{{ $value }}</strong></div>
+                @endforeach
                 @if(!empty($data['meta']['so_no'])) <div class="kv-line">SO No : <strong>{{ $data['meta']['so_no'] }}</strong></div> @endif
                 @if(!empty($data['meta']['eway_bill_no'])) <div class="kv-line">EWayBillNo : <strong>{{ $data['meta']['eway_bill_no'] }}</strong></div> @endif
             </td>

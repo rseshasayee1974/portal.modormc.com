@@ -21,8 +21,7 @@
     $partner = $inv?->partner;
 
     // Resolve Dispatches, Sales Orders, Customer POs if available
-    $dispatches = \App\Models\Dispatch::with([
-        'batch',
+    $dispatches = \App\Services\PrintDataFormatter::invoiceDispatches($inv, [
         'mixDesign',
         'truck',
         'driver',
@@ -35,40 +34,11 @@
         'salesExecutive',
         'customerPO',
         'concretePump',
-    ])
-        ->whereHas('status', function ($q) use ($inv) {
-            if ($inv) {
-                $q->where('invoice_id', $inv->id);
-            }
-        })
-        ->get();
-
-    if ($dispatches->isEmpty() && $inv?->ref_id) {
-        $refIds = array_filter(array_map('trim', explode(',', $inv->ref_id)));
-        $dispatches = \App\Models\Dispatch::with([
-            'batch',
-            'mixDesign',
-            'truck',
-            'driver',
-            'transport',
-            'salesOrder.site',
-            'unloadSite',
-            'customerPO.site',
-            'salesOrder.salesExecutive',
-            'salesOrder.customerPO',
-            'salesExecutive',
-            'customerPO',
-            'concretePump',
-        ])
-            ->whereIn('id', $refIds)
-            ->get();
-    }
+    ]);
 
     $firstDispatch = $dispatches->first();
-    $batchNumbers = $dispatches->map(fn ($dispatch) => $dispatch->batch?->batch_no)
-        ->filter(fn ($value) => $value !== null && $value !== '')->unique()->implode(', ');
-    $siteReferences = $dispatches->pluck('dispatch_reference')
-        ->filter(fn ($value) => $value !== null && trim((string) $value) !== '')->unique()->implode(', ');
+    $dispatchPrintFields = $data['meta']['dispatch_print_fields']
+        ?? \App\Services\PrintDataFormatter::invoiceDispatchPrintFields((int) ($inv?->plant_id ?? $plant?->id), $dispatches);
     $salesOrder = $firstDispatch?->salesOrder;
     $customerPO = $firstDispatch?->customerPO ?? $salesOrder?->customerPO;
 
@@ -104,7 +74,6 @@
     $billTo = $customerAddresses['bill_to'];
     $shipTo = $customerAddresses['ship_to'];
     $pdfSettings = \App\Services\PrintDataFormatter::getCustomSettings((int) ($inv?->plant_id ?? $plant?->id), 'invoices')['pdf'] ?? [];
-    $invoiceSettings = \App\Models\CustomSetting::getForModule((int) ($inv?->plant_id ?? $plant?->id), 'invoice');
 
     // Customer Ref
     $accNo = $partner?->code ?? ($partner?->reference ?? ($partner?->id ? 'AC-' . $partner->id : ''));
@@ -749,12 +718,9 @@
                     <div class="box-heading">Invoice Information</div>
                     <div class="info-line"><strong>Invoice No :</strong> {{ $invoiceNo }}</div>
                     <div class="info-line"><strong>Date :</strong> {{ $invoiceDate }}</div>
-                    @if ($invoiceSettings['invoice_show_batch_no'] ?? true)
-                        <div class="info-line"><strong>Batch No :</strong> {{ $batchNumbers ?: '-' }}</div>
-                    @endif
-                    @if ($invoiceSettings['invoice_show_site_ref'] ?? true)
-                        <div class="info-line"><strong>Site Ref :</strong> {{ $siteReferences ?: '-' }}</div>
-                    @endif
+                    @foreach ($dispatchPrintFields as $label => $value)
+                        <div class="info-line"><strong>{{ $label }} :</strong> {{ $value }}</div>
+                    @endforeach
                     <div class="info-line"><strong>SO No :</strong> {{ $soNo }}</div>
                     <div class="info-line"><strong>EWayBillNo :</strong> {{ $ewayBillNo }}</div>
                 </td>

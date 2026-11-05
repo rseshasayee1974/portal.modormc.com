@@ -223,6 +223,7 @@
                     'Delivery' => $data['delivery_date'],
                     'Due Date' => $data['due_date'] !== 'N/A' ? $data['due_date'] : '',
                 ];
+                $docRefFields += $data['meta']['dispatch_print_fields'] ?? [];
                 if (!empty($data['meta']['so_no'])) {
                     $docRefFields['SO#'] = $data['meta']['so_no'];
                 }

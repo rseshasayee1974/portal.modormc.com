@@ -325,6 +325,7 @@
                             if (!empty($data['meta']['so_no'])) {
                                 $infoLines['SO No'] = $data['meta']['so_no'];
                             }
+                            $infoLines += $data['meta']['dispatch_print_fields'] ?? [];
                             $infoLines[$isPurchaseBill ? 'Purchase PO' : 'PO#'] = $data['meta']['po_number'] ?? '';
                             if (
                                 ($pdfSettings['show_einvoice_details'] ?? true) &&

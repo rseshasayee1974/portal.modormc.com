@@ -245,6 +245,7 @@
                     $metaFields['Due'] = $data['due_date'];
                 }
                 $metaFields['Delivery'] = $data['delivery_date'];
+                $metaFields += $data['meta']['dispatch_print_fields'] ?? [];
                 if (!empty($data['meta']['so_no'])) {
                     $metaFields['SO#'] = $data['meta']['so_no'];
                 }

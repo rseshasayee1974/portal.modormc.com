@@ -418,6 +418,10 @@
             </tbody>
         </table>
 
+        @foreach ($data['meta']['dispatch_print_fields'] ?? [] as $label => $value)
+            <div><strong>{{ $label }} :</strong> {{ $value }}</div>
+        @endforeach
+
         {{-- Items --}}
         <table class="items-table">
             <thead>

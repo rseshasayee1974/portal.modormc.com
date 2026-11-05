@@ -309,6 +309,7 @@
                             if (!empty($data['meta']['so_no'])) {
                                 $kv1['SO No'] = $data['meta']['so_no'];
                             }
+                            $kv1 += $data['meta']['dispatch_print_fields'] ?? [];
                             $kv1['PO#'] = $data['meta']['po_number'] ?? '';
                             if (
                                 ($pdfSettings['show_einvoice_details'] ?? true) &&

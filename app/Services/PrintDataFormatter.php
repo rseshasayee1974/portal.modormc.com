@@ -28,6 +28,7 @@ use App\Models\Quotation;
 use App\Models\SalesOrder;
 use App\Models\TermsCondition;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Throwable;
 
 class PrintDataFormatter
@@ -1098,6 +1099,55 @@ class PrintDataFormatter
         return $data;
     }
 
+    public static function invoiceDispatches(?Invoice $invoice, array $relations = []): Collection
+    {
+        if (!$invoice?->getKey() || $invoice->accountingModule() === 'Purchase') {
+            return collect();
+        }
+
+        $query = Dispatch::where('plant_id', $invoice->plant_id)
+            ->with(array_merge(['batch'], $relations))
+            ->orderBy('id');
+        $dispatches = (clone $query)
+            ->whereHas('invoiceStatus', fn ($status) => $status->where('invoice_id', $invoice->getKey()))
+            ->get();
+
+        if ($dispatches->isEmpty() && strcasecmp(trim((string) $invoice->invoice_label), 'Dispatch') === 0) {
+            $ids = array_filter(array_map('trim', explode(',', (string) $invoice->ref_id)), 'ctype_digit');
+            if ($ids) {
+                $dispatches = $query->whereIn('id', $ids)->get();
+            }
+        }
+
+        return $dispatches;
+    }
+
+    public static function invoiceDispatchPrintFields(int $plantId, Collection $dispatches): array
+    {
+        if ($dispatches->isEmpty()) {
+            return [];
+        }
+
+        $settings = array_replace(
+            CustomSetting::getForModule($plantId, 'batching'),
+            CustomSetting::getForModule($plantId, 'invoice'),
+        );
+        $format = fn (Collection $values) => $values->map(fn ($value) => trim((string) $value))
+            ->filter(fn ($value) => $value !== '')->unique()->implode(', ');
+
+        $fields = [];
+        if ($settings['invoice_show_batch_no'] ?? true) {
+            $value = $format($dispatches->map(fn ($dispatch) => $dispatch->batch?->batch_no));
+            $fields['Batch No'] = $value === '' ? '-' : $value;
+        }
+        if ($settings['invoice_show_site_ref'] ?? true) {
+            $value = $format($dispatches->pluck('dispatch_reference'));
+            $fields['Site Ref'] = $value === '' ? '-' : $value;
+        }
+
+        return $fields;
+    }
+
     public static function fromInvoice($invoice): array
     {
         $isPurchaseBill = $invoice->accountingModule() === 'Purchase';
@@ -1143,23 +1193,12 @@ class PrintDataFormatter
         $data['state']     = strtoupper($invoice->status ?? 'DRAFT');
         $data['company']   = self::formatCompany($invoice->plant);
 
-        $dispatch = $isPurchaseBill ? null : Dispatch::whereHas('status', fn ($q) => $q->where('invoice_id', $invoice->id))->with([
+        $dispatches = self::invoiceDispatches($invoice, [
             'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign.concrete_grade', 'salesOrder.mixDesign', 'salesOrder.customerPO',
             'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site',
             'concretePump', 'truck', 'transport', 'driver', 'mixDesign.concrete_grade', 'mixDesign', 'salesExecutive'
-        ])->first();
-
-        if (!$isPurchaseBill && !$dispatch && !empty($invoice->ref_id)) {
-            $refIds     = array_filter(array_map('trim', explode(',', $invoice->ref_id)));
-            $firstRefId = reset($refIds);
-            if (is_numeric($firstRefId)) {
-                $dispatch = Dispatch::with([
-                    'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign.concrete_grade', 'salesOrder.mixDesign', 'salesOrder.customerPO',
-                    'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site',
-                    'concretePump', 'truck', 'transport', 'driver', 'mixDesign.concrete_grade', 'mixDesign', 'salesExecutive'
-                ])->find($firstRefId);
-            }
-        }
+        ]);
+        $dispatch = $dispatches->first();
 
         $partner = $invoice->partner;
         if ($dispatch && (!$partner || empty($partner->name))) {
@@ -1336,6 +1375,7 @@ class PrintDataFormatter
             'qr_code'                => self::formatQrCodeUrl($invoice->einvoice_qr_code, $invoice->einvoice_irn),
             'eway_bill_no'           => $invoice->eway_bill_no ?? '',
             'so_no'                  => $salesOrder ? ($salesOrder->full_number ?? $salesOrder->order_no) : ($dispatch?->salesOrder?->order_no ?? ''),
+            'dispatch_print_fields'  => self::invoiceDispatchPrintFields((int) $invoice->plant_id, $dispatches),
             'acc_no'                 => $partner?->account_number ?? $partner?->code ?? ($partner ? 'AC-' . sprintf('%04d', $partner->id) : ''),
             'sales_person'           => $salesPersonName,
             'pump'                   => $pumpName,

@@ -246,6 +246,7 @@
                     'Party' => $data['bill_to']['name'],
                     'Project' => $data['meta']['project_name'] ?? '',
                 ];
+                $metaBarFields += $data['meta']['dispatch_print_fields'] ?? [];
                 if (!empty($data['meta']['so_no'])) {
                     $metaBarFields['SO#'] = $data['meta']['so_no'];
                 }

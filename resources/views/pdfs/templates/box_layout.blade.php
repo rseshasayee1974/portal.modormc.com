@@ -251,6 +251,9 @@
                 @if(($pdfSettings['date'] ?? true) && $hasValue($data['doc_date'] ?? null))
                     <div class="kv-line">Date : <strong>{{ $data['doc_date'] }}</strong></div>
                 @endif
+                @foreach ($data['meta']['dispatch_print_fields'] ?? [] as $label => $value)
+                    <div class="kv-line">{{ $label }} : <strong>{{ $value }}</strong></div>
+                @endforeach
                 @if($hasValue($data['meta']['so_no'] ?? null))
                     <div class="kv-line">SO No : <strong>{{ $data['meta']['so_no'] }}</strong></div>
                 @endif
