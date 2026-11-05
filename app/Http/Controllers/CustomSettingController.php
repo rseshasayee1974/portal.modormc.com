@@ -77,7 +77,7 @@ class CustomSettingController extends Controller
             return redirect()->back()->with('error', 'Plant session expired.');
         }
 
-        $module = $request->input('module', 'batching');
+        $module = strtolower(trim((string) $request->input('module', 'batching')));
         $request->validate([
             'settings' => ['required', 'array'],
             'settings.invoice_show_batch_no' => ['sometimes', 'boolean'],
@@ -152,20 +152,8 @@ class CustomSettingController extends Controller
         }
 
         $customSetting = CustomSetting::where('plant_id', $plantId)
-            ->where('module_name', $module)
+            ->whereRaw('LOWER(TRIM(module_name)) = ?', [$module])
             ->first();
-
-        if ($module === 'batching') {
-            foreach (['batch_series_enabled', 'default_batch_series', 'dispatch_discount_tax_mode', 'invoice_quantity_basis', 'show_delivered_qty', 'so_number_padding', 'so_number_format', 'po_number_format', 'po_number_padding', 'inward_number_format', 'inward_number_padding', 'cpo_number_format', 'cpo_number_padding', 'quote_number_format', 'quote_number_padding', 'payment_number_format', 'payment_number_padding'] as $key) {
-                if (!array_key_exists($key, $settings) && array_key_exists($key, $customSetting?->settings ?? [])) {
-                    $settings[$key] = $customSetting->settings[$key];
-                }
-            }
-        }
-
-        if (in_array($module, ['invoice', 'billing'], true)) {
-            $settings = array_replace($customSetting?->settings ?? [], $settings);
-        }
 
         if ($module === 'batching') {
             foreach (['invoice', 'billing'] as $numberModule) {
@@ -185,6 +173,9 @@ class CustomSettingController extends Controller
             $settings['batch_sheet_driver'] = $customSetting->settings['batch_sheet_driver'];
         }
 
+        // A partial settings save must not erase keys omitted by that client.
+        $settings = array_replace($customSetting?->settings ?? [], $settings);
+
         // File paths belong to the server; ordinary settings saves preserve the current logo.
         unset($settings['batch_sheet_logo_path']);
         $logoPath = $customSetting?->settings['batch_sheet_logo_path'] ?? null;
@@ -200,7 +191,7 @@ class CustomSettingController extends Controller
         \Illuminate\Support\Facades\DB::transaction(function () use ($customSetting, $settings, $module, $plantId) {
             if ($customSetting) {
                 $oldSettings = $customSetting->settings;
-                $customSetting->update(['settings' => $settings]);
+                $customSetting->update(['module_name' => $module, 'settings' => $settings]);
             } else {
                 $customSetting = CustomSetting::create([
                     'plant_id' => $plantId,

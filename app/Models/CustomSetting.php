@@ -35,12 +35,13 @@ class CustomSetting extends Model
      */
     public function getModuleNameAttribute()
     {
-        return $this->attributes['module_name'] ?? null;
+        $value = $this->attributes['module_name'] ?? null;
+        return $value === null ? null : strtolower(trim($value));
     }
 
     public function setModuleNameAttribute($value): void
     {
-        $this->attributes['module_name'] = $value;
+        $this->attributes['module_name'] = strtolower(trim((string) $value));
     }
 
     public function getModuleIdAttribute()
@@ -101,7 +102,7 @@ class CustomSetting extends Model
             : 'module_name';
 
         return self::where('plant_id', $plantId)
-            ->where($moduleNameColumn, $moduleName)
+            ->whereRaw('LOWER(TRIM(' . $moduleNameColumn . ')) = ?', [strtolower(trim($moduleName))])
             ->first()?->settings ?? [];
     }
 

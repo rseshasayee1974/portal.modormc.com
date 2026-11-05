@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from "@/Layouts/AppLayout.vue";
 import { useForm } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { entityToday } from "@/Utils/entityDateTime";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
@@ -26,11 +26,9 @@ const props = defineProps<{
 }>();
 
 // ─── Form State ───────────────────────────────────────────────────────────────
-const form = useForm({
-    module: "batching",
-    batch_sheet_logo: null as File | null,
-    remove_batch_sheet_logo: false,
-    settings: {
+const settingEnabled = (value: any, fallback = false) => value === undefined || value === null
+    ? fallback : [true, 1, "1", "true", "on", "yes"].includes(value);
+const savedSettings = () => ({
         batch_creation_source:
             props.batchingSettings?.batch_creation_source || "sales_order",
         dispatch_discount_tax_mode:
@@ -55,7 +53,7 @@ const form = useForm({
                 : props.batchingSettings?.newweight !== undefined
                   ? Number(props.batchingSettings?.newweight)
                   : 1,
-        manual_weight: props.batchingSettings?.manual_weight == 1,
+        manual_weight: settingEnabled(props.batchingSettings?.manual_weight),
         weight_mandatory:
             props.batchingSettings?.weight_mandatory !== undefined
                 ? props.batchingSettings?.weight_mandatory == 1 ||
@@ -68,13 +66,13 @@ const form = useForm({
                   props.batchingSettings?.with_inventory === true ||
                   props.batchingSettings?.with_inventory === "true"
                 : true,
-        camera: props.batchingSettings?.camera == 1,
+        camera: settingEnabled(props.batchingSettings?.camera),
         camera_url: props.batchingSettings?.camera_url || "",
         camera_url_1: props.batchingSettings?.camera_url_1 || "",
         camera_url_2: props.batchingSettings?.camera_url_2 || "",
         loader_gif: props.batchingSettings?.loader_gif || "",
-        sheet_upload: props.batchingSettings?.sheet_upload == 1,
-        hide_batch_form: props.batchingSettings?.hide_batch_form == 1,
+        sheet_upload: settingEnabled(props.batchingSettings?.sheet_upload),
+        hide_batch_form: settingEnabled(props.batchingSettings?.hide_batch_form),
         po_prefix: props.batchingSettings?.po_prefix || "PO",
         po_number_format: props.batchingSettings?.po_number_format || 'prefix_fy_number',
         po_number_padding: Number(props.batchingSettings?.po_number_padding ?? 0),
@@ -121,13 +119,13 @@ const form = useForm({
         billing_number_start: Number(
             props.batchingSettings?.billing_number_start ?? 1,
         ),
-        target_to_actual: props.batchingSettings?.target_to_actual == 1,
+        target_to_actual: settingEnabled(props.batchingSettings?.target_to_actual),
         actual_consumption_variation: Number(
             props.batchingSettings?.actual_consumption_variation ??
                 props.batchingSettings?.actual_variation_limit ??
                 5,
         ),
-        auto_carry_pump: props.batchingSettings?.auto_carry_pump == 1,
+        auto_carry_pump: settingEnabled(props.batchingSettings?.auto_carry_pump),
         default_transport: props.batchingSettings?.default_transport || "",
         quote_validity:
             props.batchingSettings?.quote_validity !== undefined
@@ -149,8 +147,19 @@ const form = useForm({
                   props.batchingSettings?.quotation_price_list === true ||
                   props.batchingSettings?.quotation_price_list === "true"
                 : false,
-        custom_params: props.batchingSettings?.custom_params || [],
-    },
+        custom_params: JSON.parse(JSON.stringify(props.batchingSettings?.custom_params || [])),
+});
+
+const form = useForm({
+    module: "batching",
+    batch_sheet_logo: null as File | null,
+    remove_batch_sheet_logo: false,
+    settings: savedSettings(),
+});
+
+watch(() => [props.plantId, props.batchingSettings], () => {
+    form.settings = savedSettings();
+    form.defaults('settings', savedSettings());
 });
 
 const batchSheetDriverOptions = computed(() => [

@@ -385,6 +385,51 @@ class InvoiceNumberFormatTest extends TestCase
         $this->assertSame('PB/2627/0001', $first->fresh()->full_number);
     }
 
+    public function test_manual_weight_setting_survives_partial_updates_and_can_be_switched_off(): void
+    {
+        $controller = \Mockery::mock(\App\Http\Controllers\CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->times(4)->with('edit');
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['manual_weight' => 'true']]));
+        $this->assertSame(1, \App\Models\CustomSetting::getForModule(1, 'batching')['manual_weight']);
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['camera' => 1]]));
+        $this->assertSame(1, \App\Models\CustomSetting::getForModule(1, 'batching')['manual_weight']);
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['manual_weight' => '0']]));
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['camera' => 0]]));
+        $this->assertSame(0, \App\Models\CustomSetting::getForModule(1, 'batching')['manual_weight']);
+        $this->assertArrayNotHasKey('manual_weight', \App\Models\CustomSetting::getForModule(2, 'batching'));
+    }
+
+    public function test_custom_settings_partial_save_and_reload_preserve_all_settings(): void
+    {
+        Schema::create('mm_plants', function (Blueprint $table) {
+            $table->id(); $table->string('name'); $table->softDeletes();
+        });
+        DB::table('mm_plants')->insert(['id' => 1, 'name' => 'Settings Test']);
+        $this->settings(['camera' => 1, 'camera_url' => 'http://camera.local/snapshot',
+            'manual_weight' => 1, 'quote_prefix' => 'QUOTE', 'custom_params' => [['key' => 'example', 'value' => 'saved']]]);
+        // Legacy title-case middleware stored the module identifier as Batching.
+        DB::table('mm_custom_settings')->where('module_name', 'batching')->update(['module_name' => 'Batching']);
+        $this->assertSame(1, \App\Models\CustomSetting::getForModule(1, 'batching')['manual_weight']);
+        $this->assertNotNull(\App\Models\CustomSetting::all()->firstWhere('module_name', 'batching'));
+        $controller = \Mockery::mock(\App\Http\Controllers\CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->twice()->with('edit');
+        $controller->shouldReceive('authorizeModule')->once()->with('menu');
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['manual_weight' => 0]]));
+        $controller->update(\Illuminate\Http\Request::create('/', 'POST', ['settings' => ['quote_validity' => 30, 'custom_params' => []]]));
+        $request = \Illuminate\Http\Request::create('/settings/customsetting', 'GET');
+        $request->headers->set('X-Inertia', 'true');
+        $response = $controller->index()->toResponse($request);
+        $saved = $response->getData(true)['props']['batchingSettings'];
+        $this->assertSame(0, $saved['manual_weight']);
+        $this->assertSame(1, $saved['camera']);
+        $this->assertSame('http://camera.local/snapshot', $saved['camera_url']);
+        $this->assertSame('QUOTE', $saved['quote_prefix']);
+        $this->assertSame(30, $saved['quote_validity']);
+        $this->assertSame([], $saved['custom_params']);
+        $this->assertSame(1, DB::table('mm_custom_settings')->whereRaw('LOWER(module_name) = ?', ['batching'])->count());
+        $this->assertSame('batching', DB::table('mm_custom_settings')->where('id', 1)->value('module_name'));
+    }
+
     public function test_other_document_generators_use_prefix_financial_year_sequence(): void
     {
         foreach (['mm_quotations', 'mm_customer_pos', 'mm_sales_orders', 'mm_purchase_orders', 'mm_purchase_order_history', 'mm_petty_cash'] as $name) {
