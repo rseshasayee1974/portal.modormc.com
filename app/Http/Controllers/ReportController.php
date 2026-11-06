@@ -194,6 +194,7 @@ class ReportController extends Controller
                 'attendance_status'   => $request->input('attendance_status'),
                 'employee_id'         => $request->input('employee_id') ?? $request->input('personnel_id'),
                 'expense_type_id'     => $request->input('expense_type_id'),
+                'qc_category'         => $request->input('qc_category'),
                 'month'               => $request->input('month'),
                 'grade_id'            => $request->input('grade_id'),
                 'mix_design_id'       => $request->input('mix_design_id'),

@@ -17,10 +17,14 @@ class QualityTestingReportService implements ReportServiceInterface
 
     public function generate(array $params): array
     {
-        Validator::make($params, ['start' => 'required|date', 'end' => 'required|date|after_or_equal:start'])->validate();
+        Validator::make($params, ['start' => 'required|date', 'end' => 'required|date|after_or_equal:start',
+            'qc_category' => 'nullable|in:Concrete,Raw Material'])->validate();
         $start = Carbon::parse($params['start'])->startOfDay();
         $end = Carbon::parse($params['end'])->addDay()->startOfDay();
         $groups = QcTest::where('plant_id', $this->ctx->requirePlantId())
+            ->when(!empty($params['qc_category']), fn ($query) => $query->whereHas('testType', fn ($type) => $type
+                ->where('plant_id', $this->ctx->requirePlantId())
+                ->whereRaw('LOWER(TRIM(category)) = ?', [strtolower($params['qc_category'])])))
             ->whereRaw('COALESCE(test_date, scheduled_date) >= ?', [$start->toDateString()])
             ->whereRaw('COALESCE(test_date, scheduled_date) < ?', [$end->toDateString()])
             ->selectRaw('age_days, LOWER(overall_status) as result_status, COUNT(*) as test_count')

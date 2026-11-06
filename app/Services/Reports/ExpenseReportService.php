@@ -15,7 +15,7 @@ class ExpenseReportService implements ReportServiceInterface
     public const COLUMNS = [
         'date' => 'Date', 'reference' => 'Reference', 'category' => 'Category',
         'payee' => 'Payee', 'payment_ledger' => 'Paid Through', 'asset' => 'Asset',
-        'made_by' => 'Made By', 'notes' => 'Notes', 'accounting' => 'Accounting', 'amount' => 'Amount (INR)',
+        'made_by' => 'Made By', 'notes' => 'Notes', 'amount' => 'Amount (INR)',
     ];
 
     public function __construct(private readonly PlantContextService $ctx) {}

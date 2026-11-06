@@ -297,6 +297,7 @@ const driverId = ref(null);
 const salesExecutiveId = ref(null);
 const selectedEmployeeId = ref(null);
 const expenseCategoryId = ref(null);
+const qcCategory = ref(null);
 const attendanceStatus = ref(null);
 const attendanceStatusOptions = ['present', 'absent', 'half_day', 'leave', 'holiday', 'weekoff', 'on_duty'].map(value => ({ value, label: value.replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase()) }));
 const selectedMonth = ref(null);
@@ -738,6 +739,7 @@ watch(selectedModuleId, (newModuleId) => {
         salesExecutiveId.value = null;
         selectedEmployeeId.value = null;
         expenseCategoryId.value = null;
+    qcCategory.value = null;
         attendanceStatus.value = null;
         selectedMonth.value = null;
         gstType.value = null;
@@ -772,6 +774,7 @@ watch(reportType, () => {
     salesExecutiveId.value = null;
     selectedEmployeeId.value = null;
     expenseCategoryId.value = null;
+    qcCategory.value = null;
     attendanceStatus.value = null;
     selectedMonth.value = null;
     currentPage.value = 1;
@@ -782,7 +785,7 @@ watch(reportType, () => {
     exportProgress.value = null;
 });
 
-watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, expenseCategoryId, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
+watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, expenseCategoryId, qcCategory, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
     currentPage.value = 1;
     invalidateReport();
 });
@@ -821,6 +824,7 @@ const generateReport = async ({ manual = false, pagination = false } = {}) => {
             sales_executive_id: salesExecutiveId.value,
             employee_id: selectedEmployeeId.value,
             expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
+        qc_category: reportType.value === 'quality_testing' ? qcCategory.value : null,
             attendance_status: attendanceStatus.value,
             month: selectedMonth.value,
             voucher_type_filter: ledgerVoucherFilter.value,
@@ -938,6 +942,7 @@ const exportPdf = () => {
         sales_executive_id: salesExecutiveId.value,
         employee_id: selectedEmployeeId.value,
         expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
+        qc_category: reportType.value === 'quality_testing' ? qcCategory.value : null,
         attendance_status: attendanceStatus.value,
         month: selectedMonth.value,
         export: 'pdf'
@@ -1005,6 +1010,7 @@ const exportExcel = () => {
         sales_executive_id: salesExecutiveId.value,
         employee_id: selectedEmployeeId.value,
         expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
+        qc_category: reportType.value === 'quality_testing' ? qcCategory.value : null,
         attendance_status: attendanceStatus.value,
         month: selectedMonth.value,
         export: 'excel'
@@ -1102,6 +1108,7 @@ const currentReportParams = computed(() => {
     return {
         employee_id: selectedEmployeeId.value,
         expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
+        qc_category: reportType.value === 'quality_testing' ? qcCategory.value : null,
         id: selectedId.value,
         patron_id: patronId.value,
         voucher_type_filter: ledgerVoucherFilter.value,
@@ -1163,6 +1170,7 @@ const generateShareLink = async () => {
                 pump_vehicle_id: pumpVehicleId.value,
                 employee_id: selectedEmployeeId.value,
                 expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
+        qc_category: reportType.value === 'quality_testing' ? qcCategory.value : null,
                 attendance_status: attendanceStatus.value,
                 month: selectedMonth.value,
             }
@@ -1550,6 +1558,13 @@ const shareEmail = () => {
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Expense Category</span>
                                         <BaseSelect v-model="expenseCategoryId" :options="expenseCategories"
                                             optionLabel="name" optionValue="id" placeholder="-- All Categories --" filter showClear />
+                                    </div>
+
+                                    <div v-if="reportType === 'quality_testing'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Test Type</span>
+                                        <BaseSelect v-model="qcCategory"
+                                            :options="[{ label: 'All', value: null }, { label: 'Mix Design', value: 'Concrete' }, { label: 'Raw Material', value: 'Raw Material' }]"
+                                            optionLabel="label" optionValue="value" placeholder="All" showClear />
                                     </div>
 
                                     <!-- Employee Dropdown (Payroll & Personnel Directory) -->

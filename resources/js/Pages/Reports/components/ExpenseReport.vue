@@ -45,12 +45,11 @@ const date = (value: string) => value ? entityLocaleDate(value, APP_LOCALE, { da
                             <td class="px-3 py-3 font-medium">{{ row.category }}</td><td class="px-3 py-3">{{ row.payee }}</td>
                             <td class="px-3 py-3">{{ row.payment_ledger }}</td><td class="px-3 py-3">{{ row.asset }}</td>
                             <td class="px-3 py-3">{{ row.made_by }}</td><td class="min-w-40 whitespace-pre-line break-words px-3 py-3 text-slate-500">{{ row.notes || '—' }}</td>
-                            <td class="px-3 py-3"><span class="whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold" :class="row.accounting === 'Posted' ? 'bg-[#E6EEF6] text-[#3B638E]' : 'bg-[#FDF3EC] text-amber-800'">{{ row.accounting }}</span></td>
                             <td class="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{{ money(row.amount) }}</td>
                         </tr>
-                        <tr v-if="!rows.length"><td colspan="11" class="px-5 py-12 text-center text-slate-500">No expenses found for the selected period and filters.</td></tr>
+                        <tr v-if="!rows.length"><td :colspan="reportData.fields.length + 1" class="px-5 py-12 text-center text-slate-500">No expenses found for the selected period and filters.</td></tr>
                     </tbody>
-                    <tfoot class="border-t border-slate-200 bg-slate-50"><tr><td colspan="10" class="px-4 py-4 text-right font-semibold">Total expense amount</td><td class="whitespace-nowrap px-3 py-4 text-right font-bold tabular-nums text-[#3B638E]">{{ money(summary.total) }}</td></tr></tfoot>
+                    <tfoot class="border-t border-slate-200 bg-slate-50"><tr><td :colspan="reportData.fields.length" class="px-4 py-4 text-right font-semibold">Total expense amount</td><td class="whitespace-nowrap px-3 py-4 text-right font-bold tabular-nums text-[#3B638E]">{{ money(summary.total) }}</td></tr></tfoot>
                 </table>
             </div>
         </div>
