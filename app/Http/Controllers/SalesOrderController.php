@@ -42,10 +42,15 @@ class SalesOrderController extends Controller
         $plantId = (int) session('active_plant_id');
         abort_unless($plantId, 404);
         $data = $request->validate([
-            'customer_id' => ['required', 'integer', Rule::exists('mm_patrons', 'id')->where('plant_id', $plantId)->whereNull('deleted_at')],
+            'customer_id' => ['nullable', 'integer', Rule::exists('mm_patrons', 'id')->where('plant_id', $plantId)->whereNull('deleted_at')],
         ]);
 
-        return response()->json(['reference' => SalesOrder::generateOrderNo($plantId, $data['customer_id'])['full_number']]);
+        $details = SalesOrder::generateOrderNo($plantId, $data['customer_id'] ?? null);
+
+        return response()->json([
+            'reference' => $details['full_number'],
+            'next_number' => explode('/', $details['next_number'])[0],
+        ]);
     }
 
     public function resendEmail(SalesOrder $salesorder)

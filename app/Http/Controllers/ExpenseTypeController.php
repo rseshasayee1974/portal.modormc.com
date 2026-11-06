@@ -63,7 +63,7 @@ class ExpenseTypeController extends Controller
         abort_unless((int) $expenseType->plant_id === app(PlantContextService::class)->requirePlantId(), 404);
         DB::transaction(function () use ($expenseType) {
             $record = ExpenseType::query()->lockForUpdate()->findOrFail($expenseType->id);
-            if (Expense::withTrashed()->where('expense_type_id', $record->id)->exists()) {
+            if (Expense::query()->where('expense_type_id', $record->id)->exists()) {
                 throw ValidationException::withMessages(['expense_type' => 'This category is used by expenses. Set it to inactive instead.']);
             }
             $record->delete();
