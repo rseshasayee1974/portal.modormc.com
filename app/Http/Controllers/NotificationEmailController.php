@@ -16,7 +16,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class NotificationEmailController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'setting';
+    protected string $module = 'notification_email';
     /**
      * Display a listing of the resource.
      */

@@ -2,6 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { ref, computed } from 'vue';
+import { usePermissions } from '@/Composables/usePermissions';
 import { Link, useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { EnvelopeIcon } from '@heroicons/vue/24/outline';
@@ -20,6 +21,7 @@ import { useToast } from 'primevue/usetoast';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const toast = useToast();
+const { can } = usePermissions();
 
 interface Plant { id: number; name: string; }
 interface NotificationEmail {
@@ -126,7 +128,7 @@ const deleteItem = (id: number) => {
         </template>
 
         <div class="p-6">
-            <Link :href="route('notificationwhatsapps.index')" class="mb-4 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">WhatsApp Notifications</Link>
+            <Link v-if="can('NOTIFICATION_WHATSAPP.VIEW')" :href="route('notificationwhatsapps.index')" class="mb-4 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">WhatsApp Notifications</Link>
             <p class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-800">
                 Choose <strong>Machine Document Expiry</strong> to receive FC, permit, road tax, insurance, PUC and other document reminders for the plant.
                 Alerts are sent 30, 15, 7 and 1 day before expiry, on expiry, then weekly until renewed.
@@ -151,7 +153,7 @@ const deleteItem = (id: number) => {
                             </div>
                             <span class="text-xl font-semibold uppercase tracking-tight">Notification Emails</span>
                         </div>
-                        <Button label="New Notification" icon="pi pi-plus" @click="openCreateModal" />
+                        <Button v-if="can('NOTIFICATION_EMAIL.CREATE')" label="New Notification" icon="pi pi-plus" @click="openCreateModal" />
                     </div>
                 </template>
 
@@ -167,8 +169,8 @@ const deleteItem = (id: number) => {
                 <Column header="Actions" class="text-right" style="width: 120px">
                     <template #body="slotProps">
                         <div class="flex justify-end gap-2">
-                            <Button icon="pi pi-pencil" text rounded @click="openEditModal(slotProps.data)" severity="info" />
-                            <Button icon="pi pi-trash" text rounded @click="deleteItem(slotProps.data.id)" severity="danger" />
+                            <Button v-if="can('NOTIFICATION_EMAIL.UPDATE')" icon="pi pi-pencil" text rounded @click="openEditModal(slotProps.data)" severity="info" />
+                            <Button v-if="can('NOTIFICATION_EMAIL.DELETE')" icon="pi pi-trash" text rounded @click="deleteItem(slotProps.data.id)" severity="danger" />
                         </div>
                     </template>
                 </Column>
@@ -220,7 +222,7 @@ const deleteItem = (id: number) => {
             <template #footer>
                 <div class="flex gap-2 justify-end mt-4">
                     <Button label="Cancel" text severity="secondary" @click="closeModal" />
-                    <Button label="Save" :loading="form.processing" @click="submit" />
+                    <Button v-if="can(editingId ? 'NOTIFICATION_EMAIL.UPDATE' : 'NOTIFICATION_EMAIL.CREATE')" label="Save" :loading="form.processing" @click="submit" />
                 </div>
             </template>
         </Dialog>

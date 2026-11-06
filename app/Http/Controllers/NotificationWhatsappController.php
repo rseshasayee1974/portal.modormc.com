@@ -16,7 +16,7 @@ use Inertia\Inertia;
 class NotificationWhatsappController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'setting';
+    protected string $module = 'notification_whatsapp';
 
     private function plant(): Plant
     {

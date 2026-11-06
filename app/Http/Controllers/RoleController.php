@@ -48,7 +48,11 @@ class RoleController extends Controller
                 $groupedPermissions[$module][] = [
                     'id' => $perm->id,
                     'name' => $perm->name,
-                    'action_label' => ucfirst($action)
+                    'action_label' => match ($action) {
+                        'EDIT_REFERENCE_NUMBER' => 'Edit Reference Number',
+                        'EDIT_BATCH_NO' => 'Edit Batch Number',
+                        default => ucfirst($action),
+                    }
                 ];
             }
             return $groupedPermissions;
