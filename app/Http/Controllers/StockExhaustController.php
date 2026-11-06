@@ -52,7 +52,10 @@ class StockExhaustController extends Controller
             ->whereNull('mm_products.deleted_at')
             ->get(['mm_products.id', 'mm_products.title', 'mm_products.unit_id', 'stock_levels.stock_qty']);
 
-        $ledgers = LedgersDropdown();
+        $ledgers = LedgersDropdown()->map(fn ($ledger) => [
+            'value' => (int) $ledger->id,
+            'label' => ($ledger->name ? $ledger->name.' - ' : '').$ledger->title,
+        ])->values();
  
         return Inertia::render('StockExhausts/Index', [
             'stockExhausts' => $stockExhausts,
@@ -93,7 +96,7 @@ class StockExhaustController extends Controller
             'lines.*.discount' => 'nullable|numeric|min:0|max:999999999|decimal:0,2',
             'prefix' => 'nullable|string|max:20',
             'reference_number' => 'nullable|string|max:100',
-            'ledger_id' => ['nullable', \Illuminate\Validation\Rule::exists('mm_ledgers', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
+            'ledger_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('mm_ledgers', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             
             // Lines
             'lines' => 'required|array|min:1',
@@ -107,6 +110,8 @@ class StockExhaustController extends Controller
             'lines.*.changed_km' => 'nullable|numeric',
             'lines.*.notes' => 'nullable|string|max:200',
         ]);
+
+        $this->validateBillingCustomer($validated);
 
         $validated = app(\App\Services\StockExhaustPricing::class)->calculate($validated, (int) session('active_plant_id'));
 
@@ -155,7 +160,7 @@ class StockExhaustController extends Controller
             'lines.*.discount' => 'nullable|numeric|min:0|max:999999999|decimal:0,2',
             'prefix' => 'nullable|string|max:20',
             'reference_number' => 'nullable|string|max:100',
-            'ledger_id' => ['nullable', \Illuminate\Validation\Rule::exists('mm_ledgers', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
+            'ledger_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('mm_ledgers', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             
             // Lines
             'lines' => 'required|array|min:1',
@@ -169,6 +174,8 @@ class StockExhaustController extends Controller
             'lines.*.changed_km' => 'nullable|numeric',
             'lines.*.notes' => 'nullable|string|max:200',
         ]);
+
+        $this->validateBillingCustomer($validated);
 
         $validated = app(\App\Services\StockExhaustPricing::class)->calculate($validated, (int) $stockExhaust->plant_id);
 
@@ -201,6 +208,21 @@ class StockExhaustController extends Controller
         });
 
         return redirect()->back()->with('success', 'Stock exhaust voucher updated successfully.');
+    }
+
+    private function validateBillingCustomer(array $data): void
+    {
+        $hasBilling = (int) ($data['invoice_status'] ?? 0) > 0
+            || filled($data['bill_number'] ?? null) || filled($data['billed_date'] ?? null);
+        if (!$hasBilling) return;
+
+        $isCustomer = Patron::where('plant_id', session('active_plant_id'))
+            ->whereKey($data['partner_id'])->ofType('Customer')->exists();
+        if (!$isCustomer) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'partner_id' => 'Select a Customer to record bill details or mark this stock exhaust as billed.',
+            ]);
+        }
     }
 
     public function destroy(StockExhaust $stockExhaust)

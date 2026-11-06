@@ -19,7 +19,6 @@ const props = defineProps<{
     vendors: any[];
     products: any[];
     units: any[];
-    ledgers: any[];
     taxes: any[];
 }>();
 
@@ -28,7 +27,10 @@ const emit = defineEmits<{
 }>();
 
 const machineOptions = computed(() => props.machines.map(m => ({ label: m.registration, value: m.id })));
-const vendorOptions = computed(() => props.vendors.map(v => ({ label: v.legal_name, value: v.id })));
+const isCustomer = (party: any) => Array.isArray(party?.patron_type) && party.patron_type.includes('Customer');
+const canBill = computed(() => isCustomer(props.vendors.find(v => Number(v.id) === Number(form.partner_id))));
+const hasBilling = computed(() => Number(form.invoice_status) > 0 || !!form.bill_number?.trim() || !!form.billed_date);
+const vendorOptions = computed(() => props.vendors.filter(v => !hasBilling.value || isCustomer(v)).map(v => ({ label: v.legal_name, value: v.id })));
 
 const voucherStatuses = [
     { label: 'Draft', value: 0 },
@@ -70,7 +72,6 @@ const form = useForm({
     is_tax_inclusive: false,
     status: 1,
     issued_date: null as any,
-    ledger_id: null as number | null,
     lines: Array.from({ length: 5 }, () => ({
         unit_price: 0, tax_id: null, discount_type: 'amount', discount: 0,
         product_id: null,
@@ -317,13 +318,13 @@ const submitForm = () => {
                     </div>
 
                     <div class="col-span-12 md:col-span-3 field-group">
-                        <BaseInput v-model="form.bill_number" label="Bill Number" placeholder="Bill reference"
+                        <BaseInput v-model="form.bill_number" :disabled="!canBill || form.processing" label="Bill Number" placeholder="Bill reference"
                             :error="form.errors.bill_number" />
                     </div>
 
                     <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label">Billed Date</label>
-                        <BaseDatePicker v-model="form.billed_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
+                        <BaseDatePicker v-model="form.billed_date" :disabled="!canBill || form.processing" dateFormat="yy-mm-dd" class="!w-full h-10" />
                     </div>
 
                     <div class="col-span-12 md:col-span-3 field-group">
@@ -334,14 +335,9 @@ const submitForm = () => {
 
                     <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label">Invoice Billing Status</label>
-                        <BaseSelect v-model="form.invoice_status" :options="invoiceStatuses" optionLabel="label"
+                        <p v-if="!canBill" class="text-xs text-slate-500 mb-1">Select a Customer to record billing details.</p>
+                        <BaseSelect v-model="form.invoice_status" :disabled="!canBill || form.processing" :options="invoiceStatuses" optionLabel="label"
                             optionValue="value" />
-                    </div>
-
-                    <div class="col-span-12 md:col-span-6 field-group">
-                        <label class="field-label">Ledger Account (Expenses/Purchases)</label>
-                        <BaseSelect v-model="form.ledger_id" :options="ledgers" optionLabel="label" optionValue="value"
-                            filter placeholder="Select Ledger Account" :error="form.errors.ledger_id" />
                     </div>
                 </div>
 

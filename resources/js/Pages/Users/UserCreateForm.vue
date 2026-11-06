@@ -202,12 +202,7 @@ const submit = async () => {
         </template>
 
         <div class="grid grid-cols-12 gap-4 py-4">
-            <div v-if="personnelOptions.length" class="col-span-12">
-                <BaseSelect v-model="form.personnel_id" :options="personnelOptions" optionLabel="label" optionValue="value"
-                    label="Existing personnel" placeholder="Select the personnel to create a login account" showClear
-                    :error="form.errors.personnel_id" />
-                <p class="text-xs text-gray-500 mt-1">The selected personnel keeps their existing shift and attendance records.</p>
-            </div>
+            
 
            
 
@@ -249,6 +244,12 @@ const submit = async () => {
                     <ToggleSwitch v-model="form.is_otp_enabled" :disabled="!page.props.canManageMobileAccess" />
                     <!-- <span class="text-sm">Mobile App / OTP</span> -->
                 </div>
+            </div>
+            <div v-if="personnelOptions.length" class="col-span-12">
+                <BaseSelect v-model="form.personnel_id" :options="personnelOptions" optionLabel="label" optionValue="value"
+                    label="Existing personnel" placeholder="Select the personnel to create a login account" showClear
+                    :error="form.errors.personnel_id" />
+                <p class="text-xs text-gray-500 mt-1">The selected personnel keeps their existing shift and attendance records.</p>
             </div>
  <!-- Profile Photo -->
             <div class="col-span-12 md:col-span-3">

@@ -88,7 +88,7 @@ const submit = async () => {
 
     try {
         await axios.put(`/settings/roles/${form.value.id}`, form.value);
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Role updated successfully' });
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Role updated successfully', life: 3000 });
         emit('updated');
         emit('update:visible', false);
     } catch (error: any) {

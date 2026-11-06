@@ -32,6 +32,10 @@ class StockExhaustPricingTest extends TestCase
             'is_tax_inclusive' => false, 'lines' => [['product_id' => $product->id, 'quantity_issued' => 2, 'issue_date' => '2026-11-06',
                 'no_items_issued' => 1, 'units' => $unit->id, 'unit_price' => 118, 'tax_id' => $tax->id, 'discount_type' => '%', 'discount' => 10]]];
 
+        $supplier = Patron::factory()->create(['plant_id' => $plant->id, 'patron_type' => ['Vendor']]);
+        $nonCustomerBill = array_replace($payload, ['partner_id' => $supplier->id]);
+        $this->post(route('stock-exhausts.store'), $nonCustomerBill)->assertSessionHasErrors('partner_id');
+        $this->assertEquals(20, $stock->fresh()->quantity);
         $this->post(route('stock-exhausts.store'), $payload)->assertRedirect()->assertSessionHasNoErrors();
         $voucher = StockExhaust::latest('id')->firstOrFail();
         $this->assertFalse($voucher->is_tax_inclusive);
@@ -42,11 +46,25 @@ class StockExhaustPricingTest extends TestCase
         $this->assertEquals(250.632, $voucher->lines->first()->total_amount);
         $this->assertEquals(18, $stock->fresh()->quantity);
 
+        $this->put(route('stock-exhausts.update', $voucher), $nonCustomerBill)->assertSessionHasErrors('partner_id');
+        $this->assertEquals($vendor->id, $voucher->fresh()->partner_id);
+        $unbilled = array_replace($nonCustomerBill, ['invoice_status' => 0, 'bill_number' => null, 'billed_date' => null]);
+        $this->withoutExceptionHandling();
+        $this->put(route('stock-exhausts.update', $voucher), $unbilled)->assertRedirect()->assertSessionHasNoErrors();
+        $this->withExceptionHandling();
+        $this->assertEquals($supplier->id, $voucher->fresh()->partner_id);
+        $this->assertEquals(18, $stock->fresh()->quantity);
+        $this->put(route('stock-exhausts.update', $voucher), array_replace($unbilled, ['bill_number' => 'BYPASS']))->assertSessionHasErrors('partner_id');
+
+        $ledger = \App\Models\Ledger::factory()->create(['plant_id' => $plant->id]);
+        $payload['ledger_id'] = $ledger->id;
         $payload['is_tax_inclusive'] = true;
         $payload['lines'][0]['discount_type'] = 'amount';
         $payload['lines'][0]['discount'] = 0;
         $this->put(route('stock-exhausts.update', $voucher), $payload)->assertRedirect()->assertSessionHasNoErrors();
         $voucher->refresh();
+        $this->assertEquals($ledger->id, $voucher->ledger_id);
+        $this->assertEquals($ledger->id, $voucher->ledger->id);
         $this->assertTrue($voucher->is_tax_inclusive);
         $this->assertEquals(200, $voucher->untaxed_amount);
         $this->assertEquals(36, $voucher->tax_amount);

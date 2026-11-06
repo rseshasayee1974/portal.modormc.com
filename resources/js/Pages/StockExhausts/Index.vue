@@ -127,7 +127,7 @@ watch(() => page.props.flash, (flash: any) => {
 
                 <!-- Create form -->
                 <StockExhaustCreateForm :machines="machines" :vendors="vendors" :products="products" :units="units"
-                    :ledgers="ledgers" :taxes="taxes" />
+                    :taxes="taxes" />
 
                 <!-- ── DataTable Section ── -->
                 <BaseDataTable :value="stockExhausts" v-model:filters="filters"

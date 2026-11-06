@@ -60,7 +60,7 @@ class StoreBatchRequest extends FormRequest
             'batch_no' => $batchNoRules,
             'batch_size' => ['required', 'numeric', 'min:0.1', 'max:20'],
             'start_time' => ['nullable', 'date'],
-            'end_time' => ['nullable', 'date', 'after_or_equal:start_time'],
+            'end_time' => ['nullable', 'date'],
             'operator_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'shift' => ['nullable', 'string', 'max:50'],
             'empty_time' => ['nullable', 'date'] ,

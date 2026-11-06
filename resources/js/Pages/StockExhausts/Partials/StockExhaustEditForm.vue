@@ -29,7 +29,10 @@ const emit = defineEmits<{
 }>();
 
 const machineOptions = computed(() => props.machines.map(m => ({ label: m.registration, value: m.id })));
-const vendorOptions = computed(() => props.vendors.map(v => ({ label: v.legal_name, value: v.id })));
+const isCustomer = (party: any) => Array.isArray(party?.patron_type) && party.patron_type.includes('Customer');
+const canBill = computed(() => isCustomer(props.vendors.find(v => Number(v.id) === Number(form.partner_id))));
+const hasBilling = computed(() => Number(form.invoice_status) > 0 || !!form.bill_number?.trim() || !!form.billed_date);
+const vendorOptions = computed(() => props.vendors.filter(v => !hasBilling.value || isCustomer(v)).map(v => ({ label: v.legal_name, value: v.id })));
 
 const voucherStatuses = [
     { label: 'Draft', value: 0 },
@@ -86,7 +89,7 @@ watch(() => props.voucher, (val) => {
         form.is_tax_inclusive = Boolean(val.is_tax_inclusive);
         form.status = val.status;
         form.issued_date = val.issued_date ? entityCalendarDate(val.issued_date) : null;
-        form.ledger_id = val.ledger_id;
+        form.ledger_id = val.ledger_id ? Number(val.ledger_id) : null;
         form.lines = val.lines.map((l: any) => {
             const selectedProd = props.products.find(p => p.value === l.product_id);
             return {
@@ -320,12 +323,12 @@ const submitForm = () => {
                             localErrors.partner_id }}</p>
                     </div>
                     <div class="col-span-12 md:col-span-3 field-group">
-                        <BaseInput v-model="form.bill_number" label="Bill Number" placeholder="Bill reference" />
+                        <BaseInput v-model="form.bill_number" :disabled="!canBill || form.processing" label="Bill Number" placeholder="Bill reference" />
                     </div>
 
                     <div class="col-span-6 md:col-span-3 field-group">
                         <label class="field-label">Billed Date <span class="text-red-500">*</span></label>
-                        <DatePicker v-model="form.billed_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
+                        <DatePicker v-model="form.billed_date" :disabled="!canBill || form.processing" dateFormat="yy-mm-dd" class="!w-full h-10" />
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
                         <label class="field-label">Issued Date <span class="text-red-500">*</span></label>
@@ -342,13 +345,14 @@ const submitForm = () => {
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
                         <label class="field-label">Invoice Billing Status</label>
-                        <BaseSelect v-model="form.invoice_status" :options="invoiceStatuses" optionLabel="label"
+                        <p v-if="!canBill" class="text-xs text-slate-500 mb-1">Select a Customer to record billing details.</p>
+                        <BaseSelect v-model="form.invoice_status" :disabled="!canBill || form.processing" :options="invoiceStatuses" optionLabel="label"
                             optionValue="value" />
                     </div>
                     <div class="col-span-12 md:col-span-6 field-group">
-                        <label class="field-label">Ledger Account (Expenses/Purchases)</label>
+                        <label class="field-label">Ledger Account</label>
                         <BaseSelect v-model="form.ledger_id" :options="ledgers" optionLabel="label" optionValue="value"
-                            filter placeholder="Select Ledger Account" :error="form.errors.ledger_id" />
+                            :disabled="form.processing" filter placeholder="Select Ledger Account" :error="form.errors.ledger_id" />
                     </div>
                 </div>
 
