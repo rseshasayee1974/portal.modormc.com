@@ -277,6 +277,7 @@ const saveInwardDetails = () => {
             payload[field] = value;
         }
     }
+    if (!props.inward.order_id && Number(data.value.unit_price) !== Number(props.inward.unit_price)) payload.unit_price = Number(data.value.unit_price);
     if (data.value._loaded_snap) payload.loaded_weight_photo = data.value._loaded_snap;
     if (data.value._empty_snap) payload.empty_weight_photo = data.value._empty_snap;
     if (attachments.value.length) payload.attachments = attachments.value;
@@ -329,6 +330,7 @@ const saveInwardDetails = () => {
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <BaseInput v-model="data.inward_no" label="Inward Number" :disabled="formBusy"
                     :error="detailsErrors.inward_no" />
+                <BaseInput v-if="!data.order_id" v-model="data.unit_price" type="number" min="0" step="0.01" label="Unit Price" :error="detailsErrors.unit_price" :disabled="formBusy" />
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck"
                     class="text-[10px]" placeholder="External vehicle" showClear :disabled="detailsSaving"
                     :error="detailsErrors.truck_id" @created="createdTrucks.push($event)" />

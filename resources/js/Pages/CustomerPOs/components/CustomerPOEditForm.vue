@@ -640,14 +640,9 @@ const performSubmit = (customerPOId: any) => {
                     :error="form.errors.prefix"
                 />
             </div> -->
-            <!-- <div class="col-span-12 md:col-span-1">
-                <BaseInput
-                    v-model="form.reference"
-                    label="PO Number / Ref"
-                    placeholder="Auto-generated if blank"
-                    :error="form.errors.reference"
-                />
-            </div> -->
+            <div class="col-span-12 md:col-span-1">
+                <BaseInput v-model="form.reference" label="Customer PO Reference Number" required :disabled="isLocked" :error="form.errors.reference" />
+            </div>
            
 
             <div class="col-span-12 md:col-span-1">

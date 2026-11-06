@@ -62,29 +62,32 @@ class SalesOrderEmailTest extends TestCase
         Http::preventStrayRequests();
     }
 
-    public function test_creation_sends_once_per_active_admin_address_for_the_order_plant(): void
+    public function test_creation_sends_once_per_active_address_regardless_of_role_for_the_order_plant(): void
     {
         $this->recipient('admin@example.test');
         $this->recipient('ADMIN@EXAMPLE.TEST', ['role_name' => 'SUPER_ADMIN']);
         $this->recipient('second@example.test');
         $this->recipient('wrong-plant@example.test', ['plant_id' => 2]);
-        $this->recipient('wrong-role@example.test', ['role_name' => 'Sales Manager']);
+        $this->recipient('executive@example.test', ['role_name' => 'Sales Executive']);
         $this->recipient('wrong-type@example.test', ['type' => 'Quotation']);
         $this->recipient('disabled@example.test', ['status' => 0]);
         $this->recipient('deleted@example.test', ['deleted_at' => now()]);
         $this->recipient('invalid-address');
         Http::fake(['https://api.zeptomail.com/*' => Http::response([], 200)]);
 
-        $order = DB::transaction(fn () => $this->createOrder());
-        $order->update(['total_qty' => 20]);
-        $this->assertDatabaseCount(self::DELIVERIES, 2);
+        DB::beginTransaction();
+        $order = $this->createOrder();
         Http::assertNothingSent();
+        DB::commit();
+        Http::assertSentCount(3);
+        $order->update(['total_qty' => 20]);
+        $this->assertDatabaseCount(self::DELIVERIES, 3);
 
         $this->artisan('sales-orders:send-emails')->assertSuccessful();
         $this->artisan('sales-orders:send-emails')->assertSuccessful();
 
-        Http::assertSentCount(2);
-        foreach (['admin@example.test', 'second@example.test'] as $address) {
+        Http::assertSentCount(3);
+        foreach (['admin@example.test', 'second@example.test', 'executive@example.test'] as $address) {
             Http::assertSent(fn (Request $request) => $request['from']['address'] === 'noreply@modormc.com'
                 && array_column(array_column($request['to'], 'email_address'), 'address') === [$address]
                 && str_contains($request['subject'], 'SO/26-27/21')
@@ -104,8 +107,10 @@ class SalesOrderEmailTest extends TestCase
         DB::rollBack();
         $this->assertDatabaseCount(self::DELIVERIES, 0);
 
+        DB::beginTransaction();
         $this->createOrder();
         DB::table('mm_notification_emails')->update(['status' => 0]);
+        DB::commit();
         $this->artisan('sales-orders:send-emails')->assertSuccessful();
         $this->assertDatabaseHas(self::DELIVERIES, ['status' => 'cancelled', 'attempts' => 0]);
         Http::assertNothingSent();
@@ -151,6 +156,22 @@ class SalesOrderEmailTest extends TestCase
         Http::assertSentCount(5);
     }
 
+    public function test_machine_document_recipients_do_not_require_roles_and_deduplicate_across_roles(): void
+    {
+        $this->recipient('existing@example.test', ['type' => 'Machine Document Expiry', 'role_name' => 'Driver']);
+        $controller = \Mockery::mock(NotificationEmailController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->once()->with('create');
+        session(['active_plant_id' => 1]);
+        $controller->store(\Illuminate\Http\Request::create('/', 'POST', [
+            'type' => 'Machine Document Expiry', 'status' => 1,
+            'email' => 'existing@example.test, new@example.test',
+        ]));
+        $this->assertDatabaseCount('mm_notification_emails', 2);
+        $this->assertDatabaseHas('mm_notification_emails', [
+            'type' => 'Machine Document Expiry', 'email' => 'new@example.test', 'role_name' => '', 'plant_id' => 1,
+        ]);
+    }
+
     public function test_bulk_entry_creates_separate_recipients_and_skips_existing_addresses(): void
     {
         $this->recipient('EXISTING@example.test', ['status' => 0]);
@@ -159,7 +180,7 @@ class SalesOrderEmailTest extends TestCase
         session(['active_plant_id' => 1]);
 
         $controller->store(\Illuminate\Http\Request::create('/', 'POST', [
-            'type' => 'Sales Order', 'role_name' => 'Administrator', 'status' => 1,
+            'type' => 'Sales Order', 'status' => 1,
             'email' => "First@example.test, existing@example.test; second@example.test\nfirst@example.test",
         ]));
 
@@ -167,7 +188,7 @@ class SalesOrderEmailTest extends TestCase
         $this->assertDatabaseHas('mm_notification_emails', ['email' => 'EXISTING@example.test', 'status' => 0]);
         foreach (['first@example.test', 'second@example.test'] as $address) {
             $this->assertDatabaseHas('mm_notification_emails', [
-                'plant_id' => 1, 'type' => 'Sales Order', 'role_name' => 'Administrator', 'email' => $address, 'status' => 1,
+                'plant_id' => 1, 'type' => 'Sales Order', 'role_name' => '', 'email' => $address, 'status' => 1,
             ]);
         }
         $this->assertSame('2 recipient(s) added. 2 duplicate(s) skipped.', session('success'));

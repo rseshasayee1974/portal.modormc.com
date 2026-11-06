@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
@@ -24,8 +24,9 @@ const props = defineProps<{
     filters: any;
 }>();
 
-const dateFrom = ref(props.filters?.date_from || '');
-const dateTo = ref(props.filters?.date_to || '');
+const page = usePage();
+const dateFrom = ref(props.filters?.start_date || '');
+const dateTo = ref(props.filters?.end_date || '');
 const materialId = ref(props.filters?.material_id || '');
 const statusFilter = ref(props.filters?.status || 'All');
 
@@ -44,8 +45,8 @@ const statusOptions = [
 
 const applyFilters = () => {
     router.get(route('quality.reports.index'), {
-        date_from: dateFrom.value,
-        date_to: dateTo.value,
+        start_date: dateFrom.value,
+        end_date: dateTo.value,
         material_id: materialId.value,
         status: statusFilter.value,
     }, { preserveState: true, preserveScroll: true });
@@ -53,8 +54,8 @@ const applyFilters = () => {
 
 const downloadPdf = () => {
     window.open(route('quality.reports.pdf', {
-        date_from: dateFrom.value,
-        date_to: dateTo.value,
+        start_date: dateFrom.value,
+        end_date: dateTo.value,
         material_id: materialId.value,
         status: statusFilter.value,
     }), '_blank');
@@ -109,8 +110,8 @@ const downloadPdf = () => {
             <!-- Filters Bar -->
             <BaseCard class="p-4">
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 w-full">
-                    <BaseInput v-model="dateFrom" type="date" label="Date From" @change="applyFilters" />
-                    <BaseInput v-model="dateTo" type="date" label="Date To" @change="applyFilters" />
+                    <BaseInput v-model="dateFrom" type="date" label="Start Date" :error="page.props.errors?.start_date" @change="applyFilters" />
+                    <BaseInput v-model="dateTo" type="date" label="End Date" :error="page.props.errors?.end_date" @change="applyFilters" />
                     <BaseSelect v-model="materialId" label="Material" :options="materialOptions" optionLabel="label" optionValue="value" @change="applyFilters" />
                     <BaseSelect v-model="statusFilter" label="Result Status" :options="statusOptions" optionLabel="label" optionValue="value" @change="applyFilters" />
                 </div>

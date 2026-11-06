@@ -40,6 +40,10 @@ export function validateStockExhaust(form) {
     text('reference_number', form.reference_number, 'Reference number', 100);
     date('billed_date', form.billed_date, 'Billed date');
     date('issued_date', form.issued_date, 'Issued date');
+    if ([1, 2].includes(Number(form.invoice_status))) {
+        if (blank(form.bill_number)) errors.bill_number = 'Bill number is required for billed stock out.';
+        if (blank(form.billed_date)) errors.billed_date = 'Billed date is required for billed stock out.';
+    }
     numeric('status', form.status, 'Status', true);
     numeric('invoice_status', form.invoice_status, 'Invoice status', true);
 
@@ -52,6 +56,12 @@ export function validateStockExhaust(form) {
         const key = field => `lines.${index}.${field}`;
         const label = field => `Row ${index + 1}: ${field}`;
         date(key('issue_date'), line.issue_date, label('Issue date'));
+        for (const field of ['unit_price', 'discount']) {
+            numeric(key(field), line[field], label(field));
+            if (Number(line[field]) < 0) errors[key(field)] = label(field) + ' cannot be negative.';
+        }
+        if (line.discount_type === '%' && Number(line.discount) > 100) errors[key('discount')] = 'Percentage discount cannot exceed 100.';
+        if (Number(line.quantity_issued) <= 0) errors[key('quantity_issued')] = 'Quantity must be greater than zero.';
         numeric(key('quantity_issued'), line.quantity_issued, label('Quantity issued'));
         numeric(key('no_items_issued'), line.no_items_issued, label('Items issued'));
         numeric(key('changed_km'), line.changed_km, label('Changed km'));

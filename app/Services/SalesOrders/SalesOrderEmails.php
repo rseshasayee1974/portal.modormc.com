@@ -14,7 +14,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 class SalesOrderEmails
 {
@@ -40,6 +39,21 @@ class SalesOrderEmails
 
         if ($rows !== []) {
             $db->table(self::TABLE)->upsert($rows, ['sales_order_id', 'recipient'], ['sales_order_id']);
+            $orderId = $order->getKey();
+            $db->afterCommit(function () use ($db, $orderId) {
+                try {
+                    $ids = $db->table(self::TABLE)->where('sales_order_id', $orderId)
+                        ->where('status', 'pending')->pluck('id');
+                    foreach ($ids as $id) {
+                        $db->transaction(fn () => $this->send($db, $id));
+                    }
+                } catch (\Throwable $exception) {
+                    // The order is committed; a delivery error must not make creation appear to fail.
+                    Log::error('Immediate sales order email delivery failed.', [
+                        'sales_order_id' => $orderId, 'exception_type' => $exception::class,
+                    ]);
+                }
+            });
         }
     }
 
@@ -71,7 +85,7 @@ class SalesOrderEmails
             return;
         }
 
-        $order = SalesOrder::withoutGlobalScope('plant_id')->find($delivery->sales_order_id);
+        $order = SalesOrder::on($db->getName())->withoutGlobalScope('plant_id')->find($delivery->sales_order_id);
         if (!$order || !$this->recipients($db, $order->plant_id)->containsStrict($delivery->recipient)) {
             $deliveries->update(['status' => 'cancelled', 'updated_at' => now('UTC')]);
             return;
@@ -107,10 +121,7 @@ class SalesOrderEmails
         return (new NotificationEmail)->setConnection($db->getName())->newQuery()
             ->where('plant_id', $plantId)->where('status', 1)
             ->whereRaw('LOWER(TRIM(type)) = ?', [strtolower(NotificationEmail::SALES_ORDER)])
-            ->get(['email', 'role_name'])
-            ->filter(fn ($row) => in_array(Str::slug($row->role_name, '_'), [
-                'admin', 'administrator', 'super_admin', 'super_administrator', 'platform_admin', 'saas_owner',
-            ], true))
+            ->get(['email'])
             ->map(fn ($row) => strtolower(trim($row->email)))
             ->filter(fn (string $email) => filter_var($email, FILTER_VALIDATE_EMAIL))->unique()->values();
     }

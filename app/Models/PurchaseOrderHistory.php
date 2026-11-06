@@ -13,7 +13,7 @@ class PurchaseOrderHistory extends Model
     protected $table = 'mm_purchase_order_history';
 
     protected $fillable = [
-        'plant_id', 'order_id', 'order_item_id', 'received_date',
+        'vendor_id', 'plant_id', 'order_id', 'order_item_id', 'received_date',
         'product_id', 'uom_id', 'used_quantity', 'received_qty',
         'conversion_quantity', 'conversion_uom_id',
         'convert_volume',
@@ -27,6 +27,11 @@ class PurchaseOrderHistory extends Model
         'conversion_quantity' => 'decimal:4',
         'convert_volume' => 'decimal:6',
     ];
+
+    public function vendor()
+    {
+        return $this->belongsTo(Patron::class, 'vendor_id');
+    }
 
     public function truck()
     {

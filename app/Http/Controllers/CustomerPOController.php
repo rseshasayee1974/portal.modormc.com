@@ -260,7 +260,9 @@ class CustomerPOController extends Controller
         $validated = $request->validate([
             ...RecordAttachments::RULES,
             'prefix' => 'nullable|string|max:20',
-            'reference' => 'nullable|string|max:100',
+            'reference' => ['required', 'string', 'max:100',
+                \Illuminate\Validation\Rule::unique('mm_customer_pos', 'reference')
+                    ->where('plant_id', $customerPO->plant_id)->whereNull('deleted_at')->ignore($customerPO->id)],
             'customer_po_reference' => 'nullable|max:150',
             'quotation_id' => 'nullable|exists:mm_quotations,id',
             'patron_id' => 'required|exists:mm_patrons,id',

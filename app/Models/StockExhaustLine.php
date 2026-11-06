@@ -19,6 +19,7 @@ class StockExhaustLine extends Model
     public const UPDATED_AT = 'modified';
 
     protected $fillable = [
+        'unit_price', 'tax_id', 'tax_rate', 'discount_type', 'discount', 'discount_amount', 'untaxed_amount', 'tax_amount', 'total_amount',
         'stock_id',
         'product_id',
         'issue_date',
@@ -35,6 +36,7 @@ class StockExhaustLine extends Model
     ];
 
     protected $casts = [
+        'unit_price' => 'decimal:4', 'tax_id' => 'integer', 'tax_rate' => 'decimal:2', 'discount' => 'decimal:2', 'discount_amount' => 'decimal:2', 'untaxed_amount' => 'decimal:2', 'tax_amount' => 'decimal:2', 'total_amount' => 'decimal:2',
         'issue_date' => 'datetime',
         'created' => 'datetime',
         'modified' => 'datetime',

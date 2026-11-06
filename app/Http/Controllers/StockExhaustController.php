@@ -38,12 +38,15 @@ class StockExhaustController extends Controller
         $quantitySubQuery = Quantity::query()
             ->selectRaw('product_id, SUM(quantity) as stock_qty')
             ->where('plant_id', $plantId)
-            ->groupBy('product_id')
-            ->having('stock_qty', '>', 0);
+            ->groupBy('product_id');
 
         $availableProducts = Product::where('mm_products.plant_id', $plantId)
-            ->joinSub($quantitySubQuery, 'stock_levels', function ($join) {
+            ->leftJoinSub($quantitySubQuery, 'stock_levels', function ($join) {
                 $join->on('stock_levels.product_id', '=', 'mm_products.id');
+            })
+            ->where(function ($query) use ($stockExhausts) {
+                $query->where('stock_levels.stock_qty', '>', 0)
+                    ->orWhereIn('mm_products.id', $stockExhausts->flatMap(fn ($voucher) => $voucher->lines->pluck('product_id'))->unique());
             })
             ->with('unit')
             ->whereNull('mm_products.deleted_at')
@@ -70,6 +73,7 @@ class StockExhaustController extends Controller
                 'unit_code' => $p->unit?->unit_code,
                 'stock_qty' => (float)$p->stock_qty,
             ])->toArray(),
+            'taxes' => \App\Models\Tax::where('plant_id', $plantId)->get()->map(fn ($tax) => ['id' => $tax->id, 'label' => $tax->title, 'rate' => (float) $tax->rate]),
             'units'   => Productunit(),
             'ledgers' => $ledgers,
         ]);
@@ -79,29 +83,36 @@ class StockExhaustController extends Controller
     {
         $this->authorizeModule('create');
         $validated = $request->validate([
-            'partner_id' => 'required|exists:mm_patrons,id',
+            'partner_id' => ['required', \Illuminate\Validation\Rule::exists('mm_patrons', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             'name' => 'nullable|string|max:250',
-            'bill_number' => 'nullable|string|max:150',
-            'billed_date' => 'nullable|date',
-            'invoice_status' => 'nullable|integer',
+            'bill_number' => 'nullable|required_if:invoice_status,1,2|string|max:150',
+            'billed_date' => 'nullable|required_if:invoice_status,1,2|date',
+            'invoice_status' => 'nullable|integer|in:0,1,2',
             'status' => 'nullable|integer',
-            'issued_date' => 'nullable|date',
+            'issued_date' => 'required|date',
+            'is_tax_inclusive' => 'nullable|boolean',
+            'lines.*.unit_price' => 'nullable|numeric|min:0|max:999999999|decimal:0,4',
+            'lines.*.tax_id' => 'nullable|integer',
+            'lines.*.discount_type' => 'nullable|in:amount,%',
+            'lines.*.discount' => 'nullable|numeric|min:0|max:999999999|decimal:0,2',
             'prefix' => 'nullable|string|max:20',
             'reference_number' => 'nullable|string|max:100',
-            'ledger_id' => 'nullable|exists:mm_ledgers,id',
+            'ledger_id' => ['nullable', \Illuminate\Validation\Rule::exists('mm_ledgers', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             
             // Lines
             'lines' => 'required|array|min:1',
             'lines.*.issue_date' => 'nullable|date',
-            'lines.*.quantity_issued' => 'nullable|numeric',
+            'lines.*.quantity_issued' => 'required|numeric|gt:0|max:999999999|decimal:0,2',
             'lines.*.no_items_issued' => 'nullable|numeric',
             'lines.*.units' => 'nullable',
-            'lines.*.product_id' => 'nullable|exists:mm_products,id',
+            'lines.*.product_id' => ['nullable', \Illuminate\Validation\Rule::exists('mm_products', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             'lines.*.issued_to' => 'nullable|string|max:255',
-            'lines.*.vehicle_no' => 'nullable|exists:mm_machines,id',
+            'lines.*.vehicle_no' => ['nullable', \Illuminate\Validation\Rule::exists('mm_machines', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             'lines.*.changed_km' => 'nullable|numeric',
             'lines.*.notes' => 'nullable|string|max:200',
         ]);
+
+        $validated = app(\App\Services\StockExhaustPricing::class)->calculate($validated, (int) session('active_plant_id'));
 
         DB::transaction(function () use ($validated) {
             $plantId = session('active_plant_id');
@@ -131,31 +142,39 @@ class StockExhaustController extends Controller
     public function update(Request $request, StockExhaust $stockExhaust)
     {
         $this->authorizeModule('edit');
+        abort_unless((int) $stockExhaust->plant_id === (int) session('active_plant_id'), 404);
 
         $validated = $request->validate([
-            'partner_id' => 'required|exists:mm_patrons,id',
+            'partner_id' => ['required', \Illuminate\Validation\Rule::exists('mm_patrons', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             'name' => 'nullable|string|max:250',
-            'bill_number' => 'nullable|string|max:150',
-            'billed_date' => 'nullable|date',
-            'invoice_status' => 'nullable|integer',
+            'bill_number' => 'nullable|required_if:invoice_status,1,2|string|max:150',
+            'billed_date' => 'nullable|required_if:invoice_status,1,2|date',
+            'invoice_status' => 'nullable|integer|in:0,1,2',
             'status' => 'nullable|integer',
-            'issued_date' => 'nullable|date',
+            'issued_date' => 'required|date',
+            'is_tax_inclusive' => 'nullable|boolean',
+            'lines.*.unit_price' => 'nullable|numeric|min:0|max:999999999|decimal:0,4',
+            'lines.*.tax_id' => 'nullable|integer',
+            'lines.*.discount_type' => 'nullable|in:amount,%',
+            'lines.*.discount' => 'nullable|numeric|min:0|max:999999999|decimal:0,2',
             'prefix' => 'nullable|string|max:20',
             'reference_number' => 'nullable|string|max:100',
-            'ledger_id' => 'nullable|exists:mm_ledgers,id',
+            'ledger_id' => ['nullable', \Illuminate\Validation\Rule::exists('mm_ledgers', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             
             // Lines
             'lines' => 'required|array|min:1',
             'lines.*.issue_date' => 'nullable|date',
-            'lines.*.quantity_issued' => 'nullable|numeric',
+            'lines.*.quantity_issued' => 'required|numeric|gt:0|max:999999999|decimal:0,2',
             'lines.*.no_items_issued' => 'nullable|numeric',
             'lines.*.units' => 'nullable',
-            'lines.*.product_id' => 'nullable|exists:mm_products,id',
+            'lines.*.product_id' => ['nullable', \Illuminate\Validation\Rule::exists('mm_products', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             'lines.*.issued_to' => 'nullable|string|max:255',
-            'lines.*.vehicle_no' => 'nullable|exists:mm_machines,id',
+            'lines.*.vehicle_no' => ['nullable', \Illuminate\Validation\Rule::exists('mm_machines', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
             'lines.*.changed_km' => 'nullable|numeric',
             'lines.*.notes' => 'nullable|string|max:200',
         ]);
+
+        $validated = app(\App\Services\StockExhaustPricing::class)->calculate($validated, (int) $stockExhaust->plant_id);
 
         DB::transaction(function () use ($stockExhaust, $validated) {
             $plantId = $stockExhaust->plant_id ?? session('active_plant_id');
@@ -191,6 +210,7 @@ class StockExhaustController extends Controller
     public function destroy(StockExhaust $stockExhaust)
     {
         $this->authorizeModule('delete');
+        abort_unless((int) $stockExhaust->plant_id === (int) session('active_plant_id'), 404);
 
         DB::transaction(function () use ($stockExhaust) {
             $plantId = $stockExhaust->plant_id ?? session('active_plant_id');

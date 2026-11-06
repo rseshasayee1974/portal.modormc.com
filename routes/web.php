@@ -129,6 +129,9 @@ use Inertia\Inertia;
 | Web Routes
 |--------------------------------------------------------------------------
 */
+Route::get('/notification/expiry', \App\Http\Controllers\MachineExpiryTriggerController::class)
+    ->withoutMiddleware('web')->middleware('throttle:6,1')->name('notification.expiry');
+
 Route::get('/', function () {
     return redirect()->route('login');
 });

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StockExhaustPricing from './StockExhaustPricing.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
 import { computed, watch, reactive } from 'vue';
@@ -19,6 +20,7 @@ const props = defineProps<{
     units: any[];
     voucher: any;
     ledgers: any[];
+    taxes: any[];
 }>();
 
 const emit = defineEmits<{
@@ -42,6 +44,10 @@ const invoiceStatuses = [
 ];
 
 interface Line {
+    unit_price: number;
+    tax_id: number | null;
+    discount_type: string;
+    discount: number;
     id?: number;
     product_id: number | null;
     issue_date: any;
@@ -62,6 +68,7 @@ const form = useForm({
     bill_number: '',
     billed_date: null as any,
     invoice_status: 0,
+    is_tax_inclusive: false,
     status: 1,
     issued_date: null as any,
     ledger_id: null as number | null,
@@ -76,6 +83,7 @@ watch(() => props.voucher, (val) => {
         form.bill_number = val.bill_number || '';
         form.billed_date = val.billed_date ? new Date(val.billed_date) : null;
         form.invoice_status = val.invoice_status;
+        form.is_tax_inclusive = Boolean(val.is_tax_inclusive);
         form.status = val.status;
         form.issued_date = val.issued_date ? new Date(val.issued_date) : null;
         form.ledger_id = val.ledger_id;
@@ -83,12 +91,14 @@ watch(() => props.voucher, (val) => {
             const selectedProd = props.products.find(p => p.value === l.product_id);
             return {
                 ...l,
+                unit_price: Number(l.unit_price || 0), tax_id: l.tax_id ? Number(l.tax_id) : null,
+                discount_type: l.discount_type || 'amount', discount: Number(l.discount || 0),
                 product_id: l.product_id ? Number(l.product_id) : null,
                 issue_date: l.issue_date ? new Date(l.issue_date) : null,
                 quantity_issued: l.quantity_issued ? Number(l.quantity_issued) : null,
                 no_items_issued: Number(l.no_items_issued),
                 changed_km: Number(l.changed_km),
-                stock_qty: selectedProd ? selectedProd.stock_qty : null,
+                stock_qty: Number(selectedProd?.stock_qty || 0) + Number(l.quantity_issued || 0),
                 unit_code: selectedProd ? selectedProd.unit_code : null
             };
         });
@@ -154,6 +164,7 @@ const runFrontendValidation = (): boolean => {
 
 const addLine = () => {
     form.lines.push({
+        unit_price: 0, tax_id: null, discount_type: 'amount', discount: 0,
         product_id: null,
         issue_date: entityToday(),
         quantity_issued: null,
@@ -180,7 +191,7 @@ const onProductChange = (index: number) => {
     if (selectedProd) {
         line.quantity_issued = 1;
         line.units = selectedProd.unit_id;
-        line.stock_qty = selectedProd.stock_qty;
+        line.stock_qty = Number(selectedProd.stock_qty || 0) + (props.voucher?.lines || []).filter((old: any) => Number(old.product_id) === Number(line.product_id)).reduce((sum: number, old: any) => sum + Number(old.quantity_issued || 0), 0);
         line.unit_code = selectedProd.unit_code;
     } else {
         line.stock_qty = null;
@@ -429,6 +440,7 @@ const submitForm = () => {
                     </div>
                 </div>
 
+                <StockExhaustPricing :form="form" :taxes="taxes" :products="products" />
                 <div class="flex items-center justify-end gap-2 mt-4">
                     <button
                         type="submit"

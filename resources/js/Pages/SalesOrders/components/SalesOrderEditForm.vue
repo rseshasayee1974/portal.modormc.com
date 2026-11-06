@@ -5,6 +5,7 @@ import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
 import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
 import axios from 'axios';
+import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
@@ -407,6 +408,8 @@ const handleMixCreated = () => {
                     />
                 </div> -->
 
+                <div><BaseInput v-model="form.prefix" label="Reference Prefix" :error="form.errors.prefix" /></div>
+                <div><BaseInput v-model="form.order_no" label="Reference Number" required :error="form.errors.order_no" /></div>
                 <!-- Customer -->
                 <div>
                     <BaseSelect

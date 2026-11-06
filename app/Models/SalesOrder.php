@@ -253,12 +253,12 @@ class SalesOrder extends Model
         $sequencePrefix = "{$customPrefix}/";
         $yearSuffix = "/{$fyString}";
         // Customer ID is retained in the method signature for existing callers.
-        // All customers in a plant share the series, using only active orders.
-        $orders = self::where('plant_id', $plantId)->whereNull('deleted_at');
+        // All customers in a plant share the series, including reserved deleted numbers.
+        $orders = self::withTrashed()->where('plant_id', $plantId);
 
         // Keep the plant's compact format across financial years for this series.
         $prefixPattern = strtr($customPrefix, ['!' => '!!', '%' => '!%', '_' => '!_']);
-        $usesLegacyFormat = (clone $orders)
+        $usesLegacyFormat = (clone $orders)->withTrashed()
             ->whereRaw("prefix LIKE ? ESCAPE '!'", ["{$prefixPattern}/____/"])
             ->exists();
 

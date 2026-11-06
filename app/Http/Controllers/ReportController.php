@@ -110,6 +110,7 @@ class ReportController extends Controller
             'drivers'          => $drivers,
             'salesExecutives'  => $salesExecutives,
             'employees'        => $employees,
+            'expenseCategories' => \App\Models\ExpenseType::where('plant_id', $plantId)->orderBy('name')->get(['id', 'name']),
             'expenseEmployees' => \App\Models\Personnel::expenseMakers((int) $plantId)->orderBy('first_name')->get()
                 ->map(fn ($employee) => ['id' => $employee->id, 'name' => trim($employee->first_name . ' ' . $employee->last_name) . ' (' . $employee->employee_code . ')']),
             'payrollPeriods'   => $payrollPeriods,
@@ -192,6 +193,7 @@ class ReportController extends Controller
                 'sales_executive_id'  => $request->input('sales_executive_id'),
                 'attendance_status'   => $request->input('attendance_status'),
                 'employee_id'         => $request->input('employee_id') ?? $request->input('personnel_id'),
+                'expense_type_id'     => $request->input('expense_type_id'),
                 'month'               => $request->input('month'),
                 'grade_id'            => $request->input('grade_id'),
                 'mix_design_id'       => $request->input('mix_design_id'),
@@ -244,6 +246,7 @@ class ReportController extends Controller
     {
         $viewMap = [
             'EXPENSE' => 'reports.generic_report',
+            'QUALITY_TESTING' => 'reports.generic_report',
             'LEDGER'                    => 'reports.ledger_report',
             'PATRON'                    => 'reports.patron_report',
             'SALES'                     => 'reports.sales_report',

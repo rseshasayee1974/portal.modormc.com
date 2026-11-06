@@ -19,6 +19,7 @@ class ReportPermissions
         'patron' => 'Patron Statement',
         'payment' => 'Payment Log',
         'expense' => 'Expense Report',
+        'quality_testing' => 'Quality Testing Report',
         'receipt' => 'Receipt Log',
         'customer_outstanding' => 'Customer Outstanding',
         'deleted_report' => 'Deleted Report',

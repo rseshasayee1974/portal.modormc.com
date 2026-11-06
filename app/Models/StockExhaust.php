@@ -20,6 +20,7 @@ class StockExhaust extends Model
     public const UPDATED_AT = 'modified';
 
     protected $fillable = [
+        'is_tax_inclusive', 'discount_amount', 'untaxed_amount', 'tax_amount', 'total_amount',
         'partner_id',
         'name',
         'bill_number',
@@ -37,6 +38,7 @@ class StockExhaust extends Model
     ];
 
     protected $casts = [
+        'is_tax_inclusive' => 'boolean', 'discount_amount' => 'decimal:2', 'untaxed_amount' => 'decimal:2', 'tax_amount' => 'decimal:2', 'total_amount' => 'decimal:2',
         'billed_date' => 'date',
         'issued_date' => 'date',
         'created' => 'datetime',

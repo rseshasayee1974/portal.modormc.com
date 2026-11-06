@@ -661,7 +661,7 @@
                         <tr>
                             <td class="detail-label">Vendor Name:</td>
                             <td class="detail-val">
-                                {{ $inward->order?->vendor?->legal_name ?? ($inward->order?->vendor?->trade_name ?? 'N/A') }}
+                                {{ $inward->order?->vendor?->legal_name ?? $inward->vendor?->legal_name ?? ($inward->order?->vendor?->trade_name ?? 'N/A') }}
                             </td>
                         </tr>
                         <tr>

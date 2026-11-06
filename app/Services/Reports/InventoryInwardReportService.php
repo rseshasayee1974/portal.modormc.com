@@ -32,6 +32,7 @@ class InventoryInwardReportService implements ReportServiceInterface
         $query = PurchaseOrderHistory::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->with([
+                'vendor',
                 'order' => fn($q) => $q->whereNull('deleted_at'),
                 'order.vendor' => fn($q) => $q->whereNull('deleted_at'),
                 'product' => fn($q) => $q->whereNull('deleted_at'),
@@ -43,9 +44,8 @@ class InventoryInwardReportService implements ReportServiceInterface
             ->whereRaw("($receiptTimestamp) BETWEEN ? AND ?", [$start, $end]);
 
         if ($patronId) {
-            $query->whereHas('order', function ($q) use ($patronId) {
-                $q->whereNull('deleted_at')->where('vendor_id', $patronId);
-            });
+            $query->where(fn ($q) => $q->where('vendor_id', $patronId)
+                ->orWhereHas('order', fn ($order) => $order->where('vendor_id', $patronId)));
         }
 
         if ($truckId) {
@@ -61,8 +61,8 @@ class InventoryInwardReportService implements ReportServiceInterface
             'transactions' => $inwards->map(fn($i) => [
                 'date'         => \Carbon\Carbon::parse($i->report_received_at)->toDateTimeString(),
                 'inward_no'    => $i->inward_no ?? ('INW-' . $i->id),
-                'po_number'    => $i->order->po_number ?? 'N/A',
-                'vendor_name'  => $i->order->vendor->legal_name ?? 'N/A',
+                'po_number'    => $i->order->po_number ?? 'Direct Stock In',
+                'vendor_name'  => $i->order?->vendor?->legal_name ?? $i->vendor?->legal_name ?? 'N/A',
                 'product_name' => $i->product->title ?? 'N/A',
                 'uom'          => $i->uom->unit_code ?? $i->uom->unit_name ?? 'N/A',
                 'quantity'     => trim((float) $i->received_qty . ' ' . ($i->uom?->unit_code ?? '')),

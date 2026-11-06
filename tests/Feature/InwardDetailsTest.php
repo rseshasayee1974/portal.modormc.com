@@ -46,6 +46,42 @@ class InwardDetailsTest extends TestCase
         $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
     }
 
+    public function test_direct_inward_creates_stock_without_po_and_can_be_edited_and_deleted(): void
+    {
+        $vendor = Patron::factory()->create(['plant_id' => $this->plant->id]);
+        $ordersBefore = PurchaseOrder::count();
+        $this->post(route('inwards.store'), [
+            'entry_mode' => 'direct', 'vendor_id' => $vendor->id, 'received_date' => '2026-11-06',
+            'inward_no' => 'DIRECT-001',
+            'items' => [['product_id' => $this->inward->product_id, 'uom_id' => $this->inward->uom_id, 'received_qty' => 5.25, 'unit_price' => 100]],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('inwards.index'));
+        $direct = PurchaseOrderHistory::where('inward_no', 'DIRECT-001')->firstOrFail();
+        $this->assertNull($direct->order_id);
+        $this->assertNull($direct->order_item_id);
+        $this->assertEquals($vendor->id, $direct->vendor_id);
+        $this->assertSame($ordersBefore, PurchaseOrder::count());
+        $this->assertEquals(15.25, $this->stock->fresh()->quantity);
+        $this->post(route('inwards.update-weight', $direct), ['received_qty' => 7.25, 'unit_price' => 120])
+            ->assertSessionHasNoErrors();
+        $this->assertEquals(17.25, $this->stock->fresh()->quantity);
+        $this->assertEquals(120, $direct->fresh()->unit_price);
+        $this->get(route('inwards.export', ['search' => $vendor->legal_name]))->assertOk();
+        $this->delete(route('inwards.destroy', $direct))->assertSessionHasNoErrors();
+        $this->assertSoftDeleted($direct);
+        $this->assertEquals(10, $this->stock->fresh()->quantity);
+    }
+
+    public function test_direct_inward_rejects_product_from_another_plant(): void
+    {
+        $vendor = Patron::factory()->create(['plant_id' => $this->plant->id]);
+        $product = Product::factory()->create(['plant_id' => Plant::factory()->create()->id]);
+        $this->post(route('inwards.store'), [
+            'entry_mode' => 'direct', 'vendor_id' => $vendor->id, 'received_date' => '2026-11-06',
+            'items' => [['product_id' => $product->id, 'uom_id' => $this->inward->uom_id, 'received_qty' => 1, 'unit_price' => 100]],
+        ])->assertSessionHasErrors('items.0.product_id');
+        $this->assertEquals(10, $this->stock->fresh()->quantity);
+    }
+
     public function test_inward_number_formats_and_padding_preserve_sequence_and_settings(): void
     {
         $controller = \Mockery::mock(\App\Http\Controllers\CustomSettingController::class)->makePartial()->shouldAllowMockingProtectedMethods();

@@ -45,6 +45,7 @@ import Gstr3bReport from './components/Gstr3bReport.vue';
 import TdsCertificateReport from './components/TdsCertificateReport.vue';
 import EsiPfChallanReport from './components/EsiPfChallanReport.vue';
 import VoucherReport from './components/VoucherReport.vue';
+import QualityTestingReport from './components/QualityTestingReport.vue';
 import ExpenseReport from './components/ExpenseReport.vue';
 import CustomerOutstandingReport from './components/CustomerOutstandingReport.vue';
 import OverallReport from './components/OverallReport.vue';
@@ -104,6 +105,7 @@ const props = defineProps({
     salesExecutives: Array,
     employees: Array,
     expenseEmployees: { type: Array, default: () => [] },
+    expenseCategories: { type: Array, default: () => [] },
     payrollPeriods: Array,
     concreteGrades: Array,
     mixDesigns: Array,
@@ -215,6 +217,7 @@ const reportCatalog = [
             // { id: 'sales_register', name: 'Sales Register Report', description: 'Itemized sales invoices with GST breakdown, rate, and taxable values' },
             { id: 'batching_schedule', name: 'Batching Schedule Report', description: 'Schedule slots, unloading times and volumes filtered by unloading site, truck and pump' },
             { id: 'pump_boom_deployment', name: 'Pump & Boom Deployment Report', description: 'Pump deployment schedules, setup and pour times, durations and delays' },
+            { id: 'quality_testing', name: 'Quality Testing Report', description: 'Test counts by age: 7, 15, 28 days and other ages, with completion and result totals' },
             { id: 'production_batch', name: 'Batch Production Sheet', description: 'Batch mix designs, target vs actual aggregate loads' },
         ]
     },
@@ -293,6 +296,7 @@ const pumpVehicleId = ref(null);
 const driverId = ref(null);
 const salesExecutiveId = ref(null);
 const selectedEmployeeId = ref(null);
+const expenseCategoryId = ref(null);
 const attendanceStatus = ref(null);
 const attendanceStatusOptions = ['present', 'absent', 'half_day', 'leave', 'holiday', 'weekoff', 'on_duty'].map(value => ({ value, label: value.replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase()) }));
 const selectedMonth = ref(null);
@@ -384,6 +388,7 @@ const getReportComponent = (type) => {
         case 'payment':
         case 'receipt': return VoucherReport;
         case 'expense': return ExpenseReport;
+        case 'quality_testing': return QualityTestingReport;
         default: return StandardLedgerReport;
     }
 };
@@ -732,6 +737,7 @@ watch(selectedModuleId, (newModuleId) => {
         driverId.value = null;
         salesExecutiveId.value = null;
         selectedEmployeeId.value = null;
+        expenseCategoryId.value = null;
         attendanceStatus.value = null;
         selectedMonth.value = null;
         gstType.value = null;
@@ -765,6 +771,7 @@ watch(reportType, () => {
     driverId.value = null;
     salesExecutiveId.value = null;
     selectedEmployeeId.value = null;
+    expenseCategoryId.value = null;
     attendanceStatus.value = null;
     selectedMonth.value = null;
     currentPage.value = 1;
@@ -775,7 +782,7 @@ watch(reportType, () => {
     exportProgress.value = null;
 });
 
-watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
+watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, expenseCategoryId, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
     currentPage.value = 1;
     invalidateReport();
 });
@@ -813,6 +820,7 @@ const generateReport = async ({ manual = false, pagination = false } = {}) => {
             driver_id: driverId.value,
             sales_executive_id: salesExecutiveId.value,
             employee_id: selectedEmployeeId.value,
+            expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
             attendance_status: attendanceStatus.value,
             month: selectedMonth.value,
             voucher_type_filter: ledgerVoucherFilter.value,
@@ -929,6 +937,7 @@ const exportPdf = () => {
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
         employee_id: selectedEmployeeId.value,
+        expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
         attendance_status: attendanceStatus.value,
         month: selectedMonth.value,
         export: 'pdf'
@@ -995,6 +1004,7 @@ const exportExcel = () => {
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
         employee_id: selectedEmployeeId.value,
+        expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
         attendance_status: attendanceStatus.value,
         month: selectedMonth.value,
         export: 'excel'
@@ -1091,6 +1101,7 @@ const deleteSchedule = async (id) => {
 const currentReportParams = computed(() => {
     return {
         employee_id: selectedEmployeeId.value,
+        expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
         id: selectedId.value,
         patron_id: patronId.value,
         voucher_type_filter: ledgerVoucherFilter.value,
@@ -1151,6 +1162,7 @@ const generateShareLink = async () => {
                 site_id: siteId.value,
                 pump_vehicle_id: pumpVehicleId.value,
                 employee_id: selectedEmployeeId.value,
+                expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
                 attendance_status: attendanceStatus.value,
                 month: selectedMonth.value,
             }
@@ -1532,6 +1544,12 @@ const shareEmail = () => {
                                             optionLabel="design_name" optionValue="id"
                                             :filterFields="['design_name', 'design_code']" placeholder="All Mix Designs"
                                             filter showClear />
+                                    </div>
+
+                                    <div v-if="reportType === 'expense'" class="lg:col-span-1">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">Expense Category</span>
+                                        <BaseSelect v-model="expenseCategoryId" :options="expenseCategories"
+                                            optionLabel="name" optionValue="id" placeholder="-- All Categories --" filter showClear />
                                     </div>
 
                                     <!-- Employee Dropdown (Payroll & Personnel Directory) -->

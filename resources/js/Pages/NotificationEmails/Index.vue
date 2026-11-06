@@ -188,7 +188,7 @@ const deleteItem = (id: number) => {
                     <small v-if="form.errors.type" class="text-red-500">{{ form.errors.type }}</small>
                 </div>
 
-                <div class="flex flex-col gap-2">
+                <div v-if="!['Machine Document Expiry', 'Sales Order'].includes(form.type)" class="flex flex-col gap-2">
                     <label class="text-xs font-semibold uppercase text-gray-500">Role Name</label>
                     <BaseSelect v-model="form.role_name" :options="roleOptions" optionLabel="label" optionValue="value" fluid />
                     <small v-if="form.errors.role_name" class="text-red-500">{{ form.errors.role_name }}</small>

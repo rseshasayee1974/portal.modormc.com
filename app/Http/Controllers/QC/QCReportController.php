@@ -28,27 +28,7 @@ class QCReportController extends Controller
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
-        $query = QcTest::with(['sample.material', 'sample.supplier', 'sample.customer', 'sample.concreteGrade', 'testType', 'results.parameter']);
-
-        if ($plantId) {
-            $query->where('plant_id', $plantId);
-        }
-
-        if ($request->date_from) {
-            $query->whereDate('test_date', '>=', $request->date_from);
-        }
-
-        if ($request->date_to) {
-            $query->whereDate('test_date', '<=', $request->date_to);
-        }
-
-        if ($request->material_id) {
-            $query->whereHas('sample', fn($s) => $s->where('material_id', $request->material_id));
-        }
-
-        if ($request->status && $request->status !== 'All') {
-            $query->where('overall_status', strtolower($request->status));
-        }
+        $query = $this->reportQuery($request, $plantId);
 
         $tests = $query->orderBy('test_date', 'desc')->paginate(20)->withQueryString();
 
@@ -75,7 +55,7 @@ class QCReportController extends Controller
                 'pass_rate' => $passRate,
             ],
             'materials' => $materials,
-            'filters' => $request->only(['date_from', 'date_to', 'material_id', 'status']),
+            'filters' => $request->only(['start_date', 'end_date', 'material_id', 'status']),
         ]);
     }
 
@@ -86,11 +66,7 @@ class QCReportController extends Controller
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
-        $query = QcTest::with(['sample.material', 'sample.supplier', 'sample.customer', 'sample.concreteGrade', 'testType', 'results.parameter']);
-
-        if ($plantId) {
-            $query->where('plant_id', $plantId);
-        }
+        $query = $this->reportQuery($request, $plantId);
 
         $tests = $query->orderBy('test_date', 'desc')->get();
 
@@ -100,6 +76,42 @@ class QCReportController extends Controller
         ]);
 
         return $pdf->download('QC_Summary_Report_' . date('Ymd_His') . '.pdf');
+    }
+
+    private function reportQuery(Request $request, ?int $plantId)
+    {
+        // Accept existing bookmarked report URLs as well as the date-range fields.
+        $request->merge([
+            'start_date' => $request->input('start_date', $request->input('date_from')),
+            'end_date' => $request->input('end_date', $request->input('date_to')),
+        ]);
+        $request->validate([
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d', ...($request->filled('start_date') ? ['after_or_equal:start_date'] : [])],
+        ]);
+        $query = QcTest::with(['sample.material', 'sample.supplier', 'sample.customer', 'sample.concreteGrade', 'testType', 'results.parameter']);
+
+        if ($plantId) {
+            $query->where('plant_id', $plantId);
+        }
+
+        if ($request->input('start_date')) {
+            $query->whereDate('test_date', '>=', $request->input('start_date'));
+        }
+
+        if ($request->input('end_date')) {
+            $query->whereDate('test_date', '<=', $request->input('end_date'));
+        }
+
+        if ($request->material_id) {
+            $query->whereHas('sample', fn($s) => $s->where('material_id', $request->material_id));
+        }
+
+        if ($request->status && $request->status !== 'All') {
+            $query->where('overall_status', strtolower($request->status));
+        }
+
+        return $query;
     }
 
     public function downloadCubeReportPdf(Request $request, QcTest $test)

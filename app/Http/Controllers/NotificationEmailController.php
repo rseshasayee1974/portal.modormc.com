@@ -56,10 +56,12 @@ class NotificationEmailController extends Controller
         $this->authorizeModule('create');
         $validated = $request->validate([
             'type' => 'required|string|max:40',
-            'role_name' => 'required|string|max:40',
+            'role_name' => [\Illuminate\Validation\Rule::requiredIf(!in_array(strtolower(trim((string) $request->input('type'))), ['machine document expiry', 'sales order'], true)), 'nullable', 'string', 'max:40'],
             'email' => 'required|string|max:5100',
             'status' => 'required|integer|in:0,1',
         ]);
+
+        if (in_array(strtolower(trim($validated['type'])), ['machine document expiry', 'sales order'], true)) $validated['role_name'] = '';
 
         $addresses = preg_split('/[\s,;]+/', strtolower($validated['email']), -1, PREG_SPLIT_NO_EMPTY);
         $validator = Validator::make(['addresses' => $addresses], [
@@ -84,7 +86,7 @@ class NotificationEmailController extends Controller
             Plant::whereKey($plantId)->lockForUpdate()->firstOrFail();
             $existing = NotificationEmail::where('plant_id', $plantId)
                 ->whereRaw('LOWER(TRIM(type)) = ?', [strtolower($validated['type'])])
-                ->whereRaw('LOWER(TRIM(role_name)) = ?', [strtolower($validated['role_name'])])
+                ->when(!in_array(strtolower(trim($validated['type'])), ['machine document expiry', 'sales order'], true), fn ($q) => $q->whereRaw('LOWER(TRIM(role_name)) = ?', [strtolower($validated['role_name'])]))
                 ->whereIn(DB::raw('LOWER(TRIM(email))'), $addresses)->pluck('email')
                 ->map(fn (string $email) => strtolower(trim($email)))->all();
             $newAddresses = array_diff(array_unique($addresses), $existing);
@@ -116,10 +118,12 @@ class NotificationEmailController extends Controller
         abort_unless($request->user()->isSystemAdmin() || (int) $notificationemail->plant_id === (int) session('active_plant_id'), 403);
         $validated = $request->validate([
             'type' => 'required|string|max:40',
-            'role_name' => 'required|string|max:40',
+            'role_name' => [\Illuminate\Validation\Rule::requiredIf(!in_array(strtolower(trim((string) $request->input('type'))), ['machine document expiry', 'sales order'], true)), 'nullable', 'string', 'max:40'],
             'email' => 'required|email|max:100',
             'status' => 'required|integer|in:0,1',
         ]);
+
+        if (in_array(strtolower(trim($validated['type'])), ['machine document expiry', 'sales order'], true)) $validated['role_name'] = '';
 
         $notificationemail->update(array_merge($validated, [
             'updated_by' => Auth::id(),

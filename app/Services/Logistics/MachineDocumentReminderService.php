@@ -30,7 +30,7 @@ class MachineDocumentReminderService
             $documents = $this->dueDocuments($plant->id, $now->startOfDay());
             $result['documents_due'] = count($documents);
             $recipients = NotificationEmail::where('plant_id', $plant->id)
-                ->where('type', config('machine_notifications.type'))->where('status', 1)->pluck('email')
+                ->whereRaw('LOWER(TRIM(type)) = ?', [strtolower(config('machine_notifications.type'))])->where('status', 1)->pluck('email')
                 ->map(fn ($email) => strtolower(trim($email)))
                 ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))->unique()->values();
             $result['recipients'] = $recipients->count();
@@ -102,7 +102,7 @@ class MachineDocumentReminderService
             $week = intdiv(abs($days), max(1, (int) config('machine_notifications.overdue_interval_days', 7)));
             return $week === 0 ? 'expiry' : 'overdue_'.$week;
         }
-        $thresholds = array_filter(config('machine_notifications.reminder_days', [30, 15, 7, 1, 0]), fn ($day) => $day > 0);
+        $thresholds = array_filter(config('machine_notifications.reminder_days', [15, 7]), fn ($day) => $day > 0);
         sort($thresholds);
         foreach ($thresholds as $threshold) {
             // Catch up once at the current threshold if the scheduler missed its exact day.

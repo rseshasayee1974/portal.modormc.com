@@ -91,6 +91,7 @@ const resolveConcretePump = (raw: any) => {
 };
 
 const form = useForm({
+    reference: props.quotation.reference ?? '',
     patron_id: props.quotation.patron_id ?? null,
     site_id: props.quotation.site_id ?? null,
     sales_executive_id: props.quotation.sales_executive_id ?? null,
@@ -406,6 +407,7 @@ const sendEmail = () => {
     <div class="  ">
         <form class="space-y-6" @submit.prevent="submit">
        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+            <BaseInput v-model="form.reference" label="Quotation Reference Number" required :disabled="isLocked" :error="form.errors.reference" />
     <BaseSelect
         v-model="form.patron_id"
         :options="patronOptions"

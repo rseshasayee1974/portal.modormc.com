@@ -810,7 +810,10 @@ const unifiedSalesOrders = computed(() => {
             });
         }
     }
-    return list;
+    return list.map(order => ({
+        ...order,
+        dropdown_label: [order.full_number, order.mix_design_name || order.mix_design?.design_name].filter(Boolean).join(' — '),
+    }));
 });
 // Option 1: Fetch consumption via batches.sync API
 const fetchConsumption = async () => {
@@ -1169,7 +1172,7 @@ console.log('test');
                             <span class="h-2 w-2 rounded-full bg-cyan-600"></span>
                             Sales Order Context
                         </h3>
-                        <BaseSelect v-model="form.sales_order_id" optionLabel="full_number"
+                        <BaseSelect v-model="form.sales_order_id" optionLabel="dropdown_label"
                             :options="unifiedSalesOrders" optionValue="id" filter :disabled="true" label="Sales Order"
                             :error="form.errors.sales_order_id" />
                     </div>

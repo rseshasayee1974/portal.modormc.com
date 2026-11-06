@@ -56,6 +56,7 @@ const props = defineProps<{
     products: any[];
     units: any[];
     ledgers: any[];
+    taxes: any[];
 }>();
 
 const page = usePage();
@@ -126,7 +127,7 @@ watch(() => page.props.flash, (flash: any) => {
 
                 <!-- Create form -->
                 <StockExhaustCreateForm :machines="machines" :vendors="vendors" :products="products" :units="units"
-                    :ledgers="ledgers" />
+                    :ledgers="ledgers" :taxes="taxes" />
 
                 <!-- ── DataTable Section ── -->
                 <BaseDataTable :value="stockExhausts" v-model:filters="filters"
@@ -162,6 +163,8 @@ watch(() => page.props.flash, (flash: any) => {
                         </template>
                     </Column>
 
+                    <Column header="Total Amount" field="total_amount" sortable><template #body="{data}">{{ Number(data.total_amount || 0).toLocaleString(APP_LOCALE, {minimumFractionDigits:2,maximumFractionDigits:2}) }}</template></Column>
+                    <Column header="Billing Status" field="invoice_status"><template #body="{data}">{{ ['Unbilled', 'Partially Billed', 'Fully Billed'][data.invoice_status || 0] }}</template></Column>
                     <!-- Bill Number -->
                     <Column header="Bill Number" sortable field="bill_number">
                         <template #body="slotProps">
@@ -236,7 +239,7 @@ watch(() => page.props.flash, (flash: any) => {
                             class=" bg-slate-50/50 dark:bg-slate-900/50" @click.stop>
                             <StockExhaustEditForm :key="slotProps.data.id" :voucher="slotProps.data"
                                 :machines="machines" :vendors="vendors" :products="products" :units="units"
-                                :ledgers="ledgers" @cancel="cancelEdit" @success="cancelEdit" />
+                                :ledgers="ledgers" :taxes="taxes" @cancel="cancelEdit" @success="cancelEdit" />
                         </div>
                         <div v-else
                             class="p-6 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 m-2">

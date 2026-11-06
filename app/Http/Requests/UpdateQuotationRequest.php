@@ -20,15 +20,7 @@ class UpdateQuotationRequest extends FormRequest
             $this->merge(['items' => array_map(fn ($item) => is_array($item)
                 ? \App\Services\Mobile\QuotationCalculator::normalizeDiscount($item) : $item, $this->input('items'))]);
         }
-        if ($this->filled('reference') && is_numeric($this->reference)) {
-            $now = now();
-            $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
-            $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
-            
-            $this->merge([
-                'reference' => sprintf('QT-%s-%04d', $fyString, (int)$this->reference)
-            ]);
-        }
+
     }
 
     /**
@@ -42,10 +34,12 @@ class UpdateQuotationRequest extends FormRequest
 
         return [
             'reference' => [
-                'nullable',
+                'sometimes',
+                'required',
                 'string',
                 'max:100',
-                \Illuminate\Validation\Rule::unique('mm_quotations', 'reference')->ignore($quotationId),
+                \Illuminate\Validation\Rule::unique('mm_quotations', 'reference')
+                    ->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')->ignore($quotationId),
             ],
             'patron_id' => 'required|exists:mm_patrons,id',
             'is_tax_inclusive' => 'nullable|boolean',

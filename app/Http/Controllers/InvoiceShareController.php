@@ -437,6 +437,7 @@ class InvoiceShareController extends Controller
 
         $viewMap = [
             'EXPENSE' => 'reports.generic_report',
+            'QUALITY_TESTING' => 'reports.generic_report',
             'LEDGER'               => 'reports.ledger_report',
             'PATRON'               => 'reports.patron_report',
             'SALES'                => 'reports.sales_report',

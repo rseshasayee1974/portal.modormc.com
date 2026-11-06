@@ -63,7 +63,10 @@ const emit = defineEmits(['offline-batch-added', 'cancel', 'created']);
 
 
 
-// console.log("salesOrders",props?.salesOrders);
+const labelledSalesOrders = computed(() => props.salesOrders.map(order => ({
+    ...order,
+    dropdown_label: [order.full_number, order.mix_design_name || order.mix_design?.design_name].filter(Boolean).join(' — '),
+})));
 
 const form = useForm({
     batching_schedule_id: null as number | null,
@@ -705,7 +708,7 @@ const submit = () => {
                             :options="batchingSchedules" optionLabel="label" optionValue="id" filter
                             label="Select Batch Schedule" placeholder="Select a schedule" required
                             :error="form.errors.batching_schedule_id" />
-                        <BaseSelect v-else v-model="form.sales_order_id" :options="salesOrders" optionLabel="full_number"
+                        <BaseSelect v-else v-model="form.sales_order_id" :options="labelledSalesOrders" optionLabel="dropdown_label"
                             optionValue="id" filter label="Select Sales Order" placeholder="Select Sales Order" required
                             :error="form.errors.sales_order_id" />
                     </div>
