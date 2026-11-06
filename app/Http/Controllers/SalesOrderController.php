@@ -48,6 +48,17 @@ class SalesOrderController extends Controller
         return response()->json(['reference' => SalesOrder::generateOrderNo($plantId, $data['customer_id'])['full_number']]);
     }
 
+    public function resendEmail(SalesOrder $salesorder)
+    {
+        $this->authorizeModule('edit');
+        $this->ensurePlantScope($salesorder);
+        $result = app(\App\Services\SalesOrders\SalesOrderEmails::class)->resend($salesorder);
+        return response()->json($result + ['message' => sprintf(
+            '%d recipient(s) sent, %d failed, %d pending. Previously sent recipients are not emailed again.',
+            $result['sent'], $result['failed'], $result['pending']
+        )]);
+    }
+
     public function store(StoreSalesOrderRequest $request)
     {
         $this->authorizeModule('create');

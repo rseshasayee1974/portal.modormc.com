@@ -11,7 +11,7 @@ class MonitorWebsite extends Command
      *
      * @var string
      */
-    protected $signature = 'website:monitor {url=modomines.com}';
+    protected $signature = 'website:monitor {url=modomines.com} {--plant= : Limit alerts to one active plant ID}';
 
     /**
      * The console command description.
@@ -23,8 +23,18 @@ class MonitorWebsite extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(\App\Services\PlantAlertRecipients $recipientResolver)
     {
+        if ($this->option('plant') !== null && (!ctype_digit((string) $this->option('plant')) || (int) $this->option('plant') < 1)) {
+            $this->error('The plant option must be a positive plant ID.');
+            return self::FAILURE;
+        }
+        $plants = \App\Models\Plant::where('is_active', true)
+            ->when($this->option('plant'), fn ($query, $id) => $query->whereKey($id))->get();
+        if ($this->option('plant') && $plants->isEmpty()) {
+            $this->error('The selected plant is not active or available.');
+            return self::FAILURE;
+        }
         $url = $this->argument('url');
         $cleanUrl = str_replace(['http://', 'https://'], '', $url);
         $fullUrl = 'https://' . $cleanUrl;
@@ -43,47 +53,20 @@ class MonitorWebsite extends Command
         }
 
         $statusText = $isUp ? 'UP' : 'DOWN';
-        $cacheKey = "website_status_" . md5($cleanUrl);
-        $lastStatus = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        foreach ($plants as $plant) {
+            $cacheKey = 'website_status_' . md5($cleanUrl) . ':plant:' . $plant->id;
+            $lastStatus = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            if ($lastStatus === $statusText) continue;
 
-        if ($isUp) {
-            $this->info("Website is UP.");
-        } else {
-            $this->warn("Website is DOWN!");
-        }
-
-        // Only send email if status has changed
-        if ($lastStatus !== $statusText) {
-            $this->info("Status changed from " . ($lastStatus ?? 'UNKNOWN') . " to {$statusText}. Sending alert...");
-            
-            // ── 1. Get all email addresses from the Plants table ──────────
-            $plantEmails = \App\Models\Plant::where('is_active', true)
-                ->whereNotNull('email_address')
-                ->pluck('email_address')
-                ->toArray();
-
-            // ── 2. Get all users who have "Admin" roles ──────────────────
-            // Based on mm_roles table: 2=PLATFORM_ADMIN, 3=SUPER_ADMIN, 4=ADMINISTRATOR
-            $adminUserEmails = \App\Models\User::whereHas('entityUsers', function($query) {
-                $query->whereIn('role_id', [2, 3, 4]);
-            })->pluck('email')->toArray();
-
-            // ── 3. Merge and unique recipients ───────────────────────────
-            $recipients = array_unique(array_merge($plantEmails, $adminUserEmails));
-            
-            if (empty($recipients)) {
-                $this->warn("No recipients found (no plant emails or admin users). Sending to default...");
-                $recipients = ['ragul@onemodo.com'];
+            $recipients = $recipientResolver->forPlant($plant);
+            foreach ($recipients as $email) {
+                // Fresh mailable per recipient prevents addresses accumulating in To.
+                \Illuminate\Support\Facades\Mail::to($email)->send(
+                    new \App\Mail\WebsiteStatusAlert($cleanUrl, $statusText, $plant->name)
+                );
             }
-
-            $this->info("Sending alert to: " . implode(', ', $recipients));
-            
-            \Illuminate\Support\Facades\Mail::to($recipients)->send(new \App\Mail\WebsiteStatusAlert($cleanUrl, $statusText));
-            
             \Illuminate\Support\Facades\Cache::put($cacheKey, $statusText);
-            $this->info("Alert sent successfully.");
-        } else {
-            $this->line("No status change detected. No email sent.");
+            $this->info('Plant ' . $plant->id . ': ' . $recipients->count() . ' separate alert(s) sent.');
         }
 
         return 0;

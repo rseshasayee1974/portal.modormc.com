@@ -3,6 +3,10 @@
 
 The monitoring system has detected a status change for your website.
 
+@if($plantName)
+**Plant:** {{ $plantName }}
+@endif
+
 **URL:** {{ $url }}
 **Status:** {{ $status === 'UP' ? '✅ ONLINE' : '❌ OFFLINE' }}
 **Checked At:** {{ $timestamp }}

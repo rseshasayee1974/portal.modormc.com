@@ -488,6 +488,28 @@ class InvoiceNumberFormatTest extends TestCase
         $this->assertSame('PS/26-27/', \App\Models\Ledger::documentSeriesPrefix(1, null, '2026-11-02', 'PS'));
     }
 
+    public function test_manual_sales_order_number_uses_settings_and_checks_all_customers_in_plant(): void
+    {
+        Schema::create('mm_sales_orders', function (Blueprint $table) {
+            $table->id(); $table->integer('plant_id'); $table->integer('customer_id');
+            $table->string('prefix'); $table->string('order_no'); $table->softDeletes();
+        });
+        $this->settings(['so_number_padding' => 4]);
+        $request = \App\Http\Requests\StoreSalesOrderRequest::create('/', 'POST', ['prefix' => 'SO', 'order_no' => '23', 'customer_id' => 12]);
+        (new \ReflectionMethod($request, 'prepareForValidation'))->invoke($request);
+        $this->assertSame('SO/26-27/', $request->input('prefix'));
+        $this->assertSame('0023', $request->input('order_no'));
+        DB::table('mm_sales_orders')->insert(['plant_id' => 1, 'customer_id' => 10, 'prefix' => 'SO/26-27/', 'order_no' => '0023']);
+        $this->assertTrue(Validator::make($request->all(), ['order_no' => $request->rules()['order_no']])->fails());
+        DB::table('mm_sales_orders')->update(['deleted_at' => now()]);
+        $this->assertFalse(Validator::make($request->all(), ['order_no' => $request->rules()['order_no']])->fails());
+        $this->settings(['so_number_format' => 'prefix_number_fy', 'so_number_padding' => 0]);
+        $request = \App\Http\Requests\StoreSalesOrderRequest::create('/', 'POST', ['prefix' => 'SO', 'order_no' => '24']);
+        (new \ReflectionMethod($request, 'prepareForValidation'))->invoke($request);
+        $this->assertSame('SO/', $request->input('prefix'));
+        $this->assertSame('24/26-27', $request->input('order_no'));
+    }
+
     public function test_sales_order_format_and_padding_are_configurable_and_continue_existing_sequences(): void
     {
         Schema::create('mm_sales_orders', function (Blueprint $table) {

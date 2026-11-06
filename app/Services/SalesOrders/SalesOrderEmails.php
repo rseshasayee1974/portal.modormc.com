@@ -57,6 +57,31 @@ class SalesOrderEmails
         }
     }
 
+    public function resend(SalesOrder $order): array
+    {
+        $db = $order->getConnection();
+        if (!$db->getSchemaBuilder()->hasTable(self::TABLE)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['email' => 'Email delivery tracking is not configured. Run the sales order email migration.']);
+        }
+        $recipients = $this->recipients($db, $order->plant_id);
+        if ($recipients->isEmpty()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['email' => 'Configure an active Sales Order notification email for this plant.']);
+        }
+        $db->transaction(function () use ($db, $order, $recipients) {
+            SalesOrder::on($db->getName())->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $db->table(self::TABLE)->where('sales_order_id', $order->id)->whereIn('recipient', $recipients)
+                ->whereIn('status', ['pending', 'failed', 'cancelled'])
+                ->update(['status' => 'pending', 'attempts' => 0, 'available_at' => now('UTC'), 'sent_at' => null, 'updated_at' => now('UTC')]);
+            // Add newly configured recipients and send after the transaction commits.
+            $this->record($order);
+        });
+        $statuses = $db->table(self::TABLE)->where('sales_order_id', $order->id)
+            ->whereIn('recipient', $recipients)->pluck('status');
+        return ['sent' => $statuses->filter(fn ($status) => $status === 'sent')->count(),
+            'failed' => $statuses->filter(fn ($status) => $status === 'failed')->count(),
+            'pending' => $statuses->filter(fn ($status) => $status === 'pending')->count()];
+    }
+
     public function sendPending(): void
     {
         $db = DB::connection();
@@ -65,7 +90,8 @@ class SalesOrderEmails
         }
 
         $stopAt = microtime(true) + 45;
-        $ids = $db->table(self::TABLE)->where('status', 'pending')
+        $ids = $db->table(self::TABLE)->whereIn('status', ['pending', 'failed'])
+            ->where('attempts', '<', count(self::RETRY_MINUTES) + 1)
             ->where('available_at', '<=', now('UTC'))->orderBy('available_at')->orderBy('id')->limit(100)->pluck('id');
 
         foreach ($ids as $id) {
@@ -79,7 +105,8 @@ class SalesOrderEmails
     private function send(Connection $db, int $id): void
     {
         $deliveries = $db->table(self::TABLE)->where('id', $id);
-        $delivery = (clone $deliveries)->where('status', 'pending')
+        $delivery = (clone $deliveries)->whereIn('status', ['pending', 'failed'])
+            ->where('attempts', '<', count(self::RETRY_MINUTES) + 1)
             ->where('available_at', '<=', now('UTC'))->lockForUpdate()->first();
         if (!$delivery) {
             return;
@@ -102,7 +129,8 @@ class SalesOrderEmails
             $delay = self::RETRY_MINUTES[$attempts - 1] ?? null;
             $deliveries->update([
                 'attempts' => $attempts,
-                'status' => $delay === null ? 'failed' : 'pending',
+                'status' => 'failed',
+                'sent_at' => null,
                 'available_at' => now('UTC')->addMinutes($delay ?? 0),
                 'updated_at' => now('UTC'),
             ]);

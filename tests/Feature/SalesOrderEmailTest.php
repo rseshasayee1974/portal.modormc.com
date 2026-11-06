@@ -128,7 +128,7 @@ class SalesOrderEmailTest extends TestCase
 
         $this->createOrder();
         $this->artisan('sales-orders:send-emails')->assertSuccessful();
-        $this->assertDatabaseHas(self::DELIVERIES, ['recipient' => 'retry@example.test', 'status' => 'pending', 'attempts' => 1]);
+        $this->assertDatabaseHas(self::DELIVERIES, ['recipient' => 'retry@example.test', 'status' => 'failed', 'attempts' => 1, 'sent_at' => null]);
         $this->assertDatabaseHas(self::DELIVERIES, ['recipient' => 'sent@example.test', 'status' => 'sent', 'attempts' => 1]);
 
         $fail = false;
@@ -138,6 +138,49 @@ class SalesOrderEmailTest extends TestCase
         $this->artisan('sales-orders:send-emails')->assertSuccessful();
         Http::assertSentCount(3);
         $this->assertDatabaseHas(self::DELIVERIES, ['recipient' => 'retry@example.test', 'status' => 'sent', 'attempts' => 2]);
+    }
+
+    public function test_resend_retries_failed_and_new_recipients_without_duplicating_successful_deliveries(): void
+    {
+        $this->recipient('retry@example.test');
+        $this->recipient('sent@example.test');
+        $fail = true;
+        Http::fake(function (Request $request) use (&$fail) {
+            return Http::response([], $fail && $request['to'][0]['email_address']['address'] === 'retry@example.test' ? 503 : 200);
+        });
+        $order = $this->createOrder();
+        $this->assertDatabaseHas(self::DELIVERIES, ['recipient' => 'retry@example.test', 'status' => 'failed']);
+        $fail = false;
+        $this->recipient('new@example.test');
+        $service = app(\App\Services\SalesOrders\SalesOrderEmails::class);
+        $this->assertSame(['sent' => 3, 'failed' => 0, 'pending' => 0], $service->resend($order));
+        Http::assertSentCount(4);
+        $this->assertSame(['sent' => 3, 'failed' => 0, 'pending' => 0], $service->resend($order));
+        Http::assertSentCount(4);
+    }
+
+    public function test_resend_requires_active_notification_recipients(): void
+    {
+        Http::fake();
+        $order = $this->createOrder();
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(\App\Services\SalesOrders\SalesOrderEmails::class)->resend($order);
+    }
+
+    public function test_resend_action_rejects_an_order_from_another_plant(): void
+    {
+        Http::fake();
+        $order = $this->createOrder();
+        session(['active_plant_id' => 2]);
+        $controller = \Mockery::mock(\App\Http\Controllers\SalesOrderController::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $controller->shouldReceive('authorizeModule')->once()->with('edit');
+        try {
+            $controller->resendEmail($order);
+            $this->fail('Cross-plant resend was accepted.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+        Http::assertNothingSent();
     }
 
     public function test_persistent_delivery_failures_stop_after_five_attempts(): void

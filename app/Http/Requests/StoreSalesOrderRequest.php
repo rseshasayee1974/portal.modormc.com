@@ -14,14 +14,17 @@ class StoreSalesOrderRequest extends FormRequest
 
     protected function prepareForValidation()
     {
-        if ($this->filled('order_no') && is_numeric($this->order_no)) {
-            $now = now();
-            $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
-            $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
-            $prefix = $this->prefix ?: 'SO';
-            
+        if ($this->filled('order_no') && ctype_digit(trim((string) $this->order_no))) {
+            $plantId = (int) session('active_plant_id');
+            $details = \App\Models\SalesOrder::generateOrderNo($plantId, null);
+            $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
+            $number = str_pad(trim((string) $this->order_no), max(0, min(10, (int) ($settings['so_number_padding'] ?? 4))), '0', STR_PAD_LEFT);
+            if (($settings['so_number_format'] ?? null) === 'prefix_number_fy') {
+                $number .= substr($details['next_number'], strpos($details['next_number'], '/'));
+            }
             $this->merge([
-                'order_no' => sprintf('%s-%s-%04d', strtoupper(trim($prefix)), $fyString, (int)$this->order_no)
+                'prefix' => $details['prefix'],
+                'order_no' => $number,
             ]);
         }
 
@@ -40,7 +43,6 @@ class StoreSalesOrderRequest extends FormRequest
                 'max:100', 
                 Rule::unique('mm_sales_orders', 'order_no')->where(function ($query) {
                     return $query->where('plant_id', $this->input('plant_id', session('active_plant_id')))
-                                 ->where('customer_id', $this->input('customer_id'))
                                  ->where('prefix', $this->input('prefix'))
                                  ->whereNull('deleted_at');
                 })

@@ -19,14 +19,16 @@ class WebsiteStatusAlert extends Mailable
     public $url;
     public $status;
     public $timestamp;
+    public $plantName;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($url, $status)
+    public function __construct($url, $status, $plantName = null)
     {
         $this->url = $url;
         $this->status = $status;
+        $this->plantName = $plantName;
         $this->timestamp = now()->toDayDateTimeString();
     }
 

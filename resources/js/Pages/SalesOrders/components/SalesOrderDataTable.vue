@@ -11,6 +11,7 @@ import Tag from 'primevue/tag';
 import Button from 'primevue/button';
 import Popover from 'primevue/popover';
 import Swal from 'sweetalert2';
+import axios from 'axios';
 import SalesOrderEditForm from './SalesOrderEditForm.vue';
 import { ClipboardDocumentListIcon } from '@heroicons/vue/24/outline';
 
@@ -89,6 +90,23 @@ const onSaved = () => {
 
 const actionPopover = ref<InstanceType<typeof Popover> | null>(null);
 const activeActionRow = ref<any>(null);
+const sendingEmailId = ref<number | null>(null);
+
+const resendEmail = async () => {
+    const id = activeActionRow.value?.id ?? activeActionRow.value?.sales_order_id;
+    if (!id || sendingEmailId.value !== null) return;
+    sendingEmailId.value = id;
+    actionPopover.value?.hide();
+    try {
+        const { data } = await axios.post(route('salesorders.resend-email', id));
+        await Swal.fire('Email delivery result', data.message, data.failed || data.pending ? 'warning' : 'success');
+    } catch (error: any) {
+        await Swal.fire('Email could not be sent', error.response?.data?.errors?.email?.[0]
+            ?? error.response?.data?.message ?? 'Unable to send email. Please try again.', 'error');
+    } finally {
+        sendingEmailId.value = null;
+    }
+};
 
 const openActions = (event: Event, row: any) => {
     activeActionRow.value = row;
@@ -226,6 +244,16 @@ const downloadSOPDF = () => {
                     >
                         <i class="pi pi-download text-emerald-500"></i>
                         Download PDF
+                    </button>
+
+                    <button
+                        v-if="can('SALES_ORDER.UPDATE')"
+                        @click="resendEmail"
+                        :disabled="sendingEmailId !== null"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors w-full text-left disabled:opacity-50"
+                    >
+                        <i :class="sendingEmailId !== null ? 'pi pi-spin pi-spinner' : 'pi pi-envelope'" class="text-indigo-500"></i>
+                        {{ sendingEmailId !== null ? 'Sending Email…' : 'Resend Email' }}
                     </button>
 
                     <!-- Delete Option -->

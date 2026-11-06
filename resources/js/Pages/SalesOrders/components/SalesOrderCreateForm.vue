@@ -6,6 +6,7 @@ import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
+import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -307,6 +308,11 @@ const handleMixCreated = () => {
             <!-- Document & Party Info Grid -->
             <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-5">
                 
+                <div>
+                    <BaseInput v-model="form.order_no" label="Reference Number (optional)"
+                        placeholder="e.g. 0123" :error="form.errors.order_no"
+                        hint="Enter the sequence number. Leave blank for automatic numbering using Custom Settings." />
+                </div>
                 <!-- Customer -->
                 <div>
                     <BaseSelect
