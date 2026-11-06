@@ -46,40 +46,23 @@ class InwardDetailsTest extends TestCase
         $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
     }
 
-    public function test_direct_inward_creates_stock_without_po_and_can_be_edited_and_deleted(): void
+    public function test_inwards_require_purchase_orders_and_reject_direct_stock_in(): void
     {
-        $vendor = Patron::factory()->create(['plant_id' => $this->plant->id]);
-        $ordersBefore = PurchaseOrder::count();
-        $this->post(route('inwards.store'), [
-            'entry_mode' => 'direct', 'vendor_id' => $vendor->id, 'received_date' => '2026-11-06',
-            'inward_no' => 'DIRECT-001',
-            'items' => [['product_id' => $this->inward->product_id, 'uom_id' => $this->inward->uom_id, 'received_qty' => 5.25, 'unit_price' => 100]],
-        ])->assertSessionHasNoErrors()->assertRedirect(route('inwards.index'));
-        $direct = PurchaseOrderHistory::where('inward_no', 'DIRECT-001')->firstOrFail();
-        $this->assertNull($direct->order_id);
-        $this->assertNull($direct->order_item_id);
-        $this->assertEquals($vendor->id, $direct->vendor_id);
-        $this->assertSame($ordersBefore, PurchaseOrder::count());
-        $this->assertEquals(15.25, $this->stock->fresh()->quantity);
-        $this->post(route('inwards.update-weight', $direct), ['received_qty' => 7.25, 'unit_price' => 120])
-            ->assertSessionHasNoErrors();
-        $this->assertEquals(17.25, $this->stock->fresh()->quantity);
-        $this->assertEquals(120, $direct->fresh()->unit_price);
-        $this->get(route('inwards.export', ['search' => $vendor->legal_name]))->assertOk();
-        $this->delete(route('inwards.destroy', $direct))->assertSessionHasNoErrors();
-        $this->assertSoftDeleted($direct);
+        $count = PurchaseOrderHistory::count();
+        foreach ([['entry_mode' => 'direct'], []] as $mode) {
+            $this->post(route('inwards.store'), $mode + [
+                'received_date' => '2026-11-06',
+                'items' => [['product_id' => $this->inward->product_id, 'received_qty' => 5]],
+            ])->assertSessionHasErrors('order_id');
+        }
+        $this->assertSame($count, PurchaseOrderHistory::count());
         $this->assertEquals(10, $this->stock->fresh()->quantity);
-    }
-
-    public function test_direct_inward_rejects_product_from_another_plant(): void
-    {
-        $vendor = Patron::factory()->create(['plant_id' => $this->plant->id]);
-        $product = Product::factory()->create(['plant_id' => Plant::factory()->create()->id]);
         $this->post(route('inwards.store'), [
-            'entry_mode' => 'direct', 'vendor_id' => $vendor->id, 'received_date' => '2026-11-06',
-            'items' => [['product_id' => $product->id, 'uom_id' => $this->inward->uom_id, 'received_qty' => 1, 'unit_price' => 100]],
-        ])->assertSessionHasErrors('items.0.product_id');
-        $this->assertEquals(10, $this->stock->fresh()->quantity);
+            'order_id' => $this->item->order_id, 'received_date' => '2026-11-06', 'inward_no' => '',
+            'items' => [['order_item_id' => $this->item->id, 'received_qty' => 5]],
+        ])->assertRedirect(route('inwards.index'))->assertSessionHasNoErrors();
+        $this->assertSame($count + 1, PurchaseOrderHistory::count());
+        $this->assertEquals(15, $this->stock->fresh()->quantity);
     }
 
     public function test_inward_number_formats_and_padding_preserve_sequence_and_settings(): void
@@ -225,6 +208,24 @@ class InwardDetailsTest extends TestCase
             'start' => '2026-10-07 14:35:27', 'end' => '2026-10-07 14:35:27',
         ]);
         $this->assertSame(['INW-TIMED'], $report['transactions']->pluck('inward_no')->all());
+    }
+
+    public function test_inward_report_vendor_filter_works_without_direct_inward_vendor_column(): void
+    {
+        \Illuminate\Support\Facades\Schema::table('mm_purchase_order_history', function ($table) {
+            $table->dropIndex('mm_purchase_order_history_vendor_id_index');
+            $table->dropColumn('vendor_id');
+        });
+        $vendor = Patron::factory()->create(['plant_id' => $this->plant->id, 'legal_name' => 'PO Vendor']);
+        $this->inward->order->update(['vendor_id' => $vendor->id]);
+        $this->inward->forceFill(['received_date' => '2026-10-03 10:15:00', 'created_at' => '2026-10-03 10:15:00'])->save();
+        $service = app(\App\Services\Reports\InventoryInwardReportService::class);
+        $filters = ['start' => '2026-10-03', 'end' => '2026-10-03', 'patron_id' => $vendor->id];
+        $report = $service->generate($filters);
+        $this->assertSame(['INW-EDIT'], $report['transactions']->pluck('inward_no')->all());
+        $this->assertSame('PO Vendor', $report['transactions']->first()['vendor_name']);
+        $filters['patron_id'] = $vendor->id + 1000;
+        $this->assertCount(0, $service->generate($filters)['transactions']);
     }
 
     public function test_inward_report_party_filter_is_shared_by_view_excel_and_pdf(): void

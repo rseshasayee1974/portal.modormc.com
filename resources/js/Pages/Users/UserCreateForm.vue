@@ -245,7 +245,7 @@ const submit = async () => {
                     <!-- <span class="text-sm">Mobile App / OTP</span> -->
                 </div>
             </div>
-            <div v-if="personnelOptions.length" class="col-span-12">
+            <div v-if="personnelOptions.length" class="col-span-3">
                 <BaseSelect v-model="form.personnel_id" :options="personnelOptions" optionLabel="label" optionValue="value"
                     label="Existing personnel" placeholder="Select the personnel to create a login account" showClear
                     :error="form.errors.personnel_id" />

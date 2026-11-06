@@ -33,7 +33,7 @@ class PurchaseOrderInwardController extends Controller
         $filters = $this->registryFilters($request);
 
         $data = app(\App\Services\ProductionReadCache::class)->remember(
-            'inward-grid', (int) $allowedPlantId, ['direct_inward_v1', $filters],
+            'inward-grid', (int) $allowedPlantId, ['po_inward_v2', $filters],
             fn () => $this->inwardRegistryData((int) $allowedPlantId, $filters),
             request()->boolean('refresh')
         );
@@ -43,7 +43,6 @@ class PurchaseOrderInwardController extends Controller
             'registryFilters' => $filters,
             'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
             'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
-            ...$this->directInwardOptions(),
             ...$this->billingOptions(),
         ]);
     }
@@ -123,7 +122,7 @@ class PurchaseOrderInwardController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereRaw("inward_no LIKE ? ESCAPE '!'", [$search])
                     ->orWhereHas('order', fn ($q) => $q->whereRaw("po_number LIKE ? ESCAPE '!'", [$search]))
-                    ->orWhereHas('vendor', fn ($q) => $q->whereRaw("legal_name LIKE ? ESCAPE '!'", [$search]))
+                    ->when(\Illuminate\Support\Facades\Schema::hasColumn('mm_purchase_order_history', 'vendor_id'), fn ($q) => $q->orWhereHas('vendor', fn ($vendor) => $vendor->whereRaw("legal_name LIKE ? ESCAPE '!'", [$search])))
                     ->orWhereHas('order.vendor', fn ($q) => $q->whereRaw("legal_name LIKE ? ESCAPE '!'", [$search]))
                     ->orWhereHas('product', fn ($q) => $q->whereRaw("title LIKE ? ESCAPE '!'", [$search]))
                     ->orWhereHas('truck', fn ($q) => $q->whereRaw("registration LIKE ? ESCAPE '!'", [$search]));
@@ -153,7 +152,7 @@ class PurchaseOrderInwardController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Inward No', 'Received Date', 'PO No', 'Vendor', 'Product', 'Truck', 'Unit Price', 'Received Qty', 'Order Qty', 'Unit']);
             foreach ($query->lazy(500) as $row) {
-                $values = [$row->inward_no, $row->received_date, $row->order?->po_number ?? 'Direct Stock In', $row->order?->vendor?->legal_name ?? $row->vendor?->legal_name,
+                $values = [$row->inward_no, $row->received_date, $row->order?->po_number ?? 'No linked PO', $row->order?->vendor?->legal_name ?? $row->vendor?->legal_name,
                     $row->product?->title, $row->truck?->registration, $row->unit_price, $row->received_qty, $row->item?->product_quantity, $row->uom?->unit_code];
                 // Prevent spreadsheet programs from treating user-entered text as formulas.
                 $values = array_map(fn ($value) => preg_match('/^[\s]*[=+@-]/u', (string) $value) ? "'" . $value : $value, $values);
@@ -179,7 +178,6 @@ class PurchaseOrderInwardController extends Controller
             'inward' => $inward,
             'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
             'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
-            ...$this->directInwardOptions(),
             ...$this->billingOptions(),
         ]);
     }
@@ -205,7 +203,6 @@ class PurchaseOrderInwardController extends Controller
             'purchaseOrders' => $purchaseOrders,
             'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
             'units' => toSelectOptions(Productunit(), 'unit_code', 'id'),
-            ...$this->directInwardOptions(),
         ]);
     }
 
@@ -213,7 +210,9 @@ class PurchaseOrderInwardController extends Controller
     {
         \App\Support\DocumentNumberAccess::validate($request, 'INWARD', 'inward_no');
         $this->authorizeModule('create');
-        if ($request->input('entry_mode') === 'direct') return $this->storeDirect($request);
+        if ($request->input('entry_mode') === 'direct') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['order_id' => 'Select a Purchase Order. Direct Stock In is no longer supported.']);
+        }
         
         $validated = $request->validate([
             ...RecordAttachments::RULES,
@@ -377,56 +376,6 @@ class PurchaseOrderInwardController extends Controller
         });
 
         return redirect()->route('inwards.index')->with('success', 'Inward recorded successfully.');
-    }
-
-    private function directInwardOptions(): array
-    {
-        $plantId = (int) session('active_plant_id');
-        return [
-            'directProducts' => fn () => \App\Models\Product::where('plant_id', $plantId)->orderBy('title')->get(['id', 'title', 'unit_id']),
-            'directVendors' => fn () => \App\Models\Patron::where('plant_id', $plantId)->orderBy('legal_name')->get(['id', 'legal_name']),
-        ];
-    }
-
-    private function storeDirect(Request $request)
-    {
-        $plantId = (int) session('active_plant_id');
-        abort_unless($plantId, 404);
-        $exists = fn ($table) => \Illuminate\Validation\Rule::exists($table, 'id')->where('plant_id', $plantId)->whereNull('deleted_at');
-        $data = $request->validate([
-            ...RecordAttachments::RULES,
-            'vendor_id' => ['required', 'integer', $exists('mm_patrons')],
-            'received_date' => ['required', 'date'],
-            'inward_no' => ['nullable', 'string', 'max:250'],
-            'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.product_id' => ['required', 'integer', $exists('mm_products')],
-            'items.*.uom_id' => ['required', 'integer', \Illuminate\Validation\Rule::exists('mm_product_units', 'id')->whereNull('deleted_at')],
-            'items.*.received_qty' => ['required', 'numeric', 'gt:0', 'max:999999999', 'decimal:0,2'],
-            'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:999999999', 'decimal:0,2'],
-            'items.*.truck_id' => ['nullable', 'integer', $exists('mm_machines')],
-        ]);
-        RecordAttachments::transaction($plantId, $data['attachments'] ?? [], function (array $attachments) use ($data, $plantId) {
-            Plant::whereKey($plantId)->lockForUpdate()->firstOrFail();
-            if (!empty($data['inward_no']) && PurchaseOrderHistory::where('plant_id', $plantId)->where('inward_no', $data['inward_no'])->exists()) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['inward_no' => 'This inward number is already used in this plant.']);
-            }
-            $date = \Carbon\Carbon::parse($data['received_date'])->toDateTimeString();
-            foreach ($data['items'] as $line) {
-                PurchaseOrderHistory::create([
-                    ...$line, 'plant_id' => $plantId, 'vendor_id' => $data['vendor_id'],
-                    'order_id' => null, 'order_item_id' => null, 'received_date' => $date,
-                    'inward_no' => ($data['inward_no'] ?? null) ?: PurchaseOrderHistory::generateNextInwardNo($plantId, $date),
-                    'attachments' => $attachments, 'status' => 1, 'created_by' => Auth::id(), 'updated_by' => Auth::id(),
-                ]);
-                $stock = Quantity::where(['plant_id' => $plantId, 'product_id' => $line['product_id'], 'uom_id' => $line['uom_id']])->lockForUpdate()->first();
-                if (!$stock) $stock = new Quantity(['plant_id' => $plantId, 'product_id' => $line['product_id'], 'uom_id' => $line['uom_id'], 'opening_quantity' => 0, 'quantity' => 0, 'status' => 1, 'created_by' => Auth::id()]);
-                $stock->quantity = (float) $stock->quantity + (float) $line['received_qty'];
-                $stock->date = $date;
-                $stock->updated_by = Auth::id();
-                $stock->save();
-            }
-        });
-        return redirect()->route('inwards.index')->with('success', 'Direct stock inward recorded successfully.');
     }
 
     public function destroy(PurchaseOrderHistory $inward)

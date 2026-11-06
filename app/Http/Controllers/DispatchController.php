@@ -413,8 +413,16 @@ class DispatchController extends Controller
 
     public function sendWhatsApp(Dispatch $dispatch, \App\Services\DispatchWhatsAppService $service)
     {
-        $this->authorizeModule('whatsapp');
-        abort_unless((int) $dispatch->plant_id === (int) session('active_plant_id'), 403);
+        try {
+            $this->authorizeModule('whatsapp');
+            abort_unless((int) $dispatch->plant_id === (int) session('active_plant_id'), 403);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $exception) {
+            \Illuminate\Support\Facades\Log::warning('Dispatch WhatsApp access denied.', [
+                'dispatch_id' => $dispatch->id, 'plant_id' => $dispatch->plant_id,
+                'user_id' => auth()->id(), 'http_status' => $exception->getStatusCode(),
+            ]);
+            throw $exception;
+        }
         $service->send($dispatch);
 
         return response()->json(['message' => 'Dispatch details submitted to WhatsApp.']);

@@ -172,5 +172,6 @@ class MenuSeeder extends Seeder
         $this->call(DiscountModuleSeeder::class);
         \App\Services\InstallNoteModule::run();
         \App\Services\InstallCrmModule::run();
+        \App\Services\InstallNotificationMenus::run();
     }
 }

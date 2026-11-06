@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\PurchaseOrderHistory;
 use App\Services\PlantContextService;
+use Illuminate\Support\Facades\Schema;
 
 class InventoryInwardReportService implements ReportServiceInterface
 {
@@ -19,6 +20,7 @@ class InventoryInwardReportService implements ReportServiceInterface
         }
         $patronId = $params['patron_id'] ?? null;
         $truckId  = $params['truck_id'] ?? null;
+        $hasDirectVendor = Schema::hasColumn('mm_purchase_order_history', 'vendor_id');
 
         // Older receipts stored a date at midnight. Use the entry time only
         // when it belongs to that same receipt day.
@@ -32,7 +34,6 @@ class InventoryInwardReportService implements ReportServiceInterface
         $query = PurchaseOrderHistory::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->with([
-                'vendor',
                 'order' => fn($q) => $q->whereNull('deleted_at'),
                 'order.vendor' => fn($q) => $q->whereNull('deleted_at'),
                 'product' => fn($q) => $q->whereNull('deleted_at'),
@@ -45,9 +46,12 @@ class InventoryInwardReportService implements ReportServiceInterface
             ->whereRaw("($receiptTimestamp) BETWEEN ? AND ?", [$start, $end]);
 
         if ($patronId) {
-            $query->where(fn ($q) => $q->where('vendor_id', $patronId)
-                ->orWhereHas('order', fn ($order) => $order->where('vendor_id', $patronId)));
+            $query->where(function ($q) use ($patronId, $hasDirectVendor) {
+                $q->whereHas('order', fn ($order) => $order->where('vendor_id', $patronId));
+                if ($hasDirectVendor) $q->orWhere('mm_purchase_order_history.vendor_id', $patronId);
+            });
         }
+        if ($hasDirectVendor) $query->with('vendor');
 
         if ($truckId) {
             $query->where('truck_id', $truckId);
@@ -62,8 +66,8 @@ class InventoryInwardReportService implements ReportServiceInterface
             'transactions' => $inwards->map(fn($i) => [
                 'date'         => \Carbon\Carbon::parse($i->report_received_at)->toDateTimeString(),
                 'inward_no'    => $i->inward_no ?? ('INW-' . $i->id),
-                'po_number'    => $i->order->po_number ?? 'Direct Stock In',
-                'vendor_name'  => $i->order?->vendor?->legal_name ?? $i->vendor?->legal_name ?? 'N/A',
+                'po_number'    => $i->order->po_number ?? 'No linked PO',
+                'vendor_name'  => $i->order?->vendor?->legal_name ?? ($hasDirectVendor ? $i->vendor?->legal_name : null) ?? 'N/A',
                 'product_name' => $i->product->title ?? 'N/A',
                 'uom'          => $i->uom->unit_code ?? $i->uom->unit_name ?? 'N/A',
                 'quantity'     => trim((float) $i->received_qty . ' ' . ($i->uom?->unit_code ?? '')),

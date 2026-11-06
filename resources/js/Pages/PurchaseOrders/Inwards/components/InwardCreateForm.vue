@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
 const canEditDocumentNumber = useDocumentNumberPermission('INWARD');
-import DirectInwardForm from './DirectInwardForm.vue';
 import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityLocaleDate, calendarDateTimeString } from '@/Utils/entityDateTime';
@@ -50,11 +49,8 @@ const props = defineProps<{
     vehicles?: any[];
     units?: any[];
     embedded?: boolean;
-    directProducts?: any[];
-    directVendors?: any[];
 }>();
 
-const entryMode = ref('purchase_order');
 const selectedPoId = ref(props.purchase_order?.id || null);
 const createdTrucks = ref<any[]>([]);
 const truckOptions = computed(() => [
@@ -240,9 +236,7 @@ const remainingToReceive = (item: any) => {
 <template>
     <div :class="embedded ? 'w-full' : 'py-4 px-3 md:px-6 bg-[#f8fafc] min-h-screen'">
         <div :class="embedded ? 'w-full' : 'max-w-5xl md:max-w-6xl mx-auto'">
-            <div class="mb-4"><BaseSelect v-model="entryMode" label="Entry Mode" :options="[{label:'Against Purchase Order',value:'purchase_order'},{label:'Direct Stock In (No PO)',value:'direct'}]" optionLabel="label" optionValue="value" /></div>
-            <DirectInwardForm v-if="entryMode === 'direct'" :products="directProducts || []" :vendors="directVendors || []" :units="units || []" :vehicles="vehicles || []" />
-            <form v-else @submit.prevent="submit" class="space-y-4">
+            <form @submit.prevent="submit" class="space-y-4">
                 <!-- Top Section: Selection -->
                 <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
                     <div class="p-5 md:p-6 border-b border-slate-100 bg-slate-50/50">

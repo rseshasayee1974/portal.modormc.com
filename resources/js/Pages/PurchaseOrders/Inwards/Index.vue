@@ -18,7 +18,7 @@ import InwardCreateForm from './components/InwardCreateForm.vue';
 import { ArchiveBoxIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline';
 import PurchaseOrderPreviewDialog from '../components/PurchaseOrderPreviewDialog.vue';
 
-const props = defineProps<{ inwards: any[]; pagination: { total: number; page: number; per_page: number }; registryFilters: any; inwardOrders: any[]; purchaseOrders: any[]; directProducts?: any[]; directVendors?: any[]; vehicles: any[]; units?: any[]; accounts?: any[]; canGenerateBill?: boolean }>();
+const props = defineProps<{ inwards: any[]; pagination: { total: number; page: number; per_page: number }; registryFilters: any; inwardOrders: any[]; purchaseOrders: any[]; vehicles: any[]; units?: any[]; accounts?: any[]; canGenerateBill?: boolean }>();
 // --- List Logic ---
 const entriesPerPage = ref(30);
 const expandedRows = ref<Record<string, boolean>>({});
@@ -124,7 +124,7 @@ const deleteInward = (inward: any) => {
 
         <div class="py-6 px-4 min-h-screen">
             <div class="max-w-7xl mx-auto space-y-6">
-                <InwardCreateForm :directProducts="directProducts" :directVendors="directVendors" :purchaseOrders="purchaseOrders" :vehicles="vehicles" :units="units" embedded />
+                <InwardCreateForm :purchaseOrders="purchaseOrders" :vehicles="vehicles" :units="units" embedded />
 
                 <div class="space-y-4">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
@@ -178,7 +178,7 @@ const deleteInward = (inward: any) => {
                                     </div>
                                     <button type="button" @click="viewOrder(slotProps.data.order)"
                                         class="inline-flex items-center text-[10px] font-black px-2.5 py-1 bg-indigo-50/50 text-indigo-700 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors uppercase cursor-pointer">
-                                        {{ slotProps.data.order?.po_number || 'Direct Stock In' }}
+                                        {{ slotProps.data.order?.po_number || 'No linked PO' }}
                                     </button>
                                 </template>
                             </Column>

@@ -9,6 +9,7 @@ use App\Notifications\DispatchCompletedNotification;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class DispatchWhatsAppService
@@ -22,10 +23,16 @@ class DispatchWhatsAppService
 
     public function send(Dispatch $dispatch): void
     {
-        $lock = Cache::lock('dispatch-whatsapp:' . $dispatch->id, 3600);
-        abort_unless($lock->get(), 409, 'A WhatsApp request for this dispatch is already in progress.');
-
+        $context = ['dispatch_id' => $dispatch->id, 'plant_id' => $dispatch->plant_id];
+        Log::info('Dispatch WhatsApp send started.', $context);
+        $lock = null;
+        $acquired = false;
+        $stage = 'lock';
         try {
+            $lock = Cache::lock('dispatch-whatsapp:' . $dispatch->id, 3600);
+            $acquired = $lock->get();
+            abort_unless($acquired, 409, 'A WhatsApp request for this dispatch is already in progress.');
+            $stage = 'preflight';
             if (!Schema::hasTable('mm_whatsapp_messages')) {
                 $this->fail('WhatsApp submission tracking is not configured. Please contact your administrator.');
             }
@@ -43,16 +50,20 @@ class DispatchWhatsAppService
             $template = 'modormc_dispatch_v1';
             if (!$license || !$apiKey) $this->fail('Tendigit WhatsApp credentials must be configured.');
 
+            Log::info('Dispatch WhatsApp recipients resolved.', $context + ['recipient_count' => $contacts->count(), 'configured_recipients' => $configured, 'template' => $template]);
+            $stage = 'template_parameters';
             $values = (new DispatchCompletedNotification($dispatch))->toWhatsAppTemplateParameters();
             // Tendigit uses commas as positional separators; commas inside addresses/names
             // must not shift the approved template's fourteen parameters.
             $values = array_map(static fn ($value) => trim(preg_replace('/\s+/u', ' ', str_replace(',', ';', (string) $value))), $values);
+            $stage = 'submission';
             $failed = 0;
             foreach ($contacts as $contact) {
                 // Duplicate protection is per recipient, including uncertain provider submissions.
                 $previous = WhatsAppMessage::where('plant_id', $dispatch->plant_id)->where('origin', 'dispatch')->where('origin_id', $dispatch->id)
                     ->where('category', 'dispatch_details')->where('contact', $contact)->whereIn('status', ['pending', 'submitted', 'unknown'])->pluck('status');
                 if ($previous->isNotEmpty()) {
+                    Log::info('Dispatch WhatsApp recipient skipped.', $context + ['existing_statuses' => $previous->unique()->values()->all()]);
                     if (!$previous->contains('submitted')) $failed++;
                     continue;
                 }
@@ -63,8 +74,16 @@ class DispatchWhatsAppService
                 }
             }
             if ($failed) $this->fail($failed.' WhatsApp recipient(s) could not be submitted. Check WhatsApp message tracking before retrying. Other recipients were processed separately.');
+            Log::info('Dispatch WhatsApp send finished.', $context);
+        } catch (ValidationException $exception) {
+            Log::warning('Dispatch WhatsApp send blocked or failed.', $context + ['stage' => $stage, 'errors' => $exception->errors()]);
+            throw $exception;
+        } catch (\Throwable $exception) {
+            // HTTP/SQL exception messages can contain credentials or message data.
+            Log::error('Dispatch WhatsApp send exception.', $context + ['stage' => $stage, 'exception_type' => get_class($exception)]);
+            throw $exception;
         } finally {
-            $lock->release();
+            if ($acquired) $lock->release();
         }
     }
 
@@ -88,6 +107,7 @@ class DispatchWhatsAppService
             }
             $message = 'Tendigit could not confirm the request. Check the provider before trying again.';
             $record->update(['status' => 'unknown', 'error_message' => $message, 'updated_by' => auth()->id()]);
+            Log::warning('Dispatch WhatsApp submission unconfirmed.', ['message_id' => $record->id, 'dispatch_id' => $dispatch->id, 'plant_id' => $dispatch->plant_id, 'reason' => $message]);
             $this->fail($message);
         }
 
@@ -105,6 +125,7 @@ class DispatchWhatsAppService
             $this->reject($record, 'Tendigit rejected the WhatsApp request. Check the template, recipient and API configuration.');
         }
 
+        Log::info('Dispatch WhatsApp submitted to provider.', ['message_id' => $record->id, 'dispatch_id' => $dispatch->id, 'plant_id' => $dispatch->plant_id, 'http_status' => $response->status()]);
         // Track API submission; final delivery is controlled by the WhatsApp provider.
         $record->update(['status' => 'submitted', 'submitted_at' => now(), 'updated_by' => auth()->id()]);
     }
@@ -116,6 +137,7 @@ class DispatchWhatsAppService
 
     private function reject(WhatsAppMessage $record, string $message): never
     {
+        Log::warning('Dispatch WhatsApp recipient failed.', ['message_id' => $record->id, 'dispatch_id' => $record->origin_id, 'plant_id' => $record->plant_id, 'http_status' => $record->response_status, 'reason' => $message]);
         $record->update(['status' => 'failed', 'error_message' => $message, 'updated_by' => auth()->id()]);
         $this->fail($message);
     }
