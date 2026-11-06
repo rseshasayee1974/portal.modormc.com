@@ -525,6 +525,7 @@
                     <th width="3%" class="text-center">#</th>
                     {{-- <th width="7%">Code</th> --}}
                     <th width="3%">Customer</th>
+                    <th width="9%">Mobile Number</th>
                     <th width="9%">GSTIN</th>
                     <th width="8%" class="text-right">Invoiced</th>
                     <th width="8%" class="text-right">Receipts</th>
@@ -545,6 +546,7 @@
                         <td class="text-center">{{ $idx + 1 }}</td>
                         {{-- <td style="font-weight: bold; color: #475569;">{{ $row['customer_code'] ?? '-' }}</td> --}}
                         <td style="font-weight: bold; color: #0f172a;">{{ $row['customer_name'] ?? '-' }}</td>
+                        <td class="nowrap">{{ $row['phone'] ?? '-' }}</td>
                         <td style="color: #64748b;">{{ $row['gstin'] ?? '-' }}</td>
                         <td class="text-right amount-cell nowrap">{{ number_format($row['total_invoiced'] ?? 0, 2) }}
                         </td>
@@ -576,13 +578,13 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="14" class="text-center" style="padding: 15px; color: #94a3b8;">No customer
+                        <td colspan="15" class="text-center" style="padding: 15px; color: #94a3b8;">No customer
                             outstanding balances found.</td>
                     </tr>
                 @endforelse
 
                 <tr class="total-row">
-                    <td colspan="3" class="text-center uppercase">Total Outstanding Receivables</td>
+                    <td colspan="4" class="text-center uppercase">Total Outstanding Receivables</td>
                     <td class="text-right amount-cell nowrap">{{ number_format($total_invoiced_amount ?? 0, 2) }}</td>
                     <td class="text-right amount-cell nowrap">
                         {{ number_format($total_receipt_amount ?? ($total_paid_amount ?? 0), 2) }}</td>
