@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { entityInstant } from '@/Utils/entityDateTime';
+
 import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
@@ -44,15 +46,15 @@ const filteredPayments = computed(() => {
     let result = props.payments;
     
     if (dateFrom.value) {
-        const from = new Date(dateFrom.value);
+        const from = entityInstant(dateFrom.value);
         from.setHours(0, 0, 0, 0);
-        result = result.filter(p => new Date(p.transaction_date || p.created_at) >= from);
+        result = result.filter(p => entityInstant(p.transaction_date || p.created_at) >= from);
     }
     
     if (dateTo.value) {
-        const to = new Date(dateTo.value);
+        const to = entityInstant(dateTo.value);
         to.setHours(23, 59, 59, 999);
-        result = result.filter(p => new Date(p.transaction_date || p.created_at) <= to);
+        result = result.filter(p => entityInstant(p.transaction_date || p.created_at) <= to);
     }
     
     return result;

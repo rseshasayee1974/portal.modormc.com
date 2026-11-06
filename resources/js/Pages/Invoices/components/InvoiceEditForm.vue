@@ -2,7 +2,7 @@
 import { APP_LOCALE } from '@/Utils/locale';
 import { canCancelEInvoice, isEInvoiceCancelled, plantHasEInvoice, plantHasEwayBill, useEInvoiceCancellation } from '@/Composables/useEInvoiceGeneration';
 import EwayBillRoutePreview from '@/Components/EwayBillRoutePreview.vue';
-import { entityToday, entityLocaleDateTime } from '@/Utils/entityDateTime';
+import { entityToday, entityLocaleDateTime, entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import { 
@@ -49,8 +49,8 @@ const form = useForm({
     invoice_number: props.invoice.invoice_number,
     ref_id: props.invoice.ref_id,
     ref_title: props.invoice.ref_title,
-    invoice_date: props.invoice.invoice_date ? new Date(props.invoice.invoice_date) : null,
-    due_date: props.invoice.due_date ? new Date(props.invoice.due_date) : null,
+    invoice_date: props.invoice.invoice_date ? entityToday(props.invoice.invoice_date) : null,
+    due_date: props.invoice.due_date ? entityToday(props.invoice.due_date) : null,
     period: props.invoice.period,
     is_tax_inclusive: Boolean(props.invoice.is_tax_inclusive),
     global_discount_type: props.invoice.global_discount_type || '₹',

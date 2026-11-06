@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { entityCalendarDate } from '@/Utils/entityDateTime';
+import { entityCalendarDate, calendarDateString } from '@/Utils/entityDateTime';
 import {
     UserIcon,
     PhoneIcon,
@@ -64,12 +64,7 @@ const handlePrimaryToggle = (index: number, val: any) => {
     }
 };
 
-const parseDate = (val: any): Date | null => {
-    if (!val) return null;
-    const clean = typeof val === 'string' ? val.split('T')[0] : val;
-    const d = new Date(clean);
-    return isNaN(d.getTime()) ? null : d;
-};
+const parseDate = (val: any): Date | null => val ? entityCalendarDate(val) : null;
 
 const parseTime = (val: any): Date | null => {
     if (!val) return null;
@@ -78,26 +73,16 @@ const parseTime = (val: any): Date | null => {
         const match = val.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
         if (match) {
             const [, h, m, s] = match;
-            const d = new Date();
+            const d = entityCalendarDate();
             d.setHours(Number(h), Number(m), Number(s || 0), 0);
             return d;
         }
-        const d = new Date(val);
-        return isNaN(d.getTime()) ? null : d;
+        return entityCalendarDate(val);
     }
     return null;
 };
 
-const formatDateStr = (val: any): string | null => {
-    if (!val) return null;
-    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-    const d = val instanceof Date ? val : new Date(String(val).split('T')[0]);
-    if (isNaN(d.getTime())) return null;
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-};
+const formatDateStr = (val: any): string | null => val ? calendarDateString(val) : null;
 
 const formatTimeStr = (val: any): string | null => {
     if (!val) return null;

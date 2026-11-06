@@ -166,14 +166,14 @@ class ReportController extends Controller
             // Parse and format dates to full datetime strings (preserve time if provided)
             $startFormatted = $start 
                 ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($start)) 
-                    ? \Carbon\Carbon::parse($start)->startOfDay()->toDateTimeString() 
-                    : \Carbon\Carbon::parse($start)->toDateTimeString())
+                    ? \Carbon\Carbon::parse($start)->setTimezone(config('app.timezone'))->startOfDay()->toDateTimeString()
+                    : \Carbon\Carbon::parse($start)->setTimezone(config('app.timezone'))->toDateTimeString())
                 : now()->startOfYear()->startOfDay()->toDateTimeString();
 
             $endFormatted = $end 
                 ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($end)) 
-                    ? \Carbon\Carbon::parse($end)->endOfDay()->toDateTimeString() 
-                    : \Carbon\Carbon::parse($end)->toDateTimeString())
+                    ? \Carbon\Carbon::parse($end)->setTimezone(config('app.timezone'))->endOfDay()->toDateTimeString()
+                    : \Carbon\Carbon::parse($end)->setTimezone(config('app.timezone'))->toDateTimeString())
                 : now()->endOfDay()->toDateTimeString();
 
             $params = [
@@ -306,9 +306,9 @@ class ReportController extends Controller
         ];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = [
-                'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Truck No'],
-                'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'truck_no'],
-                'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'center'],
+                'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Truck No'],
+                'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'conversion_quantity_display', 'truck_no'],
+                'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'right', 'center'],
                 'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
             ];
         } elseif (strtolower($type) === 'batching_schedule') {
@@ -355,8 +355,8 @@ class ReportController extends Controller
             ];
         }
 
-        $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->format('d-m-Y')) : '';
-        $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->format('d-m-Y')) : '';
+        $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->setTimezone(config('app.timezone'))->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->setTimezone(config('app.timezone'))->format('d-m-Y')) : '';
+        $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->setTimezone(config('app.timezone'))->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->setTimezone(config('app.timezone'))->format('d-m-Y')) : '';
 
         $paperSize = 'a4';
         $orientation = 'portrait';

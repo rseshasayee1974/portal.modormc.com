@@ -37,6 +37,7 @@ class InventoryInwardReportService implements ReportServiceInterface
                 'order.vendor' => fn($q) => $q->whereNull('deleted_at'),
                 'product' => fn($q) => $q->whereNull('deleted_at'),
                 'uom',
+                'conversionUom',
                 'truck' => fn($q) => $q->whereNull('deleted_at')
             ])
             ->select('mm_purchase_order_history.*')
@@ -66,6 +67,9 @@ class InventoryInwardReportService implements ReportServiceInterface
                 'product_name' => $i->product->title ?? 'N/A',
                 'uom'          => $i->uom->unit_code ?? $i->uom->unit_name ?? 'N/A',
                 'quantity'     => trim((float) $i->received_qty . ' ' . ($i->uom?->unit_code ?? '')),
+                'conversion_quantity' => (float) $i->conversion_quantity,
+                'conversion_uom' => $i->conversionUom?->unit_code ?? $i->conversionUom?->unit_name ?? $i->uom?->unit_code ?? $i->uom?->unit_name ?? '',
+                'conversion_quantity_display' => trim(number_format((float) $i->conversion_quantity, 4, '.', '') . ' ' . ($i->conversionUom?->unit_code ?? $i->conversionUom?->unit_name ?? $i->uom?->unit_code ?? $i->uom?->unit_name ?? '')),
                 'truck_no'     => $i->truck->registration ?? 'N/A',
                 'truck_loaded' => (float)$i->truck_loaded,
                 'truck_empty'  => (float)$i->truck_empty,

@@ -1,5 +1,5 @@
 <script setup>
-import { entityToday } from '@/Utils/entityDateTime';
+import { entityToday, entityDateTime, entityCalendarDate, entityInstant } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -135,18 +135,7 @@ const normalizePumpType = (raw) => {
     return s;
 };
 
-const toIstDatetimeString = (utcString) => {
-    if (!utcString) return '';
-    const d = new Date(utcString);
-    if (isNaN(d.getTime())) return '';
-    const istTime = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    const y = istTime.getFullYear();
-    const m = String(istTime.getMonth() + 1).padStart(2, '0');
-    const day = String(istTime.getDate()).padStart(2, '0');
-    const hh = String(istTime.getHours()).padStart(2, '0');
-    const mm = String(istTime.getMinutes()).padStart(2, '0');
-    return `${y}-${m}-${day}T${hh}:${mm}`;
-};
+const toIstDatetimeString = (value) => entityDateTime(value).replace(' ', 'T').slice(0, 16);
 
 const initForm = () => {
     if (props.isEditing && props.initialData) {
@@ -272,10 +261,10 @@ const onOperatorSelect = () => {
 const onActualStartInput = () => {
     if (form.value.actual_start_time) {
         if (!form.value.actual_end_time) {
-            const startDate = new Date(form.value.actual_start_time);
-            if (!isNaN(startDate.getTime())) {
+            const startDate = entityCalendarDate(form.value.actual_start_time);
+            if (startDate && !isNaN(startDate.getTime())) {
                 // Convert to Indian Standard Time (Chennai)
-                const istTime = new Date(startDate.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+                const istTime = new Date(startDate);
                 istTime.setHours(istTime.getHours() + 1);
 
                 const y = istTime.getFullYear();
@@ -329,7 +318,7 @@ const submitForm = async () => {
 
     // Time Validation: setup_start_time <= setup_end_time
     if (form.value.setup_start_time && form.value.setup_end_time) {
-        if (new Date(form.value.setup_start_time) > new Date(form.value.setup_end_time)) {
+        if (entityInstant(form.value.setup_start_time) > entityInstant(form.value.setup_end_time)) {
             Swal.fire({
                 icon: 'error',
                 title: 'Time Validation Error',
@@ -342,7 +331,7 @@ const submitForm = async () => {
 
     // Default actual_end_time to 1 hour after actual_start_time if empty
     if (form.value.actual_start_time && !form.value.actual_end_time) {
-        const startDate = new Date(form.value.actual_start_time);
+        const startDate = entityCalendarDate(form.value.actual_start_time);
         startDate.setHours(startDate.getHours() + 1);
 
         const y = startDate.getFullYear();
@@ -360,7 +349,7 @@ const submitForm = async () => {
 
     // Time Validation: actual_start_time <= actual_end_time
     if (form.value.actual_start_time && form.value.actual_end_time) {
-        if (new Date(form.value.actual_start_time) > new Date(form.value.actual_end_time)) {
+        if (entityInstant(form.value.actual_start_time) > entityInstant(form.value.actual_end_time)) {
             Swal.fire({
                 icon: 'error',
                 title: 'Time Validation Error',
@@ -448,7 +437,7 @@ const submitForm = async () => {
 
         <form @submit.prevent="submitForm" class="space-y-6 p-5">
 
-            <div v-if="form.actual_start_time && form.actual_end_time && new Date(form.actual_start_time) > new Date(form.actual_end_time)"
+            <div v-if="form.actual_start_time && form.actual_end_time && entityInstant(form.actual_start_time) > entityInstant(form.actual_end_time)"
                 class="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
                 <ExclamationTriangleIcon class="h-4 w-4 shrink-0" />
                 <span>Actual Start Time cannot be later than Actual End Time.</span>

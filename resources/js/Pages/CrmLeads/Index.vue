@@ -4,6 +4,7 @@ Created: 2026-10-09 12:33:52 Asia/Calcutta (UTC+05:30)
 -->
 <script setup>
 import { computed, ref, nextTick } from 'vue';
+import { entityLocaleDateTime, entityInstant } from '@/Utils/entityDateTime';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -28,8 +29,8 @@ const bulk = useForm({ ids: [], assigned_to: null });
 const transitionError = ref(''), movingId = ref(null);
 const editingLead = ref(null), editVisible = ref(false), editLoadingId = ref(null), detailsVersion = ref(0);
 const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
-const dateTime = value => value ? new Date(value).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '—';
-const overdue = lead => lead.next_follow_up && lead.status !== 'Unqualified' && !['Won', 'Lost'].includes(lead.deal?.stage) && new Date(lead.next_follow_up) < new Date();
+const dateTime = value => entityLocaleDateTime(value, 'en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+const overdue = lead => lead.next_follow_up && lead.status !== 'Unqualified' && !['Won', 'Lost'].includes(lead.deal?.stage) && entityInstant(lead.next_follow_up) < new Date();
 const rows = computed(() => props.leads.filter(lead => (!status.value || lead.status === status.value) && (!source.value || lead.source === source.value) && (!owner.value || lead.assigned_to === owner.value) && (!overdueOnly.value || overdue(lead))));
 const boardRows = computed(() => rows.value.filter(lead => `${lead.lead_number} ${lead.contact_name} ${lead.company_name || ''} ${lead.phone || ''}`.toLowerCase().includes(boardSearch.value.toLowerCase())));
 const boardStages = computed(() => mode.value === 'Deals' ? props.options.deal_stages : props.options.statuses);

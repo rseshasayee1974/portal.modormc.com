@@ -31,7 +31,7 @@ class StoreEntityRequest extends FormRequest
             'api_key' => 'nullable|string|max:255',
             'logo_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'description' => 'nullable|string',
-            'time_zone' => 'nullable|timezone:all',
+            'time_zone' => 'nullable|in:Asia/Kolkata,Asia/Calcutta',
             'is_active' => 'boolean',
             'is_suspended' => 'boolean',
             

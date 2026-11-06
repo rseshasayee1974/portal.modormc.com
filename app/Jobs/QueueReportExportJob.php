@@ -255,9 +255,9 @@ class QueueReportExportJob implements ShouldQueue
             ];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = [
-                'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Truck No'],
-                'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'truck_no'],
-                'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'center'],
+                'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Truck No'],
+                'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'conversion_quantity_display', 'truck_no'],
+                'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'right', 'center'],
                 'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
             ];
         } elseif (strtolower($type) === 'batching_schedule') {

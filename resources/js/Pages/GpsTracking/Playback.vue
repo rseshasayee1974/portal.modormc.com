@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useForm } from '@inertiajs/vue3';
+import { entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import axios from 'axios';
@@ -63,11 +64,11 @@ let animatedMarker: L.Marker | null = null;
 const searchForm = useForm({
     machine_id: null as number | null,
     start_time: (() => {
-        const d = new Date();
+        const d = entityCalendarDate();
         d.setHours(0, 0, 0, 0);
         return d;
     })(),
-    end_time: new Date()
+    end_time: entityCalendarDate()
 });
 
 // Playback states
@@ -146,8 +147,8 @@ const handleQueryPlayback = async () => {
         const response = await axios.get(route('gps.playback-data'), {
             params: {
                 machine_id: searchForm.machine_id,
-                start_time: searchForm.start_time.toISOString(),
-                end_time: searchForm.end_time.toISOString()
+                start_time: calendarDateTimeString(searchForm.start_time),
+                end_time: calendarDateTimeString(searchForm.end_time)
             }
         });
 

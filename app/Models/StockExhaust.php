@@ -38,7 +38,7 @@ class StockExhaust extends Model
     ];
 
     protected $casts = [
-        'is_tax_inclusive' => 'boolean', 'discount_amount' => 'decimal:2', 'untaxed_amount' => 'decimal:2', 'tax_amount' => 'decimal:2', 'total_amount' => 'decimal:2',
+        'is_tax_inclusive' => 'boolean', 'discount_amount' => 'decimal:12', 'untaxed_amount' => 'decimal:12', 'tax_amount' => 'decimal:12', 'total_amount' => 'decimal:12',
         'billed_date' => 'date',
         'issued_date' => 'date',
         'created' => 'datetime',

@@ -31,7 +31,7 @@ class BatchingScheduleReportService implements ReportServiceInterface
     {
         $query = ConcreteBatchingSchedule::query()
             ->where('plant_id', $this->ctx->requirePlantId())
-            ->whereBetween('schedule_date', [Carbon::parse($params['start'])->toDateString(), Carbon::parse($params['end'])->toDateString()])
+            ->whereBetween('schedule_date', [Carbon::parse($params['start'])->setTimezone(config('app.timezone'))->toDateString(), Carbon::parse($params['end'])->setTimezone(config('app.timezone'))->toDateString()])
             ->with(['site:id,name', 'vehicle:id,registration', 'pumpVehicle:id,registration', 'mixDesign:id,design_name'])
             ->orderBy('schedule_date')->orderBy('batching_time')->orderBy('id');
 

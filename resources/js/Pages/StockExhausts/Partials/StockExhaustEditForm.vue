@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import StockExhaustPricing from './StockExhaustPricing.vue';
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday } from '@/Utils/entityDateTime';
+import { entityToday, entityCalendarDate, calendarDateString, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { computed, watch, reactive } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { validateStockExhaust } from '../validateStockExhaust';
@@ -81,11 +81,11 @@ watch(() => props.voucher, (val) => {
         form.partner_id = val.partner_id;
         form.name = val.name;
         form.bill_number = val.bill_number || '';
-        form.billed_date = val.billed_date ? new Date(val.billed_date) : null;
+        form.billed_date = val.billed_date ? entityCalendarDate(val.billed_date) : null;
         form.invoice_status = val.invoice_status;
         form.is_tax_inclusive = Boolean(val.is_tax_inclusive);
         form.status = val.status;
-        form.issued_date = val.issued_date ? new Date(val.issued_date) : null;
+        form.issued_date = val.issued_date ? entityCalendarDate(val.issued_date) : null;
         form.ledger_id = val.ledger_id;
         form.lines = val.lines.map((l: any) => {
             const selectedProd = props.products.find(p => p.value === l.product_id);
@@ -94,7 +94,7 @@ watch(() => props.voucher, (val) => {
                 unit_price: Number(l.unit_price || 0), tax_id: l.tax_id ? Number(l.tax_id) : null,
                 discount_type: l.discount_type || 'amount', discount: Number(l.discount || 0),
                 product_id: l.product_id ? Number(l.product_id) : null,
-                issue_date: l.issue_date ? new Date(l.issue_date) : null,
+                issue_date: l.issue_date ? entityCalendarDate(l.issue_date) : null,
                 quantity_issued: l.quantity_issued ? Number(l.quantity_issued) : null,
                 no_items_issued: Number(l.no_items_issued),
                 changed_km: Number(l.changed_km),
@@ -260,7 +260,9 @@ const submitForm = () => {
 
     form.transform((data) => ({
         ...data,
-        lines: data.lines.filter(l => l.product_id !== null)
+        billed_date: data.billed_date ? calendarDateString(data.billed_date) : null,
+        issued_date: data.issued_date ? calendarDateString(data.issued_date) : null,
+        lines: data.lines.filter(l => l.product_id !== null).map(line => ({ ...line, issue_date: line.issue_date ? calendarDateTimeString(line.issue_date) : null }))
     })).put(route('stock-exhausts.update', props.voucher.id), {
         onSuccess: () => {
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Voucher modified', showConfirmButton: false, timer: 1500 });
@@ -271,10 +273,12 @@ const submitForm = () => {
 </script>
 
 <template>
-    <div class="min-w-0 bg-white dark:bg-slate-900 rounded-lg border border-indigo-200 dark:border-slate-700 overflow-hidden">
+    <div
+        class="min-w-0 bg-white dark:bg-slate-900 rounded-lg border border-indigo-200 dark:border-slate-700 overflow-hidden">
         <div class="p-4 sm:p-6">
             <div class="flex items-center gap-4 mb-8">
-                <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
+                <div
+                    class="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
                     <PencilSquareIcon class="w-6 h-6" />
                 </div>
                 <div>
@@ -298,64 +302,68 @@ const submitForm = () => {
                 <!-- Header Info -->
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     <div class="col-span-12 md:col-span-3 field-group">
-                        <BaseInput :modelValue="voucher.reference_number || '—'" label="Reference No" disabled class="!bg-slate-50 font-mono" />
+                        <BaseInput :modelValue="voucher.reference_number || '—'" label="Reference No" disabled
+                            class="!bg-slate-50 font-mono" />
                     </div>
                     <div class="col-span-12 md:col-span-3 field-group">
-                        <BaseInput v-model="form.name" label="Voucher Label *" placeholder="E.g. Exhaust Tyre replacements, General Spare parts" :error="form.errors.name" />
+                        <BaseInput v-model="form.name" label="Voucher Label" required
+                            placeholder="E.g. Exhaust Tyre replacements, General Spare parts"
+                            :error="form.errors.name" />
                     </div>
                     <div class="col-span-12 md:col-span-3 field-group">
-                        <label class="field-label">Partner / Transporter *</label>
-                        <BaseSelect
-                            v-model="form.partner_id"
-                            :options="vendorOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Partner"
+                        <label class="field-label">Partner / Transporter <span class="text-red-500">*</span></label>
+                        <BaseSelect v-model="form.partner_id" :options="vendorOptions" optionLabel="label"
+                            optionValue="value" placeholder="Select Partner"
                             :error="form.errors.partner_id || localErrors.partner_id"
-                            @change="localErrors.partner_id = ''"
-                        />
-                        <p v-if="localErrors.partner_id" class="mt-1 text-[10px] font-bold text-red-500">{{ localErrors.partner_id }}</p>
+                            @change="localErrors.partner_id = ''" />
+                        <p v-if="localErrors.partner_id" class="mt-1 text-[10px] font-bold text-red-500">{{
+                            localErrors.partner_id }}</p>
                     </div>
                     <div class="col-span-12 md:col-span-3 field-group">
                         <BaseInput v-model="form.bill_number" label="Bill Number" placeholder="Bill reference" />
                     </div>
 
                     <div class="col-span-6 md:col-span-3 field-group">
-                        <label class="field-label">Billed Date *</label>
+                        <label class="field-label">Billed Date <span class="text-red-500">*</span></label>
                         <DatePicker v-model="form.billed_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
-                        <label class="field-label">Issued Date *</label>
-                        <DatePicker
-                            v-model="form.issued_date"
-                            dateFormat="yy-mm-dd"
+                        <label class="field-label">Issued Date <span class="text-red-500">*</span></label>
+                        <DatePicker v-model="form.issued_date" dateFormat="yy-mm-dd"
                             :class="['!w-full h-10', localErrors.issued_date ? 'p-invalid' : '']"
-                            @date-select="localErrors.issued_date = ''"
-                        />
-                        <p v-if="localErrors.issued_date" class="mt-1 text-[10px] font-bold text-red-500">{{ localErrors.issued_date }}</p>
+                            @date-select="localErrors.issued_date = ''" />
+                        <p v-if="localErrors.issued_date" class="mt-1 text-[10px] font-bold text-red-500">{{
+                            localErrors.issued_date }}</p>
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
                         <label class="field-label">Voucher Status</label>
-                        <BaseSelect v-model="form.status" :options="voucherStatuses" optionLabel="label" optionValue="value" />
+                        <BaseSelect v-model="form.status" :options="voucherStatuses" optionLabel="label"
+                            optionValue="value" />
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
                         <label class="field-label">Invoice Billing Status</label>
-                        <BaseSelect v-model="form.invoice_status" :options="invoiceStatuses" optionLabel="label" optionValue="value" />
+                        <BaseSelect v-model="form.invoice_status" :options="invoiceStatuses" optionLabel="label"
+                            optionValue="value" />
                     </div>
                     <div class="col-span-12 md:col-span-6 field-group">
                         <label class="field-label">Ledger Account (Expenses/Purchases)</label>
-                        <BaseSelect v-model="form.ledger_id" :options="ledgers" optionLabel="label" optionValue="value" filter placeholder="Select Ledger Account" :error="form.errors.ledger_id" />
+                        <BaseSelect v-model="form.ledger_id" :options="ledgers" optionLabel="label" optionValue="value"
+                            filter placeholder="Select Ledger Account" :error="form.errors.ledger_id" />
                     </div>
                 </div>
 
                 <!-- Lines Form Section -->
-                <div class="mt-8 border-t border-slate-100 dark:border-slate-800 pt-6">
-                    <div class="flex justify-between items-center mb-4">
+                <div class="border-t border-slate-100 dark:border-slate-800">
+                    <div class="flex justify-between items-center">
                         <div>
-                            <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Issued Items (Lines)</h3>
-                            <p v-if="localErrors.lines" class="mt-1 text-[10px] font-bold text-red-500">{{ localErrors.lines }}</p>
+                            <h3
+                                class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest p-3">
+                                Issued Items (Lines)</h3>
+                            <p v-if="localErrors.lines" class="mt-1 text-[10px] font-bold text-red-500">{{
+                                localErrors.lines }}</p>
                         </div>
-                        <button type="button" @click="addLine" class="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
+                        <button type="button" @click="addLine"
+                            class="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
                             <PlusIcon class="w-3.5 h-3.5" /> Add Row
                         </button>
                     </div>
@@ -365,21 +373,16 @@ const submitForm = () => {
                         @product-change="onProductChange" @quantity-blur="validateQuantity" @remove="removeLine" />
                 </div>
                 <div class="flex items-center justify-end gap-2 mt-4">
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        class="flex items-center justify-center gap-3 h-12 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 dark:shadow-none transition-all duration-200 active:scale-95"
-                    >
+                    <button type="submit" :disabled="form.processing"
+                        class="flex items-center justify-center gap-3 h-12 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 dark:shadow-none transition-all duration-200 active:scale-95">
                         <CheckIcon v-if="!form.processing" class="w-4 h-4 stroke-[3px]" />
-                        <span v-else class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                        <span v-else
+                            class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
                         Update Voucher
                     </button>
-                    
-                    <button
-                        @click="emit('cancel')"
-                        type="button"
-                        class="flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-all active:scale-95"
-                    >
+
+                    <button @click="emit('cancel')" type="button"
+                        class="flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-all active:scale-95">
                         <XMarkIcon class="w-6 h-6" />
                     </button>
                 </div>

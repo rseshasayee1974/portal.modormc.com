@@ -3,6 +3,8 @@ Author: ragul-onemodo
 Created: 2026-10-07 17:52:24 Asia/Calcutta (UTC+05:30)
 -->
 <script setup>
+import { entityCalendarDate } from '@/Utils/entityDateTime';
+
 import { computed, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import Button from 'primevue/button';
@@ -43,7 +45,7 @@ const open = () => {
     form.note_type = options.value[0].value;
     form.reason = defaultReasons[form.note_type];
     form.clearErrors();
-    form.note_date = new Date();
+    form.note_date = entityCalendarDate();
     visible.value = true;
 };
 const generate = () => {

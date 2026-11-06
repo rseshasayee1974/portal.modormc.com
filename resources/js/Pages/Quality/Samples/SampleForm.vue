@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePermissions } from '@/Composables/usePermissions';
-import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityToday, entityLocaleDate, entityAddDays } from '@/Utils/entityDateTime';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ref, computed, watch, nextTick } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -224,9 +224,7 @@ const scheduledDate = computed(() => {
     const origin = editorSource.value?.dispatch.dispatch_time || editingSample.value?.dispatch?.dispatch_time || form.sample_date;
     if (!origin) return '';
     return [...form.schedule_milestones].sort((a, b) => a - b).map(age => {
-        const date = new Date(entityToday(origin) + 'T12:00:00');
-        date.setDate(date.getDate() + Number(age));
-        return `${age}D: ${entityLocaleDate(date.toISOString())}`;
+        return `${age}D: ${entityLocaleDate(entityAddDays(origin, Number(age)))}`;
     }).join(' / ');
 });
 const sourceDetails = computed(() => [

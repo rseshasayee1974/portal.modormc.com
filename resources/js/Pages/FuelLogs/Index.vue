@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityLocaleDateTime, entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
+import { entityLocaleDateTime, entityCalendarDate, calendarDateTimeString, entityInstant } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -258,8 +258,8 @@ const openReceipt = (path: string) => {
 // Calculate mileage / odometer difference since last refueling log for same machine
 const calculateOdoDiff = (currentLog: FuelLog) => {
     const machineLogs = props.fuelLogs
-        .filter(l => l.machine_id === currentLog.machine_id && new Date(l.log_date).getTime() < new Date(currentLog.log_date).getTime())
-        .sort((a, b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime());
+        .filter(l => l.machine_id === currentLog.machine_id && entityInstant(l.log_date).getTime() < entityInstant(currentLog.log_date).getTime())
+        .sort((a, b) => entityInstant(b.log_date).getTime() - entityInstant(a.log_date).getTime());
         
     if (machineLogs.length > 0) {
         const prevOdo = Number(machineLogs[0].odometer_reading);

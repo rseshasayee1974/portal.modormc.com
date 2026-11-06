@@ -73,8 +73,10 @@ class StockExhaustController extends Controller
                 'unit_code' => $p->unit?->unit_code,
                 'stock_qty' => (float)$p->stock_qty,
             ])->toArray(),
-            'taxes' => \App\Models\Tax::where('plant_id', $plantId)->get()->map(fn ($tax) => ['id' => $tax->id, 'label' => $tax->title, 'rate' => (float) $tax->rate]),
-            'units'   => Productunit(),
+            'taxes' => TaxesDropdown(['sales', 'purchase'], ['GST', 'IGST'])
+                ->map(fn ($tax) => ['id' => $tax->id, 'label' => $tax->name, 'rate' => (float) $tax->rate])
+                ->toArray(),
+            'units'   => Productunit()->toArray(),
             'ledgers' => $ledgers,
         ]);
     }

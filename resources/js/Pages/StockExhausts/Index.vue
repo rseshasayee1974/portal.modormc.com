@@ -163,7 +163,7 @@ watch(() => page.props.flash, (flash: any) => {
                         </template>
                     </Column>
 
-                    <Column header="Total Amount" field="total_amount" sortable><template #body="{data}">{{ Number(data.total_amount || 0).toLocaleString(APP_LOCALE, {minimumFractionDigits:2,maximumFractionDigits:2}) }}</template></Column>
+                    <Column header="Total Amount" field="total_amount" sortable><template #body="{data}">{{ Number(data.total_amount || 0).toLocaleString(APP_LOCALE, {maximumFractionDigits:12}) }}</template></Column>
                     <Column header="Billing Status" field="invoice_status"><template #body="{data}">{{ ['Unbilled', 'Partially Billed', 'Fully Billed'][data.invoice_status || 0] }}</template></Column>
                     <!-- Bill Number -->
                     <Column header="Bill Number" sortable field="bill_number">

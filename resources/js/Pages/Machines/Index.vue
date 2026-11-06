@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate, calendarDateString } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -65,16 +66,16 @@ const expandedRows = ref<Record<number, boolean>>({});
 const filteredMachines = computed(() => {
     if (!searchQuery.value) return props.machines;
     const q = searchQuery.value.toLowerCase();
-    return props.machines.filter((m: Machine) => 
+    return props.machines.filter((m: Machine) =>
         m.registration?.toLowerCase().includes(q) ||
         (m.vehicle_model && m.vehicle_model.toLowerCase().includes(q)) ||
         (m.vehicle_type && m.vehicle_type.toLowerCase().includes(q))
     );
 });
 
-const vehicleOptions = computed(() => props.vehicleTypes.map(v => ({ 
-    label: v.name, 
-    value: v.name 
+const vehicleOptions = computed(() => props.vehicleTypes.map(v => ({
+    label: v.name,
+    value: v.name
 })));
 
 const docTypeOptions = computed(() => props.documentTypes.map(d => ({ label: d, value: d })));
@@ -121,15 +122,15 @@ const openEdit = (m: Machine) => {
     editForm.capacity = m.capacity ? Number(m.capacity) : null;
     editForm.is_active = m.is_active !== undefined ? Boolean(m.is_active) : true;
     editForm.owner_id = (m as any).owner_id ? Number((m as any).owner_id) : null;
-    editForm.documents = m.documents.map(d => ({ 
-        ...d, 
-        issue_date: d.issue_date ? new Date(d.issue_date) : null, 
-        expiry_date: d.expiry_date ? new Date(d.expiry_date) : null 
+    editForm.documents = m.documents.map(d => ({
+        ...d,
+        issue_date: d.issue_date ? entityCalendarDate(d.issue_date) : null,
+        expiry_date: d.expiry_date ? entityCalendarDate(d.expiry_date) : null
     }));
-    editForm.loans = m.loans.map(l => ({ 
-        ...l, 
-        start_date: l.start_date ? new Date(l.start_date) : null, 
-        end_date: l.end_date ? new Date(l.end_date) : null 
+    editForm.loans = m.loans.map(l => ({
+        ...l,
+        start_date: l.start_date ? entityCalendarDate(l.start_date) : null,
+        end_date: l.end_date ? entityCalendarDate(l.end_date) : null
     }));
 };
 
@@ -150,13 +151,7 @@ const removeLoan = (form: any, index: number) => {
 };
 
 function formatLocalDate(date: any) {
-    if (!date) return null;
-    if (typeof date === 'string') return date.split(/[Tt]/)[0];
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return date ? calendarDateString(date) : null;
 }
 
 const submitCreate = () => {

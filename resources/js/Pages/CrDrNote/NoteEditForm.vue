@@ -12,7 +12,7 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import { PencilSquareIcon, DocumentTextIcon } from '@heroicons/vue/24/outline';
-import { entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import { useNoteItems } from './useNoteItems';
 
 const props = defineProps({ note: { type: Object, required: true }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
@@ -29,7 +29,7 @@ const numberWithoutPrefix = props.note.prefix && storedNumber.startsWith(props.n
 const sequenceNumber = numberWithoutPrefix.replace(/\/\d{2}-\d{2}$/, '');
 const form = useForm({
     items: [], is_tax_inclusive: false, invoice_number: sequenceNumber,
-    note_date: props.note.invoice_date?.slice(0, 10) ?? new Date(),
+    note_date: props.note.invoice_date?.slice(0, 10) ?? entityCalendarDate(),
     reason: props.note.notes || defaults[props.note.invoice_type],
 });
 const reasonOptions = computed(() => [...new Set([defaults[props.note.invoice_type], ...reasons[props.note.invoice_type], ...(props.note.notes ? [props.note.notes] : [])])]

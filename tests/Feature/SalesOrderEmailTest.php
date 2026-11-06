@@ -62,6 +62,24 @@ class SalesOrderEmailTest extends TestCase
         Http::preventStrayRequests();
     }
 
+    public function test_migration_recovers_a_partial_table_without_losing_deliveries(): void
+    {
+        $this->recipient('admin@example.test');
+        $order = $this->createOrder();
+        Schema::table(self::DELIVERIES, function (Blueprint $table) {
+            $table->dropUnique('so_email_order_recipient_unique');
+            $table->dropIndex('so_email_pending_idx');
+        });
+
+        $migration = require database_path('migrations/2026_11_05_151500_create_sales_order_email_deliveries_table.php');
+        $migration->up();
+        $migration->up();
+
+        $this->assertTrue(Schema::hasIndex(self::DELIVERIES, 'so_email_order_recipient_unique'));
+        $this->assertTrue(Schema::hasIndex(self::DELIVERIES, 'so_email_pending_idx'));
+        $this->assertDatabaseHas(self::DELIVERIES, ['sales_order_id' => $order->id, 'recipient' => 'admin@example.test']);
+    }
+
     public function test_creation_sends_once_per_active_address_regardless_of_role_for_the_order_plant(): void
     {
         $this->recipient('admin@example.test');

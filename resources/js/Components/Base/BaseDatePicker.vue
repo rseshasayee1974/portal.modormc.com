@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, useAttrs } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import BaseField from './BaseField.vue';
-import { entityToday, entityDateTime, entityCalendarDate } from '@/Utils/entityDateTime';
+import { entityToday, entityDateTime, entityCalendarDate, calendarDateString, calendarDateTimeString } from '@/Utils/entityDateTime';
 
 defineOptions({ inheritAttrs: false });
 
@@ -67,20 +67,11 @@ onMounted(() => {
 });
 
 const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return calendarDateString(date);
 };
 
 const formatDateTime = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    return calendarDateTimeString(date);
 };
 
 const internalValue = computed({
@@ -89,19 +80,7 @@ const internalValue = computed({
             if (!val) return null;
             if (val instanceof Date) return val;
             if (typeof val === 'string') {
-                // If pure date string YYYY-MM-DD, parse as local time to avoid UTC shift
-                if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
-                    const [y, m, d] = val.split('-').map(Number);
-                    return new Date(y, m - 1, d);
-                }
-                // If datetime string YYYY-MM-DD HH:mm:ss or YYYY-MM-DD HH:mm
-                const match = val.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
-                if (match) {
-                    const [, y, m, d, h, min, s] = match;
-                    return new Date(Number(y), Number(m) - 1, Number(d), Number(h), Number(min), Number(s || 0));
-                }
-                const parsed = new Date(val);
-                return isNaN(parsed.getTime()) ? null : entityCalendarDate(parsed);
+                return entityCalendarDate(val);
             }
             if (Array.isArray(val)) return val.map(parseValue);
             return val;

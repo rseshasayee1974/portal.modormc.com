@@ -372,8 +372,8 @@ class ExcelExportService
             return $this->export('Attendance Report', ($start ?? '').' to '.($end ?? ''), array_values($columns), $rows, $totals);
         }
         $title = strtoupper(str_replace('_', ' ', $type)) . " REPORT";
-        $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->format('d-m-Y')) : '';
-        $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->format('d-m-Y')) : '';
+        $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->setTimezone(config('app.timezone'))->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->setTimezone(config('app.timezone'))->format('d-m-Y')) : '';
+        $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->setTimezone(config('app.timezone'))->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->setTimezone(config('app.timezone'))->format('d-m-Y')) : '';
         $period = ($startLabel && $endLabel) ? "Period: $startLabel to $endLabel" : ($startLabel ?: $endLabel ?: "All Dates");
         
         $headersList = [];
@@ -517,7 +517,7 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'inventory_inward') {
-                $headersList = ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Truck No'];
+                $headersList = ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Truck No'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
                         $row['date'] ?? '',
@@ -526,6 +526,7 @@ class ExcelExportService
                         $row['vendor_name'] ?? '',
                         $row['product_name'] ?? '',
                         $row['quantity'] ?? 0,
+                        $row['conversion_quantity_display'] ?? '',
                         $row['truck_no'] ?? ''
                     ];
                 }
@@ -1051,7 +1052,7 @@ class ExcelExportService
                     [7, 'Bank / Online Collections', 'NEFT/RTGS/Cheque Received', '-', '-', (float)($summary['bank_receipts'] ?? 0)],
                     [8, 'Total Payments / Outflows', 'Vendor Settlements & Expense', (int)count($data['cash_flow']['payments_list'] ?? []), '-', (float)($summary['total_payments_made'] ?? 0)],
                     [9, 'Net Daily Cash Flow', 'Receipts - Payments', '-', '-', (float)($summary['net_cash_flow'] ?? 0)],
-                    [10, 'Pending Credit Receivables', 'Unpaid Sales Balance', '-', '-', (float)($summary['credit_sales_balance'] ?? 0)],
+                    [10, 'Pending Credit Receivables', 'Unpaid Sales Bal`ance', '-', '-', (float)($summary['credit_sales_balance'] ?? 0)],
                     [11, 'Hire Charges / Freight Billed', 'Shipping & Transport', '-', '-', (float)($summary['hire_charges_billed'] ?? 0)],
                     [12, 'Pump Charges Billed', 'Pumping Service Rate', '-', '-', (float)($summary['pump_charges_billed'] ?? 0)],
                     [13, 'Output GST Tax Payable', 'Sales Tax (CGST+SGST+IGST)', '-', '-', (float)($summary['output_tax_payable'] ?? 0)],
@@ -1624,7 +1625,7 @@ class ExcelExportService
                     : ['Date', 'Particulars', 'Reference', 'Amount', 'Type', 'Balance'];
 
                 $balance = (float)($data['opening_balance'] ?? 0);
-                $opDate = $start ? \Carbon\Carbon::parse($start)->format('d-m-Y') : '';
+                $opDate = $start ? \Carbon\Carbon::parse($start)->setTimezone(config('app.timezone'))->format('d-m-Y') : '';
 
                 // Opening Balance Row
                 $openingRow = [

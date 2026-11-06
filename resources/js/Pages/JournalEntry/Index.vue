@@ -295,7 +295,7 @@ const kpiStats = computed(() => {
     const currentMonth = now.getMonth();
     const thisMonthCount = list.filter(e => {
         if (!e.posting_date) return false;
-        const d = new Date(e.posting_date);
+        const d = entityCalendarDate(e.posting_date);
         return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
     }).length;
 

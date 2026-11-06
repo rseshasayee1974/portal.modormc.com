@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -90,7 +90,7 @@ const startEdit = (service: MachineService) => {
     form.next_service_km = Number(service.next_service_km);
     form.current_running_km = Number(service.current_running_km);
     form.service_hr_km = service.service_hr_km || '';
-    form.service_date = service.service_date ? new Date(service.service_date) : null;
+    form.service_date = service.service_date ? entityCalendarDate(service.service_date) : null;
     form.notes = service.notes || '';
     form.status = service.status;
     window.scrollTo({ top: 0, behavior: 'smooth' });

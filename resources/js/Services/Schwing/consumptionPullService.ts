@@ -1,3 +1,4 @@
+import { entityDateTime } from '@/Utils/entityDateTime';
 /**
  * Schwing ERP Integration - Actual Consumption API (Data Pull from Schwing)
  * 
@@ -116,18 +117,8 @@ function normalizeDateTime(dateStr: string): string {
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         return `${dateStr} 00:00:00`;
     }
-    // Try standard Date parsing
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) {
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        const hh = String(d.getHours()).padStart(2, '0');
-        const min = String(d.getMinutes()).padStart(2, '0');
-        const ss = String(d.getSeconds()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
-    }
-    return dateStr;
+    return entityDateTime(dateStr) || dateStr;
+
 }
 
 /**

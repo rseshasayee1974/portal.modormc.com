@@ -1,4 +1,6 @@
 <script setup>
+import { entityCalendarDate } from '@/Utils/entityDateTime';
+
 import { ref, computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import {
@@ -506,7 +508,7 @@ const getBadgeStyle = (txType) => {
             <div
                 class="mt-8 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-400">
                 <div>
-                    {{ plant.legal_name || plant.name || 'DEMO LOGIN' }} - Copyright {{ new Date().getFullYear() }}
+                    {{ plant.legal_name || plant.name || 'DEMO LOGIN' }} - Copyright {{ entityCalendarDate().getFullYear() }}
                 </div>
                 <div>
                     Report Generated: {{ reportData.generated_at || 'Now' }}

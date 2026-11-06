@@ -1,4 +1,6 @@
 <script setup>
+import { entityInstant } from '@/Utils/entityDateTime';
+
 import { ref, computed, watch } from 'vue';
 import { formatCurrency, formatQuantity } from '@/Utils/formatters';
 
@@ -20,8 +22,8 @@ watch(() => props.reportData?.transactions, () => {
 const transactions = computed(() => {
     const list = [...(props.reportData?.transactions || [])];
     return list.sort((a, b) => {
-        const timeA = a.dispatch_timestamp ?? (a.date ? new Date(a.datetime || a.date).getTime() : 0);
-        const timeB = b.dispatch_timestamp ?? (b.date ? new Date(b.datetime || b.date).getTime() : 0);
+        const timeA = a.dispatch_timestamp ?? (a.date ? entityInstant(a.datetime || a.date).getTime() : 0);
+        const timeB = b.dispatch_timestamp ?? (b.date ? entityInstant(b.datetime || b.date).getTime() : 0);
         if (timeA !== timeB) return timeA - timeB;
         return (a.id || 0) - (b.id || 0);
     });

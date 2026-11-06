@@ -30,11 +30,11 @@ class OverallReportService implements ReportServiceInterface
 
         // Parse date boundaries (defaults to today)
         $start = !empty($params['start']) 
-            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($params['start'])) ? Carbon::parse($params['start'])->startOfDay()->toDateTimeString() : Carbon::parse($params['start'])->toDateTimeString())
+            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($params['start'])) ? Carbon::parse($params['start'])->setTimezone(config('app.timezone'))->startOfDay()->toDateTimeString() : Carbon::parse($params['start'])->setTimezone(config('app.timezone'))->toDateTimeString())
             : now()->startOfDay()->toDateTimeString();
 
         $end = !empty($params['end']) 
-            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($params['end'])) ? Carbon::parse($params['end'])->endOfDay()->toDateTimeString() : Carbon::parse($params['end'])->toDateTimeString())
+            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($params['end'])) ? Carbon::parse($params['end'])->setTimezone(config('app.timezone'))->endOfDay()->toDateTimeString() : Carbon::parse($params['end'])->setTimezone(config('app.timezone'))->toDateTimeString())
             : now()->endOfDay()->toDateTimeString();
 
         $startDateOnly = substr($start, 0, 10);
@@ -98,7 +98,7 @@ class OverallReportService implements ReportServiceInterface
         try {
             $dispatchQuery = Dispatch::query()
                 ->with([
-                    'batch:id,batch_no',
+                    'batch:id,batch_no,batch_size',
                     'customer:id,legal_name,code',
                     'truck:id,registration',
                     'driver:id,first_name,last_name',
@@ -577,6 +577,9 @@ class OverallReportService implements ReportServiceInterface
                 'list'  => $dispatchList,
                 'total' => $totalDeliveredQty,
                 'count' => $totalDispatchesCount,
+                'delivered_qty' => $totalDeliveredQty,
+                'net_weight' => $totalNetWeight,
+                'total_value' => $totalDispatchValue,
             ],
             'production'         => [
                 'list'       => $batchList,

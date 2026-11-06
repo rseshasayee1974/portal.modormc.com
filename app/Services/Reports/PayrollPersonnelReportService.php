@@ -44,8 +44,8 @@ class PayrollPersonnelReportService implements ReportServiceInterface
         }
 
         if (!empty($start) && !empty($end)) {
-            $fromDate = Carbon::parse($start)->startOfDay()->toDateString();
-            $toDate = Carbon::parse($end)->endOfDay()->toDateString();
+            $fromDate = Carbon::parse($start)->setTimezone(config('app.timezone'))->startOfDay()->toDateString();
+            $toDate = Carbon::parse($end)->setTimezone(config('app.timezone'))->endOfDay()->toDateString();
 
             $payslipsQuery->where(function ($q) use ($fromDate, $toDate) {
                 $q->whereHas('payrollPeriod', function ($pq) use ($fromDate, $toDate) {

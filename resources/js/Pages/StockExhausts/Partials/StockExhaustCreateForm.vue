@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import StockExhaustPricing from './StockExhaustPricing.vue';
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday } from '@/Utils/entityDateTime';
+import { entityToday, calendarDateString, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { computed, reactive } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { validateStockExhaust } from '../validateStockExhaust';
@@ -252,7 +252,9 @@ const submitForm = () => {
     }
     form.transform((data) => ({
         ...data,
-        lines: data.lines.filter(l => l.product_id !== null)
+        billed_date: data.billed_date ? calendarDateString(data.billed_date) : null,
+        issued_date: data.issued_date ? calendarDateString(data.issued_date) : null,
+        lines: data.lines.filter(l => l.product_id !== null).map(line => ({ ...line, issue_date: line.issue_date ? calendarDateTimeString(line.issue_date) : null }))
     })).post(route('stock-exhausts.store'), {
         onSuccess: () => {
             form.reset();
@@ -268,10 +270,12 @@ const submitForm = () => {
 </script>
 
 <template>
-    <div class="bg-white dark:bg-slate-900 my-6 rounded-lg shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden">
+    <div
+        class="bg-white dark:bg-slate-900 my-6 rounded-lg shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden">
         <div class="p-8">
             <div class="flex items-center gap-4 mb-8">
-                <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
+                <div
+                    class="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
                     <WrenchScrewdriverIcon class="w-6 h-6" />
                 </div>
                 <div>
@@ -296,31 +300,26 @@ const submitForm = () => {
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                     <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label required">Partner</label>
-                        <BaseSelect
-                            v-model="form.partner_id"
-                            :options="vendorOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Partner"
+                        <BaseSelect v-model="form.partner_id" :options="vendorOptions" optionLabel="label"
+                            optionValue="value" placeholder="Select Partner"
                             :error="form.errors.partner_id || localErrors.partner_id"
-                            @change="localErrors.partner_id = ''"
-                        />
-                        <p v-if="localErrors.partner_id" class="mt-1 text-[10px] font-bold text-red-500">{{ localErrors.partner_id }}</p>
+                            @change="localErrors.partner_id = ''" />
+                        <p v-if="localErrors.partner_id" class="mt-1 text-[10px] font-bold text-red-500">{{
+                            localErrors.partner_id }}</p>
                     </div>
 
                     <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label required">Issued Date</label>
-                        <BaseDatePicker
-                            v-model="form.issued_date"
-                            dateFormat="yy-mm-dd"
+                        <BaseDatePicker v-model="form.issued_date" dateFormat="yy-mm-dd"
                             :class="['!w-full h-10', localErrors.issued_date ? 'p-invalid' : '']"
-                            @date-select="localErrors.issued_date = ''"
-                        />
-                        <p v-if="localErrors.issued_date" class="mt-1 text-[10px] font-bold text-red-500">{{ localErrors.issued_date }}</p>
+                            @date-select="localErrors.issued_date = ''" />
+                        <p v-if="localErrors.issued_date" class="mt-1 text-[10px] font-bold text-red-500">{{
+                            localErrors.issued_date }}</p>
                     </div>
 
                     <div class="col-span-12 md:col-span-3 field-group">
-                        <BaseInput v-model="form.bill_number" label="Bill Number" placeholder="Bill reference" :error="form.errors.bill_number" />
+                        <BaseInput v-model="form.bill_number" label="Bill Number" placeholder="Bill reference"
+                            :error="form.errors.bill_number" />
                     </div>
 
                     <div class="col-span-12 md:col-span-3 field-group">
@@ -330,17 +329,20 @@ const submitForm = () => {
 
                     <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label">Voucher Status</label>
-                        <BaseSelect v-model="form.status" :options="voucherStatuses" optionLabel="label" optionValue="value" />
+                        <BaseSelect v-model="form.status" :options="voucherStatuses" optionLabel="label"
+                            optionValue="value" />
                     </div>
 
                     <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label">Invoice Billing Status</label>
-                        <BaseSelect v-model="form.invoice_status" :options="invoiceStatuses" optionLabel="label" optionValue="value" />
+                        <BaseSelect v-model="form.invoice_status" :options="invoiceStatuses" optionLabel="label"
+                            optionValue="value" />
                     </div>
 
                     <div class="col-span-12 md:col-span-6 field-group">
                         <label class="field-label">Ledger Account (Expenses/Purchases)</label>
-                        <BaseSelect v-model="form.ledger_id" :options="ledgers" optionLabel="label" optionValue="value" filter placeholder="Select Ledger Account" :error="form.errors.ledger_id" />
+                        <BaseSelect v-model="form.ledger_id" :options="ledgers" optionLabel="label" optionValue="value"
+                            filter placeholder="Select Ledger Account" :error="form.errors.ledger_id" />
                     </div>
                 </div>
 
@@ -357,13 +359,11 @@ const submitForm = () => {
                         @product-change="onProductChange" @quantity-blur="validateQuantity" @remove="removeLine" />
                 </div>
                 <div class="flex items-center justify-end gap-2 mt-4">
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        class="flex items-center justify-center gap-3 h-12 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 dark:shadow-none transition-all duration-200 active:scale-95"
-                    >
+                    <button type="submit" :disabled="form.processing"
+                        class="flex items-center justify-center gap-3 h-12 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 dark:shadow-none transition-all duration-200 active:scale-95">
                         <CheckIcon v-if="!form.processing" class="w-4 h-4 stroke-[3px]" />
-                        <span v-else class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                        <span v-else
+                            class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
                         Register Voucher
                     </button>
                 </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityCalendarDate } from '@/Utils/entityDateTime';
+import { entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
 import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
@@ -301,12 +301,7 @@ const submit = () => {
         return;
     }
 
-    const formatLocalTime = (date: Date | any) => {
-        if (!date) return null;
-        const d = new Date(date);
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-    };
+    const formatLocalTime = (date: Date | any) => date ? calendarDateTimeString(date) : null;
 
     form.transform((data) => ({
         ...data,

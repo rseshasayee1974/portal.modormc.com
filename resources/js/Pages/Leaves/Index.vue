@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate, entityInstant } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
@@ -107,8 +108,8 @@ const statusOptions = computed(() =>
 
 watch([() => appForm.from_date, () => appForm.to_date], ([newFrom, newTo]) => {
     if (newFrom && newTo) {
-        const from = new Date(newFrom);
-        const to = new Date(newTo);
+        const from = entityInstant(newFrom);
+        const to = entityInstant(newTo);
         if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
             const diffTime = to.getTime() - from.getTime();
             const diffDays = Math.round(diffTime / (1000 * 3600 * 24)) + 1;
@@ -124,8 +125,8 @@ const editApp = (app: LeaveApplication) => {
     editingAppId.value = app.id;
     appForm.personnel_id = app.personnel_id;
     appForm.leave_type_id = app.leave_type_id;
-    appForm.from_date = app.from_date ? new Date(app.from_date) : null;
-    appForm.to_date = app.to_date ? new Date(app.to_date) : null;
+    appForm.from_date = app.from_date ? entityCalendarDate(app.from_date) : null;
+    appForm.to_date = app.to_date ? entityCalendarDate(app.to_date) : null;
     appForm.days = Number(app.days);
     appForm.reason = app.reason || '';
     appForm.status = app.status;
@@ -189,7 +190,7 @@ const editingBalanceId = ref<number | null>(null);
 const balanceForm = useForm({
     personnel_id: null as number | null,
     leave_type_id: null as number | null,
-    year: new Date().getFullYear(),
+    year: entityCalendarDate().getFullYear(),
     opening_balance: 0,
     accrued: 0,
 });

@@ -2,8 +2,7 @@ import './bootstrap';
 import '../css/base.css';
 
 import { createApp, h } from 'vue';
-import { createInertiaApp, router, usePage } from '@inertiajs/vue3';
-import { configureEntityTimezone } from '@/Utils/entityDateTime';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import { installUserPresence } from '@/Services/userPresence';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
@@ -50,7 +49,6 @@ createInertiaApp({
     async setup({ el, App, props, plugin }) {
         installUserPresence(props.initialPage.props.presence, router);
         scheduleServiceWorker(props.initialPage);
-        configureEntityTimezone(() => usePage().props.entity_timezone || props.initialPage.props.entity_timezone);
         const pinia = createPinia();
 
         application = createApp({

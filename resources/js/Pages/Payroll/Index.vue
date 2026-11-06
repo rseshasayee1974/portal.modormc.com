@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -155,8 +155,8 @@ const statusOptions = [
 const editPeriod = (p: PayrollPeriod) => {
     editingPeriodId.value = p.id;
     periodForm.name = p.name;
-    periodForm.from_date = p.from_date ? new Date(p.from_date) : null;
-    periodForm.to_date = p.to_date ? new Date(p.to_date) : null;
+    periodForm.from_date = p.from_date ? entityCalendarDate(p.from_date) : null;
+    periodForm.to_date = p.to_date ? entityCalendarDate(p.to_date) : null;
     periodForm.status = p.status;
 };
 

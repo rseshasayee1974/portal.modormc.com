@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from "@/Utils/locale";
-import { entityLocaleDate, entityLocaleTime } from "@/Utils/entityDateTime";
+import { entityLocaleDate, entityLocaleTime, entityInstant } from '@/Utils/entityDateTime';
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { router, usePage } from "@inertiajs/vue3";
 import axios from "axios";
@@ -238,14 +238,14 @@ const filteredBatches = computed(() => {
     let result = localBatches.value;
 
     if (dateFrom.value) {
-        const from = new Date(dateFrom.value);
-        result = result.filter((b) => new Date(b.created_at) >= from);
+        const from = entityInstant(dateFrom.value);
+        result = result.filter((b) => entityInstant(b.created_at) >= from);
     }
 
     if (dateTo.value) {
-        const to = new Date(dateTo.value);
+        const to = entityInstant(dateTo.value);
         to.setHours(23, 59, 59, 999);
-        result = result.filter((b) => new Date(b.created_at) <= to);
+        result = result.filter((b) => entityInstant(b.created_at) <= to);
     }
 
     return result;

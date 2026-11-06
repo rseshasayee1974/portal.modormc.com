@@ -36,7 +36,7 @@ class StockExhaustLine extends Model
     ];
 
     protected $casts = [
-        'unit_price' => 'decimal:4', 'tax_id' => 'integer', 'tax_rate' => 'decimal:2', 'discount' => 'decimal:2', 'discount_amount' => 'decimal:2', 'untaxed_amount' => 'decimal:2', 'tax_amount' => 'decimal:2', 'total_amount' => 'decimal:2',
+        'unit_price' => 'decimal:4', 'tax_id' => 'integer', 'tax_rate' => 'decimal:2', 'discount' => 'decimal:2', 'discount_amount' => 'decimal:12', 'untaxed_amount' => 'decimal:12', 'tax_amount' => 'decimal:12', 'total_amount' => 'decimal:12',
         'issue_date' => 'datetime',
         'created' => 'datetime',
         'modified' => 'datetime',
