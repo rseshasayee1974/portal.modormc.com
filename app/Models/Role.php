@@ -64,6 +64,11 @@ class Role extends SpatieRole
         return $this->grantsSystemAccess();
     }
 
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
     public function grantsSystemAccess(): bool
     {
         return in_array($this->accessCode(), [self::SAAS_OWNER, self::PLATFORM_ADMIN, self::SUPER_ADMIN], true);

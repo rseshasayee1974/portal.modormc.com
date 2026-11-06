@@ -52,16 +52,8 @@ class StockExhaustController extends Controller
             ->whereNull('mm_products.deleted_at')
             ->get(['mm_products.id', 'mm_products.title', 'mm_products.unit_id', 'stock_levels.stock_qty']);
 
-        $ledgers = Ledger::where('plant_id', $plantId)
-            ->where('status', 1)
-            ->orderBy('title', 'asc')
-            ->get()
-            ->map(fn($l) => [
-                'label' => ($l->code ? $l->code . ' - ' : '') . $l->title,
-                'value' => $l->id,
-            ])
-            ->toArray();
-
+        $ledgers = LedgersDropdown();
+ 
         return Inertia::render('StockExhausts/Index', [
             'stockExhausts' => $stockExhausts,
             'machines' => MachinesDropdown()->toArray(),
@@ -73,7 +65,11 @@ class StockExhaustController extends Controller
                 'unit_code' => $p->unit?->unit_code,
                 'stock_qty' => (float)$p->stock_qty,
             ])->toArray(),
-            'taxes' => \App\Models\Tax::where('plant_id', $plantId)->get()->map(fn ($tax) => ['id' => $tax->id, 'label' => $tax->title, 'rate' => (float) $tax->rate]),
+            'taxes' => TaxesDropdown('sales', ['GST', 'IGST'])->map(fn ($tax) => [
+                'id' => (int) $tax->id,
+                'label' => $tax->tax_name . ' (' . (float) $tax->tax_rate . '%)',
+                'rate' => (float) $tax->tax_rate,
+            ])->values(),
             'units'   => Productunit(),
             'ledgers' => $ledgers,
         ]);

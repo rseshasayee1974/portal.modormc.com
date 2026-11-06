@@ -290,6 +290,7 @@ Route::middleware([
     // 4. Settings & Permissions
     Route::prefix('settings')->group(function () {
         Route::resource('notificationemails', NotificationEmailController::class)->except(['create', 'edit', 'show']);
+        Route::resource('notificationwhatsapps', \App\Http\Controllers\NotificationWhatsappController::class)->except(['create', 'edit', 'show']);
         Route::resource('termsconditions', TermsConditionController::class);
         Route::resource('permissions', PermissionController::class);
         Route::resource('roles', RoleController::class);

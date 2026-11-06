@@ -99,7 +99,7 @@ class UserController extends Controller
             })->values();
 
             if ($isSuperUser) {
-                $userGroups = Role::all()->map(function ($group) {
+                $userGroups = Role::active()->get()->map(function ($group) {
                     return [
                         'value' => $group->id,
                         'label' => $group->name,
@@ -111,7 +111,7 @@ class UserController extends Controller
                 $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
                 $userLevel = empty($levels) ? 0 : max($levels);
 
-                $userGroups = Role::where('level', '<', $userLevel)
+                $userGroups = Role::active()->where('level', '<', $userLevel)
                     ->whereNotIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'])
                     ->get()
                     ->map(function ($group) {

@@ -213,7 +213,7 @@ const getSelectedLabelText = (val: any) => {
             <Select ref="selectRef" :id="inputId" :modelValue="modelValue" :options="normalizedOptions"
                 :optionLabel="optionLabel" :optionValue="optionValue" :placeholder="defaultPlaceholder"
                 :disabled="disabled" :filter="filter" :filterFields="effectiveFilterFields"
-                :autoFilterFocus="autoFilterFocus" :checkmark="true" :showClear="false" :size="size" :fluid="fluid"
+                :autoFilterFocus="autoFilterFocus" :checkmark="true" :showClear="showClear" :size="size" :fluid="fluid"
                 :panelClass="effectiveOverlayClass" :overlayClass="effectiveOverlayClass"
                 :panelStyle="effectiveOverlayStyle" :overlayStyle="effectiveOverlayStyle" :appendTo="appendTo"
                 :resetFilterOnHide="true" @show="handleShow" :class="[

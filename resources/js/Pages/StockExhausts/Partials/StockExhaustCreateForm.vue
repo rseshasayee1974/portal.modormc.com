@@ -268,8 +268,8 @@ const submitForm = () => {
 </script>
 
 <template>
-    <div class="bg-white dark:bg-slate-900 my-6 rounded-lg shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden">
-        <div class="p-8">
+    <div class="min-w-0 w-full max-w-full bg-white dark:bg-slate-900 my-6 rounded-lg shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden">
+        <div class="min-w-0 p-3 sm:p-4">
             <div class="flex items-center gap-4 mb-8">
                 <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
                     <WrenchScrewdriverIcon class="w-6 h-6" />
@@ -284,7 +284,7 @@ const submitForm = () => {
                 </div>
             </div>
 
-            <form @submit.prevent="submitForm" class="flex flex-col gap-6">
+            <form @submit.prevent="submitForm" class="min-w-0 max-w-full flex flex-col gap-6">
                 <div v-if="form.hasErrors" role="alert" aria-live="polite"
                     class="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700">
                     <p class="font-bold mb-2">Please correct the following fields:</p>

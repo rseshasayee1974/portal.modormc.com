@@ -38,7 +38,7 @@ class NotificationEmailController extends Controller
         $plants = Plant::whereIn('id', $allowedPlantIds)->select('id', 'name')->get();
         
         // Assuming role name is based on standard roles
-        $roles = Role::select('name')->distinct()->get()->pluck('name');
+        $roles = Role::active()->select('name')->distinct()->get()->pluck('name');
 
         return Inertia::render('NotificationEmails/Index', [
             'notificationEmails' => $notificationEmails,

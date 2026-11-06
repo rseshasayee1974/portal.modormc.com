@@ -287,7 +287,7 @@ const submitForm = () => {
                 </div>
             </div>
 
-            <form @submit.prevent="submitForm" class="flex flex-col gap-6">
+            <form @submit.prevent="submitForm" class="min-w-0 max-w-full flex flex-col gap-6">
                 <div v-if="form.hasErrors" role="alert" aria-live="polite"
                     class="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700">
                     <p class="font-bold mb-2">Please correct the following fields:</p>

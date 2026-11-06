@@ -122,8 +122,8 @@ watch(() => page.props.flash, (flash: any) => {
             <ModuleSubTopNav />
         </template>
 
-        <div class="my-5">
-            <div class="max-w-7xl">
+        <div class="my-5 w-full min-w-0 max-w-full">
+            <div class="w-full min-w-0 max-w-full">
 
                 <!-- Create form -->
                 <StockExhaustCreateForm :machines="machines" :vendors="vendors" :products="products" :units="units"
@@ -290,6 +290,12 @@ watch(() => page.props.flash, (flash: any) => {
 </template>
 
 <style scoped>
+:deep(.stock-exhaust-table) { min-width: 0; max-width: 100%; }
+:deep(.stock-exhaust-table .p-datatable-table-container) { max-width: 100%; overflow-x: auto; }
+:deep(.stock-exhaust-table .p-datatable-table) { width: 100%; table-layout: fixed; }
+:deep(.stock-exhaust-table .p-datatable-thead > tr > th),
+:deep(.stock-exhaust-table .p-datatable-tbody > tr > td) { overflow-wrap: anywhere; white-space: normal; }
+
 :deep(.lines-subtable .p-datatable-thead > tr > th) {
     @apply !bg-slate-100/50 dark:!bg-slate-800/50 !text-slate-500 !font-bold !text-[9px] !uppercase !py-3;
 }

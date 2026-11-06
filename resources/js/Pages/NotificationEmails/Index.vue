@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { ref, computed } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { EnvelopeIcon } from '@heroicons/vue/24/outline';
 
@@ -126,6 +126,7 @@ const deleteItem = (id: number) => {
         </template>
 
         <div class="p-6">
+            <Link :href="route('notificationwhatsapps.index')" class="mb-4 inline-block rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">WhatsApp Notifications</Link>
             <p class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-800">
                 Choose <strong>Machine Document Expiry</strong> to receive FC, permit, road tax, insurance, PUC and other document reminders for the plant.
                 Alerts are sent 30, 15, 7 and 1 day before expiry, on expiry, then weekly until renewed.
