@@ -19,8 +19,8 @@ class QualityTestingReportService implements ReportServiceInterface
     {
         Validator::make($params, ['start' => 'required|date', 'end' => 'required|date|after_or_equal:start',
             'qc_category' => 'nullable|in:Concrete,Raw Material'])->validate();
-        $start = Carbon::parse($params['start'])->startOfDay();
-        $end = Carbon::parse($params['end'])->addDay()->startOfDay();
+        $start = Carbon::parse($params['start'])->setTimezone(config('app.timezone'))->startOfDay();
+        $end = Carbon::parse($params['end'])->setTimezone(config('app.timezone'))->addDay()->startOfDay();
         $groups = QcTest::where('plant_id', $this->ctx->requirePlantId())
             ->when(!empty($params['qc_category']), fn ($query) => $query->whereHas('testType', fn ($type) => $type
                 ->where('plant_id', $this->ctx->requirePlantId())

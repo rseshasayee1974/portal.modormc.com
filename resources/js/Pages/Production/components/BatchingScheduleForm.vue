@@ -1,4 +1,6 @@
 <script setup>
+import { entityInstant } from '@/Utils/entityDateTime';
+
 import { APP_LOCALE } from '@/Utils/locale';
 import { ref, watch, computed } from 'vue';
 import axios from 'axios';
@@ -202,17 +204,17 @@ const submitForm = async () => {
         return;
     }
 
-    if (form.value.batching_time && form.value.dispatch_time && new Date(form.value.batching_time) > new Date(form.value.dispatch_time)) {
+    if (form.value.batching_time && form.value.dispatch_time && entityInstant(form.value.batching_time) > entityInstant(form.value.dispatch_time)) {
         Swal.fire('Time Validation Error', 'Batching Time cannot be later than Dispatch Time.', 'error');
         return;
     }
 
-    if (form.value.dispatch_time && form.value.eta_site && new Date(form.value.dispatch_time) > new Date(form.value.eta_site)) {
+    if (form.value.dispatch_time && form.value.eta_site && entityInstant(form.value.dispatch_time) > entityInstant(form.value.eta_site)) {
         Swal.fire('Time Validation Error', 'Dispatch Time cannot be later than ETA Site.', 'error');
         return;
     }
 
-    if (form.value.unloading_start && form.value.unloading_end && new Date(form.value.unloading_start) > new Date(form.value.unloading_end)) {
+    if (form.value.unloading_start && form.value.unloading_end && entityInstant(form.value.unloading_start) > entityInstant(form.value.unloading_end)) {
         Swal.fire('Time Validation Error', 'Unloading Start Time cannot be later than Unloading End Time.', 'error');
         return;
     }
@@ -286,7 +288,7 @@ const submitForm = async () => {
         </div>
 
         <form @submit.prevent="submitForm" class="space-y-6 p-5">
-            <div v-if="form.batching_time && form.dispatch_time && new Date(form.batching_time) > new Date(form.dispatch_time)"
+            <div v-if="form.batching_time && form.dispatch_time && entityInstant(form.batching_time) > entityInstant(form.dispatch_time)"
                 class="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
                 <ExclamationTriangleIcon class="h-4 w-4 shrink-0" />
                 <span>Batching Time cannot be later than Dispatch Time.</span>

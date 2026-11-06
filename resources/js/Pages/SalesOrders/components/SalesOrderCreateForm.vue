@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityCalendarDate } from '@/Utils/entityDateTime';
+import { entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
@@ -8,11 +8,12 @@ import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import Checkbox from 'primevue/checkbox';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import Swal from 'sweetalert2';
-import { 
-    PlusCircleIcon, 
+import {
+    PlusCircleIcon,
     DocumentCheckIcon,
     InformationCircleIcon,
     SparklesIcon
@@ -73,11 +74,11 @@ const filteredStatuses = computed(() => {
         { label: 'Completed', value: 3 },
         { label: 'Cancelled', value: 4 }
     ];
-    
+
     if (!props.statuses || props.statuses.length === 0) {
         return backupStatuses;
     }
-    
+
     return props.statuses.filter(status => [1, 2, 4].includes(Number(status.value)));
 });
 
@@ -99,10 +100,10 @@ const mixDetailBadges = computed(() => {
     ];
 });
 
-const salesExecutiveOptions = computed(() => 
-    (props.salesExecutives || []).map(se => ({ 
-        label: se.label || `${se.first_name} ${se.last_name}`, 
-        value: se.id 
+const salesExecutiveOptions = computed(() =>
+    (props.salesExecutives || []).map(se => ({
+        label: se.label || `${se.first_name} ${se.last_name}`,
+        value: se.id
     }))
 );
 
@@ -175,9 +176,18 @@ const taxAmount = computed(() => lineCalc.value.taxAmount);
 const estimatedTotal = computed(() => lineCalc.value.amountTotal);
 
 const nextReference = ref('');
+const nextSequence = ref('');
+const editReference = ref(false);
+watch(editReference, enabled => {
+    if (enabled) {
+        form.order_no = nextSequence.value;
+    } else {
+        form.order_no = '';
+        form.clearErrors('order_no');
+    }
+});
 watch(() => form.customer_id, async (customerId, _previous, onCleanup) => {
     nextReference.value = '';
-    if (!customerId) return;
 
     const controller = new AbortController();
     onCleanup(() => controller.abort());
@@ -186,11 +196,15 @@ watch(() => form.customer_id, async (customerId, _previous, onCleanup) => {
             params: { customer_id: customerId },
             signal: controller.signal,
         });
-        if (!controller.signal.aborted) nextReference.value = data.reference;
+        if (!controller.signal.aborted) {
+            nextReference.value = data.reference;
+            nextSequence.value = data.next_number;
+            if (editReference.value && !form.order_no) form.order_no = nextSequence.value;
+        }
     } catch {
         // The reference will still be assigned when the order is saved.
     }
-});
+}, { immediate: true });
 
 watch(() => form.customer_po_id, (newVal) => {
     if (newVal) {
@@ -225,19 +239,14 @@ watch(() => form.customer_po_id, (newVal) => {
 });
 
 const submit = () => {
-    const formatLocalTime = (date: Date | any) => {
-        if (!date) return null;
-        const d = new Date(date);
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-    };
+    const formatLocalTime = (date: Date | any) => date ? calendarDateTimeString(date) : null;
 
     form.transform((data) => ({
         ...data,
         pump_rate: data.pump_rate ?? 0.00,
         scheduled_start: formatLocalTime(data.scheduled_start),
         scheduled_end: formatLocalTime(data.scheduled_end),
-        order_no: data.order_no || null,
+        order_no: editReference.value ? data.order_no.trim() || null : null,
     })).post(route('salesorders.store'), {
         onSuccess: () => {
             Swal.fire({
@@ -249,6 +258,7 @@ const submit = () => {
                 showConfirmButton: false,
             });
             form.reset();
+            editReference.value = false;
             form.clearErrors();
             form.prefix = 'SO';
             form.plant_id = props.activePlantId;
@@ -282,50 +292,54 @@ const handleMixCreated = () => {
 </script>
 
 <template>
-    <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-        
+    <div
+        class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+
         <!-- Header -->
-        <div class="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div
+            class="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
-                <div class="rounded-lg bg-indigo-100 dark:bg-indigo-950/50 p-2 text-indigo-700 dark:text-indigo-400 ring-1 ring-indigo-200 dark:ring-indigo-900/30">
+                <div
+                    class="rounded-lg bg-indigo-100 dark:bg-indigo-950/50 p-2 text-indigo-700 dark:text-indigo-400 ring-1 ring-indigo-200 dark:ring-indigo-900/30">
                     <PlusCircleIcon class="h-5 w-5" />
                 </div>
                 <div>
-                    <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">Create Sales Order</h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Schedule production orders & configure job details</p>
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">Create
+                        Sales Order</h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Schedule production orders &
+                        configure job details</p>
                 </div>
             </div>
 
-            <div v-if="nextReference" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300">
-                <InformationCircleIcon class="h-4 w-4 text-indigo-500" />
-                <span class="text-xs font-semibold tracking-wide">Next Ref: {{ nextReference }}</span>
+            <div class="w-full space-y-2 rounded-lg border border-indigo-200/60 bg-indigo-50 px-3 py-2 text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-300 sm:w-auto sm:min-w-72">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <span class="flex items-center gap-2 text-xs font-semibold tracking-wide">
+                        <InformationCircleIcon class="h-4 w-4 text-indigo-500" />
+                        Next Ref: {{ nextReference || 'Automatic' }}
+                    </span>
+                    <label class="flex cursor-pointer items-center gap-2 text-xs">
+                        <span>Edit</span>
+                        <Checkbox v-model="editReference" binary aria-label="Edit reference number" :disabled="form.processing" />
+                    </label>
+                </div>
+                <BaseInput v-if="editReference" v-model="form.order_no" label="Reference sequence"
+                    :placeholder="nextSequence || 'e.g. 0123'" :disabled="form.processing" :error="form.errors.order_no"
+                    hint="Enter only the sequence number. Leave blank for automatic numbering." />
             </div>
         </div>
 
         <!-- Form Body -->
         <div class="p-5 space-y-6">
-            
+
             <!-- Document & Party Info Grid -->
             <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-5">
-                
-                <div>
-                    <BaseInput v-model="form.order_no" label="Reference Number (optional)"
-                        placeholder="e.g. 0123" :error="form.errors.order_no"
-                        hint="Enter the sequence number. Leave blank for automatic numbering using Custom Settings." />
-                </div>
+
+
                 <!-- Customer -->
                 <div>
-                    <BaseSelect
-                        v-model="form.customer_id"
-                        :options="safeCustomers"
-                        optionLabel="legal_name"
-                        optionValue="id"
-                        filter
-                        label="Customer"
-                        placeholder="Select Customer"
-                        :error="form.errors.customer_id"
-                        :disabled="!!form.customer_po_id"
-                    />
+                    <BaseSelect v-model="form.customer_id" :options="safeCustomers" optionLabel="legal_name"
+                        optionValue="id" filter label="Customer" placeholder="Select Customer"
+                        :error="form.errors.customer_id" :disabled="!!form.customer_po_id" />
                     <p v-if="form.customer_po_id" class="mt-1 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
                         Locked to Customer PO
                     </p>
@@ -333,17 +347,9 @@ const handleMixCreated = () => {
 
                 <!-- Site Location -->
                 <div>
-                    <BaseSelect
-                        v-model="form.site_id"
-                        :options="safeSites"
-                        optionLabel="name"
-                        optionValue="id"
-                        filter
-                        label="Site Location"
-                        placeholder="Select Site"
-                        :error="form.errors.site_id"
-                        :disabled="!!form.customer_po_id"
-                    />
+                    <BaseSelect v-model="form.site_id" :options="safeSites" optionLabel="name" optionValue="id" filter
+                        label="Site Location" placeholder="Select Site" :error="form.errors.site_id"
+                        :disabled="!!form.customer_po_id" />
                     <p v-if="form.customer_po_id" class="mt-1 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
                         Locked to Customer PO
                     </p>
@@ -351,28 +357,16 @@ const handleMixCreated = () => {
 
                 <!-- Sales Executive -->
                 <div>
-                    <BaseSelect
-                        v-model="form.sales_executive_id"
-                        :options="salesExecutiveOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        filter
-                        label="Sales Executive"
-                        placeholder="Select Sales Executive"
-                        :error="form.errors.sales_executive_id"
-                    />
+                    <BaseSelect v-model="form.sales_executive_id" :options="salesExecutiveOptions" optionLabel="label"
+                        optionValue="value" filter label="Sales Executive" placeholder="Select Sales Executive"
+                        :error="form.errors.sales_executive_id" />
                 </div>
 
                 <!-- Scheduled Start -->
                 <div>
-                    <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Scheduled Start</label>
-                    <BaseDatePicker
-                        v-model="form.scheduled_start"
-                        showTime
-                        hourFormat="24"
-                        fluid
-                        class="w-full"
-                    />
+                    <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Scheduled
+                        Start</label>
+                    <BaseDatePicker v-model="form.scheduled_start" showTime hourFormat="24" fluid class="w-full" />
                     <small v-if="form.errors.scheduled_start" class="text-red-500 text-xs mt-1 block">
                         {{ form.errors.scheduled_start }}
                     </small>
@@ -386,51 +380,37 @@ const handleMixCreated = () => {
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                         Order Specifications
                     </h3>
-                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/60 rounded-xl px-3 py-1 shadow-sm font-normal">
-                        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tax Inclusive Rates</span>
-                        <input 
-                            type="checkbox" 
-                            v-model="form.is_tax_inclusive" 
-                            id="is_tax_inclusive_so" 
-                            :disabled="!!form.customer_po_id" 
-                            class="peer hidden" 
-                        />
-                        <label 
-                            for="is_tax_inclusive_so" 
-                            class="relative w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        ></label>
+                    <div
+                        class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/60 rounded-xl px-3 py-1 shadow-sm font-normal">
+                        <span
+                            class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tax
+                            Inclusive Rates</span>
+                        <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_so"
+                            :disabled="!!form.customer_po_id" class="peer hidden" />
+                        <label for="is_tax_inclusive_so"
+                            class="relative w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px] disabled:opacity-50 disabled:cursor-not-allowed"></label>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                    
+
                     <!-- Mix Design with Inline Action -->
                     <div class="xl:col-span-2">
                         <div class="flex items-center justify-between mb-1">
                             <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                                 Mix Design
                             </label>
-                            <button
-                                type="button"
-                                @click="showMixDesignModal = true"
-                                class="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors"
-                            >
+                            <button type="button" @click="showMixDesignModal = true"
+                                class="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors">
                                 <SparklesIcon class="h-3.5 w-3.5" />
                                 <span>Create New</span>
                             </button>
                         </div>
                         <div class="flex items-center gap-2 overflow-visible relative popover-container">
                             <div class="flex-1 min-w-0">
-                                <BaseSelect
-                                    v-model="form.mix_design_id"
-                                    :options="safeMixDesigns"
-                                    optionLabel="design_name"
-                                    optionValue="id"
-                                    filter
-                                    placeholder="Select Mix Design"
-                                    :error="form.errors.mix_design_id"
-                                    class="w-full"
-                                />
+                                <BaseSelect v-model="form.mix_design_id" :options="safeMixDesigns"
+                                    optionLabel="design_name" optionValue="id" filter placeholder="Select Mix Design"
+                                    :error="form.errors.mix_design_id" class="w-full" />
                             </div>
                             <!-- Info Button Popover -->
                             <RecipePopover :mixDesignId="form.mix_design_id" :mixDesigns="props.mixDesigns" />
@@ -439,75 +419,40 @@ const handleMixCreated = () => {
 
                     <!-- Pump Type -->
                     <div>
-                        <BaseSelect
-                            v-model="form.concrete_pump"
-                            :options="concretePumpOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            label="Pump Type"
-                            placeholder="Select Type"
-                            :error="form.errors.concrete_pump"
-                            :disabled="!!form.customer_po_id"
-                        />
+                        <BaseSelect v-model="form.concrete_pump" :options="concretePumpOptions" optionLabel="label"
+                            optionValue="value" label="Pump Type" placeholder="Select Type"
+                            :error="form.errors.concrete_pump" :disabled="!!form.customer_po_id" />
                     </div>
 
                     <!-- Pump Rate -->
                     <div>
-                        <BaseInputNumber
-                            v-model="form.pump_rate"
-                            label="Pump Rate"
-                            :error="form.errors.pump_rate"
-                            :minFractionDigits="2"
-                            :disabled="!!form.customer_po_id"
-                        />
+                        <BaseInputNumber v-model="form.pump_rate" label="Pump Rate" :error="form.errors.pump_rate"
+                            :minFractionDigits="2" :disabled="!!form.customer_po_id" />
                     </div>
 
                     <!-- Total Quantity -->
                     <div>
-                        <BaseInputNumber
-                            v-model="form.total_qty"
-                            label="Total Quantity (m³)"
-                            :error="form.errors.total_qty"
-                            :minFractionDigits="3"
-                            :disabled="!!form.customer_po_id"
-                        />
+                        <BaseInputNumber v-model="form.total_qty" label="Total Quantity (m³)"
+                            :error="form.errors.total_qty" :minFractionDigits="3" :disabled="!!form.customer_po_id" />
                     </div>
 
                     <!-- Rate per m³ -->
                     <div>
-                        <BaseInputNumber
-                            v-model="form.rate"
-                            label="Rate per m³"
-                            :error="form.errors.rate"
-                            :minFractionDigits="2"
-                            :disabled="!!form.customer_po_id"
-                        />
+                        <BaseInputNumber v-model="form.rate" label="Rate per m³" :error="form.errors.rate"
+                            :minFractionDigits="2" :disabled="!!form.customer_po_id" />
                     </div>
 
                     <!-- Tax -->
                     <div>
-                        <BaseSelect
-                            v-model="form.tax_id"
-                            :options="taxOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            label="Tax"
-                            placeholder="Select Tax"
-                            :error="form.errors.tax_id"
-                            :disabled="!!form.customer_po_id"
-                        />
+                        <BaseSelect v-model="form.tax_id" :options="taxOptions" optionLabel="label" optionValue="value"
+                            label="Tax" placeholder="Select Tax" :error="form.errors.tax_id"
+                            :disabled="!!form.customer_po_id" />
                     </div>
 
                     <!-- Initial Status -->
                     <div>
-                        <BaseSelect
-                            v-model="form.status"
-                            :options="filteredStatuses"
-                            optionLabel="label"
-                            optionValue="value"
-                            label="Initial Status"
-                            :error="form.errors.status"
-                        />
+                        <BaseSelect v-model="form.status" :options="filteredStatuses" optionLabel="label"
+                            optionValue="value" label="Initial Status" :error="form.errors.status" />
                     </div>
 
                 </div>
@@ -538,19 +483,23 @@ const handleMixCreated = () => {
             </div> -->
 
             <!-- Totals & Actions Footer -->
-            <div class="flex flex-col md:flex-row justify-end items-end gap-6 border-t border-slate-100 dark:border-slate-800 pt-5">
+            <div
+                class="flex flex-col md:flex-row justify-end items-end gap-6 border-t border-slate-100 dark:border-slate-800 pt-5">
                 <!-- <div class="text-xs text-slate-500 dark:text-slate-400 max-w-md">
                     <p class="font-semibold text-slate-700 dark:text-slate-300 mb-1">Production Notice:</p>
                     <p>Creating this Sales Order will queue it for scheduling at plant #{{ form.plant_id || activePlantId }}. Please verify quantity, mix design, and site details before submitting.</p>
                 </div> -->
 
-                <div class="w-full md:w-96 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-sm">
+                <div
+                    class="w-full md:w-96 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-sm">
                     <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                         <div class="flex items-center gap-2">
                             <DocumentCheckIcon class="h-4 w-4 text-indigo-500" />
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Order Summary</h3>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                                Order Summary</h3>
                         </div>
-                        <span v-if="form.is_tax_inclusive" class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                        <span v-if="form.is_tax_inclusive"
+                            class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
                             Tax-inclusive
                         </span>
                     </div>
@@ -558,28 +507,35 @@ const handleMixCreated = () => {
                     <div class="space-y-2 text-xs">
                         <div class="flex justify-between text-slate-500 dark:text-slate-400">
                             <span>Subtotal</span>
-                            <span class="font-semibold text-slate-700 dark:text-slate-200">₹ {{ subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                            <span class="font-semibold text-slate-700 dark:text-slate-200">₹ {{
+                                subtotal.toLocaleString(APP_LOCALE, {
+                                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                                }) }}</span>
                         </div>
 
                         <div class="flex justify-between text-slate-500 dark:text-slate-400">
                             <span>Tax Amount {{ selectedTaxRate ? `(${selectedTaxRate}%)` : '' }}</span>
-                            <span class="font-semibold text-slate-700 dark:text-slate-200">₹ {{ taxAmount.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                            <span class="font-semibold text-slate-700 dark:text-slate-200">₹ {{
+                                taxAmount.toLocaleString(APP_LOCALE, {
+                                    minimumFractionDigits: 2, maximumFractionDigits:
+                                2 }) }}</span>
                         </div>
 
-                        <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-baseline">
-                            <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">Estimated Total</span>
-                            <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400">₹ {{ estimatedTotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                        <div
+                            class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-baseline">
+                            <span
+                                class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">Estimated
+                                Total</span>
+                            <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400">₹ {{
+                                estimatedTotal.toLocaleString(APP_LOCALE, {
+                                    minimumFractionDigits: 2,
+                                maximumFractionDigits: 2 }) }}</span>
                         </div>
                     </div>
 
                     <div class="pt-2">
-                        <Button 
-                            label="Create Sales Order" 
-                            icon="pi pi-check" 
-                            :loading="form.processing" 
-                            @click="submit" 
-                            class="w-full p-button-indigo shadow-md py-2.5" 
-                        />
+                        <Button label="Create Sales Order" icon="pi pi-check" :loading="form.processing" @click="submit"
+                            class="w-full p-button-indigo shadow-md py-2.5" />
                     </div>
                 </div>
             </div>
@@ -587,15 +543,10 @@ const handleMixCreated = () => {
         </div>
 
         <!-- Create Mix Design Dialog -->
-        <Dialog v-model:visible="showMixDesignModal" modal header="Create Mix Design" :style="{ width: '80vw' }" @show="loadDependencies">
-            <MixDesignCreateForm
-                v-if="showMixDesignModal"
-                :products="products"
-                :units="units"
-                :partners="customers"
-                :designTypes="designTypes"
-                @created="showMixDesignModal = false; handleMixCreated()"
-            />
+        <Dialog v-model:visible="showMixDesignModal" modal header="Create Mix Design" :style="{ width: '80vw' }"
+            @show="loadDependencies">
+            <MixDesignCreateForm v-if="showMixDesignModal" :products="products" :units="units" :partners="customers"
+                :designTypes="designTypes" @created="showMixDesignModal = false; handleMixCreated()" />
         </Dialog>
     </div>
 </template>

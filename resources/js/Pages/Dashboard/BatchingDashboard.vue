@@ -1,6 +1,6 @@
 <script setup>
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday, entityDaysAgo, entityLocaleTime, entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityToday, entityDaysAgo, entityLocaleTime, entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
@@ -62,7 +62,7 @@ const applyPreset = (preset) => {
         startDate.value = getPastDateString(30);
         endDate.value = today;
     } else if (preset === 'month') {
-        const d = new Date();
+        const d = entityCalendarDate();
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
         startDate.value = `${year}-${month}-01`;

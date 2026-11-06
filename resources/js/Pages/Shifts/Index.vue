@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { entityCalendarDate } from '@/Utils/entityDateTime';
+
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -91,7 +93,7 @@ const shiftOptions = computed(() =>
 // Shift Actions
 const parseTime = (timeStr: string | null) => {
     if (!timeStr) return null;
-    const d = new Date();
+    const d = entityCalendarDate();
     const [h, m, s] = timeStr.split(':');
     d.setHours(Number(h), Number(m), Number(s || 0));
     return d;

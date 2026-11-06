@@ -2,42 +2,27 @@
 
 namespace App\Helpers;
 
-use App\Models\Entity;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Session;
 
 class DateTimeHelper
 {
+    public const TIMEZONE = 'Asia/Kolkata';
     /**
-     * Get the timezone for a specific entity id or from current session.
-     * Fallback to Indian Standard Time (Asia/Kolkata).
+     * All entities use Indian Standard Time (UTC+05:30).
      */
     public static function getEntityTimezone(?int $entityId = null): string
     {
-        $id = $entityId ?? Session::get('active_entity_id') ?? Session::get('entity_id');
-        
-        if ($id) {
-            // Use cache or static variable if called multiple times in one request?
-            // For now, direct find is fine as it's often already loaded in the request.
-            $entity = Entity::find($id);
-            if ($entity && !empty($entity->time_zone)) {
-                return self::validTimezone($entity->time_zone);
-            }
-        }
-
-        return 'Asia/Kolkata';
+        return self::TIMEZONE;
     }
 
     public static function validTimezone(?string $timezone): string
     {
-        return in_array($timezone, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true)
-            ? $timezone : 'Asia/Kolkata';
+        return self::TIMEZONE;
     }
 
     public static function timezoneForPlant(?int $plantId): string
     {
-        $entityId = $plantId ? \App\Models\Plant::whereKey($plantId)->value('entity_id') : null;
-        return $entityId ? self::getEntityTimezone((int) $entityId) : 'Asia/Kolkata';
+        return self::TIMEZONE;
     }
 
     /** Always restore process state, including on errors and between queue jobs. */

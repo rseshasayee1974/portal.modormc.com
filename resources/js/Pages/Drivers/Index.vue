@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -61,7 +61,7 @@ watch(expandedRows, (newVal) => {
             editForm.joining_date = null;
             
             editForm.license_number = driver.license_number;
-            editForm.license_expiry_date = driver.license_expiry_date ? new Date(driver.license_expiry_date) : null;
+            editForm.license_expiry_date = driver.license_expiry_date ? entityCalendarDate(driver.license_expiry_date) : null;
             editForm.license_type = driver.license_type || 'HMV';
             editForm.status = driver.status;
         }
@@ -175,8 +175,8 @@ const deleteDriver = (id: number) => {
 // Calculate Days to Expiry for visual indicators
 const getExpiryStatus = (expiryDateStr: string | null) => {
     if (!expiryDateStr) return { text: 'N/A', severity: 'info', class: 'bg-slate-100 text-slate-500' };
-    const expiry = new Date(expiryDateStr);
-    const today = new Date();
+    const expiry = entityCalendarDate(expiryDateStr);
+    const today = entityCalendarDate();
     today.setHours(0, 0, 0, 0);
     
     const diffTime = expiry.getTime() - today.getTime();

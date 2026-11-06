@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityToday, entityLocaleDate, entityInstant } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
 import axios from 'axios';
@@ -386,7 +386,7 @@ const handleCreate = () => {
                                 class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                                 <td class="px-4 py-2 font-medium text-slate-900 dark:text-slate-100">
                                     {{ inv.full_number }}
-                                    <span v-if="inv.due_date && new Date(inv.due_date) < new Date()"
+                                    <span v-if="inv.due_date && entityInstant(inv.due_date) < new Date()"
                                         class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                                         Overdue
                                     </span>

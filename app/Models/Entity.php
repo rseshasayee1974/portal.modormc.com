@@ -51,9 +51,14 @@ class Entity extends Model
 
     protected $attributes = ['time_zone' => 'Asia/Kolkata'];
 
+    public function getTimeZoneAttribute(): string
+    {
+        return \App\Helpers\DateTimeHelper::TIMEZONE;
+    }
+
     public function setTimeZoneAttribute(?string $value): void
     {
-        $this->attributes['time_zone'] = trim($value ?? '') ?: 'Asia/Kolkata';
+        $this->attributes['time_zone'] = \App\Helpers\DateTimeHelper::TIMEZONE;
     }
 
 	protected $casts = [

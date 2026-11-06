@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityLocaleTime, entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityLocaleTime, entityLocaleDate, entityCalendarDate, calendarDateString, calendarDateTimeString } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
@@ -80,7 +80,7 @@ const props = defineProps<{
 const page = usePage();
 const editingId = ref<number | null>(null);
 const expandedRows = ref<Record<number, boolean>>({});
-const attendanceDate = ref<Date>(new Date());
+const attendanceDate = ref<Date>(entityCalendarDate());
 const selectedDepartmentId = ref<number | null>(null);
 const searchQuery = ref<string>('');
 const tableFilters = ref({
@@ -107,7 +107,7 @@ const initializeRows = () => {
         let defaultCheckIn: Date | null = null;
         let defaultCheckOut: Date | null = null;
 
-        const baseDate = attendanceDate.value ? new Date(attendanceDate.value) : new Date();
+        const baseDate = attendanceDate.value ? new Date(attendanceDate.value) : entityCalendarDate();
 
         if (p.shift_start_time) {
             const [sh, sm, ss] = p.shift_start_time.split(':').map(Number);
@@ -321,9 +321,9 @@ const editAttendance = (att: Attendance) => {
     editingId.value = att.id;
     singleForm.personnel_id = att.personnel_id;
     singleForm.shift_id = att.shift_id;
-    singleForm.attendance_date = att.attendance_date ? new Date(att.attendance_date) : new Date();
-    singleForm.check_in = att.check_in ? new Date(att.check_in) : null;
-    singleForm.check_out = att.check_out ? new Date(att.check_out) : null;
+    singleForm.attendance_date = att.attendance_date ? entityCalendarDate(att.attendance_date) : entityCalendarDate();
+    singleForm.check_in = att.check_in ? entityCalendarDate(att.check_in) : null;
+    singleForm.check_out = att.check_out ? entityCalendarDate(att.check_out) : null;
     singleForm.worked_hours = Number(att.worked_hours);
     singleForm.overtime_hours = Number(att.overtime_hours);
     singleForm.late_hours = Number(att.late_hours);
@@ -345,7 +345,11 @@ const resetSingleEdit = () => {
 
 const updateSingleAttendance = () => {
     if (!editingId.value) return;
-    singleForm.put(route('attendances.update', editingId.value), {
+    singleForm.transform(data => ({ ...data,
+        attendance_date: calendarDateString(data.attendance_date),
+        check_in: data.check_in ? calendarDateTimeString(data.check_in) : null,
+        check_out: data.check_out ? calendarDateTimeString(data.check_out) : null,
+    })).put(route('attendances.update', editingId.value), {
         onSuccess: () => resetSingleEdit(),
     });
 };
@@ -356,8 +360,8 @@ const submitDepartmentAttendance = () => {
         return {
             personnel_id: p.id,
             status: row?.status || 'present',
-            check_in: row?.status !== 'absent' && row?.check_in ? row.check_in : null,
-            check_out: row?.status !== 'absent' && row?.check_out ? row.check_out : null,
+            check_in: row?.status !== 'absent' && row?.check_in ? calendarDateTimeString(row.check_in) : null,
+            check_out: row?.status !== 'absent' && row?.check_out ? calendarDateTimeString(row.check_out) : null,
             worked_hours: row?.worked_hours || 0,
             overtime_hours: row?.overtime_hours || 0,
             late_hours: row?.late_hours || 0,
@@ -374,7 +378,7 @@ const submitDepartmentAttendance = () => {
     }
 
     const payload = {
-        attendance_date: attendanceDate.value ? entityLocaleDate(attendanceDate.value, 'en-CA') : entityLocaleDate(new Date(), 'en-CA'),
+        attendance_date: calendarDateString(attendanceDate.value || entityCalendarDate()),
         attendances: listToSubmit,
     };
 

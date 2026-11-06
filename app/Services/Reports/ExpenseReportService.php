@@ -26,8 +26,8 @@ class ExpenseReportService implements ReportServiceInterface
             'employee_id' => 'nullable|integer|min:1',
             'expense_type_id' => 'nullable|integer|min:1',
         ])->validate();
-        $start = Carbon::parse($params['start'])->toDateString();
-        $end = Carbon::parse($params['end'])->toDateString();
+        $start = Carbon::parse($params['start'])->setTimezone(config('app.timezone'))->toDateString();
+        $end = Carbon::parse($params['end'])->setTimezone(config('app.timezone'))->toDateString();
         $expenses = Expense::where('plant_id', $this->ctx->requirePlantId())
             ->whereBetween('date', [$start, $end])
             ->when(!empty($params['expense_type_id']), fn ($q) => $q->where('expense_type_id', $params['expense_type_id']))

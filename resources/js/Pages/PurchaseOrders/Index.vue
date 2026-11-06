@@ -1,5 +1,5 @@
 <script setup>
-import { entityCalendarDate } from '@/Utils/entityDateTime';
+import { entityCalendarDate, entityInstant } from '@/Utils/entityDateTime';
 import { APP_LOCALE } from '@/Utils/locale';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, watch, computed } from 'vue';
@@ -65,15 +65,15 @@ const filteredPurchaseOrders = computed(() => {
     let result = props.purchaseOrders;
 
     if (dateFrom.value) {
-        const from = new Date(dateFrom.value);
+        const from = entityInstant(dateFrom.value);
         from.setHours(0, 0, 0, 0);
-        result = result.filter(po => new Date(po.date_order) >= from);
+        result = result.filter(po => entityInstant(po.date_order) >= from);
     }
 
     if (dateTo.value) {
-        const to = new Date(dateTo.value);
+        const to = entityInstant(dateTo.value);
         to.setHours(23, 59, 59, 999);
-        result = result.filter(po => new Date(po.date_order) <= to);
+        result = result.filter(po => entityInstant(po.date_order) <= to);
     }
 
     return result;

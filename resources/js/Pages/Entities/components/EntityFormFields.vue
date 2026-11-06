@@ -100,8 +100,8 @@ watch(() => props.form.errors, (errors) => {
 
                     <!-- Alias -->
                     <div class="col-span-12 md:col-span-3">
-                        <BaseInput v-model="form.time_zone" label="Timezone" :disabled="readonly" placeholder="Asia/Kolkata" fluid />
-                        <small class="text-gray-500">Business dates and times use this timezone (e.g. America/New_York). Blank uses Asia/Kolkata.</small>
+                        <BaseInput modelValue="Asia/Kolkata" label="Timezone" disabled fluid />
+                        <small class="text-gray-500">All business dates and times use IST (UTC+05:30).</small>
                         <small v-if="form.errors?.time_zone" class="text-red-500">{{ form.errors.time_zone }}</small>
                     </div>
                     <div class="col-span-12 md:col-span-3 flex flex-col gap-1">

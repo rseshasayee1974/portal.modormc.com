@@ -37,8 +37,8 @@ class BatchingDashboardController extends Controller
         $startDateInput = $request->input('start_date');
         $endDateInput = $request->input('end_date');
 
-        $start = $startDateInput ? Carbon::parse($startDateInput)->startOfDay() : now()->subDays(29)->startOfDay();
-        $end = $endDateInput ? Carbon::parse($endDateInput)->endOfDay() : now()->endOfDay();
+        $start = $startDateInput ? Carbon::parse($startDateInput)->setTimezone(config('app.timezone'))->startOfDay() : now()->subDays(29)->startOfDay();
+        $end = $endDateInput ? Carbon::parse($endDateInput)->setTimezone(config('app.timezone'))->endOfDay() : now()->endOfDay();
 
         $payload = app(\App\Services\ProductionReadCache::class)->remember('dashboard', $plantId, [$start->toDateString(), $end->toDateString()], function () use ($plantId, $start, $end) {
             // 1. Core KPIs

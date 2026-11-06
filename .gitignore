@@ -38,6 +38,10 @@ tests/
 /tests/Feature/*
 !/tests/Feature/EinvoiceAuthTest.php
 !/tests/Feature/SalesOrderEmailTest.php
+!/tests/Feature/OverallReportDispatchTest.php
+!/tests/Feature/StockExhaustPricingTest.php
+!/tests/Feature/IstTimezoneTest.php
+!/tests/Standalone/entity-date-time.mjs
 !/tests/Feature/DashboardPlantAccessTest.php
 !/tests/Feature/InvoiceNumberFormatTest.php
 !/tests/Feature/BatchSeriesNumberTest.php

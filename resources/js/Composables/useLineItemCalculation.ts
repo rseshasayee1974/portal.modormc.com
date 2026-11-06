@@ -6,6 +6,7 @@ export interface LineItemCalculationParams {
     isTaxInclusive: boolean;
     discount?: number;
     discountType?: string | null;
+    roundAmounts?: boolean;
 }
 
 export interface LineItemCalculationResult {
@@ -32,7 +33,8 @@ export function calculateLineItemTotals(
     const pumpCharge = pumpRate;
     const grossLine = qty * rate + pumpCharge;
     const discountValue = Math.max(0, Number(params.discount || 0));
-    const discountAmount = Math.min(grossLine, Number((params.discountType === '%' ? grossLine * discountValue / 100 : discountValue).toFixed(2)));
+    const amount = (value: number) => params.roundAmounts === false ? value : Number(value.toFixed(2));
+    const discountAmount = Math.min(grossLine, amount(params.discountType === '%' ? grossLine * discountValue / 100 : discountValue));
 
     let materialUntaxed = 0;
     let materialTax = 0;
@@ -74,14 +76,14 @@ export function calculateLineItemTotals(
 
     return {
         discountAmount,
-        materialUntaxed: Number(materialUntaxed.toFixed(2)),
-        materialTax: Number(materialTax.toFixed(2)),
-        materialTotal: Number(materialTotal.toFixed(2)),
-        pumpCharge: Number(pumpCharge.toFixed(2)),
-        untaxedAmount: Number(untaxedAmount.toFixed(2)),
-        taxAmount: Number(taxAmount.toFixed(2)),
-        amountTotal: Number(amountTotal.toFixed(2)),
-        grossAmount: Number(grossAmount.toFixed(2)),
+        materialUntaxed: amount(materialUntaxed),
+        materialTax: amount(materialTax),
+        materialTotal: amount(materialTotal),
+        pumpCharge: amount(pumpCharge),
+        untaxedAmount: amount(untaxedAmount),
+        taxAmount: amount(taxAmount),
+        amountTotal: amount(amountTotal),
+        grossAmount: amount(grossAmount),
     };
 }
 

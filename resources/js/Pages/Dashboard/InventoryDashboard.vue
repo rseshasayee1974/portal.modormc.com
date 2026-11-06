@@ -1,6 +1,6 @@
 <script setup>
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityLocaleDate, entityInstant } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed, defineAsyncComponent } from 'vue';
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
@@ -72,7 +72,7 @@ const formatNumber = (val) => {
 
 const formatRelativeTime = (isoString) => {
     if (!isoString) return 'Just now';
-    const date = new Date(isoString);
+    const date = entityInstant(isoString);
     const diffMs = new Date() - date;
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins < 1) return 'Just now';

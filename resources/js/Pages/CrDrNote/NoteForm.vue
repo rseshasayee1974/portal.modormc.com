@@ -12,7 +12,7 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import { DocumentTextIcon } from '@heroicons/vue/24/outline';
-import { entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import { useNoteItems } from './useNoteItems';
 
 const props = defineProps({ documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
@@ -23,7 +23,7 @@ const reasons = {
     debit_note: ['Purchase Return', 'Bill Adjustment', 'Goods Returned to Supplier', 'Short Billing by Supplier', 'Rate / Price Adjustment', 'Additional Charges', 'Tax Correction', 'Bill Correction'],
 };
 const types = [{ label: 'Credit Note', value: 'credit_note' }, { label: 'Debit Note', value: 'debit_note' }];
-const form = useForm({ items: [], is_tax_inclusive: false, source_id: null, invoice_number: '', note_type: 'credit_note', note_date: new Date(), reason: defaults.credit_note });
+const form = useForm({ items: [], is_tax_inclusive: false, source_id: null, invoice_number: '', note_type: 'credit_note', note_date: entityCalendarDate(), reason: defaults.credit_note });
 const reasonOptions = computed(() => [...new Set([defaults[form.note_type], ...reasons[form.note_type]])]
     .map(value => ({ label: value, value })));
 const selectedPartnerId = ref(null);

@@ -152,8 +152,8 @@ console.log(currentBatch,'batch');
                 loaded_weight_time_load: currentDispatch.load_time ? entityCalendarDate(currentDispatch.load_time) : null,
                 empty_weight_unload: Number(currentDispatch.empty_weight_unload || 0),
                 loaded_weight_unload: Number(currentDispatch.loaded_weight_unload || 0),
-                empty_weight_time_unload: currentDispatch.empty_weight_time_unload ? new Date(currentDispatch.empty_weight_time_unload) : null,
-                loaded_weight_time_unload: currentDispatch.loaded_weight_time_unload ? new Date(currentDispatch.loaded_weight_time_unload) : null,
+                empty_weight_time_unload: currentDispatch.empty_weight_time_unload ? entityCalendarDate(currentDispatch.empty_weight_time_unload) : null,
+                loaded_weight_time_unload: currentDispatch.loaded_weight_time_unload ? entityCalendarDate(currentDispatch.loaded_weight_time_unload) : null,
                 round_off: Number(currentDispatch.round_off || 0)
             },
 

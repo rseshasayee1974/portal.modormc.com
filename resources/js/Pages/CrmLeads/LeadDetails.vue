@@ -4,6 +4,7 @@ Created: 2026-10-09 12:31:49 Asia/Calcutta (UTC+05:30)
 -->
 <script setup>
 import { ref, watch, computed } from 'vue';
+import { entityLocaleDateTime, entityInstant } from '@/Utils/entityDateTime';
 import { useForm, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -45,7 +46,7 @@ const convert = () => conversion.post(route('crm.leads.convert', props.leadId), 
 const saveDeal = () => dealForm.put(route('crm.leads.deal', props.leadId), refreshOptions);
 const uploadFile = () => upload.post(route('crm.leads.attach', props.leadId), { ...refreshOptions, forceFormData: true, onSuccess: () => { upload.reset(); uploadVersion.value++; load(); } });
 const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(value || 0));
-const dateTime = value => value ? new Date(value).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—';
+const dateTime = value => entityLocaleDateTime(value, 'en-IN');
 const outstandingTasks = computed(() => lead.value?.activities.filter(item => !item.completed_at && item.due_at) || []);
 const tabs = computed(() => ['Overview', 'Activities', 'Attachments', ...(lead.value?.deal ? ['Deal'] : [])]);
 </script>
@@ -88,7 +89,7 @@ const tabs = computed(() => ['Overview', 'Activities', 'Attachments', ...(lead.v
                         <article v-for="item in lead.activities" :key="item.id" class="border border-slate-200 rounded-xl p-4">
                             <div class="flex justify-between gap-3"><div><p class="text-xs font-semibold text-indigo-600">{{ item.type }} · {{ item.creator?.username || 'System' }}</p><h4 class="font-semibold mt-1">{{ item.subject }}</h4></div><span class="text-xs text-slate-400">{{ dateTime(item.created_at) }}</span></div>
                             <p class="text-sm text-slate-600 mt-2 whitespace-pre-line">{{ item.description }}</p>
-                            <div v-if="item.due_at" class="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs"><span :class="!item.completed_at && new Date(item.due_at) < new Date() ? 'text-rose-600 font-semibold' : 'text-slate-500'">Due: {{ dateTime(item.due_at) }} · {{ item.owner?.username || 'Unassigned' }}</span><span v-if="item.completed_at" class="text-emerald-600">Completed</span><button v-else-if="can('CRM_LEAD.UPDATE')" class="crm-button" @click="complete(item.id)">Mark Complete</button></div>
+                            <div v-if="item.due_at" class="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs"><span :class="!item.completed_at && entityInstant(item.due_at) < new Date() ? 'text-rose-600 font-semibold' : 'text-slate-500'">Due: {{ dateTime(item.due_at) }} · {{ item.owner?.username || 'Unassigned' }}</span><span v-if="item.completed_at" class="text-emerald-600">Completed</span><button v-else-if="can('CRM_LEAD.UPDATE')" class="crm-button" @click="complete(item.id)">Mark Complete</button></div>
                         </article>
                         <p v-if="!lead.activities.length" class="text-sm text-slate-500">No activities yet.</p>
                     </div>

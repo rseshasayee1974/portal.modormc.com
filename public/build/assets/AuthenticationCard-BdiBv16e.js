@@ -1,0 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/AuthenticationCard-ydmRzFLv.js
+import{_ as s,o as e,g as a,d as r,f as t}from"./app-WydiTStG.js";const d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},o=s({},[["render",function(s,o){return e(),a("div",d,[r("div",null,[t(s.$slots,"logo")]),r("div",l,[t(s.$slots,"default")])])}]]);export{o as A};
+========
+import{_ as s,o as e,g as a,d as r,f as t}from"./app-DXnCKq5y.js";const d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},l={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"},o=s({},[["render",function(s,o){return e(),a("div",d,[r("div",null,[t(s.$slots,"logo")]),r("div",l,[t(s.$slots,"default")])])}]]);export{o as A};
+>>>>>>>> 14a329ff89f3de62fd8a6696d1fe6162ba58575e:public/build/assets/AuthenticationCard-BdiBv16e.js

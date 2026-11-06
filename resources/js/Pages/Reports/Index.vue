@@ -1,6 +1,6 @@
 <script setup>
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityLocaleDateTime } from '@/Utils/entityDateTime';
+import { entityLocaleDateTime, entityCalendarDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { useForm, router, Link } from '@inertiajs/vue3';
@@ -665,8 +665,8 @@ const monthOptions = computed(() => {
         if (!dStr) return null;
         if (typeof dStr !== 'string') dStr = String(dStr);
         if (dStr.includes('T')) {
-            const d = new Date(dStr);
-            if (!isNaN(d.getTime())) {
+            const d = entityCalendarDate(dStr);
+            if (d && !isNaN(d.getTime())) {
                 const year = d.getFullYear();
                 const month = String(d.getMonth() + 1).padStart(2, '0');
                 const day = String(d.getDate()).padStart(2, '0');
@@ -690,7 +690,7 @@ const monthOptions = computed(() => {
         });
     }
 
-    const now = new Date();
+    const now = entityCalendarDate();
     for (let i = 0; i < 18; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const year = d.getFullYear();

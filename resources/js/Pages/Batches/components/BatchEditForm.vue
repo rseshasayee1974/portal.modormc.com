@@ -612,8 +612,8 @@ const parseTimeString = (timeStr: any): Date | null => {
         d.setHours(parts[0], parts[1], parts[2] || 0, 0);
         return d;
     }
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
+    const d = entityCalendarDate(s);
+    return d;
 };
 
 const applyHeaderData = (header: any) => {
@@ -824,8 +824,8 @@ const fetchConsumption = async () => {
 
         if (data?.mat?.length) {
             applyMaterialData(data.mat);
-            if (data.end) form.end_time = new Date(data.end);
-            if (data.start) form.start_time = new Date(data.start);
+            if (data.end) form.end_time = entityCalendarDate(data.end);
+            if (data.start) form.start_time = entityCalendarDate(data.start);
             isConsumptionSynced.value = true;
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Consumption synced', showConfirmButton: false, timer: 1500 });
         } else {

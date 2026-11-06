@@ -27,7 +27,7 @@ const props = defineProps({
 
         <!-- Table Grid -->
         <div class="overflow-x-auto border border-slate-200 rounded">
-            <table class="w-full text-left border-collapse min-w-[800px]">
+            <table class="w-full text-left border-collapse min-w-[950px]">
                 <thead>
                     <tr
                         class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
@@ -38,6 +38,7 @@ const props = defineProps({
                         <th class="py-3 px-4" width="20%">Supplier / Vendor</th>
                         <th class="py-3 px-4" width="15%">Product</th>
                         <th class="py-3 px-4 text-right" width="12%">Quantity</th>
+                        <th class="py-3 px-4 text-right">Conversion Quantity</th>
                         <th class="py-3 px-4 text-center" width="12%">Truck No</th>
                     </tr>
                 </thead>
@@ -53,12 +54,14 @@ const props = defineProps({
                         <td class="py-3 px-4 text-right font-black text-[#1d2d3e] bg-slate-50/55">
                             {{ row.quantity }} <span class="text-[10px] text-slate-400">{{ row.uom }}</span>
                         </td>
+                        <td class="py-3 px-4 text-right whitespace-nowrap">{{ row.conversion_quantity_display }}</td>
                         <td class="py-3 px-4 text-center text-slate-600">{{ row.truck_no }}</td>
                     </tr>
                     <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                         <td colspan="6" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Goods Inward</td>
                         <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ reportData.total_quantity }}
                         </td>
+                        <td></td>
                         <td></td>
                     </tr>
                 </tbody>

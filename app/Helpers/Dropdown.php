@@ -605,7 +605,11 @@ if (!function_exists('TaxesDropdown')) {
                 ->select('id', 'tax_name', 'tax_rate', 'tax_group', 'tax_type', 'status');
 
             if ($taxType !== null) {
-                $query->where('tax_type', $taxType);
+                if (is_array($taxType)) {
+                    $query->whereIn('tax_type', $taxType);
+                } else {
+                    $query->where('tax_type', $taxType);
+                }
             }
 
             if ($taxGroup !== null) {

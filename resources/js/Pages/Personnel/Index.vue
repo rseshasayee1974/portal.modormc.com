@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { entityCalendarDate } from '@/Utils/entityDateTime';
+import { entityCalendarDate, calendarDateString } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
@@ -130,16 +130,7 @@ const getInitialForm = () => ({
     salary_structures: [] as any[],
 });
 
-const formatDateStr = (val: any): string | null => {
-    if (!val) return null;
-    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-    const d = val instanceof Date ? val : new Date(String(val).split('T')[0]);
-    if (isNaN(d.getTime())) return null;
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-};
+const formatDateStr = (val: any): string | null => val ? calendarDateString(val) : null;
 
 const formatTimeStr = (val: any): string | null => {
     if (!val) return null;

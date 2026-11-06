@@ -27,7 +27,7 @@ const props = withDefaults(defineProps<{
     pumpRates?: any[];
 }>(), {
     customerPO: () => ({}),
-    quotations: () => [],   
+    quotations: () => [],
     patrons: () => [],
     sites: () => [],
     mixDesigns: () => [],
@@ -42,7 +42,7 @@ const emit = defineEmits<{
     (e: 'saved'): void;
     (e: 'cancel'): void;
 }>();
-const { isAdmin , isSuperAdmin , isSassOwner} = usePermissions();
+const { isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
 const admin = isAdmin.value || isSuperAdmin.value || isSassOwner.value;
 
 // Editing is locked once status is confirmed (status !== 0 / Draft), unless admin/privileged
@@ -187,9 +187,9 @@ const getCustomerPOCompletedQty = (customerPO: any) => {
 
 const canDeleteCustomerPO = (customerPO: any): boolean => {
     if (!customerPO || !customerPO.id) return true;
-    
+
     const completedQty = getCustomerPOCompletedQty(customerPO);
-    
+
     return completedQty === 0 || isAdmin.value;
 };
 
@@ -342,7 +342,7 @@ watch(() => [form.quantity, form.rate, form.tax_id, form.pump_rate, form.is_tax_
 const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     if (!item.mix_design_id) return;
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
-    
+
     if (item.concrete_pump) {
         const matched = resolved.find((r: any) => String(r.concrete_pump).toLowerCase() === String(item.concrete_pump).toLowerCase());
         if (matched) {
@@ -380,7 +380,7 @@ const onMixDesignChange = (index: number) => {
     const design = props.mixDesigns?.find((p: any) => p.id === item.mix_design_id);
     if (design) {
         if (!item.rate) item.rate = Number(design.rate || 0);
-        
+
         // Remove from excluded list if re-selected/changed
         const designId = Number(item.mix_design_id);
         excludedMixDesignPumpRates.value = excludedMixDesignPumpRates.value.filter(id => id !== designId);
@@ -393,7 +393,7 @@ const onSingleMixDesignChange = () => {
     const design = props.mixDesigns?.find((p: any) => p.id === form.mix_design_id);
     if (design) {
         if (!form.rate) form.rate = Number(design.rate || 0);
-        
+
         // Remove from excluded list if re-selected/changed
         const designId = Number(form.mix_design_id);
         excludedMixDesignPumpRates.value = excludedMixDesignPumpRates.value.filter(id => id !== designId);
@@ -406,7 +406,7 @@ const excludedMixDesignPumpRates = ref<number[]>([]);
 
 const uniqueSelectedMixDesignIds = computed(() => {
     const ids = new Set<number>();
-    
+
     // Check form items list
     if (form.items && form.items.length) {
         form.items.forEach(item => {
@@ -415,12 +415,12 @@ const uniqueSelectedMixDesignIds = computed(() => {
             }
         });
     }
-    
+
     // Check form single item
     if (form.mix_design_id && !excludedMixDesignPumpRates.value.includes(Number(form.mix_design_id))) {
         ids.add(Number(form.mix_design_id));
     }
-    
+
     return Array.from(ids);
 });
 
@@ -475,7 +475,7 @@ const calculatedTotals = computed(() => {
 const quotationOptions = computed(() => {
     // Filter out quotations that have an active sales order
     const list = props.quotations.filter((q) => !q.is_customer_po || Number(q.is_customer_po) !== 1);
-    
+
     // Ensure the current sales order's linked quotation is included in the options list
     if (props.customerPO?.quotation) {
         const exists = list.some((q) => Number(q.id) === Number(props.customerPO.quotation.id));
@@ -514,7 +514,7 @@ const submit = () => {
         // Direct Customer PO: validate items
         let hasError = false;
         form.clearErrors();
-        
+
         if (!form.patron_id) {
             form.setError('patron_id', 'Customer is required.');
             hasError = true;
@@ -523,7 +523,7 @@ const submit = () => {
             form.setError('site_id', 'Site is required.');
             hasError = true;
         }
-        
+
         form.items.forEach((item, idx) => {
             if (!item.mix_design_id) {
                 form.setError(`items.${idx}.mix_design_id` as any, 'Mix Design is required.');
@@ -577,15 +577,15 @@ const performSubmit = (customerPOId: any) => {
     form.transform((data) => {
         const isSingleItem = !data.quotation_id && data.items.length <= 1;
         const isSingleQuote = data.quotation_id && (props.customerPO?.quotation?.items?.length === 1 || props.customerPO?.items?.length === 1);
-        
+
         let concrete_pump = null;
         let pump_rate = 0;
-        
+
         if (isSingleItem || isSingleQuote) {
             concrete_pump = data.concrete_pump;
             pump_rate = data.pump_rate;
         }
-        
+
         return {
             ...data,
             ...(hasFiles ? { _method: 'PUT' } : {}),
@@ -595,7 +595,7 @@ const performSubmit = (customerPOId: any) => {
                 ...item,
                 concrete_pump: item.concrete_pump ?? null,
                 pump_rate: Number(item.pump_rate || 0),
-                pump_rates: item.concrete_pump 
+                pump_rates: item.concrete_pump
                     ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                     : []
             }))
@@ -626,9 +626,11 @@ const performSubmit = (customerPOId: any) => {
             </span>
         </div>
 
-        <div v-if="isLocked" class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium flex items-center gap-2">
+        <div v-if="isLocked"
+            class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium flex items-center gap-2">
             <i class="pi pi-lock text-amber-600"></i>
-            <span>This Customer PO is confirmed and locked. Editing is only permitted while in <strong>Draft</strong> status.</span>
+            <span>This Customer PO is confirmed and locked. Editing is only permitted while in <strong>Draft</strong>
+                status.</span>
         </div>
 
         <div class="grid grid-cols-12 md:grid-cols-5 gap-x-4 gap-y-3">
@@ -641,101 +643,70 @@ const performSubmit = (customerPOId: any) => {
                 />
             </div> -->
             <div class="col-span-12 md:col-span-1">
-                <BaseInput v-model="form.reference" label="Customer PO Reference Number" required :disabled="isLocked" :error="form.errors.reference" />
+                <BaseInput v-model="form.reference" label="Customer PO Reference Number" required :disabled="isLocked"
+                    :error="form.errors.reference" />
             </div>
-           
+
 
             <div class="col-span-12 md:col-span-1">
-                <BaseSelect
-                    v-model="form.patron_id"
-                    :options="patrons"
-                    optionLabel="legal_name"
-                    optionValue="id"
-                    filter
-                    label="Customer"
-                    placeholder="Select Customer"
-                    :disabled="!!form.quotation_id"
-                    :error="form.errors.patron_id"
-                />
-                <span v-if="form.quotation_id" class="text- text-indigo-600 mt-1 block font-medium">Locked to Quotation Customer</span>
+                <BaseSelect v-model="form.patron_id" :options="patrons" optionLabel="legal_name" optionValue="id" filter
+                    label="Customer" placeholder="Select Customer" :disabled="!!form.quotation_id"
+                    :error="form.errors.patron_id" />
+                <span v-if="form.quotation_id" class="text- text-indigo-600 mt-1 block font-medium">Locked to Quotation
+                    Customer</span>
             </div>
 
             <div class="col-span-12 md:col-span-1">
-                <BaseSelect
-                    v-model="form.site_id"
-                    :options="filteredSites"
-                    optionLabel="name"
-                    optionValue="id"
-                    filter
-                    label="Unloading Site"
-                    placeholder="Select Site"
-                    :disabled="!!form.quotation_id"
-                    :error="form.errors.site_id"
-                />
-                <span v-if="form.quotation_id" class="text- text-indigo-600 mt-1 block font-medium">Locked to Quotation Site</span>
-            </div>
- <div class="col-span-12 md:col-span-1">
-                <BaseSelect
-                    v-model="form.sales_executive_id"
-                    :options="salesExecutiveOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    filter
-                    label="Sales Executive"
-                    placeholder="Select Sales Executive"
-                    :error="form.errors.sales_executive_id"
-                />
+                <BaseSelect v-model="form.site_id" :options="filteredSites" optionLabel="name" optionValue="id" filter
+                    label="Unloading Site" placeholder="Select Site" :disabled="!!form.quotation_id"
+                    :error="form.errors.site_id" />
+                <span v-if="form.quotation_id" class="text- text-indigo-600 mt-1 block font-medium">Locked to Quotation
+                    Site</span>
             </div>
             <div class="col-span-12 md:col-span-1">
-                <BaseDatePicker
-                    fluid
-                    hourFormat="24"
-                    label="Order Date"
-                    v-model="form.order_date"
-                    :error="form.errors.order_date"
-                />
+                <BaseSelect v-model="form.sales_executive_id" :options="salesExecutiveOptions" optionLabel="label"
+                    optionValue="value" filter label="Sales Executive" placeholder="Select Sales Executive"
+                    :error="form.errors.sales_executive_id" />
+            </div>
+            <div class="col-span-12 md:col-span-1">
+                <BaseDatePicker fluid hourFormat="24" label="Order Date" v-model="form.order_date"
+                    :error="form.errors.order_date" />
             </div>
 
             <div class="col-span-12 md:col-span-1">
-                <BaseSelect
-                    v-model="form.status"
-                    :options="[
-                        { label: 'Draft', value: 0 },
-                        { label: 'Confirmed', value: 1 },
-                        { label: 'Completed', value: 2 }
-                    ]"
-                    optionLabel="label"
-                    optionValue="value"
-                    label="Status"
-                    placeholder="Select Status"
-                    :error="form.errors.status"
-                />
+                <BaseSelect v-model="form.status" :options="[
+                    { label: 'Draft', value: 0 },
+                    { label: 'Confirmed', value: 1 },
+                    { label: 'Completed', value: 2 }
+                ]" optionLabel="label" optionValue="value" label="Status" placeholder="Select Status"
+                    :error="form.errors.status" />
             </div>
 
             <!-- Customer PO Reference -->
             <div class="col-span-12 md:col-span-1">
-                <BaseInput
-                    v-model="form.customer_po_reference"
-                    label="Customer PO Ref No"
-                    placeholder="Customer's PO / order reference"
-                    :error="form.errors.customer_po_reference"
-                />
+                <BaseInput v-model="form.customer_po_reference" label="Customer PO Ref No"
+                    placeholder="Customer's PO / order reference" :error="form.errors.customer_po_reference" />
             </div>
 
             <!-- Direct Sales Order: Show multi-item list -->
             <template v-if="!form.quotation_id">
                 <div class="col-span-12 md:col-span-5 border-t border-gray-200 pt-4 mt-2">
                     <div class="flex justify-between items-center mb-3">
-                        <span class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                                            <CalculatorIcon class="w-3.5 h-3.5" />
+                        <span
+                            class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                            <CalculatorIcon class="w-3.5 h-3.5" />
 
                             Estimation Details
                         </span>
-                            <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
-                                <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
-                                <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_1" :disabled="!!form.quotation_id" class="peer hidden" />
-                                <label for="is_tax_inclusive_po_edit_1" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
-                            </div>
+                        <div
+                            class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive
+                                Rates</span>
+                            <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_1"
+                                :disabled="!!form.quotation_id" class="peer hidden" />
+                            <label for="is_tax_inclusive_po_edit_1"
+                                class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                        </div>
                     </div>
 
                     <div class="rounded-md border border-slate-200 shadow-sm overflow-visible">
@@ -750,30 +721,28 @@ const performSubmit = (customerPOId: any) => {
                                     <th class="px-4 py-3 text-center w-32">Pump Rate (₹)</th>
                                     <th class="px-4 py-3 text-right w-36">Total (Incl. Tax)</th>
                                     <th class="px-4 py-3 w-12">
-                                        <button type="button" @click="addItem" class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
-                                            <PlusIcon class="w-5 h-5 m-1 border shadow-sm hover:bg-indigo-100 border-gray-400 rounded-md" />
+                                        <button type="button" @click="addItem"
+                                            class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
+                                            <PlusIcon
+                                                class="w-5 h-5 m-1 border shadow-sm hover:bg-indigo-100 border-gray-400 rounded-md" />
                                         </button>
                                     </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 bg-white">
-                                <tr v-for="(item, idx) in form.items" :key="idx" class="group hover:bg-slate-50/50 transition-colors">
+                                <tr v-for="(item, idx) in form.items" :key="idx"
+                                    class="group hover:bg-slate-50/50 transition-colors">
                                     <td class="relative p-2 max-w-[260px] overflow-visible">
                                         <div class="flex items-center gap-2">
                                             <div class="flex-1 min-w-0">
-                                                <BaseSelect
-                                                    v-model="item.mix_design_id"
-                                                    :options="mixDesignOptions"
-                                                    optionLabel="label"
-                                                    optionValue="value"
-                                                    placeholder="Search design..."
-                                                    filter
-                                                    @update:modelValue="onMixDesignChange(idx)"
-                                                    class="w-full"
-                                                />
+                                                <BaseSelect v-model="item.mix_design_id" :options="mixDesignOptions"
+                                                    optionLabel="label" optionValue="value"
+                                                    placeholder="Search design..." filter
+                                                    @update:modelValue="onMixDesignChange(idx)" class="w-full" />
                                             </div>
                                             <!-- Info Button Popover -->
-                                            <RecipePopover :mixDesignId="item.mix_design_id" :mixDesigns="props.mixDesigns" />
+                                            <RecipePopover :mixDesignId="item.mix_design_id"
+                                                :mixDesigns="props.mixDesigns" />
                                         </div>
                                     </td>
                                     <td class="p-3">
@@ -782,45 +751,28 @@ const performSubmit = (customerPOId: any) => {
                                     <td class="p-3">
                                         <BaseInputNumber v-model="item.rate" prefix="₹" :minFractionDigits="2" />
                                     </td>
-                                       <td class="p-3">
-                                        <BaseSelect
-                                            v-model="item.tax_id"
-                                            :options="taxOptions"
-                                            optionLabel="label"
-                                            optionValue="value"
-                                            placeholder="None"
-                                            clearable
-                                        />
+                                    <td class="p-3">
+                                        <BaseSelect v-model="item.tax_id" :options="taxOptions" optionLabel="label"
+                                            optionValue="value" placeholder="None" clearable />
                                     </td>
                                     <td class="p-2">
-                                        <BaseSelect
-                                            v-model="item.concrete_pump"
-                                            :options="props.pumpTypeOptions || []"
-                                            optionLabel="label"
-                                            optionValue="value"
-                                            placeholder="Select Type"
-                                            showClear
-                                            @update:modelValue="resolveItemPumpRate(item, true)"
-                                        />
+                                        <BaseSelect v-model="item.concrete_pump" :options="props.pumpTypeOptions || []"
+                                            optionLabel="label" optionValue="value" placeholder="Select Type" showClear
+                                            @update:modelValue="resolveItemPumpRate(item, true)" />
                                     </td>
                                     <td class="p-2">
-                                        <BaseInputNumber
-                                            v-model="item.pump_rate"
-                                            prefix="₹"
-                                            :minFractionDigits="2"
-                                        />
+                                        <BaseInputNumber v-model="item.pump_rate" prefix="₹" :minFractionDigits="2" />
                                     </td>
-                                 
+
                                     <td class="p-3 text-right font-bold text-slate-800 text-sm">
-                                        <span>₹ {{ getItemTotals(item).amountTotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                                        <span>₹ {{ getItemTotals(item).amountTotal.toLocaleString(APP_LOCALE, {
+                                            minimumFractionDigits: 2
+                                        }) }}</span>
                                     </td>
                                     <td class="p-3 text-center">
-                                        <button
-                                            type="button"
-                                            @click="removeItem(idx)"
+                                        <button type="button" @click="removeItem(idx)"
                                             class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all"
-                                            :disabled="form.items.length === 1 || !canDeleteCustomerPO(customerPO)"
-                                        >
+                                            :disabled="form.items.length === 1 || !canDeleteCustomerPO(customerPO)">
                                             <TrashIcon class="w-4 h-4" />
                                         </button>
                                     </td>
@@ -832,14 +784,20 @@ const performSubmit = (customerPOId: any) => {
             </template>
 
             <!-- Quotation-linked Customer PO with single item -->
-            <template v-else-if="form.quotation_id && (customerPO?.quotation?.items?.length === 1 || customerPO?.items?.length === 1)">
-                <div class="col-span-12 md:col-span-5 mt-2 border-t border-gray-200 pt-4 flex items-center justify-between">
+            <template
+                v-else-if="form.quotation_id && (customerPO?.quotation?.items?.length === 1 || customerPO?.items?.length === 1)">
+                <div
+                    class="col-span-12 md:col-span-5 mt-2 border-t border-gray-200 pt-4 flex items-center justify-between">
                     <span class="text-xs font-bold uppercase tracking-wide text-indigo-800 flex items-center gap-4">
                         Item Details
-                        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
-                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
-                            <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_2" :disabled="!!form.quotation_id" class="peer hidden" />
-                            <label for="is_tax_inclusive_po_edit_2" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                        <div
+                            class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive
+                                Rates</span>
+                            <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_2"
+                                :disabled="!!form.quotation_id" class="peer hidden" />
+                            <label for="is_tax_inclusive_po_edit_2"
+                                class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
                         </div>
                     </span>
                 </div>
@@ -848,87 +806,48 @@ const performSubmit = (customerPOId: any) => {
                     <div class="grid grid-cols-12 gap-3 items-start pb-3">
                         <!-- Mix Design -->
                         <div class="col-span-12 md:col-span-2">
-                            <BaseSelect
-                                v-model="form.mix_design_id"
-                                :options="mixDesignOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                filter
-                                label="Mix Design"
-                                placeholder="Select Mix Design"
-                                :error="form.errors.mix_design_id"
-                                @update:modelValue="onSingleMixDesignChange"
-                            />
+                            <BaseSelect v-model="form.mix_design_id" :options="mixDesignOptions" optionLabel="label"
+                                optionValue="value" filter label="Mix Design" placeholder="Select Mix Design"
+                                :error="form.errors.mix_design_id" @update:modelValue="onSingleMixDesignChange" />
                         </div>
 
                         <!-- Quantity -->
                         <div class="col-span-6 md:col-span-1">
-                            <BaseInput
-                                type="number"
-                                step="0.001"
-                                v-model="form.quantity"
-                                label="Qty (m³)"
-                                placeholder="0.000"
-                                :error="form.errors.quantity"
-                            />
+                            <BaseInput type="number" step="0.001" v-model="form.quantity" label="Qty (m³)"
+                                placeholder="0.000" :error="form.errors.quantity" />
                         </div>
 
                         <!-- Rate -->
                         <div class="col-span-6 md:col-span-1">
-                            <BaseInput
-                                type="number"
-                                step="0.01"
-                                v-model="form.rate"
-                                label="Rate (₹)"
-                                placeholder="0.00"
-                                :error="form.errors.rate"
-                            />
+                            <BaseInput type="number" step="0.01" v-model="form.rate" label="Rate (₹)" placeholder="0.00"
+                                :error="form.errors.rate" />
                         </div>
 
                         <!-- Pump Type -->
                         <div class="col-span-6 md:col-span-2">
-                            <BaseSelect
-                                v-model="form.concrete_pump"
-                                :options="props.pumpTypeOptions || []"
-                                optionLabel="label"
-                                optionValue="value"
-                                label="Pump Type"
-                                placeholder="Select Type"
-                                showClear
-                                @update:modelValue="resolveSinglePumpRate(true)"
-                            />
+                            <BaseSelect v-model="form.concrete_pump" :options="props.pumpTypeOptions || []"
+                                optionLabel="label" optionValue="value" label="Pump Type" placeholder="Select Type"
+                                showClear @update:modelValue="resolveSinglePumpRate(true)" />
                         </div>
 
                         <!-- Pump Rate -->
                         <div class="col-span-6 md:col-span-1">
-                            <BaseInput
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                v-model="form.pump_rate"
-                                label="Pump Rate (₹)"
-                                placeholder="0.00"
-                            />
+                            <BaseInput type="number" step="0.01" min="0" v-model="form.pump_rate" label="Pump Rate (₹)"
+                                placeholder="0.00" />
                         </div>
 
                         <!-- Tax -->
                         <div class="col-span-6 md:col-span-2">
-                            <BaseSelect
-                                v-model="form.tax_id"
-                                :options="taxOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                label="Tax"
-                                placeholder="None"
-                                clearable
-                                :error="form.errors.tax_id"
-                            />
+                            <BaseSelect v-model="form.tax_id" :options="taxOptions" optionLabel="label"
+                                optionValue="value" label="Tax" placeholder="None" clearable
+                                :error="form.errors.tax_id" />
                         </div>
 
                         <!-- Tax Amount -->
                         <div class="col-span-6 md:col-span-1">
                             <label class="block text-xs font-medium text-gray-700">Tax Amt</label>
-                            <div class="h-8 flex items-center px-2 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md">
+                            <div
+                                class="h-8 flex items-center px-2 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md">
                                 ₹{{ Number(form.tax_amount || 0).toFixed(2) }}
                             </div>
                         </div>
@@ -936,7 +855,8 @@ const performSubmit = (customerPOId: any) => {
                         <!-- Total Amount -->
                         <div class="col-span-12 md:col-span-2">
                             <label class="block text-xs font-medium text-gray-700">Total Amount</label>
-                            <div class="h-8 flex items-center px-3 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-md">
+                            <div
+                                class="h-8 flex items-center px-3 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-md">
                                 ₹{{ getSingleItemTotals().amountTotal.toFixed(2) }}
                             </div>
                         </div>
@@ -946,22 +866,28 @@ const performSubmit = (customerPOId: any) => {
 
             <!-- Quotation-linked Customer PO with multiple items -->
             <template v-else>
-                <div class="col-span-12 md:col-span-5 mt-2 border-t border-gray-200 pt-4 flex items-center justify-between">
+                <div
+                    class="col-span-12 md:col-span-5 mt-2 border-t border-gray-200 pt-4 flex items-center justify-between">
                     <span class="text-xs font-bold uppercase tracking-wide text-indigo-800 flex items-center gap-4">
                         Mix Design Items (Loaded from Quotation)
                     </span>
-                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
-                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
-                        <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_3" :disabled="!!form.quotation_id" class="peer hidden" />
-                        <label for="is_tax_inclusive_po_edit_3" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                    <div
+                        class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive
+                            Rates</span>
+                        <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_3"
+                            :disabled="!!form.quotation_id" class="peer hidden" />
+                        <label for="is_tax_inclusive_po_edit_3"
+                            class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
                     </div>
                 </div>
-                
+
                 <div class="col-span-12 md:col-span-5">
                     <div class="overflow-x-auto rounded-xl border border-indigo-50/50 bg-indigo-50/10 p-4">
                         <table class="w-full text-left border-collapse text-xs">
                             <thead>
-                                <tr class="border-b border-indigo-100 uppercase tracking-wider text-[10px] font-bold text-indigo-700">
+                                <tr
+                                    class="border-b border-indigo-100 uppercase tracking-wider text-[10px] font-bold text-indigo-700">
                                     <th class="p-2">Mix Design</th>
                                     <th class="p-2 text-right">Quantity</th>
                                     <th class="p-2 text-right">Rate</th>
@@ -973,26 +899,43 @@ const performSubmit = (customerPOId: any) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="item in form.items" :key="item.id" class="border-b border-indigo-50/50 last:border-0 font-medium text-slate-700">
+                                <tr v-for="item in form.items" :key="item.id"
+                                    class="border-b border-indigo-50/50 last:border-0 font-medium text-slate-700">
                                     <td class="p-2 text-slate-900 font-semibold font-bold">
-                                        {{ mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.title || mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.design_name || '-' }}
+                                        {{mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.title ||
+                                            mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.design_name
+                                            || '-'}}
                                     </td>
                                     <td class="p-2 text-right font-mono">{{ Number(item.quantity).toFixed(3) }} m³</td>
-                                    <td class="p-2 text-right font-mono">₹{{ Number(item.rate).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</td>
-                                    <td class="p-2 text-center font-mono">
-                                        {{ props.taxes?.find(t => Number(t.id) === Number(item.tax_id)) ? `${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_name} (${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_rate}%)` : '-' }}
+                                    <td class="p-2 text-right font-mono">₹{{
+                                        Number(item.rate).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                                     </td>
                                     <td class="p-2 text-center font-mono">
-                                        {{ (props.pumpTypeOptions || [])?.find(opt => String(opt.value).toLowerCase() === String(item.concrete_pump || '').toLowerCase())?.label || (item.concrete_pump ? String(item.concrete_pump).charAt(0).toUpperCase() + String(item.concrete_pump).slice(1) : '-') }}
+                                        {{props.taxes?.find(t => Number(t.id) === Number(item.tax_id)) ?
+                                            `${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_name}
+                                        (${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_rate}%)` :
+                                            '-'}}
+                                    </td>
+                                    <td class="p-2 text-center font-mono">
+                                        {{(props.pumpTypeOptions || [])?.find(opt => String(opt.value).toLowerCase()
+                                            === String(item.concrete_pump || '').toLowerCase())?.label ||
+                                            (item.concrete_pump ? String(item.concrete_pump).charAt(0).toUpperCase() +
+                                                String(item.concrete_pump).slice(1) : '-')}}
                                     </td>
                                     <td class="p-2 text-right font-mono">
-                                        {{ item.pump_rate ? `₹${Number(item.pump_rate).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 })}` : '-' }}
+                                        {{ item.pump_rate ? `₹${Number(item.pump_rate).toLocaleString(APP_LOCALE, {
+                                            minimumFractionDigits: 2
+                                        })}` : '-' }}
                                     </td>
                                     <td class="p-2 text-right font-mono">
-                                        ₹{{ getItemTotals(item).taxAmount.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
+                                        ₹{{ getItemTotals(item).taxAmount.toLocaleString(APP_LOCALE, {
+                                            minimumFractionDigits: 2
+                                        }) }}
                                     </td>
                                     <td class="p-2 text-right font-mono font-bold text-indigo-900">
-                                        ₹{{ getItemTotals(item).amountTotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
+                                        ₹{{ getItemTotals(item).amountTotal.toLocaleString(APP_LOCALE, {
+                                            minimumFractionDigits: 2
+                                        }) }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -1078,25 +1021,38 @@ const performSubmit = (customerPOId: any) => {
 
             <!-- Totals & Summary Block -->
 
-            <div class="col-span-12 md:col-span-5 flex flex-col md:flex-row justify-between items-start gap-8 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+            <div
+                class="col-span-12 md:col-span-5 flex flex-col md:flex-row justify-between items-start gap-8 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
                 <!-- Notes / Terms on the left -->
                 <div class="w-full md:flex-1 space-y-2">
-                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Internal Notes / Terms</label>
-                    <textarea v-model="form.notes" placeholder="Specify any additional conditions..." class="w-full h-32 rounded-2xl border-slate-200 text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 transition-all p-4" />
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Internal Notes /
+                        Terms</label>
+                    <textarea v-model="form.notes" placeholder="Specify any additional conditions..."
+                        class="w-full h-32 rounded-2xl border-slate-200 text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 transition-all p-4" />
                 </div>
 
                 <!-- Totals Card -->
-                <div class="w-full md:w-96 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-4 space-y-3 shadow-sm">
-                    <div class="flex justify-between items-center text-[12px] font-medium text-slate-600 dark:text-slate-400">
+                <div
+                    class="w-full md:w-96 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-4 space-y-3 shadow-sm">
+                    <div
+                        class="flex justify-between items-center text-[12px] font-medium text-slate-600 dark:text-slate-400">
                         <span>Subtotal (Untaxed)</span>
-                        <span class="font-bold">₹ {{ calculatedTotals.subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                        <span class="font-bold">₹ {{ calculatedTotals.subtotal.toLocaleString(APP_LOCALE, {
+                            minimumFractionDigits: 2
+                        }) }}</span>
                     </div>
-                    <div class="flex justify-between items-center text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-2">
+                    <div
+                        class="flex justify-between items-center text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-2">
                         <span>Total Taxes (+)</span>
-                        <span class="font-bold">₹ {{ calculatedTotals.tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                        <span class="font-bold">₹ {{ calculatedTotals.tax.toLocaleString(APP_LOCALE, {
+                            minimumFractionDigits: 2
+                        })
+                            }}</span>
                     </div>
                     <div class="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-3">
-                        <span class="text-[13px] font-semibold text-indigo-600 dark:text-indigo-400 tracking-[0.15em]">Grand Total</span>
+                        <span
+                            class="text-[13px] font-semibold text-indigo-600 dark:text-indigo-400 tracking-[0.15em]">Grand
+                            Total</span>
                         <span class="text-lg font-black text-slate-900 dark:text-white tracking-tighter">
                             ₹ {{ calculatedTotals.total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
                         </span>
@@ -1106,18 +1062,12 @@ const performSubmit = (customerPOId: any) => {
         </div>
 
         <RecordAttachments v-model="form.attachments" :files="props.customerPO.attachments"
-            :record-id="props.customerPO.id" download-route="customer-po.attachments.download"
-            :errors="form.errors" :disabled="form.processing || isLocked || (props.customerPO.has_salesorders && !admin)" class="mt-4" />
+            :record-id="props.customerPO.id" download-route="customer-po.attachments.download" :errors="form.errors"
+            :disabled="form.processing || isLocked || (props.customerPO.has_salesorders && !admin)" class="mt-4" />
 
         <div class="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">
-            <BaseFormActions
-                :disabled="isLocked || (props.customerPO.has_salesorders && !admin)"
-                mode="update"
-                updateLabel="Update Customer PO"
-                :loading="form.processing"
-                @submit="submit"
-                @cancel="emit('cancel')"
-            />
+            <BaseFormActions :disabled="isLocked || (props.customerPO.has_salesorders && !admin)" mode="update"
+                updateLabel="Update Customer PO" :loading="form.processing" @submit="submit" @cancel="emit('cancel')" />
         </div>
     </div>
 </template>

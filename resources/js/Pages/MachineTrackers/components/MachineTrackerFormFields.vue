@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { entityInstant } from '@/Utils/entityDateTime';
+
 import { computed } from 'vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -43,8 +45,8 @@ const consumed = computed(() => {
 });
 
 const elapsed = computed(() => {
-    const opening = props.form.opening ? new Date(props.form.opening).getTime() : NaN;
-    const closing = props.form.closing ? new Date(props.form.closing).getTime() : NaN;
+    const opening = props.form.opening ? entityInstant(props.form.opening).getTime() : NaN;
+    const closing = props.form.closing ? entityInstant(props.form.closing).getTime() : NaN;
     return Number.isFinite(opening) && Number.isFinite(closing)
         ? (closing - opening) / 3_600_000 : null;
 });

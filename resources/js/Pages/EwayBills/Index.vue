@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday } from '@/Utils/entityDateTime';
+import { entityToday, entityLocaleDateTime, entityInstant } from '@/Utils/entityDateTime';
 import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -125,8 +125,7 @@ const executeSync = () => {
 const formatDate = (val: string | null) => {
     if (!val) return '—';
     try {
-        const d = new Date(val);
-        return isNaN(d.getTime()) ? val : d.toLocaleString(APP_LOCALE, {
+        return entityLocaleDateTime(val, APP_LOCALE, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
@@ -141,7 +140,7 @@ const formatDate = (val: string | null) => {
 // Expiry warning check (is within 12 hours of expiring)
 const isExpiringSoon = (validUpto: string | null) => {
     if (!validUpto) return false;
-    const expiry = new Date(validUpto).getTime();
+    const expiry = entityInstant(validUpto).getTime();
     const now = Date.now();
     const diffHours = (expiry - now) / (1000 * 60 * 60);
     return diffHours > 0 && diffHours < 12;
@@ -149,7 +148,7 @@ const isExpiringSoon = (validUpto: string | null) => {
 
 const isExpired = (validUpto: string | null) => {
     if (!validUpto) return false;
-    return new Date(validUpto).getTime() < Date.now();
+    return entityInstant(validUpto).getTime() < Date.now();
 };
 </script>
 

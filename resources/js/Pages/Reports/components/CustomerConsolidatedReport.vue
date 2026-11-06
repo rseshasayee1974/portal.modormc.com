@@ -1,4 +1,6 @@
 <script setup>
+import { entityInstant } from '@/Utils/entityDateTime';
+
 import { ref, computed, watch } from 'vue';
 import { formatCurrency, formatQuantity } from '@/Utils/formatters';
 import { DocumentTextIcon } from '@heroicons/vue/24/outline';
@@ -101,8 +103,8 @@ const filteredTrips = computed(() => {
         );
     }
     return list.sort((a, b) => {
-        const timeA = a.dispatch_timestamp ?? (a.dispatch_time ? new Date(a.dispatch_time).getTime() : 0);
-        const timeB = b.dispatch_timestamp ?? (b.dispatch_time ? new Date(b.dispatch_time).getTime() : 0);
+        const timeA = a.dispatch_timestamp ?? (a.dispatch_time ? entityInstant(a.dispatch_time).getTime() : 0);
+        const timeB = b.dispatch_timestamp ?? (b.dispatch_time ? entityInstant(b.dispatch_time).getTime() : 0);
         if (timeA !== timeB) return timeA - timeB;
         return (a.dispatch_id || 0) - (b.dispatch_id || 0);
     });

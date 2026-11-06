@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday } from '@/Utils/entityDateTime';
+import { entityToday, entityCalendarDate, calendarDateString, entityAddDays } from '@/Utils/entityDateTime';
 import { computed, ref, watch } from 'vue';
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -66,9 +66,7 @@ const customSettings = page.props.custom_settings as any;
 const getDefaultValidityDate = (quoteDateStr: string) => {
     if (!quoteDateStr) return null;
     const days = Number(customSettings?.batching?.quote_validity ?? 5);
-    const date = new Date(quoteDateStr);
-    date.setUTCDate(date.getUTCDate() + (isNaN(days) || days <= 0 ? 5 : days));
-    return date.toISOString().substring(0, 10);
+    return entityAddDays(quoteDateStr, isNaN(days) || days <= 0 ? 5 : days);
 };
 
 const initialQuoteDate = entityToday();
@@ -462,11 +460,11 @@ const submit = () => {
         pump_rate: 0,
 
         quote_date: data.quote_date
-            ? new Date(data.quote_date).toISOString().substring(0, 10)
+            ? calendarDateString(data.quote_date)
             : null,
 
         validity_date: data.validity_date
-            ? new Date(data.validity_date).toISOString().substring(0, 10)
+            ? calendarDateString(data.validity_date)
             : null,
 
         items: data.items.map((item: any) => ({

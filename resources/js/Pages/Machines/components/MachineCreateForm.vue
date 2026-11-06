@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { calendarDateString } from '@/Utils/entityDateTime';
+
 import { ref } from 'vue';
 import { TruckIcon } from '@heroicons/vue/24/outline';
 import MachineFormFields from './MachineFormFields.vue';
@@ -27,13 +29,7 @@ const toggle = () => {
     }
 };
 function formatLocalDate(date: any) {
-  if (!date) return null;
-  if (typeof date === 'string') return date.split(/[Tt]/)[0];
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+    return date ? calendarDateString(date) : null;
 }
 const handleSubmit = () => {
     if (!props.form.registration) {

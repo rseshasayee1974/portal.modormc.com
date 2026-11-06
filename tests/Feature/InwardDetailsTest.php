@@ -229,6 +229,8 @@ class InwardDetailsTest extends TestCase
 
     public function test_inward_report_party_filter_is_shared_by_view_excel_and_pdf(): void
     {
+        $conversionUnit = ProductUnit::factory()->create(['unit_code' => 'CFT']);
+        $this->inward->update(['conversion_quantity' => 3.1256, 'conversion_uom_id' => $conversionUnit->id]);
         $vendor = Patron::factory()->create(['plant_id' => $this->plant->id, 'legal_name' => 'Selected Vendor']);
         $this->inward->order->update(['vendor_id' => $vendor->id]);
         $otherVendor = Patron::factory()->create(['plant_id' => $this->plant->id, 'legal_name' => 'Excluded Vendor']);
@@ -245,6 +247,9 @@ class InwardDetailsTest extends TestCase
             'start' => '2026-10-01 00:00:00', 'end' => '2026-10-31 23:59:59'];
         $service = app(\App\Services\Reports\InventoryInwardReportService::class);
         $report = $service->generate($filters);
+        $this->assertSame(3.1256, $report['transactions']->first()['conversion_quantity']);
+        $this->assertSame('CFT', $report['transactions']->first()['conversion_uom']);
+        $this->assertSame('3.1256 CFT', $report['transactions']->first()['conversion_quantity_display']);
         $this->assertSame(['INW-EDIT'], $report['transactions']->pluck('inward_no')->all());
         $this->assertSame(10.0, $report['total_quantity']);
         $all = $service->generate(array_replace($filters, ['patron_id' => null, 'product_id' => null]));
@@ -269,6 +274,8 @@ class InwardDetailsTest extends TestCase
             $workbook = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
             $cells = json_encode($workbook->getActiveSheet()->toArray());
             $this->assertStringContainsString('INW-EDIT', $cells);
+            $this->assertStringContainsString('Conversion Quantity', $cells);
+            $this->assertStringContainsString('3.1256 CFT', $cells);
             $this->assertStringNotContainsString('INW-EXCLUDED', $cells);
             $this->assertStringNotContainsString('INW-PRODUCT-EXCLUDED', $cells);
             $this->assertStringNotContainsString('Excluded Vendor', $cells);
@@ -287,6 +294,9 @@ class InwardDetailsTest extends TestCase
                 $this->assertSame(['INW-EDIT'], collect($data['transactions'])->pluck('inward_no')->all());
                 $this->assertSame(10.0, $data['total_quantity']);
                 $this->assertSame(10.0, $data['totals']['quantity']);
+                $this->assertContains('Conversion Quantity', $data['headers']);
+                $this->assertContains('conversion_quantity_display', $data['fields']);
+                $this->assertSame('3.1256 CFT', collect($data['transactions'])->first()['conversion_quantity_display']);
                 return true;
             })->andReturn($pdf);
         (new \App\Jobs\QueueReportExportJob('inventory_inward', $filters, 'inward-filter-pdf-test', 'pdf'))

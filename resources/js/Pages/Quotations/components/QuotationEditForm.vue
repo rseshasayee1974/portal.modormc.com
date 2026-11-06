@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday } from '@/Utils/entityDateTime';
+import { entityToday, entityCalendarDate, calendarDateString, entityLocaleDateTime, entityAddDays } from '@/Utils/entityDateTime';
 import { computed, ref, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
@@ -64,9 +64,7 @@ const customSettings = page.props.custom_settings as any;
 const getDefaultValidityDate = (quoteDateStr: string): string | null => {
     if (!quoteDateStr) return null;
     const days = Number(customSettings?.batching?.quote_validity ?? 5);
-    const date = new Date(quoteDateStr);
-    date.setUTCDate(date.getUTCDate() + (isNaN(days) || days <= 0 ? 5 : days));
-    return date.toISOString().substring(0, 10);
+    return entityAddDays(quoteDateStr, isNaN(days) || days <= 0 ? 5 : days);
 };
 
 const isLocked = computed(() => [2, 3].includes(Number(props.quotation.status)));
@@ -286,9 +284,7 @@ watch(() => form.patron_id, (newPatronId) => {
 
 const formatDate = (date: string | null) => {
     if (!date) return '--';
-    const parsed = new Date(date);
-    if (Number.isNaN(parsed.getTime())) return '--';
-    return parsed.toLocaleString(APP_LOCALE, {
+    return entityLocaleDateTime(date, APP_LOCALE, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -365,8 +361,8 @@ const removePumpRatesForDesign = (designId: number) => {
 const submit = () => {
     form.transform((data) => ({
         ...data,
-        quote_date: data.quote_date ? new Date(data.quote_date).toISOString().substring(0, 10) : null,
-        validity_date: data.validity_date ? new Date(data.validity_date).toISOString().substring(0, 10) : null,
+        quote_date: data.quote_date ? calendarDateString(data.quote_date) : null,
+        validity_date: data.validity_date ? calendarDateString(data.validity_date) : null,
         items: data.items.map((item: any) => ({
             ...item,
             concrete_pump: item.concrete_pump ?? null,

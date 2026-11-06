@@ -25,7 +25,7 @@ class Gstr1ReportService implements ReportServiceInterface
             ->with(['partner.addresses.state', 'sourceDocument'])
             ->whereIn('invoice_type', array_merge(\App\Support\InvoiceClassification::aliases('Invoice'), ['credit_note', 'debit_note']))
             ->whereIn('status', ['Approved', 'approved', 'APPROVED', 'Paid', 'paid', 'PAID'])
-            ->whereBetween('invoice_date', [\Carbon\Carbon::parse($start)->startOfDay(), \Carbon\Carbon::parse($end)->endOfDay()])
+            ->whereBetween('invoice_date', [\Carbon\Carbon::parse($start)->setTimezone(config('app.timezone'))->startOfDay(), \Carbon\Carbon::parse($end)->setTimezone(config('app.timezone'))->endOfDay()])
             ->get();
 
         $b2b = [];

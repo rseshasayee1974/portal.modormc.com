@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityLocaleDate, entityInstant } from '@/Utils/entityDateTime';
 usePage;
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -174,7 +174,7 @@ const deleteDevice = (id: number) => {
 
 const formatLastSeen = (timestamp: string | null) => {
     if (!timestamp) return 'Never connected';
-    const date = new Date(timestamp);
+    const date = entityInstant(timestamp);
     const diffMs = new Date().getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     

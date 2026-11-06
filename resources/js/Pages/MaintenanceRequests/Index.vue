@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { ref, computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -182,7 +183,7 @@ const startEdit = (req: MaintenanceRequest) => {
     editForm.end_date = req.end_date ? String(req.end_date).substring(0, 10) : null;
     editForm.lines = (req.lines || []).map(l => ({
         ...l,
-        date_planned: l.date_planned ? new Date(l.date_planned) : null,
+        date_planned: l.date_planned ? entityCalendarDate(l.date_planned) : null,
         price_unit: Number(l.price_unit),
         price_subtotal: Number(l.price_subtotal),
         price_total: Number(l.price_total),

@@ -12,11 +12,9 @@ export const formatDate = (val, fallback = '---') => {
     if (!val) return fallback;
     try {
         if (typeof val === 'string') return entityToday(val) || String(val);
-        const d = new Date(val);
-        if (isNaN(d.getTime())) return String(val);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
+        const text = entityToday(val);
+        if (!text) return String(val);
+        const [year, month, day] = text.split('-');
         return `${day}-${month}-${year}`;
     } catch (e) {
         return String(val);

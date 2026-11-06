@@ -2,7 +2,7 @@
 import DirectInwardForm from './DirectInwardForm.vue';
 import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
+import { entityToday, entityLocaleDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { ref, watch, computed } from 'vue';
 import { useForm, router, usePage } from '@inertiajs/vue3';
 
@@ -214,7 +214,7 @@ const submit = () => {
 
     form.transform((data) => ({
         ...data,
-        received_date: data.received_date ? new Date(data.received_date).toISOString().split('T')[0] : null
+        received_date: data.received_date ? calendarDateTimeString(data.received_date) : null
     })).post(route('inwards.store'), {
         onSuccess: () => {
             if (props.embedded) {

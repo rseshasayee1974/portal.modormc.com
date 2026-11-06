@@ -1,6 +1,6 @@
 <script setup>
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityLocaleDateTime, entityToday, entityDaysAgo } from '@/Utils/entityDateTime';
+import { entityLocaleDateTime, entityToday, entityDaysAgo, entityCalendarDate } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -141,7 +141,7 @@ const applyPreset = (preset) => {
         filterForm.value.start_date = `${entityDaysAgo(30)} 00:00:00`;
         filterForm.value.end_date = `${today} 23:59:59`;
     } else if (preset === 'month') {
-        const d = new Date();
+        const d = entityCalendarDate();
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
         filterForm.value.start_date = `${year}-${month}-01 00:00:00`;
