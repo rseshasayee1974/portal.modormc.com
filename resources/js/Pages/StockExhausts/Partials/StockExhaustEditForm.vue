@@ -360,87 +360,10 @@ const submitForm = () => {
                         </button>
                     </div>
 
-                    <div v-if="form.lines.length === 0" class="py-12 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center bg-slate-50/20">
-                        <WrenchScrewdriverIcon class="w-8 h-8 text-slate-200 dark:text-slate-700 mb-2" />
-                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">No issued lines added</p>
-                    </div>
-
-                    <div v-else class="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-xl">
-                        <table class="w-full text-left border-collapse min-w-full">
-                            <thead class="bg-slate-50 dark:bg-slate-900/50">
-                                <tr class="text-[9px] font-black uppercase text-slate-400 tracking-wider border-b border-slate-100 dark:border-slate-800">
-                                    <th class="py-3 px-3 w-[150px]">Product *</th>
-                                    <th class="py-3 px-3 w-[100px]">Qty Issued</th>
-                                    <th class="py-3 px-3 w-[70px]">Units *</th>
-                                    <!-- <th class="py-3 px-3 w-[130px]">Changed KM *</th> -->
-                                    <th class="py-3 px-3 w-[200px]">Notes</th>
-                                    <th class="py-3 px-3 w-[60px] text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr
-                                    v-for="(line, index) in form.lines"
-                                    :key="index"
-                                    :class="[
-                                        'border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/30',
-                                        (localErrors.lineErrors[index]?.product_id || localErrors.lineErrors[index]?.quantity_issued)
-                                            ? 'bg-red-50/30 dark:bg-red-900/10'
-                                            : ''
-                                    ]"
-                                >
-                                    <td class="py-2 px-3">
-                                        <BaseSelect
-                                            v-model="line.product_id"
-                                            :options="getFilteredProducts(index)"
-                                            optionLabel="label"
-                                            optionValue="value"
-                                            placeholder="Select"
-                                            class="!h-9 text-xs"
-                                            @change="onProductChange(index)"
-                                        />
-                                        <span v-if="line.stock_qty !== null && line.stock_qty !== undefined" class="text-[10px] text-emerald-600 font-bold block mt-1">
-                                            Stock: {{ Number(line.stock_qty).toLocaleString(APP_LOCALE) }} {{ line.unit_code || '' }}
-                                        </span>
-                                        <span v-if="localErrors.lineErrors[index]?.product_id" class="text-[9px] text-red-500 font-bold block mt-1">
-                                            {{ localErrors.lineErrors[index].product_id }}
-                                        </span>
-                                    </td>
-                                    <td class="py-2 px-3">
-                                        <BaseInput
-                                            v-model="line.quantity_issued"
-                                            placeholder="0.00"
-                                            class="!h-9 text-xs"
-                                            @blur="validateQuantity(index)"
-                                            @input="localErrors.lineErrors[index] && (localErrors.lineErrors[index].quantity_issued = '')"
-                                        />
-                                        <span v-if="line.product_id && line.quantity_issued !== null && Number(line.quantity_issued) > (line.stock_qty || 0)" class="text-[9px] text-red-500 font-bold block mt-1">
-                                            Exceeds stock
-                                        </span>
-                                        <span v-else-if="localErrors.lineErrors[index]?.quantity_issued" class="text-[9px] text-red-500 font-bold block mt-1">
-                                            {{ localErrors.lineErrors[index].quantity_issued }}
-                                        </span>
-                                    </td>
-                                    <td class="py-2 px-3">
-                                        <BaseSelect v-model="line.units" :options="units" optionLabel="unit_code" optionValue="id" placeholder="Select" class="!h-9 text-xs" />
-                                    </td>
-                                    <!-- <td class="py-2 px-3">
-                                        <BaseInput v-model="line.changed_km" placeholder="0" class="!h-9 text-xs" />
-                                    </td> -->
-                                    <td class="py-2 px-3">
-                                        <BaseInput v-model="line.notes" placeholder="Remarks" class="!h-9 text-xs" />
-                                    </td>
-                                    <td class="py-2 px-3 text-right">
-                                        <button type="button" @click="removeLine(index)" class="p-2 text-red-600 hover:text-red-500 transition-colors">
-                                            <TrashIcon class="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <StockExhaustPricing :form="form" :taxes="taxes" :products="products" :units="units"
+                        :localErrors="localErrors" :getFilteredProducts="getFilteredProducts"
+                        @product-change="onProductChange" @quantity-blur="validateQuantity" @remove="removeLine" />
                 </div>
-
-                <StockExhaustPricing :form="form" :taxes="taxes" :products="products" />
                 <div class="flex items-center justify-end gap-2 mt-4">
                     <button
                         type="submit"

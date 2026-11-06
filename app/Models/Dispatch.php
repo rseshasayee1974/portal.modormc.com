@@ -81,11 +81,46 @@ class Dispatch extends Model
             $this->load_time = null;
         } elseif (in_array($batchStatus, [Batch::STATUS_COMPLETED, Batch::STATUS_DISPATCHED], true)) {
             // Preserve captured load times and do not reset them on subsequent edits.
-            $this->load_time = $this->load_time ?? $this->getOriginal('load_time') ?? now();
+            $this->load_time = $this->load_time ?? $this->getOriginal('load_time') ?? now($this->weightTimeZone());
         }
     }
 
     protected $guarded = [];
+
+    private function weightTimeZone(): string
+    {
+        $plantId = $this->attributes['plant_id'] ?? session('active_plant_id');
+        return $plantId ? \App\Helpers\DateTimeHelper::timezoneForPlant((int) $plantId)
+            : \App\Helpers\DateTimeHelper::getEntityTimezone();
+    }
+
+    private function weightDateTime($value): ?\Carbon\Carbon
+    {
+        if ($value === null || $value === '') return null;
+        $zone = $this->weightTimeZone();
+        // SQL values are plant-local wall times; offset-bearing input represents an instant.
+        return \Carbon\Carbon::parse($value, $zone)->setTimezone($zone);
+    }
+
+    public function getEmptyTimeAttribute($value): ?\Carbon\Carbon
+    {
+        return $this->weightDateTime($value);
+    }
+
+    public function setEmptyTimeAttribute($value): void
+    {
+        $this->attributes['empty_time'] = $this->weightDateTime($value)?->format('Y-m-d H:i:s');
+    }
+
+    public function getLoadTimeAttribute($value): ?\Carbon\Carbon
+    {
+        return $this->weightDateTime($value);
+    }
+
+    public function setLoadTimeAttribute($value): void
+    {
+        $this->attributes['load_time'] = $this->weightDateTime($value)?->format('Y-m-d H:i:s');
+    }
 
     protected $casts = [
         'dispatch_time' => 'datetime',

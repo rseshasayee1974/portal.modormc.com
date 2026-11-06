@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityToday, entityCalendarDate } from '@/Utils/entityDateTime';
+import { entityToday, entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { ref, onMounted, watch, onUnmounted, onUpdated } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import Button from 'primevue/button';
@@ -555,6 +555,14 @@ const selectedUom = computed(() => {
 });
 
 const submit = () => {
+    form.transform(data => ({
+        ...data,
+        weights: {
+            ...data.weights,
+            empty_weight_time_load: data.weights.empty_weight_time_load ? calendarDateTimeString(data.weights.empty_weight_time_load) : null,
+            loaded_weight_time_load: data.weights.loaded_weight_time_load ? calendarDateTimeString(data.weights.loaded_weight_time_load) : null,
+        },
+    }));
     // console.log('DispatchSection: submit called! Trigger trace:');
     // console.trace();
     if (form.id) {
