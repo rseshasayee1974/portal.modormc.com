@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('BATCH');
 import TripAssignmentSelect from '@/Components/TripAssignmentSelect.vue';
 import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
@@ -241,8 +243,7 @@ const isUploadFetchEnabled = computed(() => {
 });
 
 const { isAdmin, isSuperAdmin } = usePermissions();
-const canEditBatchNo = computed(() => !isLocked.value
-    && String(page.props.user_code ?? '').trim().toUpperCase() === 'ADMINISTRATOR' || 'ADMIN');
+const canEditBatchNo = computed(() => !isLocked.value && canEditDocumentNumber.value);
 
 const duplicateBatchWarning = computed(() => {
     if (!canEditBatchNo.value || !form.batch_no) return null;

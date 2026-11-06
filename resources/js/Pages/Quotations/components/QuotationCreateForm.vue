@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('QUOTATION');
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityCalendarDate, calendarDateString, entityAddDays } from '@/Utils/entityDateTime';
 import { computed, ref, watch } from 'vue';
@@ -72,6 +74,7 @@ const getDefaultValidityDate = (quoteDateStr: string) => {
 const initialQuoteDate = entityToday();
 
 const form = useForm({
+    reference: '',
     patron_id: null as number | null,
     site_id: null as number | null,
     sales_executive_id: null as number | null,
@@ -587,6 +590,7 @@ const submit = () => {
                             :error="form.errors.sales_executive_id"
                         />
  
+                        <BaseInput v-if="canEditDocumentNumber" v-model="form.reference" label="Reference Number" hint="Leave blank for automatic numbering." :error="form.errors.reference" />
                         <BaseDatePicker v-model="form.quote_date" label="Quote Date" required />
                         <BaseDatePicker v-model="form.validity_date" label="Valid Until" />
                         <BaseSelect 

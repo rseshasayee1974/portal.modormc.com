@@ -276,7 +276,7 @@ class FullAccessRoleTest extends TestCase
         foreach ([2, 10, 11] as $id) $this->assertFalse($props['menus']['top_nav']->contains('id', $id));
         $this->assertFalse(\App\Support\BatchNumberAccess::allows($user));
 
-        foreach (['LEDGER.VIEW', 'LEDGER.CREATE', 'REPORT_LEDGER.VIEW', 'REPORT_LEDGER.EXPORT', 'ROLE.VIEW', 'BATCH.CREATE'] as $index => $name) {
+        foreach (['LEDGER.VIEW', 'LEDGER.CREATE', 'REPORT_LEDGER.VIEW', 'REPORT_LEDGER.EXPORT', 'ROLE.VIEW', 'BATCH.EDIT_BATCH_NO'] as $index => $name) {
             $db::table('mm_permissions')->insert(['id' => $index + 1, 'name' => $name, 'guard_name' => 'web']);
             $db::table('mm_role_has_permissions')->insert(['role_id' => 4, 'permission_id' => $index + 1]);
         }

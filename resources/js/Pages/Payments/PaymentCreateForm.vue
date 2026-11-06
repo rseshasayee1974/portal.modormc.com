@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('PAYMENT');
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityLocaleDate, entityInstant } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
@@ -190,7 +192,7 @@ const autoAllocate = () => {
 };
 
 const handleCreate = () => {
-    createForm.post(route('payments.store'), {
+    createForm.transform(data => ({ ...data, reference: canEditDocumentNumber.value ? data.reference : null })).post(route('payments.store'), {
         onSuccess: () => {
             createForm.reset();
             outstandingInvoices.value = [];
@@ -264,7 +266,7 @@ const handleCreate = () => {
                     optionLabel="label" optionValue="value" filter class="w-full"
                     :error="createForm.errors.transaction_mode" />
 
-                <BaseInput v-model="createForm.reference" label="Reference" placeholder="Ref/Chq No" class="w-full"
+                <BaseInput v-model="createForm.reference" :disabled="!canEditDocumentNumber || createForm.processing" label="Reference" placeholder="Ref/Chq No" class="w-full"
                     :error="createForm.errors.reference" />
 
                 <div class="md:col-span-2 flex flex-col gap-2">

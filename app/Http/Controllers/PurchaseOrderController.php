@@ -67,6 +67,8 @@ class PurchaseOrderController extends Controller
 
     public function store(StorePurchaseOrderRequest $request)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'PURCHASE_ORDER', 'po_number');
+        \App\Support\DocumentNumberAccess::validate($request, 'PURCHASE_ORDER', 'ref_no');
         $this->authorizeModule('create');
 
         $validatedData = $request->validated();
@@ -127,6 +129,8 @@ class PurchaseOrderController extends Controller
 
     public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseorder)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'PURCHASE_ORDER', 'po_number', $purchaseorder);
+        \App\Support\DocumentNumberAccess::validate($request, 'PURCHASE_ORDER', 'ref_no', $purchaseorder);
 
         $purchaseOrder = $purchaseorder; // Keep using the camelCase variable for consistency in the method body
         $this->authorizeModule('edit');

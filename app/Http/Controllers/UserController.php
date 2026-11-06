@@ -10,7 +10,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 use App\Models\Plant;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Support\Facades\URL;

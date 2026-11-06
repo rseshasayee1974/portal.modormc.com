@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('BILLING');
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityLocaleDateTime, entityCalendarDate, entityToday } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -212,7 +214,7 @@ const invoiceTypeOptions = [
                 <BaseSelect v-model="form.partner_id" label="Partner / Customer" :options="patrons" optionLabel="label" optionValue="value" filter required />
                 <BaseSelect v-model="form.account_id" label="Ledger Account" :options="accounts" optionLabel="label" optionValue="value" filter />
                 <!-- <BaseSelect v-model="form.invoice_type" label="Document Type" :options="invoiceTypeOptions" optionLabel="label" optionValue="value" required /> -->
-                <!-- <BaseInput v-model="form.invoice_number" label="Invoice Number" :disabled="true" aria-readonly="true" /> -->
+                <BaseInput v-model="form.invoice_number" label="Bill Number" :disabled="!canEditDocumentNumber || form.processing" :error="form.errors.invoice_number" />
             <!-- </div>
 
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 px-1"> -->

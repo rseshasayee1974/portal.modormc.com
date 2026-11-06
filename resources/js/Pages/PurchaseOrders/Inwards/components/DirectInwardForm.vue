@@ -3,6 +3,8 @@ Author: ragul-onemodo
 Created: 2026-11-06 10:17:45 Asia/Calcutta (UTC+05:30)
 -->
 <script setup>
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('INWARD');
 import { useForm } from '@inertiajs/vue3';
 import { entityToday } from '@/Utils/entityDateTime';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -21,7 +23,7 @@ const submit = () => form.post(route('inwards.store'), { preserveScroll: true, o
         <div class="grid gap-4 md:grid-cols-3">
             <BaseSelect v-model="form.vendor_id" :options="vendors" optionLabel="legal_name" optionValue="id" label="Vendor / Partner" filter required :error="form.errors.vendor_id" />
             <BaseInput v-model="form.received_date" type="date" label="Received Date" required :error="form.errors.received_date" />
-            <BaseInput v-model="form.inward_no" label="Inward Number" placeholder="Auto-generated if blank" :error="form.errors.inward_no" />
+            <BaseInput v-model="form.inward_no" :disabled="!canEditDocumentNumber || form.processing" label="Inward Number" placeholder="Auto-generated if blank" :error="form.errors.inward_no" />
         </div>
         <div v-for="(line,index) in form.items" :key="index" class="grid gap-3 rounded-lg border border-slate-100 p-3 md:grid-cols-3">
             <BaseSelect v-model="line.product_id" :options="products" optionLabel="title" optionValue="id" label="Product" filter required @update:modelValue="productChanged(line)" :error="form.errors['items.'+index+'.product_id']" />

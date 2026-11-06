@@ -150,7 +150,7 @@ class UpdateBatchRequest extends FormRequest
             if (!$canEditBatchNo && $this->filled('batch_no')) {
                 $currentBatch = \App\Models\Batch::withoutGlobalScope('plant_id')->find($batchId);
                 if ($currentBatch && (string)$this->input('batch_no') !== (string)$currentBatch->batch_no) {
-                    $validator->errors()->add('batch_no', 'Only administrators or users with Batches create permission may modify the batch number.');
+                    $validator->errors()->add('batch_no', 'You need BATCH.EDIT_BATCH_NO permission to modify the batch number.');
                 }
             }
         });

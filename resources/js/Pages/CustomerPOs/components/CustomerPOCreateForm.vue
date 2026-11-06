@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('CUSTOMER_PO');
 import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday } from '@/Utils/entityDateTime';
@@ -413,6 +415,7 @@ const submit = () => {
         />
     </div>
 
+    <BaseInput v-if="canEditDocumentNumber" v-model="form.reference" label="Reference Number" hint="Leave blank for automatic numbering." :error="form.errors.reference" />
     <!-- Customer PO Reference -->
     <div>
         <BaseInput

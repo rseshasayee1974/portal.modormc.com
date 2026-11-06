@@ -268,6 +268,7 @@ class HandleInertiaRequests extends Middleware
             'user_code'        => $tenantRoleCode,
             'app_env'          => app()->environment(),
             'user_permissions' => $tenantPermissions,
+            'document_number_permissions' => fn () => \App\Support\DocumentNumberAccess::forUser($user),
             'menus'            => $menus,
             'custom_settings'  => $customSettings,
             'plants_count'     => $plantsCount,

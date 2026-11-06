@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('INWARD');
 import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { ref, computed, watch } from 'vue';
@@ -328,7 +330,7 @@ const saveInwardDetails = () => {
         <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
             <h4 class="text-xs font-bold text-slate-700">Edit inward details</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <BaseInput v-model="data.inward_no" label="Inward Number" :disabled="formBusy"
+                <BaseInput v-model="data.inward_no" label="Inward Number" :disabled="formBusy || !canEditDocumentNumber"
                     :error="detailsErrors.inward_no" />
                 <BaseInput v-if="!data.order_id" v-model="data.unit_price" type="number" min="0" step="0.01" label="Unit Price" :error="detailsErrors.unit_price" :disabled="formBusy" />
                 <InwardTruckSelect v-model="data.truck_id" :options="truckOptions" label="Vehicle / Truck"

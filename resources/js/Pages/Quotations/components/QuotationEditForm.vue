@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('QUOTATION');
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, entityCalendarDate, calendarDateString, entityLocaleDateTime, entityAddDays } from '@/Utils/entityDateTime';
 import { computed, ref, watch } from 'vue';
@@ -403,7 +405,7 @@ const sendEmail = () => {
     <div class="  ">
         <form class="space-y-6" @submit.prevent="submit">
        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
-            <BaseInput v-model="form.reference" label="Quotation Reference Number" required :disabled="isLocked" :error="form.errors.reference" />
+            <BaseInput v-model="form.reference" label="Quotation Reference Number" required :disabled="isLocked || !canEditDocumentNumber" :error="form.errors.reference" />
     <BaseSelect
         v-model="form.patron_id"
         :options="patronOptions"

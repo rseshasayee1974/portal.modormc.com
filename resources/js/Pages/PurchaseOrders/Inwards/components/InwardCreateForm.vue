@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('INWARD');
 import DirectInwardForm from './DirectInwardForm.vue';
 import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
@@ -470,7 +472,7 @@ const remainingToReceive = (item: any) => {
                         <div class="flex flex-col gap-1 w-full md:w-auto">
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Manual GRN
                                 Reference</label>
-                            <BaseInput v-model="form.inward_no" placeholder="e.g. INV-12345"
+                            <BaseInput v-model="form.inward_no" :disabled="!canEditDocumentNumber || form.processing" placeholder="e.g. INV-12345"
                                 class="!rounded-md !h-9 border-slate-200 w-full md:w-64 text-xs font-mono" />
                         </div>
 

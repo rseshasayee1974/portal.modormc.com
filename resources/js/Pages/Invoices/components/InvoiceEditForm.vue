@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('INVOICE');
 import { APP_LOCALE } from '@/Utils/locale';
 import { canCancelEInvoice, isEInvoiceCancelled, plantHasEInvoice, plantHasEwayBill, useEInvoiceCancellation } from '@/Composables/useEInvoiceGeneration';
 import EwayBillRoutePreview from '@/Components/EwayBillRoutePreview.vue';
@@ -332,6 +334,7 @@ const setupDemoCompliance = () => {
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 px-1">
                     <BaseSelect v-model="form.partner_id" label="Partner / Customer" :options="patrons" optionLabel="label" optionValue="value" filter :error="form.errors.partner_id" required />
                     <BaseSelect v-model="form.account_id" label="Ledger Account" :options="accounts" optionLabel="label" optionValue="value" filter :error="form.errors.account_id" />
+                    <BaseInput v-model="form.invoice_number" label="Invoice Number" :disabled="!canEditDocumentNumber || form.processing" :error="form.errors.invoice_number" />
                     <BaseDatePicker v-model="form.invoice_date" label="Invoice Date" required />
                     <div class="flex flex-col justify-end pb-1.5">
                         <div class="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 h-10">

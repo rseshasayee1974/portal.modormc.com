@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('PAYMENT');
 import { entityToday } from '@/Utils/entityDateTime';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted, watch, computed } from 'vue';
@@ -182,13 +184,7 @@ const submit = () => {
                     :disabled="isPosted"
                 />
 
-                <!-- <BaseInput 
-                    v-model="form.reference" 
-                    label="Reference No."
-                    placeholder="UTR..." 
-                    class="w-full"  
-                    :error="form.errors.reference"
-                /> -->
+                <BaseInput v-model="form.reference" label="Reference No." :disabled="!canEditDocumentNumber || isPosted || form.processing" :error="form.errors.reference" />
 
                 <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Notes</label>

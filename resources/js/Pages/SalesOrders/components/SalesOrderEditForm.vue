@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('SALES_ORDER');
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { useForm, router, usePage } from '@inertiajs/vue3';
@@ -404,7 +406,7 @@ const handleMixCreated = () => {
                 </div> -->
 
                 <div><BaseInput v-model="form.prefix" label="Reference Prefix" :error="form.errors.prefix" /></div>
-                <div><BaseInput v-model="form.order_no" label="Reference Number" required :error="form.errors.order_no" /></div>
+                <div><BaseInput v-model="form.order_no" :disabled="!canEditDocumentNumber || form.processing" label="Reference Number" required :error="form.errors.order_no" /></div>
                 <!-- Customer -->
                 <div>
                     <BaseSelect

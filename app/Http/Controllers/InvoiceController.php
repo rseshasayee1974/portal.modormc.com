@@ -87,6 +87,7 @@ class InvoiceController extends Controller
 
     public function store(StoreInvoiceRequest $request)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'INVOICE', 'invoice_number');
         // dd(request()->all());
         $this->authorizeModule('create');
         $plantId = session('active_plant_id');
@@ -223,6 +224,7 @@ class InvoiceController extends Controller
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'INVOICE', 'invoice_number', $invoice);
         $this->authorizeModule('edit');
 
         if ($invoice->status !== Invoice::STATUS_DRAFT && !$request->has('status')) {

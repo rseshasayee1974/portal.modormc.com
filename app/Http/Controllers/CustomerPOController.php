@@ -53,6 +53,7 @@ class CustomerPOController extends Controller
 
     public function store(Request $request)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'CUSTOMER_PO', 'reference');
         $this->authorizeModule('create');
         
         $validated = $request->validate([
@@ -252,6 +253,7 @@ class CustomerPOController extends Controller
 
     public function update(Request $request, CustomerPO $customerPO)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'CUSTOMER_PO', 'reference', $customerPO);
         $this->authorizeModule('update');
         if ($request->hasFile('attachments')) {
             abort_unless((int) $customerPO->plant_id === (int) session('active_plant_id'), 404);

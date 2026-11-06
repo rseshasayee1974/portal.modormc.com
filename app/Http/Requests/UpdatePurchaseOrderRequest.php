@@ -34,7 +34,9 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'plant_id' => 'sometimes|exists:mm_plants,id',
             'vendor_id' => 'sometimes|exists:mm_patrons,id',
             'vehicle_id' => 'nullable|exists:mm_machines,id',
-            // 'po_number' => 'sometimes|string|unique:mm_purchase_orders,po_number,' . $id,
+            'po_number' => ['sometimes', 'required', 'string', 'max:100',
+                \Illuminate\Validation\Rule::unique('mm_purchase_orders', 'po_number')
+                    ->where('plant_id', session('active_plant_id'))->ignore($id)],
             'ref_no' => 'nullable|string|max:100',
             'date_order' => 'sometimes|date',
             'billed_date' => 'nullable|date',

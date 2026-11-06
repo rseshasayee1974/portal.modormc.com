@@ -53,6 +53,7 @@ class QuotationController extends Controller
 
     public function store(StoreQuotationRequest $request)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'QUOTATION', 'reference');
         $this->authorizeModule('create');
         
         Quotation::createWithItems($request->validated(), session('active_plant_id'));
@@ -62,6 +63,7 @@ class QuotationController extends Controller
 
     public function update(UpdateQuotationRequest $request, Quotation $quotation)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'QUOTATION', 'reference', $quotation);
         $this->authorizeModule('edit');
 
         if (in_array((int)$quotation->status, [Quotation::STATUS_ACCEPTED, Quotation::STATUS_REJECTED])) {

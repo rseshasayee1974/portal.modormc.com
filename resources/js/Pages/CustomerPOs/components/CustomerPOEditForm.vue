@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('CUSTOMER_PO');
 import RecordAttachments from '@/Components/Base/RecordAttachments.vue';
 import { APP_LOCALE } from '@/Utils/locale';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -643,7 +645,7 @@ const performSubmit = (customerPOId: any) => {
                 />
             </div> -->
             <div class="col-span-12 md:col-span-1">
-                <BaseInput v-model="form.reference" label="Customer PO Reference Number" required :disabled="isLocked"
+                <BaseInput v-model="form.reference" label="Customer PO Reference Number" required :disabled="isLocked || !canEditDocumentNumber"
                     :error="form.errors.reference" />
             </div>
 

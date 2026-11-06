@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('BATCH');
 import TripAssignmentSelect from '@/Components/TripAssignmentSelect.vue';
 import { entityCalendarDate } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -16,7 +18,7 @@ import { usePermissions } from '@/Composables/usePermissions';
 
 const page = usePage();
 const { can, isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
-const canEditBatchNo = computed(() => Boolean(isAdmin.value || isSuperAdmin.value || isSassOwner.value || can('BATCH.CREATE') || can('BATCHES.CREATE')));
+const canEditBatchNo = computed(() => canEditDocumentNumber.value);
 
 
 const props = withDefaults(defineProps<{
@@ -648,7 +650,7 @@ const submit = () => {
                                 {{ series === 'NONE' ? 'Numeric' : series + ' series' }}
                             </button>
                         </div>
-                        <!-- Manual batch number for admins or users with batch create permission -->
+                        <!-- Manual batch number requires explicit permission -->
                         <div v-if="canEditBatchNo"
                             class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 border border-slate-200 shadow-xs">
                             <label class="flex items-center gap-1.5 cursor-pointer select-none">

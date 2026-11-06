@@ -60,6 +60,7 @@ class TitleCaseInputs
         'order_no',
         'invoice_no',
         'reference_no',
+        'reference', // Document identifiers must round-trip unchanged when number editing is disabled.
         'ref_no',
         'requirement', // Preserve product / mix design names selected in CRM.
         'challan_no',

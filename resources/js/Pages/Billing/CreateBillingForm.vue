@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('BILLING');
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityDaysAgo, entityToday, entityLocaleDate } from '@/Utils/entityDateTime';
 import { useForm, usePage } from '@inertiajs/vue3';
@@ -558,7 +560,7 @@ const taxOptions = computed(() => props.taxes);
                                     <label class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                                         Bill #
                                     </label>
-                                    <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                    <label v-if="canEditDocumentNumber" class="inline-flex items-center gap-1.5 cursor-pointer select-none">
                                         <input 
                                             type="checkbox" 
                                             v-model="isManualInvoiceNumber" 

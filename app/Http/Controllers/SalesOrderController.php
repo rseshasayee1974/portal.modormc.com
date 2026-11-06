@@ -66,8 +66,10 @@ class SalesOrderController extends Controller
 
     public function store(StoreSalesOrderRequest $request)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'SALES_ORDER', 'order_no');
         $this->authorizeModule('create');
         $payload = $request->validated();
+        if (!\App\Support\DocumentNumberAccess::allows($request->user(), 'SALES_ORDER')) unset($payload['prefix']);
 
         if (!empty($payload['customer_po_id'])) {
             $po = \App\Models\CustomerPO::find($payload['customer_po_id']);
@@ -153,6 +155,7 @@ class SalesOrderController extends Controller
 
     public function update(UpdateSalesOrderRequest $request, SalesOrder $salesorder)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'SALES_ORDER', 'order_no', $salesorder);
         $this->authorizeModule('edit');
         $this->ensurePlantScope($salesorder);
         

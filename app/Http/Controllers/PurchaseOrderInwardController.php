@@ -211,6 +211,7 @@ class PurchaseOrderInwardController extends Controller
 
     public function store(Request $request)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'INWARD', 'inward_no');
         $this->authorizeModule('create');
         if ($request->input('entry_mode') === 'direct') return $this->storeDirect($request);
         
@@ -497,6 +498,7 @@ class PurchaseOrderInwardController extends Controller
 
     public function updateWeight(Request $request, PurchaseOrderHistory $inward)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'INWARD', 'inward_no', $inward);
         $this->authorizeModule('edit'); 
 
         abort_unless((int)$inward->plant_id === (int)session('active_plant_id'), 404);

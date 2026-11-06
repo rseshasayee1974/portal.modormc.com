@@ -60,6 +60,7 @@ class PaymentController extends Controller
 
     public function store(Request $request)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'PAYMENT', 'reference');
         $this->authorizeModule('create');
 
         $validated = $request->validate([
@@ -310,6 +311,7 @@ class PaymentController extends Controller
 
     public function update(Request $request, Payment $payment)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'PAYMENT', 'reference', $payment);
         $this->authorizeModule('edit');
 
         if ($payment->status === 'paid') {

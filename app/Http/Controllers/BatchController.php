@@ -369,6 +369,7 @@ class BatchController extends Controller
      */
    public function store(StoreBatchRequest $request)
 {
+        \App\Support\DocumentNumberAccess::validate($request, 'BATCH', 'batch_no');
     $this->authorizeModule('create');
     
     $payload = $request->validated();
@@ -1260,6 +1261,7 @@ class BatchController extends Controller
 
     public function update(UpdateBatchRequest $request, Batch $batch)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'BATCH', 'batch_no', $batch);
         $this->authorizeModule('edit');
 
         if ($request->isMoistureOnly()) {

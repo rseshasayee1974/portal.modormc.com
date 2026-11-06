@@ -1,4 +1,6 @@
 <script setup>
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('PURCHASE_ORDER');
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityToday, calendarDateString } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
@@ -285,11 +287,11 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                         />
 
                         <BaseInput 
-                            v-model="form.referencenumber" 
+                            v-model="form.po_number"
                             label="Reference No."
-                            placeholder="Auto" 
-                            disabled 
-                            inputClass="bg-gray-50/50" 
+                             :placeholder="ref_no?.formatted || 'Auto-generated if blank'"
+                            :disabled="!canEditDocumentNumber || form.processing || Number(purchaseOrder?.receipt_status || 0) > 0"
+                            inputClass="bg-gray-50/50" :error="form.errors.po_number"
                         />
                     </div>
 

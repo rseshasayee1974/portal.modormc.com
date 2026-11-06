@@ -69,6 +69,7 @@ class BillingController extends Controller
 
     public function store(StoreInvoiceRequest $request)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'BILLING', 'invoice_number');
         $this->authorizeModule('create');
         $plantId = session('active_plant_id');
 //   $validated = $request->validated();
@@ -146,6 +147,7 @@ class BillingController extends Controller
 
     public function update(UpdateInvoiceRequest $request, Invoice $billing)
     {
+        \App\Support\DocumentNumberAccess::validate($request, 'BILLING', 'invoice_number', $billing);
         $invoice = $billing;
         $this->authorizeModule('edit');
 

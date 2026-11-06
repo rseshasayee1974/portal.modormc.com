@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useDocumentNumberPermission } from '@/Composables/useDocumentNumberPermission';
+const canEditDocumentNumber = useDocumentNumberPermission('SALES_ORDER');
 import { APP_LOCALE } from '@/Utils/locale';
 import { entityCalendarDate, calendarDateTimeString } from '@/Utils/entityDateTime';
 import { useForm, router, usePage } from '@inertiajs/vue3';
@@ -246,7 +248,7 @@ const submit = () => {
         pump_rate: data.pump_rate ?? 0.00,
         scheduled_start: formatLocalTime(data.scheduled_start),
         scheduled_end: formatLocalTime(data.scheduled_end),
-        order_no: editReference.value ? data.order_no.trim() || null : null,
+        order_no: canEditDocumentNumber.value && editReference.value ? data.order_no.trim() || null : null,
     })).post(route('salesorders.store'), {
         onSuccess: () => {
             Swal.fire({
@@ -317,12 +319,12 @@ const handleMixCreated = () => {
                         <InformationCircleIcon class="h-4 w-4 text-indigo-500" />
                         Next Ref: {{ nextReference || 'Automatic' }}
                     </span>
-                    <label class="flex cursor-pointer items-center gap-2 text-xs">
+                    <label v-if="canEditDocumentNumber" class="flex cursor-pointer items-center gap-2 text-xs">
                         <span>Edit</span>
                         <Checkbox v-model="editReference" binary aria-label="Edit reference number" :disabled="form.processing" />
                     </label>
                 </div>
-                <BaseInput v-if="editReference" v-model="form.order_no" label="Reference sequence"
+                <BaseInput v-if="canEditDocumentNumber && editReference" v-model="form.order_no" label="Reference sequence"
                     :placeholder="nextSequence || 'e.g. 0123'" :disabled="form.processing" :error="form.errors.order_no"
                     hint="Enter only the sequence number. Leave blank for automatic numbering." />
             </div>
