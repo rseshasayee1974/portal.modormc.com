@@ -6,6 +6,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import Swal from 'sweetalert2';
 import MaintenanceRequestForm from './Partials/MaintenanceRequestForm.vue';
+import MaintenanceRequestEditForm from './Partials/MaintenanceRequestEditForm.vue';
 import MaintenanceRequestTable from './Partials/MaintenanceRequestTable.vue';
 
 interface Line {
@@ -55,7 +56,7 @@ interface MaintenanceRequest {
     rounding_value: number;
     filename: string | null;
     status: number;
-    tax_inclusive: boolean;
+    tax_inclusive: number | boolean;
     bill_status: number;
     dead_line: any;
     start_date: any;
@@ -77,7 +78,7 @@ const props = defineProps<{
 
 const page = usePage();
 const editingId = ref<number | null>(null);
-const expandedRows = ref<any[]>([]);
+const expandedRows = ref<Record<number, boolean>>({});
 
 const machineOptions = computed(() => props.machines.map(m => ({ label: m.registration, value: m.id })));
 const vendorOptions = computed(() => props.vendors.map(v => ({ label: v.legal_name, value: v.id })));
@@ -131,7 +132,7 @@ const getInitialForm = () => ({
     rounding_value: 0,
     filename: '',
     status: 1,
-    tax_inclusive: false,
+    tax_inclusive: 0,
     bill_status: 0,
     dead_line: null as any,
     start_date: null as any,
@@ -176,7 +177,7 @@ const startEdit = (req: MaintenanceRequest) => {
     editForm.rounding_value = Number(req.rounding_value);
     editForm.filename = req.filename || '';
     editForm.status = req.status;
-    editForm.tax_inclusive = Boolean(req.tax_inclusive);
+    editForm.tax_inclusive = Number(req.tax_inclusive) ? 1 : 0;
     editForm.bill_status = req.bill_status;
     editForm.dead_line = req.dead_line ? String(req.dead_line).substring(0, 10) : null;
     editForm.start_date = req.start_date ? String(req.start_date).substring(0, 10) : null;
@@ -192,33 +193,35 @@ const startEdit = (req: MaintenanceRequest) => {
     }));
     
     // Programmatically expand the row to show the edit form
-    expandedRows.value = [req];
+    expandedRows.value = { [req.id]: true };
 };
 
 const cancelEdit = () => {
     editingId.value = null;
-    expandedRows.value = [];
+    expandedRows.value = {};
     editForm.reset();
     editForm.clearErrors();
 };
 
 const submitCreate = () => {
-    form.post(route('maintenance-requests.store'), {
-        onSuccess: () => {
-            form.reset();
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Request registered successfully', showConfirmButton: false, timer: 1500 });
-        }
-    });
+    form.transform(data => ({ ...data, tax_inclusive: Number(data.tax_inclusive) ? 1 : 0 }))
+        .post(route('maintenance-requests.store'), {
+            onSuccess: () => {
+                form.reset();
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Request registered successfully', showConfirmButton: false, timer: 1500 });
+            }
+        });
 };
 
 const submitEdit = () => {
     if (editingId.value) {
-        editForm.put(route('maintenance-requests.update', editingId.value), {
-            onSuccess: () => {
-                cancelEdit();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Request modified successfully', showConfirmButton: false, timer: 1500 });
-            }
-        });
+        editForm.transform(data => ({ ...data, tax_inclusive: Number(data.tax_inclusive) ? 1 : 0 }))
+            .put(route('maintenance-requests.update', editingId.value), {
+                onSuccess: () => {
+                    cancelEdit();
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Request modified successfully', showConfirmButton: false, timer: 1500 });
+                }
+            });
     }
 };
 
@@ -285,24 +288,21 @@ watch(() => page.props.flash, (flash: any) => {
                     @delete="deleteRequest"
                 >
                     <template #edit-form="{ data }">
-                        <div class="p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl m-2 relative">
-                            <MaintenanceRequestForm
-                                :form="editForm"
-                                :editingId="editingId"
-                                :machineOptions="machineOptions"
-                                :vendorOptions="vendorOptions"
-                                :userOptions="userOptions"
-                                :taxOptions="taxOptions"
-                                :productOptions="productOptions"
-                                :unitOptions="unitOptions"
-                                :maintenanceTypes="maintenanceTypes"
-                                :priorityLevels="priorityLevels"
-                                :requestStatuses="requestStatuses"
-                                @submit="submitEdit"
-                                @cancel="cancelEdit"
-                                class="!my-0 !shadow-none !border-none !ring-0"
-                            />
-                        </div>
+                        <MaintenanceRequestEditForm
+                            :form="editForm"
+                            :editingId="data.id"
+                            :machineOptions="machineOptions"
+                            :vendorOptions="vendorOptions"
+                            :userOptions="userOptions"
+                            :taxOptions="taxOptions"
+                            :productOptions="productOptions"
+                            :unitOptions="unitOptions"
+                            :maintenanceTypes="maintenanceTypes"
+                            :priorityLevels="priorityLevels"
+                            :requestStatuses="requestStatuses"
+                            @submit="submitEdit"
+                            @cancel="cancelEdit"
+                        />
                     </template>
                 </MaintenanceRequestTable>
             </div>

@@ -6,15 +6,14 @@ import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 
 import Swal from 'sweetalert2';
 import {
-    CpuChipIcon, PencilSquareIcon,
-    TrashIcon, PlusIcon, TagIcon, XMarkIcon, CheckIcon
+    CpuChipIcon, PencilSquareIcon, TrashIcon, TagIcon, CheckIcon
 } from '@heroicons/vue/24/outline';
 
 // PrimeVue
 import Column from 'primevue/column';
-import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
+import MachineTypeEditForm from './MachineTypeEditForm.vue';
 
 const page = usePage();
 
@@ -23,6 +22,7 @@ const props = defineProps<{
 }>();
 
 const editingId = ref<number | null>(null);
+const expandedRows = ref<Record<number, boolean>>({});
 
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
@@ -31,36 +31,45 @@ const filters = ref({
 const form = useForm({
     name: '',
 });
+const editForm = useForm({
+    name: '',
+});
 
 const startEdit = (type: any) => {
+    if (editingId.value === type.id) {
+        cancelEdit();
+        return;
+    }
+
     editingId.value = type.id;
-    form.name = type.name;
-    // Scroll to top to focus on form
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    editForm.name = type.name;
+    expandedRows.value = { [type.id]: true };
 };
 
 const cancelEdit = () => {
     editingId.value = null;
-    form.reset();
-    form.clearErrors();
+    expandedRows.value = {};
+    editForm.reset();
+    editForm.clearErrors();
 };
 
-const submitForm = () => {
-    if (editingId.value) {
-        form.put(route('machinetypes.update', editingId.value), {
-            onSuccess: () => {
-                cancelEdit();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Classification updated', showConfirmButton: false, timer: 1500 });
-            }
-        });
-    } else {
-        form.post(route('machinetypes.store'), {
-            onSuccess: () => {
-                form.reset();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Classification created', showConfirmButton: false, timer: 1500 });
-            }
-        });
-    }
+const submitCreate = () => {
+    form.post(route('machinetypes.store'), {
+        onSuccess: () => {
+            form.reset();
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Classification created', showConfirmButton: false, timer: 1500 });
+        }
+    });
+};
+
+const submitEdit = () => {
+    if (!editingId.value) return;
+    editForm.put(route('machinetypes.update', editingId.value), {
+        onSuccess: () => {
+            cancelEdit();
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Classification updated', showConfirmButton: false, timer: 1500 });
+        }
+    });
 };
 
 const deleteType = (id: number) => {
@@ -100,17 +109,16 @@ watch(() => page.props.flash, (flash: any) => {
                 <!-- ── Top Section: Breadcrumb & Title ── -->
                 
 
-                <!-- ── Create / Edit Form Card (Similar to Patron style) ── -->
-                <div class="bg-white dark:bg-slate-900 my-6 rounded-lg shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden transition-all duration-300" :class="editingId ? 'ring-2 ring-indigo-500 ring-offset-4 dark:ring-offset-slate-950' : ''">
+                <!-- ── Create Form Card ── -->
+                <div class="bg-white dark:bg-slate-900 my-6 rounded-lg shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden">
                     <div class="p-8">
                         <div class="flex items-center gap-4 mb-8">
                             <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
-                                <CpuChipIcon v-if="!editingId" class="w-6 h-6" />
-                                <PencilSquareIcon v-else class="w-6 h-6" />
+                                <CpuChipIcon class="w-6 h-6" />
                             </div>
                             <div>
                                 <h2 class="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest">
-                                    {{ editingId ? 'Modify Classification' : 'Add New Classification' }}
+                                    Add New Classification
                                 </h2>
                                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                                     Define fleet categories like Truck, Excavator, or Dumper
@@ -118,7 +126,7 @@ watch(() => page.props.flash, (flash: any) => {
                             </div>
                         </div>
 
-                        <form @submit.prevent="submitForm" class="flex flex-col md:flex-row items-start gap-4">
+                        <form @submit.prevent="submitCreate" class="flex flex-col md:flex-row items-start gap-4">
                             <div class="flex-1 w-full">
                                 <div class="relative group">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -144,17 +152,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 >
                                     <CheckIcon v-if="!form.processing" class="w-4 h-4 stroke-[3px]" />
                                     <span v-else class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
-                                    {{ editingId ? 'Update' : 'Register' }}
-                                </button>
-                                
-                                <button
-                                    v-if="editingId"
-                                    @click="cancelEdit"
-                                    type="button"
-                                    class="flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-all active:scale-95"
-                                    title="Cancel Edit"
-                                >
-                                    <XMarkIcon class="w-6 h-6 font-bold" />
+                                    Register
                                 </button>
                             </div>
                         </form>
@@ -166,14 +164,17 @@ watch(() => page.props.flash, (flash: any) => {
                     <BaseDataTable
                         :value="machineTypes"
                         v-model:filters="filters"
+                        v-model:expandedRows="expandedRows"
                         :globalFilterFields="['name']"
                         showSearch
                         showSerial
                         heading="Machine Classifications"
                         headingIcon="CpuChipIcon"
                         :rows="30"
+                        :expandOnRowClick="false"
                         class="text-sm"
                     >
+                        <Column expander class="!hidden" style="width: 0; padding: 0; display: none !important;" />
                         <!-- Classification Name -->
                         <Column header="Classification Name" sortable field="name">
                             <template #body="slotProps">
@@ -230,6 +231,16 @@ watch(() => page.props.flash, (flash: any) => {
                                 </div>
                             </template>
                         </Column>
+
+                        <template #expansion="slotProps">
+                            <MachineTypeEditForm
+                                v-if="editingId === slotProps.data.id"
+                                :form="editForm"
+                                :editingId="slotProps.data.id"
+                                @submit="submitEdit"
+                                @cancel="cancelEdit"
+                            />
+                        </template>
 
                         <!-- Empty State -->
                         <template #empty>
