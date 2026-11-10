@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountDefaultSettingController;
+use App\Http\Controllers\AccountDeletionRequestController;
 use App\Http\Controllers\AccountDiscountController;
 use App\Http\Controllers\AccountsController;
 use App\Http\Controllers\AccountsTypeController;
@@ -139,6 +140,14 @@ Route::get('/', function () {
 Route::get('/register', function () {
     return redirect()->route('login');
 })->name('register');
+
+// Public legal pages used by the mobile application.
+Route::inertia('/privacy-policy', 'PrivacyPolicy')->name('privacy-policy');
+Route::inertia('/account-deletion', 'AccountDeletion')->name('account-deletion');
+Route::post('/account-deletion', [AccountDeletionRequestController::class, 'store'])
+    ->middleware('throttle:5,10')
+    ->withoutMiddleware(TitleCaseInputs::class)
+    ->name('account-deletion.store');
 
 // OTP Verification
 Route::middleware(['auth', config('jetstream.auth_session')])->group(function () {
