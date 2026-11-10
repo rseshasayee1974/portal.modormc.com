@@ -42,10 +42,10 @@ class BatchTripOptionController extends Controller
                 }
                 $formattedRegistration = implode(' ', array_slice($parts, 1));
                 $truck = Machine::withoutGlobalScopes()->whereNull('deleted_at')
-                    ->where('entity_id', $plant->entity_id)->get()
+                    ->where('plant_id', $plant->id)->get()
                     ->filter(fn ($machine) => strtoupper(preg_replace('/[\s-]+/', '', $machine->registration)) === $registration)
                     ->sortByDesc(fn ($machine) => $machine->registration === $formattedRegistration)->first();
-                if ($truck && ((int) $truck->plant_id !== (int) $plant->id || !$truck->is_active
+                if ($truck && (!$truck->is_active
                     || !in_array($truck->vehicle_type, ['Truck', 'Transit Mixer'], true))) {
                     throw ValidationException::withMessages(['name' => 'This registration already exists outside the active truck list. Update it in Machines first.']);
                 }

@@ -69,8 +69,8 @@ class AttendanceMetricsService
         $in = CarbonImmutable::parse($checkIn, $timezone);
         $out = $checkOut ? CarbonImmutable::parse($checkOut, $timezone) : null;
         $seconds = $out ? $out->getTimestamp() - $in->getTimestamp() : 0;
-        if ($out && ($seconds < 0 || $seconds > 86400)) {
-            throw ValidationException::withMessages(['check_out' => 'Check-out must be after check-in and within 24 hours. Ask HR to correct stale attendance.']);
+        if ($out && $seconds < 0) {
+            throw ValidationException::withMessages(['check_out' => 'Check-out must be after check-in.']);
         }
         $metrics['worked_hours'] = round($seconds / 3600, 2);
         if ($schedule['scheduled_start']) {

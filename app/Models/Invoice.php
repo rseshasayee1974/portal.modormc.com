@@ -347,24 +347,22 @@ class Invoice extends Model implements Postable
         }
 
         // A series belongs to a plant and prefix, even when several ledgers use it.
-        // Only non-deleted invoices reserve a number in the series.
-        $highest = $startingNumber - 1;
-        $active = $deleted = [];
+        // Keep automatic numbering past the active frontier while reusing deleted or inactive numbers after it.
+        $highestActive = $startingNumber - 1;
+        $reusable = [];
         $numbers = $requiresLedger ? collect() : self::numberSeries($plantId, $prefix, includeDeleted: true)
-            ->get(['invoice_number', 'deleted_at']);
+            ->get(['invoice_number', 'deleted_at', 'is_active']);
         foreach ($numbers as $invoice) {
             $sequence = self::sequenceValue((string) $invoice->invoice_number, $prefix, $suffix);
             if ($sequence === null || $sequence < $startingNumber) continue;
-
-            if ($invoice->deleted_at === null) {
-                $active[$sequence] = true;
-                $highest = max($highest, $sequence);
+            if ($invoice->deleted_at === null && (int) $invoice->is_active === 1) {
+                $highestActive = max($highestActive, $sequence);
             } else {
-                $deleted[$sequence] = true;
+                $reusable[$sequence] = true;
             }
         }
-        $reusable = array_diff_key($deleted, $active);
-        $next = $reusable ? min(array_keys($reusable)) : $highest + 1;
+        $reusableAfterFrontier = array_filter(array_keys($reusable), fn (int $sequence) => $sequence > $highestActive);
+        $next = $reusableAfterFrontier ? min($reusableAfterFrontier) : $highestActive + 1;
         $nextNumber = str_pad((string)$next, $padding, '0', STR_PAD_LEFT) . ($suffix !== null ? '/' . $suffix : '');
 
         return [
