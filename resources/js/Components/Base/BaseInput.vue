@@ -14,6 +14,8 @@ const props = withDefaults(
         disabled?: boolean;
         placeholder?: string;
         type?: string;
+        autocomplete?: string;
+        maxlength?: string | number;
         step?: string | number;
         min?: string | number;
         max?: string | number;
@@ -42,6 +44,7 @@ const emit = defineEmits<{
     <BaseField :label="label" :required="required" :error="error" :hint="hint" :disabled="disabled" :class="fieldClass">
         <template #default="{ invalid, inputId }">
             <InputText :id="inputId" :modelValue="modelValue ?? ''" :type="type" :placeholder="placeholder"
+                :autocomplete="autocomplete" :maxlength="maxlength"
                 :step="type === 'number' ? step : undefined" :min="type === 'number' ? min : undefined"
                 :max="type === 'number' ? max : undefined" :inputmode="type === 'number' ? 'decimal' : undefined"
                 :disabled="disabled" :size="size" :fluid="fluid" :class="[
