@@ -6,8 +6,8 @@ import { entityToday, calendarDateString } from '@/Utils/entityDateTime';
 import { useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
-import { 
-    ShoppingCartIcon, 
+import {
+    ShoppingCartIcon,
     TrashIcon,
     PlusIcon,
     IdentificationIcon,
@@ -34,13 +34,13 @@ import Textarea from 'primevue/textarea';
 
 const props = defineProps({
     purchaseOrder: Object,
-    vendors: Array,    
+    vendors: Array,
     currencies: Array,
     taxes: Array,
     products: Array,
     ref_no: Object,
     productUnits: Array,
-    instant_vendor: [Number, Boolean], 
+    instant_vendor: [Number, Boolean],
 });
 
 const page = usePage();
@@ -72,8 +72,8 @@ const form = useForm({
     rounding_value: props.purchaseOrder?.rounding_value || 0,
     notes: props.purchaseOrder?.notes || '',
     terms_conditions: props.purchaseOrder?.terms_conditions || '',
-    items: props.purchaseOrder?.items ? props.purchaseOrder.items.map(i => ({ 
-        ...i, 
+    items: props.purchaseOrder?.items ? props.purchaseOrder.items.map(i => ({
+        ...i,
         discount_type: i.discount_type || '%',
         total_discount: i.total_discount || 0,
         product_quantity: Number(i.product_quantity),
@@ -83,9 +83,9 @@ const form = useForm({
 
 function createNewItem() {
     const defaultTaxId = props.taxes?.[0]?.id || null;
-    const defaultUomId = props.productUnits?.find(u => u.unit_code === 'MTR')?.id 
-                      || props.productUnits?.[0]?.id 
-                      || null;
+    const defaultUomId = props.productUnits?.find(u => u.unit_code === 'MTR')?.id
+        || props.productUnits?.[0]?.id
+        || null;
 
     return {
         id: null,
@@ -125,7 +125,7 @@ const onProductChange = (index) => {
     const item = form.items[index];
     const product = props.products.find(p => p.id === item.product_id);
     if (product) {
-        item.product_uom = product.unit_id; 
+        item.product_uom = product.unit_id;
         item.unit_price = product.purchase_price || 0;
         item.tax_id = product.purchase_tax_id || null;
         item.description = product.title || '';
@@ -138,7 +138,7 @@ const calculateItemTotals = (index) => {
     const qty = Number(item.product_quantity) || 0;
     const price = Number(item.unit_price) || 0;
     const subtotal = qty * price;
-    
+
     let discount = 0;
     const discAmount = Number(item.discount_amount) || 0;
     if (item.discount_type === '%') {
@@ -146,10 +146,10 @@ const calculateItemTotals = (index) => {
     } else {
         discount = discAmount;
     }
-    
+
     item.total_discount = discount;
     item.price_subtotal = subtotal - discount;
-    
+
     const tax = props.taxes.find(t => t.id === item.tax_id);
     const taxRate = Number(tax?.tax_rate) || 0;
     if (form.tax_inclusive && taxRate > 0) {
@@ -161,7 +161,7 @@ const calculateItemTotals = (index) => {
     } else {
         item.price_tax = 0;
     }
-    
+
     item.price_total = item.price_subtotal + item.price_tax;
     calculateFinalTotals();
 };
@@ -169,7 +169,7 @@ const calculateItemTotals = (index) => {
 const calculateFinalTotals = () => {
     const itemSubtotalsSum = form.items.reduce((sum, item) => sum + (Number(item.price_subtotal) || 0), 0);
     const itemTaxesTotal = form.items.reduce((sum, item) => sum + (Number(item.price_tax) || 0), 0);
-    
+
     // amount_untaxed is net before tax (including all discounts)
     form.amount_untaxed = itemSubtotalsSum - (Number(form.discount_amount) || 0);
     form.amount_tax = itemTaxesTotal;
@@ -182,7 +182,7 @@ watch(() => form.tax_inclusive, () => form.items.forEach((_, index) => calculate
 const submit = () => {
     const routeName = isEdit ? 'purchaseorder.update' : 'purchaseorder.store';
     const routeParams = isEdit ? props.purchaseOrder.id : [];
-    
+
     form.transform(data => ({
         ...data,
         date_order: data.date_order ? calendarDateString(data.date_order) : null,
@@ -190,13 +190,13 @@ const submit = () => {
         due_date: data.due_date ? calendarDateString(data.due_date) : null,
     }))[isEdit ? 'put' : 'post'](route(routeName, routeParams), {
         onSuccess: () => {
-            Swal.fire({ 
-                toast: true, 
-                position: 'top-end', 
-                icon: 'success', 
-                title: isEdit ? 'Purchase Order updated.' : 'Purchase Order generated.', 
-                showConfirmButton: false, 
-                timer: 1500 
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: isEdit ? 'Purchase Order updated.' : 'Purchase Order generated.',
+                showConfirmButton: false,
+                timer: 1500
             });
             if (!isEdit) form.reset();
         }
@@ -212,7 +212,7 @@ const vendorOptions = computed(() => props.vendors?.map(v => ({ label: v.legal_n
 const unitOptions = computed(() => props.productUnits?.map(u => ({ label: u.unit_code, value: u.id })) || []);
 const taxOptions = computed(() => props.taxes?.map(t => ({ label: t.tax_name, value: t.id })) || []);
 const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: '₹' }];
- console.log(props.products)
+console.log(props.products)
 </script>
 
 <template>
@@ -224,10 +224,11 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                 </div>
                 <div class="text-left">
                     <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">
-                        {{ isEdit ? 'Edit Purchase Order' : 'New Purchase Order' }}
+                        {{ isEdit ? `Edit Purchase Order` : `New Purchase Order` }}
                     </p>
                     <p class="text-[11px] text-gray-400 font-medium mt-0.5">
-                        {{ isEdit ? 'Update details for ' + form.referencenumber : 'Create a new supply procurement order' }}
+                        {{ isEdit ? `Update details for ` + form.referencenumber : `Create a new supply procurement
+                        order` }}
                     </p>
                 </div>
             </div>
@@ -240,71 +241,49 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
             <div v-if="isOpen" class="create-panel__body">
                 <form @submit.prevent="submit" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <PatronQuickCreateSelect
-                            :patronTypes="['Vendor', 'Supplier']"
-                            reloadProp="vendors"
-                            v-if="isInstantVendorEnabled"
-                            v-model="form.vendor_id"
-                            :options="vendorOptions"
-                            optionLabel="label" 
-                            optionValue="value"
-                            label="Vendor / Supplier"
-                            placeholder="Select Vendor" 
-                            required
-                            :error="form.errors.vendor_id"
-                        />
-                        <BaseSelect
-                            v-else
-                            v-model="form.vendor_id"
-                            :options="vendorOptions"
-                            optionLabel="label" 
-                            optionValue="value"
-                            label="Vendor / Supplier"
-                            placeholder="Select Vendor" 
-                            filter
-                            required
-                            :error="form.errors.vendor_id"
-                        />
-                        
-                        <div class="flex flex-col gap-1">
-                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                                <input type="checkbox" v-model="form.tax_inclusive" class="rounded border-slate-300 text-indigo-600" />
-                                Tax inclusive
-                            </label>
-                            <p class="text-xs text-slate-500">Item rates include tax when enabled.</p>
-                            <p v-if="form.errors.tax_inclusive" class="text-xs text-red-600">{{ form.errors.tax_inclusive }}</p>
-                        </div>
-                        <BaseDatePicker
-                            v-model="form.date_order"
-                            label="Order Date"
-                            required
-                            :error="form.errors.date_order"
-                        />
+                        <PatronQuickCreateSelect :patronTypes="['Vendor', 'Supplier']" reloadProp="vendors"
+                            v-if="isInstantVendorEnabled" v-model="form.vendor_id" :options="vendorOptions"
+                            optionLabel="label" optionValue="value" label="Vendor / Supplier"
+                            placeholder="Select Vendor" required :error="form.errors.vendor_id" />
+                        <BaseSelect v-else v-model="form.vendor_id" :options="vendorOptions" optionLabel="label"
+                            optionValue="value" label="Vendor / Supplier" placeholder="Select Vendor" filter required
+                            :error="form.errors.vendor_id" />
 
-                        <BaseDatePicker 
-                            v-model="form.date_planned" 
-                            label="Planned Date" 
-                        />
 
-                        <BaseInput 
-                            v-model="form.po_number"
-                            label="Reference No."
-                             :placeholder="ref_no?.formatted || 'Auto-generated if blank'"
+                        <BaseDatePicker v-model="form.date_order" label="Order Date" required
+                            :error="form.errors.date_order" />
+
+                        <BaseDatePicker v-model="form.date_planned" label="Planned Date" />
+
+                        <BaseInput v-model="form.po_number" label="Reference No."
+                            :placeholder="ref_no?.formatted || 'Auto-generated if blank'"
                             :disabled="!canEditDocumentNumber || form.processing || Number(purchaseOrder?.receipt_status || 0) > 0"
-                            inputClass="bg-gray-50/50" :error="form.errors.po_number"
-                        />
+                            inputClass="bg-gray-50/50" :error="form.errors.po_number" />
                     </div>
 
                     <!-- Items Table -->
                     <div class="mt-6">
+                        <div class="flex flex-col items-end gap-1 text-right">
+                            <label
+                                class="flex items-center justify-end gap-2 text-sm font-semibold  rounded text-slate-700">
+                                <input type="checkbox" v-model="form.tax_inclusive"
+                                    class="rounded border-slate-300 text-indigo-600" />
+                                Tax inclusive
+                            </label>
+                            <p class="text-xs text-slate-500">Item rates include tax when enabled.</p>
+                            <p v-if="form.errors.tax_inclusive" class="text-xs text-red-600">{{
+                                form.errors.tax_inclusive }}</p>
+                        </div>
                         <!-- <div class="flex items-center justify-between mb-2 px-1">
                             <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Line Items</h3>
                             <Button label="Add Item" icon="pi pi-plus" text size="small" @click="addItem" class="!text-[10px] !font-bold" />
                         </div> -->
-                        
-                        <div class="overflow-x-auto rounded-sm border border-slate-100 shadow-sm overflow-hidden bg-white">
+
+                        <div
+                            class="overflow-x-auto rounded-sm border border-slate-100 shadow-sm overflow-hidden bg-white">
                             <table class="w-full text-left border-collapse min-w-[1000px]">
-                                <thead class="bg-slate-50 border-b border-slate-100 uppercase tracking-tighter text-[10px] font-bold text-slate-500">
+                                <thead
+                                    class="bg-slate-50 border-b border-slate-100 uppercase tracking-tighter text-[10px] font-bold text-slate-500">
                                     <tr>
                                         <th class="px-4 py-3" style="width: 280px;">Product</th>
                                         <th class="px-4 py-3 text-center" style="width: 100px;">Qty</th>
@@ -314,73 +293,57 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                                         <th class="px-4 py-3 text-center" style="width: 180px;">Discount</th>
                                         <th class="px-4 py-3 text-right">Amount</th>
                                         <th class="px-1 py-1" style="width: 50px;">
-                                            <button v-if="!isLocked" type="button" @click="addItem" class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
-                                                <PlusIcon class="w-5 h-5 m-2 border-1 shadow-sm  hover:bg-indigo-500 bg-indigo-300 border-gray-400 rounded" />
+                                            <button v-if="!isLocked" type="button" @click="addItem"
+                                                class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
+                                                <PlusIcon
+                                                    class="w-5 h-5 m-2 border-1 shadow-sm  hover:bg-indigo-500 bg-indigo-300 border-gray-400 rounded" />
                                             </button>
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-50">
-                                    <tr v-for="(item, index) in form.items" :key="index" class="hover:bg-slate-50/50 transition-colors text-[12px]">
+                                    <tr v-for="(item, index) in form.items" :key="index"
+                                        class="hover:bg-slate-50/50 transition-colors text-[12px]">
                                         <td class="p-2">
-                                            <BaseSelect
-                                                v-model="item.product_id"
-                                                :options="products"
-                                                optionLabel="title" 
-                                                optionValue="id"
-                                                placeholder="Product" 
-                                                filter
-                                                
-                                                @update:modelValue="onProductChange(index)"
-                                            />
+                                            <BaseSelect v-model="item.product_id" :options="products"
+                                                optionLabel="title" optionValue="id" placeholder="Product" filter
+                                                @update:modelValue="onProductChange(index)" />
                                         </td>
                                         <td class="p-2">
-                                            <BaseInputNumber v-model="item.product_quantity" :minFractionDigits="2" size="small" class="w-full" @update:modelValue="calculateItemTotals(index)" />
+                                            <BaseInputNumber v-model="item.product_quantity" :minFractionDigits="2"
+                                                size="small" class="w-full"
+                                                @update:modelValue="calculateItemTotals(index)" />
                                         </td>
                                         <td class="p-2">
-                                            <BaseSelect
-                                                v-model="item.product_uom"
-                                                :options="unitOptions"
-                                                optionLabel="label" 
-                                                optionValue="value"
-                                                placeholder="UOM" 
-                                                filter
-                                                 
-                                            />
+                                            <BaseSelect v-model="item.product_uom" :options="unitOptions"
+                                                optionLabel="label" optionValue="value" placeholder="UOM" filter />
                                         </td>
                                         <td class="p-2">
-                                            <BaseInputNumber v-model="item.unit_price" :minFractionDigits="2" size="small" inputClass="font-semibold text-indigo-600" @update:modelValue="calculateItemTotals(index)" />
+                                            <BaseInputNumber v-model="item.unit_price" :minFractionDigits="2"
+                                                size="small" inputClass="font-semibold text-indigo-600"
+                                                @update:modelValue="calculateItemTotals(index)" />
                                         </td>
                                         <td class="p-2">
-                                            <BaseSelect
-                                                v-model="item.tax_id"
-                                                :options="taxOptions"
-                                                optionLabel="label" 
-                                                optionValue="value"
-                                                placeholder="Tax" 
-                                                 class="w-32"
-                                                @update:modelValue="calculateItemTotals(index)"
-                                            />
+                                            <BaseSelect v-model="item.tax_id" :options="taxOptions" optionLabel="label"
+                                                optionValue="value" placeholder="Tax" class="w-32"
+                                                @update:modelValue="calculateItemTotals(index)" />
                                         </td>
                                         <td class="p-2">
                                             <div class="flex gap-1">
-                                                <BaseSelect 
-                                                    v-model="item.discount_type" 
-                                                    :options="discountTypeOptions" 
-                                                    optionLabel="label" 
-                                                    optionValue="value" 
-                                                      
-                                                    class="!w-24"
-                                                    @update:modelValue="calculateItemTotals(index)" 
-                                                />
-                                                <BaseInputNumber v-model="item.discount_amount" size="small" class="flex-grow" @update:modelValue="calculateItemTotals(index)" />
+                                                <BaseSelect v-model="item.discount_type" :options="discountTypeOptions"
+                                                    optionLabel="label" optionValue="value" class="!w-24"
+                                                    @update:modelValue="calculateItemTotals(index)" />
+                                                <BaseInputNumber v-model="item.discount_amount" size="small"
+                                                    class="flex-grow" @update:modelValue="calculateItemTotals(index)" />
                                             </div>
                                         </td>
                                         <td class="p-2 text-sm text-right font-semibold text-slate-700">
-                                            {{ item.price_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
+                                            {{ item.price_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 })
+                                            }}
                                         </td>
                                         <td class="p-2 text-center">
-                                            <button type="button" @click="removeItem(index)" class="text-red-400 hover:text-rose-500 transition-colors">
+                                            <button type="button" @click="removeItem(index)"
+                                                class="text-red-400 hover:text-rose-500 transition-colors">
                                                 <TrashIcon class="w-4 h-4" />
                                             </button>
                                         </td>
@@ -394,64 +357,83 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                         <div class="space-y-4">
                             <div class="field-group">
                                 <label class="field-label">Internal Notes / Terms</label>
-                                <Textarea v-model="form.notes" rows="6" placeholder="Specify terms, conditions or internal instructions..." class="w-full text-xs rounded-xl border-slate-200" />
+                                <Textarea v-model="form.notes" rows="6"
+                                    placeholder="Specify terms, conditions or internal instructions..."
+                                    class="w-full text-xs rounded-xl border-slate-200" />
                             </div>
                         </div>
 
                         <div class="bg-slate-50/50 rounded-lg p-6 border border-slate-100">
                             <div class="space-y-3">
-                                <div class="flex justify-between items-center text-[11px] font-semibold text-slate-700 uppercase tracking-widest">
+                                <div
+                                    class="flex justify-between items-center text-[11px] font-semibold text-slate-700 uppercase tracking-widest">
                                     <span>Untaxed Amount</span>
-                                    <span class="text-slate-700">{{ form.amount_untaxed.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                                    <span class="text-slate-700">{{ form.amount_untaxed.toLocaleString(APP_LOCALE, {
+                                        minimumFractionDigits: 2
+                                    }) }}</span>
                                 </div>
-                                <div class="flex justify-between items-center text-[11px] font-black text-indigo-500 uppercase tracking-widest">
+                                <div
+                                    class="flex justify-between items-center text-[11px] font-black text-indigo-500 uppercase tracking-widest">
                                     <span>Taxes & Duties (+)</span>
-                                    <span>{{ form.amount_tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                                    <span>{{ form.amount_tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 })
+                                        }}</span>
                                 </div>
-                                
+
                                 <div class="flex justify-between items-center gap-4">
-                                    <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Freight Charges (+)</span>
-                                    <BaseInputNumber v-model="form.shipping_charges" size="small" class="w-24" @update:modelValue="calculateFinalTotals" />
+                                    <span
+                                        class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Freight
+                                        Charges (+)</span>
+                                    <BaseInputNumber v-model="form.shipping_charges" size="small" class="w-24"
+                                        @update:modelValue="calculateFinalTotals" />
                                 </div>
 
                                 <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-3">
-                                    <span class="text-[11px] font-semibold text-rose-700 uppercase tracking-widest">Global Discount (-)</span>
-                                    <BaseInputNumber v-model="form.discount_amount" size="small" class="w-24" @update:modelValue="calculateFinalTotals" />
+                                    <span
+                                        class="text-[11px] font-semibold text-rose-700 uppercase tracking-widest">Global
+                                        Discount (-)</span>
+                                    <BaseInputNumber v-model="form.discount_amount" size="small" class="w-24"
+                                        @update:modelValue="calculateFinalTotals" />
                                 </div>
 
                                 <div class="flex justify-between items-center gap-4">
-                                    <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Other Adjustment (+/-)</span>
-                                    <BaseInputNumber v-model="form.adjustment" size="small" class="w-24" @update:modelValue="calculateFinalTotals" />
+                                    <span
+                                        class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Other
+                                        Adjustment (+/-)</span>
+                                    <BaseInputNumber v-model="form.adjustment" size="small" class="w-24"
+                                        @update:modelValue="calculateFinalTotals" />
                                 </div>
 
                                 <div class="flex justify-between items-center gap-4">
-                                    <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Round Off (+)</span>
-                                    <BaseInputNumber v-model="form.rounding_value" size="small" class="w-24" @update:modelValue="calculateFinalTotals" />
+                                    <span
+                                        class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Round
+                                        Off (+)</span>
+                                    <BaseInputNumber v-model="form.rounding_value" size="small" class="w-24"
+                                        @update:modelValue="calculateFinalTotals" />
                                 </div>
 
                                 <div class="flex justify-between items-center border-t border-slate-200 pt-4 mt-4">
                                     <div class="flex flex-col">
-                                        <span class="text-[14px] font-semibold text-indigo-700 uppercase tracking-[0.2em]">Final Total</span>
+                                        <span
+                                            class="text-[14px] font-semibold text-indigo-700 uppercase tracking-[0.2em]">Final
+                                            Total</span>
                                         <!-- <span class="text-[11px] text-slate-700 font-semibold uppercase">{{ currencies?.find(c => c.id === form.currency_id)?.currency_name || 'Rupees' }}</span> -->
                                     </div>
                                     <div class="text-right">
                                         <span class="text-xs text-indigo-700 font-semibold mr-1">₹</span>
                                         <span class="text-lg font-black text-slate-800 tracking-tighter">
-                                             {{ form.amount_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
+                                            {{ form.amount_total.toLocaleString(APP_LOCALE, {
+                                                minimumFractionDigits: 2
+                                            }) }}
                                         </span>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="mt-8">
-                                <BaseFormActions
-                                    :label="isEdit ? 'Update Purchase Order' : 'Commit Order'"
-                                    :loading="form.processing"
-                                    @submit="submit"
-                                    @reset="router.visit(route('purchaseorder.index'))"
-                                    cancelLabel="Discard"
-                                    class="!justify-end"
-                                />
+                                <BaseFormActions :label="isEdit ? 'Update Purchase Order' : 'Commit Order'"
+                                    :loading="form.processing" @submit="submit"
+                                    @reset="router.visit(route('purchaseorder.index'))" cancelLabel="Discard"
+                                    class="!justify-end" />
                             </div>
                         </div>
                     </div>
@@ -461,7 +443,4 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
     </div>
 </template>
 
-<style scoped>
-</style>
-
-
+<style scoped></style>

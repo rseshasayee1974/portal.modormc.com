@@ -22,7 +22,7 @@ const emit = defineEmits<{
     (e: 'delete', id: number): void;
 }>();
 
-const expandedRows = defineModel('expandedRows', { type: Array, default: () => [] });
+const expandedRows = defineModel('expandedRows', { type: Object, default: () => ({}) });
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
 });
