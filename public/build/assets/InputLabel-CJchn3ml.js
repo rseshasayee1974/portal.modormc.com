@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/InputLabel-Gub3EJVP.js
-import{o as a,g as s,t,f as e}from"./app-D9vWLjl4.js";const l={class:"block font-medium text-sm text-gray-700 dark:text-gray-300"},p={key:0},o={key:1},r={__name:"InputLabel",props:{value:String},setup:r=>(n,u)=>(a(),s("label",l,[r.value?(a(),s("span",p,t(r.value),1)):(a(),s("span",o,[e(n.$slots,"default")]))]))};export{r as _};
-========
-import{o as a,g as s,t,f as e}from"./app-CN1zr7GA.js";const l={class:"block font-medium text-sm text-gray-700 dark:text-gray-300"},p={key:0},o={key:1},r={__name:"InputLabel",props:{value:String},setup:r=>(n,u)=>(a(),s("label",l,[r.value?(a(),s("span",p,t(r.value),1)):(a(),s("span",o,[e(n.$slots,"default")]))]))};export{r as _};
->>>>>>>> ca40c333e210ca484c583df57ca4a3b1acf1f744:public/build/assets/InputLabel-CJchn3ml.js
