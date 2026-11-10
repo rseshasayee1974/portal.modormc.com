@@ -42,11 +42,11 @@ function submitRequest() {
             class="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
             <div class="h-1.5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-teal-400"></div>
             <div class="p-6 sm:p-10">
-                <p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">OneErpSuite
+                <p class="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">MODORMC
                     · Onemodo Technologies</p>
                 <h1 class="mt-3 text-3xl font-bold text-slate-900 dark:text-white sm:text-4xl">Account and Data Deletion
                 </h1>
-                <p class="mt-4 text-slate-600 dark:text-slate-300">This page lets OneErpSuite users request deletion of
+                <p class="mt-4 text-slate-600 dark:text-slate-300">This page lets MODORMC users request deletion of
                     their app account and associated personal data from Onemodo Technologies Pvt. Ltd. You do not need
                     to sign in or reinstall the app to submit a request.</p>
 
@@ -70,7 +70,7 @@ function submitRequest() {
                     <label class="flex items-start gap-3">
                         <input v-model="form.confirm_deletion" type="checkbox" required
                             class="mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-700" />
-                        <span class="text-slate-700 dark:text-slate-300">I request deletion of my OneErpSuite account
+                        <span class="text-slate-700 dark:text-slate-300">I request deletion of my MODORMC account
                             and associated personal data.</span>
                     </label>
                     <p v-if="form.errors.confirm_deletion" class="-mt-4 text-sm text-rose-700 dark:text-rose-300">{{
@@ -122,7 +122,7 @@ function submitRequest() {
                     </h2>
                     <p id="confirmation-message" role="status"
                         class="mt-3 leading-6 text-slate-600 dark:text-slate-300">
-                        Your OneErpSuite account deletion request has been received. Our team will verify the request
+                        Your MODORMC account deletion request has been received. Our team will verify the request
                         and contact you if more information is needed.
                     </p>
 

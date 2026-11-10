@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('account_deletion_requests', function (Blueprint $table) {
             $table->id();
-            $table->string('app_name')->default('OneErpSuite');
+            $table->string('app_name')->default('MODORMC');
             $table->string('account_email');
             $table->string('account_identifier')->nullable();
             $table->text('additional_details')->nullable();
