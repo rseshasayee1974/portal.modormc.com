@@ -8,6 +8,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { createPinia } from 'pinia';
 import GlobalLoader from '@/Components/GlobalLoader.vue';
+import GlobalRequestErrors from '@/Components/GlobalRequestErrors.vue';
 
 let application;
 let uiPromise;
@@ -54,7 +55,8 @@ createInertiaApp({
         application = createApp({
             render: () => h('div', [
                 h(App, props),
-                h(GlobalLoader)
+                h(GlobalLoader),
+                h(GlobalRequestErrors, { initialPage: props.initialPage })
             ])
         })
             .use(plugin)
