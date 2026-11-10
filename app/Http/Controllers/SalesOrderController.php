@@ -69,7 +69,6 @@ class SalesOrderController extends Controller
         \App\Support\DocumentNumberAccess::validate($request, 'SALES_ORDER', 'order_no');
         $this->authorizeModule('create');
         $payload = $request->validated();
-        if (!\App\Support\DocumentNumberAccess::allows($request->user(), 'SALES_ORDER')) unset($payload['prefix']);
 
         if (!empty($payload['customer_po_id'])) {
             $po = \App\Models\CustomerPO::find($payload['customer_po_id']);

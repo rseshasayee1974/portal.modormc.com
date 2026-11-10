@@ -68,10 +68,11 @@ class PurchaseOrderController extends Controller
     public function store(StorePurchaseOrderRequest $request)
     {
         \App\Support\DocumentNumberAccess::validate($request, 'PURCHASE_ORDER', 'po_number');
-        \App\Support\DocumentNumberAccess::validate($request, 'PURCHASE_ORDER', 'ref_no');
         $this->authorizeModule('create');
 
         $validatedData = $request->validated();
+        // The form's ref_no is only a preview; the model generates the sequence.
+        unset($validatedData['ref_no']);
 
         $dateFields = ['date_order', 'date_planned', 'delivery_date', 'due_date'];
         foreach ($dateFields as $field) {
@@ -130,7 +131,6 @@ class PurchaseOrderController extends Controller
     public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseorder)
     {
         \App\Support\DocumentNumberAccess::validate($request, 'PURCHASE_ORDER', 'po_number', $purchaseorder);
-        \App\Support\DocumentNumberAccess::validate($request, 'PURCHASE_ORDER', 'ref_no', $purchaseorder);
 
         $purchaseOrder = $purchaseorder; // Keep using the camelCase variable for consistency in the method body
         $this->authorizeModule('edit');
@@ -141,6 +141,8 @@ class PurchaseOrderController extends Controller
         }
 
         $validatedData = $request->validated();
+        // Preserve the stored internal sequence when editing other PO fields.
+        unset($validatedData['ref_no']);
         $dateFields = ['date_order', 'date_planned', 'delivery_date', 'due_date', 'billed_date'];
         foreach ($dateFields as $field) {
             if (!empty($validatedData[$field])) {

@@ -700,6 +700,7 @@ const {
     printEInvoiceDirect,
     deleteInvoiceDirect,
     sendWhatsAppDirect,
+    sendingWhatsAppId,
     sendBatchEmailDirect,
 } = useInvoiceActions();
 
@@ -1347,6 +1348,18 @@ console.log(
                             </template>
                         </Column>
 
+                        <Column v-if="can('DISPATCH.WHATSAPP')" header="WhatsApp" headerStyle="width: 5rem" bodyStyle="text-align: center">
+                            <template #body="{ data }">
+                                <button v-if="!data.is_offline_pending && [3, 4].includes(Number(data.status)) && data.dispatches?.[0]?.id && data.dispatches[0].dispatch_status !== 'Cancelled'"
+                                    type="button" aria-label="Send WhatsApp" v-tooltip.top="'Send WhatsApp'"
+                                    :disabled="sendingWhatsAppId !== null"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-wait dark:bg-emerald-950/40 dark:text-emerald-400"
+                                    @click.stop="sendWhatsAppDirect(data.dispatches[0])">
+                                    <i :class="sendingWhatsAppId === Number(data.dispatches[0].id) ? 'pi pi-spinner pi-spin' : 'pi pi-whatsapp'" aria-hidden="true"></i>
+                                </button>
+                            </template>
+                        </Column>
+
                         <Column header="Actions" headerClass="batch-actions-header" bodyClass="batch-actions-cell"
                             headerStyle="width: 8.5rem; text-align: center"
                             bodyStyle="overflow: visible; text-align: center">
@@ -1888,21 +1901,7 @@ console.log(
                                                     </button>
                                                 </template>
 
-                                                <button v-if="
-                                                    slotProps.data.status >=
-                                                    3 &&
-                                                    can('DISPATCH.WHATSAPP')
-                                                " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-emerald-700 transition-colors"
-                                                    @click="
-                                                        sendWhatsAppDirect(
-                                                            slotProps.data
-                                                                .dispatches[0],
-                                                        );
-                                                    activeMenuId = null;
-                                                    ">
-                                                    <i class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"></i>
-                                                    WhatsApp Send
-                                                </button>
+
                                             </div>
 
                                             <div v-if="

@@ -160,8 +160,10 @@ export function useInvoiceActions(
     };
 
     // ── Send WhatsApp ────────────────────────────────────────────────────────
+    const sendingWhatsAppId = ref<number | null>(null);
     const sendWhatsAppDirect = async (dispatch: any) => {
-        if (!dispatch || !dispatch.id) return;
+        if (!dispatch?.id || sendingWhatsAppId.value !== null) return;
+        sendingWhatsAppId.value = Number(dispatch.id);
         try {
             Swal.fire({
                 title: 'Sending dispatch details...',
@@ -181,6 +183,8 @@ export function useInvoiceActions(
                 error.response?.data?.message ||
                 'Could not submit dispatch details to WhatsApp.';
             Swal.fire('Error', msg, 'error');
+        } finally {
+            sendingWhatsAppId.value = null;
         }
     };
 
@@ -426,6 +430,7 @@ export function useInvoiceActions(
         printEwayBillDirect,
         deleteInvoiceDirect,
         sendWhatsAppDirect,
+        sendingWhatsAppId,
         sendBatchEmailDirect,
     };
 }

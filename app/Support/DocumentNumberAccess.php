@@ -51,6 +51,9 @@ class DocumentNumberAccess
 
     public static function validate(Request $request, string $module, string $field, ?Model $record = null): void
     {
+        // Reference-number grants control form editing only, not backend submissions.
+        if (str_ends_with(self::PERMISSIONS[$module] ?? '', '.EDIT_REFERENCE_NUMBER')) return;
+
         if (self::allows($request->user(), $module)) return;
 
         $fields = $record && in_array($module, ['SALES_ORDER', 'INVOICE', 'BILLING'], true)

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { ClipboardDocumentCheckIcon } from '@heroicons/vue/24/outline';
+import { IconMap } from '@/Utils/menuIcons';
 import { computed } from 'vue';
 import { usePermissions } from '@/Composables/usePermissions';
 
@@ -71,8 +71,8 @@ const isSubMenuActive = (item: any): boolean => {
                     'h-full flex items-center text-[11px] uppercase tracking-wide whitespace-nowrap transition-colors duration-150'
                 ]"
             >
-                <ClipboardDocumentCheckIcon
-                    v-if="item.link.replace(/^\/+|\/+$/g, '') === 'quality/tests'"
+                <component
+                    :is="IconMap[item.icon] || IconMap.Squares2X2Icon"
                     class="mr-1.5 h-4 w-4 shrink-0"
                     aria-hidden="true"
                 />

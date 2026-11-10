@@ -1,4 +1,5 @@
 <script setup>
+import { IconMap } from '@/Utils/menuIcons';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -58,46 +59,7 @@ import AIChatWidget from '@/Components/AI/AIChatWidget.vue';
 import OSAIChatDrawer from '@/Components/AI/OSAIChatDrawer.vue';
 
 
-const IconMap = {
-    HomeIcon,
-    BeakerIcon,
-    Square3Stack3DIcon,
-    CreditCardIcon,
-    Cog6ToothIcon,
-    SwatchIcon,
-    ClipboardDocumentListIcon,
-    IdentificationIcon,
-    BriefcaseIcon,
-    ChartBarIcon,
-    DocumentChartBarIcon,
-    BellIcon,
-    UserCircleIcon,
-    UserGroupIcon,
-    MapPinIcon,
-    ArrowUpRightIcon,
-    ArrowDownLeftIcon,
-    ClockIcon,
-    DocumentTextIcon,
-    ArrowDownOnSquareIcon,
-    ArrowUpOnSquareIcon,
-    ChartPieIcon,
-    CogIcon,
-    UserPlusIcon,
-    ReceiptPercentIcon,
-    ScaleIcon,
-    PaintBrushIcon,
-    BuildingLibraryIcon,
-    TruckIcon,
-    ShoppingCartIcon,
-    ChatBubbleLeftEllipsisIcon,
-    XMarkIcon,
-    ArrowPathIcon,
-    CpuChipIcon,
-    ChatBubbleOvalLeftIcon,
-    SparklesIcon,
-    WrenchScrewdriverIcon,
-    CalendarIcon
-};
+// Shared with module navigation so configured menu icons render consistently.
 
 const page = usePage();
 const { can, hasFullAccess } = usePermissions();
