@@ -427,8 +427,8 @@ class PatronStatementBillTest extends TestCase
             'account_id' => $this->ledger->id, 'tax_amount' => 0, 'adjustment' => 0, 'round_off' => 0]);
         $type = \App\Models\AccountsType::factory()->create(['plant_id' => $this->plant->id, 'title' => 'Sales Accounts']);
         $attributes = ['plant_id' => $this->plant->id, 'account_type_id' => $type->id];
-        $first = Ledger::factory()->create($attributes);
-        $second = Ledger::factory()->create($attributes);
+        $first = Ledger::factory()->create($attributes + ['description' => 'SALE-RET']);
+        $second = Ledger::factory()->create($attributes + ['description' => 'ADJ']);
         $this->get(route('crdrnote.index'))->assertInertia(fn ($page) => $page
             ->where('salesLedgers', fn ($options) => collect($options)->pluck('value')->contains($first->id)));
         $data = ['source_id' => $this->bill->id, 'note_type' => 'credit_note', 'note_date' => '2026-10-07',
@@ -436,10 +436,13 @@ class PatronStatementBillTest extends TestCase
         $this->post(route('crdrnote.store'), $data)->assertSessionHasNoErrors();
         $note = $this->bill->adjustmentNotes()->firstOrFail();
         $entry = \App\Models\JournalEntry::where('ref_id', $note->id)->where('voucher_type', 'CREDIT_NOTE')->firstOrFail();
+        $this->assertStringStartsWith('SALE-RET/', $note->full_number);
         $this->assertTrue($entry->lines()->where('account_id', $first->id)->where('debit_amount', '>', 0)->exists());
         $data['account_id'] = $second->id;
         $this->put(route('crdrnote.update', $note->encrypted_id), $data)->assertSessionHasNoErrors();
         $this->assertEquals($second->id, $note->fresh()->account_id);
+        $this->assertStringStartsWith('ADJ/', $note->fresh()->full_number);
+        $this->assertSame($note->fresh()->full_number, $entry->fresh()->voucher_number);
         $this->assertTrue($entry->lines()->where('account_id', $second->id)->where('debit_amount', '>', 0)->exists());
         $this->assertEquals($this->ledger->id, $this->bill->fresh()->account_id);
     }

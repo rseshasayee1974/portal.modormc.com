@@ -308,10 +308,12 @@ class Invoice extends Model implements Postable
              if (!$ledger) {
                  throw \Illuminate\Validation\ValidationException::withMessages(['account_id' => 'Select a ledger belonging to the active plant.']);
              }
-             if (!$isNote && $ledger && !empty(trim((string) $ledger->description))) {
+             if (trim((string) $ledger->description) !== '') {
                  $desc = trim((string) $ledger->description);
+                 if ($isNote) $desc = str_ireplace('{type}', rtrim($defaultPrefix, '/'), $desc);
                  if (stripos($desc, '{fy}') !== false) {
                      $prefix = str_ireplace('{fy}', $fy, $desc);
+                     if ($isNote) $prefix = rtrim($prefix, '/') . '/';
                  } else {
                      $cleanDesc = rtrim($desc, '/');
                      $prefix = "{$cleanDesc}/{$fy}/";
@@ -341,7 +343,8 @@ class Invoice extends Model implements Postable
             if ($customFormat) {
                 $ledgerPrefix = preg_replace('~/\{fy\}(?=/|$)|^\{fy\}/?~i', '', trim((string) $ledger?->description));
                 $ledgerPrefix = trim($ledgerPrefix, " \t\n\r\0\x0B/");
-                $prefix = !$isNote && $ledgerPrefix !== '' ? $ledgerPrefix . '/' : $defaultPrefix;
+                if ($isNote) $ledgerPrefix = str_ireplace('{type}', rtrim($defaultPrefix, '/'), $ledgerPrefix);
+                $prefix = $ledgerPrefix !== '' ? $ledgerPrefix . '/' : $defaultPrefix;
                 $suffix = $fy;
             }
         }
@@ -355,7 +358,7 @@ class Invoice extends Model implements Postable
         foreach ($numbers as $invoice) {
             $sequence = self::sequenceValue((string) $invoice->invoice_number, $prefix, $suffix);
             if ($sequence === null || $sequence < $startingNumber) continue;
-            if ($invoice->deleted_at === null && (int) $invoice->is_active === 1) {
+            if ($invoice->deleted_at === null && ($isNote || (int) $invoice->is_active === 1)) {
                 $highestActive = max($highestActive, $sequence);
             } else {
                 $reusable[$sequence] = true;
@@ -409,9 +412,9 @@ class Invoice extends Model implements Postable
             });
     }
 
-    public static function adjustmentNoteNumber(int $plantId, string $type, ?string $number = null, ?int $excludeId = null): array
+    public static function adjustmentNoteNumber(int $plantId, string $type, ?string $number = null, ?int $excludeId = null, ?int $accountId = null): array
     {
-        $details = self::generateNumber($plantId, $type);
+        $details = self::generateNumber($plantId, $type, $accountId);
         $number = trim((string) $number);
         if ($number === '') {
             $number = $details['next_number'];
@@ -585,12 +588,13 @@ class Invoice extends Model implements Postable
                 throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'The source document must have a positive amount.']);
             }
             Plant::withoutGlobalScopes()->whereKey($source->plant_id)->lockForUpdate()->firstOrFail();
-            $details = self::adjustmentNoteNumber($source->plant_id, $type, $changes['invoice_number'] ?? null);
+            $accountId = $type === 'credit_note' ? ($changes['account_id'] ?? $source->account_id) : $source->account_id;
+            $details = self::adjustmentNoteNumber($source->plant_id, $type, $changes['invoice_number'] ?? null, accountId: $accountId);
             $fields = ['plant_id', 'partner_id', 'account_id', 'subtotal', 'global_discount_type', 'global_discount',
                 'discount_total', 'tax_amount', 'adjustment', 'shipping_charges', 'shipping_tax_id',
                 'total_amount', 'round_off', 'is_tax_inclusive'];
             $note = self::create(array_merge($source->only($fields), [
-                'account_id' => $type === 'credit_note' ? ($changes['account_id'] ?? $source->account_id) : $source->account_id,
+                'account_id' => $accountId,
                 'invoice_type' => $type, 'invoice_label' => $type === 'credit_note' ? 'Credit Note' : 'Debit Note',
                 'prefix' => $details['prefix'], 'invoice_number' => $details['invoice_number'],
                 'ref_id' => $source->id, 'ref_title' => $source->full_number,

@@ -75,9 +75,16 @@ class InvoiceNoteController extends Controller
                 throw \Illuminate\Validation\ValidationException::withMessages(['reason' => 'Only approved notes can be edited.']);
             }
             $numberFields = [];
-            if (isset($data['invoice_number'])) {
+            $accountId = $data['account_id'] ?? $note->account_id;
+            $ledgerChanged = (int) $accountId !== (int) $note->account_id;
+            $seriesChanged = $ledgerChanged
+                && Invoice::generateNumber($note->plant_id, $note->invoice_type, $accountId)['prefix'] !== $note->prefix;
+            $storedSequence = preg_replace('~/\d{2}-\d{2}$~', '', (string) $note->invoice_number);
+            $requestedNumber = trim((string) ($data['invoice_number'] ?? ''));
+            $numberChanged = $requestedNumber !== '' && !in_array($requestedNumber, [$storedSequence, $note->invoice_number, $note->full_number], true);
+            if ($seriesChanged || $numberChanged) {
                 \App\Models\Plant::withoutGlobalScopes()->whereKey($note->plant_id)->lockForUpdate()->firstOrFail();
-                $number = Invoice::adjustmentNoteNumber($note->plant_id, $note->invoice_type, $data['invoice_number'], $note->id);
+                $number = Invoice::adjustmentNoteNumber($note->plant_id, $note->invoice_type, $numberChanged ? $requestedNumber : null, $note->id, $accountId);
                 $numberFields = ['prefix' => $number['prefix'], 'invoice_number' => $number['invoice_number']];
             }
             $oldNumber = $note->full_number;
