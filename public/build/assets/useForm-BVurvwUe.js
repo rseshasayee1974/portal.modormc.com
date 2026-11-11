@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/useForm-BVurvwUe.js
-import{k as r,j as o}from"./app-mqTb0TK1.js";function e(e){const s=r(e),n=o(()=>s.errors??{}),t=o(()=>Boolean(s.processing));return{...s,errors:n,errorFor:function(r){const o=r.replace(/\[(\d+)\]/g,".$1");return function(r){if(r)return Array.isArray(r)?r[0]:r}(n.value[o]??n.value[r])},setApiErrors:function(r){const o=r;(null==o?void 0:o.errors)&&"object"==typeof o.errors&&(s.clearErrors(),s.setError(o.errors))},isSubmitting:t}}export{e as u};
-========
-import{k as r,j as o}from"./app-DypQxK4X.js";function e(e){const s=r(e),n=o(()=>s.errors??{}),t=o(()=>Boolean(s.processing));return{...s,errors:n,errorFor:function(r){const o=r.replace(/\[(\d+)\]/g,".$1");return function(r){if(r)return Array.isArray(r)?r[0]:r}(n.value[o]??n.value[r])},setApiErrors:function(r){const o=r;(null==o?void 0:o.errors)&&"object"==typeof o.errors&&(s.clearErrors(),s.setError(o.errors))},isSubmitting:t}}export{e as u};
->>>>>>>> a49aa32ade5043a7c807740244bd630b139196ad:public/build/assets/useForm-BhrSVWuX.js

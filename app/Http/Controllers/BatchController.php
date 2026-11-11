@@ -1197,14 +1197,9 @@ class BatchController extends Controller
             'dispatches' => $mappedDispatches,
             'dispatch' => $primaryDispatch,
             'load_total_amount' => (float)($primaryDispatch['load_total_amount'] ?? 0),
-<<<<<<< HEAD
-            'customer_id' => $batchRow->customer_id,
-            'customer_name' => $batchRow->customer_legal_name,
-            'customer_mobile' => $batchRow->customer_mobile,
-=======
             'customer_id' => $primaryDispatch['customer_id'] ?? $batchRow->customer_id,
             'customer_name' => $primaryDispatch['customer']['legal_name'] ?? $batchRow->customer_legal_name,
->>>>>>> a4f685ea502b3d83608f39a20f048917a70e9833
+            'customer_mobile' => $batchRow->customer_mobile,
             'site_id' => $batchRow->site_id,
             'site_name' => $batchRow->site_name,
             'mix_design_id' => $batchRow->mix_design_id,
