@@ -106,6 +106,7 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StateCodeController;
 use App\Http\Controllers\StockController;
+use App\Http\Controllers\SupportRequestController;
 use App\Http\Controllers\StockExhaustController;
 use App\Http\Controllers\SubscriptionStatusController;
 use App\Http\Controllers\TaxController;
@@ -148,6 +149,12 @@ Route::post('/account-deletion', [AccountDeletionRequestController::class, 'stor
     ->middleware('throttle:5,10')
     ->withoutMiddleware(TitleCaseInputs::class)
     ->name('account-deletion.store');
+Route::inertia('/support', 'Support')->name('support');
+Route::redirect('/contact-us', '/support')->name('contact-us');
+Route::post('/support', [SupportRequestController::class, 'store'])
+    ->middleware('throttle:5,10')
+    ->withoutMiddleware(TitleCaseInputs::class)
+    ->name('support.store');
 
 // OTP Verification
 Route::middleware(['auth', config('jetstream.auth_session')])->group(function () {

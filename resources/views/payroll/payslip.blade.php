@@ -209,8 +209,8 @@
         <div class="header-right">
             <div class="payslip-title">PAYSLIP</div>
             <div class="co-detail">Payslip No: <strong>{{ $payslip->payslip_no }}</strong></div>
-            <div class="payslip-period">For Period: {{ strtoupper($payslip->payrollPeriod?->name ?? 'N/A') }}</div>
-            <div class="co-detail" style="margin-top:2px;">Cycle: {{ $payslip->payrollPeriod?->from_date->format('d/m/Y') }} to {{ $payslip->payrollPeriod?->to_date->format('d/m/Y') }}</div>
+            <div class="payslip-period">For Period: {{ strtoupper($payslip->payrollPeriod?->name ?? 'Period unavailable') }}</div>
+            <div class="co-detail" style="margin-top:2px;">Cycle: {{ $payslip->payrollPeriod?->from_date?->format('d/m/Y') ?? 'N/A' }} to {{ $payslip->payrollPeriod?->to_date?->format('d/m/Y') ?? 'N/A' }}</div>
         </div>
     </div>
 
@@ -251,6 +251,16 @@
             <td class="info-val">{{ $payslip->personnel?->esi_number ?? '-' }}</td>
             <td class="info-hdr">Bank A/C No.</td>
             <td class="info-val bold">{{ $payslip->personnel?->bank_account_no ?? '-' }}</td>
+        </tr>
+    </table>
+
+    {{-- FINANCIAL YEAR-TO-DATE TOTALS --}}
+    <table class="info-section" style="margin-top: 8px;">
+        <tr>
+            <td class="info-hdr">FY Gross to Date</td>
+            <td class="info-val bold">&#8377;{{ number_format($yearToDate['gross'] ?? 0, 2) }}</td>
+            <td class="info-hdr">FY TDS to Date</td>
+            <td class="info-val bold text-red">&#8377;{{ number_format($yearToDate['tds'] ?? 0, 2) }}</td>
         </tr>
     </table>
 

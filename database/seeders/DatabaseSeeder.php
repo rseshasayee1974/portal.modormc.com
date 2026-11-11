@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\PersonnelSeeder::class);
         $this->call(\Database\Seeders\SiteSeeder::class);
         $this->call(\Database\Seeders\HrmsMasterSeeder::class);
+        $this->call(\Database\Seeders\PayrollPeriodSeeder::class);
         
         // ── 4. Main Modules ────────────────────────────────────
         $this->call(\Database\Seeders\AccountTypeSeeder::class);

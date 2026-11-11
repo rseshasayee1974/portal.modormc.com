@@ -330,7 +330,7 @@ const getStatusSeverity = (status: string) => {
                                                 <div class="flex items-center gap-2">
                                                     <SparklesIcon class="w-5 h-5 text-indigo-500" />
                                                     <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
-                                                        Bulk Payslip Processing Engine
+                                                        Generate Payslips
                                                     </span>
                                                 </div>
                                             </template>
@@ -338,9 +338,10 @@ const getStatusSeverity = (status: string) => {
                                              <form @submit.prevent="submitGenerate" class="space-y-6">
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div class="flex flex-col gap-2">
-                                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select Processing Period <span class="text-red-500">*</span></label>
+                                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Payroll Period <span class="text-red-500">*</span></label>
                                                         <BaseSelect v-model="genForm.payroll_period_id" :options="periodOptions" optionLabel="label" optionValue="value" placeholder="Select Period" class="w-full" />
                                                         <small v-if="genForm.errors.payroll_period_id" class="p-error text-[10px]">{{ genForm.errors.payroll_period_id }}</small>
+                                                        <small class="text-[10px] text-gray-400">Monthly periods are created from employee salary structure dates.</small>
                                                     </div>
 
                                                     <div class="flex flex-col gap-2">
@@ -635,11 +636,12 @@ const getStatusSeverity = (status: string) => {
                                 <!-- Period Form (3-column layout) -->
                                 <BaseCard class="text-sm">
                                     <template #header>
-                                        <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
-                                            {{ editingPeriodId ? 'Edit Payroll Cycle' : 'Open Payroll Cycle' }}
+                                            <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
+                                            {{ editingPeriodId ? 'Edit Custom Period' : 'Add Custom Period' }}
                                         </span>
                                     </template>
 
+                                    <p class="mb-5 text-xs text-gray-500 dark:text-gray-400">Monthly periods are created automatically for months covered by employee salary structures. Add a custom period below only when this plant uses a different payroll cycle.</p>
                                     <form @submit.prevent="submitPeriod" class="space-y-6">
                                         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                             <div class="flex flex-col gap-2">

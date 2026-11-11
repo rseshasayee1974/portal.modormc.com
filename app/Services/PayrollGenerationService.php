@@ -38,7 +38,12 @@ class PayrollGenerationService
         $query = Personnel::withoutGlobalScope('plant_id')
             
             ->with([
-                'salaryStructures' => function ($q) {
+                'salaryStructures' => function ($q) use ($period) {
+                    $q->whereDate('effective_from', '<=', $period->to_date->toDateString())
+                        ->where(function ($dateQuery) use ($period) {
+                            $dateQuery->whereNull('effective_to')
+                                ->orWhereDate('effective_to', '>=', $period->from_date->toDateString());
+                        });
                     $q->with([
                         'salaryComponent' => function ($sq) {
                             $sq->withoutGlobalScope('plant_id');
@@ -55,8 +60,24 @@ class PayrollGenerationService
 
         $personnelList = $query->get();
 
+        $personnelList = $personnelList->filter(function ($personnel) use ($period): bool {
+            $personnel->salaryStructures = $personnel->salaryStructures
+                ->groupBy('salary_component_id')
+                ->map(function ($structures) use ($period) {
+                    return $structures
+                        ->filter(fn ($structure) => $structure->effective_from->lte($period->to_date)
+                            && (!$structure->effective_to || $structure->effective_to->gte($period->from_date)))
+                        ->sortByDesc('effective_from')
+                        ->first();
+                })
+                ->filter()
+                ->values();
+
+            return $personnel->salaryStructures->isNotEmpty();
+        })->values();
+
         if ($personnelList->isEmpty()) {
-            throw new Exception('No active personnel found to generate payslips.');
+            throw new Exception('No active personnel have a salary structure covering this payroll period. Add or update employee salary structures, then try again.');
         }
 
         $startDate = $period->from_date;
