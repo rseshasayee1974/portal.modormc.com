@@ -141,9 +141,15 @@ class PatronController extends Controller
         return redirect()->back()->with('success', 'Patron created successfully with contact details.');
     }
 
-    public function update(UpdatePatronRequest $request, Patron $patron)
+    public function update(UpdatePatronRequest $request, $patronId)
     {
         $this->authorizeModule('edit');
+
+        // The patrons page includes inactive records, so resolve the update target
+        // without the active-only scope while retaining the current plant scope.
+        $patron = Patron::withoutGlobalScope('active_operational_status')
+            ->where('plant_id', session('active_plant_id'))
+            ->findOrFail($patronId);
         
         $validated = $request->validated();
         DB::transaction(function () use ($validated, $patron) {

@@ -463,6 +463,18 @@ const getStatusSeverity = (status: string) => {
                                         <Column header="Actions" alignFrozen="right" frozen>
                                             <template #body="slotProps">
                                                 <div class="flex justify-end items-center gap-2">
+                                                    <a
+                                                        :href="`${route('payslips.show', slotProps.data.id)}?action=view`"
+                                                        target="_blank"
+                                                        rel="noopener"
+                                                        class="inline-flex items-center justify-center rounded border border-indigo-200 bg-indigo-50 p-2 text-indigo-700 transition-colors hover:bg-indigo-100"
+                                                        title="Open print preview"
+                                                        :aria-label="`Open print preview for payslip ${slotProps.data.payslip_no}`"
+                                                    >
+                                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 8V3.75h10.5V8M6 18H4.5A1.5 1.5 0 0 1 3 16.5v-6A1.5 1.5 0 0 1 4.5 9h15a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H18M6.75 14.25h10.5v6H6.75zM17.25 11.75h.008v.008h-.008z" />
+                                                        </svg>
+                                                    </a>
                                                     <a 
                                                         :href="route('payslips.show', slotProps.data.id)" 
                                                         target="_blank"

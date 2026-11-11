@@ -85,6 +85,7 @@ class BatchController extends Controller
                 'so.pump_rate as so_pump_rate',
                 DB::raw('COALESCE(d.customer_id, so.customer_id) as customer_id'),
                 DB::raw('COALESCE(dp.legal_name, p.legal_name) as customer_name'),
+                DB::raw("(SELECT COALESCE(NULLIF(customer_contacts.mobile, ''), NULLIF(customer_contacts.alt_mobile, '')) FROM mm_contacts as customer_contacts WHERE customer_contacts.patron_id = COALESCE(d.customer_id, so.customer_id) AND customer_contacts.plant_id = b.plant_id AND customer_contacts.status = 1 AND customer_contacts.deleted_at IS NULL ORDER BY customer_contacts.is_primary DESC, customer_contacts.id ASC LIMIT 1) as customer_mobile"),
                 DB::raw('COALESCE(d.unload_site_id, so.site_id) as site_id'),
                 DB::raw('COALESCE(ds_site.name, s.name) as site_name'),
                 DB::raw('COALESCE(d.mixdesign_id, so.mix_design_id) as mix_design_id'),
@@ -136,6 +137,7 @@ class BatchController extends Controller
                     'sales_order_id' => $row->sales_order_id,
                     'customer_id' => $row->customer_id,
                     'customer_name' => $row->customer_name,
+                    'customer_mobile' => $row->customer_mobile,
                     'site_id' => $row->site_id,
                     'site_name' => $row->site_name,
                     'mix_design_id' => $row->mix_design_id,
@@ -168,6 +170,7 @@ class BatchController extends Controller
                         'customer' => [
                             'id' => $row->customer_id,
                             'legal_name' => $row->customer_name,
+                            'mobile' => $row->customer_mobile,
                         ],
                         'site' => [
                             'id' => $row->site_id,
@@ -765,6 +768,7 @@ class BatchController extends Controller
                 'p.id as customer_id',
                 'p.legal_name as customer_legal_name',
                 'p.code as customer_code',
+                DB::raw("(SELECT COALESCE(NULLIF(customer_contacts.mobile, ''), NULLIF(customer_contacts.alt_mobile, '')) FROM mm_contacts as customer_contacts WHERE customer_contacts.patron_id = p.id AND customer_contacts.plant_id = b.plant_id AND customer_contacts.status = 1 AND customer_contacts.deleted_at IS NULL ORDER BY customer_contacts.is_primary DESC, customer_contacts.id ASC LIMIT 1) as customer_mobile"),
                 // Site
                 's.id as site_id',
                 's.name as site_name',
@@ -1191,6 +1195,7 @@ class BatchController extends Controller
             'load_total_amount' => (float)($primaryDispatch['load_total_amount'] ?? 0),
             'customer_id' => $batchRow->customer_id,
             'customer_name' => $batchRow->customer_legal_name,
+            'customer_mobile' => $batchRow->customer_mobile,
             'site_id' => $batchRow->site_id,
             'site_name' => $batchRow->site_name,
             'mix_design_id' => $batchRow->mix_design_id,
@@ -1226,6 +1231,7 @@ class BatchController extends Controller
                     'id' => $batchRow->customer_id,
                     'legal_name' => $batchRow->customer_legal_name,
                     'code' => $batchRow->customer_code,
+                    'mobile' => $batchRow->customer_mobile,
                 ],
                 'site' => [
                     'id' => $batchRow->site_id,

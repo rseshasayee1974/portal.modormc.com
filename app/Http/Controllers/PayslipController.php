@@ -218,6 +218,7 @@ class PayslipController extends Controller
             'payslip' => $payslip,
             'plant' => $plant,
             'yearToDate' => $yearToDate,
+            'is_pdf' => true,
         ]);
 
         $filename = 'payslip-' . $payslip->payslip_no . '.pdf';

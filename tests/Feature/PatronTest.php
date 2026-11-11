@@ -285,6 +285,31 @@ class PatronTest extends TestCase
         ]);
     }
 
+    public function test_can_update_inactive_patron_visible_in_the_index(): void
+    {
+        $patron = Patron::factory()->create([
+            'plant_id' => $this->plant->id,
+            'entity_id' => $this->entity->id,
+            'operational_status' => 'inactive',
+            'legal_name' => 'Inactive Patron',
+        ]);
+
+        $this->put(route('patrons.update', $patron->id), [
+            'patron_type' => ['Customer'],
+            'legal_name' => 'Updated Inactive Patron',
+            'operational_status' => 'inactive',
+            'status' => true,
+            'displayed' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('mm_patrons', [
+            'id' => $patron->id,
+            'plant_id' => $this->plant->id,
+            'legal_name' => 'Updated Inactive Patron',
+            'operational_status' => 'inactive',
+        ]);
+    }
+
     public function test_can_delete_patron()
     {
         $patron = Patron::factory()->create([
