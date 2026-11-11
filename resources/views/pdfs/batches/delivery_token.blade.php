@@ -125,10 +125,10 @@
                 <td>
                     <div class="section-title">Delivery & Customer Details</div>
                     <table class="details-grid">
-                        @if (!empty($batch->salesOrder?->customer?->legal_name))
+                        @if (!empty($batch->patronName()))
                         <tr>
                             <td class="grid-label">Customer</td>
-                            <td class="grid-value">{{ $batch->salesOrder->customer->legal_name }}</td>
+                            <td class="grid-value">{{ $batch->patronName() }}</td>
                         </tr>
                         @endif
                         @if (!empty($batch->salesOrder?->site?->name))

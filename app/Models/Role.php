@@ -76,6 +76,11 @@ class Role extends SpatieRole
 
     public function allowsInvoiceCopySelection(): bool
     {
+        return $this->isAdministrator();
+    }
+
+    public function isAdministrator(): bool
+    {
         return $this->grantsSystemAccess()
             || in_array($this->accessCode(), [self::ADMINISTRATOR, 'ADMIN'], true);
     }

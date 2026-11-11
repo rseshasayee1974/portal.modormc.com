@@ -590,6 +590,7 @@ class Invoice extends Model implements Postable
                 'discount_total', 'tax_amount', 'adjustment', 'shipping_charges', 'shipping_tax_id',
                 'total_amount', 'round_off', 'is_tax_inclusive'];
             $note = self::create(array_merge($source->only($fields), [
+                'account_id' => $type === 'credit_note' ? ($changes['account_id'] ?? $source->account_id) : $source->account_id,
                 'invoice_type' => $type, 'invoice_label' => $type === 'credit_note' ? 'Credit Note' : 'Debit Note',
                 'prefix' => $details['prefix'], 'invoice_number' => $details['invoice_number'],
                 'ref_id' => $source->id, 'ref_title' => $source->full_number,

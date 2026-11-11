@@ -236,10 +236,10 @@
     <div class="divider"></div>
 
     <table class="meta-table">
-        @if (!empty($batch->salesOrder?->customer?->legal_name))
+        @if (!empty($batch->patronName()))
         <tr>
             <td class="meta-label">Customer:</td>
-            <td class="meta-value">{{ $batch->salesOrder->customer->legal_name }}</td>
+            <td class="meta-value">{{ $batch->patronName() }}</td>
         </tr>
         @endif
         @if (!empty($batch->salesOrder?->site?->name))

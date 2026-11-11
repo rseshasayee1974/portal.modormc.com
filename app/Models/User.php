@@ -310,6 +310,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function canChooseInvoiceCopy(): bool
     {
+        return $this->isContextAdministrator();
+    }
+
+    public function isContextAdministrator(): bool
+    {
         if ($this->hasFullAccess()) {
             return true;
         }
@@ -319,10 +324,10 @@ class User extends Authenticatable implements MustVerifyEmail
                 $this->id, (int) $entityId, session('active_plant_id')
             )?->role;
 
-            return $role?->allowsInvoiceCopySelection() ?? false;
+            return $role?->isAdministrator() ?? false;
         }
 
-        return $this->roles->contains(fn ($role) => $role->allowsInvoiceCopySelection());
+        return $this->roles->contains(fn ($role) => $role->isAdministrator());
     }
 
     /**

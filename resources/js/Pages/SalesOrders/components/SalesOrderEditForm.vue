@@ -88,6 +88,8 @@ const hasActiveData = computed(() => {
 
 const isLocked = computed(() => {
     const status = Number(props.salesOrder?.status);
+    const batched = Number(props.salesOrder?.batches_count) > 0 || Number(props.salesOrder?.dispatches_count) > 0;
+    if (batched && page.props.is_context_administrator) return false;
     return status !== 1 || hasActiveData.value;
 });
 
@@ -683,7 +685,7 @@ const handleMixCreated = () => {
 
                     <div class="pt-2 flex flex-col gap-2">
                         <Button 
-                            label="Update Sales Order" 
+                            v-if="!isLocked" label="Update Sales Order"
                             icon="pi pi-check" 
                             :loading="form.processing" 
                             @click="submit" 

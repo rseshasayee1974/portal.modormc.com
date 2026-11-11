@@ -158,27 +158,6 @@ class SalesOrderController extends Controller
         $this->authorizeModule('edit');
         $this->ensurePlantScope($salesorder);
         
-        $user = auth()->user();
-        // $isAdmin = $user && method_exists($user, 'hasRole') && (
-        //     $user->hasRole('Saas Owner') || 
-        //     $user->hasRole('Platform Admin') || 
-        //     $user->hasRole('Super Admin') || 
-        //     $user->hasRole('Admin') || 
-        //     $user->hasRole('Super Administrator') ||
-        //     $user->hasRole('Administrator')
-        // );
-
-        // if (!$isAdmin) {
-        //     if (
-        //         ($request->has('mix_design_id') && (int)$request->mix_design_id !== (int)$salesorder->mix_design_id) ||
-        //         ($request->has('total_qty') && (float)$request->total_qty !== (float)$salesorder->total_qty) ||
-        //         ($request->has('concrete_pump') && ($request->filled('concrete_pump') ? (string)$request->concrete_pump : null) !== ($salesorder->concrete_pump !== null ? (string)$salesorder->concrete_pump : null)) ||
-        //         ($request->has('pump_rate') && (float)$request->pump_rate !== (float)$salesorder->pump_rate)
-        //     ) {
-        //         return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Mix Design, Total Quantity, Concrete Pump Type, or Pump Rate.']);
-        //     }
-        // }
-
         $payload = $request->validated();
         
         $tableColumns = Schema::getColumnListing('mm_sales_orders');
@@ -187,7 +166,7 @@ class SalesOrderController extends Controller
         $hasLegacyQtyColumn = in_array('quantity', $tableColumns, true);
 
         if ($hasPlantIdColumn) {
-            $payload['plant_id'] = $payload['plant_id'] ?? $salesorder->plant_id;
+            $payload['plant_id'] = $salesorder->plant_id;
         }
 
         if ($hasLegacyQtyColumn && !$hasTotalQtyColumn && isset($payload['total_qty'])) {
@@ -198,13 +177,14 @@ class SalesOrderController extends Controller
             $payload['pump_rate'] = 0.00;
         }
 
-        // if ($hasActiveData) {
-        //     unset($payload['customer_id'], $payload['site_id'], $payload['mix_design_id']);
-        // }
 
         $payload = collect($payload)->only($tableColumns)->toArray();
 
         DB::transaction(function () use ($payload, $salesorder) {
+            $salesorder = SalesOrder::lockForUpdate()->findOrFail($salesorder->id);
+            if ($salesorder->batches()->withTrashed()->exists() || $salesorder->dispatches()->exists()) {
+                abort_unless(auth()->user()->isContextAdministrator(), 403, 'Only an administrator can edit this order after batching.');
+            }
             $salesorder->update($payload);
             $salesorder->refreshProduction();
         });
@@ -217,14 +197,15 @@ class SalesOrderController extends Controller
         $this->authorizeModule('delete');
         $this->ensurePlantScope($salesorder);
 
-        $user = request()->user();
-        $isSuperAdmin = $user && $user->hasFullAccess();
-
-        if (!$isSuperAdmin && ($salesorder->batches()->exists() || $salesorder->dispatches()->exists())) {
-            return redirect()->back()->with('error', 'Cannot delete this sales order because it has associated batches or dispatches.');
-        }
-
-        $salesorder->delete();
+        DB::transaction(function () use ($salesorder) {
+            $salesorder = SalesOrder::lockForUpdate()->findOrFail($salesorder->id);
+            if ($salesorder->batches()->withTrashed()->exists() || $salesorder->dispatches()->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'sales_order' => 'This sales order cannot be deleted after a batch or dispatch has been created.',
+                ]);
+            }
+            $salesorder->delete();
+        });
 
         return redirect()->back()->with('success', 'Sales Order deleted successfully.');
     }

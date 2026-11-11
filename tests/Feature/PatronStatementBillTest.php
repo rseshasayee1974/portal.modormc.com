@@ -414,6 +414,36 @@ class PatronStatementBillTest extends TestCase
             'note_date' => '2026-10-07', 'reason' => 'Test'])->assertNotFound();
     }
 
+    public function test_credit_note_lists_unused_sales_ledgers_and_posts_to_the_selected_ledger(): void
+    {
+        $this->withoutVite();
+        $admin = \App\Models\User::factory()->create();
+        $admin->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Platform Admin', 'guard_name' => 'web'], ['code' => 'PLATFORM_ADMIN']
+        ));
+        $this->actingAs($admin)->withSession(['active_plant_id' => $this->plant->id]);
+        $this->patron->updateQuietly(['debit_ledger_id' => $this->ledger->id]);
+        $this->bill->updateQuietly(['invoice_type' => 'Invoice', 'subtotal' => 1180, 'total_amount' => 1180,
+            'account_id' => $this->ledger->id, 'tax_amount' => 0, 'adjustment' => 0, 'round_off' => 0]);
+        $type = \App\Models\AccountsType::factory()->create(['plant_id' => $this->plant->id, 'title' => 'Sales Accounts']);
+        $attributes = ['plant_id' => $this->plant->id, 'account_type_id' => $type->id];
+        $first = Ledger::factory()->create($attributes);
+        $second = Ledger::factory()->create($attributes);
+        $this->get(route('crdrnote.index'))->assertInertia(fn ($page) => $page
+            ->where('salesLedgers', fn ($options) => collect($options)->pluck('value')->contains($first->id)));
+        $data = ['source_id' => $this->bill->id, 'note_type' => 'credit_note', 'note_date' => '2026-10-07',
+            'reason' => 'Sales Return', 'account_id' => $first->id];
+        $this->post(route('crdrnote.store'), $data)->assertSessionHasNoErrors();
+        $note = $this->bill->adjustmentNotes()->firstOrFail();
+        $entry = \App\Models\JournalEntry::where('ref_id', $note->id)->where('voucher_type', 'CREDIT_NOTE')->firstOrFail();
+        $this->assertTrue($entry->lines()->where('account_id', $first->id)->where('debit_amount', '>', 0)->exists());
+        $data['account_id'] = $second->id;
+        $this->put(route('crdrnote.update', $note->encrypted_id), $data)->assertSessionHasNoErrors();
+        $this->assertEquals($second->id, $note->fresh()->account_id);
+        $this->assertTrue($entry->lines()->where('account_id', $second->id)->where('debit_amount', '>', 0)->exists());
+        $this->assertEquals($this->ledger->id, $this->bill->fresh()->account_id);
+    }
+
     public function test_note_module_requires_separate_view_create_update_permissions(): void
     {
         $user = \App\Models\User::factory()->create();

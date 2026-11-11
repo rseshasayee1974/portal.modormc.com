@@ -122,7 +122,7 @@ class SalesOrderIndexDataFactory
         }
 
         if ($schema['hasBatchesRelation']) {
-            $query->withCount('batches');
+            $query->withCount(['batches' => fn ($query) => $query->withTrashed()]);
         } else {
             $query->addSelect(DB::raw('0 as batches_count'));
         }

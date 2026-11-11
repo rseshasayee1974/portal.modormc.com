@@ -8,6 +8,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\Invoice;
+use App\Models\Ledger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -23,6 +24,7 @@ class InvoiceNoteController extends Controller
         $this->authorizeModule('menu', 'crdrnote');
         $plantId = session('active_plant_id');
         return Inertia::render('CrDrNote/Index', [
+            'salesLedgers' => Ledger::creditNoteSalesAccounts($plantId)->orderBy('title')->get(['id as value', 'title as label']),
             'notes' => Invoice::where('plant_id', $plantId)->whereIn('invoice_type', ['credit_note', 'debit_note'])
                 ->with(['partner:id,legal_name', 'account:id,title', 'sourceDocument', 'items.uom', 'items.tax'])->latest()->get(),
             'documents' => Invoice::where('plant_id', $plantId)
@@ -63,7 +65,7 @@ class InvoiceNoteController extends Controller
             'note_date' => 'required|date|after_or_equal:' . $source->invoice_date->toDateString(),
             'reason' => 'required|string|max:2000',
             'invoice_number' => 'sometimes|required|string|max:100',
-        ], $this->itemRules($note)), [
+        ], $this->ledgerRules($note, $note->invoice_type), $this->itemRules($note)), [
             'items.*.tax_id.exists' => 'Select an active GST/IGST tax from this plant: Sales tax for a credit note or Purchase tax for a debit note.',
         ]);
         $this->validateDiscounts($data);
@@ -79,7 +81,7 @@ class InvoiceNoteController extends Controller
                 $numberFields = ['prefix' => $number['prefix'], 'invoice_number' => $number['invoice_number']];
             }
             $oldNumber = $note->full_number;
-            $note->update(['invoice_date' => $data['note_date'], 'due_date' => $data['note_date'],
+            $note->update(['account_id' => $data['account_id'] ?? $note->account_id, 'invoice_date' => $data['note_date'], 'due_date' => $data['note_date'],
                 'notes' => $data['reason'], 'updated_by' => auth()->id()] + $numberFields);
             if ($numberFields && $oldNumber !== $note->full_number) {
                 \App\Models\JournalEntry::where('plant_id', $note->plant_id)
@@ -97,6 +99,17 @@ class InvoiceNoteController extends Controller
         return redirect()->route('crdrnote.index')->with('success', 'Note updated successfully.');
     }
 
+    private function ledgerRules(Invoice $document, $type): array
+    {
+        if ($type !== 'credit_note') return [];
+        return ['account_id' => ['bail', 'nullable', 'integer', 'min:1', function ($attribute, $value, $fail) use ($document) {
+            if ((int) $value !== (int) $document->account_id
+                && !Ledger::creditNoteSalesAccounts($document->plant_id)->whereKey($value)->exists()) {
+                $fail('Select a ledger under Sales Accounts for this plant.');
+            }
+        }]];
+    }
+
     private function validateNote(Request $request, Invoice $source): array
     {
         $data = $request->validate(array_merge([
@@ -104,7 +117,7 @@ class InvoiceNoteController extends Controller
             'invoice_number' => 'nullable|string|max:100',
             'note_date' => 'required|date|after_or_equal:' . $source->invoice_date->toDateString(),
             'reason' => 'required|string|max:2000',
-        ], $this->itemRules($source)), [
+        ], $this->ledgerRules($source, $request->input('note_type')), $this->itemRules($source)), [
             'items.*.tax_id.exists' => 'Select an active GST/IGST tax from this plant: Sales tax for a credit note or Purchase tax for a debit note.',
         ]);
         $this->validateDiscounts($data);

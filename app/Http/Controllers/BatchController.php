@@ -393,6 +393,7 @@ class BatchController extends Controller
 
     try {
         $batch = DB::transaction(function () use ($payload, $salesOrder, $emptyPhoto, $loadedPhoto, $materialsData, $activePlantId, $canEditBatchNo) {
+            $salesOrder = SalesOrder::whereKey($salesOrder->id)->where('plant_id', $activePlantId)->lockForUpdate()->firstOrFail();
             $schedule = null;
             if (!empty($payload['batching_schedule_id'])) {
                 $schedule = ConcreteBatchingSchedule::where('plant_id', $activePlantId)
@@ -884,8 +885,9 @@ class BatchController extends Controller
                 });
         }
 
-        $dispatches = app(\App\Services\ProductionReadCache::class)->remember('dispatch-grid', $activePlantId, ['batch_id' => $batchId], function () use ($batchId, $activePlantId) {
+        $dispatches = app(\App\Services\ProductionReadCache::class)->remember('dispatch-grid', $activePlantId, ['batch_id' => $batchId, 'patron' => 1], function () use ($batchId, $activePlantId) {
             return DB::table('mm_dispatches as d')
+                ->leftJoin('mm_patrons as customer', 'customer.id', '=', 'd.customer_id')
                 ->leftJoin('mm_machines as t', 't.id', '=', 'd.truck_id')
                 ->leftJoin('mm_patrons as tr', 'tr.id', '=', 'd.transport_id')
                 ->leftJoin('mm_personnels as dr', 'dr.id', '=', 'd.driver_id')
@@ -908,6 +910,7 @@ class BatchController extends Controller
                     'd.sales_order_id',
                     'd.plant_id',
                     'd.customer_id',
+                    'customer.legal_name as dispatch_customer_name',
                     'd.mixdesign_id',
                     'd.unload_site_id',
                     'd.load_site_id',
@@ -1021,6 +1024,7 @@ class BatchController extends Controller
                 'sales_order_id' => $d->sales_order_id,
                 'plant_id' => $d->plant_id,
                 'customer_id' => $d->customer_id,
+                'customer' => ['id' => $d->customer_id, 'legal_name' => $d->dispatch_customer_name],
                 'mixdesign_id' => $d->mixdesign_id,
                 'unload_site_id' => $d->unload_site_id,
                 'load_site_id' => $d->load_site_id,
@@ -1193,9 +1197,14 @@ class BatchController extends Controller
             'dispatches' => $mappedDispatches,
             'dispatch' => $primaryDispatch,
             'load_total_amount' => (float)($primaryDispatch['load_total_amount'] ?? 0),
+<<<<<<< HEAD
             'customer_id' => $batchRow->customer_id,
             'customer_name' => $batchRow->customer_legal_name,
             'customer_mobile' => $batchRow->customer_mobile,
+=======
+            'customer_id' => $primaryDispatch['customer_id'] ?? $batchRow->customer_id,
+            'customer_name' => $primaryDispatch['customer']['legal_name'] ?? $batchRow->customer_legal_name,
+>>>>>>> a4f685ea502b3d83608f39a20f048917a70e9833
             'site_id' => $batchRow->site_id,
             'site_name' => $batchRow->site_name,
             'mix_design_id' => $batchRow->mix_design_id,
@@ -1263,6 +1272,37 @@ class BatchController extends Controller
         ];
 
         return response()->json($responseData);
+    }
+
+    public function updatePatron(Request $request, Batch $batch)
+    {
+        $this->authorizeModule('edit');
+        abort_unless($request->user()->isContextAdministrator() && (int) $batch->plant_id === (int) session('active_plant_id'), 403);
+        $data = $request->validate(['customer_id' => ['required', 'integer']]);
+        $customer = \App\Models\Patron::where('plant_id', $batch->plant_id)->ofType('Customer')->find($data['customer_id']);
+        if (!$customer) {
+            throw ValidationException::withMessages(['customer_id' => 'Select a customer from this plant.']);
+        }
+
+        DB::transaction(function () use ($batch, $customer) {
+            $batch = Batch::lockForUpdate()->findOrFail($batch->id);
+            $dispatches = $batch->dispatches()->where('plant_id', $batch->plant_id)->lockForUpdate()->get();
+            if ($dispatches->isEmpty()) {
+                throw ValidationException::withMessages(['customer_id' => 'This batch has no dispatch to update.']);
+            }
+            foreach ($dispatches as $dispatch) {
+                if ((int) $batch->status === Batch::STATUS_CANCELLED
+                    || in_array($dispatch->dispatch_status, ['Cancelled', 'Invoiced'], true)
+                    || $dispatch->status()->whereNotNull('invoice_id')->exists()) {
+                    throw ValidationException::withMessages(['customer_id' => 'The patron is locked for an invoiced or cancelled batch.']);
+                }
+                $dispatch->customer_id = $customer->id;
+                $dispatch->updated_by = auth()->id();
+                $dispatch->save();
+            }
+        });
+
+        return back()->with('success', 'Batch patron updated.');
     }
 
     public function update(UpdateBatchRequest $request, Batch $batch)
@@ -1680,7 +1720,7 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,concrete_grade_id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,uom_id',
+            'dispatches:id,batch_id,customer_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
@@ -1716,7 +1756,7 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,concrete_grade_id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,uom_id',
+            'dispatches:id,batch_id,customer_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
@@ -1758,7 +1798,7 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,concrete_grade_id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,discount_tax_mode,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
+            'dispatches:id,batch_id,customer_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,discount_tax_mode,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
@@ -1795,7 +1835,7 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,concrete_grade_id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,discount_tax_mode,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
+            'dispatches:id,batch_id,customer_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,discount_tax_mode,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
@@ -1837,7 +1877,7 @@ class BatchController extends Controller
             'workOrder.plant.addresses',
             'workOrder.mixDesign:id,concrete_grade_id,design_name,design_code,design_type',
             'workOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches:id,batch_id,customer_id,truck_id,driver_id,transport_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.transport:id,legal_name',
@@ -1870,7 +1910,7 @@ class BatchController extends Controller
             'workOrder.plant.addresses',
             'workOrder.mixDesign:id,concrete_grade_id,design_name,design_code,design_type',
             'workOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches:id,batch_id,customer_id,truck_id,driver_id,transport_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.transport:id,legal_name',
@@ -2333,7 +2373,7 @@ class BatchController extends Controller
             'workOrder.plant.addresses',
             'workOrder.mixDesign:id,concrete_grade_id,design_name,design_code,design_type',
             'workOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches:id,batch_id,customer_id,truck_id,driver_id,transport_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.transport:id,legal_name',

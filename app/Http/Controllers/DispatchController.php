@@ -149,6 +149,13 @@ class DispatchController extends Controller
         
         $isAdmin = $user && $user->hasFullAccess();
 
+        if ($dispatch->batch_id && $request->has('customer_id') && (int) $request->customer_id !== (int) $dispatch->customer_id) {
+            abort_unless($user->isContextAdministrator() && (int) $dispatch->plant_id === (int) session('active_plant_id'), 403);
+            if (!\App\Models\Patron::where('plant_id', $dispatch->plant_id)->ofType('Customer')->whereKey($request->customer_id)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['customer_id' => 'Select a customer from this plant.']);
+            }
+        }
+
         if (!$isAdmin) {
             if (
                 ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$dispatch->sales_order_id) ||
