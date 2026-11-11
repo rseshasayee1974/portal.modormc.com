@@ -277,6 +277,8 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),
                 'deletion_request_submitted' => fn () => $request->session()->get('deletion_request_submitted'),
+                'support_request_submitted' => fn () => $request->session()->get('support_request_submitted'),
+                'support_request_notification_error' => fn () => $request->session()->get('support_request_notification_error'),
                 'new_batch_id' => fn () => $request->session()->get('new_batch_id'),
                 'dispatched_batch_id' => fn () => $request->session()->get('dispatched_batch_id'),
             ],

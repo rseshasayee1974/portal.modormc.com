@@ -1,5 +1,6 @@
 <script setup>
 import { Head } from '@inertiajs/vue3';
+import BaseCard from '@/Components/Base/BaseCard.vue';
 
 const sections = [
     {
@@ -74,12 +75,15 @@ const sections = [
 
     <main
         class="min-h-screen bg-slate-100 px-4 py-10 font-sans text-slate-700 dark:bg-slate-950 dark:text-slate-200 sm:px-6">
-        <article
+        <BaseCard
+            :padded="false"
             class="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900">
             <div class="h-1.5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-teal-400"></div>
             <div class="p-6 sm:p-10">
-                <p
-                    class="text-center text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+                <div class="mb-4 flex justify-center">
+                    <img src="/assets/modormc_logo_v1.0.png" alt="MODORMC" class="h-14 w-auto object-contain" />
+                </div>
+                <p class="text-center text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
                     MODORMC · Onemodo Technologies</p>
                 <h1 class="mt-3 text-center text-3xl font-bold text-slate-900 dark:text-white sm:text-4xl">Privacy
                     Policy</h1>
@@ -117,6 +121,6 @@ const sections = [
                     <p>For account deletion instructions, visit <a href="/account-deletion">Account Deletion</a>.</p>
                 </div>
             </div>
-        </article>
+        </BaseCard>
     </main>
 </template>

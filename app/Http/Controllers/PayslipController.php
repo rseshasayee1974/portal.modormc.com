@@ -27,6 +27,10 @@ class PayslipController extends Controller
 
         $activePlantId = session('active_plant_id');
 
+        if ($activePlantId) {
+            app(\Database\Seeders\PayrollPeriodSeeder::class)->run((int) $activePlantId);
+        }
+
         return Inertia::render('Payroll/Index', [
             'payslips' => Payslip::with(['personnel', 'payrollPeriod', 'items'])
                 ->where('plant_id', $activePlantId)
@@ -175,9 +179,45 @@ class PayslipController extends Controller
         
         $plant = \App\Models\Plant::with(['addresses.state', 'contacts', 'entity'])->find($activePlantId);
 
+        // Legacy payslips may point to a soft-deleted or missing payroll period.
+        // Use the payslip creation date for its FY summary instead of failing the PDF.
+        $periodEnd = $payslip->payrollPeriod?->to_date?->copy()
+            ?? $payslip->payrollPeriod?->from_date?->copy()?->endOfMonth()
+            ?? $payslip->created_at?->copy()?->endOfMonth()
+            ?? now()->endOfMonth();
+        $financialYearStart = $periodEnd->month >= 4
+            ? $periodEnd->copy()->startOfYear()->month(4)->startOfMonth()
+            : $periodEnd->copy()->subYear()->startOfYear()->month(4)->startOfMonth();
+
+        $yearToDatePayslips = Payslip::withoutGlobalScope('plant_id')
+            ->with(['payrollPeriod', 'items'])
+            ->where('plant_id', $payslip->plant_id)
+            ->where('personnel_id', $payslip->personnel_id)
+            ->where(function ($query) use ($payslip, $financialYearStart, $periodEnd) {
+                $query->where('id', $payslip->id)
+                    ->orWhere(function ($historical) use ($financialYearStart, $periodEnd) {
+                        $historical->whereIn('status', ['approved', 'paid'])
+                            ->whereHas('payrollPeriod', function ($periodQuery) use ($financialYearStart, $periodEnd) {
+                                $periodQuery->whereDate('to_date', '>=', $financialYearStart->toDateString())
+                                    ->whereDate('to_date', '<=', $periodEnd->toDateString());
+                            });
+                    });
+            })
+            ->get();
+
+        $yearToDate = [
+            'gross' => (float) $yearToDatePayslips->sum('gross_salary'),
+            'tds' => (float) $yearToDatePayslips->sum(fn ($slip) => $slip->items
+                ->filter(fn ($item) => $item->type === 'deduction'
+                    && (str_contains(strtolower($item->component_name), 'tds')
+                        || str_contains(strtolower($item->component_name), 'income tax')))
+                ->sum('amount')),
+        ];
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('payroll.payslip', [
             'payslip' => $payslip,
             'plant' => $plant,
+            'yearToDate' => $yearToDate,
         ]);
 
         $filename = 'payslip-' . $payslip->payslip_no . '.pdf';
