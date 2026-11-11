@@ -77,10 +77,10 @@ class Ledger extends Model
         return rtrim($prefix, '/') . ($hasYear ? '/' : "/{$fy}/");
     }
 
-    public function scopeCreditNoteSalesAccounts($query, $plantId)
+    public function scopeNoteAccounts($query, $plantId, string $type)
     {
         return $query->where('plant_id', $plantId)->where('status', 1)
-            ->whereHas('accountType', fn ($type) => $type->where('title', 'Sales Accounts'));
+            ->whereHas('accountType', fn ($group) => $group->where('title', $type === 'debit_note' ? 'Purchase Accounts' : 'Sales Accounts'));
     }
 
     /**

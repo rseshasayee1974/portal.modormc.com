@@ -10,13 +10,14 @@ import Button from 'primevue/button';
 import ToggleSwitch from 'primevue/toggleswitch';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import NoteReferencePreview from './NoteReferencePreview.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import { DocumentTextIcon } from '@heroicons/vue/24/outline';
 import { entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import { useNoteItems } from './useNoteItems';
 
-const props = defineProps({ salesLedgers: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
+const props = defineProps({ purchaseLedgers: { type: Array, default: () => [] }, salesLedgers: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
 const emit = defineEmits(['saved', 'cancel']);
 const toast = useToast();
 const defaults = { credit_note: 'Sales Return / Invoice Adjustment', debit_note: 'Purchase Return / Bill Adjustment' };
@@ -29,9 +30,7 @@ const form = useForm({ items: [], is_tax_inclusive: false, source_id: null, acco
 const reasonOptions = computed(() => [...new Set([defaults[form.note_type], ...reasons[form.note_type]])]
     .map(value => ({ label: value, value })));
 const selectedPartnerId = ref(null);
-const selectedAccountId = ref(null);
 const partnerId = document => document.partner_id ?? document.partner?.id ?? null;
-const accountId = document => document.account_id ?? document.account?.id ?? null;
 const eligibleDocuments = computed(() => props.documents
     .filter(document => (form.note_type === 'credit_note' ? ['invoice', 'sales'] : ['bill', 'purchase'])
         .includes(String(document.invoice_type).toLowerCase()))
@@ -41,10 +40,8 @@ const dropdownOptions = (documents, getId, getLabel) => [...new Map(documents
     .map(document => [getId(document), { label: getLabel(document), value: getId(document) }])).values()]
     .sort((a, b) => a.label.localeCompare(b.label));
 const partnerOptions = computed(() => dropdownOptions(eligibleDocuments.value, partnerId, document => document.partner?.legal_name));
-const accountOptions = computed(() => dropdownOptions(eligibleDocuments.value, accountId, document => document.account?.title));
 const sourceOptions = computed(() => eligibleDocuments.value
     .filter(document => selectedPartnerId.value === null || partnerId(document) === selectedPartnerId.value)
-    .filter(document => selectedAccountId.value === null || accountId(document) === selectedAccountId.value)
     .map(document => ({ label: document.full_number + ' — ' + (document.partner?.legal_name || ''), value: document.id })));
 const source = computed(() => props.documents.find(document => document.id === form.source_id));
 const { amounts, lineTotals, taxOptions, unitOptions, itemOptions, selectItem, removeItem } = useNoteItems(form, () => source.value, () => props.taxes, () => props.units, () => props.products, () => props.mixdesign);
@@ -54,16 +51,14 @@ watch(() => form.note_type, type => {
     form.reason = defaults[type];
     form.account_id = null;
     selectedPartnerId.value = null;
-    selectedAccountId.value = null;
     form.source_id = null;
 });
 watch(() => form.source_id, () => {
     if (!source.value) return;
     selectedPartnerId.value = partnerId(source.value);
-    if (form.note_type === 'debit_note') selectedAccountId.value = accountId(source.value);
 });
-watch([selectedPartnerId, selectedAccountId], () => {
-    if (source.value && (selectedPartnerId.value !== partnerId(source.value) || (form.note_type === 'debit_note' && selectedAccountId.value !== accountId(source.value)))) {
+watch(selectedPartnerId, () => {
+    if (source.value && selectedPartnerId.value !== partnerId(source.value)) {
         form.source_id = null;
     }
 });
@@ -111,19 +106,17 @@ const save = () => {
                 :error="form.errors.source_id" required />
 
 
-            <BaseSelect v-if="form.note_type === 'credit_note'" class="md:col-span-2" v-model="form.account_id"
-                label="Ledger Account" :options="salesLedgers" optionLabel="label" optionValue="value"
-                :placeholder="source?.account?.title || 'Select Sales Ledger'" filter showClear
+            <BaseSelect class="md:col-span-2" v-model="form.account_id"
+                label="Ledger Account" :options="form.note_type === 'credit_note' ? salesLedgers : purchaseLedgers" optionLabel="label" optionValue="value"
+                :placeholder="source?.account?.title || 'Select Ledger'" filter showClear
                 :error="form.errors.account_id" />
-            <BaseSelect v-else class="md:col-span-2" v-model="selectedAccountId" label="Ledger Account"
-                :options="accountOptions" optionLabel="label" optionValue="value" placeholder="Select Ledger Account"
-                filter showClear />
             <BaseSelect class="sm:col-span-2 md:col-span-2" v-model="form.reason" label="Reason"
                 :options="reasonOptions" optionLabel="label" optionValue="value" filter :error="form.errors.reason"
                 required />
-            <BaseInput class="md:col-span-2" v-model="form.invoice_number" label="Invoice Number"
-                placeholder="Enter invoice number" inputmode="numeric" :error="form.errors.invoice_number"
+            <BaseInput class="md:col-span-2" v-model="form.invoice_number" label="Reference Number"
+                placeholder="Enter sequence number" inputmode="numeric" :error="form.errors.invoice_number"
                 :disabled="form.processing" hint="Leave blank to generate automatically" />
+            <NoteReferencePreview :type="form.note_type" :account-id="form.account_id ?? source?.account_id" :number="form.invoice_number" />
         </div>
 
         <div>

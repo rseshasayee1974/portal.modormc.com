@@ -24,7 +24,8 @@ class InvoiceNoteController extends Controller
         $this->authorizeModule('menu', 'crdrnote');
         $plantId = session('active_plant_id');
         return Inertia::render('CrDrNote/Index', [
-            'salesLedgers' => Ledger::creditNoteSalesAccounts($plantId)->orderBy('title')->get(['id as value', 'title as label']),
+            'purchaseLedgers' => Ledger::noteAccounts($plantId, 'debit_note')->orderBy('title')->get(['id as value', 'title as label']),
+            'salesLedgers' => Ledger::noteAccounts($plantId, 'credit_note')->orderBy('title')->get(['id as value', 'title as label']),
             'notes' => Invoice::where('plant_id', $plantId)->whereIn('invoice_type', ['credit_note', 'debit_note'])
                 ->with(['partner:id,legal_name', 'account:id,title', 'sourceDocument', 'items.uom', 'items.tax'])->latest()->get(),
             'documents' => Invoice::where('plant_id', $plantId)
@@ -42,6 +43,44 @@ class InvoiceNoteController extends Controller
                 'debit_note' => Invoice::generateNumber($plantId, 'debit_note'),
             ],
         ]);
+    }
+
+    private function editNumber(Invoice $note, ?int $accountId, ?string $requestedNumber): array
+    {
+        $accountId = $accountId ?? $note->account_id;
+        $ledgerChanged = (int) $accountId !== (int) $note->account_id;
+        $seriesChanged = $ledgerChanged
+            && Invoice::generateNumber($note->plant_id, $note->invoice_type, $accountId)['prefix'] !== $note->prefix;
+        $storedSequence = preg_replace('~/\d{2}-\d{2}$~', '', (string) $note->invoice_number);
+        $requestedNumber = trim((string) $requestedNumber);
+        $numberChanged = $requestedNumber !== '' && !in_array($requestedNumber, [$storedSequence, $note->invoice_number, $note->full_number], true);
+        if ($seriesChanged || $numberChanged) {
+            return Invoice::adjustmentNoteNumber($note->plant_id, $note->invoice_type, $numberChanged ? $requestedNumber : null, $note->id, $accountId);
+        }
+
+        return $note->only(['prefix', 'invoice_number']) + ['full_number' => $note->full_number];
+    }
+
+    public function previewNumber(Request $request)
+    {
+        $this->authorizeModule($request->filled('note_id') ? 'edit' : 'create', 'crdrnote');
+        $data = $request->validate([
+            'note_type' => 'required|in:credit_note,debit_note',
+            'note_id' => 'nullable|integer',
+            'account_id' => 'nullable|integer|min:1',
+            'invoice_number' => 'nullable|string|max:100',
+        ]);
+        $plantId = session('active_plant_id');
+        $accountId = $data['account_id'] ?? null;
+        $number = $data['invoice_number'] ?? null;
+        if (!empty($data['note_id'])) {
+            $note = Invoice::where('plant_id', $plantId)->where('invoice_type', $data['note_type'])->findOrFail($data['note_id']);
+            $details = $this->editNumber($note, $accountId, $number);
+        } else {
+            $details = Invoice::adjustmentNoteNumber($plantId, $data['note_type'], $number, accountId: $accountId);
+        }
+
+        return response()->json($details)->header('Cache-Control', 'no-store');
     }
 
     public function moduleStore(Request $request)
@@ -74,19 +113,9 @@ class InvoiceNoteController extends Controller
             if (strtolower((string) $note->status) !== 'approved') {
                 throw \Illuminate\Validation\ValidationException::withMessages(['reason' => 'Only approved notes can be edited.']);
             }
-            $numberFields = [];
-            $accountId = $data['account_id'] ?? $note->account_id;
-            $ledgerChanged = (int) $accountId !== (int) $note->account_id;
-            $seriesChanged = $ledgerChanged
-                && Invoice::generateNumber($note->plant_id, $note->invoice_type, $accountId)['prefix'] !== $note->prefix;
-            $storedSequence = preg_replace('~/\d{2}-\d{2}$~', '', (string) $note->invoice_number);
-            $requestedNumber = trim((string) ($data['invoice_number'] ?? ''));
-            $numberChanged = $requestedNumber !== '' && !in_array($requestedNumber, [$storedSequence, $note->invoice_number, $note->full_number], true);
-            if ($seriesChanged || $numberChanged) {
-                \App\Models\Plant::withoutGlobalScopes()->whereKey($note->plant_id)->lockForUpdate()->firstOrFail();
-                $number = Invoice::adjustmentNoteNumber($note->plant_id, $note->invoice_type, $numberChanged ? $requestedNumber : null, $note->id, $accountId);
-                $numberFields = ['prefix' => $number['prefix'], 'invoice_number' => $number['invoice_number']];
-            }
+            \App\Models\Plant::withoutGlobalScopes()->whereKey($note->plant_id)->lockForUpdate()->firstOrFail();
+            $number = $this->editNumber($note, $data['account_id'] ?? null, $data['invoice_number'] ?? null);
+            $numberFields = ['prefix' => $number['prefix'], 'invoice_number' => $number['invoice_number']];
             $oldNumber = $note->full_number;
             $note->update(['account_id' => $data['account_id'] ?? $note->account_id, 'invoice_date' => $data['note_date'], 'due_date' => $data['note_date'],
                 'notes' => $data['reason'], 'updated_by' => auth()->id()] + $numberFields);
@@ -108,11 +137,11 @@ class InvoiceNoteController extends Controller
 
     private function ledgerRules(Invoice $document, $type): array
     {
-        if ($type !== 'credit_note') return [];
-        return ['account_id' => ['bail', 'nullable', 'integer', 'min:1', function ($attribute, $value, $fail) use ($document) {
+        if (!in_array($type, ['credit_note', 'debit_note'], true)) return [];
+        return ['account_id' => ['bail', 'nullable', 'integer', 'min:1', function ($attribute, $value, $fail) use ($document, $type) {
             if ((int) $value !== (int) $document->account_id
-                && !Ledger::creditNoteSalesAccounts($document->plant_id)->whereKey($value)->exists()) {
-                $fail('Select a ledger under Sales Accounts for this plant.');
+                && !Ledger::noteAccounts($document->plant_id, $type)->whereKey($value)->exists()) {
+                $fail('Select a ledger from the appropriate account group for this plant.');
             }
         }]];
     }

@@ -588,7 +588,7 @@ class Invoice extends Model implements Postable
                 throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'The source document must have a positive amount.']);
             }
             Plant::withoutGlobalScopes()->whereKey($source->plant_id)->lockForUpdate()->firstOrFail();
-            $accountId = $type === 'credit_note' ? ($changes['account_id'] ?? $source->account_id) : $source->account_id;
+            $accountId = $changes['account_id'] ?? $source->account_id;
             $details = self::adjustmentNoteNumber($source->plant_id, $type, $changes['invoice_number'] ?? null, accountId: $accountId);
             $fields = ['plant_id', 'partner_id', 'account_id', 'subtotal', 'global_discount_type', 'global_discount',
                 'discount_total', 'tax_amount', 'adjustment', 'shipping_charges', 'shipping_tax_id',

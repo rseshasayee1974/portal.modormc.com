@@ -378,6 +378,7 @@ class PatronStatementBillTest extends TestCase
 
     public function test_note_module_lists_creates_edits_and_reposts_without_changing_source(): void
     {
+        $this->withoutVite();
         $user = \App\Models\User::factory()->create();
         $user->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(
             ['name' => 'Platform Admin', 'guard_name' => 'web'], ['code' => 'PLATFORM_ADMIN']
@@ -388,11 +389,19 @@ class PatronStatementBillTest extends TestCase
             'tax_amount' => 0, 'global_discount' => 0, 'adjustment' => 0, 'shipping_charges' => 0, 'round_off' => 0]);
         $this->get(route('crdrnote.index'))->assertOk()->assertInertia(fn ($page) => $page
             ->component('CrDrNote/Index')->has('documents', 1)->has('notes', 0));
-        $this->post(route('crdrnote.store'), ['source_id' => $this->bill->id, 'note_type' => 'debit_note',
+        $category = \App\Models\AccountsType::factory()->create(['plant_id' => $this->plant->id, 'title' => 'Purchase Accounts']);
+        $ledger = Ledger::factory()->create(['plant_id' => $this->plant->id, 'account_type_id' => $category->id, 'description' => 'PUR-RET']);
+        $preview = $this->getJson(route('crdrnote.reference-preview', ['account_id' => $ledger->id, 'note_type' => 'debit_note']))
+            ->assertOk()->json('full_number');
+        $this->post(route('crdrnote.store'), ['source_id' => $this->bill->id, 'note_type' => 'debit_note', 'account_id' => $ledger->id,
             'note_date' => '2026-10-07', 'reason' => 'Purchase Return / Bill Adjustment'])
             ->assertRedirect(route('crdrnote.index'))->assertSessionHasNoErrors();
         $note = $this->bill->adjustmentNotes()->firstOrFail();
         $number = $note->full_number;
+        $this->assertSame($preview, $number);
+        $this->assertStringStartsWith('PUR-RET/', $number);
+        $this->getJson(route('crdrnote.reference-preview', ['note_type' => 'debit_note', 'note_id' => $note->id,
+            'account_id' => $ledger->id, 'invoice_number' => $note->invoice_number]))->assertOk()->assertJsonPath('full_number', $number);
         $entry = \App\Models\JournalEntry::where('ref_id', $note->id)->where('voucher_type', 'DEBIT_NOTE')->firstOrFail();
         $lines = $entry->lines()->count();
         $this->put(route('crdrnote.update', $note->encrypted_id), ['note_date' => '2026-10-08', 'reason' => 'Tax Correction'])
@@ -433,15 +442,20 @@ class PatronStatementBillTest extends TestCase
             ->where('salesLedgers', fn ($options) => collect($options)->pluck('value')->contains($first->id)));
         $data = ['source_id' => $this->bill->id, 'note_type' => 'credit_note', 'note_date' => '2026-10-07',
             'reason' => 'Sales Return', 'account_id' => $first->id];
+        $preview = $this->getJson(route('crdrnote.reference-preview', $data))->assertOk()->json('full_number');
         $this->post(route('crdrnote.store'), $data)->assertSessionHasNoErrors();
         $note = $this->bill->adjustmentNotes()->firstOrFail();
         $entry = \App\Models\JournalEntry::where('ref_id', $note->id)->where('voucher_type', 'CREDIT_NOTE')->firstOrFail();
         $this->assertStringStartsWith('SALE-RET/', $note->full_number);
+        $this->assertSame($preview, $note->full_number);
         $this->assertTrue($entry->lines()->where('account_id', $first->id)->where('debit_amount', '>', 0)->exists());
         $data['account_id'] = $second->id;
+        $preview = $this->getJson(route('crdrnote.reference-preview', $data + ['note_id' => $note->id]))
+            ->assertOk()->json('full_number');
         $this->put(route('crdrnote.update', $note->encrypted_id), $data)->assertSessionHasNoErrors();
         $this->assertEquals($second->id, $note->fresh()->account_id);
         $this->assertStringStartsWith('ADJ/', $note->fresh()->full_number);
+        $this->assertSame($preview, $note->fresh()->full_number);
         $this->assertSame($note->fresh()->full_number, $entry->fresh()->voucher_number);
         $this->assertTrue($entry->lines()->where('account_id', $second->id)->where('debit_amount', '>', 0)->exists());
         $this->assertEquals($this->ledger->id, $this->bill->fresh()->account_id);

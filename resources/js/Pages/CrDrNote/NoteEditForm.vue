@@ -9,13 +9,14 @@ import Button from 'primevue/button';
 import ToggleSwitch from 'primevue/toggleswitch';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import NoteReferencePreview from './NoteReferencePreview.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import { PencilSquareIcon, DocumentTextIcon } from '@heroicons/vue/24/outline';
 import { entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import { useNoteItems } from './useNoteItems';
 
-const props = defineProps({ salesLedgers: { type: Array, default: () => [] }, note: { type: Object, required: true }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
+const props = defineProps({ purchaseLedgers: { type: Array, default: () => [] }, salesLedgers: { type: Array, default: () => [] }, note: { type: Object, required: true }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
 const emit = defineEmits(['saved', 'cancel']);
 const defaults = { credit_note: 'Sales Return / Invoice Adjustment', debit_note: 'Purchase Return / Bill Adjustment' };
 const reasons = {
@@ -39,7 +40,7 @@ const { amounts, lineTotals, taxOptions, unitOptions, itemOptions, selectItem, r
 const lines = computed(() => form.items);
 const partnerOptions = computed(() => props.note.partner ? [{ label: props.note.partner.legal_name, value: props.note.partner_id ?? props.note.partner.id }] : []);
 const accountOptions = computed(() => {
-    const options = props.note.invoice_type === 'credit_note' ? [...props.salesLedgers] : [];
+    const options = [...(props.note.invoice_type === 'credit_note' ? props.salesLedgers : props.purchaseLedgers)];
     if (props.note.account && !options.some(option => Number(option.value) === Number(props.note.account_id))) {
         options.push({ label: props.note.account.title, value: props.note.account_id });
     }
@@ -69,9 +70,10 @@ const save = () => {
             <BaseSelect class="md:col-span-2" :modelValue="note.invoice_type" label="Note Type" :options="types" optionLabel="label" optionValue="value" disabled required />
             <BaseDatePicker class="md:col-span-2" v-model="form.note_date" label="Note Date" :error="form.errors.note_date" required />
             <BaseInput class="md:col-span-2" :modelValue="note.ref_title" :label="note.invoice_type === 'credit_note' ? 'Against Invoice' : 'Against Bill'" disabled />
-            <BaseInput class="md:col-span-2" v-model="form.invoice_number" label="Invoice Number" placeholder="Enter invoice number" inputmode="numeric" :error="form.errors.invoice_number" :disabled="form.processing" required />
+            <BaseInput class="md:col-span-2" v-model="form.invoice_number" label="Reference Number" placeholder="Enter sequence number" inputmode="numeric" :error="form.errors.invoice_number" :disabled="form.processing" required />
             <BaseSelect class="md:col-span-2" :modelValue="note.partner_id ?? note.partner?.id" label="Account Name" :options="partnerOptions" optionLabel="label" optionValue="value" disabled />
-            <BaseSelect class="md:col-span-2" v-model="form.account_id" label="Ledger Account" :options="accountOptions" optionLabel="label" optionValue="value" filter :disabled="note.invoice_type !== 'credit_note' || form.processing" :error="form.errors.account_id" />
+            <BaseSelect class="md:col-span-2" v-model="form.account_id" label="Ledger Account" :options="accountOptions" optionLabel="label" optionValue="value" filter :disabled="form.processing" :error="form.errors.account_id" />
+            <NoteReferencePreview :type="note.invoice_type" :note-id="note.id" :account-id="form.account_id" :number="form.invoice_number" />
             <BaseSelect class="sm:col-span-2 lg:col-span-2" v-model="form.reason" label="Reason" :options="reasonOptions" optionLabel="label" optionValue="value" filter :error="form.errors.reason" required />
         </div>
 

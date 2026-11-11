@@ -612,6 +612,7 @@ Route::middleware([
         Route::get('invoices/outstanding', [InvoiceController::class, 'outstanding'])->name('invoices.outstanding');
         Route::post('invoices/{invoice}/notes', [InvoiceNoteController::class, 'store'])->name('invoices.notes.store');
         Route::get('crdrnote', [InvoiceNoteController::class, 'index'])->name('crdrnote.index');
+        Route::get('crdrnote/reference-preview', [InvoiceNoteController::class, 'previewNumber'])->name('crdrnote.reference-preview');
         Route::post('crdrnote', [InvoiceNoteController::class, 'moduleStore'])->name('crdrnote.store');
         Route::put('crdrnote/{note}', [InvoiceNoteController::class, 'update'])->name('crdrnote.update');
         Route::delete('crdrnote/{note}', [InvoiceNoteController::class, 'destroy'])->name('crdrnote.destroy');

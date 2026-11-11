@@ -12,7 +12,7 @@ import NoteForm from './NoteForm.vue';
 import NoteList from './NoteList.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 
-defineProps({ salesLedgers: { type: Array, default: () => [] }, notes: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
+defineProps({ purchaseLedgers: { type: Array, default: () => [] }, salesLedgers: { type: Array, default: () => [] }, notes: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
 const { can } = usePermissions();
 const formVersion = ref(0);
 const resetEditor = () => { formVersion.value++; };
@@ -38,11 +38,11 @@ const resetEditor = () => { formVersion.value++; };
                         </div>
                     </div>
                     <div class="create-panel__body">
-                        <NoteForm :key="`create-${formVersion}`" :documents="documents" :salesLedgers="salesLedgers" :taxes="taxes" :units="units" :products="products" :mixdesign="mixdesign" :note_number_details="note_number_details" @saved="resetEditor" @cancel="resetEditor" />
+                        <NoteForm :key="`create-${formVersion}`" :documents="documents" :purchaseLedgers="purchaseLedgers" :salesLedgers="salesLedgers" :taxes="taxes" :units="units" :products="products" :mixdesign="mixdesign" :note_number_details="note_number_details" @saved="resetEditor" @cancel="resetEditor" />
                     </div>
                 </section>
                 <section>
-                    <NoteList :notes="notes" :documents="documents" :salesLedgers="salesLedgers" :taxes="taxes" :units="units" :products="products" :mixdesign="mixdesign" :note_number_details="note_number_details" />
+                    <NoteList :notes="notes" :documents="documents" :purchaseLedgers="purchaseLedgers" :salesLedgers="salesLedgers" :taxes="taxes" :units="units" :products="products" :mixdesign="mixdesign" :note_number_details="note_number_details" />
                 </section>
             </div>
         </div>
