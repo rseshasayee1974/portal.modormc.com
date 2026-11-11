@@ -263,6 +263,7 @@ class HandleInertiaRequests extends Middleware
             'mixer_capacity'   => fn () => session('mixer_capacity', $activePlant['mixer_capacity'] ?? 1.25),
             'user_entities'    => $userEntities,
             'has_full_access'  => (bool) $contextFullAccess,
+            'is_context_administrator' => $user?->isContextAdministrator() ?? false,
             'can_choose_invoice_copy' => $user?->canChooseInvoiceCopy() ?? false,
             'user_role'        => $tenantRoleName,
             'user_code'        => $tenantRoleCode,

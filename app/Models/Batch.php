@@ -221,6 +221,11 @@ class Batch extends Model
         return $this->hasMany(Image::class, 'ref_no', 'id')->where('category', 'Batching');
     }
 
+    public function patronName(): ?string
+    {
+        return $this->dispatches->first()?->customer?->legal_name ?? $this->salesOrder?->customer?->legal_name;
+    }
+
     public function dispatches()
     {
         return $this->hasMany(Dispatch::class, 'batch_id');

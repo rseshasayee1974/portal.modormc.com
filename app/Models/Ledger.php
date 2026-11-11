@@ -77,6 +77,12 @@ class Ledger extends Model
         return rtrim($prefix, '/') . ($hasYear ? '/' : "/{$fy}/");
     }
 
+    public function scopeCreditNoteSalesAccounts($query, $plantId)
+    {
+        return $query->where('plant_id', $plantId)->where('status', 1)
+            ->whereHas('accountType', fn ($type) => $type->where('title', 'Sales Accounts'));
+    }
+
     /**
      * Relationship: Ledger belongs to an Account Type.
      */

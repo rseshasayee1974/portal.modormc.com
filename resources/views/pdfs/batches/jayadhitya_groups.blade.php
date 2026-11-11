@@ -18,7 +18,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
     $plantSerial = (new \App\Services\BatchSheet\Drivers\JayadhityaGroupsPlant739Driver)->getPlantSerial();
     $left = [['Batch Number', $batch->batch_no], ['Batch Date', $batchDate?->format('d-m-Y')],
         ['Batch Start Time', $batch->start_time?->format('H:i:s')], ['Batch End Time', $batch->end_time?->format('H:i:s')],
-        ['Customer', $order?->customer?->legal_name], ['Site', $order?->site?->name]];
+        ['Customer', $batch->patronName()], ['Site', $order?->site?->name]];
     $middle = [['Recipe Name', $mix?->design_name ?? $mix?->grade], ['Recipe Code', $mix?->design_code],
         ['Truck No', $dispatch?->truck?->registration], ['Truck Driver', trim(($driver?->first_name ?? '').' '.($driver?->last_name ?? ''))],
         ['Adj / Manual Qty', $formatDecimal($batch->manual_qty ?? null)]];

@@ -15,7 +15,7 @@ import { DocumentTextIcon } from '@heroicons/vue/24/outline';
 import { entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import { useNoteItems } from './useNoteItems';
 
-const props = defineProps({ documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
+const props = defineProps({ salesLedgers: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
 const emit = defineEmits(['saved', 'cancel']);
 const defaults = { credit_note: 'Sales Return / Invoice Adjustment', debit_note: 'Purchase Return / Bill Adjustment' };
 const reasons = {
@@ -23,7 +23,7 @@ const reasons = {
     debit_note: ['Purchase Return', 'Bill Adjustment', 'Goods Returned to Supplier', 'Short Billing by Supplier', 'Rate / Price Adjustment', 'Additional Charges', 'Tax Correction', 'Bill Correction'],
 };
 const types = [{ label: 'Credit Note', value: 'credit_note' }, { label: 'Debit Note', value: 'debit_note' }];
-const form = useForm({ items: [], is_tax_inclusive: false, source_id: null, invoice_number: '', note_type: 'credit_note', note_date: entityCalendarDate(), reason: defaults.credit_note });
+const form = useForm({ items: [], is_tax_inclusive: false, source_id: null, account_id: null, invoice_number: '', note_type: 'credit_note', note_date: entityCalendarDate(), reason: defaults.credit_note });
 const reasonOptions = computed(() => [...new Set([defaults[form.note_type], ...reasons[form.note_type]])]
     .map(value => ({ label: value, value })));
 const selectedPartnerId = ref(null);
@@ -50,6 +50,7 @@ const lines = computed(() => form.items);
 const taxInclusive = computed(() => form.is_tax_inclusive);
 watch(() => form.note_type, type => {
     form.reason = defaults[type];
+    form.account_id = null;
     selectedPartnerId.value = null;
     selectedAccountId.value = null;
     form.source_id = null;
@@ -57,10 +58,10 @@ watch(() => form.note_type, type => {
 watch(() => form.source_id, () => {
     if (!source.value) return;
     selectedPartnerId.value = partnerId(source.value);
-    selectedAccountId.value = accountId(source.value);
+    if (form.note_type === 'debit_note') selectedAccountId.value = accountId(source.value);
 });
 watch([selectedPartnerId, selectedAccountId], () => {
-    if (source.value && (selectedPartnerId.value !== partnerId(source.value) || selectedAccountId.value !== accountId(source.value))) {
+    if (source.value && (selectedPartnerId.value !== partnerId(source.value) || (form.note_type === 'debit_note' && selectedAccountId.value !== accountId(source.value)))) {
         form.source_id = null;
     }
 });
@@ -84,7 +85,8 @@ const save = () => {
             <BaseSelect class="sm:col-span-2" v-model="form.source_id" :label="form.note_type === 'credit_note' ? 'Against Invoice' : 'Against Bill'" :options="sourceOptions" optionLabel="label" optionValue="value" :placeholder="form.note_type === 'credit_note' ? 'Select Invoice' : 'Select Bill'" filter :error="form.errors.source_id" required />
             
             
-            <BaseSelect class="md:col-span-2" v-model="selectedAccountId" label="Ledger Account" :options="accountOptions" optionLabel="label" optionValue="value" placeholder="Select Ledger Account" filter showClear />
+            <BaseSelect v-if="form.note_type === 'credit_note'" class="md:col-span-2" v-model="form.account_id" label="Ledger Account" :options="salesLedgers" optionLabel="label" optionValue="value" :placeholder="source?.account?.title || 'Select Sales Ledger'" filter showClear :error="form.errors.account_id" />
+            <BaseSelect v-else class="md:col-span-2" v-model="selectedAccountId" label="Ledger Account" :options="accountOptions" optionLabel="label" optionValue="value" placeholder="Select Ledger Account" filter showClear />
             <BaseSelect class="sm:col-span-2 md:col-span-2" v-model="form.reason" label="Reason" :options="reasonOptions" optionLabel="label" optionValue="value" filter :error="form.errors.reason" required />
             <BaseInput class="md:col-span-2" v-model="form.invoice_number" label="Invoice Number" placeholder="Enter invoice number" inputmode="numeric" :error="form.errors.invoice_number" :disabled="form.processing" hint="Leave blank to generate automatically" />
         </div>

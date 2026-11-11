@@ -405,6 +405,7 @@ Route::middleware([
             ->withoutMiddleware(TitleCaseInputs::class)->name('batches.trip-options.store');
         Route::post('batches/truck-empty-weight', [BatchController::class, 'storeTruckEmptyWeight'])->name('batches.store-truck-empty-weight');
         Route::resource('batches', BatchController::class);
+        Route::put('batches/{batch}/patron', [BatchController::class, 'updatePatron'])->name('batches.patron.update');
         Route::post('batches/{batch}/send-email', [BatchController::class, 'sendEmail'])->name('batches.send-email');
         Route::get('batches/{batchId}/report', [BatchController::class, 'report'])->name('batches.report');
         Route::get('batches/{batchId}/download', [BatchController::class, 'downloadPdf'])->name('batches.download');

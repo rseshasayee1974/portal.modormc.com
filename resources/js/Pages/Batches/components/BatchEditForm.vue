@@ -58,6 +58,7 @@ const moistureDraft = ref<MoistureReading[]>([]);
 
 const props = withDefaults(defineProps<{
     batch?: any;
+    customers?: any[];
     salesOrders?: any[];
     trucks?: any[];
     transporters?: any[];
@@ -71,6 +72,7 @@ const props = withDefaults(defineProps<{
     onSaved?: (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => void;
 }>(), {
     batch: () => ({}),
+    customers: () => [],
     salesOrders: () => [],
     trucks: () => [],
     transporters: () => [],
@@ -242,7 +244,7 @@ const isUploadFetchEnabled = computed(() => {
     return !!customSettings?.batching?.sheet_upload;
 });
 
-const { isAdmin, isSuperAdmin } = usePermissions();
+const { can, isAdmin, isSuperAdmin } = usePermissions();
 const canEditBatchNo = computed(() => !isLocked.value && canEditDocumentNumber.value);
 
 const duplicateBatchWarning = computed(() => {
@@ -286,10 +288,21 @@ const isRestrictedFieldLocked = computed(() => {
     return isLocked.value;
 });
 
+const patronForm = useForm({ customer_id: null as number | null });
+const savedCustomerId = computed(() => props.batch?.dispatches?.[0]?.customer_id ?? props.batch?.sales_order?.customer?.id);
+watch(savedCustomerId, id => { patronForm.customer_id = id == null ? null : Number(id); }, { immediate: true });
+
+function savePatron() {
+    patronForm.put(route('batches.patron.update', props.batch.id), {
+        preserveScroll: true,
+        onSuccess: () => emit('saved', { batchId: props.batch.id, type: 'batching' }),
+    });
+}
+
 const salesOrderDetails = computed(() => {
     const wo = selectedSalesOrder.value;
     if (!wo) return [];
-    const customer = wo.customer_name || wo.customer?.legal_name || wo.customer?.name || '-';
+    const customer = props.customers.find(customer => Number(customer.id) === Number(savedCustomerId.value))?.legal_name || wo.customer_name || wo.customer?.legal_name || wo.customer?.name || '-';
     const site = wo.site_name || wo.site?.name || '-';
     const design = wo.mix_design_name || wo.mix_design?.design_name || wo.mix_design?.design_code || '-';
     const produced = Number(wo.produced_qty || 0).toFixed(2);
@@ -1176,6 +1189,10 @@ console.log('test');
                         <BaseSelect v-model="form.sales_order_id" optionLabel="dropdown_label"
                             :options="unifiedSalesOrders" optionValue="id" filter :disabled="true" label="Sales Order"
                             :error="form.errors.sales_order_id" />
+                        <div v-if="page.props.is_context_administrator && props.batch?.dispatches?.length && !isLocked && can('BATCH.UPDATE')" class="mt-3 space-y-2">
+                            <BaseSelect v-model="patronForm.customer_id" label="Batch Patron" :options="customers" optionLabel="legal_name" optionValue="id" filter :error="patronForm.errors.customer_id" />
+                            <Button type="button" label="Update Patron" :loading="patronForm.processing" :disabled="!patronForm.customer_id || Number(patronForm.customer_id) === Number(savedCustomerId)" @click="savePatron" />
+                        </div>
                     </div>
 
                     <div v-if="salesOrderDetails.length"

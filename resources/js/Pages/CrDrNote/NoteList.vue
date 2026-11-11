@@ -15,7 +15,7 @@ import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
 import { usePermissions } from '@/Composables/usePermissions';
 
-defineProps({ notes: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
+defineProps({ salesLedgers: { type: Array, default: () => [] }, notes: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
 const { can } = usePermissions();
 const filters = ref({ global: { value: null, matchMode: 'contains' } });
 const expandedRows = ref({});
@@ -63,7 +63,7 @@ const print = note => window.open(route('print.document', { module: 'invoices', 
         <template #expansion="{ data }">
             <BaseExpansionPanel :title="data.full_number">
                 <div class="max-w-6xl mx-auto mt-4">
-                    <NoteEditForm :key="data.id" :note="data" :taxes="taxes" :units="units" :products="products" :mixdesign="mixdesign" :note_number_details="note_number_details" @saved="expandedRows = {}" @cancel="expandedRows = {}" />
+                    <NoteEditForm :key="data.id" :note="data" :salesLedgers="salesLedgers" :taxes="taxes" :units="units" :products="products" :mixdesign="mixdesign" :note_number_details="note_number_details" @saved="expandedRows = {}" @cancel="expandedRows = {}" />
                 </div>
             </BaseExpansionPanel>
         </template>

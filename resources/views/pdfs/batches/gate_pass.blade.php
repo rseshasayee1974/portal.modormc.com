@@ -145,11 +145,11 @@
 
     {{-- ── Customer & Site ── --}}
     <table class="meta-table">
-        @if (!empty($batch->workOrder?->customer?->legal_name))
+        @if (!empty($batch->patronName()))
         <tr>
             <td class="meta-label">Customer</td>
             <td class="meta-colon">:</td>
-            <td class="meta-value">{{ $batch->workOrder->customer->legal_name }}</td>
+            <td class="meta-value">{{ $batch->patronName() }}</td>
         </tr>
         @endif
         @if (!empty($batch->workOrder?->site?->name))

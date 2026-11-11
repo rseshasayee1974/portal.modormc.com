@@ -25,6 +25,7 @@ class SalesOrderTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
         config(['app.key' => 'base64:o/uhgklRUIi8R9GE5ftPdxE+yRmWNQOie8gIb4XV14g=']);
         
         $this->user = User::factory()->create();
@@ -91,7 +92,7 @@ class SalesOrderTest extends TestCase
             'mix_design_id' => $this->mixDesign->id,
             'total_qty' => 100,
             'status' => SalesOrder::STATUS_SCHEDULED,
-            'concrete_pump' => $this->machine->id,
+            'concrete_pump' => (string) $this->machine->id,
             'pump_rate' => 1500,
         ];
 
@@ -100,7 +101,7 @@ class SalesOrderTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('mm_sales_orders', [
             'total_qty' => 100,
-            'concrete_pump' => $this->machine->id,
+            'concrete_pump' => (string) $this->machine->id,
             'pump_rate' => 1500,
         ]);
     }
@@ -139,19 +140,59 @@ class SalesOrderTest extends TestCase
             'mix_design_id' => $this->mixDesign->id,
             'total_qty' => 150,
             'status' => SalesOrder::STATUS_SCHEDULED,
-            'concrete_pump' => $this->machine->id,
+            'concrete_pump' => (string) $this->machine->id,
             'pump_rate' => 2000,
         ];
 
+        \App\Models\Batch::factory()->create(['plant_id' => $salesOrder->plant_id, 'sales_order_id' => $salesOrder->id]);
         $response = $this->put(route('salesorders.update', $salesOrder), $updateData);
+        $response->assertSessionHasNoErrors();
 
         $response->assertRedirect();
         $this->assertDatabaseHas('mm_sales_orders', [
             'id' => $salesOrder->id,
             'total_qty' => 150,
-            'concrete_pump' => $this->machine->id,
+            'concrete_pump' => (string) $this->machine->id,
             'pump_rate' => 2000,
         ]);
+    }
+
+    public function test_admin_can_correct_a_batch_patron_but_cannot_delete_its_sales_order()
+    {
+        $order = SalesOrder::factory()->create(['plant_id' => $this->plant->id, 'customer_id' => $this->customer->id]);
+        $batch = \App\Models\Batch::factory()->create(['plant_id' => $order->plant_id, 'sales_order_id' => $order->id]);
+        $dispatch = \App\Models\Dispatch::factory()->create([
+            'plant_id' => $order->plant_id, 'sales_order_id' => $order->id, 'batch_id' => $batch->id,
+            'customer_id' => $this->customer->id, 'driver_id' => null,
+        ]);
+        $replacement = Patron::factory()->create(['plant_id' => $order->plant_id]);
+        $this->put(route('batches.patron.update', $batch), ['customer_id' => $replacement->id])
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertEquals($replacement->id, $dispatch->fresh()->customer_id);
+        $this->assertEquals($replacement->legal_name, $batch->fresh()->patronName());
+        $this->assertEquals($this->customer->id, $order->fresh()->customer_id);
+
+        $dispatch->update(['dispatch_status' => 'Invoiced']);
+        $this->put(route('batches.patron.update', $batch), ['customer_id' => $replacement->id])
+            ->assertSessionHasErrors('customer_id');
+
+        $this->delete(route('salesorders.destroy', $order))->assertSessionHasErrors('sales_order');
+        $this->assertNull($order->fresh()->deleted_at);
+
+        $operator = User::factory()->create();
+        $role = \App\Models\Role::create(['name' => 'Batch Operator', 'code' => 'OPERATOR', 'guard_name' => 'web']);
+        foreach (['SALES_ORDER.UPDATE', 'BATCH.UPDATE'] as $permission) {
+            $role->givePermissionTo(\Spatie\Permission\Models\Permission::findOrCreate($permission, 'web'));
+        }
+        \App\Models\EntityUser::create(['user_id' => $operator->id, 'role_id' => $role->id,
+            'plant_id' => $order->plant_id, 'entity_id' => $this->plant->entity_id]);
+        $this->actingAs($operator);
+        $this->put(route('batches.patron.update', $batch), ['customer_id' => $replacement->id])->assertForbidden();
+        $this->put(route('salesorders.update', $order), [
+            'order_no' => $order->order_no, 'customer_id' => $order->customer_id,
+            'site_id' => $this->site->id, 'mix_design_id' => $this->mixDesign->id,
+            'total_qty' => 123, 'status' => 2,
+        ])->assertForbidden();
     }
 
     public function test_can_delete_sales_order()

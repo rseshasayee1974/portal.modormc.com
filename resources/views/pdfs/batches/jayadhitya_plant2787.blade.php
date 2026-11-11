@@ -12,7 +12,7 @@ Created: 2026-11-02 16:46:39 Asia/Calcutta (UTC+05:30)
     $date = $batch->start_time ?? $batch->created_at;
     $value = fn ($v) => $v !== null && $v !== '' ? $v : '-';
     $quantity = fn ($v) => $v === null ? '-' : number_format((float) $v, 2, '.', '');
-    $left = [['Batch Number / Docket Number', $batch->batch_no], ['Customer', $order?->customer?->legal_name],
+    $left = [['Batch Number / Docket Number', $batch->batch_no], ['Customer', $batch->patronName()],
         ['Site', $order?->site?->name], ['Recipe Code', $mix?->design_code], ['Recipe Name', $mix?->design_name],
         ['Truck Number', $dispatch?->truck?->registration], ['Truck Driver', trim(($driver?->first_name ?? '').' '.($driver?->last_name ?? ''))],
         ['Order Number', $order?->full_number ?: $order?->order_no], ['Batcher Name', $batch->operator?->full_name]];

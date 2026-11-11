@@ -1982,7 +1982,7 @@ console.log(
                                                 " :batch="detailedBatches[
                                                     slotProps.data.id
                                                 ]
-                                                    " :salesOrders="salesOrders" :trucks="trucks"
+                                                    " :customers="customers" :salesOrders="salesOrders" :trucks="trucks"
                                                     :transporters="transporters" :drivers="drivers" :sales_executives="sales_executives
                                                         " :products="products" :uoms="uoms" :statuses="statuses"
                                                     :loading_sites="loading_sites

@@ -47,7 +47,7 @@ const filters = ref({
     status: { value: null, matchMode: 'equals' },
 });
 const expandedRows = ref<Record<number, boolean>>({});
-const { can, isSuperAdmin } = usePermissions();
+const { can } = usePermissions();
 
 const statusSeverity = (status: number) => {
     if (status === 3) return 'success';
@@ -59,18 +59,15 @@ const statusSeverity = (status: number) => {
 const statusLabel = (status: number) => props.statuses.find((entry) => entry.value === status)?.label ?? 'Unknown';
 
 const destroy = (row: any) => {
-    const hasActiveData = row.batches_count > 0 || row.dispatches_count > 0 || row.status === 3;
-    const warningText = hasActiveData 
-        ? `WARNING: This order has active batches or dispatches! Deleting it may cause data inconsistencies. Are you sure you want to delete Order ${row.order_no}?`
-        : `Order ${row.order_no} will be archived.`;
+    if (row.batches_count > 0 || row.dispatches_count > 0) return;
 
     Swal.fire({
-        title: hasActiveData ? 'Force Delete Sales Order?' : 'Delete Sales Order?',
-        text: warningText,
+        title: 'Delete Sales Order?',
+        text: `Order ${row.order_no} will be archived.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
-        confirmButtonText: hasActiveData ? 'Yes, force delete' : 'Yes, delete',
+        confirmButtonText: 'Yes, delete',
     }).then((result) => {
         if (!result.isConfirmed) return;
         
@@ -257,11 +254,10 @@ const downloadSOPDF = () => {
                     </button>
 
                     <!-- Delete Option -->
-                    <template v-if="can('SALES_ORDER.DELETE')">
+                    <template v-if="activeActionRow && can('SALES_ORDER.DELETE') && !Number(activeActionRow.batches_count) && !Number(activeActionRow.dispatches_count) && Number(activeActionRow.status) !== 3">
                         <hr class="border-slate-100 my-1" />
                         <button
                             @click="() => { destroy(activeActionRow); actionPopover?.hide(); }"
-                            :disabled="!isSuperAdmin && (activeActionRow?.batches_count > 0 || activeActionRow?.dispatches_count > 0 || activeActionRow?.status === 3)"
                             class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors w-full text-left disabled:opacity-50"
                         >
                             <i class="pi pi-trash text-red-500"></i>

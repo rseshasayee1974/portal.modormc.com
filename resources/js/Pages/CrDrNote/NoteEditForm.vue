@@ -15,7 +15,7 @@ import { PencilSquareIcon, DocumentTextIcon } from '@heroicons/vue/24/outline';
 import { entityLocaleDate, entityCalendarDate } from '@/Utils/entityDateTime';
 import { useNoteItems } from './useNoteItems';
 
-const props = defineProps({ note: { type: Object, required: true }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
+const props = defineProps({ salesLedgers: { type: Array, default: () => [] }, note: { type: Object, required: true }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
 const emit = defineEmits(['saved', 'cancel']);
 const defaults = { credit_note: 'Sales Return / Invoice Adjustment', debit_note: 'Purchase Return / Bill Adjustment' };
 const reasons = {
@@ -28,7 +28,7 @@ const numberWithoutPrefix = props.note.prefix && storedNumber.startsWith(props.n
     ? storedNumber.slice(props.note.prefix.length) : storedNumber;
 const sequenceNumber = numberWithoutPrefix.replace(/\/\d{2}-\d{2}$/, '');
 const form = useForm({
-    items: [], is_tax_inclusive: false, invoice_number: sequenceNumber,
+    items: [], account_id: props.note.account_id ?? null, is_tax_inclusive: false, invoice_number: sequenceNumber,
     note_date: props.note.invoice_date?.slice(0, 10) ?? entityCalendarDate(),
     reason: props.note.notes || defaults[props.note.invoice_type],
 });
@@ -38,7 +38,13 @@ const source = computed(() => props.note.source_document);
 const { amounts, lineTotals, taxOptions, unitOptions, itemOptions, selectItem, removeItem } = useNoteItems(form, () => props.note, () => props.taxes, () => props.units, () => props.products, () => props.mixdesign);
 const lines = computed(() => form.items);
 const partnerOptions = computed(() => props.note.partner ? [{ label: props.note.partner.legal_name, value: props.note.partner_id ?? props.note.partner.id }] : []);
-const accountOptions = computed(() => props.note.account ? [{ label: props.note.account.title, value: props.note.account_id ?? props.note.account.id }] : []);
+const accountOptions = computed(() => {
+    const options = props.note.invoice_type === 'credit_note' ? [...props.salesLedgers] : [];
+    if (props.note.account && !options.some(option => Number(option.value) === Number(props.note.account_id))) {
+        options.push({ label: props.note.account.title, value: props.note.account_id });
+    }
+    return options;
+});
 const taxInclusive = computed(() => form.is_tax_inclusive);
 const money = value => Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const save = () => {
@@ -65,7 +71,7 @@ const save = () => {
             <BaseInput class="md:col-span-2" :modelValue="note.ref_title" :label="note.invoice_type === 'credit_note' ? 'Against Invoice' : 'Against Bill'" disabled />
             <BaseInput class="md:col-span-2" v-model="form.invoice_number" label="Invoice Number" placeholder="Enter invoice number" inputmode="numeric" :error="form.errors.invoice_number" :disabled="form.processing" required />
             <BaseSelect class="md:col-span-2" :modelValue="note.partner_id ?? note.partner?.id" label="Account Name" :options="partnerOptions" optionLabel="label" optionValue="value" disabled />
-            <BaseSelect class="md:col-span-2" :modelValue="note.account_id ?? note.account?.id" label="Ledger Account" :options="accountOptions" optionLabel="label" optionValue="value" disabled />
+            <BaseSelect class="md:col-span-2" v-model="form.account_id" label="Ledger Account" :options="accountOptions" optionLabel="label" optionValue="value" filter :disabled="note.invoice_type !== 'credit_note' || form.processing" :error="form.errors.account_id" />
             <BaseSelect class="sm:col-span-2 lg:col-span-2" v-model="form.reason" label="Reason" :options="reasonOptions" optionLabel="label" optionValue="value" filter :error="form.errors.reason" required />
         </div>
 
