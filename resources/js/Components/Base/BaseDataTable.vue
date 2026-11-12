@@ -5,7 +5,7 @@ import { useSlots, ref, computed, watch } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Skeleton from 'primevue/skeleton';
-import Select from 'primevue/select';
+import Select from '@/Components/Base/DeselectableSelect.js';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputGroup from 'primevue/inputgroup';

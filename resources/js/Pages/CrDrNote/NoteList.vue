@@ -3,12 +3,13 @@ Author: ragul-onemodo
 Created: 2026-10-07 18:31:21 Asia/Calcutta (UTC+05:30)
 -->
 <script setup>
-import { ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
+import Menu from 'primevue/menu';
 import Tag from 'primevue/tag';
 import { canGenerateEInvoice, hasActiveEInvoice, useEInvoiceCancellation, useEInvoiceGeneration } from '@/Composables/useEInvoiceGeneration';
 import InvoiceStatusIcons from '@/Components/InvoiceStatusIcons.vue';
@@ -47,6 +48,44 @@ const toggleEdit = note => {
     expandedRows.value = expandedRows.value[note.id] ? {} : { [note.id]: true };
 };
 const print = note => window.open(route('print.document', { module: 'invoices', id: note.encrypted_id, action: 'view' }), '_blank');
+const actionsMenu = ref(null);
+const selectedNote = ref(null);
+const toggleActions = async (event, note) => {
+    const trigger = event.currentTarget;
+    selectedNote.value = note;
+    await nextTick();
+    actionsMenu.value?.toggle(event, trigger);
+};
+const actions = computed(() => {
+    const note = selectedNote.value;
+    if (!note) return [];
+    const editing = !!expandedRows.value[note.id];
+    return [
+        {
+            label: editing ? 'Save Changes' : 'Edit Note', icon: editing ? 'pi pi-check' : 'pi pi-pencil',
+            visible: canEdit(note),
+            command: () => {
+                if (editing) document.getElementById(`save-note-${note.id}`)?.click();
+                else toggleEdit(note);
+            },
+        },
+        {
+            label: 'Generate E-Invoice', icon: 'pi pi-file',
+            visible: supplierNote(note) && ['approved', 'paid'].includes(String(note.status).toLowerCase())
+                && can('DISPATCH.GENERATE_EINVOICE') && canGenerateEInvoice(note),
+            disabled: editing || generatingEInvoice.value, command: () => generateEInvoice(note),
+        },
+        { label: hasActiveEInvoice(note) ? 'E-Invoice Print' : 'Print Note', icon: 'pi pi-print', command: () => print(note) },
+        {
+            label: 'Cancel E-Invoice', icon: 'pi pi-times-circle', visible: canCancel(note),
+            disabled: cancellingEInvoice.value, command: () => cancelEInvoice(note),
+        },
+        {
+            label: 'Delete Note', icon: 'pi pi-trash', visible: !note.einvoice_irn && can('CRDRNOTE.DELETE'),
+            disabled: deletingId.value !== null, command: () => deleteNote(note),
+        },
+    ];
+});
 </script>
 
 <template>
@@ -63,14 +102,9 @@ const print = note => window.open(route('print.document', { module: 'invoices', 
             <template #body="{ data }"><InvoiceStatusIcons :document="data" /></template>
         </Column>
         <Column header="Actions"><template #body="{ data }">
-            <!-- <Button icon="pi pi-pencil" text rounded title="Edit Note" v-if="can('CRDRNOTE.UPDATE')" :disabled="!canEdit(data)" @click.stop="toggleEdit(data)" /> -->
-            <Button v-if="supplierNote(data) && ['approved', 'paid'].includes(String(data.status).toLowerCase()) && can('DISPATCH.GENERATE_EINVOICE') && canGenerateEInvoice(data)" label="Generate E-Invoice"
-                size="small" :disabled="generatingEInvoice" @click.stop="generateEInvoice(data)" />
-            <Button v-if="hasActiveEInvoice(data)" icon="pi pi-print" label="E-Invoice Print" size="small" @click.stop="print(data)" />
-            <Button v-else icon="pi pi-print" text rounded title="Print Note" @click.stop="print(data)" />
-            <Button v-if="canCancel(data)" icon="pi pi-times-circle" label="Cancel E-Invoice" severity="danger" outlined
-                size="small" :disabled="cancellingEInvoice" @click.stop="cancelEInvoice(data)" />
-            <Button v-if="!data.einvoice_irn && can('CRDRNOTE.DELETE')" icon="pi pi-trash" severity="danger" text rounded title="Delete Note and Revert Accounting" :loading="deletingId === data.id" :disabled="deletingId !== null" @click.stop="deleteNote(data)" />
+            <Button icon="pi pi-ellipsis-v" text rounded severity="secondary" title="Actions"
+                :aria-label="`Actions for ${data.full_number}`" aria-haspopup="menu" aria-controls="note-actions-menu"
+                @click.stop="toggleActions($event, data)" />
         </template></Column>
         <template #expansion="{ data }">
             <BaseExpansionPanel :title="data.full_number">
@@ -80,5 +114,6 @@ const print = note => window.open(route('print.document', { module: 'invoices', 
             </BaseExpansionPanel>
         </template>
     </BaseDataTable>
+    <Menu :key="selectedNote?.id" ref="actionsMenu" id="note-actions-menu" :model="actions" popup />
     </div>
 </template>

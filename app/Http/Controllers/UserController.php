@@ -12,6 +12,7 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\Role;
 use App\Models\Plant;
+use App\Services\PlantContextService;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Carbon;
@@ -31,7 +32,20 @@ class UserController extends Controller
         $user = $request->user();
         $isSuperUser = $user && $user->hasFullAccess();
 
-        $query = User::with(['personnel' => fn ($q) => $q->withoutGlobalScope('plant_id')->where('plant_id', session('active_plant_id')), 'entityUsers.entity', 'entityUsers.plant', 'entityUsers.role'])
+        $context = app(PlantContextService::class);
+        $activePlantId = $context->plantId();
+        $activeEntityId = $context->entityId();
+        $memberships = $this->membershipRelations($activePlantId);
+        $query = User::with($memberships)
+            ->with(['personnel' => fn ($q) => $q->withoutGlobalScope('plant_id')->where('plant_id', $activePlantId)])
+            ->when($activePlantId, fn ($q) => $q->whereHas('entityUsers', function ($m) use ($activePlantId, $isSuperUser) {
+                $m->where('plant_id', $activePlantId);
+                if ($isSuperUser) {
+                    // Deleted accounts also have soft-deleted membership rows.
+                    $m->withTrashed()->where(fn ($active) => $active->whereNull('mm_entity_users.deleted_at')
+                        ->orWhereNotNull('mm_users.deleted_at'));
+                }
+            }))
             ->where('id', '!=', $user->id);
 
         if ($isSuperUser) {
@@ -53,18 +67,8 @@ class UserController extends Controller
                   ->orWhere('level', '>', $userLevel);
             });
 
-            $activePlantId = app(\App\Services\PlantContextService::class)->plantId();
-            if ($activePlantId) {
-                $query->whereHas('entityUsers', function ($q) use ($activePlantId) {
-                    $q->where('plant_id', $activePlantId);
-                });
-            } else {
-                $activeEntityId = app(\App\Services\PlantContextService::class)->entityId();
-                if ($activeEntityId) {
-                    $query->whereHas('entityUsers', function ($q) use ($activeEntityId) {
-                        $q->where('entity_id', $activeEntityId);
-                    });
-                }
+            if (!$activePlantId && $activeEntityId) {
+                $query->whereHas('entityUsers', fn ($q) => $q->where('entity_id', $activeEntityId));
             }
         }
 
@@ -79,10 +83,12 @@ class UserController extends Controller
         $users = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
         $dropdownData = null;
-        $dropdowns = function () use ($isSuperUser, $user, &$dropdownData) {
+        $dropdowns = function () use ($isSuperUser, $user, $activePlantId, $activeEntityId, &$dropdownData) {
             if ($dropdownData !== null) return $dropdownData;
             // Load dropdown collections for Form
-            if ($isSuperUser) {
+            if ($activePlantId) {
+                $availableEntities = Entity::whereKey($activeEntityId)->get();
+            } elseif ($isSuperUser) {
                 $availableEntities = Entity::all();
             } else {
                 // Get entities from EntityUser mapping
@@ -123,8 +129,7 @@ class UserController extends Controller
             }
 
             $plantsQuery = Plant::where('is_active', 1);
-            $activePlantId = app(\App\Services\PlantContextService::class)->plantId();
-            if ($activePlantId && !$isSuperUser) {
+            if ($activePlantId) {
                 $plantsQuery->where('id', $activePlantId);
             }
             $plants = $plantsQuery->get()->map(fn($p) => [
@@ -137,7 +142,7 @@ class UserController extends Controller
 
         if ($request->wantsJson() || $request->is('api/*')) {
             extract($dropdowns());
-            $currentUser = User::with(['entityUsers.entity', 'entityUsers.plant', 'entityUsers.role'])
+            $currentUser = User::with($memberships)
                 ->find($user->id);
 
             return response()->json([
@@ -220,7 +225,7 @@ class UserController extends Controller
     {
         $this->authorizeModule('show');
         $this->ensureUserAccess($user, auth()->user());
-        $user->load(['entityUsers.entity', 'entityUsers.role', 'entityUsers.plant']);
+        $user->load($this->membershipRelations(app(PlantContextService::class)->plantId()));
         return response()->json($user);
     }
 
@@ -243,7 +248,16 @@ class UserController extends Controller
             $data['profile_photo_path'] = null;
         }
 
-        $user->updateWithRelations($data);
+        $context = app(PlantContextService::class);
+        $plantId = $context->plantId();
+        if ($plantId) {
+            foreach ($data['entity_users'] ?? [] as $membership) {
+                if ((int) ($membership['plant_id'] ?? 0) !== $plantId || (int) $membership['entity_id'] !== $context->entityId()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['entity_users' => 'Select the current entity and plant.']);
+                }
+            }
+        }
+        $user->updateWithRelations($data, $plantId);
 
         return response()->json(['message' => 'User updated successfully.', 'user' => $user->fresh()]);
     }
@@ -351,6 +365,12 @@ class UserController extends Controller
         return redirect()->back()->with('success', 'User deleted successfully.');
     }
 
+    private function membershipRelations(?int $plantId): array
+    {
+        return ['entityUsers' => fn ($q) => $q->when($plantId, fn ($m) => $m->where('plant_id', $plantId))
+            ->with(['entity', 'plant', 'role'])];
+    }
+
     protected function ensureUserAccess(User $targetUser, ?User $currentUser): void
     {
         if (!$currentUser) {
@@ -359,6 +379,10 @@ class UserController extends Controller
 
         $isSuperUser = $currentUser->hasFullAccess();
 
+        $activePlantId = app(PlantContextService::class)->plantId();
+        if ($activePlantId && !$targetUser->entityUsers()->where('plant_id', $activePlantId)->exists()) {
+            abort(403, 'Unauthorized access to user outside current plant.');
+        }
         if ($isSuperUser) {
             return;
         }
@@ -380,12 +404,5 @@ class UserController extends Controller
             abort(403, 'Unauthorized access to user with higher privileges.');
         }
 
-        $activePlantId = app(\App\Services\PlantContextService::class)->plantId();
-        if ($activePlantId) {
-            $belongsToPlant = $targetUser->entityUsers()->where('plant_id', $activePlantId)->exists();
-            if (!$belongsToPlant) {
-                abort(403, 'Unauthorized access to user outside current plant.');
-            }
-        }
     }
 }

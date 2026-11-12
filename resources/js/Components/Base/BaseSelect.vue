@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Select from 'primevue/select';
+import Select from '@/Components/Base/DeselectableSelect.js';
 import BaseField from './BaseField.vue';
 import { computed, ref, nextTick } from 'vue';
 
@@ -119,7 +119,7 @@ const defaultPlaceholder = computed(() => {
 
 const normalizedOptions = computed(() => {
     const rawOpts = Array.isArray(props.options) ? [...props.options] : [];
-    if (props.allowEmpty || props.emptyLabel) {
+    if (!props.required && (props.allowEmpty || props.emptyLabel)) {
         const hasEmpty = rawOpts.some(o => {
             const v = getOptionValue(o);
             return v === null || v === '';
@@ -212,7 +212,7 @@ const getSelectedLabelText = (val: any) => {
         <template #default="{ invalid, inputId }">
             <Select ref="selectRef" :id="inputId" :modelValue="modelValue" :options="normalizedOptions"
                 :optionLabel="optionLabel" :optionValue="optionValue" :placeholder="defaultPlaceholder"
-                :disabled="disabled" :filter="filter" :filterFields="effectiveFilterFields"
+                :disabled="disabled" :required="required" :filter="filter" :filterFields="effectiveFilterFields"
                 :autoFilterFocus="autoFilterFocus" :checkmark="true" :showClear="showClear" :size="size" :fluid="fluid"
                 :panelClass="effectiveOverlayClass" :overlayClass="effectiveOverlayClass"
                 :panelStyle="effectiveOverlayStyle" :overlayStyle="effectiveOverlayStyle" :appendTo="appendTo"

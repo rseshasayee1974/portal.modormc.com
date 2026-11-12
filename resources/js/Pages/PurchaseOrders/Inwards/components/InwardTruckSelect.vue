@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import axios from 'axios';
-import Select from 'primevue/select';
+import Select from '@/Components/Base/DeselectableSelect.js';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';

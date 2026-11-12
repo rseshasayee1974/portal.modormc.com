@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Select from 'primevue/select';
+import Select from '@/Components/Base/DeselectableSelect.js';
 import Button from 'primevue/button';
 import BaseField from './BaseField.vue';
 
@@ -55,6 +55,7 @@ const emit = defineEmits<{
     >
         <template #default="{ invalid, inputId }">
             <Select
+                :required="required"
                 :id="inputId"
                 :modelValue="modelValue"
                 :options="options"

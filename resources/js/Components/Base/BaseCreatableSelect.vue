@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Select from 'primevue/select';
+import Select from '@/Components/Base/DeselectableSelect.js';
 import Button from 'primevue/button';
 import BaseField from './BaseField.vue';
 import { ref, computed } from 'vue';
@@ -90,6 +90,7 @@ const creatableLabel = computed(() => props.createLabel || `Create "${filterValu
     >
         <template #default="{ invalid, inputId }">
             <Select
+                :required="required"
                 ref="selectRef"
                 :id="inputId"
                 :modelValue="modelValue"

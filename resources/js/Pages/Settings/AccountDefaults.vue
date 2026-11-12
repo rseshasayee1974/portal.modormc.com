@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm } from '@inertiajs/vue3';
 import Button from 'primevue/button';
-import Dropdown from 'primevue/dropdown';
+import Dropdown from '@/Components/Base/DeselectableSelect.js';
 import Card from 'primevue/card';
 import Message from 'primevue/message';
 import Swal from 'sweetalert2';
@@ -219,6 +219,7 @@ const getModuleId = (name) => {
                                         
                                         <Dropdown 
                                             :modelValue="getLedgerId(getModuleId(mc.name), k.key)"
+                                            required
                                             @update:modelValue="(val) => setLedgerId(getModuleId(mc.name), k.key, val)"
                                             :options="ledgers" 
                                             optionLabel="title" 

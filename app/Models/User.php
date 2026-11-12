@@ -249,9 +249,9 @@ class User extends Authenticatable implements MustVerifyEmail
 		});
 	}
 
-	public function updateWithRelations(array $data)
+	public function updateWithRelations(array $data, ?int $plantId = null)
 	{
-		return DB::transaction(function () use ($data) {
+		return DB::transaction(function () use ($data, $plantId) {
 			if (isset($data['profile_photo_path'])) {
 				if ($data['profile_photo_path'] instanceof \Illuminate\Http\UploadedFile) {
 					if ($this->profile_photo_path) {
@@ -280,8 +280,9 @@ class User extends Authenticatable implements MustVerifyEmail
 					->unique(fn($eu) => ($eu['entity_id'] ?? '') . '-' . ($eu['plant_id'] ?? ''))
 					->values();
 
-				// Fully replace existing roles: permanently purge any existing mappings (including soft-deleted)
-				$this->entityUsers()->withTrashed()->forceDelete();
+				$this->entityUsers()->withTrashed()
+					->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
+					->forceDelete();
 
 				foreach ($incoming as $eu) {
 					$this->entityUsers()->create([

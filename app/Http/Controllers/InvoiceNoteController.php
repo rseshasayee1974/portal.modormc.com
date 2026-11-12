@@ -27,7 +27,7 @@ class InvoiceNoteController extends Controller
             'purchaseLedgers' => Ledger::noteAccounts($plantId, 'debit_note')->orderBy('title')->get(['id as value', 'title as label']),
             'salesLedgers' => Ledger::noteAccounts($plantId, 'credit_note')->orderBy('title')->get(['id as value', 'title as label']),
             'notes' => Invoice::where('plant_id', $plantId)->whereIn('invoice_type', ['credit_note', 'debit_note'])
-                ->with(['partner:id,legal_name', 'account:id,title', 'sourceDocument', 'einvoiceRelation', 'items.uom', 'items.tax'])->latest()->get(),
+                ->with(['partner:id,legal_name', 'account:id,title', 'sourceDocument', 'noteEinvoiceRelation', 'einvoiceRelation', 'items.uom', 'items.tax'])->latest()->get(),
             'documents' => Invoice::where('plant_id', $plantId)
                 ->whereIn('invoice_type', array_merge(\App\Support\InvoiceClassification::aliases('Invoice'), \App\Support\InvoiceClassification::aliases('Bill')))
                 ->whereRaw('LOWER(status) IN (?, ?)', ['approved', 'paid'])

@@ -6,10 +6,10 @@ use App\Models\Invoice;
 use App\Models\Dispatch;
 use App\Models\Plant;
 use App\Models\EinvoiceAuth;
-use App\Models\EinvoiceInvoiceRel;
 use App\Models\EwaybillDetail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -224,7 +224,7 @@ class EInvoiceService
      */
     public function cancelIrn(Invoice $invoice, string $cancelReason = '1', string $cancelRemarks = 'Order cancelled'): array
     {
-        $record = $invoice->einvoiceRelation;
+        $record = $invoice->registeredEinvoice();
         $irn = $record?->einv_irn;
         if (!$irn) {
             throw new \Exception('No registered IRN found for this invoice.');
@@ -274,13 +274,18 @@ class EInvoiceService
         }
 
         $cancelDate = Carbon::parse($cancelDateRaw);
-        $record->update([
-            'einv_status'    => 'CNL',
-            'einv_cancel_at' => $cancelDate,
-            'status'         => 0,
-            'modified'       => Carbon::now(),
-            'modified_by'    => $userId,
-        ]);
+        DB::transaction(function () use ($record, $invoice, $cancelDate, $userId) {
+            $record->update([
+                'einv_status'    => 'CNL',
+                'einv_cancel_at' => $cancelDate,
+                'status'         => 0,
+                'modified'       => Carbon::now(),
+                'modified_by'    => $userId,
+            ]);
+            if ($invoice->isAdjustmentNote()) {
+                Invoice::whereKey($invoice->id)->update(['einvoice_status' => 'CNL']);
+            }
+        });
 
         return [
             'success'     => true,
@@ -534,24 +539,34 @@ class EInvoiceService
      */
     public function persistIrnRecord(Invoice $invoice, array $data, ?Plant $plant, int $userId): void
     {
-        // 1. Persist into mm_einvoice_invoice_rel table
-        EinvoiceInvoiceRel::updateOrCreate(
-            ['invoice_id' => $invoice->id],
-            [
+        DB::transaction(function () use ($invoice, $data, $userId) {
+            $document = Invoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            $isNote = $document->isAdjustmentNote();
+            $relation = $isNote ? $document->noteEinvoiceRelation() : $document->einvoiceRelation();
+            $record = $relation->firstOrNew();
+            if ($isNote && !$record->exists) {
+                // invoice_id is NOT NULL in the original schema. Zero means no invoice link.
+                $record->invoice_id = 0;
+            }
+            $record->fill([
                 'einv_ackno'          => (string)$data['ack_no'],
                 'einv_ack_date'       => $data['ack_date'],
                 'einv_irn'            => (string)$data['irn'],
                 'einv_signed_invoice' => (string)($data['signed_invoice'] ?? ''),
                 'einv_signed_qrcode'  => (string)($data['signed_qrcode'] ?? ''),
                 'einv_status'         => 'ACT',
-                'plant_id'            => $plant?->id ?? 1,
+                'plant_id'            => $document->plant_id,
                 'status'              => 1,
                 'created'             => Carbon::now(),
                 'created_by'          => $userId,
                 'modified'            => Carbon::now(),
                 'modified_by'         => $userId,
-            ]
-        );
+            ])->save();
+            $invoice->setRelation($isNote ? 'noteEinvoiceRelation' : 'einvoiceRelation', $record);
+            if ($isNote) {
+                Invoice::whereKey($document->id)->update(['einvoice_status' => 'ACT']);
+            }
+        });
     }
 
     /**
