@@ -49,7 +49,14 @@ class EInvoiceController extends Controller
         try {
             $transportDetails = $request->all();
 
-            $result = $this->eInvoiceService->generate($invoice, $transportDetails);
+            if (in_array($invoice->invoice_type, ['credit_note', 'debit_note'], true)) {
+                $result = \Illuminate\Support\Facades\DB::transaction(function () use ($invoice, $transportDetails) {
+                    $note = Invoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+                    return $this->eInvoiceService->generate($note, $transportDetails);
+                });
+            } else {
+                $result = $this->eInvoiceService->generate($invoice, $transportDetails);
+            }
 
             if ($request->wantsJson() && !$request->header('X-Inertia')) {
                 return response()->json([

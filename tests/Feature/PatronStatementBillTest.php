@@ -461,6 +461,65 @@ class PatronStatementBillTest extends TestCase
         $this->assertEquals($this->ledger->id, $this->bill->fresh()->account_id);
     }
 
+    public function test_purchase_debit_note_is_rejected_before_irn_gateway_authentication(): void
+    {
+        $note = Invoice::withoutEvents(fn () => Invoice::factory()->create([
+            'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id,
+            'invoice_type' => 'debit_note', 'ref_id' => $this->bill->id, 'status' => 'approved',
+        ]));
+        $service = \Mockery::mock(\App\Services\EInvoiceService::class)->makePartial();
+        $service->shouldNotReceive('authenticate');
+        try {
+            $service->generate($note);
+            $this->fail('A purchase-side note must not be submitted as a supplier-issued debit note.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('source', $exception->errors());
+        }
+    }
+
+    public function test_supplier_notes_submit_their_own_irn_document_type_and_persist_the_gateway_acknowledgement(): void
+    {
+        $user = \App\Models\User::factory()->create();
+        $user->assignRole(\App\Models\Role::firstOrCreate(['name' => 'Platform Admin', 'guard_name' => 'web'], ['code' => 'PLATFORM_ADMIN']));
+        $this->actingAs($user)->withSession(['active_plant_id' => $this->plant->id, 'active_entity_id' => $this->plant->entity_id]);
+        $this->patron->updateQuietly(['debit_ledger_id' => $this->ledger->id]);
+        config(['services.einvoice.provider' => 'alankit']);
+        $service = \Mockery::mock(\App\Services\EInvoiceService::class)->makePartial();
+        $service->shouldReceive('authenticate')->twice()->andReturn(new \App\Models\EinvoiceAuth());
+        $service->shouldReceive('validateForIrn')->twice();
+        $this->app->instance(\App\Services\EInvoiceService::class, $service);
+        $gateway = \Mockery::mock(\App\Services\AlankitInvoiceService::class);
+        $this->app->instance(\App\Services\AlankitInvoiceService::class, $gateway);
+        foreach (['credit_note' => 'CRN', 'debit_note' => 'DBN'] as $type => $code) {
+            $source = Invoice::withoutEvents(fn () => Invoice::factory()->create([
+                'plant_id' => $this->plant->id, 'partner_id' => $this->patron->id, 'account_id' => $this->ledger->id,
+                'invoice_type' => 'Invoice', 'status' => 'approved', 'invoice_date' => '2026-11-01',
+                'subtotal' => 100, 'total_amount' => 100, 'tax_amount' => 0,
+            ]));
+            $this->post(route('crdrnote.store'), ['source_id' => $source->id, 'note_type' => $type,
+                'debit_source' => 'sales', 'note_date' => '2026-11-02', 'reason' => 'Rate adjustment'])
+                ->assertSessionHasNoErrors();
+            $note = $source->adjustmentNotes()->firstOrFail();
+            $gateway->shouldReceive('generate')->once()->andReturnUsing(function ($plant, $auth, $payload) use ($code, $note, $source) {
+                $this->assertSame($code, $payload['DocDtls']['Typ']);
+                $this->assertSame($note->full_number, $payload['DocDtls']['No']);
+                $this->assertSame($source->full_number, $payload['RefDtls']['PrecDocDtls'][0]['InvNo']);
+                return ['Irn' => hash('sha256', $code), 'AckNo' => '1234567', 'AckDt' => '2026-11-02 10:00:00',
+                    'SignedQRCode' => 'test-qr', 'SignedInvoice' => 'test-invoice'];
+            });
+            $this->postJson(route('invoices.generate-einvoice', $note->id))->assertOk();
+            $this->assertSame(hash('sha256', $code), $note->fresh()->einvoice_irn);
+            $this->assertSame('test-qr', $note->fresh()->einvoice_qr_code);
+            $print = $this->get(route('print.document', ['module' => 'invoices', 'id' => $note->encrypted_id, 'action' => 'view']));
+            $print->assertOk()->assertSee(hash('sha256', $code))->assertSee('data:image/svg+xml;base64,', false)
+                ->assertSee($code === 'CRN' ? 'CREDIT NOTE' : 'DEBIT NOTE');
+            $pdf = $this->get(route('print.document', ['module' => 'invoices', 'id' => $note->encrypted_id, 'action' => 'download']));
+            $pdf->assertOk()->assertHeader('content-type', 'application/pdf');
+            $this->assertStringStartsWith('%PDF-', $pdf->getContent());
+            $this->delete(route('crdrnote.destroy', $note->encrypted_id))->assertSessionHasErrors('note');
+        }
+    }
+
     public function test_note_module_requires_separate_view_create_update_permissions(): void
     {
         $user = \App\Models\User::factory()->create();

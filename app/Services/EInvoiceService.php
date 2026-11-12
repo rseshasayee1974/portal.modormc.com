@@ -603,7 +603,11 @@ class EInvoiceService
             'Version' => '1.1',
             'TranDtls' => $this->buildTransactionDetails($supplyType, $isInterState, $igstVal, $transportDetails),
             'DocDtls' => [
-                'Typ' => 'INV',
+                'Typ' => match ($invoice->invoice_type) {
+                    'credit_note' => 'CRN',
+                    'debit_note' => 'DBN',
+                    default => 'INV',
+                },
                 'No'  => (string)($invoice->full_number ?: ($invoice->prefix . $invoice->invoice_number)),
                 'Dt'  => Carbon::parse($invoice->invoice_date ?: now())->format('d/m/Y'),
             ],
@@ -630,6 +634,12 @@ class EInvoiceService
             ],
         ];
 
+        if (in_array($invoice->invoice_type, ['credit_note', 'debit_note'], true) && $invoice->sourceDocument) {
+            $payload['RefDtls']['PrecDocDtls'] = [[
+                'InvNo' => $invoice->sourceDocument->full_number,
+                'InvDt' => $invoice->sourceDocument->invoice_date->format('d/m/Y'),
+            ]];
+        }
         return $payload;
     }
 
@@ -865,6 +875,17 @@ class EInvoiceService
     {
         $errors = [];
 
+        if (in_array($invoice->invoice_type, ['credit_note', 'debit_note'], true)) {
+            $source = $invoice->sourceDocument;
+            if (!$source || (int) $source->plant_id !== (int) $invoice->plant_id
+                || (int) $source->partner_id !== (int) $invoice->partner_id
+                || \App\Support\InvoiceClassification::normalizeInvoiceType($source->invoice_type) !== 'Invoice') {
+                $errors['source'][] = 'IRN generation requires a supplier-issued note against a sales invoice.';
+            }
+            if (!in_array(strtolower((string) $invoice->status), ['approved', 'paid'], true)) {
+                $errors['note'][] = 'Approve the note before generating its IRN.';
+            }
+        }
         // 1. Invoice status & duplicate generation check
         if ($invoice->status === Invoice::STATUS_CANCELLED) {
             $errors['invoice'][] = 'Cannot generate E-Invoice for a cancelled invoice.';

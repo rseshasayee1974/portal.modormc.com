@@ -26,13 +26,14 @@ const reasons = {
     debit_note: ['Purchase Return', 'Bill Adjustment', 'Goods Returned to Supplier', 'Short Billing by Supplier', 'Rate / Price Adjustment', 'Additional Charges', 'Tax Correction', 'Bill Correction'],
 };
 const types = [{ label: 'Credit Note', value: 'credit_note' }, { label: 'Debit Note', value: 'debit_note' }];
-const form = useForm({ items: [], is_tax_inclusive: false, source_id: null, account_id: null, invoice_number: '', note_type: 'credit_note', note_date: entityCalendarDate(), reason: defaults.credit_note });
-const reasonOptions = computed(() => [...new Set([defaults[form.note_type], ...reasons[form.note_type]])]
+const form = useForm({ items: [], is_tax_inclusive: false, source_id: null, debit_source: 'purchase', account_id: null, invoice_number: '', note_type: 'credit_note', note_date: entityCalendarDate(), reason: defaults.credit_note });
+const salesSource = computed(() => form.note_type === 'credit_note' || form.debit_source === 'sales');
+const reasonOptions = computed(() => form.note_type === 'debit_note' && salesSource.value ? ['Additional Charges', 'Rate / Price Adjustment', 'Tax Correction'].map(value => ({ label: value, value })) : [...new Set([defaults[form.note_type], ...reasons[form.note_type]])]
     .map(value => ({ label: value, value })));
 const selectedPartnerId = ref(null);
 const partnerId = document => document.partner_id ?? document.partner?.id ?? null;
 const eligibleDocuments = computed(() => props.documents
-    .filter(document => (form.note_type === 'credit_note' ? ['invoice', 'sales'] : ['bill', 'purchase'])
+    .filter(document => (salesSource.value ? ['invoice', 'sales'] : ['bill', 'purchase'])
         .includes(String(document.invoice_type).toLowerCase()))
     .filter(document => !(document.adjustment_notes || []).length));
 const dropdownOptions = (documents, getId, getLabel) => [...new Map(documents
@@ -47,8 +48,8 @@ const source = computed(() => props.documents.find(document => document.id === f
 const { amounts, lineTotals, taxOptions, unitOptions, itemOptions, selectItem, removeItem } = useNoteItems(form, () => source.value, () => props.taxes, () => props.units, () => props.products, () => props.mixdesign);
 const lines = computed(() => form.items);
 const taxInclusive = computed(() => form.is_tax_inclusive);
-watch(() => form.note_type, type => {
-    form.reason = defaults[type];
+watch([() => form.note_type, () => form.debit_source], ([type]) => {
+    form.reason = type === 'debit_note' && salesSource.value ? 'Additional Charges' : defaults[type];
     form.account_id = null;
     selectedPartnerId.value = null;
     form.source_id = null;
@@ -95,19 +96,21 @@ const save = () => {
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-4">
             <BaseSelect class="md:col-span-2" v-model="form.note_type" label="Note Type" :options="types"
                 optionLabel="label" optionValue="value" :error="form.errors.note_type" required />
+            <BaseSelect v-if="form.note_type === 'debit_note'" class="sm:col-span-2" v-model="form.debit_source" label="Debit Note Source"
+                :options="[{ label: 'Purchase Bill', value: 'purchase' }, { label: 'Sales Invoice', value: 'sales' }]" optionLabel="label" optionValue="value" />
             <BaseDatePicker class="sm:col-span-2" v-model="form.note_date" label="Note Date"
                 :error="form.errors.note_date" required />
             <BaseSelect class="md:col-span-2" v-model="selectedPartnerId" label="Account Name" :options="partnerOptions"
                 optionLabel="label" optionValue="value" placeholder="Select Account Name" filter showClear />
             <BaseSelect class="sm:col-span-2" v-model="form.source_id"
-                :label="form.note_type === 'credit_note' ? 'Against Invoice' : 'Against Bill'" :options="sourceOptions"
+                :label="salesSource ? 'Against Invoice' : 'Against Bill'" :options="sourceOptions"
                 optionLabel="label" optionValue="value"
-                :placeholder="form.note_type === 'credit_note' ? 'Select Invoice' : 'Select Bill'" filter
+                :placeholder="salesSource ? 'Select Invoice' : 'Select Bill'" filter
                 :error="form.errors.source_id" required />
 
 
             <BaseSelect class="md:col-span-2" v-model="form.account_id"
-                label="Ledger Account" :options="form.note_type === 'credit_note' ? salesLedgers : purchaseLedgers" optionLabel="label" optionValue="value"
+                label="Ledger Account" :options="salesSource ? salesLedgers : purchaseLedgers" optionLabel="label" optionValue="value"
                 :placeholder="source?.account?.title || 'Select Ledger'" filter showClear
                 :error="form.errors.account_id" />
             <BaseSelect class="sm:col-span-2 md:col-span-2" v-model="form.reason" label="Reason"

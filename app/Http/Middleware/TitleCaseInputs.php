@@ -42,6 +42,7 @@ class TitleCaseInputs
         'alias',
         'icon', // Vue component names are case-sensitive (e.g. BeakerIcon).
         'entry_mode',
+        'debit_source',
         'discount_type',
         'url',
         'redirect',
