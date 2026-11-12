@@ -19,6 +19,7 @@ import PurchaseRegisterReport from './components/PurchaseRegisterReport.vue';
 import SiloStockValuationReport from './components/SiloStockValuationReport.vue';
 import InventoryStockReport from './components/InventoryStockReport.vue';
 import InventoryInwardReport from './components/InventoryInwardReport.vue';
+import StockOutReport from './components/StockOutReport.vue';
 import ProductionBatchReport from './components/ProductionBatchReport.vue';
 import BatchingScheduleReport from './components/BatchingScheduleReport.vue';
 import PumpBoomDeploymentReport from './components/PumpBoomDeploymentReport.vue';
@@ -139,6 +140,7 @@ const reportIcons = {
     receipt: ArrowDownOnSquareIcon,
     inventory_stock: ArchiveBoxIcon,
     inventory_inward: InboxIcon,
+    stock_out: ArrowTopRightOnSquareIcon,
     purchase: ShoppingCartIcon,
     silo_stock_valuation: CalculatorIcon,
     overall: ChartBarIcon,
@@ -194,6 +196,7 @@ const reportCatalog = [
         reports: [
             { id: 'inventory_stock', name: 'Stock Status List', description: 'Product stock levels, opening balances and current status' },
             { id: 'inventory_inward', name: 'Purchase Inward Receipts', description: 'Inward histories, truck weights and purchase records' },
+            { id: 'stock_out', name: 'Stock Out Report', description: 'Issued stock by product, recipient, vehicle and issue date' },
             { id: 'purchase', name: 'Purchase & Bills Summary', description: 'PO breakdown, product cost logs and vendor bills' },
             // { id: 'purchase_register', name: 'Purchase Register Report', description: 'Itemized purchase bills with supplier GST, rate, and values' },
             // { id: 'silo_stock_valuation', name: 'Silo Stock Valuation', description: 'FIFO / Weighted Average cost valuation for consumed aggregate stock' },
@@ -357,6 +360,7 @@ const getReportComponent = (type) => {
         case 'silo_stock_valuation': return SiloStockValuationReport;
         case 'inventory_stock': return InventoryStockReport;
         case 'inventory_inward': return InventoryInwardReport;
+        case 'stock_out': return StockOutReport;
         case 'production_batch': return ProductionBatchReport;
         case 'batching_schedule': return BatchingScheduleReport;
         case 'pump_boom_deployment': return PumpBoomDeploymentReport;
@@ -817,7 +821,7 @@ const generateReport = async ({ manual = false, pagination = false } = {}) => {
             end_date: endDate.value,
             valuation_method: valuationMethod.value,
             truck_id: truckId.value,
-            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
+            product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
             site_id: siteId.value,
             pump_vehicle_id: pumpVehicleId.value,
             driver_id: driverId.value,
@@ -935,7 +939,7 @@ const exportPdf = () => {
         voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
-            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
+            product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
         site_id: siteId.value,
         pump_vehicle_id: pumpVehicleId.value,
         driver_id: driverId.value,
@@ -1003,7 +1007,7 @@ const exportExcel = () => {
         voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
-            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
+            product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
         site_id: siteId.value,
         pump_vehicle_id: pumpVehicleId.value,
         driver_id: driverId.value,
@@ -1118,7 +1122,7 @@ const currentReportParams = computed(() => {
         payment_status: paymentStatus.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
-            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
+        product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
         site_id: siteId.value,
         pump_vehicle_id: pumpVehicleId.value,
     };
@@ -1165,7 +1169,7 @@ const generateShareLink = async () => {
                 document_status: registerStatus.value,
                 payment_status: paymentStatus.value,
                 truck_id: truckId.value,
-            product_id: reportType.value === 'inventory_inward' ? productId.value : null,
+            product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
                 site_id: siteId.value,
                 pump_vehicle_id: pumpVehicleId.value,
                 employee_id: selectedEmployeeId.value,
@@ -1435,7 +1439,7 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Patron / Customer Dropdown -->
-                                    <div v-if="['expense', 'credit_debit_note_register', 'customer_receipt_payment', 'overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
+                                    <div v-if="['expense', 'credit_debit_note_register', 'customer_receipt_payment', 'overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'stock_out', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                             {{ patronLabel }}
@@ -1446,7 +1450,7 @@ const shareEmail = () => {
                                             :placeholder="patronPlaceholder" filter showClear />
                                     </div>
 
-                                    <div v-if="reportType === 'inventory_inward'" class="lg:col-span-1">
+                                    <div v-if="['inventory_inward', 'stock_out'].includes(reportType)" class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Product</span>
                                         <BaseSelect v-model="productId" :options="inwardProducts" optionLabel="title" optionValue="id"
                                             placeholder="All Products" filter showClear />
@@ -1501,7 +1505,7 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Truck Dropdown -->
-                                    <div v-if="['machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver', 'batching_schedule'].includes(reportType)"
+                                    <div v-if="['machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver', 'batching_schedule', 'stock_out'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">{{
                                             ['machine_summary', 'vehicle_pl'].includes(reportType) ? 'Select Machine' :

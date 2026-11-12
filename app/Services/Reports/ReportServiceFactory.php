@@ -36,6 +36,7 @@ class ReportServiceFactory
             'payment', 'receipt'   => VoucherReportService::class,
             'inventory_stock'      => InventoryStockReportService::class,
             'inventory_inward'     => InventoryInwardReportService::class,
+            'stock_out'            => StockOutReportService::class,
             'production_batch'     => ProductionBatchReportService::class,
             'batching_schedule'    => BatchingScheduleReportService::class,
             'pump_boom_deployment' => PumpBoomDeploymentReportService::class,
