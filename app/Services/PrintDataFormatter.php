@@ -1006,7 +1006,10 @@ class PrintDataFormatter
                 return asset('storage/' . $cleanPath);
             }
 
-            return 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($qrCode);
+            $png = (new \BaconQrCode\Writer(new \BaconQrCode\Renderer\GDLibRenderer(300)))
+                ->writeString($qrCode);
+
+            return 'data:image/png;base64,' . base64_encode($png);
         }
 
         // An IRN alone cannot replace PeriOne's signed e-invoice QR payload.

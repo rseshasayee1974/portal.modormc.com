@@ -611,14 +611,7 @@
                 </td>
                 <td class="qr-cell">
                     @php
-                        $qrSrc = '';
-                        if (!empty($qrCode)) {
-                            if (str_starts_with($qrCode, 'data:image') || str_starts_with($qrCode, 'http')) {
-                                $qrSrc = $qrCode;
-                            } else {
-                                $qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($qrCode);
-                            }
-                        }
+                        $qrSrc = \App\Services\PrintDataFormatter::formatQrCodeUrl($qrCode ?: null, $irn ?: null);
                     @endphp
                     @if (!empty($qrSrc))
                         <img src="{{ $qrSrc }}" class="qr-img" alt="E-Invoice QR" />
