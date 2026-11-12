@@ -1006,22 +1006,10 @@ class PrintDataFormatter
                 return asset('storage/' . $cleanPath);
             }
 
-<<<<<<< HEAD
             $png = (new \BaconQrCode\Writer(new \BaconQrCode\Renderer\GDLibRenderer(300)))
                 ->writeString($qrCode);
 
             return 'data:image/png;base64,' . base64_encode($png);
-=======
-            // Embed the gateway-signed payload so browser and PDF printing work offline.
-            if ($embedSignedPayload) {
-                $writer = new \BaconQrCode\Writer(new \BaconQrCode\Renderer\ImageRenderer(
-                    new \BaconQrCode\Renderer\RendererStyle\RendererStyle(400),
-                    new \BaconQrCode\Renderer\Image\SvgImageBackEnd()
-                ));
-                return 'data:image/svg+xml;base64,' . base64_encode($writer->writeString($qrCode));
-            }
-            return 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($qrCode);
->>>>>>> 6291fe6d75d6804e4ad339f04089fd24f23e08cc
         }
 
         // An IRN alone cannot replace PeriOne's signed e-invoice QR payload.
