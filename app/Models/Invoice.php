@@ -577,9 +577,9 @@ class Invoice extends Model implements Postable
                 || !in_array(strtolower((string) $source->status), ['approved', 'paid'], true)) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'Notes can only be generated against an approved or paid invoice or bill.']);
             }
-            $requiredSourceType = $type === 'credit_note' ? 'Invoice' : 'Bill';
+            $requiredSourceType = $type === 'credit_note' || ($changes['debit_source'] ?? null) === 'sales' ? 'Invoice' : 'Bill';
             if (\App\Support\InvoiceClassification::normalizeInvoiceType($source->invoice_type) !== $requiredSourceType) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'Credit notes require an invoice; debit notes require a bill.']);
+                throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'Select a source document that matches the note type and debit note source.']);
             }
             if ($source->adjustmentNotes()->exists()) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['note_type' => 'A credit or debit note already exists for this document. Only one note is allowed.']);

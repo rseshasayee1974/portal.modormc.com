@@ -10,6 +10,8 @@ import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
+import { canGenerateEInvoice, hasActiveEInvoice, useEInvoiceCancellation, useEInvoiceGeneration } from '@/Composables/useEInvoiceGeneration';
+import InvoiceStatusIcons from '@/Components/InvoiceStatusIcons.vue';
 import NoteEditForm from './NoteEditForm.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 import { entityLocaleDate } from '@/Utils/entityDateTime';
@@ -17,6 +19,9 @@ import { usePermissions } from '@/Composables/usePermissions';
 
 defineProps({ purchaseLedgers: { type: Array, default: () => [] }, salesLedgers: { type: Array, default: () => [] }, notes: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
 const { can } = usePermissions();
+const { generateEInvoice, generatingEInvoice } = useEInvoiceGeneration();
+const { canCancel, cancelEInvoice, cancellingEInvoice } = useEInvoiceCancellation();
+const supplierNote = note => ['invoice', 'sales'].includes(String(note.source_document?.invoice_type).toLowerCase());
 const filters = ref({ global: { value: null, matchMode: 'contains' } });
 const expandedRows = ref({});
 const deletingId = ref(null);
@@ -36,7 +41,7 @@ const deleteNote = async note => {
         onFinish: () => { deletingId.value = null; },
     });
 };
-const canEdit = note => can('CRDRNOTE.UPDATE') && String(note.status).toLowerCase() === 'approved' && !!note.source_document;
+const canEdit = note => !note.einvoice_irn && can('CRDRNOTE.UPDATE') && String(note.status).toLowerCase() === 'approved' && !!note.source_document;
 const toggleEdit = note => {
     if (!canEdit(note)) return;
     expandedRows.value = expandedRows.value[note.id] ? {} : { [note.id]: true };
@@ -54,11 +59,18 @@ const print = note => window.open(route('print.document', { module: 'invoices', 
         <Column field="partner.legal_name" header="Partner" sortable />
         <Column field="notes" header="Reason" />
         <Column field="total_amount" header="Amount" sortable class="text-right font-semibold"><template #body="{ data }">₹ {{ Number(data.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</template></Column>
-        <!-- <Column field="status" header="Status"><template #body="{ data }"><Tag :value="data.status" :severity="['cancelled', 'void'].includes(String(data.status).toLowerCase()) ? 'danger' : String(data.status).toLowerCase() === 'approved' ? 'info' : String(data.status).toLowerCase() === 'paid' ? 'success' : 'secondary'" class="!text-[9px] !uppercase" /></template></Column> -->
+        <Column field="status" header="Status" align="center">
+            <template #body="{ data }"><InvoiceStatusIcons :document="data" /></template>
+        </Column>
         <Column header="Actions"><template #body="{ data }">
             <!-- <Button icon="pi pi-pencil" text rounded title="Edit Note" v-if="can('CRDRNOTE.UPDATE')" :disabled="!canEdit(data)" @click.stop="toggleEdit(data)" /> -->
-            <Button icon="pi pi-print" text rounded title="Print Note" @click.stop="print(data)" />
-            <Button v-if="can('CRDRNOTE.DELETE')" icon="pi pi-trash" severity="danger" text rounded title="Delete Note and Revert Accounting" :loading="deletingId === data.id" :disabled="deletingId !== null" @click.stop="deleteNote(data)" />
+            <Button v-if="supplierNote(data) && ['approved', 'paid'].includes(String(data.status).toLowerCase()) && can('DISPATCH.GENERATE_EINVOICE') && canGenerateEInvoice(data)" label="Generate E-Invoice"
+                size="small" :disabled="generatingEInvoice" @click.stop="generateEInvoice(data)" />
+            <Button v-if="hasActiveEInvoice(data)" icon="pi pi-print" label="E-Invoice Print" size="small" @click.stop="print(data)" />
+            <Button v-else icon="pi pi-print" text rounded title="Print Note" @click.stop="print(data)" />
+            <Button v-if="canCancel(data)" icon="pi pi-times-circle" label="Cancel E-Invoice" severity="danger" outlined
+                size="small" :disabled="cancellingEInvoice" @click.stop="cancelEInvoice(data)" />
+            <Button v-if="!data.einvoice_irn && can('CRDRNOTE.DELETE')" icon="pi pi-trash" severity="danger" text rounded title="Delete Note and Revert Accounting" :loading="deletingId === data.id" :disabled="deletingId !== null" @click.stop="deleteNote(data)" />
         </template></Column>
         <template #expansion="{ data }">
             <BaseExpansionPanel :title="data.full_number">

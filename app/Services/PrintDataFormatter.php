@@ -994,7 +994,7 @@ class PrintDataFormatter
     //  7. QR CODE RESOLVER
     // =========================================================================
 
-    public static function formatQrCodeUrl(?string $qrCode, ?string $irn = null, ?string $upiQrPath = null, ?string $defaultPath = null): string
+    public static function formatQrCodeUrl(?string $qrCode, ?string $irn = null, ?string $upiQrPath = null, ?string $defaultPath = null, bool $embedSignedPayload = false): string
     {
         if (!empty($qrCode)) {
             if (str_starts_with($qrCode, 'data:image') || str_starts_with($qrCode, 'http://') || str_starts_with($qrCode, 'https://')) {
@@ -1006,6 +1006,14 @@ class PrintDataFormatter
                 return asset('storage/' . $cleanPath);
             }
 
+            // Embed the gateway-signed payload so browser and PDF printing work offline.
+            if ($embedSignedPayload) {
+                $writer = new \BaconQrCode\Writer(new \BaconQrCode\Renderer\ImageRenderer(
+                    new \BaconQrCode\Renderer\RendererStyle\RendererStyle(400),
+                    new \BaconQrCode\Renderer\Image\SvgImageBackEnd()
+                ));
+                return 'data:image/svg+xml;base64,' . base64_encode($writer->writeString($qrCode));
+            }
             return 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($qrCode);
         }
 
@@ -1200,7 +1208,12 @@ class PrintDataFormatter
             else $docTitle = strtoupper($invoice->invoice_label);
         }
 
-        if (in_array(strtolower((string) $invoice->invoice_type), ['credit_note', 'debit_note'], true)) {
+        $isNote = in_array(strtolower((string) $invoice->invoice_type), ['credit_note', 'debit_note'], true);
+        $cancelledIrn = $isNote && in_array(strtolower(trim((string) $invoice->einvoice_status)), ['can', 'cnl', 'cancelled', 'canceled'], true);
+        if ($isNote && !$cancelledIrn && $invoice->einvoice_irn) {
+            $data['settings']['pdf']['show_einvoice_details'] = true;
+        }
+        if ($isNote) {
             $docTitle = strtolower((string) $invoice->invoice_type) === 'credit_note' ? 'CREDIT NOTE' : 'DEBIT NOTE';
             $data['settings']['pdf']['labels']['invoice_title'] = $docTitle;
         }
@@ -1388,10 +1401,10 @@ class PrintDataFormatter
             'total_words'            => self::numberToWords($grandTotalVal, 'INR'),
             'po_number'              => $poNumber,
             'project_name'           => $invoice->ref_title ?? ($salesOrder?->site?->name ?? ''),
-            'irn'                   => $invoice->einvoice_irn ?? '',
-            'ack_no'                 => $invoice->einvoice_ack_no ?? '',
-            'ack_date'               => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '',
-            'qr_code'                => self::formatQrCodeUrl($invoice->einvoice_qr_code, $invoice->einvoice_irn),
+            'irn'                   => $cancelledIrn ? '' : ($invoice->einvoice_irn ?? ''),
+            'ack_no'                 => $cancelledIrn ? '' : ($invoice->einvoice_ack_no ?? ''),
+            'ack_date'               => $cancelledIrn ? '' : ($invoice->einvoice_ack_date?->format('d/m/Y') ?? ''),
+            'qr_code'                => $cancelledIrn ? '' : self::formatQrCodeUrl($invoice->einvoice_qr_code, $invoice->einvoice_irn, embedSignedPayload: $isNote && (bool) $invoice->einvoice_irn),
             'eway_bill_no'           => $invoice->eway_bill_no ?? '',
             'so_no'                  => $salesOrder ? ($salesOrder->full_number ?? $salesOrder->order_no) : ($dispatch?->salesOrder?->order_no ?? ''),
             'three_box_invoice_fields' => $threeBoxInvoiceFields,

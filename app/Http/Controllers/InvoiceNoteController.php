@@ -27,7 +27,7 @@ class InvoiceNoteController extends Controller
             'purchaseLedgers' => Ledger::noteAccounts($plantId, 'debit_note')->orderBy('title')->get(['id as value', 'title as label']),
             'salesLedgers' => Ledger::noteAccounts($plantId, 'credit_note')->orderBy('title')->get(['id as value', 'title as label']),
             'notes' => Invoice::where('plant_id', $plantId)->whereIn('invoice_type', ['credit_note', 'debit_note'])
-                ->with(['partner:id,legal_name', 'account:id,title', 'sourceDocument', 'items.uom', 'items.tax'])->latest()->get(),
+                ->with(['partner:id,legal_name', 'account:id,title', 'sourceDocument', 'einvoiceRelation', 'items.uom', 'items.tax'])->latest()->get(),
             'documents' => Invoice::where('plant_id', $plantId)
                 ->whereIn('invoice_type', array_merge(\App\Support\InvoiceClassification::aliases('Invoice'), \App\Support\InvoiceClassification::aliases('Bill')))
                 ->whereRaw('LOWER(status) IN (?, ?)', ['approved', 'paid'])
@@ -110,6 +110,9 @@ class InvoiceNoteController extends Controller
         $this->validateDiscounts($data);
         DB::transaction(function () use ($note, $data) {
             $note = Invoice::whereKey($note->id)->lockForUpdate()->firstOrFail();
+            if ($note->einvoice_irn) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['note' => 'This note has a registered IRN and cannot be modified.']);
+            }
             if (strtolower((string) $note->status) !== 'approved') {
                 throw \Illuminate\Validation\ValidationException::withMessages(['reason' => 'Only approved notes can be edited.']);
             }
@@ -140,7 +143,7 @@ class InvoiceNoteController extends Controller
         if (!in_array($type, ['credit_note', 'debit_note'], true)) return [];
         return ['account_id' => ['bail', 'nullable', 'integer', 'min:1', function ($attribute, $value, $fail) use ($document, $type) {
             if ((int) $value !== (int) $document->account_id
-                && !Ledger::noteAccounts($document->plant_id, $type)->whereKey($value)->exists()) {
+                && !Ledger::noteAccounts($document->plant_id, $document->accountingModule() === 'Purchase' ? 'debit_note' : 'credit_note')->whereKey($value)->exists()) {
                 $fail('Select a ledger from the appropriate account group for this plant.');
             }
         }]];
@@ -150,6 +153,7 @@ class InvoiceNoteController extends Controller
     {
         $data = $request->validate(array_merge([
             'note_type' => 'required|in:credit_note,debit_note',
+            'debit_source' => 'nullable|in:sales,purchase',
             'invoice_number' => 'nullable|string|max:100',
             'note_date' => 'required|date|after_or_equal:' . $source->invoice_date->toDateString(),
             'reason' => 'required|string|max:2000',
@@ -167,6 +171,9 @@ class InvoiceNoteController extends Controller
             && in_array($note->invoice_type, ['credit_note', 'debit_note'], true), 404);
         DB::transaction(function () use ($note) {
             $note = Invoice::whereKey($note->id)->lockForUpdate()->firstOrFail();
+            if ($note->einvoice_irn) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['note' => 'This note has a registered IRN and cannot be modified.']);
+            }
             if ((float) $note->paid_amount > 0 || \App\Models\PaymentAllocation::where('invoice_id', $note->id)->exists()) {
                 throw \Illuminate\Validation\ValidationException::withMessages(['delete' => 'Reverse the payments allocated to this note before deleting it.']);
             }
