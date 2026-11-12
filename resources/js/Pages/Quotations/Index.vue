@@ -9,7 +9,7 @@ import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import Select from 'primevue/select';
+import Select from '@/Components/Base/DeselectableSelect.js';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import QuotationCreateForm from './components/QuotationCreateForm.vue';
 import QuotationEditForm from './components/QuotationEditForm.vue';

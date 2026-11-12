@@ -7,7 +7,7 @@ import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import InputSwitch from "primevue/inputswitch";
 import InputNumber from "primevue/inputnumber";
-import Dropdown from "primevue/dropdown";
+import Dropdown from "@/Components/Base/DeselectableSelect.js";
 import Dialog from "primevue/dialog";
 import Swal from "sweetalert2";
 import ModuleSubTopNav from "@/Navigation/ModuleSubTopNav.vue";

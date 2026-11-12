@@ -156,24 +156,11 @@ select {
     border: none !important;
 }
 
-/* Enable and style clear icon in PrimeVue Select */
-[data-pc-section="clearicon"],
+/* Hide the clear action on dropdowns throughout the application. */
+.p-select [data-pc-section="clearicon"],
 .p-select-clear-icon,
-.p-select .p-select-clear-icon,
 .p-dropdown-clear-icon {
-    display: inline-flex !important;
-    cursor: pointer !important;
-    color: #94a3b8 !important;
-    margin-right: 0.25rem;
-    transition: color 0.15s ease-in-out, opacity 0.15s ease-in-out;
-}
-
-[data-pc-section="clearicon"]:hover,
-.p-select-clear-icon:hover,
-.p-select .p-select-clear-icon:hover,
-.p-dropdown-clear-icon:hover {
-    opacity: 1 !important;
-    color: #e11d48 !important;
+    display: none !important;
 }
 
 /* Special / Empty / Default option in PrimeVue Select overlays */

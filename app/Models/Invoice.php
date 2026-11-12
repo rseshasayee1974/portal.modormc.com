@@ -62,27 +62,27 @@ class Invoice extends Model implements Postable
 
     public function getEinvoiceIrnAttribute()
     {
-        return $this->einvoiceRelation?->einv_irn ?? $this->attributes['einvoice_irn'] ?? null;
+        return $this->registeredEinvoice()?->einv_irn ?? $this->attributes['einvoice_irn'] ?? null;
     }
 
     public function getEinvoiceAckNoAttribute()
     {
-        return $this->einvoiceRelation?->einv_ackno ?? $this->attributes['einvoice_ack_no'] ?? null;
+        return $this->registeredEinvoice()?->einv_ackno ?? $this->attributes['einvoice_ack_no'] ?? null;
     }
 
     public function getEinvoiceAckDateAttribute()
     {
-        return $this->einvoiceRelation?->einv_ack_date ?? $this->attributes['einvoice_ack_date'] ?? null;
+        return $this->registeredEinvoice()?->einv_ack_date ?? $this->attributes['einvoice_ack_date'] ?? null;
     }
 
     public function getEinvoiceQrCodeAttribute()
     {
-        return $this->einvoiceRelation?->einv_signed_qrcode ?? $this->attributes['einvoice_qr_code'] ?? null;
+        return $this->registeredEinvoice()?->einv_signed_qrcode ?? $this->attributes['einvoice_qr_code'] ?? null;
     }
 
     public function getEinvoiceStatusAttribute()
     {
-        return $this->einvoiceRelation?->einv_status ?? $this->attributes['einvoice_status'] ?? null;
+        return $this->registeredEinvoice()?->einv_status ?? $this->attributes['einvoice_status'] ?? null;
     }
 
     public function getEwayBillNoAttribute()
@@ -634,6 +634,24 @@ class Invoice extends Model implements Postable
     public function einvoiceRelation()
     {
         return $this->hasOne(EinvoiceInvoiceRel::class, 'invoice_id');
+    }
+
+    public function noteEinvoiceRelation()
+    {
+        return $this->hasOne(EinvoiceInvoiceRel::class, 'cr_dr_id');
+    }
+
+    public function isAdjustmentNote(): bool
+    {
+        return in_array($this->invoice_type, ['credit_note', 'debit_note'], true);
+    }
+
+    public function registeredEinvoice(): ?EinvoiceInvoiceRel
+    {
+        // Older notes stored their own document ID in invoice_id.
+        return $this->isAdjustmentNote()
+            ? ($this->noteEinvoiceRelation ?? $this->einvoiceRelation)
+            : $this->einvoiceRelation;
     }
 
     public function ewaybillDetail()
