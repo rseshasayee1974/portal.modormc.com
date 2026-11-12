@@ -105,8 +105,8 @@
                         @if(!empty($data['meta']['ack_date'])) <div>Ack Date : {{ $data['meta']['ack_date'] }}</div> @endif
                     </td>
                     @if(!empty($data['meta']['qr_code']))
-                        <td style="width: 70px; text-align: right; vertical-align: top;">
-                            <img src="{{ $data['meta']['qr_code'] }}" style="max-height: 65px; max-width: 65px; object-fit: contain;" />
+                        <td style="width: 70px; text-align: center; vertical-align: middle; padding: 4px 8px;">
+                            <img src="{{ $data['meta']['qr_code'] }}" style="display: block; width: 58px; height: 58px; margin: 0 auto; object-fit: contain;" />
                         </td>
                     @endif
                 </tr>

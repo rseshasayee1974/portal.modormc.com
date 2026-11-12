@@ -222,9 +222,9 @@
                     @endif
                 </div>
                 @if (!empty($data['meta']['qr_code']))
-                    <div style="display: table-cell; vertical-align: middle; text-align: right; width: 50px;">
+                    <div style="display: table-cell; vertical-align: middle; text-align: center; width: 50px; padding: 4px 6px;">
                         <img src="{{ $data['meta']['qr_code'] }}"
-                            style="max-height: 45px; max-width: 45px; object-fit: contain;" />
+                            style="display: block; width: 45px; height: 45px; margin: 0 auto; object-fit: contain;" />
                     </div>
                 @endif
             </div>

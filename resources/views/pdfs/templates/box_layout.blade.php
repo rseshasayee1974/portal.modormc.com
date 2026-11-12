@@ -176,8 +176,8 @@
                         @if($hasValue($ackDateVal)) <div>Ack Date : <strong>{{ $ackDateVal }}</strong></div> @endif
                     </td>
                     @if($hasValidQr)
-                        <td style="width: 70px; text-align: right; vertical-align: top;">
-                            <img src="{{ $rawQr }}" style="max-height: 65px; max-width: 65px; object-fit: contain;" />
+                        <td style="width: 70px; text-align: center; vertical-align: middle; padding: 4px 8px;">
+                            <img src="{{ $rawQr }}" style="display: block; width: 58px; height: 58px; margin: 0 auto; object-fit: contain;" />
                         </td>
                     @endif
                 </tr>

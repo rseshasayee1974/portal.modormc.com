@@ -306,13 +306,16 @@
 
         .qr-cell {
             width: 70px;
-            text-align: right;
-            padding-right: 6px;
+            text-align: center;
+            vertical-align: middle !important;
+            padding: 4px 8px;
         }
 
         .qr-img {
-            max-height: 60px;
-            max-width: 60px;
+            display: block;
+            width: 58px;
+            height: 58px;
+            margin: 0 auto;
         }
 
         /* 3-Column Info Boxes */
@@ -413,8 +416,17 @@
 
         .tax-subtable td {
             border: none;
-            padding: 1px 2px;
+            padding: 2px 3px;
             font-size: 7.5pt;
+            vertical-align: middle;
+        }
+
+        .tax-subtable tr + tr td {
+            border-top: 1px solid #000;
+        }
+
+        .tax-subtable td + td {
+            border-left: 1px solid #000;
         }
 
         /* Totals and Words Area */
