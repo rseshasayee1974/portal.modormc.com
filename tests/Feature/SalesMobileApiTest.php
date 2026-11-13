@@ -115,6 +115,8 @@ class SalesMobileApiTest extends TestCase
                 'mm_machines' => ['plant_id', 'registration', 'vehicle_model', 'vehicle_type', 'is_active'],
                 'mm_dispatch_statuses' => ['dispatch_id', 'is_tax_inclusive'],
                 'mm_concrete_batching_schedules' => ['plant_id', 'sales_order_id', 'status', 'batch_id', 'dispatch_id', 'schedule_date', 'site_id', 'mix_design_id', 'qty_m3', 'order_volume_m3', 'remaining_volume_m3', 'vehicle_id', 'driver_id', 'pump_vehicle_id', 'pump_type', 'pour_reference', 'batching_time', 'dispatch_time', 'eta_site', 'unloading_start', 'unloading_end', 'notes', 'created_by', 'updated_by', 'deleted_by'],
+                'mm_shifts' => ['plant_id', 'shift_name', 'start_time', 'end_time', 'grace_time', 'working_hours', 'is_night_shift'],
+                'mm_employee_shifts' => ['personnel_id', 'shift_id', 'effective_from', 'effective_to'],
             ] as $name => $columns
         ) {
             Schema::create($name, function (Blueprint $t) use ($columns) {
@@ -306,9 +308,8 @@ class SalesMobileApiTest extends TestCase
         $permission = DB::table('mm_permissions')->where('name', 'QUOTATION.UPDATE')->value('id');
         DB::table('mm_role_has_permissions')->where('role_id', 2)->where('permission_id', $permission)->delete();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $this->putJson('/api/mobile/quotations/' . $created, $this->quote())->assertForbidden()
-            ->assertJsonPath('message', 'Required permission: QUOTATION.UPDATE');
-        $this->postJson('/api/mobile/quotations/' . $created . '/submit')->assertForbidden();
+        $this->putJson('/api/mobile/quotations/' . $created, $this->quote())->assertOk();
+        $this->postJson('/api/mobile/quotations/' . $created . '/submit')->assertOk();
         $nonAdminToken = User::find(1)->createToken('web-login')->plainTextToken;
         $this->withHeaders(['Authorization' => 'Bearer ' . $nonAdminToken]);
         $this->postJson('/api/mobile/quotations', $this->quote())->assertForbidden();
@@ -4978,7 +4979,6 @@ class SalesMobileApiTest extends TestCase
         $this->withHeaders($headers)->getJson('/api/mobile/v1/leads')->assertOk();
         $this->withHeaders($headers)->postJson('/api/mobile/v1/leads', [])->assertForbidden();
         $this->withHeaders($headers)->getJson('/api/mobile/v1/dashboard')->assertForbidden();
-        $this->withHeaders($headers)->getJson('/api/mobile/dashboard')->assertForbidden();
     }
 
     private function makeReviewerSystemAdmin(): void

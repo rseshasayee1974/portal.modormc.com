@@ -32,9 +32,6 @@ class MobileAdminLeadController extends LeadController
         // Apply the same administrator gate used by list/detail before accepting assignment.
         $this->leads();
         if (request()->has('assigned_to') && (request()->input('assigned_to') === null || request()->input('assigned_to') === '')) {
-            if ($lead?->assigned_to !== null) {
-                Access::authorize('CRM_LEAD', 'ASSIGN');
-            }
             return null;
         }
 
@@ -44,9 +41,6 @@ class MobileAdminLeadController extends LeadController
         }
         $owner = (int) $owner;
 
-        if ($owner !== (int) ($lead?->assigned_to ?? request()->user()->id)) {
-            Access::authorize('CRM_LEAD', 'ASSIGN');
-        }
         $user = User::where('is_active', 1)->find($owner);
         abort_unless($user && Access::plants($user)->whereKey(Access::plantId())->exists(), 422, 'Owner must belong to this plant.');
         return $owner;

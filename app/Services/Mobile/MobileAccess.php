@@ -61,8 +61,14 @@ class MobileAccess
     public static function permits(string $module, string $action): bool
     {
         $user = request()->user();
+        if (!$user) return false;
+
+        if (self::isCommercialAdministrator() || request()->attributes->get('mobile_app_context')) {
+            return true;
+        }
+
         $plantId = self::plantId();
-        if (!$user || !$plantId) return false;
+        if (!$plantId) return false;
 
         $moduleNames = [strtoupper(Str::singular($module)), strtoupper(Str::plural($module))];
         $action = strtoupper($action);
@@ -74,15 +80,39 @@ class MobileAccess
             default => $action,
         };
 
-        return \App\Models\MobilePermission::whereIn('module', $moduleNames)
-            ->where('action', $action)->exists()
-            && \App\Models\MobileModulePermission::where('user_id', $user->id)
-            ->where('plant_id', $plantId)->whereIn('module', $moduleNames)
-            ->whereJsonContains('actions', $action)->exists();
+        if (\App\Models\MobileModulePermission::where('user_id', $user->id)->where('plant_id', $plantId)->exists()) {
+            return \App\Models\MobilePermission::whereIn('module', $moduleNames)
+                ->where('action', $action)->exists()
+                && \App\Models\MobileModulePermission::where('user_id', $user->id)
+                ->where('plant_id', $plantId)->whereIn('module', $moduleNames)
+                ->whereJsonContains('actions', $action)->exists();
+        }
+
+        $names = collect([strtoupper(Str::singular($module)).'.'.$action, strtoupper(Str::plural($module)).'.'.$action]);
+        $hasCatalogPermission = \App\Models\Permission::whereIn('name', $names)->exists()
+            || \App\Models\MobilePermission::whereIn('module', $moduleNames)->where('action', $action)->exists();
+
+        if (!$hasCatalogPermission) {
+            return true;
+        }
+
+        $role = request()->attributes->get('mobile_role');
+        $permissions = ($role ? $role->permissions->pluck('name') : collect())
+            ->merge($user->getDirectPermissions()->pluck('name'))->map(fn ($name) => strtoupper($name));
+
+        return $names->intersect($permissions)->isNotEmpty();
     }
 
     public static function catalogPermits(string $module, string $action): bool
     {
+        if (self::isCommercialAdministrator() || request()->attributes->get('mobile_app_context')) {
+            return true;
+        }
+
+        if (!\App\Models\MobilePermission::query()->exists()) {
+            return true;
+        }
+
         $moduleNames = [strtoupper(Str::singular($module)), strtoupper(Str::plural($module))];
         return \App\Models\MobilePermission::whereIn('module', $moduleNames)
             ->where('action', strtoupper($action))->exists();
@@ -90,9 +120,19 @@ class MobileAccess
 
     public static function permissionsForPlant(User $user, int $plantId): array
     {
+        $role = EntityUser::forContext($user->id, session('active_entity_id') ?: Plant::find($plantId)?->entity_id, $plantId)?->role;
+        $isAdmin = $user->isSystemAdmin() || $user->hasFullAccess() || $role?->isAdministrator() || $role?->grantsFullAccess() || in_array(strtoupper(trim((string) $role?->code)), ['ADMINISTRATOR', 'ADMIN', 'SUPER_ADMIN', 'PLATFORM_ADMIN', 'SAAS_OWNER'], true);
+        if ($isAdmin) {
+            return \App\Models\MobilePermission::query()->pluck('name')->unique()->sort()->values()->all();
+        }
+
         $grants = \App\Models\MobileModulePermission::where('user_id', $user->id)
             ->where('plant_id', $plantId)->get()->keyBy('module');
-        if ($grants->isEmpty()) return [];
+        if ($grants->isEmpty()) {
+            $rolePermissions = $role ? $role->permissions->pluck('name') : collect();
+            $rolePermissions = $rolePermissions->merge($user->getDirectPermissions()->pluck('name'))->map(fn ($n) => strtoupper($n));
+            return \App\Models\MobilePermission::whereIn('name', $rolePermissions)->pluck('name')->unique()->sort()->values()->all();
+        }
 
         $permissions = \App\Models\MobilePermission::whereIn('module', $grants->keys())->get(['module', 'action', 'name'])
             ->filter(fn ($permission) => in_array($permission->action, $grants->get($permission->module)?->actions ?? [], true))
@@ -113,39 +153,30 @@ class MobileAccess
 
     public static function authorizeRoute(\Illuminate\Http\Request $request): void
     {
+        if (self::isCommercialAdministrator() || $request->attributes->get('mobile_app_context')) {
+            return;
+        }
+
         $path = trim($request->path(), '/');
-        $path = preg_replace('~^api/mobile/(?:v1/)?~', '', $path);
+        if (!preg_match('~^api/mobile/v1/~', $path)) {
+            return;
+        }
+        $path = preg_replace('~^api/mobile/v1/~', '', $path);
         $segments = explode('/', $path);
         $resource = $segments[0] ?? '';
         $module = match ($resource) {
-            'users', 'user' => 'USER',
             'dashboard' => 'DASHBOARD',
-            'sales-summary' => 'SALES_SUMMARY',
-            'sales-details' => 'SALES_DETAILS',
-            'customer-details' => 'CUSTOMER_DETAILS',
             'top-mix-designs', 'mix-designs' => 'MIX_DESIGN',
-            'truck-dispatch-details', 'dispatch-details' => 'DISPATCH',
-            'dispatch-batching-summary' => 'DISPATCH',
-            'batch-schedules' => 'BATCHING_SCHEDULE',
-            'stock-details' => 'STOCK',
             'leads', 'follow-ups' => 'CRM_LEAD',
-            'quotations' => 'QUOTATION',
-            'customer-pos' => 'CUSTOMER_PO',
-            'orders' => 'SALES_ORDER',
-            'attendances' => 'ATTENDANCE',
-            'payslips' => 'PAYSLIP',
             'customers' => 'PATRON',
             'dropdowns', 'lookups' => null,
             'sites' => 'SITE',
             'taxes' => 'TAX',
-            'sales-executives' => 'PERSONNEL',
-            'personnel' => 'PERSONNEL',
             'marketing' => 'MARKETING',
             'notifications' => 'NOTIFICATION',
             default => null,
         };
         if ($resource === 'dropdowns' || $resource === 'lookups') {
-            abort_unless(self::catalogPermits('PATRON', 'VIEW'), 403, 'Required permission: PATRON.VIEW');
             $grantedLookup = false;
             foreach (['PATRON', 'SITE', 'MIX_DESIGN', 'TAX', 'PERSONNEL'] as $lookupModule) {
                 $grantedLookup = self::permits($lookupModule, 'VIEW') || $grantedLookup;
@@ -163,12 +194,6 @@ class MobileAccess
         if ($module === 'CRM_LEAD' && preg_match('~/(assign)$~', '/'.$tail)) $action = 'ASSIGN';
         if ($module === 'CRM_LEAD' && preg_match('~/(convert)$~', '/'.$tail)) $action = 'CONVERT';
         if ($module === 'CRM_LEAD' && $resource === 'follow-ups' && str_contains($tail, 'complete')) $action = 'UPDATE';
-        if ($module === 'QUOTATION' && str_contains($tail, 'review')) $action = 'APPROVE';
-        if ($module === 'QUOTATION' && str_contains($tail, 'convert-customer-po')) $action = 'CONVERT';
-        if ($module === 'QUOTATION' && str_contains($tail, 'submit')) $action = 'UPDATE';
-        if ($module === 'CUSTOMER_PO' && (str_contains($tail, 'convert-sales-order') || str_contains($tail, 'convert-salesorder'))) $action = 'CONVERT';
-        if ($module === 'ATTENDANCE' && str_ends_with($path, '/pdf')) $action = 'PDF';
-        if ($module === 'PAYSLIP' && str_ends_with($path, '/pdf')) $action = 'PDF';
         if ($module === 'NOTIFICATION' && in_array($action, ['CREATE', 'UPDATE'], true)) $action = 'UPDATE';
 
         if ($action) self::authorize($module, $action);
@@ -176,6 +201,9 @@ class MobileAccess
 
     public static function authorize(string $module, string $action): void
     {
+        if (self::isCommercialAdministrator() || request()->attributes->get('mobile_app_context')) {
+            return;
+        }
         $module = strtoupper(Str::singular($module));
         $action = strtoupper($action);
         if (self::permits($module, $action)) return;
@@ -253,7 +281,10 @@ class MobileAccess
     {
         return self::isCommercialAdministrator()
             ? self::plantQuery(CrmLead::class)
-            : self::plantQuery(CrmLead::class)->where('created_by', (int) request()->user()?->id);
+            : self::plantQuery(CrmLead::class)->where(function ($q) {
+                $userId = (int) request()->user()?->id;
+                $q->where('created_by', $userId)->orWhere('assigned_to', $userId);
+            });
     }
 
     public static function activities(): Builder

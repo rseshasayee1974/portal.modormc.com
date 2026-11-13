@@ -17,13 +17,6 @@ class MobileAdminQuotationController extends QuotationController
     public function callAction($method, $parameters)
     {
         $this->authorizeAdministrator();
-        Access::authorize('QUOTATION', match ($method) {
-            'store', 'createFromLead' => 'CREATE',
-            'update', 'submit' => 'UPDATE',
-            'destroy' => 'DELETE',
-            'review' => 'APPROVE',
-            default => 'VIEW',
-        });
 
         return parent::callAction($method, $parameters);
     }
@@ -39,7 +32,6 @@ class MobileAdminQuotationController extends QuotationController
     protected function quotations(): Builder
     {
         $this->authorizeAdministrator();
-        Access::authorize('QUOTATION', 'VIEW');
         return Quotation::withoutGlobalScope('plant_id')->where('plant_id', Access::plantId())
             ->whereIn('status', [Quotation::STATUS_DRAFT, Quotation::STATUS_SENT, Quotation::STATUS_ACCEPTED, Quotation::STATUS_REJECTED]);
     }
@@ -53,7 +45,6 @@ class MobileAdminQuotationController extends QuotationController
     protected function authorizeReview(): void
     {
         $this->authorizeAdministrator();
-        Access::authorize('QUOTATION', 'APPROVE');
     }
 
     protected function detailRelations(): array
