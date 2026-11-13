@@ -121,6 +121,8 @@ class PermissionSeeder extends Seeder
             'QC_REPORT' => ['VIEW', 'EXPORT', 'PDF'],
             
             // Master Data / Settings
+            'NOTIFICATION_EMAIL' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'NOTIFICATION_WHATSAPP' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'ADDRESS_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'ENTITY_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'CONTACT_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],

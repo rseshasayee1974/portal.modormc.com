@@ -74,7 +74,7 @@ class PatronController extends Controller
         $validated['plant_id'] = $plantId;
         $validated['entity_id'] = $entityId;
 
-        $patron = DB::transaction(function () use ($validated, $plantId, $entityId) {
+        $patron = DB::transaction(function () use ($request, $validated, $plantId, $entityId) {
             $patron = Patron::create($validated);
 
             $hasContactData = !empty($validated['contact_name']) || 
@@ -152,7 +152,7 @@ class PatronController extends Controller
             ->findOrFail($patronId);
         
         $validated = $request->validated();
-        DB::transaction(function () use ($validated, $patron) {
+        DB::transaction(function () use ($request, $validated, $patron) {
             // Only pass patron-table columns — not contact/address/bank keys
             $patronData = array_intersect_key($validated, array_flip([
                 'patron_type', 'legal_name',
