@@ -22,6 +22,7 @@ import TabList from 'primevue/tablist';
 import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
+import AddressDetails from '@/Components/AddressDetails.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import MultiSelect from 'primevue/multiselect';
@@ -35,6 +36,7 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import { useForm } from '@inertiajs/vue3';
 
 const props = defineProps<{
+    states: any[];
     personnel: any;
     activeTab: string;
     employmentTypeOptions: any[];
@@ -104,6 +106,7 @@ const formatTimeStr = (val: any): string | null => {
 const formCache: Record<number, any> = {};
 
 const getInitialData = () => ({
+    address: { state_id: null, city: '', zipcode: '', line_1: '', line_2: '', ...props.personnel.meta?.address },
     employee_code: props.personnel.employee_code || '',
     first_name: props.personnel.first_name || '',
     last_name: props.personnel.last_name || '',
@@ -247,7 +250,7 @@ const submit = () => {
             const errorKeys = Object.keys(errs);
             let targetTab = 'details';
 
-            if (errorKeys.some(k => k.startsWith('contacts.'))) {
+            if (errorKeys.some(k => k.startsWith('contacts.') || k.startsWith('address.'))) {
                 targetTab = 'contacts';
             } else if (errorKeys.some(k => k.startsWith('salary_structures.'))) {
                 targetTab = 'salary_structure';
@@ -548,6 +551,12 @@ const submit = () => {
 
                 <!-- CONTACTS MATRIX -->
                 <TabPanel value="contacts">
+                        <section class="mb-5">
+                            <h3 class="mb-3 text-sm font-semibold">Address details</h3>
+                            <AddressDetails :states="states" stateLabel="state_name" stateValue="id" errorPrefix="address." :errors="form.errors"
+                                v-model:state="form.address.state_id" v-model:city="form.address.city" v-model:zipcode="form.address.zipcode"
+                                v-model:line1="form.address.line_1" v-model:line2="form.address.line_2" />
+                        </section>
                     <div class="space-y-6 py-2">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="flex flex-col gap-2">

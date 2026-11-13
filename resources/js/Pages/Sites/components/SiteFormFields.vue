@@ -174,37 +174,7 @@ const googleMapsUrl = computed(() => {
                             disabled
                         />
                     </div>
-                    <!-- Street Address Lines -->
-                    <!-- <div class="grid grid-cols-1 sm:grid-cols-2 gap-4"> -->
-                        <div class="col-span-12 sm:col-span-6 md:col-span-3">
-                            <BaseInput 
-                                v-model="form.site_address_1" 
-                                label="Address Line 1" 
-                                placeholder="Plot / Survey number, Building, Street name" 
-                                :error="errors?.site_address_1" 
-                                :disabled="readonly" 
-                            />
-                        </div>
-                        <div class="col-span-12 sm:col-span-6 md:col-span-3">
-                            <BaseInput 
-                                v-model="form.site_address_2" 
-                                label="Address Line 2 / Locality" 
-                                placeholder="Area, Phase, Landmark, Near metro station" 
-                                :error="errors?.site_address_2" 
-                                :disabled="readonly" 
-                            />
-                        </div>
-                    <!-- </div> -->
-
-                    <!-- Cascading Regional Dropdowns (Country -> State -> District -> City -> Zipcode) -->
-                    <!-- <div class="pt-1 border-t border-slate-200/60 dark:border-slate-700/50"> -->
-                        <SiteAddressDropdowns 
-                            :form="form" 
-                            :errors="errors" 
-                            :readonly="readonly" 
-                        />
-                    <!-- </div> -->
-                <!-- </div> -->
+                    <SiteAddressDropdowns class="col-span-full" :form="form" :errors="errors" :readonly="readonly" />
 
                     <!-- Parent Facility (Plant) -->
                     <div class="col-span-12 sm:col-span-6 md:col-span-2" v-if="isPrivileged">

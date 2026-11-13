@@ -103,6 +103,7 @@ class StateCodeController extends Controller
         $state = StateCode::findOrFail($stateId);
         
         $districts = StateCode::where('state_code', $state->state_code)
+            ->where('country_id', $state->country_id)
             ->whereNotNull('district')
             ->where('district', '!=', '')
             ->distinct()

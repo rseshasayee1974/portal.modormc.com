@@ -57,7 +57,7 @@ class UpdatePlantRequest extends FormRequest
 
             // Address Validation
             'address' => ['nullable', 'array'],
-            'address.address_type_id' => ['required_with:mm_address.line_1', 'nullable', 'exists:mm_address_types,id'],
+            'address.address_type_id' => ['required_with:address.line_1,address.line_2,address.city,address.zipcode', 'nullable', 'exists:mm_address_types,id'],
             'address.line_1' => ['nullable', 'string', 'max:255'],
             'address.line_2' => ['nullable', 'string', 'max:255'],
             'address.city' => ['required_with:mm_address.line_1', 'nullable', 'string', 'max:255'],

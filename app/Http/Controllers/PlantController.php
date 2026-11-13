@@ -71,7 +71,7 @@ class PlantController extends Controller
             'entities' => $entities,
             'addressTypes' => AddressType::all(['id', 'type']),
             'contactTypes' => ContactType::all(['id', 'type']),
-            'states' => StateCodesDropdown(),
+            'states' => StateCodesDropdown('India'),
         ]);
     }
 
@@ -116,7 +116,7 @@ class PlantController extends Controller
             $plant = Plant::create($validated);
 
             // Handle Address
-            if (!empty($validated['address']['line_1'])) {
+            if ($request->anyFilled(['address.line_1', 'address.line_2', 'address.city', 'address.zipcode'])) {
                 $addressData = $validated['address'];
                 $addressData['plant_id'] = $plant->id;
                 $addressData['is_primary'] = true;
@@ -204,7 +204,7 @@ class PlantController extends Controller
             $plant->update($updatableFields);
 
             // Handle Address
-            if (!empty($validated['address']['line_1'])) {
+            if ($request->anyFilled(['address.line_1', 'address.line_2', 'address.city', 'address.zipcode'])) {
                 $addressData = $validated['address'];
                 $addressData['plant_id'] = $plant->id;
                 $address = $plant->addresses()->first();
@@ -216,8 +216,7 @@ class PlantController extends Controller
                     $address = Address::create($addressData);
                     $plant->addresses()->attach($address->id);
                 }
-            } elseif (empty($validated['address']['line_1']) && $plant->addresses()->exists()) {
-                // If line_1 was cleared, optionally we can detach/delete
+            } elseif ($request->has('address') && $plant->addresses()->exists()) {
                 $address = $plant->addresses()->first();
                 $plant->addresses()->detach($address->id);
                 $address->delete();

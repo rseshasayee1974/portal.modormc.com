@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AddressDetails from '@/Components/AddressDetails.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Textarea from 'primevue/textarea';
@@ -24,14 +25,21 @@ const props = defineProps<{
 }>();
 
 const filteredStates = (countryId: number | null) => {
-    if (!countryId) return props.stateCodes;
     return props.stateCodes.filter(s => s.country_id === countryId);
 };
 
-const addAddress = () => props.form.addresses.push({ address_type: props.addressTypes?.[0]?.id || null, line_1: '', line_2: null, city: '', zipcode: null, landmark: null, country_id: null, state_id: null, is_primary: 0 } as EntityAddress);
+const indiaId = () => props.countries.find(country => country.country_name.trim().toLowerCase() === 'india')?.id ?? null;
+watch(() => [props.form.addresses, props.form.taxes, props.countries], () => {
+    const defaultId = indiaId();
+    for (const row of [...(props.form.addresses || []), ...(props.form.taxes || [])]) {
+        row.country_id ??= props.stateCodes.find(state => state.id === row.state_id)?.country_id ?? defaultId;
+    }
+}, { immediate: true });
+
+const addAddress = () => props.form.addresses.push({ address_type: props.addressTypes?.[0]?.id || null, line_1: '', line_2: null, city: '', zipcode: null, landmark: null, country_id: indiaId(), state_id: null, is_primary: 0 } as EntityAddress);
 const addContact = () => props.form.contacts.push({ contact_type: props.contactTypes?.[0]?.id || null, contact_person: '', email: null, mobile: null, alt_mobile: null, alt_email: null, landline: null, is_primary: 0 } as EntityContact);
 const addBank = () => props.form.bank_accounts.push({ account_type: props.bankAccountTypes?.[0]?.id || null, account_number: '', bank_name: '', bank_branch: null, ifsc_code: null, bank_address: null, is_primary: 0 } as EntityBankAccount);
-const addTax = () => props.form.taxes.push({ tax_type: 'GST', tax_number: '', country_id: null, state_id: null, is_primary: 0 });
+const addTax = () => props.form.taxes.push({ tax_type: 'GST', tax_number: '', country_id: indiaId(), state_id: null, is_primary: 0 });
 
 const removeRel = (arr: any[], idx: number) => arr.splice(idx, 1);
 const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST', 'MSME'];
@@ -174,31 +182,11 @@ watch(() => props.form.errors, (errors) => {
                                 <span class="text-xs font-bold text-gray-500 uppercase">Primary Address</span>
                             </div>
                             
-                            <div class="col-span-12 md:col-span-6 flex flex-col gap-1">
-                                <label class="text-[10px] font-bold uppercase text-gray-400">Address line 1</label>
-                                <BaseInput v-model="addr.line_1" placeholder="Plot No, Building..." :disabled="readonly" required fluid :error="form.errors?.[`addresses.${i}.line_1`]" />
-                            </div>
-                            <div class="col-span-12 md:col-span-6 flex flex-col gap-1">
-                                <label class="text-[10px] font-bold uppercase text-gray-400">Address line 2</label>
-                                <BaseInput v-model="addr.line_2" placeholder="Street, Area..." :disabled="readonly" fluid />
-                            </div>
-
-                            <div class="col-span-12 md:col-span-3 flex flex-col gap-1">
-                                <label class="text-[10px] font-bold uppercase text-gray-400">City</label>
-                                <BaseInput v-model="addr.city" placeholder="City" :disabled="readonly" required fluid :error="form.errors?.[`addresses.${i}.city`]" />
-                            </div>
-                            <div class="col-span-12 md:col-span-3 flex flex-col gap-1">
-                                <label class="text-[10px] font-bold uppercase text-gray-400">Zipcode</label>
-                                <BaseInput v-model="addr.zipcode" placeholder="Zipcode" :disabled="readonly" fluid />
-                            </div>
-                            <div class="col-span-12 md:col-span-3 flex flex-col gap-1">
-                                <label class="text-[10px] font-bold uppercase text-gray-400">Country</label>
-                                <BaseSelect v-model="addr.country_id" :options="countries" optionLabel="country_name" optionValue="id" placeholder="Country" :disabled="readonly" fluid />
-                            </div>
-                            <div class="col-span-12 md:col-span-3 flex flex-col gap-1">
-                                <label class="text-[10px] font-bold uppercase text-gray-400">State</label>
-                                <BaseSelect v-model="addr.state_id" :options="filteredStates(addr.country_id)" optionLabel="state_name" optionValue="id" placeholder="State" :disabled="readonly" fluid />
-                            </div>
+                            <AddressDetails class="col-span-full" :states="filteredStates(addr.country_id)"
+                                stateLabel="state_name" stateValue="id" :readonly="readonly" requireDistrict requireLine1
+                                :errorPrefix="`addresses.${i}.`" :errors="form.errors"
+                                v-model:state="addr.state_id" v-model:city="addr.city" v-model:zipcode="addr.zipcode"
+                                v-model:line1="addr.line_1" v-model:line2="addr.line_2" />
                         </div>
                     </div>
 
@@ -376,10 +364,6 @@ watch(() => props.form.errors, (errors) => {
                                 <span class="text-xs font-bold text-gray-500 uppercase">Primary Tax</span>
                             </div>
 
-                            <div class="col-span-12 md:col-span-6 flex flex-col gap-1">
-                                <label class="text-[10px] font-bold uppercase text-gray-400">Country</label>
-                                <BaseSelect v-model="tax.country_id" :options="countries" optionLabel="country_name" optionValue="id" placeholder="Select Country" :disabled="readonly" fluid />
-                            </div>
                             <div class="col-span-12 md:col-span-6 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">State (Optional)</label>
                                 <BaseSelect v-model="tax.state_id" :options="filteredStates(tax.country_id)" optionLabel="state_name" optionValue="id" placeholder="Select State" :disabled="readonly" fluid />

@@ -844,10 +844,12 @@ if (!function_exists('BankAccountTypesDropdown')) {
 }
 
 if (!function_exists('StateCodesDropdown')) {
-    function StateCodesDropdown()
+    function StateCodesDropdown(?string $countryName = null)
     {
-        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () {
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($countryName) {
             return StateCode::whereNotNull('state_name')
+                ->when($countryName, fn ($query) => $query->whereIn('country_id',
+                    \App\Models\Country::where('country_name', $countryName)->select('id')))
                 ->where('state_name', '!=', '')
                 ->whereNull('deleted_at')
                 ->groupBy('state_name', 'state_code')
