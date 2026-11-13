@@ -26,6 +26,7 @@ class ReportPermissions
         'bulk_documents' => 'Bulk Invoice / Bill Export',
         'inventory_stock' => 'Stock Status List',
         'inventory_inward' => 'Purchase Inward Receipts',
+        'stock_out' => 'Stock Out Report',
         'purchase' => 'Purchase and Bills Summary',
         'silo_stock_valuation' => 'Silo Stock Valuation',
         'overall' => 'Overall Daily Report',

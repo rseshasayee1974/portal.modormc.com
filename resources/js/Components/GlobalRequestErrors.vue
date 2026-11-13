@@ -11,6 +11,7 @@ const props = defineProps({ initialPage: Object });
 const messages = ref([]);
 const removers = [];
 let interceptor;
+let dismissTimer;
 
 function flatten(value) {
     if (typeof value === 'string') return value.trim() ? [value] : [];
@@ -20,7 +21,20 @@ function flatten(value) {
 }
 
 function show(value) {
-    messages.value = [...new Set(flatten(value))];
+    const nextMessages = [...new Set(flatten(value))];
+    messages.value = nextMessages;
+
+    if (dismissTimer) {
+        window.clearTimeout(dismissTimer);
+        dismissTimer = undefined;
+    }
+
+    if (nextMessages.length) {
+        dismissTimer = window.setTimeout(() => {
+            messages.value = [];
+            dismissTimer = undefined;
+        }, 3000);
+    }
 }
 
 function showResponse(response) {
@@ -69,6 +83,7 @@ onMounted(() => {
 onUnmounted(() => {
     removers.forEach(remove => remove());
     if (interceptor !== undefined) axios.interceptors.response.eject(interceptor);
+    if (dismissTimer) window.clearTimeout(dismissTimer);
 });
 </script>
 

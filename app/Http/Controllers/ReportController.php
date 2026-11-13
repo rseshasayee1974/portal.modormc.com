@@ -130,9 +130,11 @@ class ReportController extends Controller
     public function generate(Request $request, ReportServiceFactory $factory, ExcelExportService $excelService)
     {
         $type = strtolower((string) $request->input('type'));
-        if ($type === 'inventory_inward') $request->validate([
+        if (in_array($type, ['inventory_inward', 'stock_out'], true)) $request->validate([
             'start_date' => 'nullable|date', 'end_date' => 'nullable|date|after_or_equal:start_date',
             'product_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('mm_products', 'id')
+                ->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
+            'truck_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('mm_machines', 'id')
                 ->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
         ]);
         if ($type === 'attendance') $request->validate([

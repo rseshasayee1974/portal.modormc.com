@@ -173,8 +173,13 @@
                         @if($hasValue($ackDateVal)) <div>Ack Date : <strong>{{ $ackDateVal }}</strong></div> @endif
                     </td>
                     @if($hasValidQr)
+<<<<<<< HEAD
                         <td class="irn-qr">
                             <img src="{{ $rawQr }}" alt="E-Invoice QR code" />
+=======
+                        <td style="width: 82px; text-align: right !important; vertical-align: middle; white-space: nowrap; padding: 4px 10px 4px 6px;">
+                            <img src="{{ $rawQr }}" style="width: 58px; height: 58px; vertical-align: middle; object-fit: contain;" />
+>>>>>>> 7f37449dc70fbca7f251a00b73ee70f38890f8d2
                         </td>
                     @endif
                 </tr>

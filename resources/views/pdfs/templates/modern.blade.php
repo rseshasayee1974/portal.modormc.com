@@ -270,9 +270,9 @@
                     @endif
                 </div>
                 @if (!empty($data['meta']['qr_code']))
-                    <div style="display: table-cell; vertical-align: middle; text-align: right; width: 70px;">
+                    <div style="display: table-cell; vertical-align: middle; text-align: center; width: 70px; padding: 4px 8px;">
                         <img src="{{ $data['meta']['qr_code'] }}"
-                            style="max-height: 60px; max-width: 60px; object-fit: contain;" />
+                            style="display: block; width: 58px; height: 58px; margin: 0 auto; object-fit: contain;" />
                     </div>
                 @endif
             </div>

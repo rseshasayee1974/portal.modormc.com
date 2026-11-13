@@ -215,6 +215,7 @@ class QueueReportExportJob implements ShouldQueue
             'RECEIPT'              => 'reports.receipt_report',
             'INVENTORY_STOCK'      => 'reports.generic_report',
             'INVENTORY_INWARD'     => 'reports.generic_report',
+            'STOCK_OUT'            => 'reports.generic_report',
             'PRODUCTION_BATCH'     => 'reports.generic_report',
             'BATCHING_SCHEDULE'    => 'reports.generic_report',
             'PUMP_BOOM_DEPLOYMENT' => 'reports.generic_report',
@@ -259,6 +260,13 @@ class QueueReportExportJob implements ShouldQueue
                 'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'conversion_quantity_display', 'truck_no'],
                 'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'right', 'center'],
                 'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
+            ];
+        } elseif (strtolower($type) === 'stock_out') {
+            $extraParams = [
+                'headers' => ['Date', 'Bill No / Ref', 'Product', 'Qty', 'Unit Price', 'Tax', 'Amount', 'Issued To / Vehicle'],
+                'fields' => ['date', 'bill_reference', 'product_name', 'quantity', 'unit_price', 'tax_amount', 'total_amount', 'issued_to_vehicle'],
+                'alignments' => ['center', 'center', 'left', 'right', 'right', 'right', 'right', 'left'],
+                'totals' => ['quantity' => $data['total_quantity'] ?? 0, 'tax_amount' => $data['total_tax_amount'] ?? 0, 'total_amount' => $data['total_amount'] ?? 0],
             ];
         } elseif (strtolower($type) === 'batching_schedule') {
             $extraParams = \App\Services\Reports\BatchingScheduleReportService::pdfColumns($data);
@@ -306,7 +314,7 @@ class QueueReportExportJob implements ShouldQueue
 
         $paperSize = 'a4';
         $orientation = 'portrait';
-        if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PUMP_BOOM_DEPLOYMENT', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER', 'CREDIT_DEBIT_NOTE_REGISTER', 'INVENTORY_INWARD']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
+        if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PUMP_BOOM_DEPLOYMENT', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER', 'CREDIT_DEBIT_NOTE_REGISTER', 'INVENTORY_INWARD', 'STOCK_OUT']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
             $orientation = 'landscape';
         }
         if (strtoupper($type) === 'INVENTORY_INWARD') {

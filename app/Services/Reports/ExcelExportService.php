@@ -530,6 +530,11 @@ class ExcelExportService
                         $row['truck_no'] ?? ''
                     ];
                 }
+            } elseif ($type === 'stock_out') {
+                $headersList = ['Issue Date', 'Reference', 'Bill No', 'Bill Date', 'Description', 'Partner', 'Product', 'Quantity', 'UOM', 'Items', 'Unit Price', 'Discount', 'Taxable Amount', 'Tax %', 'Tax Amount', 'Total Amount', 'Issued To', 'Vehicle', 'Odometer', 'Notes'];
+                foreach (($data['transactions'] ?? []) as $row) {
+                    $rows[] = [$row['date'] ?? '', $row['reference_number'] ?? '', $row['bill_number'] ?? '', $row['billed_date'] ?? '', $row['voucher_name'] ?? '', $row['partner_name'] ?? '', $row['product_name'] ?? '', $row['quantity'] ?? 0, $row['uom'] ?? '', $row['no_items_issued'] ?? 0, $row['unit_price'] ?? 0, $row['discount_amount'] ?? 0, $row['untaxed_amount'] ?? 0, $row['tax_rate'] ?? 0, $row['tax_amount'] ?? 0, $row['total_amount'] ?? 0, $row['issued_to'] ?? '', $row['vehicle_no'] ?? '', $row['changed_km'] ?? '', $row['notes'] ?? ''];
+                }
             } elseif ($type === 'batching_schedule') {
                 $columns = BatchingScheduleReportService::COLUMNS;
                 $headersList = array_values($columns);

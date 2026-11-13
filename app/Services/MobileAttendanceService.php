@@ -32,10 +32,27 @@ class MobileAttendanceService
             abort_unless($user->is_active && ($user->is_otp_enabled || in_array('*', $user->currentAccessToken()?->abilities ?? [], true))
                 && (! $user->lockout_until || $user->lockout_until->isPast()), 403, 'Mobile app access is not available for this account.');
         }
-        $query = Personnel::withoutGlobalScope('plant_id')->where('plant_id', $plantId)->where('user_id', $user->id);
+        $query = Personnel::withTrashed()->withoutGlobalScope('plant_id')
+            ->where('plant_id', $plantId)
+            ->where('user_id', $user->id);
         // Stable mapping for legacy users with more than one linked profile.
         $personnel = ($lock ? $query->lockForUpdate() : $query)->orderBy('id')->first();
         if ($personnel) {
+            // A prior HR cleanup may have soft-deleted the mapping. Restore it
+            // only when the mobile request is explicitly provisioning access.
+            if ($provision && $personnel->trashed()) {
+                $personnel->restore();
+            }
+
+            if ($personnel->trashed()) {
+                return new Personnel([
+                    'plant_id' => $plantId,
+                    'user_id' => $user->id,
+                    'first_name' => $user->username ?: 'Mobile user '.$user->id,
+                    'status' => 'active',
+                ]);
+            }
+
             return $personnel;
         }
         $attributes = ['plant_id' => $plantId, 'user_id' => $user->id,
@@ -73,12 +90,27 @@ class MobileAttendanceService
 
     private function ensurePayrollEditable(Personnel $personnel, string $date): void
     {
-        $periods = PayrollPeriod::withoutGlobalScope('plant_id')->where('plant_id', $personnel->plant_id)
-            ->whereDate('from_date', '<=', $date)->whereDate('to_date', '>=', $date)->lockForUpdate()->get();
+        $periods = PayrollPeriod::withoutGlobalScope('plant_id')
+            ->where('plant_id', $personnel->plant_id)
+            ->whereNull('deleted_at')
+            ->whereDate('from_date', '<=', $date)
+            ->whereDate('to_date', '>=', $date)
+            ->lockForUpdate()
+            ->get();
+
         foreach ($periods as $period) {
-            abort_if(in_array($period->status, ['processing', 'completed', 'locked'], true)
-                || $period->payslips()->withoutGlobalScope('plant_id')->where('personnel_id', $personnel->id)->exists(),
-                409, 'Payroll already covers this attendance date. Ask HR to correct attendance and regenerate payroll.');
+            $hasActivePayslip = $period->payslips()
+                ->withoutGlobalScope('plant_id')
+                ->where('personnel_id', $personnel->id)
+                // Keep soft-deleted payslips from blocking attendance edits.
+                ->whereNull('mm_payslips.deleted_at')
+                ->exists();
+
+            abort_if(
+                in_array($period->status, ['processing', 'completed', 'locked'], true) || $hasActivePayslip,
+                409,
+                'Payroll already covers this attendance date. Ask HR to correct attendance and regenerate payroll.'
+            );
         }
     }
 
