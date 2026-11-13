@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->withoutMiddleware(TitleCaseInputs::class)->group(function () {
     Route::get('docs', [DocumentationController::class, 'index'])->name('sales-mobile.docs');
     Route::get('openapi.json', [DocumentationController::class, 'specification'])->name('sales-mobile.openapi');
+    Route::match(['get', 'post'], 'auth/route', [AuthController::class, 'routeEmail']);
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1,sales-mobile-login');
     Route::post('auth/send-otp', [AuthController::class, 'sendOtp'])->middleware('throttle:5,1,sales-mobile-send-otp');
     Route::post('auth/verify-otp', [AuthController::class, 'verify'])->middleware('throttle:10,1,sales-mobile-otp');

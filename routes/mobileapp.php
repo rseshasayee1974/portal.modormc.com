@@ -17,6 +17,8 @@ require __DIR__.'/sales-mobile.php';
 
 // Public routes
 Route::get('/status', [MobileApiController::class, 'status']);
+Route::match(['get', 'post'], '/route', [MobileApiController::class, 'routeEmail']);
+Route::match(['get', 'post'], '/server-url', [MobileApiController::class, 'routeEmail']);
 Route::post('/login', [MobileApiController::class, 'login']);
 Route::post('/send-otp', [MobileApiController::class, 'sendOtp'])->middleware('throttle:6,1');
 Route::post('/verify-otp', [MobileApiController::class, 'verifyOtp'])->middleware('throttle:10,1');

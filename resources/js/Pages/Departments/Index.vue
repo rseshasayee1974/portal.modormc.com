@@ -70,7 +70,7 @@ const deleteDepartment = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-    router.delete(route('departments.destroy', id), {
+            router.delete(route('departments.destroy', id), {
                 preserveScroll: true,
                 preserveState: true
             });
@@ -106,9 +106,9 @@ watch(
         <div class="py-6">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="space-y-6">
-                    
+
                     <!-- Form Container (col-span-3 standard grid layout) -->
-                    <BaseCard v-if="isSassOwner" class="text-sm">
+                    <BaseCard class="text-sm">
                         <template #header>
                             <div class="flex items-center gap-2">
                                 <FolderOpenIcon class="w-5 h-5 text-indigo-500" />
@@ -121,41 +121,35 @@ watch(
                         <form @submit.prevent="submitForm" class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department Name <span class="text-red-500">*</span></label>
-                                    <BaseInput v-model="form.name" placeholder="e.g. Quality Control" :class="{'p-invalid': form.errors.name}" />
-                                    <small v-if="form.errors.name" class="p-error text-[10px]">{{ form.errors.name }}</small>
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department
+                                        Name
+                                        <span class="text-red-500">*</span></label>
+                                    <BaseInput v-model="form.name" placeholder="e.g. Quality Control"
+                                        :class="{ 'p-invalid': form.errors.name }" />
+                                    <small v-if="form.errors.name" class="p-error text-[10px]">{{ form.errors.name
+                                        }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department Code</label>
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department
+                                        Code</label>
                                     <BaseInput v-model="form.code" placeholder="e.g. QC-DEPT" />
                                 </div>
                             </div>
 
-                            <BaseFormActions 
-                                :loading="form.processing"
+                            <BaseFormActions :loading="form.processing"
                                 :label="editingId ? 'Update Department' : 'Save Department'"
-                                :cancel-label="editingId ? 'Cancel' : 'Reset'"
-                                :mode="editingId ? 'edit' : 'add'"
-                                class="pt-6 border-t border-gray-100 dark:border-gray-700"
-                                @cancel="resetForm"
-                            />
+                                :cancel-label="editingId ? 'Cancel' : 'Reset'" :mode="editingId ? 'edit' : 'add'"
+                                class="pt-6 border-t border-gray-100 dark:border-gray-700" @cancel="resetForm" />
                         </form>
                     </BaseCard>
 
                     <!-- Departments List -->
                     <div class="bg-white dark:bg-slate-900 rounded-xl">
-                        <BaseDataTable 
-                            :value="departments" 
-                            dataKey="id"
-                            stripedRows 
-                            heading="Departments"
-                            headingIcon="FolderIcon"
-                            showSearch showSerial
-                            paginator
-                            :rows="30" 
-                            :totalRecords="departments.length"
-                            class="p-datatable-sm"
-                        >
+                        <BaseDataTable :value="departments" dataKey="id" stripedRows heading="Departments"
+                            headingIcon="FolderIcon" showSearch showSerial paginator :rows="30"
+                            :totalRecords="departments.length" class="p-datatable-sm">
                             <Column header="Department Code">
                                 <template #body="slotProps">
                                     <span class="font-semibold text-slate-700 dark:text-slate-300">
@@ -171,23 +165,13 @@ watch(
                                 </template>
                             </Column>
 
-                            <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
+                            <Column header="Actions" alignFrozen="right" frozen>
                                 <template #body="slotProps">
                                     <div class="flex justify-end gap-2">
-                                        <BaseButton 
-                                            icon="pi pi-pencil" 
-                                            severity="info" 
-                                            text 
-                                            rounded 
-                                            @click="editDepartment(slotProps.data)"
-                                        />
-                                        <BaseButton 
-                                            icon="pi pi-trash" 
-                                            severity="danger" 
-                                            text 
-                                            rounded 
-                                            @click="deleteDepartment(slotProps.data.id)"
-                                        />
+                                        <BaseButton icon="pi pi-pencil" severity="info" text rounded
+                                            @click="editDepartment(slotProps.data)" />
+                                        <BaseButton icon="pi pi-trash" severity="danger" text rounded
+                                            @click="deleteDepartment(slotProps.data.id)" />
                                     </div>
                                 </template>
                             </Column>

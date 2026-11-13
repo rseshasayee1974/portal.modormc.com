@@ -45,6 +45,7 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+Route::match(['get', 'post'], '/route', [AuthApiController::class, 'routeEmail']);
 Route::post('/login', [AuthApiController::class, 'login']);
 Route::post('/send-otp', [AuthApiController::class, 'sendOtp'])->middleware('throttle:6,1');
 Route::post('/verify-otp', [AuthApiController::class, 'verifyOtp'])->middleware('throttle:10,1');

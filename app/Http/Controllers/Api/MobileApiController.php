@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use App\Services\Mobile\MobileAccess;
+use App\Services\EmailRoutingService;
 
 class MobileApiController extends Controller
 {
@@ -63,6 +64,32 @@ class MobileApiController extends Controller
     }
 
     /**
+     * Resolve email routing/server URL.
+     */
+    #[OA\Get(
+        path: "/api/mobile/route",
+        summary: "Resolve server URL for given email",
+        tags: ["Mobile API"]
+    )]
+    public function routeEmail(Request $request): JsonResponse
+    {
+        $email = $request->input('email') ?? $request->query('email');
+        $isProduction = EmailRoutingService::shouldRoute();
+        $url = EmailRoutingService::resolveUrl($email, url('/'));
+
+        return response()->json([
+            'success' => true,
+            'email' => $email,
+            'environment' => app()->environment(),
+            'skipped_for_local' => !$isProduction,
+            'redirect_to' => $url,
+            'route_url' => $url,
+            'server_url' => $url,
+            'production_target' => EmailRoutingService::isCurieEmail($email) ? EmailRoutingService::CURIE_URL : EmailRoutingService::DEFAULT_URL,
+        ]);
+    }
+
+    /**
      * Mobile login endpoint.
      */
     #[OA\Post(
@@ -104,11 +131,15 @@ class MobileApiController extends Controller
         $token = $user->createToken('web-login')->plainTextToken;
         $user->forceFill(['last_login' => now()])->save();
 
+        $routeUrl = EmailRoutingService::resolveUrl($user->email);
+
         return response()->json([
             'message' => 'Logged in successfully',
             'token' => $token,
             'token_type' => 'Bearer',
-            'redirect_to' => '/dashboard',
+            'redirect_to' => $routeUrl,
+            'route_url' => $routeUrl,
+            'server_url' => $routeUrl,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->username,
@@ -181,12 +212,16 @@ class MobileApiController extends Controller
 
         Auth::login($user);
         $token = $user->createToken('email-otp-verification')->plainTextToken;
+        $routeUrl = EmailRoutingService::resolveUrl($user->email);
 
         return response()->json([
             'success' => true,
             'message' => 'Email verified successfully.',
             'token' => $token,
             'token_type' => 'Bearer',
+            'redirect_to' => $routeUrl,
+            'route_url' => $routeUrl,
+            'server_url' => $routeUrl,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->username,

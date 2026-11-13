@@ -27,7 +27,49 @@ class UserSeeder extends Seeder
             $user->assignRole($role);
         }
 
-        // 2. Create some demo users
+        // 2. Create Curie and staff users
+        $curieUsers = [
+            [
+                'email' => 'curieadmin@onemodo.com',
+                'username' => 'curieadmin',
+                'password' => Hash::make('Test@123'),
+                'role' => 'ADMINISTRATOR',
+            ],
+            [
+                'email' => 'curiesales@onemodo.com',
+                'username' => 'curiesales',
+                'password' => Hash::make('Test@123'),
+                'role' => 'SALES_EXECUTIVE',
+            ],
+            [
+                'email' => 'prabakaran@onemodo.com',
+                'username' => 'prabakaran',
+                'password' => Hash::make('Test@123'),
+                'role' => 'ADMINISTRATOR',
+            ],
+        ];
+
+        foreach ($curieUsers as $u) {
+            $createdUser = User::updateOrCreate(
+                ['email' => $u['email']],
+                [
+                    'username' => $u['username'],
+                    'password' => $u['password'],
+                    'email_verified_at' => now(),
+                    'is_active' => true,
+                    'is_otp_enabled' => true,
+                ]
+            );
+
+            if (!empty($u['role'])) {
+                $userRole = \App\Models\Role::where('code', $u['role'])->first();
+                if ($userRole) {
+                    $createdUser->assignRole($userRole);
+                }
+            }
+        }
+
+        // 3. Create some demo users
         User::factory()->count(10)->create();
     }
 }

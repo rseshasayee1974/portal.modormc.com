@@ -8,6 +8,17 @@ class LoginDestination
 {
     public function resolve(Request $request): string
     {
+        if (EmailRoutingService::shouldRoute()) {
+            $email = $request->user()?->email;
+            if (EmailRoutingService::isCurieEmail($email)) {
+                return EmailRoutingService::CURIE_URL;
+            }
+
+            if ($request->getHost() === 'portal.modormc.com') {
+                return EmailRoutingService::DEFAULT_URL;
+            }
+        }
+
         foreach ([$request->session()->pull('url.intended'), $request->user()?->last_visit_page] as $url) {
             if (!is_string($url) || trim($url) === '') {
                 continue;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Mobile\MobileAccess;
+use App\Services\EmailRoutingService;
 use App\Models\Plant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -68,6 +69,25 @@ class AuthApiController extends Controller
         ], 201);
     }
 
+    #[OA\Get(path: "/route", summary: "Resolve server URL for given email", tags: ["Authentication"])]
+    public function routeEmail(Request $request): JsonResponse
+    {
+        $email = $request->input('email') ?? $request->query('email');
+        $isProduction = EmailRoutingService::shouldRoute();
+        $url = EmailRoutingService::resolveUrl($email, url('/'));
+
+        return response()->json([
+            'success' => true,
+            'email' => $email,
+            'environment' => app()->environment(),
+            'skipped_for_local' => !$isProduction,
+            'redirect_to' => $url,
+            'route_url' => $url,
+            'server_url' => $url,
+            'production_target' => EmailRoutingService::isCurieEmail($email) ? EmailRoutingService::CURIE_URL : EmailRoutingService::DEFAULT_URL,
+        ]);
+    }
+
     #[OA\Post(path: "/login", summary: "Web Login", tags: ["Authentication"])]
     #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
         new OA\Property(property: "email", type: "string"),
@@ -106,12 +126,15 @@ class AuthApiController extends Controller
         Auth::login($user, (bool) ($data['remember'] ?? false));
         $token = $user->createToken('web-login')->plainTextToken;
         $user->forceFill(['last_login' => now()])->save();
+        $routeUrl = EmailRoutingService::resolveUrl($user->email);
 
         return response()->json([
             'message' => 'Logged in successfully',
             'token' => $token,
             'token_type' => 'Bearer',
-            'redirect_to' => '/dashboard',
+            'redirect_to' => $routeUrl,
+            'route_url' => $routeUrl,
+            'server_url' => $routeUrl,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->username,
@@ -179,12 +202,15 @@ class AuthApiController extends Controller
 
         Auth::login($user);
         $token = $user->createToken('email-otp-verification')->plainTextToken;
+        $routeUrl = EmailRoutingService::resolveUrl($user->email);
 
         return response()->json([
             'message' => 'Email verified successfully.',
             'token' => $token,
             'token_type' => 'Bearer',
-            'redirect_to' => '/dashboard',
+            'redirect_to' => $routeUrl,
+            'route_url' => $routeUrl,
+            'server_url' => $routeUrl,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->username,

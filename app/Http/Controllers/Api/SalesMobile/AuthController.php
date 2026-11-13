@@ -8,6 +8,7 @@ namespace App\Http\Controllers\Api\SalesMobile;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\EmailRoutingService;
 use App\Services\Mobile\MobileAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Cache, Hash, RateLimiter, DB};
@@ -15,6 +16,24 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    public function routeEmail(Request $request)
+    {
+        $email = $request->input('email') ?? $request->query('email');
+        $isProduction = EmailRoutingService::shouldRoute();
+        $url = EmailRoutingService::resolveUrl($email, url('/'));
+
+        return response()->json([
+            'success' => true,
+            'email' => $email,
+            'environment' => app()->environment(),
+            'skipped_for_local' => !$isProduction,
+            'redirect_to' => $url,
+            'route_url' => $url,
+            'server_url' => $url,
+            'production_target' => EmailRoutingService::isCurieEmail($email) ? EmailRoutingService::CURIE_URL : EmailRoutingService::DEFAULT_URL,
+        ]);
+    }
+
     public function login(Request $request)
     {
         $data = $request->validate(['email' => 'required|email', 'password' => 'required|string']);
@@ -162,10 +181,14 @@ class AuthController extends Controller
             $token = $user->createToken('sales-mobile:app', ['sales-mobile'], $expires);
             $user->forceFill(['last_login' => now()])->save();
             $plants = $this->plantList($user);
+            $routeUrl = EmailRoutingService::resolveUrl($user->email);
             return response()->json(['success' => true, 'data' => [
                 'token' => $token->plainTextToken,
                 'token_type' => 'Bearer',
                 'expires_at' => $expires->toIso8601String(),
+                'redirect_to' => $routeUrl,
+                'route_url' => $routeUrl,
+                'server_url' => $routeUrl,
                 'user' => $this->profile($user),
                 'plants' => $plants,
                 'permissions_by_plant' => $plants->map(fn ($plant) => [

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Mobile\MobileAccess;
+use App\Services\EmailRoutingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -200,6 +201,7 @@ class LoginController extends Controller
         ])->saveQuietly();
 
         $token = $user->createToken($tokenName)->plainTextToken;
+        $routeUrl = EmailRoutingService::resolveUrl($user->email);
 
         return response()->json([
             'status' => true,
@@ -207,6 +209,9 @@ class LoginController extends Controller
             'token_type' => 'Bearer',
             'access_token' => $token,
             'token' => $token,
+            'redirect_to' => $routeUrl,
+            'route_url' => $routeUrl,
+            'server_url' => $routeUrl,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->username,

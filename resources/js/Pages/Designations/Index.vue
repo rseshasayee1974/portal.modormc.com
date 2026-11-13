@@ -113,10 +113,10 @@ watch(
         <div class="py-6">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="space-y-6">
-                    
+
                     <!-- Form Container (3-column layout) -->
-                    <p v-if="isSassOwner && !activePlantId">Select a plant to create or manage its designations.</p>
-                    <BaseCard v-if="isSassOwner && activePlantId" class="text-sm">
+                    <p v-if="!activePlantId">Select a plant to create or manage its designations.</p>
+                    <BaseCard v-if="activePlantId" class="text-sm">
                         <template #header>
                             <div class="flex items-center gap-2">
                                 <IdentificationIcon class="w-5 h-5 text-indigo-500" />
@@ -129,51 +129,48 @@ watch(
                         <form @submit.prevent="submitForm" class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Designation Name <span class="text-red-500">*</span></label>
-                                    <BaseInput v-model="form.name" placeholder="e.g. Mechanical Engineer" :class="{'p-invalid': form.errors.name}" />
-                                    <small v-if="form.errors.name" class="p-error text-[10px]">{{ form.errors.name }}</small>
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Designation
+                                        Name <span class="text-red-500">*</span></label>
+                                    <BaseInput v-model="form.name" placeholder="e.g. Mechanical Engineer"
+                                        :class="{ 'p-invalid': form.errors.name }" />
+                                    <small v-if="form.errors.name" class="p-error text-[10px]">{{ form.errors.name
+                                        }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Designation Code</label>
+                                    <label
+                                        class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Designation
+                                        Code</label>
                                     <BaseInput v-model="form.code" placeholder="e.g. MECH-ENG" />
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Min Salary</label>
-                                        <BaseInput type="number" step="0.01" v-model="form.min_salary" placeholder="Min" />
+                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Min
+                                            Salary</label>
+                                        <BaseInput type="number" step="0.01" v-model="form.min_salary"
+                                            placeholder="Min" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Max Salary</label>
-                                        <BaseInput type="number" step="0.01" v-model="form.max_salary" placeholder="Max" />
+                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Max
+                                            Salary</label>
+                                        <BaseInput type="number" step="0.01" v-model="form.max_salary"
+                                            placeholder="Max" />
                                     </div>
                                 </div>
                             </div>
 
-                            <BaseFormActions 
-                                :loading="form.processing"
+                            <BaseFormActions :loading="form.processing"
                                 :label="editingId ? 'Update Designation' : 'Save Designation'"
-                                :cancel-label="editingId ? 'Cancel' : 'Reset'"
-                                :mode="editingId ? 'edit' : 'add'"
-                                class="pt-6 border-t border-gray-100 dark:border-gray-700"
-                                @cancel="resetForm"
-                            />
+                                :cancel-label="editingId ? 'Cancel' : 'Reset'" :mode="editingId ? 'edit' : 'add'"
+                                class="pt-6 border-t border-gray-100 dark:border-gray-700" @cancel="resetForm" />
                         </form>
                     </BaseCard>
 
                     <!-- Designations List -->
                     <div class="bg-white dark:bg-slate-900 rounded-xl">
-                        <BaseDataTable 
-                            :value="designations" 
-                            dataKey="id"
-                            stripedRows 
-                            heading="Designations"
-                            headingIcon="BriefcaseIcon"
-                            showSearch showSerial
-                            paginator
-                            :rows="30" 
-                            :totalRecords="designations.length"
-                            class="p-datatable-sm"
-                        >
+                        <BaseDataTable :value="designations" dataKey="id" stripedRows heading="Designations"
+                            headingIcon="BriefcaseIcon" showSearch showSerial paginator :rows="30"
+                            :totalRecords="designations.length" class="p-datatable-sm">
                             <Column v-if="!activePlantId" field="plant.name" header="Plant" />
                             <Column header="Designation Code">
                                 <template #body="slotProps">
@@ -191,31 +188,29 @@ watch(
                             </Column>
                             <Column header="Min Salary">
                                 <template #body="slotProps">
-                                    <span>{{ slotProps.data.min_salary ? Number(slotProps.data.min_salary).toLocaleString(APP_LOCALE, {style: 'currency', currency: 'INR'}) : '-' }}</span>
+                                    <span>{{ slotProps.data.min_salary ?
+                                        Number(slotProps.data.min_salary).toLocaleString(APP_LOCALE, {
+                                            style: 'currency',
+                                            currency: 'INR'
+                                        }) : '-' }}</span>
                                 </template>
                             </Column>
                             <Column header="Max Salary">
                                 <template #body="slotProps">
-                                    <span>{{ slotProps.data.max_salary ? Number(slotProps.data.max_salary).toLocaleString(APP_LOCALE, {style: 'currency', currency: 'INR'}) : '-' }}</span>
+                                    <span>{{ slotProps.data.max_salary ?
+                                        Number(slotProps.data.max_salary).toLocaleString(APP_LOCALE, {
+                                            style: 'currency',
+                                            currency: 'INR'
+                                        }) : '-' }}</span>
                                 </template>
                             </Column>
-                            <Column v-if="isSassOwner && activePlantId" header="Actions" alignFrozen="right" frozen>
+                            <Column v-if="activePlantId" header="Actions" alignFrozen="right" frozen>
                                 <template #body="slotProps">
                                     <div class="flex justify-end gap-2">
-                                        <BaseButton 
-                                            icon="pi pi-pencil" 
-                                            severity="info" 
-                                            text 
-                                            rounded 
-                                            @click="editDesignation(slotProps.data)"
-                                        />
-                                        <BaseButton 
-                                            icon="pi pi-trash" 
-                                            severity="danger" 
-                                            text 
-                                            rounded 
-                                            @click="deleteDesignation(slotProps.data.id)"
-                                        />
+                                        <BaseButton icon="pi pi-pencil" severity="info" text rounded
+                                            @click="editDesignation(slotProps.data)" />
+                                        <BaseButton icon="pi pi-trash" severity="danger" text rounded
+                                            @click="deleteDesignation(slotProps.data.id)" />
                                     </div>
                                 </template>
                             </Column>
