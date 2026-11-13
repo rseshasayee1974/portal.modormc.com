@@ -22,10 +22,20 @@ class PayslipApiController extends Controller
     #[OA\Response(response: 401, description: "Unauthorized")]
     public function index(Request $request)
     {
-        $user = $request->user();
-        $personnel = $user->personnel;
+        $request->validate([
+            'from_date' => ['nullable', 'date_format:Y-m-d'],
+            'to_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from_date'],
+            'from_time' => ['nullable', 'date_format:H:i'],
+            'to_time' => ['nullable', 'date_format:H:i'],
+        ]);
 
-        if (!$personnel) {
+        $user = $request->user();
+        $plantId = (int) $request->attributes->get('mobile_plant_id');
+        $personnelId = $plantId
+            ? \App\Services\Mobile\MobileAccess::personnelId()
+            : $user->personnel?->id;
+
+        if (!$personnelId) {
             return response()->json([
                 'success' => false,
                 'message' => 'No employee record found for the authenticated user.',
@@ -33,10 +43,23 @@ class PayslipApiController extends Controller
             ], 404);
         }
 
-        $payslips = Payslip::with('payrollPeriod')
-            ->where('personnel_id', $personnel->id)
-            ->latest()
-            ->get();
+        $query = Payslip::with(['payrollPeriod', 'items'])
+            ->where('personnel_id', $personnelId)
+            ->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
+            ->whereHas('payrollPeriod', function ($period) use ($request) {
+                $period->when($request->filled('from_date'), fn ($q) => $q->whereDate('to_date', '>=', $request->input('from_date')))
+                    ->when($request->filled('to_date'), fn ($q) => $q->whereDate('from_date', '<=', $request->input('to_date')));
+            });
+
+        if ($request->filled('from_time') || $request->filled('to_time')) {
+            $query->where(function ($created) use ($request) {
+                $created->whereDate('created_at', $request->input('from_date', $request->input('to_date', now()->toDateString())))
+                    ->when($request->filled('from_time'), fn ($q) => $q->whereTime('created_at', '>=', $request->input('from_time')))
+                    ->when($request->filled('to_time'), fn ($q) => $q->whereTime('created_at', '<=', $request->input('to_time')));
+            });
+        }
+
+        $payslips = $query->latest()->get();
 
         return response()->json([
             'success' => true,
@@ -56,16 +79,18 @@ class PayslipApiController extends Controller
     #[OA\Response(response: 404, description: "Not Found")]
     public function downloadPdf(Request $request, $id)
     {
+        \App\Services\Mobile\MobileAccess::authorize('PAYSLIP', 'PDF');
         $user = $request->user();
-        $personnel = $user->personnel;
-        $payslip = Payslip::with(['personnel', 'payrollPeriod', 'items'])->findOrFail($id);
+        $plantId = (int) $request->attributes->get('mobile_plant_id');
+        $personnelId = $plantId
+            ? \App\Services\Mobile\MobileAccess::personnelId()
+            : $user->personnel?->id;
+        abort_unless($personnelId, 404, 'No employee record found for the authenticated user.');
 
-        $isOwner = $personnel && $payslip->personnel_id === $personnel->id;
-        $isAdmin = $user->hasFullAccess();
-
-        if (!$isOwner && !$isAdmin) {
-            return response()->json(['error' => 'Unauthorized access to this payslip.'], 403);
-        }
+        $payslip = Payslip::with(['personnel', 'payrollPeriod', 'items'])
+            ->where('personnel_id', $personnelId)
+            ->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
+            ->findOrFail($id);
 
         $plant = \App\Models\Plant::with(['addresses.state', 'contacts', 'entity'])->find($payslip->plant_id);
 

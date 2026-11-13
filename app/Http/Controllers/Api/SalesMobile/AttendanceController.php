@@ -20,6 +20,7 @@ class AttendanceController extends Controller
 
     public function index(Request $request)
     {
+        MobileAccess::authorize('ATTENDANCE', 'VIEW');
         $data = $request->validate([
             'from_date' => 'sometimes|required|date_format:Y-m-d',
             'to_date' => 'sometimes|required|date_format:Y-m-d'.($request->filled('from_date') ? '|after_or_equal:from_date' : ''),
@@ -37,6 +38,7 @@ class AttendanceController extends Controller
 
     public function current(Request $request)
     {
+        MobileAccess::authorize('ATTENDANCE', 'VIEW');
         $plantId = MobileAccess::plantId();
         $personnel = $this->service->personnel($request->user(), $plantId);
         $now = CarbonImmutable::now(Attendance::TIMEZONE);
@@ -56,13 +58,37 @@ class AttendanceController extends Controller
 
     public function show(Request $request, int $attendance)
     {
+        MobileAccess::authorize('ATTENDANCE', 'VIEW');
         $personnel = $this->service->personnel($request->user(), MobileAccess::plantId());
 
         return response()->json(['success' => true, 'data' => $this->service->serialize($this->service->query($personnel)->findOrFail($attendance))]);
     }
 
+    public function downloadPdf(Request $request, int $attendance)
+    {
+        MobileAccess::authorize('ATTENDANCE', 'PDF');
+        $personnel = $this->service->personnel($request->user(), MobileAccess::plantId());
+        $entry = $this->service->query($personnel)->with(['personnel', 'shift', 'plant'])->findOrFail($attendance);
+        $escape = fn ($value) => e((string) ($value ?? '—'));
+        $name = trim(($entry->personnel?->first_name ?? '').' '.($entry->personnel?->last_name ?? ''));
+        $html = '<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;color:#222;font-size:12px}h1{font-size:20px;margin-bottom:4px}.muted{color:#666}table{width:100%;border-collapse:collapse;margin-top:20px}td{padding:10px;border:1px solid #ddd}td:first-child{font-weight:bold;width:35%;background:#f6f6f6}</style></head><body>'
+            .'<h1>Attendance Record</h1><div class="muted">'. $escape($entry->plant?->name) .'</div><table>'
+            .'<tr><td>Employee</td><td>'.$escape($name).'</td></tr>'
+            .'<tr><td>Employee code</td><td>'.$escape($entry->personnel?->employee_code).'</td></tr>'
+            .'<tr><td>Date</td><td>'.$escape($entry->attendance_date?->format('Y-m-d')).'</td></tr>'
+            .'<tr><td>Shift</td><td>'.$escape($entry->shift?->name).'</td></tr>'
+            .'<tr><td>Check in</td><td>'.$escape($entry->check_in?->format('Y-m-d H:i:s')).'</td></tr>'
+            .'<tr><td>Check out</td><td>'.$escape($entry->check_out?->format('Y-m-d H:i:s')).'</td></tr>'
+            .'<tr><td>Worked hours</td><td>'.$escape($entry->worked_hours).'</td></tr>'
+            .'<tr><td>Status</td><td>'.$escape($entry->status).'</td></tr>'
+            .'<tr><td>Notes</td><td>'.$escape($entry->notes).'</td></tr></table></body></html>';
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->download('attendance-'.$entry->attendance_date->format('Y-m-d').'.pdf');
+    }
+
     public function checkIn(Request $request)
     {
+        MobileAccess::authorize('ATTENDANCE', 'CREATE');
         $request->validate([
             'notes' => 'sometimes|nullable|string|max:1000',
             'check_in' => 'sometimes|nullable|date_format:Y-m-d H:i:s',
@@ -75,6 +101,7 @@ class AttendanceController extends Controller
 
     public function checkOut(Request $request, int $attendance)
     {
+        MobileAccess::authorize('ATTENDANCE', 'UPDATE');
         $this->validatePunchFields($request, []);
         $entry = $this->service->checkOut($request->user(), MobileAccess::plantId(), $attendance);
 

@@ -69,6 +69,10 @@ class LeadController extends Controller
 
     protected function leadOwnerId(?CrmLead $lead): ?int
     {
+        if (Access::isCommercialAdministrator()) {
+            return null;
+        }
+
         return (int) request()->user()->id;
     }
 

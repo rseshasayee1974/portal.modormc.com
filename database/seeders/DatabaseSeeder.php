@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\RoleSeeder::class);
         $this->call(\Database\Seeders\MenuSeeder::class);
         $this->call(\Database\Seeders\PermissionSeeder::class);
+        $this->call(\Database\Seeders\MobilePermissionCatalogSeeder::class);
         $this->call(\Database\Seeders\UserSeeder::class);
         
         // ── 2. Link User to Entity ─────────────────────────────
@@ -44,5 +45,6 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\ConcreteQualityTestSeeder::class);
         $this->call(\Database\Seeders\QCDefaultConfigSeeder::class);
         $this->call(\Database\Seeders\RagDocumentSeeder::class);
+        $this->call(\Database\Seeders\MobileModulePermissionDemoSeeder::class);
     }
 }

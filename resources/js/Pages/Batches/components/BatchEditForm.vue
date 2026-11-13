@@ -1189,9 +1189,14 @@ console.log('test');
                         <BaseSelect v-model="form.sales_order_id" optionLabel="dropdown_label"
                             :options="unifiedSalesOrders" optionValue="id" filter :disabled="true" label="Sales Order"
                             :error="form.errors.sales_order_id" />
-                        <div v-if="page.props.is_context_administrator && props.batch?.dispatches?.length && !isLocked && can('BATCH.UPDATE')" class="mt-3 space-y-2">
-                            <BaseSelect v-model="patronForm.customer_id" label="Batch Patron" :options="customers" optionLabel="legal_name" optionValue="id" filter :error="patronForm.errors.customer_id" />
-                            <Button type="button" label="Update Patron" :loading="patronForm.processing" :disabled="!patronForm.customer_id || Number(patronForm.customer_id) === Number(savedCustomerId)" @click="savePatron" />
+                        <div v-if="page.props.is_context_administrator && props.batch?.dispatches?.length && !isLocked && can('BATCH.UPDATE')"
+                            class="mt-3 space-y-2">
+                            <BaseSelect v-model="patronForm.customer_id" label="Batch Patron" :options="customers"
+                                optionLabel="legal_name" optionValue="id" filter
+                                :error="patronForm.errors.customer_id" />
+                            <Button type="button" label="Update Patron" :loading="patronForm.processing"
+                                :disabled="!patronForm.customer_id || Number(patronForm.customer_id) === Number(savedCustomerId)"
+                                @click="savePatron" />
                         </div>
                     </div>
 
@@ -1216,7 +1221,7 @@ console.log('test');
                         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
                             <!-- Batch Number Card -->
                             <div class="flex flex-col">
-                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Batch
+                                <span class="text-xs font-bold uppercase tracking-normal text-indigo-600">Batch
                                     Number</span>
                                 <div v-if="canEditBatchNo" class="mt-0.5">
                                     <div class="flex items-center gap-1">
@@ -1235,10 +1240,10 @@ console.log('test');
                             </div>
 
                             <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
-                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{{
+                                <span class="text-xs font-bold uppercase tracking-normal text-indigo-600">{{
                                     detail.label }}</span>
                                 <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">{{ detail.value
-                                    }}</span>
+                                }}</span>
                             </div>
                         </div>
                     </div>
@@ -1386,7 +1391,7 @@ console.log('test');
                                                     form.batch_size).toFixed(3) }}
                                                 <span class="text-[9px] font-normal text-slate-400 ml-0.5">{{
                                                     item.uom?.unit_code || 'KGS'
-                                                    }}</span>
+                                                }}</span>
                                             </div>
                                         </div>
                                     </div>

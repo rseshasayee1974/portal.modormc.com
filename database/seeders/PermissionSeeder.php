@@ -31,6 +31,8 @@ class PermissionSeeder extends Seeder
         $moduleActions = [
             // Core System
             'USER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'MOBILE_MODULE_PERMISSION' => ['VIEW', 'UPDATE', 'DELETE'],
+            'MOBILE_PERMISSION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'ROLE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PERMISSION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'ENTITY' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],

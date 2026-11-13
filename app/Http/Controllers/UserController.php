@@ -17,6 +17,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -259,6 +260,19 @@ class UserController extends Controller
         }
         $user->updateWithRelations($data, $plantId);
 
+        if (!$user->fresh()->is_active) {
+            $user->tokens()->delete();
+            $user->forceFill([
+                'login_status' => false,
+                'otp_secret' => null,
+                'mobile_access_revision' => ((int) $user->mobile_access_revision) + 1,
+                'remember_token' => \Illuminate\Support\Str::random(60),
+            ])->saveQuietly();
+            if (\Illuminate\Support\Facades\Schema::hasTable('sessions')) {
+                DB::table('sessions')->where('user_id', $user->id)->delete();
+            }
+        }
+
         return response()->json(['message' => 'User updated successfully.', 'user' => $user->fresh()]);
     }
 
@@ -269,11 +283,6 @@ class UserController extends Controller
     {
         $this->authorizeModule('delete');
         $this->ensureUserAccess($user, auth()->user());
-        if ($user->profile_photo_path) {
-            Storage::disk('public')->delete($user->profile_photo_path);
-        }
-
-        $user->entityUsers()->delete(); // Clean relationships
         $user->delete();
 
         if (request()->wantsJson() || request()->is('api/*')) {

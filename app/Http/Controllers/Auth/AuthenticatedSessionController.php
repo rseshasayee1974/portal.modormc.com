@@ -47,6 +47,10 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
+        if (!$user->is_active) {
+            throw ValidationException::withMessages(['email' => ['Your account is inactive. Contact an administrator.']]);
+        }
+
         \Illuminate\Support\Facades\RateLimiter::clear($request->throttleKey());
 
         // Check if Two-Factor Authentication is enabled and confirmed
@@ -90,6 +94,10 @@ class AuthenticatedSessionController extends Controller
             throw ValidationException::withMessages([
                 'identifier' => ['We could not find a user with that email address or mobile number.'],
             ]);
+        }
+
+        if (!$user->is_active) {
+            throw ValidationException::withMessages(['identifier' => ['Your account is inactive. Contact an administrator.']]);
         }
 
         // Generate 6-digit OTP
@@ -199,6 +207,10 @@ dd($paramString);
             throw ValidationException::withMessages([
                 'identifier' => ['We could not find a user with that email address or mobile number.'],
             ]);
+        }
+
+        if (!$user->is_active) {
+            throw ValidationException::withMessages(['identifier' => ['Your account is inactive. Contact an administrator.']]);
         }
 
         if (empty($user->otp_secret) || $user->otp_secret !== $request->otp) {
