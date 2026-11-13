@@ -6,6 +6,21 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StorePlantRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $address = $this->input('address');
+        if (!is_array($address)) {
+            return;
+        }
+
+        foreach (['line_1', 'line_2', 'city', 'landmark'] as $field) {
+            if (is_string($address[$field] ?? null)) {
+                $address[$field] = mb_strtoupper($address[$field], 'UTF-8');
+            }
+        }
+        $this->merge(['address' => $address]);
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */

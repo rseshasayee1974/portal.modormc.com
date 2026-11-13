@@ -470,7 +470,7 @@ if (!function_exists('ProductsDropdown')) {
             return $query->whereNull('deleted_at')
                 ->orderBy('title')->where('status', true)
                 ->get($includeCategory
-                    ? ['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price', 'category_id']
+                    ? ['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price', 'category_id', 'moisture']
                     : ['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price'])
                 ->makeHidden(['can_delete', 'can_update', 'is_in_use']);
         });

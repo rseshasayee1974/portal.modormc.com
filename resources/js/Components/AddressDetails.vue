@@ -9,6 +9,7 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 
 const props = withDefaults(defineProps<{
+    uppercase?: boolean;
     requireDistrict?: boolean; requireLine1?: boolean; readonly?: boolean; lookupStateBy?: string; areaLabel?: string; states: any[]; stateLabel?: string; stateValue?: string; errorPrefix?: string; errors?: Record<string, any>;
 }>(), { areaLabel: 'Address Line 2 (Area/Locality)', stateLabel: 'label', stateValue: 'value', errorPrefix: 'address_' });
 const state = defineModel<number | string | null>('state');
@@ -23,6 +24,13 @@ const areas = computed(() => [...new Set(locations.value
     .filter(row => row.zipcode === zipcode.value && row.area)
     .map(row => row.area))]);
 const loadingDistricts = ref(false);
+function lookupOption(value: string | null | undefined, options: string[]) {
+    return props.uppercase && value
+        ? options.find(option => option.toUpperCase() === value.toUpperCase()) ?? value
+        : value;
+}
+const selectedDistrict = computed(() => lookupOption(city.value, districts.value));
+const selectedArea = computed(() => lookupOption(line2.value, areas.value));
 const loadingZipcodes = ref(false);
 const error = (key: string) => props.errors?.[props.errorPrefix + key];
 
@@ -46,7 +54,7 @@ watch(lookupId, async (id, _, onCleanup) => {
     }
 }, { immediate: true });
 
-watch([lookupId, city, districts], async ([id, district, options], _, onCleanup) => {
+watch([lookupId, selectedDistrict, districts], async ([id, district, options], _, onCleanup) => {
     let current = true;
     onCleanup(() => { current = false; });
     locations.value = [];
@@ -86,11 +94,11 @@ function changeState(value: number | string | null) {
 </script>
 
 <template>
-    <div class="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-12">
+    <div class="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-12" :class="{ 'uppercase-address': uppercase }">
         <BaseSelect :disabled="readonly" class="lg:col-span-2" label="State" :modelValue="state" @update:modelValue="changeState"
             :options="states" :optionLabel="stateLabel" :optionValue="stateValue" placeholder="Select state" :error="error('state_id')" />
         <BaseSelect v-if="districts.length || loadingDistricts" class="lg:col-span-2" :required="requireDistrict" label="District"
-            :modelValue="city" @update:modelValue="changeDistrict" :options="districts" :disabled="readonly || loadingDistricts"
+            :modelValue="selectedDistrict" @update:modelValue="changeDistrict" :options="districts" :disabled="readonly || loadingDistricts"
             placeholder="Select district" :error="error('city')" />
         <BaseInput :disabled="readonly" v-else class="lg:col-span-2" :required="requireDistrict" label="District" v-model="city" :error="error('city')" />
         <BaseSelect v-if="zipcodes.length || loadingZipcodes || (districts.length && !city)" class="lg:col-span-2"
@@ -98,9 +106,16 @@ function changeState(value: number | string | null) {
             placeholder="Select pincode" :error="error('zipcode')" />
         <BaseInput :disabled="readonly" v-else class="lg:col-span-2" label="Zipcode / Pincode" v-model="zipcode" :error="error('zipcode')" />
         <BaseInput :disabled="readonly" class="lg:col-span-2" :required="requireLine1" label="Address Line 1" v-model="line1" placeholder="Street, building or door number" :error="error('line_1')" />
-        <BaseSelect :disabled="readonly" v-if="areas.length" class="lg:col-span-2" :label="areaLabel" v-model="line2"
-            :options="line2 && !areas.includes(line2) ? [line2, ...areas] : areas" placeholder="Select area" :error="error('line_2')" />
+        <BaseSelect :disabled="readonly" v-if="areas.length" class="lg:col-span-2" :label="areaLabel" :modelValue="selectedArea" @update:modelValue="line2 = $event"
+            :options="selectedArea && !areas.includes(selectedArea) ? [selectedArea, ...areas] : areas" placeholder="Select area" :error="error('line_2')" />
         <BaseInput :disabled="readonly" v-else class="lg:col-span-2" :label="areaLabel" v-model="line2" placeholder="Area or locality" :error="error('line_2')" />
         
     </div>
 </template>
+
+<style scoped>
+.uppercase-address :deep(input),
+.uppercase-address :deep(.p-select-label) {
+    text-transform: uppercase;
+}
+</style>

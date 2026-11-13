@@ -184,7 +184,9 @@ class Personnel extends Model
 
     public function designation()
     {
-        return $this->belongsTo(Designation::class, 'designation_id');
+        return new \App\Models\Relations\PersonnelDesignation(
+            Designation::query(), $this, 'designation_id', 'id', 'designation'
+        );
     }
 
     public function reportingManager()

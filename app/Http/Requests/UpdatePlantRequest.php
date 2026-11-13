@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class UpdatePlantRequest extends FormRequest
+class UpdatePlantRequest extends StorePlantRequest
 {
     /**
      * Determine if the user is authorized to make this request.

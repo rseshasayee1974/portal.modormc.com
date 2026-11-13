@@ -214,6 +214,7 @@ class Product extends Model
         'tax_mode',
         'is_returnable',
         'stock_alert',
+        'moisture',
         'is_system',
         'status',
         'created_by',
@@ -230,6 +231,7 @@ class Product extends Model
         'purchase_price' => 'decimal:2',
         'sales_price' => 'decimal:2',
         'stock_alert' => 'decimal:2',
+        'moisture' => 'decimal:3',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -250,6 +252,16 @@ class Product extends Model
     public function unit()  
     {
         return $this->belongsTo(ProductUnit::class, 'unit_id');
+    }
+
+    public function stockBalances()
+    {
+        return $this->hasMany(Quantity::class, 'product_id');
+    }
+
+    public function purchaseItems()
+    {
+        return $this->hasMany(PurchaseOrderItem::class, 'product_id')->whereHas('order');
     }
 
     public function purchaseTax()

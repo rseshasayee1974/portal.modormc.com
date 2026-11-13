@@ -28,7 +28,10 @@ interface Product {
     sale_tax_id?: number | null;
     is_service?: boolean;
     product_type?: string;
+    can_initialize_opening?: boolean;
+    can_update?: boolean;
     stock_alert?: number;
+    moisture?: number | string | null;
     conversion_quantity?: number;
 }
 
@@ -71,6 +74,8 @@ const form = useForm({
     is_service: Boolean(props.product.is_service ?? false),
     product_type: props.product.product_type ?? 'Purchase',
     stock_alert: Number(props.product.stock_alert ?? 0),
+    opening_quantity: null as string | number | null,
+    moisture: props.product.moisture ?? null,
     conversion_quantity: Number(props.product.conversion_quantity ?? 0),
 });
 
@@ -95,6 +100,7 @@ const productTypeOptions = computed(() =>
 );
 
 const submit = () => {
+    if (form.is_service || !form.unit_id) form.opening_quantity = null;
     form.put(route('products.update', props.product.id), {
         preserveScroll: true,
         onSuccess: () => {
@@ -111,7 +117,7 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 max-w-6xl">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 max-w-6xl">
         <div class="field-group">
             <BaseInput v-model="form.title" label="Product Name" required :error="form.errorFor('title')"
                 :disabled="!can('PRODUCT.update')" />
@@ -175,6 +181,14 @@ const submit = () => {
         <div class="field-group">
             <BaseInput v-model="form.conversion_quantity" label="Conversion Qty" type="number"
                 :error="form.errorFor('conversion_quantity')" :disabled="!can('PRODUCT.update')" />
+        </div>
+        <div v-if="!form.is_service && form.unit_id && product.can_initialize_opening && product.can_update && can('PRODUCT.update')" class="field-group">
+            <BaseInput v-model="form.opening_quantity" label="Opening Quantity" type="number" min="0" step="0.01"
+                :error="form.errorFor('opening_quantity')" />
+        </div>
+        <div class="field-group">
+            <BaseInput v-model="form.moisture" label="Moisture (%)" type="number" min="0" max="100" step="0.001"
+                :error="form.errorFor('moisture')" :disabled="!can('PRODUCT.update')" />
         </div>
     </div>
     <div class="expansion-actions">

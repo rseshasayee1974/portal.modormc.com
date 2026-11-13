@@ -788,7 +788,7 @@ class BatchController extends Controller
         }
 
         $materials = DB::table('mm_batch_materials as bm')
-            ->leftJoin('mm_products as p', 'p.id', '=', 'bm.product_id')
+            ->leftJoin('mm_products as p', fn ($join) => $join->on('p.id', '=', 'bm.product_id')->where('p.plant_id', $activePlantId))
             ->leftJoin('mm_product_categories as pc', 'pc.id', '=', 'p.category_id')
             ->leftJoin('mm_product_categories as parent_pc', 'parent_pc.id', '=', 'pc.parent_id')
             ->leftJoin('mm_product_units as u', 'u.id', '=', 'bm.uom_id')
@@ -806,6 +806,7 @@ class BatchController extends Controller
                 'bm.deviation_quantity',
                 'bm.uom_id',
                 'p.title as product_title',
+                'p.moisture',
                 'pc.name as category_name',
                 'parent_pc.name as parent_category_name',
                 'u.unit_code',
@@ -816,7 +817,7 @@ class BatchController extends Controller
                 return [
                     'batch_display' => \App\Services\JayadhityaBatchSheet::materialDisplay(
                         $item->material_name.' '.$item->product_title, trim(($item->category_name ?? '').' '.($item->parent_category_name ?? ''))
-                    ),
+                    ) + ['moisture' => $item->moisture],
                     'id' => $item->id,
                     'batch_id' => $item->batch_id,
                     'product_id' => $item->product_id,

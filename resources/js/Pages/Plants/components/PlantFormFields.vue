@@ -277,7 +277,7 @@ const upiQrPreview = computed(() => {
                     <small v-if="errors?.['address.address_type_id']" class="p-error px-1">{{ errors['address.address_type_id'][0] }}</small>
                 </div>
 
-                <AddressDetails class="col-span-full" :states="states" stateLabel="state_name" stateValue="id"
+                <AddressDetails uppercase class="col-span-full" :states="states" stateLabel="state_name" stateValue="id"
                     :errors="errors" errorPrefix="address." v-model:state="form.address.state_id"
                     v-model:city="form.address.city" v-model:zipcode="form.address.zipcode"
                     v-model:line1="form.address.line_1" v-model:line2="form.address.line_2" />

@@ -381,7 +381,7 @@ const applyBatchToForm = (newBatch: any) => {
     form.moisture_contents = (newBatch?.moisture_contents || []).map((reading: any) => ({
         product_id: Number(reading.product_id),
         design_moisture_percentage: Number(reading.design_moisture_percentage ?? 0),
-        consumption_moisture_percentage: Number(reading.consumption_moisture_percentage ?? 0),
+        consumption_moisture_percentage: reading.consumption_moisture_percentage == null ? null : Number(reading.consumption_moisture_percentage),
         measured_at: reading.measured_at || null,
         notes: reading.notes || '',
     }));
@@ -912,11 +912,20 @@ const moistureMaterialName = (productId: number) => {
     return material?.material_name || props.products.find((product: any) => Number(product.id) === productId)?.title || 'Material';
 };
 
+const actualMoisture = (material: BatchMaterial, saved?: MoistureReading) => Number(
+    saved?.consumption_moisture_percentage
+    ?? props.batch?.material_display?.[material.product_id ?? '']?.moisture
+    ?? props.products.find((product: any) => Number(product.id) === Number(material.product_id))?.moisture
+    ?? 0
+);
+
 const openMoistureDialog = () => {
     moistureDraft.value = moistureMaterials.value.map(material => {
         const saved = form.moisture_contents.find(reading => reading.product_id === Number(material.product_id));
-        return saved ? { ...saved } : {
-            product_id: Number(material.product_id), design_moisture_percentage: 0, consumption_moisture_percentage: 0, measured_at: null, notes: '',
+        return {
+            product_id: Number(material.product_id), design_moisture_percentage: 0, measured_at: null, notes: '',
+            ...saved,
+            consumption_moisture_percentage: actualMoisture(material, saved),
         };
     });
     showMoistureDialog.value = true;
@@ -925,7 +934,10 @@ const openMoistureDialog = () => {
 const moistureValue = (material: BatchMaterial, type: 'design' | 'consumption'): string => {
     if (!materialDisplay(material)?.supports_moisture) return '';
     const reading = form.moisture_contents.find(reading => reading.product_id === Number(material.product_id));
-    return Number(reading?.[`${type}_moisture_percentage`] ?? 0).toFixed(2);
+    if (type === 'consumption') {
+        return actualMoisture(material, reading).toFixed(3).replace(/(\.\d{2})0$/, '$1');
+    }
+    return Number(reading?.design_moisture_percentage ?? 0).toFixed(2);
 };
 
 const applyMoistureReadings = async () => {

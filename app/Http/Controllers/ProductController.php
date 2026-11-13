@@ -28,11 +28,12 @@ class ProductController extends Controller
         $plantId = session('active_plant_id');
         $stockBalances = Quantity::where('plant_id', $plantId)
             ->where('is_warehouse', false)->orderBy('id')->get()->groupBy('product_id');
-        $products = Product::forPlant($plantId)->withDetails()->get()->map(function ($product) use ($stockBalances) {
+        $products = Product::forPlant($plantId)->withDetails()
+            ->withExists(['stockBalances', 'purchaseItems'])->get()->map(function ($product) use ($stockBalances) {
             $stock = $stockBalances->get($product->id, collect())->firstWhere('uom_id', $product->unit_id);
             return array_merge($product->toArray(), [
                 'opening_quantity' => (float) ($stock?->opening_quantity ?? 0),
-                'current_quantity' => (float) ($stock?->quantity ?? 0),
+                'can_initialize_opening' => !$product->stock_balances_exists && !$product->purchase_items_exists,
                 'can_delete' => auth()->user()->can('delete', $product),
                 'can_update' => auth()->user()->can('update', $product),
                 // 'is_in_use' => $product->is_in_use,
@@ -63,39 +64,30 @@ class ProductController extends Controller
 
         DB::transaction(function () use ($product, $plantId, $validated) {
             $product = Product::where('plant_id', $plantId)->lockForUpdate()->findOrFail($product->id);
-            if ($product->is_service || !$product->unit_id) {
-                throw ValidationException::withMessages([
-                    'opening_quantity' => 'Opening quantity requires a stock product with a unit.',
-                ]);
-            }
-
-            $stock = Quantity::where('plant_id', $plantId)
-                ->where('product_id', $product->id)->where('uom_id', $product->unit_id)
-                ->where('is_warehouse', false)->orderBy('id')->lockForUpdate()->first();
-            $opening = (float) $validated['opening_quantity'];
-            // Replace the opening balance while retaining subsequent stock movements.
-            $available = round((float) ($stock?->quantity ?? 0)
-                + $opening - (float) ($stock?->opening_quantity ?? 0), 2);
-            if ($available < 0 || $available >= 1000000000000000) {
-                throw ValidationException::withMessages([
-                    'opening_quantity' => 'This opening quantity would put available stock outside the allowed range.',
-                ]);
-            }
-
-            if (!$stock) {
-                $stock = new Quantity([
-                    'plant_id' => $plantId, 'product_id' => $product->id,
-                    'uom_id' => $product->unit_id, 'is_warehouse' => false,
-                    'status' => 1, 'date' => today(), 'created_by' => auth()->id(),
-                ]);
-            }
-            $stock->fill([
-                'opening_quantity' => $opening, 'quantity' => $available,
-                'updated_by' => auth()->id(),
-            ])->save();
+            $this->initializeOpeningQuantity($product, $validated['opening_quantity']);
         });
 
         return redirect()->back()->with('success', 'Opening quantity updated successfully.');
+    }
+
+    private const OPENING_RULE = 'nullable|numeric|decimal:0,2|min:0|max:999999999999999.99';
+
+    private function initializeOpeningQuantity(Product $product, $opening): void
+    {
+        if ($opening === null) {
+            return;
+        }
+        if ($product->is_service || !$product->unit_id) {
+            throw ValidationException::withMessages(['opening_quantity' => 'Select a stock product and unit to enter opening quantity.']);
+        }
+        if ($product->stockBalances()->exists() || $product->purchaseItems()->exists()) {
+            throw ValidationException::withMessages(['opening_quantity' => 'Opening quantity can only be entered before the first purchase order or stock balance.']);
+        }
+        $product->stockBalances()->create([
+            'plant_id' => $product->plant_id, 'uom_id' => $product->unit_id,
+            'opening_quantity' => $opening, 'quantity' => $opening, 'is_warehouse' => false,
+            'status' => 1, 'date' => today(), 'created_by' => auth()->id(), 'updated_by' => auth()->id(),
+        ]);
     }
 
     public function store(Request $request)
@@ -135,14 +127,21 @@ class ProductController extends Controller
             'is_service' => 'nullable|boolean',
             'product_type' => 'nullable|string|max:255',
             'stock_alert' => 'nullable|numeric|min:0',
+            'moisture' => 'nullable|numeric|between:0,100|decimal:0,3',
+            'opening_quantity' => self::OPENING_RULE,
             'conversion_quantity' => 'nullable|numeric|min:0',
         ]);
         $validated['title'] = mb_strtoupper(trim($validated['title']), 'UTF-8');
 
-        Product::create(array_merge($validated, [
-            'plant_id' => $plantId,
-            'entity_id' => $plant->entity_id,
-        ]));
+        DB::transaction(function () use ($validated, $plantId, $plant) {
+            $opening = $validated['opening_quantity'] ?? null;
+            unset($validated['opening_quantity']);
+            $product = Product::create(array_merge($validated, [
+                'plant_id' => $plantId,
+                'entity_id' => $plant->entity_id,
+            ]));
+            $this->initializeOpeningQuantity($product, $opening);
+        });
         return redirect()->back()->with('success', 'Product created successfully.');
     }
 
@@ -178,6 +177,8 @@ public function update(Request $request, Product $product)
         'is_service'          => 'nullable|boolean',
         'product_type'        => 'nullable|string|max:255',
         'stock_alert'         => 'nullable|numeric|min:0',
+        'moisture'            => 'nullable|numeric|between:0,100|decimal:0,3',
+        'opening_quantity' => self::OPENING_RULE,
         'conversion_quantity' => 'nullable|numeric|min:0',
     ]);
     $validated['title'] = mb_strtoupper(trim($validated['title']), 'UTF-8');
@@ -236,7 +237,16 @@ public function update(Request $request, Product $product)
     }
 
     // 3. Perform Update
-    $product->update($validated);
+    DB::transaction(function () use ($validated, $product, $plantId) {
+        $opening = $validated['opening_quantity'] ?? null;
+        unset($validated['opening_quantity']);
+        if ($opening !== null) {
+            $this->authorize('update', $product);
+            $product = Product::where('plant_id', $plantId)->lockForUpdate()->findOrFail($product->id);
+        }
+        $product->update($validated);
+        $this->initializeOpeningQuantity($product, $opening);
+    });
 
     // 4. Return Redirect with Response Messages
     $redirect = redirect()->back()->with('success', 'Product updated successfully.');

@@ -42,6 +42,8 @@ const form = useForm({
     is_service: false,
     product_type: props.productTypes && props.productTypes.length > 0 ? props.productTypes[0] : 'Purchase',
     stock_alert: 0,
+    opening_quantity: null as string | number | null,
+    moisture: null as string | number | null,
     conversion_quantity: 0,
 });
 
@@ -74,6 +76,7 @@ const toggle = () => {
 };
 
 const submit = () => {
+    if (form.is_service || !form.unit_id) form.opening_quantity = null;
     form.post(route('products.store'), {
         preserveScroll: true,
         onSuccess: () => {
@@ -174,6 +177,14 @@ const submit = () => {
                     <div class="col-span-12 md:col-span-2">
                         <BaseInput v-model="form.conversion_quantity" label="Conversion Qty" type="number"
                             :error="form.errorFor('conversion_quantity')" />
+                    </div>
+                    <div v-if="!form.is_service && form.unit_id" class="col-span-12 md:col-span-2">
+                        <BaseInput v-model="form.opening_quantity" label="Opening Quantity" type="number" min="0" step="0.01"
+                            :error="form.errorFor('opening_quantity')" />
+                    </div>
+                    <div class="col-span-12 md:col-span-2">
+                        <BaseInput v-model="form.moisture" label="Moisture (%)" type="number" min="0" max="100" step="0.001"
+                            :error="form.errorFor('moisture')" />
                     </div>
                 </div>
                 <div class="expansion-actions">

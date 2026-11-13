@@ -25,6 +25,7 @@ interface Designation {
 }
 
 const props = defineProps<{
+    activePlantId: number | string | null;
     designations: Designation[];
 }>();
 
@@ -114,7 +115,8 @@ watch(
                 <div class="space-y-6">
                     
                     <!-- Form Container (3-column layout) -->
-                    <BaseCard v-if="isSassOwner" class="text-sm">
+                    <p v-if="isSassOwner && !activePlantId">Select a plant to create or manage its designations.</p>
+                    <BaseCard v-if="isSassOwner && activePlantId" class="text-sm">
                         <template #header>
                             <div class="flex items-center gap-2">
                                 <IdentificationIcon class="w-5 h-5 text-indigo-500" />
@@ -172,6 +174,7 @@ watch(
                             :totalRecords="designations.length"
                             class="p-datatable-sm"
                         >
+                            <Column v-if="!activePlantId" field="plant.name" header="Plant" />
                             <Column header="Designation Code">
                                 <template #body="slotProps">
                                     <span class="font-semibold text-slate-700 dark:text-slate-300">
@@ -196,7 +199,7 @@ watch(
                                     <span>{{ slotProps.data.max_salary ? Number(slotProps.data.max_salary).toLocaleString(APP_LOCALE, {style: 'currency', currency: 'INR'}) : '-' }}</span>
                                 </template>
                             </Column>
-                            <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
+                            <Column v-if="isSassOwner && activePlantId" header="Actions" alignFrozen="right" frozen>
                                 <template #body="slotProps">
                                     <div class="flex justify-end gap-2">
                                         <BaseButton 

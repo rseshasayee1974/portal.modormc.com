@@ -57,8 +57,8 @@ class BatchTripOptionController extends Controller
                 return ['id' => $truck->id, 'registration' => $truck->registration];
             }
 
-            $designation = Designation::whereRaw('LOWER(name) = ?', ['driver'])->first()
-                ?? Designation::create(['name' => 'Driver', 'code' => 'DRIVER']);
+            $designation = Designation::where('plant_id', $plant->id)->whereRaw('LOWER(name) = ?', ['driver'])->first()
+                ?? Designation::create(['plant_id' => $plant->id, 'name' => 'Driver', 'code' => 'DRIVER']);
             $driver = Personnel::where('plant_id', $plant->id)->where('designation_id', $designation->id)
                 ->where('status', 'active')->get()->first(fn ($person) =>
                     Str::lower(trim($person->first_name . ' ' . $person->last_name)) === Str::lower($name));

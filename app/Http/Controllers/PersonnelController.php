@@ -25,7 +25,7 @@ class PersonnelController extends Controller
         $activePlantId = session('active_plant_id');
 
         return Inertia::render('Personnel/Index', [
-            'personnel' => Personnel::with(['user:id,is_otp_enabled', 'contacts', 'patrons:id', 'department:id,name', 'designation:id,name', 'salaryStructures'])
+            'personnel' => Personnel::with(['user:id,is_otp_enabled', 'contacts', 'patrons:id', 'department:id,name', 'designation:id,name,plant_id', 'salaryStructures'])
                 ->where('plant_id', $activePlantId)
                 ->latest()
                 ->get()->each(function (Personnel $employee) {
@@ -37,7 +37,7 @@ class PersonnelController extends Controller
                 ->toBase()->get(['id', 'legal_name']),
             'departments' => Department::orderBy('name', 'asc')
                 ->get(['id', 'name', 'code']),
-            'designations' => Designation::orderBy('name', 'asc')
+            'designations' => Designation::forWorkspace(auth()->user(), $activePlantId)->orderBy('name', 'asc')
                 ->get(['id', 'name', 'code']),
             'managers' => Personnel::where('plant_id', $activePlantId)
                 ->where('status', 'active')
@@ -75,7 +75,7 @@ class PersonnelController extends Controller
             'first_name' => 'required|string|max:100',
             'last_name' => 'nullable|string|max:100',
             'department_id' => 'nullable|exists:mm_departments,id',
-            'designation_id' => 'nullable|exists:mm_designations,id',
+            'designation_id' => ['nullable', Rule::exists('mm_designations', 'id')->where('plant_id', $activePlantId)->whereNull('deleted_at')],
             'reporting_manager_id' => 'nullable|exists:mm_personnels,id',
             'email' => 'nullable|email|unique:mm_personnels,email',
             'mobile' => 'nullable|string|max:20',
@@ -212,7 +212,7 @@ class PersonnelController extends Controller
             'first_name' => 'required|string|max:100',
             'last_name' => 'nullable|string|max:100',
             'department_id' => 'nullable|exists:mm_departments,id',
-            'designation_id' => 'nullable|exists:mm_designations,id',
+            'designation_id' => ['nullable', Rule::exists('mm_designations', 'id')->where('plant_id', $personnel->plant_id)->whereNull('deleted_at')],
             'reporting_manager_id' => 'nullable|exists:mm_personnels,id',
             'employee_code' => ['nullable', 'string', Rule::unique('mm_personnels', 'employee_code')->where('plant_id', $personnel->plant_id)->whereNull('deleted_at')->ignore($personnel->id)],
             'email' => ['nullable', 'email', Rule::unique('mm_personnels')->ignore($personnel->id)],

@@ -61,6 +61,11 @@ class PlantContextService
     /** Match the workspaces displayed by EntityContextController. */
     public function hasWorkspaces(User $user, ?bool $isSuperAdmin = null): bool
     {
+        return $this->accessiblePlants($user, $isSuperAdmin)->exists();
+    }
+
+    public function accessiblePlants(User $user, ?bool $isSuperAdmin = null): \Illuminate\Database\Eloquent\Builder
+    {
         $plants = Plant::query()->where('is_active', '!=', 0);
         if (!($isSuperAdmin ?? $user->isSystemAdmin())) {
             $plants->whereHas('entity', fn ($query) => $query->where('is_suspended', 0));
@@ -76,7 +81,7 @@ class PlantContextService
             });
         }
 
-        return $plants->exists();
+        return $plants;
     }
 
     /**

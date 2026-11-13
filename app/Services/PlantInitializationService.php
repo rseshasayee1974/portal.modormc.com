@@ -966,7 +966,7 @@ class PlantInitializationService
         foreach ($designations as $desig) {
             $this->updateOrCreateWithTrashed(
                 Designation::class,
-                ['code' => $desig['code']],
+                ['plant_id' => $plant->id, 'code' => $desig['code']],
                 [
                     'name'       => $desig['name'],
                     'created_by' => Auth::id() ?? 1,

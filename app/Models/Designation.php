@@ -13,6 +13,7 @@ class Designation extends Model
     protected $table = 'mm_designations';
 
     protected $fillable = [
+        'plant_id',
         'name',
         'code',
         'min_salary',
@@ -22,5 +23,17 @@ class Designation extends Model
     public function personnels()
     {
         return $this->hasMany(Personnel::class, 'designation_id');
+    }
+
+    public function plant()
+    {
+        return $this->belongsTo(Plant::class);
+    }
+
+    public function scopeForWorkspace($query, User $user, ?int $plantId)
+    {
+        $plants = app(\App\Services\PlantContextService::class)->accessiblePlants($user);
+        return $query->whereIn('plant_id', $plants->select('mm_plants.id'))
+            ->when($plantId, fn ($query) => $query->where('plant_id', $plantId));
     }
 }

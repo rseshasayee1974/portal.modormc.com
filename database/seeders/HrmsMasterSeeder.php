@@ -16,10 +16,9 @@ class HrmsMasterSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->command->info("Seeding global HRMS master data (Departments, Designations, Leave Types, Shifts)...");
+        $this->command->info("Seeding global HRMS master data (Departments, Leave Types, Shifts)...");
 
         $this->seedDepartments();
-        $this->seedDesignations();
         $this->seedLeaveTypes();
         $this->seedShifts();
 
@@ -34,6 +33,7 @@ class HrmsMasterSeeder extends Seeder
             $this->command->info("Seeding plant-specific HRMS master data for plant: [{$plant->id}] {$plant->name}");
 
             $this->seedSalaryComponents($plant);
+            $this->seedDesignations($plant);
             $this->seedStatutoryConfigs($plant);
         }
 
@@ -63,7 +63,7 @@ class HrmsMasterSeeder extends Seeder
         }
     }
 
-    private function seedDesignations(): void
+    private function seedDesignations(Plant $plant): void
     {
         $designations = [
             ['name' => 'Plant Manager',       'code' => 'PM'],
@@ -75,7 +75,7 @@ class HrmsMasterSeeder extends Seeder
 
         foreach ($designations as $desig) {
             Designation::updateOrCreate(
-                ['code' => $desig['code']],
+                ['plant_id' => $plant->id, 'code' => $desig['code']],
                 [
                     'name'       => $desig['name'],
                     'created_by' => Auth::id() ?? 1,
