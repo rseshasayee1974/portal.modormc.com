@@ -108,7 +108,7 @@ watch(
                 <div class="space-y-6">
 
                     <!-- Form Container (col-span-3 standard grid layout) -->
-                    <BaseCard class="text-sm">
+                    <BaseCard v-if="isSassOwner" class="text-sm">
                         <template #header>
                             <div class="flex items-center gap-2">
                                 <FolderOpenIcon class="w-5 h-5 text-indigo-500" />
@@ -128,7 +128,7 @@ watch(
                                     <BaseInput v-model="form.name" placeholder="e.g. Quality Control"
                                         :class="{ 'p-invalid': form.errors.name }" />
                                     <small v-if="form.errors.name" class="p-error text-[10px]">{{ form.errors.name
-                                        }}</small>
+                                    }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <label
@@ -165,7 +165,7 @@ watch(
                                 </template>
                             </Column>
 
-                            <Column header="Actions" alignFrozen="right" frozen>
+                            <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
                                 <template #body="slotProps">
                                     <div class="flex justify-end gap-2">
                                         <BaseButton icon="pi pi-pencil" severity="info" text rounded

@@ -1972,8 +1972,9 @@ console.log(
                                                 " :batch="detailedBatches[
                                                     slotProps.data.id
                                                 ]
-                                                    " :customers="customers" :salesOrders="salesOrders" :trucks="trucks"
-                                                    :transporters="transporters" :drivers="drivers" :sales_executives="sales_executives
+                                                    " :customers="customers" :salesOrders="salesOrders"
+                                                    :trucks="trucks" :transporters="transporters" :drivers="drivers"
+                                                    :sales_executives="sales_executives
                                                         " :products="products" :uoms="uoms" :statuses="statuses"
                                                     :loading_sites="loading_sites
                                                         " :concretePumpOptions="concretePumpOptions
@@ -2509,9 +2510,9 @@ console.log(
                     </div>
 
                     <!-- Group 4: Delete Batch -->
-                    <div v-if="
+                    <div v-if="isAdmin || isSuperAdmin
                         canDeleteBatch(activeBatch) &&
-                        (canDeleteDispatchedBatches || can('BATCH.DELETE'))
+                            (canDeleteDispatchedBatches || can('BATCH.DELETE'))
                     " class="py-1">
                         <button
                             class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
