@@ -3,6 +3,7 @@
 use App\Exceptions\AccountingException;
 use App\Http\Middleware\ApiKeyMiddleware;
 use App\Http\Middleware\EnforceBrowserSession;
+use App\Http\Middleware\EnsureUserActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireOtpVerification;
 use App\Http\Middleware\SetEntityContext;
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trimStrings(except: ['alias']);
 
         $middleware->web(append: [
+            EnsureUserActive::class,
             TitleCaseInputs::class,
             EnforceBrowserSession::class,
             SetEntityContext::class,
@@ -51,6 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->api(append: [
+            EnsureUserActive::class,
             TitleCaseInputs::class,
         ]);
 
@@ -178,11 +181,16 @@ return Application::configure(basePath: dirname(__DIR__))
                     $message = $decoded['message'] ?? $decoded['error'] ?? $message;
                 }
 
-                return response()->json([
+                $payload = [
                     'success' => false,
                     'message' => $message,
                     'code' => $status,
-                ], $status);
+                ];
+                foreach (['error_code', 'required_permission', 'hint', 'errors'] as $field) {
+                    if (isset($decoded[$field])) $payload[$field] = $decoded[$field];
+                }
+
+                return response()->json($payload, $status);
             }
 
             return $response;
@@ -200,6 +208,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 if (in_array($decoded['error_code'] ?? null, ['WHATSAPP_TLS_ERROR', 'WHATSAPP_CONNECTION_ERROR', 'WHATSAPP_CONFIG_ERROR', 'WHATSAPP_SEND_FAILED'], true)) {
                     $payload['message'] = $decoded['message'];
                     $payload['error_code'] = $decoded['error_code'];
+                }
+                if (($decoded['error_code'] ?? null) === 'MOBILE_PERMISSION_REQUIRED') {
+                    $payload['success'] = false;
+                    $payload['error_code'] = $decoded['error_code'];
+                    $payload['required_permission'] = $decoded['required_permission'] ?? null;
+                    $payload['hint'] = $decoded['hint'] ?? null;
                 }
                 if ($status === 503 && ($decoded['message'] ?? null) === 'Reverb is not configured.') {
                     $payload['message'] = $decoded['message'];

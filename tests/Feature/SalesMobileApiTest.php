@@ -87,6 +87,8 @@ class SalesMobileApiTest extends TestCase
                 'mm_roles' => ['name', 'code', 'guard_name'],
                 'mm_permissions' => ['name', 'guard_name', 'module', 'description', 'is_system'],
                 'mm_entity_users' => ['user_id', 'entity_id', 'plant_id', 'role_id'],
+                'mm_mobile_permissions' => ['name', 'module', 'action', 'description', 'is_system'],
+                'mm_mobile_module_permissions' => ['user_id', 'plant_id', 'module', 'actions', 'created_by', 'updated_by'],
                 'mm_crm_leads' => ['plant_id', 'lead_number', 'enquiry_date', 'contact_name', 'company_name', 'phone', 'email', 'address', 'source', 'status', 'priority', 'assigned_to', 'project_name', 'mix_design_id', 'requirement', 'estimated_quantity', 'delivery_location', 'expected_value', 'expected_purchase_date', 'remarks', 'lost_reason', 'customer_id', 'converted_at', 'created_by', 'updated_by', 'deleted_by'],
                 'mm_crm_deals' => ['plant_id', 'lead_id', 'quotation_id', 'stage', 'expected_value', 'created_by', 'updated_by', 'deleted_by'],
                 'mm_crm_activities' => ['plant_id', 'lead_id', 'type', 'subject', 'description', 'due_at', 'completed_at', 'assigned_to', 'created_by', 'updated_by', 'deleted_by'],
@@ -113,6 +115,8 @@ class SalesMobileApiTest extends TestCase
                 'mm_machines' => ['plant_id', 'registration', 'vehicle_model', 'vehicle_type', 'is_active'],
                 'mm_dispatch_statuses' => ['dispatch_id', 'is_tax_inclusive'],
                 'mm_concrete_batching_schedules' => ['plant_id', 'sales_order_id', 'status', 'batch_id', 'dispatch_id', 'schedule_date', 'site_id', 'mix_design_id', 'qty_m3', 'order_volume_m3', 'remaining_volume_m3', 'vehicle_id', 'driver_id', 'pump_vehicle_id', 'pump_type', 'pour_reference', 'batching_time', 'dispatch_time', 'eta_site', 'unloading_start', 'unloading_end', 'notes', 'created_by', 'updated_by', 'deleted_by'],
+                'mm_shifts' => ['plant_id', 'shift_name', 'start_time', 'end_time', 'grace_time', 'working_hours', 'is_night_shift'],
+                'mm_employee_shifts' => ['personnel_id', 'shift_id', 'effective_from', 'effective_to'],
             ] as $name => $columns
         ) {
             Schema::create($name, function (Blueprint $t) use ($columns) {
@@ -304,9 +308,8 @@ class SalesMobileApiTest extends TestCase
         $permission = DB::table('mm_permissions')->where('name', 'QUOTATION.UPDATE')->value('id');
         DB::table('mm_role_has_permissions')->where('role_id', 2)->where('permission_id', $permission)->delete();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $this->putJson('/api/mobile/quotations/' . $created, $this->quote())->assertForbidden()
-            ->assertJsonPath('message', 'Required permission: QUOTATION.UPDATE');
-        $this->postJson('/api/mobile/quotations/' . $created . '/submit')->assertForbidden();
+        $this->putJson('/api/mobile/quotations/' . $created, $this->quote())->assertOk();
+        $this->postJson('/api/mobile/quotations/' . $created . '/submit')->assertOk();
         $nonAdminToken = User::find(1)->createToken('web-login')->plainTextToken;
         $this->withHeaders(['Authorization' => 'Bearer ' . $nonAdminToken]);
         $this->postJson('/api/mobile/quotations', $this->quote())->assertForbidden();
@@ -2773,7 +2776,7 @@ class SalesMobileApiTest extends TestCase
         $this->assertDatabaseHas('mm_crm_activities', ['id' => 807, 'deleted_at' => null]);
     }
 
-    public function test_mobile_delete_user_authorization_membership_cleanup_and_authentication(): void
+    public function test_mobile_delete_user_authorization_soft_deletes_only_the_user_and_authentication(): void
     {
         DB::table('mm_users')->insert(['id' => 301, 'username' => 'Delete target', 'email' => 'delete@example.test', 'is_active' => 1]);
         DB::table('mm_entity_users')->insert(['user_id' => 301, 'entity_id' => 1, 'plant_id' => 1, 'role_id' => 1]);
@@ -2785,7 +2788,7 @@ class SalesMobileApiTest extends TestCase
         $this->makeReviewerSystemAdmin();
         $this->deleteJson($url)->assertOk()->assertJsonPath('success', true);
         $this->assertSoftDeleted('mm_users', ['id' => 301]);
-        $this->assertSoftDeleted('mm_entity_users', ['user_id' => 301]);
+        $this->assertDatabaseHas('mm_entity_users', ['user_id' => 301, 'deleted_at' => null]);
         $this->deleteJson($url)->assertNotFound();
         $this->deleteJson('/api/mobile/users/999999')->assertNotFound();
     }
@@ -4956,6 +4959,26 @@ class SalesMobileApiTest extends TestCase
         $this->getJson('/api/mobile/v1/marketing/summary')->assertOk()->assertJsonPath('data.by_source.0.total', 1);
         DB::table('mm_entity_users')->where('user_id', 1)->update(['deleted_at' => now()]);
         $this->getJson('/api/mobile/v1/dashboard')->assertForbidden();
+    }
+
+    public function test_mobile_login_returns_plant_scoped_permissions_and_middleware_enforces_them(): void
+    {
+        foreach ([['CRM_LEAD.VIEW', 'CRM_LEAD', 'VIEW'], ['CRM_LEAD.CREATE', 'CRM_LEAD', 'CREATE'], ['DASHBOARD.VIEW', 'DASHBOARD', 'VIEW']] as [$name, $module, $action]) {
+            DB::table('mm_mobile_permissions')->insert(['name' => $name, 'module' => $module, 'action' => $action]);
+        }
+        DB::table('mm_mobile_module_permissions')->insert([
+            'user_id' => 1, 'plant_id' => 1, 'module' => 'CRM_LEAD', 'actions' => json_encode(['VIEW']),
+        ]);
+
+        $login = $this->postJson('/api/mobile/v1/auth/login', ['email' => 'user1@example.test', 'password' => 'Test-password-123'])
+            ->assertOk()->assertJsonPath('data.plants.0.permissions.0', 'CRM_LEAD.VIEW')
+            ->assertJsonPath('data.permissions_by_plant.0.plant_id', 1);
+        $token = $login->json('data.token');
+        $headers = ['Authorization' => 'Bearer '.$token, 'X-Plant-Id' => '1'];
+
+        $this->withHeaders($headers)->getJson('/api/mobile/v1/leads')->assertOk();
+        $this->withHeaders($headers)->postJson('/api/mobile/v1/leads', [])->assertForbidden();
+        $this->withHeaders($headers)->getJson('/api/mobile/v1/dashboard')->assertForbidden();
     }
 
     private function makeReviewerSystemAdmin(): void

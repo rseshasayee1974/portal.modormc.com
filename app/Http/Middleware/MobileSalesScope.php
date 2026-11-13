@@ -19,6 +19,8 @@ class MobileSalesScope
     {
         abort_unless($request->user() && MobileAccess::plantId() > 0, 403, 'A mobile plant context is required.');
 
+        MobileAccess::authorizeRoute($request);
+
         $request->attributes->set('mobile_sales_executive', MobileAccess::isSalesExecutive());
         MobileAccess::personnelId();
 

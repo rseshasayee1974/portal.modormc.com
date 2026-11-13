@@ -161,7 +161,18 @@ class AuthController extends Controller
             $expires = now()->addDays(30);
             $token = $user->createToken('sales-mobile:app', ['sales-mobile'], $expires);
             $user->forceFill(['last_login' => now()])->save();
-            return response()->json(['success' => true, 'data' => ['token' => $token->plainTextToken, 'token_type' => 'Bearer', 'expires_at' => $expires->toIso8601String(), 'user' => $this->profile($user), 'plants' => $this->plantList($user)]]);
+            $plants = $this->plantList($user);
+            return response()->json(['success' => true, 'data' => [
+                'token' => $token->plainTextToken,
+                'token_type' => 'Bearer',
+                'expires_at' => $expires->toIso8601String(),
+                'user' => $this->profile($user),
+                'plants' => $plants,
+                'permissions_by_plant' => $plants->map(fn ($plant) => [
+                    'plant_id' => (int) $plant->id,
+                    'permissions' => $plant->permissions,
+                ])->values(),
+            ]]);
         });
     }
 
@@ -214,16 +225,28 @@ class AuthController extends Controller
 
     private function plantList(User $user)
     {
-        return MobileAccess::plants($user)->orderBy('name')->get(['id', 'name', 'entity_id']);
+        return MobileAccess::plants($user)->orderBy('name')->get(['id', 'name', 'entity_id'])
+            ->map(function ($plant) use ($user) {
+                $plant->permissions = MobileAccess::permissionsForPlant($user, (int) $plant->id);
+                return $plant;
+            });
     }
 
     public function me(Request $request)
     {
-        return response()->json(['success' => true, 'data' => $this->profile($request->user())]);
+        $user = $request->user();
+        return response()->json(['success' => true, 'data' => array_merge(
+            $this->profile($user),
+            ['permissions_by_plant' => MobileAccess::permissionsByPlant($user)],
+        )]);
     }
     public function plants(Request $request)
     {
-        return response()->json(['success' => true, 'data' => $this->plantList($request->user())]);
+        $plants = $this->plantList($request->user());
+        return response()->json(['success' => true, 'data' => $plants, 'permissions_by_plant' => $plants->map(fn ($plant) => [
+            'plant_id' => (int) $plant->id,
+            'permissions' => $plant->permissions,
+        ])->values()]);
     }
     public function logout(Request $request)
     {

@@ -1,0 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/DeselectableSelect-DQi92ef8.js
+import{s as e}from"./index-Da7FU76A.js";const t={extends:e,props:{required:Boolean},methods:{onOptionSelect(t,i,o=!0){const s="mousedown"===(null==t?void 0:t.type)||"keydown"===(null==t?void 0:t.type)&&["Enter","NumpadEnter","Space"].includes(t.code);if(!this.required&&o&&s&&this.isSelected(i)&&!this.isOptionDisabled(i))return this.onClearClick(t),void this.hide(!0);e.methods.onOptionSelect.call(this,t,i,o)}}};export{t as D};
+========
+import{s as e}from"./index-CMhsAkU3.js";const t={extends:e,props:{required:Boolean},methods:{onOptionSelect(t,i,o=!0){const s="mousedown"===(null==t?void 0:t.type)||"keydown"===(null==t?void 0:t.type)&&["Enter","NumpadEnter","Space"].includes(t.code);if(!this.required&&o&&s&&this.isSelected(i)&&!this.isOptionDisabled(i))return this.onClearClick(t),void this.hide(!0);e.methods.onOptionSelect.call(this,t,i,o)}}};export{t as D};
+>>>>>>>> 1987c8709421d63ba599330fa7ccc4eb47765269:public/build/assets/DeselectableSelect-XKBdtTTe.js

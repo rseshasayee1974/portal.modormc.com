@@ -309,6 +309,8 @@ Route::middleware([
         Route::resource('notificationwhatsapps', \App\Http\Controllers\NotificationWhatsappController::class)->except(['create', 'edit', 'show']);
         Route::resource('termsconditions', TermsConditionController::class);
         Route::resource('permissions', PermissionController::class);
+        Route::resource('mobile-permissions', \App\Http\Controllers\MobilePermissionController::class)
+            ->except(['create', 'edit', 'show'])->parameters(['mobile-permissions' => 'mobilePermission']);
         Route::resource('roles', RoleController::class);
         Route::resource('menus', MenuController::class);
         Route::get('sites/address-options', [SiteController::class, 'addressOptions'])->name('sites.address-options');
@@ -356,7 +358,11 @@ Route::middleware([
 
     // 5. Patrons & Personnel (Membership)
     Route::prefix('membership')->group(function () {
+        Route::get('mobile-app-permissions', [\App\Http\Controllers\MobileModulePermissionController::class, 'page'])->name('mobile-app-permissions.index');
         Route::put('users/mobile-access', [UserMobileAccessController::class, 'update'])->name('users.mobile-access');
+        Route::get('users/{user}/mobile-permissions', [\App\Http\Controllers\MobileModulePermissionController::class, 'index'])->name('users.mobile-permissions.index');
+        Route::put('users/{user}/mobile-permissions', [\App\Http\Controllers\MobileModulePermissionController::class, 'update'])->name('users.mobile-permissions.update');
+        Route::delete('users/{user}/mobile-permissions/{module}', [\App\Http\Controllers\MobileModulePermissionController::class, 'destroy'])->name('users.mobile-permissions.destroy');
         Route::get('users/{user}/whatsapp-verification', [UserController::class, 'whatsappVerificationUrl'])->name('users.whatsapp-verification');
         Route::post('users/{id}/restore', [UserController::class, 'restore'])->name('users.restore');
         Route::delete('users/{id}/force-delete', [UserController::class, 'forceDelete'])->name('users.force-delete');

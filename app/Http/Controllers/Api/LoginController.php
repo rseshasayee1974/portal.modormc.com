@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Mobile\MobileAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -214,6 +215,8 @@ class LoginController extends Controller
                 'default_entity_id' => $user->default_entity_id,
                 'default_plant_id' => $user->default_plant_id,
                 'profile_photo_url' => $user->profile_photo_url,
+                'plants' => MobileAccess::plants($user)->get(['id', 'name as plant_name', 'entity_id']),
+                'permissions_by_plant' => MobileAccess::permissionsByPlant($user),
             ],
         ]);
     }

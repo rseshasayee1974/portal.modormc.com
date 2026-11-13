@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Mobile\MobileAccess;
 use App\Models\Plant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -119,6 +120,7 @@ class AuthApiController extends Controller
                 'api_key' => $user->api_key,
                 'email_verified_at' => $user->email_verified_at,
                 'plants' => $this->getPlantsForUser($user),
+                'permissions_by_plant' => MobileAccess::permissionsByPlant($user),
             ],
         ]);
     }
@@ -189,6 +191,7 @@ class AuthApiController extends Controller
                 'email' => $user->email,
                 'email_verified_at' => $user->email_verified_at,
                 'plants' => $this->getPlantsForUser($user),
+                'permissions_by_plant' => MobileAccess::permissionsByPlant($user),
             ],
         ]);
     }

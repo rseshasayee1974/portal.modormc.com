@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
+use App\Services\Mobile\MobileAccess;
 
 class MobileApiController extends Controller
 {
@@ -116,6 +117,7 @@ class MobileApiController extends Controller
                 'api_key' => $user->api_key,
                 'email_verified_at' => $user->email_verified_at,
                 'plants' => $this->getPlantsForUser($user),
+                'permissions_by_plant' => MobileAccess::permissionsByPlant($user),
             ],
         ]);
     }
@@ -191,6 +193,7 @@ class MobileApiController extends Controller
                 'email' => $user->email,
                 'email_verified_at' => $user->email_verified_at,
                 'plants' => $this->getPlantsForUser($user),
+                'permissions_by_plant' => MobileAccess::permissionsByPlant($user),
             ],
         ]);
     }
@@ -327,17 +330,11 @@ class MobileApiController extends Controller
 
     private function getPlantsForUser(User $user)
     {
-        if ($user->isSystemAdmin()) {
-            return Plant::select('id', 'name as plant_name')->get();
-        }
-        
-        $authorizedPlantIds = $user->entityUsers()
-            ->whereNotNull('plant_id')
-            ->pluck('plant_id')
-            ->unique()
-            ->toArray();
-            
-        return Plant::whereIn('id', $authorizedPlantIds)->select('id', 'name as plant_name')->get();
+        return MobileAccess::plants($user)->orderBy('name')->get(['id', 'name as plant_name', 'entity_id'])
+            ->map(function ($plant) use ($user) {
+                $plant->permissions = MobileAccess::permissionsForPlant($user, (int) $plant->id);
+                return $plant;
+            });
     }
 
     private function otpCacheKey(string $email): string
