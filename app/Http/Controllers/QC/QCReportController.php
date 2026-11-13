@@ -30,20 +30,38 @@ class QCReportController extends Controller
 
         $query = $this->reportQuery($request, $plantId);
 
-        $tests = $query->orderBy('test_date', 'desc')->paginate(20)->withQueryString();
-
-        // Metrics Summary
-        $allCount = (clone $query)->count();
-        $passCount = (clone $query)->where('overall_status', 'pass')->count();
-        $failCount = (clone $query)->where('overall_status', 'fail')->count();
-        $retestCount = (clone $query)->where('overall_status', 'retest')->count();
+        $counts = (clone $query)->toBase()->selectRaw("
+            COUNT(*) AS total,
+            COUNT(CASE WHEN overall_status = 'pass' THEN 1 END) AS passed,
+            COUNT(CASE WHEN overall_status = 'fail' THEN 1 END) AS failed,
+            COUNT(CASE WHEN overall_status = 'retest' THEN 1 END) AS retest
+        ")->first();
+        $allCount = (int) $counts->total;
+        $passCount = (int) $counts->passed;
+        $failCount = (int) $counts->failed;
+        $retestCount = (int) $counts->retest;
         $passRate = $allCount > 0 ? round(($passCount / $allCount) * 100, 2) : 0;
 
-        $materials = Product::query();
-        if ($plantId) {
-            $materials->where('plant_id', $plantId);
-        }
-        $materials = $materials->where('status', true)->get(['id', 'title', 'code']);
+        $tests = $query->withOnly([
+            'sample:id,sample_no,material_id,supplier_id',
+            'sample.material:id,title',
+            'sample.supplier:id,legal_name',
+            'testType:id,name',
+        ])->orderByDesc('test_date')->orderByDesc('id')
+            ->paginate(20, ['id', 'test_date', 'test_no', 'sample_id', 'test_type_id', 'overall_status'], total: $allCount)
+            ->withQueryString();
+
+        // Only serialize the fields displayed in the table, skipping model accessors
+        // such as the supplier's usage checks.
+        $tests->through(fn (QcTest $test) => [
+            ...$test->only(['id', 'test_date', 'test_no', 'overall_status']),
+            'sample' => $test->sample ? [
+                'sample_no' => $test->sample->sample_no,
+                'material' => $test->sample->material?->only(['title']),
+                'supplier' => $test->sample->supplier?->only(['legal_name']),
+            ] : null,
+            'test_type' => $test->testType?->only(['name']),
+        ]);
 
         return Inertia::render('Quality/Reports/Index', [
             'tests' => $tests,
@@ -54,7 +72,9 @@ class QCReportController extends Controller
                 'retest' => $retestCount,
                 'pass_rate' => $passRate,
             ],
-            'materials' => $materials,
+            'materials' => fn () => Product::query()
+                ->when($plantId, fn ($products) => $products->where('plant_id', $plantId))
+                ->where('status', true)->toBase()->get(['id', 'title']),
             'filters' => $request->only(['start_date', 'end_date', 'material_id', 'status']),
         ]);
     }

@@ -3,11 +3,11 @@ import { entityCalendarDate, calendarDateString } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, defineAsyncComponent } from 'vue';
 import Swal from 'sweetalert2';
 import { UserGroupIcon } from '@heroicons/vue/24/outline';
 import PersonnelForm from './components/PersonnelForm.vue';
-import PersonnelEditForm from './components/PersonnelEditForm.vue';
+const PersonnelEditForm = defineAsyncComponent(() => import('./components/PersonnelEditForm.vue'));
 
 // Components
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';

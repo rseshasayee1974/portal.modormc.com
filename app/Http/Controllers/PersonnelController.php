@@ -25,14 +25,16 @@ class PersonnelController extends Controller
         $activePlantId = session('active_plant_id');
 
         return Inertia::render('Personnel/Index', [
-            'personnel' => Personnel::with(['user:id,is_otp_enabled', 'contacts', 'patrons', 'department', 'designation', 'reportingManager', 'salaryStructures.salaryComponent'])
+            'personnel' => Personnel::with(['user:id,is_otp_enabled', 'contacts', 'patrons:id', 'department:id,name', 'designation:id,name', 'salaryStructures'])
                 ->where('plant_id', $activePlantId)
                 ->latest()
-                ->get(),
+                ->get()->each(function (Personnel $employee) {
+                    $employee->setRelation('patrons', $employee->patrons->map(fn ($patron) => ['id' => $patron->id]));
+                }),
             'patrons' => Patron::where('plant_id', $activePlantId)
                 ->where('status', true)
                 ->orderBy('legal_name', 'asc')
-                ->get(['id', 'legal_name']),
+                ->toBase()->get(['id', 'legal_name']),
             'departments' => Department::orderBy('name', 'asc')
                 ->get(['id', 'name', 'code']),
             'designations' => Designation::orderBy('name', 'asc')

@@ -30,23 +30,30 @@ class DocumentNumberAccess
     {
         if (!$user || !isset(self::PERMISSIONS[$module])) return false;
 
+        return in_array(self::PERMISSIONS[$module], self::permissionNames($user), true);
+    }
+
+    private static function permissionNames(?User $user): array
+    {
+        if (!$user) return [];
         $entityId = session('active_entity_id');
         $role = $entityId
             ? EntityUser::forContext($user->id, (int) $entityId, session('active_plant_id'))?->role
             : null;
-        if ($entityId && !$role) return false;
+        if ($entityId && !$role) return [];
 
         // Number overrides require an explicit grant, including administrator roles.
         $permissions = $role
             ? $role->permissions->merge($user->getDirectPermissions())
             : $user->getAllPermissions();
 
-        return $permissions->contains(fn ($permission) => strtoupper($permission->name) === self::PERMISSIONS[$module]);
+        return $permissions->map(fn ($permission) => strtoupper($permission->name))->all();
     }
 
     public static function forUser(?User $user): array
     {
-        return array_map(fn ($permission) => self::allows($user, explode('.', $permission)[0]), self::PERMISSIONS);
+        $names = self::permissionNames($user);
+        return array_map(fn ($permission) => in_array($permission, $names, true), self::PERMISSIONS);
     }
 
     public static function validate(Request $request, string $module, string $field, ?Model $record = null): void
