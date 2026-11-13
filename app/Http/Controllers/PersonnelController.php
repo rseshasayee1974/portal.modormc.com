@@ -25,14 +25,16 @@ class PersonnelController extends Controller
         $activePlantId = session('active_plant_id');
 
         return Inertia::render('Personnel/Index', [
-            'personnel' => Personnel::with(['user:id,is_otp_enabled', 'contacts', 'patrons', 'department', 'designation', 'reportingManager', 'salaryStructures.salaryComponent'])
+            'personnel' => Personnel::with(['user:id,is_otp_enabled', 'contacts', 'patrons:id', 'department:id,name', 'designation:id,name', 'salaryStructures'])
                 ->where('plant_id', $activePlantId)
                 ->latest()
-                ->get(),
+                ->get()->each(function (Personnel $employee) {
+                    $employee->setRelation('patrons', $employee->patrons->map(fn ($patron) => ['id' => $patron->id]));
+                }),
             'patrons' => Patron::where('plant_id', $activePlantId)
                 ->where('status', true)
                 ->orderBy('legal_name', 'asc')
-                ->get(['id', 'legal_name']),
+                ->toBase()->get(['id', 'legal_name']),
             'departments' => Department::orderBy('name', 'asc')
                 ->get(['id', 'name', 'code']),
             'designations' => Designation::orderBy('name', 'asc')
@@ -41,6 +43,7 @@ class PersonnelController extends Controller
                 ->where('status', 'active')
                 ->orderBy('first_name', 'asc')
                 ->get(['id', 'first_name', 'last_name', 'employee_code']),
+            'states' => StateCodesDropdown('India'),
             'employmentTypes' => ['permanent', 'contract', 'trainee', 'temporary', 'consultant'],
             'genders' => ['male', 'female', 'other'],
             'statuses' => ['active', 'inactive', 'terminated', 'resigned', 'retired'],
@@ -51,6 +54,15 @@ class PersonnelController extends Controller
         ]);
     }
 
+    private const ADDRESS_RULES = [
+        'address' => 'sometimes|array:state_id,city,zipcode,line_1,line_2',
+        'address.state_id' => 'nullable|integer|exists:mm_state_codes,id',
+        'address.city' => 'nullable|string|max:150',
+        'address.zipcode' => 'nullable|string|max:20',
+        'address.line_1' => 'nullable|string|max:255',
+        'address.line_2' => 'nullable|string|max:255',
+    ];
+
     public function store(Request $request)
     {
         $this->authorizeModule('create');
@@ -58,6 +70,7 @@ class PersonnelController extends Controller
         $activePlantId = session('active_plant_id');
 
         $validated = $request->validate([
+            ...self::ADDRESS_RULES,
             'employee_code' => ['nullable', 'string', Rule::unique('mm_personnels', 'employee_code')->where('plant_id', $activePlantId)->whereNull('deleted_at')],
             'first_name' => 'required|string|max:100',
             'last_name' => 'nullable|string|max:100',
@@ -103,7 +116,7 @@ class PersonnelController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $activePlantId) {
-            $personnelData = collect($validated)->except(['contacts', 'patron_ids', 'salary_structures'])->toArray();
+            $personnelData = collect($validated)->except(['address', 'contacts', 'patron_ids', 'salary_structures'])->toArray();
             
             // Convert empty strings to null for unique or nullable columns
             foreach (['email', 'pan', 'aadhaar', 'mobile', 'uan', 'esi_number', 'bank_account_no', 'bank_ifsc', 'bank_name', 'last_name', 'gender', 'shift_start_time', 'shift_end_time'] as $field) {
@@ -137,6 +150,9 @@ class PersonnelController extends Controller
                 $personnelData['employee_code'] = Personnel::generateNextEmployeeCode($activePlantId);
             }
 
+            if (isset($validated['address'])) {
+                $personnelData['meta']['address'] = $validated['address'];
+            }
             $personnel = Personnel::create($personnelData);
 
             if (!empty($validated['contacts'])) {
@@ -192,6 +208,7 @@ class PersonnelController extends Controller
         $this->authorizeModule('edit');
         
         $validated = $request->validate([
+            ...self::ADDRESS_RULES,
             'first_name' => 'required|string|max:100',
             'last_name' => 'nullable|string|max:100',
             'department_id' => 'nullable|exists:mm_departments,id',
@@ -239,7 +256,7 @@ class PersonnelController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $personnel) {
-            $personnelData = collect($validated)->except(['contacts', 'patron_ids', 'salary_structures', 'employee_code'])->toArray();
+            $personnelData = collect($validated)->except(['address', 'contacts', 'patron_ids', 'salary_structures', 'employee_code'])->toArray();
 
             // Convert empty strings to null for unique or nullable columns to prevent duplicate key or type errors in the DB
             foreach (['email', 'pan', 'aadhaar', 'mobile', 'uan', 'esi_number', 'bank_account_no', 'bank_ifsc', 'bank_name', 'last_name', 'gender', 'shift_start_time', 'shift_end_time'] as $field) {
@@ -276,6 +293,10 @@ class PersonnelController extends Controller
             }
 
             $personnelData['updated_by'] = auth()->id();
+            if (isset($validated['address'])) {
+                $personnelData['meta'] = $personnelData['meta'] ?? $personnel->meta ?? [];
+                $personnelData['meta']['address'] = $validated['address'];
+            }
             $personnel->update($personnelData);
 
             if (isset($validated['contacts'])) {

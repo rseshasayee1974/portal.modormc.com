@@ -49,7 +49,7 @@ const applyFilters = () => {
         end_date: dateTo.value,
         material_id: materialId.value,
         status: statusFilter.value,
-    }, { preserveState: true, preserveScroll: true });
+    }, { preserveState: true, preserveScroll: true, only: ['tests', 'summary', 'filters'] });
 };
 
 const downloadPdf = () => {

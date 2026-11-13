@@ -1,1 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/DeselectableSelect-BhyZhw_Y.js
 import{s as e}from"./index-SLDlhbZx.js";const t={extends:e,props:{required:Boolean},methods:{onOptionSelect(t,i,o=!0){const s="mousedown"===(null==t?void 0:t.type)||"keydown"===(null==t?void 0:t.type)&&["Enter","NumpadEnter","Space"].includes(t.code);if(!this.required&&o&&s&&this.isSelected(i)&&!this.isOptionDisabled(i))return this.onClearClick(t),void this.hide(!0);e.methods.onOptionSelect.call(this,t,i,o)}}};export{t as D};
+========
+import{s as e}from"./index-kGGeqxIx.js";const t={extends:e,props:{required:Boolean},methods:{onOptionSelect(t,i,o=!0){const s="mousedown"===(null==t?void 0:t.type)||"keydown"===(null==t?void 0:t.type)&&["Enter","NumpadEnter","Space"].includes(t.code);if(!this.required&&o&&s&&this.isSelected(i)&&!this.isOptionDisabled(i))return this.onClearClick(t),void this.hide(!0);e.methods.onOptionSelect.call(this,t,i,o)}}};export{t as D};
+>>>>>>>> 62eeb127bcaa10ddd6dfc9b5effef0d9bff5a210:public/build/assets/DeselectableSelect-B4I7BK6N.js

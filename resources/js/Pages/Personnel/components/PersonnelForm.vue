@@ -21,6 +21,7 @@ import TabList from 'primevue/tablist';
 import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
+import AddressDetails from '@/Components/AddressDetails.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import MultiSelect from 'primevue/multiselect';
@@ -32,6 +33,7 @@ import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 
 const props = defineProps<{
+    states: any[];
     form: any;
     activeTab: string;
     employmentTypeOptions: any[];
@@ -377,6 +379,12 @@ const handlePrimaryToggle = (index: number, val: any) => {
 
                     <!-- CONTACTS MATRIX -->
                     <TabPanel value="contacts">
+                        <section class="mb-5">
+                            <h3 class="mb-3 text-sm font-semibold">Address details</h3>
+                            <AddressDetails :states="states" stateLabel="state_name" stateValue="id" errorPrefix="address." :errors="form.errors"
+                                v-model:state="form.address.state_id" v-model:city="form.address.city" v-model:zipcode="form.address.zipcode"
+                                v-model:line1="form.address.line_1" v-model:line2="form.address.line_2" />
+                        </section>
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="flex flex-col gap-2">

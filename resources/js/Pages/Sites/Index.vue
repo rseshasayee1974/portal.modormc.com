@@ -30,6 +30,7 @@ const toast = useToast();
 const searchQuery = ref(props.filters?.search || '');
 const editingId = ref<number | null>(null);
 const expandedRows = ref<Record<number, boolean>>({});
+const defaultCountry = 'India';
 
 const blankForm = () => ({
     plant_id: props.plants?.[0]?.id || null,
@@ -40,7 +41,7 @@ const blankForm = () => ({
     city: '',
     district: '',
     state: '',
-    country: '',
+    country: defaultCountry,
     zipcode: '',
     code: '',
     type: props.isPrivileged ? (props.siteTypes?.[0] || '') : 'unloading',
@@ -74,7 +75,7 @@ const populateSiteForm = (form: any, site: any) => {
     form.city = site.city || '';
     form.district = site.district || '';
     form.state = site.state || '';
-    form.country = site.country || '';
+    form.country = site.country || defaultCountry;
     form.zipcode = site.zipcode || '';
     form.code = site.code || '';
     form.type = site.type;

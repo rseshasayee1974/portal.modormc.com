@@ -1,0 +1,5 @@
+<<<<<<<< HEAD:public/build/assets/useForm-DBJXbOoC.js
+import{k as r,j as o}from"./app-C9uACyTR.js";function e(e){const s=r(e),n=o(()=>s.errors??{}),t=o(()=>Boolean(s.processing));return{...s,errors:n,errorFor:function(r){const o=r.replace(/\[(\d+)\]/g,".$1");return function(r){if(r)return Array.isArray(r)?r[0]:r}(n.value[o]??n.value[r])},setApiErrors:function(r){const o=r;(null==o?void 0:o.errors)&&"object"==typeof o.errors&&(s.clearErrors(),s.setError(o.errors))},isSubmitting:t}}export{e as u};
+========
+import{k as r,j as o}from"./app-D0sRaUXz.js";function e(e){const s=r(e),n=o(()=>s.errors??{}),t=o(()=>Boolean(s.processing));return{...s,errors:n,errorFor:function(r){const o=r.replace(/\[(\d+)\]/g,".$1");return function(r){if(r)return Array.isArray(r)?r[0]:r}(n.value[o]??n.value[r])},setApiErrors:function(r){const o=r;(null==o?void 0:o.errors)&&"object"==typeof o.errors&&(s.clearErrors(),s.setError(o.errors))},isSubmitting:t}}export{e as u};
+>>>>>>>> 62eeb127bcaa10ddd6dfc9b5effef0d9bff5a210:public/build/assets/useForm-CxlUnvjC.js

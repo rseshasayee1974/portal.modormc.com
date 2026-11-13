@@ -11,6 +11,26 @@ class UpdateBatchRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if ($this->filled('batch_no')) $this->merge(['batch_no' => strtoupper(trim((string) $this->input('batch_no')))]);
+        if ($this->has('operator_id') && ($this->input('operator_id') === '' || $this->input('operator_id') === 'null')) {
+            $this->merge(['operator_id' => null]);
+        }
+        if ($this->has('end_time')) {
+            $endTime = $this->input('end_time');
+            if ($endTime === '' || $endTime === 'null') {
+                $this->merge(['end_time' => null]);
+            } elseif (is_string($endTime) && preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', trim($endTime))) {
+                $date = $this->input('start_time') ? date('Y-m-d', strtotime($this->input('start_time'))) : now()->toDateString();
+                $this->merge(['end_time' => $date . ' ' . trim($endTime)]);
+            }
+        }
+        if ($this->has('start_time')) {
+            $startTime = $this->input('start_time');
+            if ($startTime === '' || $startTime === 'null') {
+                $this->merge(['start_time' => null]);
+            } elseif (is_string($startTime) && preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', trim($startTime))) {
+                $this->merge(['start_time' => now()->toDateString() . ' ' . trim($startTime)]);
+            }
+        }
     }
 
     public function authorize(): bool

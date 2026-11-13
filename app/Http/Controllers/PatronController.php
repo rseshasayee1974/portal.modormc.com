@@ -42,7 +42,7 @@ class PatronController extends Controller
             'contactTypes' => ContactTypesDropdown(),
             'addressTypes' => AddressTypesDropdown(),
             'bankAccountTypes' => BankAccountTypesDropdown(),
-            'states' => StateCodesDropdown(),
+            'states' => StateCodesDropdown('India'),
             'operationalStatuses' => OperationalStatusesDropdown(),
             'patronTypes' => PatronTypesDropdown(),
             'salesExecutives' => SalesExecutivesDropdown(),
@@ -82,7 +82,7 @@ class PatronController extends Controller
                               !empty($validated['contact_mobile']) || 
                               !empty($validated['contact_alt_mobile']);
 
-            $hasAddressData = !empty($validated['address_line_1']);
+            $hasAddressData = $request->anyFilled(['address_line_1', 'address_line_2', 'address_city', 'address_zipcode']);
 
             if ($hasContactData || $hasAddressData) {
                 $contact = $patron->contacts()->create([
@@ -100,7 +100,7 @@ class PatronController extends Controller
                     $contact->addresses()->create([
                         'plant_id'   => $plantId,
                         'address_type_id' => $validated['address_type_id'] ?? 1,
-                        'line_1' => $validated['address_line_1'],
+                        'line_1' => $validated['address_line_1'] ?? null,
                         'line_2' => $validated['address_line_2'] ?? null,
                         'city' => $validated['address_city'] ?? null,
                         'state_id' => $validated['address_state_id'] ?? null,
@@ -169,7 +169,7 @@ class PatronController extends Controller
                               !empty($validated['contact_mobile']) || 
                               !empty($validated['contact_alt_mobile']);
 
-            $hasAddressData = !empty($validated['address_line_1']);
+            $hasAddressData = $request->anyFilled(['address_line_1', 'address_line_2', 'address_city', 'address_zipcode']);
 
             if ($hasContactData || $hasAddressData) {
                 $contact = $patron->contacts()->where('is_primary', true)->first() ?? $patron->contacts()->first();
@@ -196,7 +196,7 @@ class PatronController extends Controller
                     $addressData = [
                         'plant_id'   => $patron->plant_id,
                         'address_type_id' => $validated['address_type_id'] ?? 1,
-                        'line_1' => $validated['address_line_1'],
+                        'line_1' => $validated['address_line_1'] ?? null,
                         'line_2' => $validated['address_line_2'] ?? null,
                         'city' => $validated['address_city'] ?? null,
                         'state_id' => $validated['address_state_id'] ?? null,

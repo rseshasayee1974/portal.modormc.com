@@ -3,11 +3,11 @@ import { entityCalendarDate, calendarDateString } from '@/Utils/entityDateTime';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { useForm, usePage, router } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, defineAsyncComponent } from 'vue';
 import Swal from 'sweetalert2';
 import { UserGroupIcon } from '@heroicons/vue/24/outline';
 import PersonnelForm from './components/PersonnelForm.vue';
-import PersonnelEditForm from './components/PersonnelEditForm.vue';
+const PersonnelEditForm = defineAsyncComponent(() => import('./components/PersonnelEditForm.vue'));
 
 // Components
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
@@ -72,6 +72,7 @@ interface Personnel {
 }
 
 const props = defineProps<{
+    states: any[];
     personnel: Personnel[];
     patrons: Patron[];
     departments: Department[];
@@ -102,6 +103,7 @@ const filteredPersonnel = computed(() => {
 });
 
 const getInitialForm = () => ({
+    address: { state_id: null as number | null, city: '', zipcode: '', line_1: '', line_2: '' },
     employee_code: '',
     first_name: '',
     last_name: '',
@@ -219,7 +221,7 @@ const submitCreate = () => {
             const errorKeys = Object.keys(errs);
             let targetTab = 'details';
 
-            if (errorKeys.some(k => k.startsWith('contacts.'))) {
+            if (errorKeys.some(k => k.startsWith('contacts.') || k.startsWith('address.'))) {
                 targetTab = 'contacts';
             } else if (errorKeys.some(k => k.startsWith('salary_structures.'))) {
                 targetTab = 'salary_structure';
@@ -342,6 +344,7 @@ watch(
                     <!-- Creation Form Container -->
                     <div id="top-form-container">
                         <PersonnelForm 
+                            :states="states"
                             :form="createForm"
                             v-model:activeTab="activeTabCreate"
                             :employmentTypeOptions="empTypeOptions"
@@ -449,6 +452,7 @@ watch(
                             <template #expansion="slotProps">
                                 <div class="p-4 border rounded-xl bg-gray-50/50 dark:bg-slate-800/50">
                                     <PersonnelEditForm 
+                                        :states="states"
                                         :personnel="slotProps.data"
                                         :activeTab="activeTabEdit"
                                         @update:activeTab="(val: string) => activeTabEdit = val"

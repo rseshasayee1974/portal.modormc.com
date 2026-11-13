@@ -31,8 +31,11 @@ class SiteController extends Controller
         $countries = \App\Models\Country::where('is_active', 1)->orderBy('country_name')->get(['id', 'country_name']);
         $result = ['country'=>$countries->pluck('country_name')->unique()->values(), 'state'=>[], 'district'=>[], 'city'=>[], 'zipcode'=>[]];
         $country = $countries->firstWhere('country_name', $input['country'] ?? null);
+        $result['state_options'] = [];
         if (!$country) return response()->json($result);
         $query = \App\Models\StateCode::where('country_id', $country->id);
+        $result['state_options'] = (clone $query)->whereNotNull('state_name')->where('state_name', '!=', '')
+            ->selectRaw('MIN(id) AS id, state_name')->groupBy('state_name')->orderBy('state_name')->get();
         foreach (['state'=>'state_name', 'district'=>'district', 'city'=>'area', 'zipcode'=>'zipcode'] as $field=>$column) {
             $result[$field] = (clone $query)->whereNotNull($column)->where($column, '!=', '')
                 ->distinct()->orderBy($column)->pluck($column)->map(fn ($value) => (string) $value)->values();

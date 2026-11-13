@@ -1,85 +1,38 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue';
+import { computed, ref, watch } from 'vue';
 import axios from 'axios';
-import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import { ArrowPathIcon } from '@heroicons/vue/24/outline';
+import AddressDetails from '@/Components/AddressDetails.vue';
+import BaseInput from '@/Components/Base/BaseInput.vue';
 
 const props = defineProps<{ form: any; errors?: any; readonly?: boolean }>();
-const fields = ['country', 'state', 'district', 'city', 'zipcode'];
-const labels: Record<string, string> = { 
-    country: 'Country', 
-    state: 'State / Province', 
-    district: 'District', 
-    city: 'City / Locality', 
-    zipcode: 'Postal / ZIP Code' 
-};
-const lists = ref<Record<string, string[]>>({});
-const loading = ref(false);
-const error = ref('');
-let generation = 0;
-
-const options = (field: string) => [...new Set([...(lists.value[field] || []), props.form[field]].filter(Boolean))].map(value => ({ label: value, value }));
-
-const change = (field: string, value: string | null) => {
-    props.form[field] = value || '';
-    for (const child of fields.slice(fields.indexOf(field) + 1)) props.form[child] = '';
-};
-
-async function loadOptions() {
-    const request = ++generation;
-    loading.value = true;
-    error.value = '';
-    lists.value = {};
+const states = ref<{ id: number; state_name: string }[]>([]);
+const stateOptions = computed(() => {
+    const name = props.form.state;
+    return name && !states.value.some(option => option.state_name === name)
+        ? [...states.value, { id: null, state_name: name }] : states.value;
+});
+watch(() => props.form.country, async (country, _, onCleanup) => {
+    let current = true;
+    onCleanup(() => { current = false; });
+    states.value = [];
     try {
-        const { data } = await axios.get(route('sites.address-options'), { params: {
-            country: props.form.country || undefined,
-            state: props.form.state || undefined,
-            district: props.form.district || undefined,
-            city: props.form.city || undefined,
-        } });
-        if (request === generation) lists.value = data;
+        const { data } = await axios.get(route('sites.address-options'), { params: { country } });
+        if (current) states.value = data.state_options;
     } catch {
-        if (request === generation) error.value = 'Unable to load address options. Please retry.';
-    } finally {
-        if (request === generation) loading.value = false;
+        // Existing site address values stay editable if regional lookups are unavailable.
     }
-}
+}, { immediate: true });
 
-watch(() => [props.form.country, props.form.state, props.form.district, props.form.city], loadOptions, { immediate: true });
-onUnmounted(() => { generation++; });
 </script>
 
 <template>
-    <div class="col-span-full space-y-2">
-        <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
-            <BaseSelect 
-                v-for="(field, index) in fields" 
-                :key="field" 
-                :modelValue="form[field]"
-                @update:modelValue="change(field, $event)" 
-                :label="labels[field]" 
-                :options="options(field)"
-                optionLabel="label" 
-                optionValue="value" 
-                filter 
-                showClear 
-                :error="errors?.[field]"
-                :disabled="readonly || loading || (index > 0 && !form[fields[index - 1]])"
-                :placeholder="loading ? 'Loading…' : `Select ${labels[field]}`"
-                :hint="!loading && !error && (index === 0 || form[fields[index - 1]]) && !options(field).length ? 'No options in master' : undefined" 
-            />
-        </div>
-
-        <div v-if="error" role="alert" class="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between">
-            <span>{{ error }}</span>
-            <button 
-                type="button" 
-                @click="loadOptions" 
-                class="inline-flex items-center gap-1 font-bold text-rose-700 hover:text-rose-900 underline"
-            >
-                <ArrowPathIcon class="w-3.5 h-3.5" />
-                <span>Retry</span>
-            </button>
-        </div>
+    <div class="space-y-4">
+        <AddressDetails :states="stateOptions" stateLabel="state_name" stateValue="state_name" lookupStateBy="id"
+            :readonly="readonly" areaLabel="City / Locality" errorPrefix=""
+            :errors="{ state_id: errors?.state, city: errors?.district, zipcode: errors?.zipcode, line_1: errors?.site_address_1, line_2: errors?.city }"
+            v-model:state="form.state" v-model:city="form.district" v-model:zipcode="form.zipcode"
+            v-model:line1="form.site_address_1" v-model:line2="form.city" />
+        <BaseInput class="lg:max-w-lg" v-model="form.site_address_2" label="Address Line 2"
+            placeholder="Building, phase or landmark" :disabled="readonly" :error="errors?.site_address_2" />
     </div>
 </template>
