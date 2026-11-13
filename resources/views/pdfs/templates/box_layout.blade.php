@@ -75,12 +75,10 @@
         }
         
 
-        .irn-bar { border-bottom: 2px solid #000; padding: 4px 8px; font-size: 8pt; width: 100%; box-sizing: border-box; }
-        .irn-bar table { width: 100%;
-            table-layout: fixed;
-            word-wrap: break-word;
-            border-collapse: collapse; }
-        .irn-bar td { vertical-align: middle; padding: 0; }
+        .irn-bar { width: 100%; table-layout: fixed; border-collapse: collapse; border-bottom: 2px solid #000; page-break-inside: avoid; font-size: 8pt; }
+        .irn-bar td { padding: 2mm; vertical-align: middle; line-height: 1.35; word-wrap: break-word; }
+        .irn-bar .irn-qr { width: 40mm; text-align: right; line-height: 1; }
+        .irn-qr img { width: 36mm; height: 36mm; vertical-align: middle; }
 
         .block-table { width: 100%;
             table-layout: fixed;
@@ -167,22 +165,20 @@
         $hasValidQr = !empty($rawQr) && $rawQr !== '{qr_code}' && (str_starts_with($rawQr, 'data:image') || str_starts_with($rawQr, 'http://') || str_starts_with($rawQr, 'https://') || file_exists(public_path('storage/' . ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $rawQr), '/'))));
     @endphp
     @if (($pdfSettings['show_einvoice_details'] ?? true) && ($hasValue($irnVal) || $hasValue($ackNoVal) || $hasValidQr))
-        <div class="irn-bar">
-            <table>
+            <table class="irn-bar">
                 <tr>
-                    <td style="vertical-align: top; line-height: 1.35;">
+                    <td>
                         @if($hasValue($irnVal)) <div>IRN : <strong>{{ $irnVal }}</strong></div> @endif
                         @if($hasValue($ackNoVal)) <div>Ack No. : <strong>{{ $ackNoVal }}</strong></div> @endif
                         @if($hasValue($ackDateVal)) <div>Ack Date : <strong>{{ $ackDateVal }}</strong></div> @endif
                     </td>
                     @if($hasValidQr)
-                        <td style="width: 70px; text-align: right; vertical-align: top;">
-                            <img src="{{ $rawQr }}" style="max-height: 65px; max-width: 65px; object-fit: contain;" />
+                        <td class="irn-qr">
+                            <img src="{{ $rawQr }}" alt="E-Invoice QR code" />
                         </td>
                     @endif
                 </tr>
             </table>
-        </div>
     @endif
 
     {{-- ADDRESS & INVOICE INFO BLOCK (3-COL) --}}
@@ -633,17 +629,17 @@
                 <td class="footer-sig-cust">
                     Customer Signature
                 </td>
-                <td class="footer-sig-auth" style="position: relative;">
+                <td class="footer-sig-auth">
+                    @if($hasValue($data['company']['name'] ?? null))
+                        <div style="font-size: 7.5pt; margin-bottom: 4px;">For <strong>{{ strtoupper($data['company']['name']) }}</strong></div>
+                    @endif
                     @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))
                         @php $sealUrl = $resolveAssetPath($data['company']['seal_sign_path']); @endphp
                         @if(!empty($sealUrl))
-                            <div style="text-align: center; margin-bottom: -6px;">
-                                <img src="{{ $sealUrl }}" style="max-height: 45px; max-width: 95px; object-fit: contain;" />
+                            <div style="margin: 2px 0 4px;">
+                                <img src="{{ $sealUrl }}" alt="Company seal and signature" style="max-height: 60px; max-width: 130px; vertical-align: middle;" />
                             </div>
                         @endif
-                    @endif
-                    @if($hasValue($data['company']['name'] ?? null))
-                        <div style="font-size: 7.5pt; margin-bottom: 15px;">For <strong>{{ strtoupper($data['company']['name']) }}</strong></div>
                     @endif
                     <div>Authorised Signatory</div>
                 </td>

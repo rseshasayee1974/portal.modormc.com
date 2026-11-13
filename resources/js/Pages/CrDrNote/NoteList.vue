@@ -11,7 +11,7 @@ import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Menu from 'primevue/menu';
 import Tag from 'primevue/tag';
-import { canGenerateEInvoice, hasActiveEInvoice, useEInvoiceCancellation, useEInvoiceGeneration } from '@/Composables/useEInvoiceGeneration';
+import { canGenerateEInvoice, hasActiveEInvoice, useEInvoiceGeneration } from '@/Composables/useEInvoiceGeneration';
 import InvoiceStatusIcons from '@/Components/InvoiceStatusIcons.vue';
 import NoteEditForm from './NoteEditForm.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
@@ -21,7 +21,6 @@ import { usePermissions } from '@/Composables/usePermissions';
 defineProps({ purchaseLedgers: { type: Array, default: () => [] }, salesLedgers: { type: Array, default: () => [] }, notes: { type: Array, default: () => [] }, documents: { type: Array, default: () => [] }, taxes: { type: Array, default: () => [] }, units: { type: Array, default: () => [] }, products: { type: Array, default: () => [] }, mixdesign: { type: Array, default: () => [] }, note_number_details: { type: Object, default: () => ({}) } });
 const { can } = usePermissions();
 const { generateEInvoice, generatingEInvoice } = useEInvoiceGeneration();
-const { canCancel, cancelEInvoice, cancellingEInvoice } = useEInvoiceCancellation();
 const supplierNote = note => ['invoice', 'sales'].includes(String(note.source_document?.invoice_type).toLowerCase());
 const filters = ref({ global: { value: null, matchMode: 'contains' } });
 const expandedRows = ref({});
@@ -77,10 +76,6 @@ const actions = computed(() => {
         },
         { label: hasActiveEInvoice(note) ? 'E-Invoice Print' : 'Print Note', icon: 'pi pi-print', command: () => print(note) },
         {
-            label: 'Cancel E-Invoice', icon: 'pi pi-times-circle', visible: canCancel(note),
-            disabled: cancellingEInvoice.value, command: () => cancelEInvoice(note),
-        },
-        {
             label: 'Delete Note', icon: 'pi pi-trash', visible: !note.einvoice_irn && can('CRDRNOTE.DELETE'),
             disabled: deletingId.value !== null, command: () => deleteNote(note),
         },
@@ -91,12 +86,12 @@ const actions = computed(() => {
 <template>
     <div class="bg-white dark:bg-slate-800 shadow-xl rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
     <BaseDataTable :value="notes" dataKey="id" v-model:expandedRows="expandedRows" v-model:filters="filters" :globalFilterFields="['full_number', 'invoice_label', 'ref_title', 'partner.legal_name', 'notes']" paginator :rows="30" stripedRows showSearch showSerial heading="Credit / Debit Note Directory" headingIcon="DocumentTextIcon" class="p-datatable-sm" @row-click="toggleEdit($event.data)">
-        <Column field="full_number" header="Ref #" sortable><template #body="{ data }"><span class="text-sm font-semibold text-indigo-800">{{ data.full_number }}</span></template></Column>
-        <Column field="invoice_label" header="Type" sortable><template #body="{ data }"><Tag :value="data.invoice_label" :severity="data.invoice_type === 'credit_note' ? 'success' : 'warn'" class="!text-[9px] !uppercase" /></template></Column>
+        <Column field="full_number" header="Ref #" sortable><template #body="{ data }"><Tag :value="data.invoice_label" :severity="data.invoice_type === 'credit_note' ? 'success' : 'warn'" class="!text-[9px] !uppercase" /><div class="text-sm font-semibold text-indigo-800">{{ data.full_number }}</div></template></Column>
+        <!-- <Column field="invoice_label" header="Type" sortable><template #body="{ data }"></template></Column> -->
         <Column field="invoice_date" header="Date" sortable><template #body="{ data }">{{ entityLocaleDate(data.invoice_date) }}</template></Column>
         <Column field="ref_title" header="Invoice / Bill" sortable />
         <Column field="partner.legal_name" header="Partner" sortable />
-        <Column field="notes" header="Reason" />
+        <!-- <Column field="notes" header="Reason" /> -->
         <Column field="total_amount" header="Amount" sortable class="text-right font-semibold"><template #body="{ data }">₹ {{ Number(data.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</template></Column>
         <Column field="status" header="Status" align="center">
             <template #body="{ data }"><InvoiceStatusIcons :document="data" /></template>

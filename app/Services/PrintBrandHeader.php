@@ -47,6 +47,10 @@ class PrintBrandHeader
         foreach ([$batchSheetLogo, $plant?->logo_path, $entity?->logo_file, $company['logo_path'] ?? null] as $path) {
             if ($logo = PdfLogo::dataUri($path)) break;
         }
+        if (!$logo && $plant && !empty($context['brandInvoiceTitle'])) {
+            $settings = \App\Models\CustomSetting::getForModule($plant->id, 'batching');
+            $logo = PdfLogo::dataUri($settings['batch_sheet_logo_path'] ?? null);
+        }
         $address = $plant?->addresses?->firstWhere('is_primary', true) ?? $plant?->addresses?->first();
         $addressText = $address
             ? implode(', ', array_filter([$address->line_1, $address->line_2, $address->city,

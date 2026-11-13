@@ -1003,10 +1003,10 @@ class PrintDataFormatter
 
             $cleanPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $qrCode), '/');
             if (preg_match('/\.(png|jpe?g|svg|webp)$/i', $cleanPath) && !str_contains($cleanPath, '{') && !str_contains($cleanPath, '}')) {
-                return asset('storage/' . $cleanPath);
+                return PdfLogo::dataUri($qrCode) ?? asset('storage/' . $cleanPath);
             }
 
-            $png = (new \BaconQrCode\Writer(new \BaconQrCode\Renderer\GDLibRenderer(300)))
+            $png = (new \BaconQrCode\Writer(new \BaconQrCode\Renderer\GDLibRenderer(720)))
                 ->writeString($qrCode);
 
             return 'data:image/png;base64,' . base64_encode($png);

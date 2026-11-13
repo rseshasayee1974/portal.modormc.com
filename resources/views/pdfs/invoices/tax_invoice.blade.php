@@ -293,6 +293,8 @@
         /* IRN & Compliance Bar */
         .compliance-bar {
             width: 100%;
+            table-layout: fixed;
+            page-break-inside: avoid;
             border-top: 1px solid #000;
             border-bottom: 1px solid #000;
             border-collapse: collapse;
@@ -305,14 +307,15 @@
         }
 
         .qr-cell {
-            width: 70px;
+            width: 40mm;
             text-align: right;
             padding-right: 6px;
         }
 
         .qr-img {
-            max-height: 60px;
-            max-width: 60px;
+            width: 36mm;
+            height: 36mm;
+            vertical-align: middle;
         }
 
         /* 3-Column Info Boxes */
@@ -598,7 +601,7 @@
         @if (!empty($irn) || !empty($ackNo) || !empty($ackDate) || !empty($qrCode))
         <table class="compliance-bar">
             <tr>
-                <td style="width: 75%;">
+                <td style="word-wrap: break-word;">
                     @if (!empty($irn))
                         <div class="info-line"><strong>IRN :</strong> {{ $irn }}</div>
                     @endif

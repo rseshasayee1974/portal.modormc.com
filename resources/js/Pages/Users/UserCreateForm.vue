@@ -76,6 +76,12 @@ const addEntity    = () => {
 };
 const removeEntity = (idx: number) => form.value.entity_users.splice(idx, 1);
 const onFileUpload = (event: any) => { form.value.profile_photo = event.files[0]; };
+const photoPreview = ref('');
+watch(() => form.value.profile_photo, (file, _, onCleanup) => {
+    photoPreview.value = file ? URL.createObjectURL(file) : '';
+    const url = photoPreview.value;
+    if (url) onCleanup(() => URL.revokeObjectURL(url));
+});
 
 const handlePlantChange = (assignment: EntityAssignment) => {
     if (assignment.plant_id) {
@@ -191,110 +197,88 @@ const submit = async () => {
 </script>
 
 <template>
-    <BaseCard class="text-sm">
+    <BaseCard bodyClass="space-y-5" class="text-sm">
         <template #header>
-            <div class="flex items-center gap-2">
-                <i class="pi pi-user-plus text-indigo-500" />
-                <span class="text-md font-semibold uppercase  text-gray-800 dark:text-gray-100">
-                    Add New User
+            <div class="flex items-center gap-3">
+                <span class="grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+                    <i class="pi pi-user-plus" aria-hidden="true" />
                 </span>
+                <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Add new user</h2>
             </div>
         </template>
 
-        <div class="grid grid-cols-12 gap-4 py-4">
-            
-
-           
-
-            <!-- Basic Fields -->
-            <div class="col-span-12 md:col-span-3">
-                <BaseInput v-model="form.username" label="Username" :required="true" :error="form.errors.username" />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseInput v-model="form.email" label="Email Address" :required="true" :error="form.errors.email" />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseInput v-model="form.mobile" label="Mobile Number" :error="form.errors.mobile" maxlength="10" />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">Password (Optional)</label>
-                <Password 
-                    v-model="form.password" 
-                    toggleMask 
-                    :feedback="true" 
-                    class="w-full" 
-                    inputClass="w-full text-sm !bg-white"
-                    :class="form.errors.password ? 'p-invalid' : ''"
-                    placeholder="Leave blank to auto-generate & email"
-                />
-                <small v-if="form.errors.password" class="p-error text-[10px]">{{ form.errors.password[0] }}</small>
-            </div>
-          
-            <!-- Toggles -->
-            <div class="col-span-12 md:col-span-2 flex flex-col gap-2">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Is Active</label>
-                <div class="flex items-center gap-2 mt-2">
-                    <ToggleSwitch v-model="form.is_active" />
-                    <!-- <span class="text-sm">Active</span> -->
-                </div>
-            </div>
-            <div class="col-span-12 md:col-span-1 flex flex-col gap-2">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Mobile App / OTP</label>
-                <div class="flex items-center gap-2 mt-2">
-                    <ToggleSwitch v-model="form.is_otp_enabled" :disabled="!page.props.canManageMobileAccess" />
-                    <!-- <span class="text-sm">Mobile App / OTP</span> -->
-                </div>
-            </div>
-            <div v-if="personnelOptions.length" class="col-span-3">
-                <BaseSelect v-model="form.personnel_id" :options="personnelOptions" optionLabel="label" optionValue="value"
-                    label="Existing personnel" placeholder="Select the personnel to create a login account" showClear
-                    :error="form.errors.personnel_id" />
-                <p class="text-xs text-gray-500 mt-1">The selected personnel keeps their existing shift and attendance records.</p>
-            </div>
- <!-- Profile Photo -->
-            <div class="col-span-12 md:col-span-3">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Profile Photo</label>
-                <FileUpload mode="basic" name="create_photo[]" accept="image/*" :maxFileSize="1000000" @select="onFileUpload" auto />
-            </div>
-            <!-- Entity Access Section -->
-            <div class="col-span-12">
-                <div class="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
-                    <div class="flex items-center gap-1.5">
-                        <i class="pi pi-shield text-indigo-500 text-xs"></i>
-                        <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Plant Access Roles</span>
+        <div class="grid items-start gap-5 lg:grid-cols-3">
+            <section class="min-w-0 lg:col-span-2">
+                <h3 class="mb-4 font-semibold text-slate-900 dark:text-white">Account details</h3>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <BaseInput v-model="form.username" label="Username" required :error="form.errors.username" />
+                    <BaseInput v-model="form.email" label="Email address" required :error="form.errors.email" />
+                    <BaseInput v-model="form.mobile" label="Mobile number" :error="form.errors.mobile" maxlength="10" />
+                    <div>
+                        <label for="create-user-password" class="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-200">Password (optional)</label>
+                        <Password v-model="form.password" inputId="create-user-password" toggleMask fluid
+                            autocomplete="new-password" :invalid="!!form.errors.password" />
+                        <small v-if="form.errors.password" class="text-red-600">{{ form.errors.password[0] }}</small>
+                        <p v-else class="mt-1 text-xs text-slate-500 dark:text-slate-400">Leave blank to generate and email a password.</p>
                     </div>
-                    <BaseActionButton label="Add Assignment" icon="pi pi-plus" severity="primary" tooltip="Add Assignment" @click="addEntity" />
-                </div>
-                <div class="flex flex-col gap-3">
-                    <div
-                        v-for="(assignment, idx) in form.entity_users"
-                        :key="idx"
-                        class="grid grid-cols-12 gap-3 items-end p-3 border border-gray-100 dark:border-gray-700 rounded-lg bg-gray-50/50 dark:bg-gray-700/30"
-                    >
-                        <div class="col-span-1 flex items-center justify-center">
-                            <span class="text-xs font-bold text-gray-400">{{ idx + 1 }}</span>
-                        </div>
-                        <div class="col-span-11 md:col-span-5">
-                            <label class="text-[10px] font-bold uppercase text-gray-400">Plant <span class="text-red-500">*</span></label>
-                            <BaseSelect v-model="assignment.plant_id" :options="plants" optionLabel="label" optionValue="value" placeholder="Plant" filter @update:modelValue="handlePlantChange(assignment)" />
-                        </div>
-                        <div class="col-span-11 md:col-span-5">
-                            <label class="text-[10px] font-bold uppercase text-gray-400">Role <span class="text-red-500">*</span></label>
-                            <BaseSelect v-model="assignment.role_id" :options="userGroups" optionLabel="label" optionValue="value" placeholder="Role" filter />
-                        </div>
-                        <div class="col-span-1 flex justify-end">
-                            <BaseActionButton icon="pi pi-times" severity="danger" tooltip="Remove Assignment" @click="removeEntity(idx)" />
-                        </div>
+                    <div v-if="personnelOptions.length" class="min-w-0 sm:col-span-2">
+                        <BaseSelect v-model="form.personnel_id" :options="personnelOptions" optionLabel="label" optionValue="value"
+                            label="Existing personnel" placeholder="Select personnel" :error="form.errors.personnel_id" />
+                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Link a personnel record to keep its shift and attendance history.</p>
                     </div>
-                    <p v-if="form.entity_users.length === 0" class="text-xs text-gray-400 italic">No plant access assigned yet.</p>
                 </div>
-            </div>
+            </section>
 
+            <section class="min-w-0 space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/50">
+                <h3 class="font-semibold text-slate-900 dark:text-white">Profile and sign-in</h3>
+                <div class="flex items-center gap-3">
+                    <div class="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-950">
+                        <img v-if="photoPreview" :src="photoPreview" alt="Selected profile photo" class="h-full w-full object-cover" />
+                        <i v-else class="pi pi-user" aria-hidden="true" />
+                    </div>
+                    <div class="min-w-0">
+                        <FileUpload mode="basic" name="create_photo[]" accept="image/*" :maxFileSize="1000000"
+                            chooseLabel="Choose photo" chooseIcon="pi pi-image" :chooseButtonProps="{ size: 'small', severity: 'secondary', outlined: true }"
+                            customUpload auto @select="onFileUpload" />
+                        <small v-if="form.errors.profile_photo_path" class="text-red-600">{{ form.errors.profile_photo_path[0] }}</small>
+                    </div>
+                </div>
+                <div class="space-y-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+                    <div class="flex items-center justify-between gap-3">
+                        <label for="create-user-active">Active account</label>
+                        <ToggleSwitch inputId="create-user-active" v-model="form.is_active" />
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <label for="create-user-otp">Mobile app / OTP</label>
+                        <ToggleSwitch inputId="create-user-otp" v-model="form.is_otp_enabled" :disabled="!page.props.canManageMobileAccess" />
+                    </div>
+                </div>
+            </section>
         </div>
 
-        <div class="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-700 mt-2">
-            <BaseActionButton  label="Reset" icon="pi pi-refresh" severity="secondary"  @click="reset" />
-            <BaseActionButton label="Save User" icon="pi pi-check" severity="primary" class="!bg-indigo-500 !text-white"  :loading="form.processing" @click="submit" />
+        <section class="border-t border-slate-200 pt-4 dark:border-slate-700">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 class="font-semibold text-slate-900 dark:text-white">Plant access roles</h3>
+                <BaseButton label="Add assignment" icon="pi pi-plus" size="small" severity="secondary" @click="addEntity" />
+            </div>
+            <div class="space-y-2">
+                <div v-for="(assignment, idx) in form.entity_users" :key="idx"
+                    class="grid items-end gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] dark:border-slate-700">
+                    <BaseSelect v-model="assignment.plant_id" :options="plants" optionLabel="label" optionValue="value"
+                        label="Plant" placeholder="Select plant" required :error="form.errors[`entity_users.${idx}.plant_id`]"
+                        @update:modelValue="handlePlantChange(assignment)" />
+                    <BaseSelect v-model="assignment.role_id" :options="userGroups" optionLabel="label" optionValue="value"
+                        label="Role" placeholder="Select role" required :error="form.errors[`entity_users.${idx}.role_id`]" />
+                    <BaseActionButton icon="pi pi-trash" severity="danger" tooltip="Remove assignment" :aria-label="`Remove assignment ${idx + 1}`"
+                        class="justify-self-end" @click="removeEntity(idx)" />
+                </div>
+                <p v-if="!form.entity_users.length" class="text-xs text-slate-500">No plant access assigned yet.</p>
+            </div>
+        </section>
+
+        <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+            <BaseButton label="Reset" severity="secondary" variant="text" :disabled="form.processing" @click="reset" />
+            <BaseButton label="Save user" icon="pi pi-check" variant="filled" :loading="form.processing" @click="submit" />
         </div>
     </BaseCard>
 </template>
