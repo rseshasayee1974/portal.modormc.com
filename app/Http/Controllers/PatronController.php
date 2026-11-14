@@ -78,6 +78,7 @@ class PatronController extends Controller
             $patron = Patron::create($validated);
 
             $hasContactData = !empty($validated['contact_name']) || 
+                              !empty($validated['contact_landline']) ||
                               !empty($validated['contact_email']) || 
                               !empty($validated['contact_mobile']) || 
                               !empty($validated['contact_alt_mobile']);
@@ -90,6 +91,7 @@ class PatronController extends Controller
                     'contact_type_id' => $validated['contact_type_id'] ?? 1,
                     'name' => $validated['contact_name'] ?? null,
                     'email' => $validated['contact_email'] ?? null,
+                    'landline' => $validated['contact_landline'] ?? null,
                     'mobile' => $validated['contact_mobile'] ?? null,
                     'alt_mobile' => $validated['contact_alt_mobile'] ?? null,
                     'is_primary' => $validated['contact_is_primary'] ?? true,
@@ -165,21 +167,23 @@ class PatronController extends Controller
 
             // Handle Contact
             $hasContactData = !empty($validated['contact_name']) || 
+                              !empty($validated['contact_landline']) ||
                               !empty($validated['contact_email']) || 
                               !empty($validated['contact_mobile']) || 
                               !empty($validated['contact_alt_mobile']);
 
             $hasAddressData = $request->anyFilled(['address_line_1', 'address_line_2', 'address_city', 'address_zipcode']);
 
-            if ($hasContactData || $hasAddressData) {
-                $contact = $patron->contacts()->where('is_primary', true)->first() ?? $patron->contacts()->first();
+            $contact = $patron->contacts()->orderByDesc('is_primary')->orderBy('id')->first();
+            if ($hasContactData || $hasAddressData || ($contact && $request->hasAny(['contact_mobile', 'contact_landline', 'contact_email']))) {
                 $contactData = [
                     'plant_id'        => $patron->plant_id,
                     'contact_type_id' => $validated['contact_type_id'] ?? 1,
                     'name' => $validated['contact_name'] ?? null,
                     'email' => $validated['contact_email'] ?? null,
                     'mobile' => $validated['contact_mobile'] ?? null,
-                    'alt_mobile' => $validated['contact_alt_mobile'] ?? null,
+                    'alt_mobile' => array_key_exists('contact_alt_mobile', $validated) ? $validated['contact_alt_mobile'] : $contact?->alt_mobile,
+                    'landline' => array_key_exists('contact_landline', $validated) ? $validated['contact_landline'] : $contact?->landline,
                     'is_primary' => $validated['contact_is_primary'] ?? true,
                     'status' => $validated['contact_status'] ?? true,
                 ];

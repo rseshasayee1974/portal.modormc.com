@@ -85,6 +85,7 @@ const initialPatronForm = () => ({
     sales_executive_id: null as number | null,
     contact_name: '',
     contact_mobile: '',
+    contact_landline: '',
     contact_email: '',
     contact_type_id: null as number | null,
     address_line_1: '',
@@ -157,6 +158,7 @@ const populatePatronForm = (form: any, patron: Patron) => {
 
     form.contact_name = '';
     form.contact_mobile = '';
+    form.contact_landline = '';
     form.contact_email = '';
     form.contact_type_id = null;
     form.address_line_1 = '';
@@ -166,10 +168,11 @@ const populatePatronForm = (form: any, patron: Patron) => {
     form.address_state_id = tamilNaduId.value;
     form.address_type_id = null;
 
-    if (patron.contacts?.[0]) {
-        const contact = patron.contacts[0];
+    const contact = patron.contacts?.find(contact => contact.is_primary) ?? patron.contacts?.[0];
+    if (contact) {
         form.contact_name = contact.name || '';
         form.contact_mobile = contact.mobile || '';
+        form.contact_landline = contact.landline || '';
         form.contact_email = contact.email || '';
         form.contact_type_id = contact.contact_type_id || null;
 

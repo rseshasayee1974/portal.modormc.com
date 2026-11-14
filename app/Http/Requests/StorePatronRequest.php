@@ -104,6 +104,7 @@ class StorePatronRequest extends FormRequest
             // Primary Contact (Optional)
             'contact_name' => 'nullable|string|max:255',
             'contact_email' => 'nullable|email|max:255',
+            'contact_landline' => 'nullable|string|max:45',
             'contact_mobile' => 'nullable|string|regex:/^[0-9]{10}$/',
             'contact_alt_mobile' => 'nullable|string|regex:/^[0-9]{10}$/',
             'contact_type_id' => 'nullable|integer',

@@ -146,6 +146,18 @@ defineProps<{
 
         <!-- ── Section: Contact & Geography ── -->
         <section>
+            <h3 class="mb-4 text-xs font-bold uppercase text-slate-700 dark:text-slate-200">Contact Details</h3>
+            <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+                <BaseInput label="Mobile Number" v-model="form.contact_mobile" type="tel"
+                    :error="form.errors.contact_mobile" />
+                <BaseInput label="Phone (Landline)" v-model="form.contact_landline" type="tel"
+                    :maxlength="45" :error="form.errors.contact_landline" />
+                <BaseInput label="Email" v-model="form.contact_email" type="email"
+                    :error="form.errors.contact_email" />
+            </div>
+        </section>
+
+        <section>
             <div class="flex items-center gap-2 mb-6">
                 <div class="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
                 <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-200">Address Details</h3>
