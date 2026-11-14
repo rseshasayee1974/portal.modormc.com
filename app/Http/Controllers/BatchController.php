@@ -1476,7 +1476,7 @@ class BatchController extends Controller
             }
             $dispatched = in_array((int) $batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED], true)
                 || $batch->dispatches()->whereNotIn('dispatch_status', ['Draft', 'Loading', 'Cancelled'])->exists();
-            abort_if($dispatched && !$this->canDeleteDispatchedBatches(), 403, 'Only SaaS Owner or Super Admin can delete dispatched or completed batches.');
+            abort_if($dispatched && !$this->canDeleteDispatchedBatches(), 403, 'Deleting a dispatched or completed batch requires administrator access in the selected plant.');
             $materials = $batch->materials()->get()->toArray();
             
             $batchingSettings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id ?? session('active_plant_id'), 'batching');
@@ -1514,7 +1514,7 @@ class BatchController extends Controller
 
     private function canDeleteDispatchedBatches(): bool
     {
-        return auth()->user()?->hasFullAccess() ?? false;
+        return auth()->user()?->isContextAdministrator() ?? false;
     }
 
     public function report($batchId)

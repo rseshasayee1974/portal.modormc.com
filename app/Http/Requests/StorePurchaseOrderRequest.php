@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePurchaseOrderRequest extends FormRequest
 {
@@ -25,7 +26,10 @@ class StorePurchaseOrderRequest extends FormRequest
             'vendor_id' => 'required|exists:mm_patrons,id',
             'plant_id' => 'nullable|exists:mm_plants,id',
             'vehicle_id' => 'nullable|exists:mm_machines,id',
-            'po_number' => 'nullable|string|unique:mm_purchase_orders,po_number',
+            'po_number' => ['nullable', 'string',
+                Rule::unique('mm_purchase_orders', 'po_number')
+                    ->where('plant_id', $this->input('plant_id') ?? session('active_plant_id'))
+                    ->withoutTrashed()],
             'prefix' => 'nullable|string',
             'ref_no' => 'nullable|string|max:100',
             'date_order' => 'required|date',

@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Models\PurchaseOrderItem;
+use App\Models\PurchaseOrder;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePurchaseOrderRequest extends FormRequest
 {
@@ -22,21 +23,17 @@ class UpdatePurchaseOrderRequest extends FormRequest
      */
     public function rules(): array
     {
-        $id = $this->purchaseorder instanceof \App\Models\PurchaseOrder 
-            ? $this->purchaseorder->id 
-            : ($this->purchaseorder ?? $this->route('purchaseorder') ?? $this->segment(3));
-            
-        if (is_object($id)) {
-            $id = $id->id;
-        }
+        $order = $this->route('purchaseorder');
+        $id = $order instanceof PurchaseOrder ? $order->getKey() : $order;
+
         return [
-            // 'entity_id' => 'sometimes|exists:mm_entities,id',
-            'plant_id' => 'sometimes|exists:mm_plants,id',
-            'vendor_id' => 'sometimes|exists:mm_patrons,id',
-            'vehicle_id' => 'nullable|exists:mm_machines,id',
+            'plant_id' => ['sometimes', Rule::exists('mm_plants', 'id')->withoutTrashed()],
+            'vendor_id' => ['sometimes', Rule::exists('mm_patrons', 'id')->withoutTrashed()],
+            'vehicle_id' => ['nullable', Rule::exists('mm_machines', 'id')->withoutTrashed()],
             'po_number' => ['sometimes', 'required', 'string', 'max:100',
-                \Illuminate\Validation\Rule::unique('mm_purchase_orders', 'po_number')
-                    ->where('plant_id', session('active_plant_id'))->ignore($id)],
+                Rule::unique('mm_purchase_orders', 'po_number')
+                    ->where('plant_id', $order instanceof PurchaseOrder ? $order->plant_id : session('active_plant_id'))
+                    ->withoutTrashed()->ignore($id)],
             'ref_no' => 'nullable|string|max:100',
             'date_order' => 'sometimes|date',
             'billed_date' => 'nullable|date',
@@ -51,16 +48,16 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'shipping_charges' => 'nullable|numeric',
             'adjustment' => 'nullable|numeric',
             'rounding_value' => 'nullable|numeric',
-            'common_tax_id' => 'nullable|exists:mm_taxes,id',
-            'shipping_tax_id' => 'nullable|exists:mm_taxes,id',
+            'common_tax_id' => ['nullable', Rule::exists('mm_taxes', 'id')->withoutTrashed()],
+            'shipping_tax_id' => ['nullable', Rule::exists('mm_taxes', 'id')->withoutTrashed()],
             'state' => 'sometimes|string',
             'notes' => 'nullable|string',
             'terms_conditions' => 'nullable|string',
             'items' => 'sometimes|array|min:1',
-            'items.*.id' => 'nullable|exists:mm_purchase_order_items,id',
-            'items.*.product_id' => 'required_with:items|exists:mm_products,id',
-            'items.*.product_uom' => 'required_with:items|exists:mm_product_units,id',
-            'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
+            'items.*.id' => ['nullable', Rule::exists('mm_purchase_order_items', 'id')->where('order_id', $id)->withoutTrashed()],
+            'items.*.product_id' => ['required_with:items', Rule::exists('mm_products', 'id')->withoutTrashed()],
+            'items.*.product_uom' => ['required_with:items', Rule::exists('mm_product_units', 'id')->withoutTrashed()],
+            'items.*.tax_id' => ['nullable', Rule::exists('mm_taxes', 'id')->withoutTrashed()],
             'items.*.product_quantity' => 'required_with:items|numeric|gt:0',
             'items.*.unit_price' => 'required_with:items|numeric|min:0',
             'items.*.discount_type' => 'nullable|string|in:%,₹',
@@ -68,45 +65,6 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'items.*.total_discount' => 'nullable|numeric|min:0',
             'items.*.description' => 'nullable|string',
         ];
-    }
-
-    /**
-     * Configure the validator instance.
-     */
-    public function withValidator($validator)
-    {
-        $validator->after(function ($validator) {
-            $items = $this->input('items', []);
-            $id = $this->purchaseorder instanceof \App\Models\PurchaseOrder 
-                ? $this->purchaseorder->id 
-                : ($this->purchaseorder ?? $this->route('purchaseorder') ?? $this->segment(3));
-                
-            if (is_object($id)) {
-                $id = $id->id;
-            }
-            
-            $purchaseOrderId = $id;
-
-            foreach ($items as $index => $itemData) {
-                if (!isset($itemData['id'])) {
-                    continue;
-                }
-
-                $item = PurchaseOrderItem::find($itemData['id']);
-                if (!$item) {
-                    continue;
-                }
-
-                if ($purchaseOrderId && (int) $item->order_id !== (int) $purchaseOrderId) {
-                    $validator->errors()->add(
-                        "items.{$index}.id",
-                        'This item does not belong to the selected purchase order.'
-                    );
-                    continue;
-                }
-
-            }
-        });
     }
 
     protected function prepareForValidation()

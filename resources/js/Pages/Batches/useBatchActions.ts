@@ -11,14 +11,14 @@ import Swal from 'sweetalert2';
  *  - statusSeverity : Map a status code to a PrimeVue Tag severity string
  *  - statusLabel    : Resolve a status code to its human-readable label
  */
-export function useBatchActions(props: { statuses: { label: string; value: number }[]; canDeleteDispatchedBatches?: boolean }) {
+export function useBatchActions(props: { statuses: { label: string; value: number }[]; canDeleteDispatchedBatches?: boolean }, hasDeletePermission: () => boolean) {
 
     const isCancelled = (row: any) => Number(row.status) === 5
         || row.dispatches?.some((dispatch: any) => dispatch.dispatch_status === 'Cancelled');
     const isDispatched = (row: any) => [3, 4].includes(Number(row.status))
         || row.dispatches?.some((dispatch: any) => dispatch.dispatch_status
             && !['Draft', 'Loading', 'Cancelled'].includes(dispatch.dispatch_status));
-    const canDeleteBatch = (row: any) => !isCancelled(row)
+    const canDeleteBatch = (row: any) => !!row && hasDeletePermission() && !isCancelled(row)
         && (!isDispatched(row) || props.canDeleteDispatchedBatches === true);
 
     // ── Delete Batch ─────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ export function useBatchActions(props: { statuses: { label: string; value: numbe
             Swal.fire({
                 icon: 'error',
                 title: 'Cannot Delete',
-                text: isCancelled(row) ? 'Cancelled batches cannot be deleted.' : 'Only SaaS Owner can delete dispatched or completed batches.',
+                text: row && isCancelled(row) ? 'Cancelled batches cannot be deleted.' : 'You do not have permission to delete this batch.',
             });
             return;
         }

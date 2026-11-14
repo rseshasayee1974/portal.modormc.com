@@ -121,7 +121,7 @@ const filters = ref({
     "sales_order.customer.id": { value: null, matchMode: "equals" },
 });
 
-const { isAdmin, isSuperAdmin, can } = usePermissions();
+const { can } = usePermissions();
 
 // console.log('props.drivers',props);
 
@@ -551,7 +551,7 @@ const {
     retrySync,
     statusSeverity,
     statusLabel,
-} = useBatchActions(props);
+} = useBatchActions(props, () => can('BATCH.DELETE') || can('BATCHES.DELETE'));
 
 const refreshBatchRow = async (id: number) => {
     // console.log(`[Index.vue] refreshBatchRow called for batchId: ${id}`);
@@ -1895,11 +1895,7 @@ console.log(
                                             </div>
 
                                             <div v-if="
-                                                canDeleteBatch(
-                                                    slotProps.data,
-                                                ) &&
-                                                (canDeleteDispatchedBatches ||
-                                                    can('BATCH.DELETE'))
+                                                canDeleteBatch(slotProps.data)
                                             " class="py-1 text-left">
                                                 <button
                                                     class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
@@ -2510,10 +2506,7 @@ console.log(
                     </div>
 
                     <!-- Group 4: Delete Batch -->
-                    <div v-if="isAdmin || isSuperAdmin
-                        canDeleteBatch(activeBatch) &&
-                            (canDeleteDispatchedBatches || can('BATCH.DELETE'))
-                    " class="py-1">
+                    <div v-if="canDeleteBatch(activeBatch)" class="py-1">
                         <button
                             class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
                             @click="
