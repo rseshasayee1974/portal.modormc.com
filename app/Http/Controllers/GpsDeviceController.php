@@ -27,7 +27,9 @@ class GpsDeviceController extends Controller
         $devices = GpsDevice::with(['machine', 'latestPosition'])
             ->where('plant_id', $activePlantId)
             ->latest()
-            ->get();
+            ->get()->each(function (GpsDevice $device) {
+                $device->setAttribute('has_gpstrack_token', filled($device->getRawOriginal('gpstrack_token')));
+            });
 
         // Find machines in this plant that do not have a GPS device assigned (except during edits)
         $assignedMachineIds = GpsDevice::where('plant_id', $activePlantId)
@@ -44,8 +46,8 @@ class GpsDeviceController extends Controller
             'availableMachines' => $availableMachines,
             'deviceModels' => ['TK103', 'Coban GPS103', 'Teltonika FMB920', 'GT06', 'SinoTrack ST-901', 'Other'],
             'statuses' => [
-                ['label' => 'Active', 'value' => 1],
-                ['label' => 'Inactive', 'value' => 0]
+                ['label' => 'Active', 'value' => true],
+                ['label' => 'Inactive', 'value' => false]
             ]
         ]);
     }
@@ -56,13 +58,16 @@ class GpsDeviceController extends Controller
     public function store(Request $request)
     {
         $this->authorizeModule('create');
+        abort_unless(session('active_plant_id'), 403);
 
         $validated = $request->validate([
             'imei' => 'required|string|max:50|unique:mm_gps_devices,imei,NULL,id,deleted_at,NULL',
             'device_model' => 'required|string|max:100',
             'sim_number' => 'nullable|string|max:50',
             'phone_number' => 'nullable|string|max:50',
-            'machine_id' => 'nullable|exists:mm_machines,id',
+            'machine_id' => ['nullable', \Illuminate\Validation\Rule::exists('mm_machines', 'id')->where('plant_id', session('active_plant_id'))->withoutTrashed()],
+            'gpstrack_email' => 'nullable|required_with:gpstrack_token|email|max:255',
+            'gpstrack_token' => 'nullable|required_with:gpstrack_email|string|max:2048',
             'is_active' => 'required|boolean',
             'notes' => 'nullable|string',
         ]);
@@ -73,15 +78,16 @@ class GpsDeviceController extends Controller
             $userId = auth()->id();
 
             // Verify if machine is already assigned in this plant
-            if ($validated['machine_id']) {
+            if (!empty($validated['machine_id'])) {
                 $alreadyAssigned = GpsDevice::where('plant_id', $activePlantId)
                     ->where('machine_id', $validated['machine_id'])
                     ->exists();
 
                 if ($alreadyAssigned) {
+                    DB::rollBack();
                     return redirect()->back()->withErrors([
                         'machine_id' => 'This vehicle already has a GPS device assigned.'
-                    ])->withInput();
+                    ])->withInput($request->except('gpstrack_token'));
                 }
             }
 
@@ -92,6 +98,8 @@ class GpsDeviceController extends Controller
                 'device_model' => $validated['device_model'],
                 'sim_number' => $validated['sim_number'],
                 'phone_number' => $validated['phone_number'],
+                'gpstrack_email' => $validated['gpstrack_email'] ?? null,
+                'gpstrack_token' => $validated['gpstrack_token'] ?? null,
                 'is_active' => $validated['is_active'],
                 'notes' => $validated['notes'],
                 'created_by' => $userId
@@ -112,13 +120,19 @@ class GpsDeviceController extends Controller
     public function update(Request $request, GpsDevice $gpsDevice)
     {
         $this->authorizeModule('edit');
+        abort_unless(session('active_plant_id') && (int) $gpsDevice->plant_id === (int) session('active_plant_id'), 403);
 
         $validated = $request->validate([
             'imei' => 'required|string|max:50|unique:mm_gps_devices,imei,' . $gpsDevice->id . ',id,deleted_at,NULL',
             'device_model' => 'required|string|max:100',
             'sim_number' => 'nullable|string|max:50',
             'phone_number' => 'nullable|string|max:50',
-            'machine_id' => 'nullable|exists:mm_machines,id',
+            'machine_id' => ['nullable', \Illuminate\Validation\Rule::exists('mm_machines', 'id')->where('plant_id', session('active_plant_id'))->withoutTrashed()],
+            'gpstrack_email' => 'nullable|required_with:gpstrack_token|email|max:255',
+            'gpstrack_token' => ['nullable', \Illuminate\Validation\Rule::requiredIf(
+                $request->filled('gpstrack_email') && ($request->input('gpstrack_email') !== $gpsDevice->gpstrack_email
+                    || blank($gpsDevice->getRawOriginal('gpstrack_token')))
+            ), 'string', 'max:2048'],
             'is_active' => 'required|boolean',
             'notes' => 'nullable|string',
         ]);
@@ -129,25 +143,34 @@ class GpsDeviceController extends Controller
             $userId = auth()->id();
 
             // Verify if machine is already assigned to a DIFFERENT device
-            if ($validated['machine_id']) {
+            if (!empty($validated['machine_id'])) {
                 $alreadyAssigned = GpsDevice::where('plant_id', $activePlantId)
                     ->where('machine_id', $validated['machine_id'])
                     ->where('id', '!=', $gpsDevice->id)
                     ->exists();
 
                 if ($alreadyAssigned) {
+                    DB::rollBack();
                     return redirect()->back()->withErrors([
                         'machine_id' => 'This vehicle already has a GPS device assigned.'
-                    ])->withInput();
+                    ])->withInput($request->except('gpstrack_token'));
                 }
             }
 
+            $credentials = [];
+            if (array_key_exists('gpstrack_email', $validated)) {
+                $credentials['gpstrack_email'] = $validated['gpstrack_email'];
+                if (!$validated['gpstrack_email'] || $request->filled('gpstrack_token')) {
+                    $credentials['gpstrack_token'] = $validated['gpstrack_token'] ?? null;
+                }
+            }
             $gpsDevice->update([
                 'machine_id' => $validated['machine_id'],
                 'imei' => $validated['imei'],
                 'device_model' => $validated['device_model'],
                 'sim_number' => $validated['sim_number'],
                 'phone_number' => $validated['phone_number'],
+                ...$credentials,
                 'is_active' => $validated['is_active'],
                 'notes' => $validated['notes'],
                 'updated_by' => $userId

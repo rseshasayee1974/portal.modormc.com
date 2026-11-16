@@ -13,6 +13,8 @@ class GpsDevice extends Model
         use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_gps_devices';
+    protected $hidden = ['gpstrack_token'];
+    protected $auditIgnore = ['gpstrack_token'];
 
     protected $fillable = [
         'plant_id',
@@ -21,6 +23,8 @@ class GpsDevice extends Model
         'device_model',
         'sim_number',
         'phone_number',
+        'gpstrack_email',
+        'gpstrack_token',
         'is_active',
         'last_activity',
         'notes',
@@ -29,6 +33,7 @@ class GpsDevice extends Model
     ];
 
     protected $casts = [
+        'gpstrack_token' => 'encrypted',
         'is_active' => 'boolean',
         'last_activity' => 'datetime',
     ];

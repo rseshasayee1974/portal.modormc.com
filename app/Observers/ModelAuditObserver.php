@@ -76,7 +76,7 @@ class ModelAuditObserver
                 'action_type'      => 'DELETE',
                 'reference_type'   => class_basename($model),
                 'reference_id'     => $model->getKey(),
-                'log_from'         => json_encode($model->getOriginal(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                'log_from'         => json_encode(\Illuminate\Support\Arr::except($model->getOriginal(), $model->getHidden()), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 // A deleted record has no after-state. Store an empty object in the required column.
                 'log_to'           => '{}',
                 'user_id'          => Auth::id(),

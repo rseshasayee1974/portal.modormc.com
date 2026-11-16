@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { entityLocaleDate, entityInstant } from '@/Utils/entityDateTime';
-usePage;
 import { ref, computed, watch } from 'vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { useForm, usePage, usePoll } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import Swal2 from 'sweetalert2';
@@ -38,6 +37,8 @@ interface GpsDevice {
     device_model: string;
     sim_number: string | null;
     phone_number: string | null;
+    gpstrack_email: string | null;
+    has_gpstrack_token: boolean;
     is_active: boolean;
     last_activity: string | null;
     notes: string | null;
@@ -48,10 +49,11 @@ const props = defineProps<{
     devices: GpsDevice[];
     availableMachines: Machine[];
     deviceModels: string[];
-    statuses: { label: string; value: number }[];
+    statuses: { label: string; value: boolean }[];
 }>();
 
 const page = usePage();
+usePoll(30000, { only: ['devices'] });
 const showCreateForm = ref(false);
 const editingId = ref<number | null>(null);
 const expandedRows = ref<Record<number, boolean>>({});
@@ -81,6 +83,8 @@ const getInitialForm = () => ({
     device_model: 'TK103',
     sim_number: '',
     phone_number: '',
+    gpstrack_email: '',
+    gpstrack_token: '',
     machine_id: null as number | null,
     is_active: true,
     notes: ''
@@ -107,6 +111,8 @@ watch(expandedRows, (newVal) => {
             editForm.device_model = device.device_model;
             editForm.sim_number = device.sim_number || '';
             editForm.phone_number = device.phone_number || '';
+            editForm.gpstrack_email = device.gpstrack_email || '';
+            editForm.gpstrack_token = '';
             editForm.machine_id = device.machine_id;
             editForm.is_active = device.is_active;
             editForm.notes = device.notes || '';
@@ -178,7 +184,7 @@ const formatLastSeen = (timestamp: string | null) => {
     const diffMs = new Date().getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     
-    if (diffMins < 2) return 'Online';
+    if (diffMins < 10) return 'Online';
     if (diffMins < 60) return `${diffMins}m ago`;
     
     const diffHrs = Math.floor(diffMins / 60);
@@ -241,9 +247,14 @@ watch(() => page.props.flash, (flash: any) => {
                                 <div class="col-span-6 md:col-span-4 field-group">
                                     <BaseInput v-model="createForm.phone_number" label="SIM Phone Number" placeholder="Enter SIM Mobile No" :error="createForm.errors.phone_number" />
                                 </div>
+                                <div class="col-span-12 md:col-span-4">
+                                    <BaseInput v-model="createForm.gpstrack_email" label="GPSTrack Email" type="email" :error="createForm.errors.gpstrack_email" />
+                                </div>
+                                <div class="col-span-12 md:col-span-4">
+                                    <BaseInput v-model="createForm.gpstrack_token" label="GPSTrack Token" type="password" autocomplete="new-password" :error="createForm.errors.gpstrack_token" />
+                                </div>
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Status *</label>
-                                    <BaseSelect v-model="createForm.is_active" :options="statuses" optionLabel="label" optionValue="value" :error="createForm.errors.is_active" />
+                                    <BaseSelect v-model="createForm.is_active" label="Status" required :filter="false" :options="statuses" optionLabel="label" optionValue="value" :error="createForm.errors.is_active" />
                                 </div>
 
                                 <div class="col-span-12 field-group">
@@ -391,9 +402,16 @@ watch(() => page.props.flash, (flash: any) => {
                                             <div class="col-span-6 md:col-span-4 field-group">
                                                 <BaseInput v-model="editForm.phone_number" label="SIM Phone Number" placeholder="Enter SIM Mobile No" :error="editForm.errors.phone_number" />
                                             </div>
+                                <div class="col-span-12 md:col-span-4">
+                                    <BaseInput v-model="editForm.gpstrack_email" label="GPSTrack Email" type="email" :error="editForm.errors.gpstrack_email" />
+                                </div>
+                                <div class="col-span-12 md:col-span-4">
+                                    <BaseInput v-model="editForm.gpstrack_token" label="GPSTrack Token" type="password" autocomplete="new-password"
+                                        :hint="slotProps.data.has_gpstrack_token ? 'Token saved. Enter a new token to replace it.' : 'No token saved.'"
+                                        :error="editForm.errors.gpstrack_token" />
+                                </div>
                                             <div class="col-span-12 md:col-span-4 field-group">
-                                                <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Status *</label>
-                                                <BaseSelect v-model="editForm.is_active" :options="statuses" optionLabel="label" optionValue="value" :error="editForm.errors.is_active" />
+                                                <BaseSelect v-model="editForm.is_active" label="Status" required :filter="false" :options="statuses" optionLabel="label" optionValue="value" :error="editForm.errors.is_active" />
                                             </div>
 
                                             <div class="col-span-12 field-group">
