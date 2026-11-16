@@ -26,6 +26,11 @@ Route::prefix('v1')->withoutMiddleware(TitleCaseInputs::class)->group(function (
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1,sales-mobile-login');
     Route::post('auth/send-otp', [AuthController::class, 'sendOtp'])->middleware('throttle:5,1,sales-mobile-send-otp');
     Route::post('auth/verify-otp', [AuthController::class, 'verify'])->middleware('throttle:10,1,sales-mobile-otp');
+    // Aliases without auth/ prefix
+    Route::match(['get', 'post'], 'route', [AuthController::class, 'routeEmail']);
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1,sales-mobile-login');
+    Route::post('send-otp', [AuthController::class, 'sendOtp'])->middleware('throttle:5,1,sales-mobile-send-otp');
+    Route::post('verify-otp', [AuthController::class, 'verify'])->middleware('throttle:10,1,sales-mobile-otp');
     Route::middleware(['auth:sanctum', MobileDeviceToken::class, 'throttle:120,1,sales-mobile-device'])->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::get('plants', [AuthController::class, 'plants']);

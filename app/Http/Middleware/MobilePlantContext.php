@@ -17,7 +17,16 @@ class MobilePlantContext
 {
     protected function authorizeToken(Request $request): void
     {
-        abort_unless($request->user()->currentAccessToken() && $request->user()->tokenCan('sales-mobile'), 403, 'Use a sales mobile device token.');
+        $user = $request->user();
+        if ($user && ($user->isSystemAdmin() || $user->hasFullAccess())) {
+            return;
+        }
+        $token = $request->user()->currentAccessToken();
+        abort_unless(
+            $token && ($token->can('sales-mobile') || in_array('sales-mobile', $token->abilities ?? [], true)),
+            403,
+            'Use a sales mobile device token.'
+        );
     }
 
     public function handle(Request $request, Closure $next)
@@ -26,7 +35,14 @@ class MobilePlantContext
         abort_unless($user && $user->is_active, 403, 'Your account is inactive.');
         abort_if($user->lockout_until && $user->lockout_until->isFuture(), 403, 'Your account is locked. Try again after the lockout expires.');
         $this->authorizeToken($request);
-        $data = validator(['plant_id' => $request->header('X-Plant-Id')], ['plant_id' => 'required|integer|min:1'])->validate();
+
+        $isAdmin = $user->isSystemAdmin() || $user->hasFullAccess();
+        $plantIdHeader = $request->header('X-Plant-Id');
+        if (!$plantIdHeader && $isAdmin) {
+            $plantIdHeader = MobileAccess::plants($user)->first()?->id;
+        }
+
+        $data = validator(['plant_id' => $plantIdHeader], ['plant_id' => 'required|integer|min:1'])->validate();
         $plant = MobileAccess::plants($user)->find($data['plant_id']);
         abort_unless($plant, 403, 'No access to this active plant.');
         $request->attributes->set('mobile_system_admin', $user->isSystemAdmin());
