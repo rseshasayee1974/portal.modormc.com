@@ -34,7 +34,12 @@ class GpsTelemetryController extends Controller
         $imei = $validated['imei'];
         
         // Find the device
-        $device = GpsDevice::query()->where('imei', $imei)->where('is_active', true)->first();
+        $devices = GpsDevice::query()->where('imei', $imei)->where('is_active', true);
+        if ($request->attributes->has('gps_provider_device_id')) {
+            $devices->whereKey($request->attributes->get('gps_provider_device_id'))
+                ->where('plant_id', $request->attributes->get('gps_provider_plant_id'))->whereNotNull('machine_id');
+        }
+        $device = (clone $devices)->first();
         if (!$device) {
             return response()->json([
                 'success' => false,
@@ -42,9 +47,9 @@ class GpsTelemetryController extends Controller
             ], 404);
         }
 
-        $machineId = $device->machine_id;
-        $plantId = $device->plant_id;
-        $recordedAt = $validated['recorded_at'] ? date('Y-m-d H:i:s', strtotime($validated['recorded_at'])) : now()->toDateTimeString();
+        $providerTime = $request->attributes->get('gps_provider_received_at');
+        $receivedAt = $providerTime ?? now();
+        $recordedAt = isset($validated['recorded_at']) ? date('Y-m-d H:i:s', strtotime($validated['recorded_at'])) : $receivedAt->toDateTimeString();
         $latitude = $validated['latitude'];
         $longitude = $validated['longitude'];
         $speed = $validated['speed'] ?? 0.00;
@@ -55,8 +60,18 @@ class GpsTelemetryController extends Controller
 
         DB::beginTransaction();
         try {
+            $device = $devices->whereKey($device->id)->lockForUpdate()->firstOrFail();
+            $machineId = $device->machine_id;
+            $plantId = $device->plant_id;
+            if ($providerTime && $device->latestPosition()->where('recorded_at', '>=', $recordedAt)->exists()) {
+                if (!$device->last_activity || $receivedAt->gt($device->last_activity)) {
+                    $device->update(['last_activity' => $receivedAt]);
+                }
+                DB::commit();
+                return response()->json(['success' => true, 'skipped' => true]);
+            }
             // Update device heartbeat/activity
-            $device->update(['last_activity' => now()]);
+            $device->update(['last_activity' => $receivedAt]);
 
             // Save historical coordinates log
             GpsPosition::create([
@@ -115,8 +130,8 @@ class GpsTelemetryController extends Controller
                             'vehicle_model' => $machine->vehicle_model,
                             'vehicle_type' => $machine->vehicle_type,
                             'imei' => $imei,
-                            'is_online' => true,
-                            'last_ping' => $recordedAt,
+                            'is_online' => $receivedAt->gt(now()->subMinutes(10)),
+                            'last_ping' => $receivedAt->toIso8601String(),
                             'latitude' => floatval($latitude),
                             'longitude' => floatval($longitude),
                             'speed' => floatval($speed),
