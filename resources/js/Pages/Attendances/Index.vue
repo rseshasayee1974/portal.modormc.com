@@ -294,6 +294,42 @@ const markAllAbsent = () => {
     });
 };
 
+const syncTimeToDate = (timeVal: any, baseDateVal: any, referenceIn: any = null): Date | null => {
+    if (!timeVal) return null;
+    let base: Date | null = null;
+    if (baseDateVal instanceof Date && !Number.isNaN(baseDateVal.getTime())) {
+        base = new Date(baseDateVal.getTime());
+    } else if (typeof baseDateVal === 'string') {
+        base = entityCalendarDate(baseDateVal);
+    }
+    if (!base || Number.isNaN(base.getTime())) {
+        base = new Date();
+    }
+
+    let h = 0, m = 0, s = 0;
+    if (timeVal instanceof Date && !Number.isNaN(timeVal.getTime())) {
+        h = timeVal.getHours();
+        m = timeVal.getMinutes();
+        s = timeVal.getSeconds();
+    } else if (typeof timeVal === 'string') {
+        const timeMatch = timeVal.match(/(\d{2}):(\d{2})(?::(\d{2}))?/);
+        if (timeMatch) {
+            h = Number(timeMatch[1]);
+            m = Number(timeMatch[2]);
+            s = Number(timeMatch[3] || 0);
+        }
+    }
+
+    const res = new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m, s, 0);
+    if (referenceIn) {
+        const inDate = referenceIn instanceof Date ? referenceIn : (typeof referenceIn === 'string' ? entityCalendarDate(referenceIn) : null);
+        if (inDate && res.getTime() < inDate.getTime()) {
+            res.setDate(res.getDate() + 1);
+        }
+    }
+    return res;
+};
+
 // Single Edit Form handling
 const singleForm = useForm({
     personnel_id: null as number | null,
@@ -319,14 +355,15 @@ const editAttendance = (att: Attendance) => {
     }
 
     editingId.value = att.id;
+    const baseDate = att.attendance_date ? entityCalendarDate(att.attendance_date) : entityCalendarDate();
     singleForm.personnel_id = att.personnel_id;
     singleForm.shift_id = att.shift_id;
-    singleForm.attendance_date = att.attendance_date ? entityCalendarDate(att.attendance_date) : entityCalendarDate();
-    singleForm.check_in = att.check_in ? entityCalendarDate(att.check_in) : null;
-    singleForm.check_out = att.check_out ? entityCalendarDate(att.check_out) : null;
+    singleForm.attendance_date = baseDate;
+    singleForm.check_in = att.check_in ? syncTimeToDate(att.check_in, baseDate) : null;
+    singleForm.check_out = att.check_out ? syncTimeToDate(att.check_out, baseDate, singleForm.check_in) : null;
     singleForm.worked_hours = Number(att.worked_hours);
     singleForm.overtime_hours = Number(att.overtime_hours);
-    singleForm.late_hours = Number(att.late_hours);
+    singleForm.late_hours = Math.min(24, Math.max(0, Number(att.late_hours || 0)));
     singleForm.status = att.status;
     singleForm.is_late = !!att.is_late;
     singleForm.is_early_departure = !!att.is_early_departure;
@@ -335,6 +372,16 @@ const editAttendance = (att: Attendance) => {
 
     expandedRows.value = { [att.id]: true };
 };
+
+watch(() => singleForm.attendance_date, (newDate) => {
+    if (!newDate) return;
+    if (singleForm.check_in) {
+        singleForm.check_in = syncTimeToDate(singleForm.check_in, newDate);
+    }
+    if (singleForm.check_out) {
+        singleForm.check_out = syncTimeToDate(singleForm.check_out, newDate, singleForm.check_in);
+    }
+});
 
 const resetSingleEdit = () => {
     editingId.value = null;
@@ -345,23 +392,35 @@ const resetSingleEdit = () => {
 
 const updateSingleAttendance = () => {
     if (!editingId.value) return;
-    singleForm.transform(data => ({ ...data,
-        attendance_date: calendarDateString(data.attendance_date),
-        check_in: data.check_in ? calendarDateTimeString(data.check_in) : null,
-        check_out: data.check_out ? calendarDateTimeString(data.check_out) : null,
-    })).put(route('attendances.update', editingId.value), {
+    singleForm.transform(data => {
+        const attDateStr = calendarDateString(data.attendance_date);
+        const checkInDate = data.check_in ? syncTimeToDate(data.check_in, data.attendance_date) : null;
+        const checkOutDate = data.check_out ? syncTimeToDate(data.check_out, data.attendance_date, checkInDate) : null;
+        return {
+            ...data,
+            attendance_date: attDateStr,
+            check_in: checkInDate ? calendarDateTimeString(checkInDate) : null,
+            check_out: checkOutDate ? calendarDateTimeString(checkOutDate) : null,
+            late_hours: Math.min(24, Math.max(0, Number(data.late_hours || 0))),
+            worked_hours: Math.min(24, Math.max(0, Number(data.worked_hours || 0))),
+            overtime_hours: Math.min(24, Math.max(0, Number(data.overtime_hours || 0))),
+        };
+    }).put(route('attendances.update', editingId.value), {
         onSuccess: () => resetSingleEdit(),
     });
 };
 
 const submitDepartmentAttendance = () => {
+    const attDate = attendanceDate.value;
     const listToSubmit = filteredPersonnel.value.map(p => {
         const row = employeeRows.value[p.id];
+        const checkInDate = row?.status !== 'absent' && row?.check_in ? syncTimeToDate(row.check_in, attDate) : null;
+        const checkOutDate = row?.status !== 'absent' && row?.check_out ? syncTimeToDate(row.check_out, attDate, checkInDate) : null;
         return {
             personnel_id: p.id,
             status: row?.status || 'present',
-            check_in: row?.status !== 'absent' && row?.check_in ? calendarDateTimeString(row.check_in) : null,
-            check_out: row?.status !== 'absent' && row?.check_out ? calendarDateTimeString(row.check_out) : null,
+            check_in: checkInDate ? calendarDateTimeString(checkInDate) : null,
+            check_out: checkOutDate ? calendarDateTimeString(checkOutDate) : null,
             worked_hours: row?.worked_hours || 0,
             overtime_hours: row?.overtime_hours || 0,
             late_hours: row?.late_hours || 0,
@@ -603,6 +662,7 @@ watch(
                                             <td class="py-2 px-3">
                                                 <BaseDatePicker v-if="employeeRows[p.id]"
                                                     v-model="employeeRows[p.id].check_in" showTime timeOnly
+                                                    :baseDate="attendanceDate" :autoFillOnSubmit="false"
                                                     hourFormat="12" :showIcon="false" placeholder="Check In"
                                                     class="w-full text-xs"
                                                     :disabled="employeeRows[p.id].status === 'absent'"
@@ -613,6 +673,7 @@ watch(
                                             <td class="py-2 px-3">
                                                 <BaseDatePicker v-if="employeeRows[p.id]"
                                                     v-model="employeeRows[p.id].check_out" showTime timeOnly
+                                                    :baseDate="attendanceDate" :autoFillOnSubmit="false"
                                                     hourFormat="12" :showIcon="false" placeholder="Check Out"
                                                     class="w-full text-xs"
                                                     :disabled="employeeRows[p.id].status === 'absent'"
@@ -802,6 +863,7 @@ watch(
                                                 class="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400">Check
                                                 In Time</label>
                                             <BaseDatePicker v-model="singleForm.check_in" showTime timeOnly
+                                                :baseDate="singleForm.attendance_date" :autoFillOnSubmit="false"
                                                 hourFormat="12" :showIcon="false" placeholder="Select Check In"
                                                 class="w-full text-xs" :disabled="singleForm.status === 'absent'" />
                                             <small v-if="singleForm.errors.check_in" class="p-error text-[10px]">{{
@@ -813,6 +875,7 @@ watch(
                                                 class="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400">Check
                                                 Out Time</label>
                                             <BaseDatePicker v-model="singleForm.check_out" showTime timeOnly
+                                                :baseDate="singleForm.attendance_date" :autoFillOnSubmit="false"
                                                 hourFormat="12" :showIcon="false" placeholder="Select Check Out"
                                                 class="w-full text-xs" :disabled="singleForm.status === 'absent'" />
                                             <small v-if="singleForm.errors.check_out" class="p-error text-[10px]">{{
