@@ -29,6 +29,7 @@ const props = withDefaults(
         hourFormat?: '12' | '24';
         showSeconds?: boolean;
         autoFillOnSubmit?: boolean;
+        baseDate?: any;
     }>(),
     {
         required: false,
@@ -42,6 +43,7 @@ const props = withDefaults(
         hourFormat: '24',
         showSeconds: false,
         autoFillOnSubmit: true,
+        baseDate: undefined,
     }
 );
 
@@ -54,13 +56,37 @@ const baseFieldRef = ref<any>(null);
 const attrs = useAttrs();
 const datePickerAttrs = () => Object.fromEntries(Object.entries(attrs).filter(([key]) => key !== 'class'));
 
+const resolveBaseDate = (base: any): { year: number; month: number; date: number } | null => {
+    if (!base) return null;
+    if (base instanceof Date && !Number.isNaN(base.getTime())) {
+        return { year: base.getFullYear(), month: base.getMonth(), date: base.getDate() };
+    }
+    if (typeof base === 'string') {
+        const d = entityCalendarDate(base);
+        if (d && !Number.isNaN(d.getTime())) {
+            return { year: d.getFullYear(), month: d.getMonth(), date: d.getDate() };
+        }
+    }
+    return null;
+};
+
+const applyBaseDate = (target: Date): Date => {
+    const base = resolveBaseDate(props.baseDate);
+    if (base) {
+        target.setFullYear(base.year, base.month, base.date);
+    }
+    return target;
+};
+
 onMounted(() => {
     const el = baseFieldRef.value?.$el;
     const form = el?.closest('form');
     if (form) {
         form.addEventListener('submit', () => {
             if (props.autoFillOnSubmit && (props.modelValue === null || props.modelValue === undefined || props.modelValue === '')) {
-                emit('update:modelValue', props.showTime ? entityDateTime() : entityToday());
+                const now = new Date();
+                if (props.baseDate) applyBaseDate(now);
+                emit('update:modelValue', props.showTime ? formatDateTime(now) : formatDate(now));
             }
         }, { capture: true });
     }
@@ -78,9 +104,12 @@ const internalValue = computed({
     get() {
         const parseValue = (val: any): any => {
             if (!val) return null;
-            if (val instanceof Date) return val;
+            if (val instanceof Date) {
+                return props.baseDate ? applyBaseDate(new Date(val.getTime())) : val;
+            }
             if (typeof val === 'string') {
-                return entityCalendarDate(val);
+                const parsed = entityCalendarDate(val);
+                return (parsed && props.baseDate) ? applyBaseDate(parsed) : parsed;
             }
             if (Array.isArray(val)) return val.map(parseValue);
             return val;
@@ -90,9 +119,16 @@ const internalValue = computed({
     set(val) {
         if (props.showTime) {
             if (val instanceof Date) {
+                if (props.baseDate) applyBaseDate(val);
                 emit('update:modelValue', formatDateTime(val));
             } else if (Array.isArray(val)) {
-                const formatted = val.map(v => (v instanceof Date ? formatDateTime(v) : v));
+                const formatted = val.map(v => {
+                    if (v instanceof Date) {
+                        if (props.baseDate) applyBaseDate(v);
+                        return formatDateTime(v);
+                    }
+                    return v;
+                });
                 emit('update:modelValue', formatted);
             } else {
                 emit('update:modelValue', val);

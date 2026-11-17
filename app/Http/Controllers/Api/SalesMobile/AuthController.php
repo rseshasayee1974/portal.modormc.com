@@ -40,7 +40,8 @@ class AuthController extends Controller
         $user = User::where('email', strtolower($data['email']))->first();
         abort_unless($user && Hash::check($data['password'], $user->password), 401, 'Invalid email or password.');
         abort_unless($user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()), 403, 'Account inactive or locked.');
-        abort_unless($user->is_otp_enabled, 403, 'Mobile app access has not been granted or has been removed. Contact your administrator.');
+        $isAdmin = $user->isSystemAdmin() || $user->hasFullAccess();
+        abort_unless($isAdmin || $user->is_otp_enabled, 403, 'Mobile app access has not been granted or has been removed. Contact your administrator.');
         return $this->issue($user);
     }
 
@@ -176,7 +177,8 @@ class AuthController extends Controller
         return DB::transaction(function () use ($user, $revision) {
             $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
             abort_unless($user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()), 403, 'Account inactive or locked.');
-            abort_unless($user->is_otp_enabled && (int)$user->mobile_access_revision === $revision, 403, 'Mobile app access changed. Sign in again.');
+            $isAdmin = $user->isSystemAdmin() || $user->hasFullAccess();
+            abort_unless($isAdmin || ($user->is_otp_enabled && (int)$user->mobile_access_revision === $revision), 403, 'Mobile app access changed. Sign in again.');
             $expires = now()->addDays(30);
             $token = $user->createToken('sales-mobile:app', ['sales-mobile'], $expires);
             $user->forceFill(['last_login' => now()])->save();

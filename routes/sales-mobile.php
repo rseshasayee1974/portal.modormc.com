@@ -26,6 +26,11 @@ Route::prefix('v1')->withoutMiddleware(TitleCaseInputs::class)->group(function (
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1,sales-mobile-login');
     Route::post('auth/send-otp', [AuthController::class, 'sendOtp'])->middleware('throttle:5,1,sales-mobile-send-otp');
     Route::post('auth/verify-otp', [AuthController::class, 'verify'])->middleware('throttle:10,1,sales-mobile-otp');
+    // Aliases without auth/ prefix
+    Route::match(['get', 'post'], 'route', [AuthController::class, 'routeEmail']);
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1,sales-mobile-login');
+    Route::post('send-otp', [AuthController::class, 'sendOtp'])->middleware('throttle:5,1,sales-mobile-send-otp');
+    Route::post('verify-otp', [AuthController::class, 'verify'])->middleware('throttle:10,1,sales-mobile-otp');
     Route::middleware(['auth:sanctum', MobileDeviceToken::class, 'throttle:120,1,sales-mobile-device'])->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::get('plants', [AuthController::class, 'plants']);
@@ -60,7 +65,20 @@ Route::prefix('v1')->withoutMiddleware(TitleCaseInputs::class)->group(function (
             Route::put('follow-ups/{activity}', [LeadController::class, 'saveActivity'])->whereNumber('activity');
             Route::post('follow-ups/{activity}/complete', [LeadController::class, 'complete'])->whereNumber('activity');
             Route::delete('follow-ups/{activity}', [LeadController::class, 'deleteActivity'])->whereNumber('activity');
-            $routeNamePrefix = 'sales-mobile';
+            // Personal attendance shares app authentication and plant access, without business-record scope.
+Route::prefix('attendances')->withoutMiddleware(\App\Http\Middleware\MobileSalesScope::class)->group(function () {
+    $controller = \App\Http\Controllers\Api\SalesMobile\AttendanceController::class;
+    Route::get('/', [$controller, 'index']);
+    Route::get('current', [$controller, 'current']);
+    Route::post('check-in', [$controller, 'checkIn']);
+    Route::post('{attendance}/check-out', [$controller, 'checkOut'])->whereNumber('attendance');
+    Route::get('{attendance}/pdf', [$controller, 'downloadPdf'])->whereNumber('attendance');
+    Route::get('{attendance}', [$controller, 'show'])->whereNumber('attendance');
+});
+       Route::get('/payslips', [\App\Http\Controllers\Api\PayslipApiController::class, 'index']);
+    Route::get('/payslips/{id}/pdf', [\App\Http\Controllers\Api\PayslipApiController::class, 'downloadPdf'])->whereNumber('id');
+
+$routeNamePrefix = 'sales-mobile';
             require __DIR__.'/mobile-commercial.php';
         });
     });

@@ -16,9 +16,25 @@ class MobileDeviceToken
     {
         $user = $request->user();
         abort_unless($user && $user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()), 403, 'Account inactive or locked.');
-        abort_unless($user->is_otp_enabled, 403, 'Mobile app access has not been granted or has been removed. Contact your administrator.');
+
+        $isAdmin = $user->isSystemAdmin() || $user->hasFullAccess();
+
+        // Admin can use the sales-mobile without any restrictions
+        if (!$isAdmin) {
+            abort_unless($user->is_otp_enabled, 403, 'Mobile app access has not been granted or has been removed. Contact your administrator.');
+        }
+
         $token = $user->currentAccessToken();
-        abort_unless($token instanceof PersonalAccessToken && in_array('sales-mobile', $token->abilities ?? [], true), 403, 'Use a sales mobile bearer token.');
+        abort_unless(
+            $token instanceof PersonalAccessToken && (
+                $isAdmin ||
+                $token->can('sales-mobile') ||
+                in_array('sales-mobile', $token->abilities ?? [], true)
+            ),
+            403,
+            'Use a sales mobile bearer token.'
+        );
+
         return $next($request);
     }
 }
