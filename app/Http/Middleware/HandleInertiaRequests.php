@@ -41,47 +41,26 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $activeEntityId = session('active_entity_id');
         $activeEntity = null;
-        $userEntities = [];
-
-        if ($user) {
-            $isSuperAdmin = $user->isSystemAdmin();
-
-            if ($isSuperAdmin) {
-                // Super Admin sees every entity in the switcher dropdown
-                $userEntities = Entity::all()->map(fn ($e) => [
-                    'entity_id'    => $e->id,
-                    'entity_name'  => $e->legal_name,
-                    'entity_logo'  => $e->logo_file ?? null,
-                    'role_id'      => 1,
-                    'role_name'    => 'Super Administrator',
-                    'is_active'    => $e->id === (int) $activeEntityId,
-                    'is_suspended' => (int) $e->is_suspended,
-                ])->values();
-            } else {
-                // Normal users only see their assigned entities
-                $userEntities = EntityUser::with(['entity', 'role'])
-                    ->where('user_id', $user->id)
-                    ->get()
-                    ->map(fn ($eu) => [
-                        'entity_id'    => $eu->entity_id,
-                        'entity_name'  => $eu->entity->legal_name ?? 'Unknown',
-                        'entity_logo'  => $eu->entity->logo_file ?? null,
-                        'role_id'      => $eu->role_id ?? null,
-                        'role_name'    => $eu->role->name ?? 'Unknown',
-                        'is_active'    => $eu->entity_id === (int) $activeEntityId,
-                        'is_suspended' => (int) ($eu->entity->is_suspended ?? 0),
-                    ])
-                    ->values();
-            }
-
-            // Current active entity details
-            if ($activeEntityId) {
-                $entityObj = \App\Models\Entity::find($activeEntityId);
-                if ($entityObj && $entityObj->is_suspended != 0 && !$user->isSystemAdmin()) {
-                    session()->forget(['active_entity_id', 'active_plant_id']);
-                    $activeEntityId = null;
-                } else {
-                    $activeEntity = $userEntities->firstWhere('entity_id', (int) $activeEntityId);
+        if ($user && $activeEntityId) {
+            $entity = Entity::find($activeEntityId);
+            $systemAdmin = $user->isSystemAdmin();
+            if ($entity && $entity->is_suspended && !$systemAdmin) {
+                session()->forget(['active_entity_id', 'active_plant_id']);
+                $activeEntityId = null;
+            } elseif ($entity) {
+                $assignment = $systemAdmin ? null : EntityUser::forContext(
+                    $user->id, (int) $activeEntityId, session('active_plant_id')
+                );
+                if ($systemAdmin || $assignment) {
+                    $activeEntity = [
+                        'entity_id' => $entity->id,
+                        'entity_name' => $entity->legal_name,
+                        'entity_logo' => $entity->logo_file,
+                        'role_id' => $systemAdmin ? 1 : $assignment->role_id,
+                        'role_name' => $systemAdmin ? 'Super Administrator' : ($assignment->role?->name ?? 'Unknown'),
+                        'is_active' => true,
+                        'is_suspended' => (int) $entity->is_suspended,
+                    ];
                 }
             }
         }
@@ -90,7 +69,6 @@ class HandleInertiaRequests extends Middleware
 
         $activePlantId = session('active_plant_id');
         $activePlant   = null;
-        $customSettings = [];
         if ($activePlantId) {
             $plant = Plant::find($activePlantId);
             if ($plant && $plant->is_active === 1) {
@@ -117,8 +95,6 @@ class HandleInertiaRequests extends Middleware
                 session()->forget(['active_plant_id', 'mixer_capacity', 'gstin']);
                 $activePlantId = null;
             }
-            $customSettings['batching'] = \App\Models\CustomSetting::getForModule($activePlantId, 'batching');
-            $customSettings['orders'] = \App\Models\CustomSetting::getForModule($activePlantId, 'orders');
         }
 
         $plantsCount = $user && $activeEntityId
@@ -161,10 +137,11 @@ class HandleInertiaRequests extends Middleware
                 ->get()->filter(fn ($item) => strtolower((string) $item->permission_name) === 'master.all')
                 ->pluck('id')->all(), true);
 
+            $navFields = ['id', 'parent_id', 'title', 'alias', 'link', 'icon', 'ordering', 'permission_name'];
             $sideNav = \App\Models\Menu::where('menutype', 2)
                 ->where('published', true)
                 ->orderBy('ordering')
-                ->get()
+                ->get()->each->setVisible($navFields)
                 ->filter(function ($item) use ($isSuper, $permissionIndex, $reportMenuAllowed, $contextFullAccess, $masterMenuIds) {
                    
                     if ($isSuper) return true;
@@ -183,7 +160,7 @@ class HandleInertiaRequests extends Middleware
             $topNav = \App\Models\Menu::where('menutype', 1)
                 ->where('published', true)
                 ->orderBy('ordering')
-                ->get()
+                ->get()->each->setVisible($navFields)
                 ->filter(function ($item) use ($isSuper, $permissionIndex, $parentsWithChildren, $sideNav, $reportPermissions, $contextFullAccess) {
                     if ($isSuper) return true;
                     if (strtolower(trim((string) $item->alias)) === 'report') {
@@ -245,7 +222,6 @@ class HandleInertiaRequests extends Middleware
                     'email' => $user->email,
                     'email_verified_at' => $user->email_verified_at,
                     'is_active' => $user->is_active,
-                    'last_visit_page' => $user->last_visit_page,
                     'mobile' => $user->mobile,
                     'username' => $user->username,
                     'profile_photo_url' => $user->profile_photo_url,
@@ -261,17 +237,14 @@ class HandleInertiaRequests extends Middleware
             'active_plant_id'  => $activePlantId,
             'gstin'            => fn () => session('gstin', $activePlant['gstin'] ?? null),
             'mixer_capacity'   => fn () => session('mixer_capacity', $activePlant['mixer_capacity'] ?? 1.25),
-            'user_entities'    => $userEntities,
             'has_full_access'  => (bool) $contextFullAccess,
             'is_context_administrator' => $user?->isContextAdministrator() ?? false,
             'can_choose_invoice_copy' => $user?->canChooseInvoiceCopy() ?? false,
             'user_role'        => $tenantRoleName,
             'user_code'        => $tenantRoleCode,
-            'app_env'          => app()->environment(),
             'user_permissions' => $tenantPermissions,
-            'document_number_permissions' => fn () => \App\Support\DocumentNumberAccess::forUser($user),
+            ...$this->documentFormProps($request, $activePlantId),
             'menus'            => $menus,
-            'custom_settings'  => $customSettings,
             'plants_count'     => $plantsCount,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
@@ -283,5 +256,41 @@ class HandleInertiaRequests extends Middleware
                 'dispatched_batch_id' => fn () => $request->session()->get('dispatched_batch_id'),
             ],
         ];
+    }
+
+    private function documentFormProps(Request $request, $plantId): array
+    {
+        $module = match ($request->route()?->getControllerClass()) {
+            \App\Http\Controllers\BatchController::class => 'BATCH',
+            \App\Http\Controllers\PurchaseOrderInwardController::class => 'INWARD',
+            \App\Http\Controllers\PurchaseOrderController::class => 'PURCHASE_ORDER',
+            \App\Http\Controllers\SalesOrderController::class => 'SALES_ORDER',
+            \App\Http\Controllers\QuotationController::class => 'QUOTATION',
+            \App\Http\Controllers\CustomerPOController::class => 'CUSTOMER_PO',
+            \App\Http\Controllers\InvoiceController::class => 'INVOICE',
+            \App\Http\Controllers\BillingController::class => 'BILLING',
+            \App\Http\Controllers\PaymentController::class => 'PAYMENT',
+            default => null,
+        };
+        if (!$module || !$request->user()) return [];
+
+        $props = ['document_number_permissions' => fn () => [
+            $module => \App\Support\DocumentNumberAccess::allows($request->user(), $module),
+        ]];
+        $weightFields = ['new_weight', 'newweight', 'camera', 'camera_url', 'camera_url_1', 'camera_url_2', 'manual_weight'];
+        $fields = match ($module) {
+            'INWARD' => $weightFields,
+            'PURCHASE_ORDER' => ['new_weight', 'newweight'],
+            'BATCH' => [...$weightFields, 'weight_mandatory', 'default_transport', 'hide_batch_form',
+                'actual_consumption_variation', 'actual_variation_limit', 'sheet_upload', 'target_to_actual'],
+            'QUOTATION' => ['quote_validity'],
+            default => [],
+        };
+        if ($plantId && $fields) {
+            $props['custom_settings'] = fn () => ['batching' => \Illuminate\Support\Arr::only(
+                \App\Models\CustomSetting::getForModule($plantId, 'batching'), $fields
+            )];
+        }
+        return $props;
     }
 }

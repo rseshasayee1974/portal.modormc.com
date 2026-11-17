@@ -46,7 +46,8 @@ class PlantController extends Controller
 
         $query = Plant::query()
             ->whereIn('entity_id', $allowedEntityIds)
-            ->with(['addresses.addressType', 'addresses.state', 'contacts.contactType', 'entity']);
+            ->when(session('active_plant_id'), fn ($plants, $plantId) => $plants->whereKey($plantId))
+            ->with(['addresses.addressType', 'addresses.state', 'contacts.contactType', 'entity:id,legal_name']);
 
         if ($isSuperUser) {
             $query->withTrashed();
@@ -147,6 +148,11 @@ class PlantController extends Controller
         $this->authorizeModule('edit');
 
         $validated = $request->validated();
+        foreach (Plant::CREDENTIAL_FIELDS as $field) {
+            if (!$request->filled($field)) {
+                unset($validated[$field]);
+            }
+        }
         $user = Auth::user();
         
         return DB::transaction(function () use ($validated, $plant, $user, $request) {

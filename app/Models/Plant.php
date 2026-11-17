@@ -10,6 +10,8 @@ class Plant extends Model
 {
         use HasFactory, SoftDeletes, TracksModelChanges;
     protected $table = 'mm_plants';
+    public const CREDENTIAL_FIELDS = ['scheduler_api_token', 'scheduler_client_secret', 'einvoice_secret', 'ewaybill_secret'];
+    protected $hidden = self::CREDENTIAL_FIELDS;
     protected $fillable = [
         'entity_id',
         'code',

@@ -88,14 +88,11 @@ class SetEntityContext
                 }
             }
 
-            // Check if the active plant is inactive (non-admins only)
-            if ($activePlantId && !$isSuperAdmin) {
-                $isInactive = Plant::where('id', $activePlantId)
-                    ->where('is_active', '!=', 1)
-                    ->exists();
-
-                if ($isInactive) {
-                    session()->forget(['active_plant_id', 'gstin']);
+            if ($activePlantId) {
+                $canAccessPlant = $ctx->accessiblePlants($user, $isSuperAdmin)
+                    ->where('entity_id', $activeEntityId)->whereKey($activePlantId)->exists();
+                if (!$canAccessPlant) {
+                    session()->forget(['active_plant_id', 'gstin', 'mixer_capacity']);
                     return redirect()->route('entity-context.index');
                 }
             }

@@ -37,6 +37,11 @@ trait PlantScoping
             // Apply scope only if a plant is resolved
             if ($plantId) {
                 $builder->where($builder->getModel()->getTable() . '.plant_id', $plantId);
+            } elseif (request()->hasSession() && ($user = request()->user())) {
+                $builder->whereIn(
+                    $builder->getModel()->qualifyColumn('plant_id'),
+                    $ctx->accessiblePlants($user)->select('mm_plants.id')
+                );
             }
         });
 

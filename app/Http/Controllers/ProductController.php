@@ -26,17 +26,23 @@ class ProductController extends Controller
         $this->authorize('viewAny', Product::class);
 
         $plantId = session('active_plant_id');
+        abort_unless($plantId, 403);
         $stockBalances = Quantity::where('plant_id', $plantId)
             ->where('is_warehouse', false)->orderBy('id')->get()->groupBy('product_id');
         $products = Product::forPlant($plantId)->withDetails()
             ->withExists(['stockBalances', 'purchaseItems'])->get()->map(function ($product) use ($stockBalances) {
             $stock = $stockBalances->get($product->id, collect())->firstWhere('uom_id', $product->unit_id);
-            return array_merge($product->toArray(), [
+            return array_merge($product->only([
+                'id', 'title', 'code', 'alias', 'category_id', 'unit_id', 'sales_price', 'purchase_price',
+                'status', 'hsn_code', 'material_code', 'tax_mode', 'purchase_tax_id', 'sale_tax_id',
+                'is_service', 'product_type', 'stock_alert', 'moisture', 'conversion_quantity',
+            ]), [
+                'category' => $product->category?->only(['name']),
+                'unit' => $product->unit?->only(['unit_code', 'title']),
                 'opening_quantity' => (float) ($stock?->opening_quantity ?? 0),
                 'can_initialize_opening' => !$product->stock_balances_exists && !$product->purchase_items_exists,
                 'can_delete' => auth()->user()->can('delete', $product),
                 'can_update' => auth()->user()->can('update', $product),
-                // 'is_in_use' => $product->is_in_use,
             ]);
         });
 
