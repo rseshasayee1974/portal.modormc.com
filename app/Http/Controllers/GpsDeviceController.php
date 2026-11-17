@@ -24,12 +24,16 @@ class GpsDeviceController extends Controller
 
         $activePlantId = session('active_plant_id');
 
-        $devices = GpsDevice::with(['machine', 'latestPosition'])
+        $devices = GpsDevice::select([
+                'id', 'machine_id', 'imei', 'device_model', 'sim_number', 'phone_number',
+                'gpstrack_email', 'is_active', 'last_activity', 'notes',
+            ])
+            ->selectRaw("CASE WHEN gpstrack_token IS NULL OR gpstrack_token = '' THEN 0 ELSE 1 END AS has_gpstrack_token")
+            ->withCasts(['has_gpstrack_token' => 'boolean'])
+            ->with('machine:id,registration,vehicle_model')
             ->where('plant_id', $activePlantId)
             ->latest()
-            ->get()->each(function (GpsDevice $device) {
-                $device->setAttribute('has_gpstrack_token', filled($device->getRawOriginal('gpstrack_token')));
-            });
+            ->get();
 
         // Find machines in this plant that do not have a GPS device assigned (except during edits)
         $assignedMachineIds = GpsDevice::where('plant_id', $activePlantId)

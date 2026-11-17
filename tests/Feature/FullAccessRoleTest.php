@@ -288,6 +288,21 @@ class FullAccessRoleTest extends TestCase
         $props = app(\App\Http\Middleware\HandleInertiaRequests::class)->share(request());
         $this->assertFalse($props['has_full_access']);
         foreach ([10, 11] as $id) $this->assertTrue($props['menus']['top_nav']->contains('id', $id));
+        $this->assertArrayNotHasKey('user_entities', $props);
+        $this->assertArrayNotHasKey('custom_settings', $props);
+        $this->assertArrayNotHasKey('document_number_permissions', $props);
+        $this->assertArrayNotHasKey('deleted_at', $props['menus']['top_nav']->first()->toArray());
+        $batchRequest = \Illuminate\Http\Request::create('/orders/batches');
+        $batchRequest->setUserResolver(fn () => $user);
+        $batchRequest->setLaravelSession(app('session.store'));
+        $batchRequest->setRouteResolver(fn () => app('router')->getRoutes()->getByName('batches.index'));
+        $db::table('mm_custom_settings')->insert([
+            'plant_id' => 1, 'module_name' => 'batching',
+            'settings' => json_encode(['manual_weight' => 1, 'unused_setting' => 'omit']),
+        ]);
+        $batchProps = app(\App\Http\Middleware\HandleInertiaRequests::class)->share($batchRequest);
+        $this->assertSame(['BATCH' => true], $batchProps['document_number_permissions']());
+        $this->assertSame(['batching' => ['manual_weight' => 1]], $batchProps['custom_settings']());
         $this->assertFalse($props['menus']['top_nav']->contains('id', 2));
         $this->assertFalse($props['menus']['sidebar_nav']->has(2));
 
