@@ -517,7 +517,7 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'inventory_inward') {
-                $headersList = ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Truck No'];
+                $headersList = ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Total Unit Price', 'Truck No'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
                         $row['date'] ?? '',
@@ -528,6 +528,7 @@ class ExcelExportService
                         $row['quantity'] ?? 0,
                         $row['conversion_quantity_display'] ?? '',
                         is_numeric($row['unit_price'] ?? null) ? (float) $row['unit_price'] : ($row['unit_price'] ?? 0),
+                        is_numeric($row['total_unit_price'] ?? null) ? (float) $row['total_unit_price'] : ($row['total_unit_price'] ?? 0),
                         $row['truck_no'] ?? ''
                     ];
                 }
@@ -539,6 +540,7 @@ class ExcelExportService
                     '',
                     (float) ($data['total_quantity'] ?? 0),
                     (float) ($data['conversion_quantity_total'] ?? 0),
+                    '',
                     (float) ($data['total_unit_price'] ?? $data['total_unit_prices'] ?? 0),
                     ''
                 ];

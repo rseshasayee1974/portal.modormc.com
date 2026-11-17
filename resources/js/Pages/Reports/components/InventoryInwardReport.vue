@@ -19,7 +19,7 @@ const props = defineProps({
                         Quantity</span>
                     <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{
                         parseFloat(reportData.total_quantity).toFixed(2)
-                        }}</span>
+                    }}</span>
                 </div>
                 <InboxIcon class="w-5 h-5 text-slate-400" />
             </div>
@@ -40,6 +40,7 @@ const props = defineProps({
                         <th class="py-3 px-4 text-right" width="12%">Quantity</th>
                         <th class="py-3 px-4 text-right">Conversion Quantity</th>
                         <th class="py-3 px-4 text-right">Unit Price</th>
+                        <th class="py-3 px-4 text-right">Total Unit Price</th>
                         <th class="py-3 px-4 text-center" width="12%">Truck No</th>
                     </tr>
                 </thead>
@@ -53,14 +54,17 @@ const props = defineProps({
                         <td class="py-3 px-4 text-slate-800">{{ row.vendor_name }}</td>
                         <td class="py-3 px-4 font-bold text-slate-800">{{ row.product_name }}</td>
                         <td class="py-3 px-4 text-right font-black text-[#1d2d3e] bg-slate-50/55">
-                            {{ row.quantity }} <span v-if="row.uom && !String(row.quantity).includes(row.uom)" class="text-[10px] text-slate-400">{{ row.uom }}</span>
+                            {{ row.quantity }} <span v-if="row.uom && !String(row.quantity).includes(row.uom)"
+                                class="text-[10px] text-slate-400">{{ row.uom }}</span>
                         </td>
                         <td class="py-3 px-4 text-right whitespace-nowrap">{{ row.conversion_quantity_display }}</td>
                         <td class="py-3 px-4 text-right whitespace-nowrap">{{ row.unit_price }}</td>
+                        <td class="py-3 px-4 text-right whitespace-nowrap">{{ row.total_unit_price }}</td>
                         <td class="py-3 px-4 text-center text-slate-600">{{ row.truck_no }}</td>
                     </tr>
                     <tr v-if="!reportData.transactions || reportData.transactions.length === 0">
-                        <td colspan="10" class="py-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+                        <td colspan="11"
+                            class="py-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">
                             No inward transactions found for this period
                         </td>
                     </tr>
@@ -72,8 +76,10 @@ const props = defineProps({
                         <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">
                             {{ parseFloat(reportData.conversion_quantity_total || 0).toFixed(4) }}
                         </td>
+                        <td></td>
                         <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">
-                            {{ parseFloat(reportData.total_unit_price ?? reportData.total_unit_prices ?? 0).toFixed(2) }}
+                            {{ parseFloat(reportData.total_unit_price ?? reportData.total_unit_prices ?? 0).toFixed(2)
+                            }}
                         </td>
                         <td></td>
                     </tr>

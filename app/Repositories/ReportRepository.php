@@ -3,10 +3,12 @@
 namespace App\Repositories;
 
 use App\Models\InvoiceItem;
+use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 
 class ReportRepository
@@ -210,60 +212,120 @@ class ReportRepository
      */
     public function getPurchaseRegisterQuery(array $filters): Builder
     {
+        $hasInvoiceItems = Schema::hasTable('mm_invoice_items') && Schema::hasColumn('mm_invoice_items', 'purchase_order_item_id');
+        $hasInvoicedQty = Schema::hasTable('mm_purchase_order_items') && Schema::hasColumn('mm_purchase_order_items', 'invoiced_quantity');
+        $hasInvoicesTable = Schema::hasTable('mm_invoices');
+
+        $unitPriceSql = $hasInvoiceItems
+            ? 'COALESCE(
+                (SELECT mii.price_unit FROM mm_invoice_items mii 
+                 WHERE mii.purchase_order_item_id = mm_purchase_order_items.id 
+                   AND mii.deleted_at IS NULL 
+                   AND mii.price_unit > 0 
+                 ORDER BY mii.id DESC LIMIT 1),
+                (SELECT poh.unit_price FROM mm_purchase_order_history poh 
+                 WHERE poh.order_item_id = mm_purchase_order_items.id 
+                   AND poh.deleted_at IS NULL 
+                   AND poh.unit_price > 0 
+                 ORDER BY poh.id DESC LIMIT 1),
+                mm_purchase_order_items.unit_price
+            )'
+            : 'COALESCE(
+                (SELECT poh.unit_price FROM mm_purchase_order_history poh 
+                 WHERE poh.order_item_id = mm_purchase_order_items.id 
+                   AND poh.deleted_at IS NULL 
+                   AND poh.unit_price > 0 
+                 ORDER BY poh.id DESC LIMIT 1),
+                mm_purchase_order_items.unit_price
+            )';
+
+        $selectColumns = [
+            'mm_purchase_order_items.id',
+            'mm_purchase_order_items.order_id',
+            'mm_purchase_order_items.product_id',
+            'mm_purchase_order_items.tax_id',
+            'mm_purchase_order_items.hsn_code',
+            'mm_purchase_order_items.description',
+            'mm_purchase_order_items.product_uom',
+            'mm_purchase_order_items.product_quantity',
+            DB::raw("{$unitPriceSql} as unit_price"),
+            'mm_purchase_order_items.discount_amount',
+            'mm_purchase_order_items.discount_type',
+            'mm_purchase_order_items.price_subtotal',
+            'mm_purchase_order_items.price_tax',
+            'mm_purchase_order_items.price_total',
+        ];
+
+        if ($hasInvoicedQty) {
+            $selectColumns[] = 'mm_purchase_order_items.invoiced_quantity';
+        }
+
+        $orderSelect = [
+            'id',
+            'po_number',
+            'bill_number',
+            'date_order',
+            'billed_date',
+            'created_at',
+            'created_by',
+            'state',
+            'vendor_id',
+            'plant_id',
+            'discount_amount',
+            'rounding_value',
+        ];
+        if (Schema::hasColumn('mm_purchase_orders', 'billing_id')) {
+            $orderSelect[] = 'billing_id';
+        }
+        if (Schema::hasColumn('mm_purchase_orders', 'billing_status')) {
+            $orderSelect[] = 'billing_status';
+        }
+
+        $withRelations = [
+            'order' => function ($q) use ($orderSelect) {
+                $q->withoutGlobalScopes()->whereNull('deleted_at')->select($orderSelect);
+            },
+            'order.creator:id,username,email',
+            'order.vendor' => function ($q) {
+                $q->withoutGlobalScopes()->whereNull('deleted_at')->select(['id', 'legal_name', 'gstin']);
+            },
+            'order.plant' => function ($q) {
+                $q->select(['id', 'gstin']);
+            },
+            'product' => function ($q) {
+                $productSelect = ['id', 'title'];
+                if (Schema::hasColumn('mm_products', 'hsn_code')) {
+                    $productSelect[] = 'hsn_code';
+                }
+                $q->select($productSelect);
+            },
+            'uom' => function ($q) {
+                $q->select(['id', 'unit_name', 'unit_code']);
+            },
+            'tax' => function ($q) {
+                $q->select(['id', 'tax_name', 'tax_rate', 'tax_group']);
+            },
+        ];
+
+        if ($hasInvoicesTable && method_exists(PurchaseOrder::class, 'billingInvoice')) {
+            $withRelations['order.billingInvoice'] = function ($q) {
+                $q->withoutGlobalScopes()->whereNull('deleted_at')->select(['id', 'prefix', 'invoice_number', 'invoice_date', 'status']);
+            };
+        }
+        if ($hasInvoicesTable && method_exists(PurchaseOrder::class, 'bill')) {
+            $withRelations['order.bill'] = function ($q) {
+                $q->withoutGlobalScopes()->whereNull('deleted_at')->select(['id', 'ref_id', 'prefix', 'invoice_number', 'invoice_date', 'status']);
+            };
+        }
+
         $query = PurchaseOrderItem::query()
             ->forPurchaseRegister()
             ->whereNull('mm_purchase_order_items.deleted_at')
             ->whereHas('order', function ($q) {
                 $q->whereNull('deleted_at');
             })
-            ->select([
-                'mm_purchase_order_items.id',
-                'mm_purchase_order_items.order_id',
-                'mm_purchase_order_items.product_id',
-                'mm_purchase_order_items.tax_id',
-                'mm_purchase_order_items.hsn_code',
-                'mm_purchase_order_items.description',
-                'mm_purchase_order_items.product_uom',
-                'mm_purchase_order_items.product_quantity',
-                'mm_purchase_order_items.unit_price',
-                'mm_purchase_order_items.price_subtotal',
-                'mm_purchase_order_items.price_tax',
-                'mm_purchase_order_items.price_total',
-            ])
-            ->with([
-                'order' => function ($q) {
-                    $q->withoutGlobalScopes()->whereNull('deleted_at')->select([
-                        'id',
-                        'po_number',
-                        'bill_number',
-                        'date_order',
-                        'billed_date',
-                        'created_at',
-                        'created_by',
-                        'state',
-                        'vendor_id',
-                        'plant_id',
-                        'discount_amount',
-                        'rounding_value',
-                    ]);
-                },
-                'order.creator:id,username,email',
-                'order.vendor' => function ($q) {
-                    $q->withoutGlobalScopes()->whereNull('deleted_at')->select(['id', 'legal_name', 'gstin']);
-                },
-                'order.plant' => function ($q) {
-                    $q->select(['id', 'gstin']);
-                },
-                'product' => function ($q) {
-                    $q->select(['id', 'title']);
-                },
-                'uom' => function ($q) {
-                    $q->select(['id', 'unit_name', 'unit_code']);
-                },
-                'tax' => function ($q) {
-                    $q->select(['id', 'tax_name', 'tax_rate', 'tax_group']);
-                },
-            ]);
+            ->select($selectColumns)
+            ->with($withRelations);
 
         $documentStatus = $filters['document_status'] ?? 'active';
         if ($documentStatus !== 'all') {
@@ -277,8 +339,21 @@ class ReportRepository
         $fromDate = isset($filters['from_date']) ? Carbon::parse($filters['from_date'])->startOfDay() : now()->startOfMonth();
         $toDate   = isset($filters['to_date'])   ? Carbon::parse($filters['to_date'])->endOfDay()     : now()->endOfDay();
 
-        $query->whereHas('order', function ($q) use ($fromDate, $toDate) {
-            $q->whereNull('deleted_at')->whereBetween(DB::raw('COALESCE(billed_date, date_order, created_at)'), [$fromDate->toDateString(), $toDate->toDateTimeString()]);
+        $billDateExpr = $hasInvoicesTable
+            ? "COALESCE(
+                billed_date, 
+                (SELECT mi.invoice_date FROM mm_invoices mi 
+                 WHERE (mi.id = mm_purchase_orders.billing_id OR mi.ref_id = mm_purchase_orders.id) 
+                   AND mi.deleted_at IS NULL 
+                   AND mi.invoice_type IN ('Bill', 'bill', 'BILL') 
+                 LIMIT 1), 
+                date_order, 
+                created_at
+            )"
+            : "COALESCE(billed_date, date_order, created_at)";
+
+        $query->whereHas('order', function ($q) use ($fromDate, $toDate, $billDateExpr) {
+            $q->whereNull('deleted_at')->whereBetween(DB::raw($billDateExpr), [$fromDate->toDateString(), $toDate->toDateTimeString()]);
         });
 
         // Filter: Plant Scoping (session active_plant_id OR explicit filter)
@@ -318,8 +393,33 @@ class ReportRepository
                 ->whereRaw($filters['gst_type'] === 'inter' ? $inter : $intra);
         }
 
-        return $query->orderByRaw("COALESCE(NULLIF(mm_purchase_orders.bill_number, ''), mm_purchase_orders.po_number) ASC")
-            ->orderByRaw('COALESCE(mm_purchase_orders.billed_date, mm_purchase_orders.date_order, mm_purchase_orders.created_at) ASC')
+        $billNoExpr = $hasInvoicesTable
+            ? "COALESCE(
+                NULLIF(mm_purchase_orders.bill_number, ''), 
+                (SELECT mi.invoice_number FROM mm_invoices mi 
+                 WHERE (mi.id = mm_purchase_orders.billing_id OR mi.ref_id = mm_purchase_orders.id) 
+                   AND mi.deleted_at IS NULL 
+                   AND mi.invoice_type IN ('Bill', 'bill', 'BILL') 
+                 LIMIT 1), 
+                mm_purchase_orders.po_number
+            )"
+            : "COALESCE(NULLIF(mm_purchase_orders.bill_number, ''), mm_purchase_orders.po_number)";
+
+        $orderDateExpr = $hasInvoicesTable
+            ? "COALESCE(
+                mm_purchase_orders.billed_date, 
+                (SELECT mi.invoice_date FROM mm_invoices mi 
+                 WHERE (mi.id = mm_purchase_orders.billing_id OR mi.ref_id = mm_purchase_orders.id) 
+                   AND mi.deleted_at IS NULL 
+                   AND mi.invoice_type IN ('Bill', 'bill', 'BILL') 
+                 LIMIT 1), 
+                mm_purchase_orders.date_order, 
+                mm_purchase_orders.created_at
+            )"
+            : "COALESCE(mm_purchase_orders.billed_date, mm_purchase_orders.date_order, mm_purchase_orders.created_at)";
+
+        return $query->orderByRaw("{$billNoExpr} ASC")
+            ->orderByRaw("{$orderDateExpr} ASC")
             ->orderBy('mm_purchase_orders.id', 'asc')
             ->orderBy('mm_purchase_order_items.id', 'asc');
     }

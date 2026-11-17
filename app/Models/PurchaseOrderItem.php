@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\OrderTax;
 use App\Traits\TracksModelChanges;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class PurchaseOrderItem extends Model
 {
@@ -16,8 +18,54 @@ class PurchaseOrderItem extends Model
 
     public function scopeForPurchaseRegister(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
     {
-        return $query->whereHas('order', fn ($order) => $order
-            ->whereRaw("LOWER(TRIM(state)) IN ('billed')"));
+        return $query->where(function ($q) {
+            $hasInvoicedQty = Schema::hasTable('mm_purchase_order_items') && Schema::hasColumn('mm_purchase_order_items', 'invoiced_quantity');
+            $hasInvoiceItems = Schema::hasTable('mm_invoice_items') && Schema::hasColumn('mm_invoice_items', 'purchase_order_item_id');
+
+            if ($hasInvoicedQty) {
+                $q->where('mm_purchase_order_items.invoiced_quantity', '>', 0);
+            }
+
+            if ($hasInvoiceItems) {
+                $q->orWhereExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('mm_invoice_items as mii')
+                        ->join('mm_invoices as mi', 'mii.invoice_id', '=', 'mi.id')
+                        ->whereColumn('mii.purchase_order_item_id', 'mm_purchase_order_items.id')
+                        ->whereNull('mii.deleted_at')
+                        ->whereNull('mi.deleted_at')
+                        ->whereIn('mi.invoice_type', ['Bill', 'bill', 'BILL']);
+                });
+            }
+
+            $q->orWhere(function ($sub) use ($hasInvoicedQty, $hasInvoiceItems) {
+                $sub->whereHas('order', function ($order) {
+                    $order->whereNotNull('billing_id')
+                          ->orWhere('invoice_status', 1)
+                          ->orWhereRaw("LOWER(TRIM(COALESCE(state, ''))) = 'billed'")
+                          ->orWhereRaw("LOWER(TRIM(COALESCE(billing_status, ''))) IN ('billed', 'partially billed', 'partial')")
+                          ->orWhereRaw("COALESCE(NULLIF(TRIM(bill_number), ''), '') != ''")
+                          ->orWhereHas('bills');
+                });
+
+                if ($hasInvoicedQty) {
+                    $sub->whereDoesntHave('order.items', function ($sibling) use ($hasInvoiceItems) {
+                        $sibling->where('invoiced_quantity', '>', 0);
+                        if ($hasInvoiceItems) {
+                            $sibling->orWhereExists(function ($inner) {
+                                $inner->select(DB::raw(1))
+                                    ->from('mm_invoice_items as mii_sib')
+                                    ->join('mm_invoices as mi_sib', 'mii_sib.invoice_id', '=', 'mi_sib.id')
+                                    ->whereColumn('mii_sib.purchase_order_item_id', 'mm_purchase_order_items.id')
+                                    ->whereNull('mii_sib.deleted_at')
+                                    ->whereNull('mi_sib.deleted_at')
+                                    ->whereIn('mi_sib.invoice_type', ['Bill', 'bill', 'BILL']);
+                            });
+                        }
+                    });
+                }
+            });
+        });
     }
 
     public string $auditTransactionType = 'purchase_order_item';

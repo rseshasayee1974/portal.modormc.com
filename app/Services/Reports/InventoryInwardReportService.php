@@ -62,28 +62,51 @@ class InventoryInwardReportService implements ReportServiceInterface
 
         $inwards = $query->orderByDesc('report_received_at')->orderByDesc('id')->get();
 
-        return [
-            'transactions' => $inwards->map(fn($i) => [
+        $totalQty = 0.0;
+        $totalConvQty = 0.0;
+        $grandTotalUnitPrice = 0.0;
+
+        $transactions = $inwards->map(function ($i) use ($hasDirectVendor, &$totalQty, &$totalConvQty, &$grandTotalUnitPrice) {
+            // Ensure values are treated as numbers for calculation
+            $unitPrice = (float) ($i->unit_price ?? 0);
+            $convQty = (float) ($i->conversion_quantity ?? 0);
+            $recvQty = (float) ($i->received_qty ?? 0);
+            
+            // Calculate total based on whether conversion_quantity is greater than 0
+            $totalUnitPrice = $convQty > 0 
+                ? ($unitPrice * $convQty) 
+                : ($unitPrice * $recvQty);
+
+            $totalQty += $recvQty;
+            $totalConvQty += $convQty;
+            $grandTotalUnitPrice += $totalUnitPrice;
+
+            return [
                 'date'         => \Carbon\Carbon::parse($i->report_received_at)->toDateTimeString(),
                 'inward_no'    => $i->inward_no ?? ('INW-' . $i->id),
                 'po_number'    => $i->order->po_number ?? 'No linked PO',
                 'vendor_name'  => $i->order?->vendor?->legal_name ?? ($hasDirectVendor ? $i->vendor?->legal_name : null) ?? 'N/A',
                 'product_name' => $i->product->title ?? 'N/A',
                 'uom'          => $i->uom->unit_code ?? $i->uom->unit_name ?? 'N/A',
-                'quantity'     => trim((float) $i->received_qty . ' ' . ($i->uom?->unit_code ?? '')),
-                'conversion_quantity' => (float) $i->conversion_quantity,
+                'quantity'     => trim($recvQty . ' ' . ($i->uom?->unit_code ?? '')),
+                'conversion_quantity' => $convQty,
                 'conversion_uom' => $i->conversionUom?->unit_code ?? $i->conversionUom?->unit_name ?? $i->uom?->unit_code ?? $i->uom?->unit_name ?? '',
-                'conversion_quantity_display' => trim(number_format((float) $i->conversion_quantity, 4, '.', '') . ' ' . ($i->conversionUom?->unit_code ?? $i->conversionUom?->unit_name ?? $i->uom?->unit_code ?? $i->uom?->unit_name ?? '')),
-                'unit_price'     => $i->unit_price ?? '0.00',
+                'conversion_quantity_display' => trim(number_format($convQty, 4, '.', '') . ' ' . ($i->conversionUom?->unit_code ?? $i->conversionUom?->unit_name ?? $i->uom?->unit_code ?? $i->uom?->unit_name ?? '')),
+                'unit_price'       => number_format($unitPrice, 2, '.', ''),
+                'total_unit_price' => number_format($totalUnitPrice, 2, '.', ''),
                 'truck_no'     => $i->truck->registration ?? 'N/A',
                 'truck_loaded' => (float)$i->truck_loaded,
                 'truck_empty'  => (float)$i->truck_empty,
-            ])->values(),
-            'total_quantity'  => (float)$inwards->sum('received_qty'),
-            'conversion_quantity_total'  => (float)$inwards->sum('conversion_quantity'),
-            'total_unit_price'  => (float)$inwards->sum('unit_price'),
-            'total_unit_prices' => (float)$inwards->sum('unit_price'),
-            'opening_balance' => 0
+            ];
+        })->values();
+
+        return [
+            'transactions'               => $transactions,
+            'total_quantity'             => (float) $totalQty,
+            'conversion_quantity_total'  => (float) $totalConvQty,
+            'total_unit_price'           => (float) $grandTotalUnitPrice,
+            'total_unit_prices'          => (float) $grandTotalUnitPrice,
+            'opening_balance'            => 0,
         ];
     }
 
@@ -95,13 +118,13 @@ class InventoryInwardReportService implements ReportServiceInterface
     public static function pdfColumns(array $data): array
     {
         return [
-            'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Truck No'],
-            'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'conversion_quantity_display', 'unit_price', 'truck_no'],
-            'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'right', 'right', 'center'],
+            'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Total Unit Price', 'Truck No'],
+            'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'conversion_quantity_display', 'unit_price', 'total_unit_price', 'truck_no'],
+            'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'right', 'right', 'right', 'center'],
             'totals'     => [
                 'quantity'                    => number_format((float) ($data['total_quantity'] ?? 0), 2, '.', ''),
                 'conversion_quantity_display' => number_format((float) ($data['conversion_quantity_total'] ?? 0), 4, '.', ''),
-                'unit_price'                  => (float) ($data['total_unit_price'] ?? $data['total_unit_prices'] ?? 0),
+                'total_unit_price'            => (float) ($data['total_unit_price'] ?? $data['total_unit_prices'] ?? 0),
             ]
         ];
     }

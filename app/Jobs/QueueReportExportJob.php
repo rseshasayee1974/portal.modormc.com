@@ -151,6 +151,8 @@ class QueueReportExportJob implements ShouldQueue
                     $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
                     $writer->save($filePath);
                     $spreadsheet->disconnectWorksheets();
+                    unset($writer, $spreadsheet);
+                    clearstatcache(true, $filePath);
                 } else {
                     $targetName = method_exists($service, 'targetName') ? $service->targetName($params) : '';
                     $this->generateAndSaveUnifiedPdf($this->type, $targetName, $params, $data, $filePath);

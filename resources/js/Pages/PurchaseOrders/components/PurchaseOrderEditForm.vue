@@ -183,9 +183,6 @@ const handleDeleteBill = (billId: number) => {
 
         <div class="">
             <form @submit.prevent="submit" class="space-y-6">
-
-
-
                 <BaseInput v-model="form.po_number" label="Reference Number" :disabled="!canEditDocumentNumber || isReceived || form.processing" :error="form.errors.po_number" />
                 <!-- General Info Grid -->
                 <div class="grid grid-cols-12 gap-4">
