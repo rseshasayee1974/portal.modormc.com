@@ -74,11 +74,15 @@ class InventoryInwardReportService implements ReportServiceInterface
                 'conversion_quantity' => (float) $i->conversion_quantity,
                 'conversion_uom' => $i->conversionUom?->unit_code ?? $i->conversionUom?->unit_name ?? $i->uom?->unit_code ?? $i->uom?->unit_name ?? '',
                 'conversion_quantity_display' => trim(number_format((float) $i->conversion_quantity, 4, '.', '') . ' ' . ($i->conversionUom?->unit_code ?? $i->conversionUom?->unit_name ?? $i->uom?->unit_code ?? $i->uom?->unit_name ?? '')),
+                'unit_price'     => $i->unit_price ?? '0.00',
                 'truck_no'     => $i->truck->registration ?? 'N/A',
                 'truck_loaded' => (float)$i->truck_loaded,
                 'truck_empty'  => (float)$i->truck_empty,
             ])->values(),
             'total_quantity'  => (float)$inwards->sum('received_qty'),
+            'conversion_quantity_total'  => (float)$inwards->sum('conversion_quantity'),
+            'total_unit_price'  => (float)$inwards->sum('unit_price'),
+            'total_unit_prices' => (float)$inwards->sum('unit_price'),
             'opening_balance' => 0
         ];
     }
@@ -86,6 +90,20 @@ class InventoryInwardReportService implements ReportServiceInterface
     public function targetName(array $params): string
     {
         return 'Purchase Order Inward Report';
+    }
+
+    public static function pdfColumns(array $data): array
+    {
+        return [
+            'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Truck No'],
+            'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'conversion_quantity_display', 'unit_price', 'truck_no'],
+            'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'right', 'right', 'center'],
+            'totals'     => [
+                'quantity'                    => number_format((float) ($data['total_quantity'] ?? 0), 2, '.', ''),
+                'conversion_quantity_display' => number_format((float) ($data['conversion_quantity_total'] ?? 0), 4, '.', ''),
+                'unit_price'                  => (float) ($data['total_unit_price'] ?? $data['total_unit_prices'] ?? 0),
+            ]
+        ];
     }
 
     private function boundary($value, bool $end): string

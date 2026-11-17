@@ -17,7 +17,7 @@ class MobileDeviceToken
         $user = $request->user();
         abort_unless($user && $user->is_active && (!$user->lockout_until || $user->lockout_until->isPast()), 403, 'Account inactive or locked.');
 
-        $isAdmin = $user->isSystemAdmin() || $user->hasFullAccess();
+        $isAdmin = $user->isAdmin();
 
         // Admin can use the sales-mobile without any restrictions
         if (!$isAdmin) {
@@ -26,10 +26,13 @@ class MobileDeviceToken
 
         $token = $user->currentAccessToken();
         abort_unless(
-            $token instanceof PersonalAccessToken && (
-                $isAdmin ||
-                $token->can('sales-mobile') ||
-                in_array('sales-mobile', $token->abilities ?? [], true)
+            $isAdmin || (
+                $token instanceof PersonalAccessToken && (
+                    $token->can('sales-mobile') ||
+                    $token->can('*') ||
+                    in_array('sales-mobile', $token->abilities ?? [], true) ||
+                    in_array('*', $token->abilities ?? [], true)
+                )
             ),
             403,
             'Use a sales mobile bearer token.'

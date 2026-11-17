@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Machine;
 use App\Models\GpsPosition;
+use App\Models\GpsLatestPosition;
 use App\Models\Geofence;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Http\Controllers\Concerns\AuthorizesModule;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class GpsTrackingController extends Controller
 {
@@ -23,6 +27,88 @@ class GpsTrackingController extends Controller
 
         $activePlantId = session('active_plant_id');
 
+        // Fetch live GPS data directly from GPSTrack API
+        $apiToken = env('GPSTRACK_TOKEN') ?: env('API_TOKEN') ?: env('GPSTRACK_API_TOKEN');
+        $apiEmail = env('GPSTRACK_EMAIL', 'ragulonemodoapi@gpstrack.in');
+        $apiUrl = rtrim(env('GPSTRACK_BASE_URL', 'https://app.gpstrack.in/api'), '/') . '/get_current_data';
+
+        $cacheKey = 'gpstrack_live_payload_' . md5($apiUrl . $apiToken . $apiEmail);
+        $apiData = Cache::get($cacheKey);
+
+        if (!$apiData) {
+            Log::info('GPSTrack API Request', [
+                'url' => $apiUrl,
+                'email' => $apiEmail,
+                'token_preview' => $apiToken ? (substr($apiToken, 0, 4) . '***' . substr($apiToken, -4)) : 'EMPTY',
+            ]);
+
+            try {
+                $response = Http::withoutVerifying()
+                    ->timeout((int) env('GPSTRACK_TIMEOUT', 15))
+                    ->get($apiUrl, [
+                        'token' => $apiToken,
+                        'email' => $apiEmail,
+                    ]);
+
+                $json = $response->json();
+
+                Log::info('GPSTrack API Response', [
+                    'status' => $response->status(),
+                    'successful' => $response->successful(),
+                    'rows_count' => is_array($json) && array_is_list($json) ? count($json) : 0,
+                    'data' => $json ?? $response->body(),
+                ]);
+
+                if (is_array($json) && array_is_list($json)) {
+                    $apiData = $json;
+                    // Cache for 30 seconds to respect GPSTrack rate limit
+                    Cache::put($cacheKey, $apiData, now()->addSeconds(30));
+                    Cache::put($cacheKey . '_last_good', $apiData, now()->addHours(24));
+                } elseif (isset($json['response']) && (int)$json['response'] === 429) {
+                    $apiData = Cache::get($cacheKey . '_last_good');
+                }
+            } catch (\Throwable $e) {
+                Log::error('GPSTrack API Error', [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+                $apiData = Cache::get($cacheKey . '_last_good');
+            }
+        }
+
+        $liveByImei = [];
+        $liveByReg = [];
+        $liveByVehicleId = [];
+        if (is_array($apiData) && array_is_list($apiData)) {
+            foreach ($apiData as $row) {
+                if (!is_array($row)) continue;
+
+                if (isset($row['deviceId'])) {
+                    $rawId = trim((string) $row['deviceId']);
+                    $cleanId = strlen($rawId) === 16 && str_starts_with($rawId, '0') ? substr($rawId, 1) : $rawId;
+                    $liveByImei[$rawId] = $row;
+                    $liveByImei[$cleanId] = $row;
+                    Cache::put('gpstrack_device_meta_' . $cleanId, $row, now()->addHours(24));
+                    Cache::put('gpstrack_device_meta_' . $rawId, $row, now()->addHours(24));
+                }
+
+                if (!empty($row['vehicleId']) && is_string($row['vehicleId'])) {
+                    $liveByVehicleId[trim($row['vehicleId'])] = $row;
+                }
+
+                foreach (['regNo', 'vehicleNo', 'vehicle_no', 'vehicle_number', 'plateNo', 'plate_number', 'deviceName', 'device_name', 'name'] as $field) {
+                    if (!empty($row[$field]) && is_string($row[$field])) {
+                        $norm = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $row[$field]));
+                        if ($norm !== '') {
+                            $liveByReg[$norm] = $row;
+                            Cache::put('gpstrack_reg_meta_' . $norm, $row, now()->addHours(24));
+                        }
+                    }
+                }
+            }
+        }
+
         // Fetch machines with registered and active GPS devices and their latest positions
         $vehicles = Machine::where('plant_id', $activePlantId)
             ->whereHas('gpsDevice', function($q) {
@@ -30,24 +116,158 @@ class GpsTrackingController extends Controller
             })
             ->with(['gpsDevice.latestPosition'])
             ->get()
-            ->map(function($m) {
+            ->map(function($m) use ($liveByImei, $liveByReg, $liveByVehicleId) {
                 $pos = $m->gpsDevice->latestPosition ?? null;
+                $imei = trim((string) $m->gpsDevice->imei);
+                $cleanImei = strlen($imei) === 16 && str_starts_with($imei, '0') ? substr($imei, 1) : $imei;
+                $normReg = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $m->registration));
+
+                $live = $liveByImei[$imei]
+                    ?? ($liveByImei[$cleanImei]
+                    ?? ($liveByReg[$normReg]
+                    ?? ($liveByVehicleId[$imei]
+                    ?? (Cache::get('gpstrack_device_meta_' . $cleanImei)
+                    ?? (Cache::get('gpstrack_reg_meta_' . $normReg) ?? null)))));
+
+                $latitude = isset($live['latitude']) && is_numeric($live['latitude']) ? floatval($live['latitude']) : ($pos ? floatval($pos->latitude) : null);
+                $longitude = isset($live['longitude']) && is_numeric($live['longitude']) ? floatval($live['longitude']) : ($pos ? floatval($pos->longitude) : null);
+                $speed = isset($live['speed']) && is_numeric($live['speed']) ? floatval($live['speed']) : ($pos ? floatval($pos->speed) : 0);
+                $heading = isset($live['bearing']) && is_numeric($live['bearing']) ? floatval($live['bearing']) : ($pos ? floatval($pos->heading) : 0);
+                $ignition = isset($live['ignitionStatus']) ? (strtoupper(trim((string)$live['ignitionStatus'])) === 'ON') : ($pos ? (bool)$pos->ignition : false);
+                $odometer = isset($live['odoDistance']) && is_numeric($live['odoDistance']) ? floatval($live['odoDistance']) : ($pos ? floatval($pos->odometer) : 0);
+                $lastPing = $live['isoDate'] ?? ($m->gpsDevice->last_activity?->toIso8601String() ?? 'Never');
+
+                $vehicleStatus = isset($live['vehicleStatus'])
+                    ? strtoupper(trim((string)$live['vehicleStatus']))
+                    : ($speed > 0 ? 'RUNNING' : ($ignition ? 'IDLE' : 'PARKED'));
+
+                $address = !empty($live['address']) ? trim((string)$live['address']) : null;
+                $fuelLitre = isset($live['fuelLitre']) && is_numeric($live['fuelLitre']) ? floatval($live['fuelLitre']) : null;
+                $insideGeoFence = isset($live['insideGeoFence']) ? (strtoupper(trim((string)$live['insideGeoFence'])) === 'Y') : false;
+
+                // If live coordinates exist, update latest position and device last_activity in DB
+                if ($live && $latitude !== null && $longitude !== null) {
+                    try {
+                        $recordedAt = isset($live['isoDate']) ? date('Y-m-d H:i:s', strtotime($live['isoDate'])) : now();
+                        GpsLatestPosition::updateOrCreate(
+                            ['device_id' => $m->gpsDevice->id],
+                            [
+                                'machine_id' => $m->id,
+                                'latitude' => $latitude,
+                                'longitude' => $longitude,
+                                'speed' => $speed,
+                                'heading' => $heading,
+                                'ignition' => $ignition,
+                                'odometer' => $odometer,
+                                'recorded_at' => $recordedAt,
+                            ]
+                        );
+                        $m->gpsDevice->update(['last_activity' => now()]);
+
+                        if (!GpsPosition::where('device_id', $m->gpsDevice->id)->where('recorded_at', $recordedAt)->exists()) {
+                            GpsPosition::create([
+                                'device_id' => $m->gpsDevice->id,
+                                'machine_id' => $m->id,
+                                'latitude' => $latitude,
+                                'longitude' => $longitude,
+                                'speed' => $speed,
+                                'heading' => $heading,
+                                'ignition' => $ignition,
+                                'odometer' => $odometer,
+                                'recorded_at' => $recordedAt,
+                            ]);
+                        }
+                    } catch (\Throwable $ignored) {}
+                }
+
+                $isOnline = ($latitude !== null && $longitude !== null) && ($vehicleStatus !== 'OFFLINE')
+                    || ($m->gpsDevice->last_activity?->gt(now()->subMinutes(10)) ?? false);
+
                 return [
                     'id' => $m->id,
                     'registration' => $m->registration,
                     'vehicle_model' => $m->vehicle_model,
-                    'vehicle_type' => $m->vehicle_type,
+                    'vehicle_type' => $live['vehicleType'] ?? $m->vehicle_type ?? 'Fleet Vehicle',
                     'imei' => $m->gpsDevice->imei,
-                    'is_online' => $m->gpsDevice->last_activity?->gt(now()->subMinutes(10)) ?? false,
-                    'last_ping' => $m->gpsDevice->last_activity?->toIso8601String() ?? 'Never',
-                    'latitude' => $pos ? floatval($pos->latitude) : null,
-                    'longitude' => $pos ? floatval($pos->longitude) : null,
-                    'speed' => $pos ? floatval($pos->speed) : 0,
-                    'heading' => $pos ? floatval($pos->heading) : 0,
-                    'ignition' => $pos ? (bool)$pos->ignition : false,
-                    'odometer' => $pos ? floatval($pos->odometer) : 0,
+                    'device_id' => $live['deviceId'] ?? $m->gpsDevice->imei,
+                    'vehicle_id' => $live['vehicleId'] ?? null,
+                    'is_online' => $isOnline,
+                    'last_ping' => $lastPing,
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                    'speed' => $speed,
+                    'heading' => $heading,
+                    'ignition' => $ignition,
+                    'odometer' => $odometer,
+                    'vehicle_status' => $vehicleStatus,
+                    'address' => $address,
+                    'fuel_litre' => $fuelLitre,
+                    'inside_geofence' => $insideGeoFence,
+                    'raw_status' => $live['status'] ?? null,
+                    'expiry_date' => $live['expiryDate'] ?? null,
+                    'onboard_date' => $live['onboardDate'] ?? null,
+                    'server_time' => isset($live['serverTime']) && is_numeric($live['serverTime']) ? intval($live['serverTime']) : null,
                 ];
             });
+
+        // Also include any live devices from GPSTrack that are not yet matched to existing machines in this plant
+        if (is_array($apiData) && array_is_list($apiData)) {
+            foreach ($apiData as $row) {
+                if (!is_array($row) || !isset($row['latitude']) || !isset($row['longitude'])) continue;
+
+                $id = (string) ($row['deviceId'] ?? '');
+                $cleanId = strlen($id) === 16 && str_starts_with($id, '0') ? substr($id, 1) : $id;
+                $reg = trim((string) ($row['regNo'] ?? $row['vehicleNo'] ?? ''));
+                $normReg = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $reg));
+
+                $alreadyIncluded = $vehicles->contains(function ($v) use ($id, $cleanId, $normReg) {
+                    return (string)$v['imei'] === $id
+                        || (string)$v['imei'] === $cleanId
+                        || ($normReg !== '' && strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)$v['registration'])) === $normReg);
+                });
+
+                if (!$alreadyIncluded) {
+                    $speed = floatval($row['speed'] ?? 0);
+                    $ignition = strtoupper(trim((string)($row['ignitionStatus'] ?? ''))) === 'ON';
+                    $vehicleStatus = strtoupper(trim((string)($row['vehicleStatus'] ?? ($speed > 0 ? 'RUNNING' : ($ignition ? 'IDLE' : 'PARKED')))));
+
+                    $vehicles->push([
+                        'id' => -abs(crc32($id ?: $reg)),
+                        'registration' => $reg ?: ($row['vehicleId'] ?? $cleanId),
+                        'vehicle_model' => $row['vehicleType'] ?? 'GPS Tracker',
+                        'vehicle_type' => $row['vehicleType'] ?? 'Fleet Vehicle',
+                        'imei' => $cleanId,
+                        'device_id' => $id,
+                        'vehicle_id' => $row['vehicleId'] ?? null,
+                        'is_online' => $vehicleStatus !== 'OFFLINE',
+                        'last_ping' => $row['isoDate'] ?? now()->toIso8601String(),
+                        'latitude' => floatval($row['latitude']),
+                        'longitude' => floatval($row['longitude']),
+                        'speed' => $speed,
+                        'heading' => floatval($row['bearing'] ?? 0),
+                        'ignition' => $ignition,
+                        'odometer' => floatval($row['odoDistance'] ?? 0),
+                        'vehicle_status' => $vehicleStatus,
+                        'address' => !empty($row['address']) ? trim((string)$row['address']) : null,
+                        'fuel_litre' => isset($row['fuelLitre']) && is_numeric($row['fuelLitre']) ? floatval($row['fuelLitre']) : null,
+                        'inside_geofence' => isset($row['insideGeoFence']) ? (strtoupper(trim((string)$row['insideGeoFence'])) === 'Y') : false,
+                        'raw_status' => $row['status'] ?? null,
+                        'expiry_date' => $row['expiryDate'] ?? null,
+                        'onboard_date' => $row['onboardDate'] ?? null,
+                        'server_time' => isset($row['serverTime']) && is_numeric($row['serverTime']) ? intval($row['serverTime']) : null,
+                    ]);
+                }
+            }
+        }
+
+        // Support direct JSON responses for REST clients or polling without full Inertia payload
+        if (request()->wantsJson() && !request()->header('X-Inertia')) {
+            return response()->json([
+                'success' => true,
+                'vehicles' => $vehicles,
+                'geofences' => Geofence::where('plant_id', $activePlantId)->where('is_active', true)->get(),
+            ]);
+        }
 
         // Load active geofences to display as layers on the map
         $geofences = Geofence::where('plant_id', $activePlantId)

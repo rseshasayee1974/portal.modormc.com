@@ -255,12 +255,7 @@ class QueueReportExportJob implements ShouldQueue
                 'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
             ];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
-            $extraParams = [
-                'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Truck No'],
-                'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'conversion_quantity_display', 'truck_no'],
-                'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'right', 'center'],
-                'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
-            ];
+            $extraParams = \App\Services\Reports\InventoryInwardReportService::pdfColumns($data);
         } elseif (strtolower($type) === 'stock_out') {
             $extraParams = [
                 'headers' => ['Date', 'Bill No / Ref', 'Product', 'Qty', 'Unit Price', 'Tax', 'Amount', 'Issued To / Vehicle'],
