@@ -43,6 +43,7 @@ tests/
 !/tests/Feature/IstTimezoneTest.php
 !/tests/Standalone/entity-date-time.mjs
 !/tests/Feature/DashboardPlantAccessTest.php
+!/tests/Feature/DashboardRepositoryTest.php
 !/tests/Feature/InvoiceNumberFormatTest.php
 !/tests/Feature/BatchSeriesNumberTest.php
 !/tests/Feature/JayadhityaPlant2787BatchSheetTest.php

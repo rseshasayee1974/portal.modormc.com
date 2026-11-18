@@ -303,10 +303,53 @@ class User extends Authenticatable implements MustVerifyEmail
 		return $this->hasFullAccess();
 	}
 
+    public function isAdmin(): bool
+    {
+        if ($this->hasFullAccess() || $this->isContextAdministrator()) {
+            return true;
+        }
+
+        if ($this->relationLoaded('roles')) {
+            $hasAdminRole = $this->roles->contains(function ($role) {
+                if (method_exists($role, 'isAdministrator') && $role->isAdministrator()) {
+                    return true;
+                }
+                $code = strtoupper(str_replace(' ', '_', trim((string) ($role->code ?? $role->name ?? ''))));
+                return in_array($code, ['ADMINISTRATOR', 'ADMIN', 'SUPER_ADMIN', 'SUPER_ADMINISTRATOR', 'PLATFORM_ADMIN', 'SAAS_OWNER'], true);
+            });
+            if ($hasAdminRole) {
+                return true;
+            }
+        } elseif ($this->exists && \Illuminate\Support\Facades\Schema::hasTable('roles')) {
+            if ($this->roles()->where(function ($q) {
+                $q->whereIn('code', ['ADMINISTRATOR', 'ADMIN', 'SUPER_ADMIN', 'SUPER_ADMINISTRATOR', 'PLATFORM_ADMIN', 'SAAS_OWNER'])
+                  ->orWhereIn('name', ['Administrator', 'Admin', 'Super Administrator', 'Platform Admin', 'SaaS Owner']);
+            })->exists()) {
+                return true;
+            }
+        }
+
+        if ($this->exists && \Illuminate\Support\Facades\Schema::hasTable('mm_entity_users') && \Illuminate\Support\Facades\Schema::hasTable('mm_roles')) {
+            return EntityUser::where('user_id', $this->id)
+                ->whereNull('deleted_at')
+                ->whereHas('role', function ($q) {
+                    $q->whereIn('code', ['ADMINISTRATOR', 'ADMIN', 'SUPER_ADMIN', 'SUPER_ADMINISTRATOR', 'PLATFORM_ADMIN', 'SAAS_OWNER']);
+                })->exists();
+        }
+
+        return false;
+    }
+
     public function hasFullAccess(): bool
     {
         // Administrator uses explicit permissions; system roles retain full access.
-        return $this->roles->contains(fn ($role) => $role->grantsSystemAccess());
+        return $this->roles->contains(function ($role) {
+            if (method_exists($role, 'grantsSystemAccess')) {
+                return $role->grantsSystemAccess();
+            }
+            $code = strtoupper(str_replace(' ', '_', trim((string) ($role->code ?? $role->name ?? ''))));
+            return in_array($code, ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'SUPER_ADMINISTRATOR'], true);
+        });
     }
 
     public function canChooseInvoiceCopy(): bool
@@ -328,7 +371,13 @@ class User extends Authenticatable implements MustVerifyEmail
             return $role?->isAdministrator() ?? false;
         }
 
-        return $this->roles->contains(fn ($role) => $role->isAdministrator());
+        return $this->roles->contains(function ($role) {
+            if (method_exists($role, 'isAdministrator')) {
+                return $role->isAdministrator();
+            }
+            $code = strtoupper(str_replace(' ', '_', trim((string) ($role->code ?? $role->name ?? ''))));
+            return in_array($code, ['ADMINISTRATOR', 'ADMIN', 'SUPER_ADMIN', 'SUPER_ADMINISTRATOR', 'PLATFORM_ADMIN', 'SAAS_OWNER'], true);
+        });
     }
 
     /**

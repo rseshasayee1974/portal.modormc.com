@@ -141,6 +141,11 @@ class PurchaseOrder extends Model
         return $this->hasOne(Invoice::class, 'ref_id')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'));
     }
 
+    public function billingInvoice()
+    {
+        return $this->belongsTo(Invoice::class, 'billing_id');
+    }
+
     public function bills()
     {
         return $this->hasMany(Invoice::class, 'ref_id')->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))->whereIn('invoice_label', ['purchase', 'Purchase', 'PURCHASE']);

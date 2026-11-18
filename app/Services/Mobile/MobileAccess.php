@@ -367,7 +367,7 @@ class MobileAccess
             return false;
         }
 
-        if (request()->attributes->get('mobile_system_admin') || $user->hasFullAccess() || $user->isSystemAdmin()) {
+        if (request()->attributes->get('mobile_system_admin') || $user->isAdmin() || $user->hasFullAccess() || $user->isSystemAdmin()) {
             return true;
         }
 

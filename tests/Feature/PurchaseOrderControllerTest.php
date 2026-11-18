@@ -477,6 +477,8 @@ class PurchaseOrderControllerTest extends TestCase
         $bill = $inward->order->bills()->firstOrFail();
         $line = $bill->items()->firstOrFail();
         $this->assertEquals(7, $inward->received_qty);
+        $this->assertEquals(125, $inward->unit_price);
+        $this->assertEquals(125, $inward->item->fresh()->unit_price);
         $this->assertEquals(7, $inward->item->invoiced_quantity);
         $this->assertEquals(2, $line->quantity);
         $this->assertEquals($unit->id, $line->uom_id);
@@ -554,5 +556,330 @@ class PurchaseOrderControllerTest extends TestCase
         $this->assertCount(1, $bill->items);
         $this->assertEquals($inward->id, $bill->items->first()->purchase_order_history_id);
         $this->assertEquals(10, $bill->items->first()->quantity);
+    }
+
+    public function test_purchase_register_query_and_reports_reflect_billed_unit_price(): void
+    {
+        $inward = $this->inwardForBilling();
+        $payload = $this->inwardBillPayload();
+        $payload['bill']['unit_price'] = 150.00;
+        $payload['bill']['invoice_date'] = '2026-10-06';
+
+        // Also add an unbilled second item to the same PO
+        $unbilledItem = PurchaseOrderItem::factory()->create([
+            'order_id' => $inward->order_id,
+            'plant_id' => $this->plant->id,
+            'product_id' => $this->product->id,
+            'product_uom' => $this->unit->id,
+            'product_quantity' => 50,
+            'received_quantity' => 0,
+            'invoiced_quantity' => 0,
+            'unit_price' => 80,
+            'discount_type' => '%',
+            'discount_amount' => 0,
+            'tax_id' => null,
+        ]);
+
+        // Create a completely unbilled standalone PO
+        $unbilledPo = PurchaseOrder::factory()->create([
+            'plant_id' => $this->plant->id,
+            'vendor_id' => $this->vendor->id,
+            'state' => 'approved',
+            'date_order' => '2026-10-06',
+        ]);
+        $unbilledStandaloneItem = PurchaseOrderItem::factory()->create([
+            'order_id' => $unbilledPo->id,
+            'plant_id' => $this->plant->id,
+            'product_id' => $this->product->id,
+            'product_uom' => $this->unit->id,
+            'product_quantity' => 25,
+            'unit_price' => 90,
+        ]);
+
+        $this->post(route('inwards.update-weight', $inward), $payload)->assertSessionHasNoErrors();
+        $inward->refresh();
+        $item = $inward->item->fresh();
+
+        // Note: The order state remains 'approved' because it was partially received/billed
+        $this->assertEquals('approved', $inward->order->fresh()->state);
+        $this->assertEquals(150.00, $inward->unit_price);
+        $this->assertEquals(150.00, $item->unit_price);
+
+        // Verify repository query
+        $repository = app(\App\Repositories\ReportRepository::class);
+        $filters = [
+            'plant_id' => $this->plant->id,
+            'from_date' => '2026-10-01',
+            'to_date' => '2026-10-31',
+            'document_status' => 'all',
+        ];
+        $query = $repository->getPurchaseRegisterQuery($filters);
+        $queriedItems = $query->get();
+
+        // Must include the billed item
+        $queriedItem = $queriedItems->firstWhere('id', $item->id);
+        $this->assertNotNull($queriedItem);
+        $this->assertEquals(150.00, (float) $queriedItem->unit_price);
+
+        // Must NOT include the unbilled sibling item or unbilled PO item
+        $this->assertNull($queriedItems->firstWhere('id', $unbilledItem->id));
+        $this->assertNull($queriedItems->firstWhere('id', $unbilledStandaloneItem->id));
+
+        // Verify report service mapping
+        $service = app(\App\Services\Reports\PurchaseRegisterService::class);
+        $report = $service->buildReport($filters, true);
+        $row = collect($report['data'])->firstWhere('id', $item->id);
+
+        $this->assertNotNull($row);
+        $this->assertEquals(150.00, (float) $row['purchase_rate']);
+        $this->assertEquals(150.00 * (float) $item->product_quantity, (float) $row['taxable_amount']);
+        $this->assertEquals('2026-10-06', $row['bill_date']);
+        $this->assertNotEmpty($row['bill_no']);
+        $this->assertEquals($inward->order->po_number, $row['po_number']);
+
+        // Verify Excel workbook generation
+        $exporter = app(\App\Exports\RegisterReportExport::class);
+        $workbook = $exporter->workbook('Purchase Register', $filters, $report);
+        $this->assertNotNull($workbook);
+
+        // Verify PDF view rendering
+        $html = view('reports.register_pdf', [
+            'title' => 'Purchase Register',
+            'report' => $report,
+            'filters' => $filters,
+            'generated_at' => now()->format('d-m-Y H:i:s'),
+        ])->render();
+
+        $this->assertStringContainsString('150.00', $html);
+    }
+
+    public function test_inventory_inward_report_service_excel_and_pdf_reflect_total_unit_price(): void
+    {
+        $inward = $this->inwardForBilling();
+        $inward->update([
+            'unit_price' => 120.00,
+            'received_qty' => 10,
+            'conversion_quantity' => 0,
+            'report_received_at' => '2026-10-06 10:00:00',
+        ]);
+
+        $service = app(\App\Services\Reports\InventoryInwardReportService::class);
+        $data = $service->generate([
+            'start' => '2026-10-01 00:00:00',
+            'end' => '2026-10-31 23:59:59',
+            'product_id' => $inward->product_id,
+        ]);
+
+        $this->assertNotEmpty($data['transactions']);
+        $row = $data['transactions']->first();
+        $this->assertEquals('120.00', $row['unit_price']);
+        // 10 * 120 = 1200
+        $this->assertEquals('1200.00', $row['total_unit_price']);
+        $this->assertEquals(1200.0, $data['total_unit_price']);
+
+        // Test with conversion quantity
+        $inward->update([
+            'conversion_quantity' => 5,
+        ]);
+        $dataConv = $service->generate([
+            'start' => '2026-10-01 00:00:00',
+            'end' => '2026-10-31 23:59:59',
+            'product_id' => $inward->product_id,
+        ]);
+        $rowConv = $dataConv['transactions']->first();
+        // 5 * 120 = 600
+        $this->assertEquals('600.00', $rowConv['total_unit_price']);
+        $this->assertEquals(600.0, $dataConv['total_unit_price']);
+
+        // Verify pdfColumns definition
+        $pdfCols = \App\Services\Reports\InventoryInwardReportService::pdfColumns($dataConv);
+        $this->assertContains('Total Unit Price', $pdfCols['headers']);
+        $this->assertContains('total_unit_price', $pdfCols['fields']);
+        $this->assertEquals(600.0, $pdfCols['totals']['total_unit_price']);
+
+        // Verify Excel report generation
+        $excelService = app(\App\Services\Reports\ExcelExportService::class);
+        $spreadsheet = $excelService->generateExcelReport('inventory_inward', '2026-10-01', '2026-10-31', $dataConv);
+        $sheet = $spreadsheet->getActiveSheet();
+        $headers = [];
+        foreach ($sheet->getRowIterator(4, 4) as $r) {
+            foreach ($r->getCellIterator() as $c) {
+                $headers[] = $c->getValue();
+            }
+        }
+        $this->assertContains('Total Unit Price', $headers);
+
+        // Verify PDF generic_report rendering
+        $html = view('reports.generic_report', array_merge([
+            'type' => 'INVENTORY_INWARD',
+            'target_name' => 'Purchase Order Inward Report',
+            'start' => '01-10-2026',
+            'end' => '31-10-2026',
+            'plant' => $this->plant,
+            'patron' => $this->vendor,
+            'css' => '',
+        ], $dataConv, $pdfCols))->render();
+
+        $this->assertStringContainsString('Total Unit Price', $html);
+        $this->assertStringContainsString('600.00', $html);
+    }
+
+    public function test_purchase_register_displays_all_records_with_generated_bills_and_correct_data(): void
+    {
+        // 1. PO with billed inward (state is 'approved', but has billed invoice & invoiced_quantity)
+        $inwardPo = PurchaseOrder::factory()->create([
+            'plant_id' => $this->plant->id,
+            'vendor_id' => $this->vendor->id,
+            'state' => 'approved',
+            'po_number' => 'PO-INW-01',
+            'billed_date' => '2026-10-10',
+            'invoice_status' => 1,
+        ]);
+        $inwardBilledItem = PurchaseOrderItem::factory()->create([
+            'order_id' => $inwardPo->id,
+            'plant_id' => $this->plant->id,
+            'product_id' => $this->product->id,
+            'product_uom' => $this->unit->id,
+            'product_quantity' => 20,
+            'invoiced_quantity' => 20,
+            'unit_price' => 250.00,
+            'hsn_code' => 'HSN250',
+            'price_subtotal' => 5000.00,
+            'price_tax' => 900.00,
+            'price_total' => 5900.00,
+            'tax_id' => $this->tax->id,
+        ]);
+        $unbilledSibling = PurchaseOrderItem::factory()->create([
+            'order_id' => $inwardPo->id,
+            'plant_id' => $this->plant->id,
+            'product_id' => $this->product->id,
+            'product_uom' => $this->unit->id,
+            'product_quantity' => 10,
+            'invoiced_quantity' => 0,
+            'unit_price' => 200.00,
+        ]);
+
+        // 2. PO billed via BillingController (billing_id set, billing_status 'Billed', state 'approved')
+        $billedInvoice = \App\Models\Invoice::factory()->create([
+            'plant_id' => $this->plant->id,
+            'partner_id' => $this->vendor->id,
+            'invoice_type' => 'Bill',
+            'invoice_label' => 'purchase',
+            'invoice_number' => 'BILL-BC-99',
+            'invoice_date' => '2026-10-12',
+            'status' => \App\Models\Invoice::STATUS_APPROVED,
+        ]);
+        $poBilled = PurchaseOrder::factory()->create([
+            'plant_id' => $this->plant->id,
+            'vendor_id' => $this->vendor->id,
+            'state' => 'approved',
+            'po_number' => 'PO-BC-02',
+            'billing_id' => $billedInvoice->id,
+            'billing_status' => 'Billed',
+            'invoice_status' => 1,
+            'billed_date' => '2026-10-12',
+        ]);
+        $poBilledItem = PurchaseOrderItem::factory()->create([
+            'order_id' => $poBilled->id,
+            'plant_id' => $this->plant->id,
+            'product_id' => $this->product->id,
+            'product_uom' => $this->unit->id,
+            'product_quantity' => 15,
+            'invoiced_quantity' => 0,
+            'unit_price' => 100.00,
+            'price_subtotal' => 1500.00,
+            'price_tax' => 270.00,
+            'price_total' => 1770.00,
+            'tax_id' => $this->tax->id,
+        ]);
+
+        // 3. Fully billed PO (state 'billed')
+        $poFullBilled = PurchaseOrder::factory()->create([
+            'plant_id' => $this->plant->id,
+            'vendor_id' => $this->vendor->id,
+            'state' => 'billed',
+            'po_number' => 'PO-FULL-03',
+            'bill_number' => 'BILL-CUSTOM-33',
+            'billed_date' => '2026-10-15',
+        ]);
+        $poFullBilledItem = PurchaseOrderItem::factory()->create([
+            'order_id' => $poFullBilled->id,
+            'plant_id' => $this->plant->id,
+            'product_id' => $this->product->id,
+            'product_uom' => $this->unit->id,
+            'product_quantity' => 8,
+            'unit_price' => 500.00,
+            'price_subtotal' => 4000.00,
+            'price_tax' => 720.00,
+            'price_total' => 4720.00,
+            'tax_id' => $this->tax->id,
+        ]);
+
+        // 4. Completely unbilled PO (should be excluded)
+        $unbilledPo = PurchaseOrder::factory()->create([
+            'plant_id' => $this->plant->id,
+            'vendor_id' => $this->vendor->id,
+            'state' => 'approved',
+            'po_number' => 'PO-UNBILLED-04',
+            'date_order' => '2026-10-10',
+            'billing_id' => null,
+            'invoice_status' => 0,
+            'bill_number' => null,
+        ]);
+        $unbilledPoItem = PurchaseOrderItem::factory()->create([
+            'order_id' => $unbilledPo->id,
+            'plant_id' => $this->plant->id,
+            'product_id' => $this->product->id,
+            'product_uom' => $this->unit->id,
+            'product_quantity' => 30,
+            'invoiced_quantity' => 0,
+        ]);
+
+        // Execute report query
+        $filters = [
+            'plant_id' => $this->plant->id,
+            'from_date' => '2026-10-01',
+            'to_date' => '2026-10-31',
+            'document_status' => 'all',
+        ];
+        $service = app(\App\Services\Reports\PurchaseRegisterService::class);
+        $report = $service->buildReport($filters, true);
+        $rows = collect($report['data']);
+
+        // Assert all 3 billed items are present
+        $this->assertTrue($rows->contains('id', $inwardBilledItem->id));
+        $this->assertTrue($rows->contains('id', $poBilledItem->id));
+        $this->assertTrue($rows->contains('id', $poFullBilledItem->id));
+
+        // Assert unbilled items are NOT present
+        $this->assertFalse($rows->contains('id', $unbilledSibling->id));
+        $this->assertFalse($rows->contains('id', $unbilledPoItem->id));
+
+        // Verify data accuracy on row 1 (inward billed)
+        $row1 = $rows->firstWhere('id', $inwardBilledItem->id);
+        $this->assertEquals(250.00, (float) $row1['purchase_rate']);
+        $this->assertEquals(20.0, (float) $row1['qty']);
+        $this->assertEquals(5000.00, (float) $row1['taxable_amount']);
+        $this->assertEquals('2026-10-10', $row1['bill_date']);
+        $this->assertEquals($this->vendor->legal_name, $row1['supplier_name']);
+        $this->assertEquals($this->vendor->gstin, $row1['gst_number']);
+        $this->assertEquals($this->product->title, $row1['product_name']);
+        $this->assertEquals('HSN250', $row1['hsn_code']);
+
+        // Verify data accuracy on row 2 (billed via BillingController with invoice number fallback)
+        $row2 = $rows->firstWhere('id', $poBilledItem->id);
+        $this->assertStringContainsString('BILL-BC-99', $row2['bill_no']);
+        $this->assertEquals('2026-10-12', $row2['bill_date']);
+        $this->assertEquals('Billed', $row2['document_status']);
+        $this->assertEquals(100.00, (float) $row2['purchase_rate']);
+        $this->assertEquals(1500.00, (float) $row2['taxable_amount']);
+
+        // Verify data accuracy on row 3 (custom bill number and state 'billed')
+        $row3 = $rows->firstWhere('id', $poFullBilledItem->id);
+        $this->assertEquals('BILL-CUSTOM-33', $row3['bill_no']);
+        $this->assertEquals('2026-10-15', $row3['bill_date']);
+        $this->assertEquals('Billed', $row3['document_status']);
+        $this->assertEquals(500.00, (float) $row3['purchase_rate']);
+        $this->assertEquals(4000.00, (float) $row3['taxable_amount']);
     }
 }

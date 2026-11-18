@@ -18,12 +18,17 @@ class MobilePlantContext
     protected function authorizeToken(Request $request): void
     {
         $user = $request->user();
-        if ($user && ($user->isSystemAdmin() || $user->hasFullAccess())) {
+        if ($user && $user->isAdmin()) {
             return;
         }
-        $token = $request->user()->currentAccessToken();
+        $token = $request->user()?->currentAccessToken();
         abort_unless(
-            $token && ($token->can('sales-mobile') || in_array('sales-mobile', $token->abilities ?? [], true)),
+            $token && (
+                $token->can('sales-mobile') ||
+                $token->can('*') ||
+                in_array('sales-mobile', $token->abilities ?? [], true) ||
+                in_array('*', $token->abilities ?? [], true)
+            ),
             403,
             'Use a sales mobile device token.'
         );
@@ -36,16 +41,18 @@ class MobilePlantContext
         abort_if($user->lockout_until && $user->lockout_until->isFuture(), 403, 'Your account is locked. Try again after the lockout expires.');
         $this->authorizeToken($request);
 
-        $isAdmin = $user->isSystemAdmin() || $user->hasFullAccess();
+        $isAdmin = $user->isAdmin();
         $plantIdHeader = $request->header('X-Plant-Id');
         if (!$plantIdHeader && $isAdmin) {
-            $plantIdHeader = MobileAccess::plants($user)->first()?->id;
+            $plantIdHeader = MobileAccess::plants($user)->first()?->id ?? \App\Models\Plant::where('is_active', 1)->value('id');
         }
 
         $data = validator(['plant_id' => $plantIdHeader], ['plant_id' => 'required|integer|min:1'])->validate();
-        $plant = MobileAccess::plants($user)->find($data['plant_id']);
+        $plant = $isAdmin
+            ? (\App\Models\Plant::where('is_active', 1)->find($data['plant_id']) ?? MobileAccess::plants($user)->find($data['plant_id']))
+            : MobileAccess::plants($user)->find($data['plant_id']);
         abort_unless($plant, 403, 'No access to this active plant.');
-        $request->attributes->set('mobile_system_admin', $user->isSystemAdmin());
+        $request->attributes->set('mobile_system_admin', $isAdmin);
         $request->attributes->set('mobile_plant_id', $plant->id);
         $role = EntityUser::forContext($user->id, $plant->entity_id, $plant->id)?->role;
         $request->attributes->set('mobile_role', $role);

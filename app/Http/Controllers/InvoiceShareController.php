@@ -479,12 +479,7 @@ class InvoiceShareController extends Controller
                 'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
             ];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
-            $extraParams = [
-                'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Truck No'],
-                'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'truck_no'],
-                'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'center'],
-                'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
-            ];
+            $extraParams = \App\Services\Reports\InventoryInwardReportService::pdfColumns($data);
         } elseif (strtolower($type) === 'batching_schedule') {
             $extraParams = \App\Services\Reports\BatchingScheduleReportService::pdfColumns($data);
         } elseif (str_contains(strtolower($type), 'production_batch')) {

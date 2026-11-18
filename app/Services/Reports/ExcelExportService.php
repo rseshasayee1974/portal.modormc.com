@@ -517,7 +517,7 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'inventory_inward') {
-                $headersList = ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Truck No'];
+                $headersList = ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Total Unit Price', 'Truck No'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
                         $row['date'] ?? '',
@@ -527,9 +527,23 @@ class ExcelExportService
                         $row['product_name'] ?? '',
                         $row['quantity'] ?? 0,
                         $row['conversion_quantity_display'] ?? '',
+                        is_numeric($row['unit_price'] ?? null) ? (float) $row['unit_price'] : ($row['unit_price'] ?? 0),
+                        is_numeric($row['total_unit_price'] ?? null) ? (float) $row['total_unit_price'] : ($row['total_unit_price'] ?? 0),
                         $row['truck_no'] ?? ''
                     ];
                 }
+                $totalRow = [
+                    'Total Goods Inward',
+                    '',
+                    '',
+                    '',
+                    '',
+                    (float) ($data['total_quantity'] ?? 0),
+                    (float) ($data['conversion_quantity_total'] ?? 0),
+                    '',
+                    (float) ($data['total_unit_price'] ?? $data['total_unit_prices'] ?? 0),
+                    ''
+                ];
             } elseif ($type === 'stock_out') {
                 $headersList = ['Issue Date', 'Reference', 'Bill No', 'Bill Date', 'Description', 'Partner', 'Product', 'Quantity', 'UOM', 'Items', 'Unit Price', 'Discount', 'Taxable Amount', 'Tax %', 'Tax Amount', 'Total Amount', 'Issued To', 'Vehicle', 'Odometer', 'Notes'];
                 foreach (($data['transactions'] ?? []) as $row) {

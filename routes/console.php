@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Artisan;
 // Schedule::command('website:monitor modormc.com')->everyFiveMinutes();
 // Schedule::command('fleet:check-maintenance')->daily();
 Schedule::command('fleet:notify-document-expiry --scheduled')->everyFifteenMinutes()->withoutOverlapping(120);
-Schedule::command('gps:sync-gpstrack')->everyMinute()->withoutOverlapping();
+Schedule::command('gps:sync-gpstrack')->everyFifteenMinutes()->withoutOverlapping();
 // Schedule::command('reports:send-scheduled')->everyMinute();
 
 Artisan::command('sales-orders:send-emails', function () {

@@ -670,6 +670,20 @@ class PurchaseOrderInwardController extends Controller
                     if (!$invoice) {
                         throw \Illuminate\Validation\ValidationException::withMessages(['bill' => 'This inward has already been billed.']);
                     }
+                    if (array_key_exists('unit_price', $validated['bill']) && $validated['bill']['unit_price'] !== null) {
+                        $inward->unit_price = $validated['bill']['unit_price'];
+                        $inward->updated_by = $userId;
+                        $inward->save();
+
+                        if ($item = $inward->item) {
+                            $item->setRelation('order', $order);
+                            $item->unit_price = $validated['bill']['unit_price'];
+                            $item->calculateItemTotals();
+                            if ($order) {
+                                $order->recalculateTotals();
+                            }
+                        }
+                    }
                     return $invoice;
                 } catch (\Illuminate\Validation\ValidationException $e) {
                     $errors = [];
