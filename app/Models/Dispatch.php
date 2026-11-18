@@ -19,6 +19,27 @@ class Dispatch extends Model
     {
         static::saving(function (self $dispatch) {
             if ($dispatch->correctingDeliveredQuantity) return;
+            if ($dispatch->dispatch_no !== null && $dispatch->dispatch_no !== ''
+                && !$dispatch->trashed()
+                && (!$dispatch->exists || $dispatch->isDirty(['plant_id', 'prefix', 'dispatch_no', 'deleted_at']))) {
+                $duplicate = self::withoutGlobalScopes()
+                    ->where('plant_id', $dispatch->plant_id)
+                    ->where('dispatch_no', $dispatch->dispatch_no)
+                    ->whereNull('deleted_at')
+                    ->where(function ($query) use ($dispatch) {
+                        $query->where('prefix', $dispatch->prefix ?? '');
+                        if (empty($dispatch->prefix)) {
+                            $query->orWhereNull('prefix');
+                        }
+                    })
+                    ->when($dispatch->exists, fn ($query) => $query->where('id', '!=', $dispatch->id))
+                    ->exists();
+                if ($duplicate) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'dispatch_no' => 'This dispatch number already exists in this plant.',
+                    ]);
+                }
+            }
             if (!$dispatch->exists && !array_key_exists('delivered_qty', $dispatch->getAttributes())) {
                 $dispatch->delivered_qty = null;
             }

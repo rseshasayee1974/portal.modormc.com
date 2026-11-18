@@ -87,6 +87,42 @@ class BatchSeriesNumberTest extends TestCase
         Batch::nextSeriesNumber(1, 'OTHER');
     }
 
+    public function test_deleted_batch_number_can_be_reused_in_the_same_plant(): void
+    {
+        DB::table('mm_batches')->insert([
+            ['plant_id' => 1, 'batch_no' => 'B10', 'deleted_at' => '2026-11-18'],
+            ['plant_id' => 2, 'batch_no' => 'B10', 'deleted_at' => null],
+        ]);
+        $this->assertFalse(Batch::withoutGlobalScopes()->where('plant_id', 1)
+            ->whereNull('deleted_at')->where('batch_no', 'B10')->exists());
+        DB::table('mm_batches')->insert(['plant_id' => 1, 'batch_no' => 'B10']);
+        $this->assertSame(2, DB::table('mm_batches')->where('plant_id', 1)->where('batch_no', 'B10')->count());
+        $this->expectException(QueryException::class);
+        DB::table('mm_batches')->insert(['plant_id' => 1, 'batch_no' => 'B10']);
+    }
+
+    public function test_dispatch_number_validation_ignores_deleted_and_other_plant_records(): void
+    {
+        Schema::create('mm_dispatches', function (Blueprint $table) {
+            $table->id();
+            $table->integer('plant_id');
+            $table->string('prefix')->nullable();
+            $table->string('dispatch_no');
+            $table->softDeletes();
+        });
+        DB::table('mm_dispatches')->insert([
+            ['plant_id' => 1, 'prefix' => 'B', 'dispatch_no' => '10', 'deleted_at' => '2026-11-18'],
+            ['plant_id' => 2, 'prefix' => 'B', 'dispatch_no' => '10', 'deleted_at' => null],
+            ['plant_id' => 1, 'prefix' => 'P', 'dispatch_no' => '10', 'deleted_at' => null],
+        ]);
+        $dispatch = new \App\Models\Dispatch(['plant_id' => 1, 'prefix' => 'B', 'dispatch_no' => '10']);
+        $validate = function () { return $this->fireModelEvent('saving'); };
+        $this->assertNotSame(false, $validate->call($dispatch));
+        DB::table('mm_dispatches')->insert(['plant_id' => 1, 'prefix' => 'B', 'dispatch_no' => '10']);
+        $this->expectException(ValidationException::class);
+        $validate->call($dispatch);
+    }
+
     public function test_dispatch_prefix_and_number_match_the_selected_batch_number(): void
     {
         foreach (['B1', 'B12', 'P1', 'P25'] as $number) {

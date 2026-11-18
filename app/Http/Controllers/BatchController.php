@@ -408,6 +408,7 @@ class BatchController extends Controller
             $payload['batch_no'] = $canEditBatchNo && !empty($payload['batch_no'])
                 ? $number['series'].(int) $payload['batch_no'] : $number['batch_no'];
             $exists = Batch::withoutGlobalScopes()->where('plant_id', $activePlantId)
+                ->whereNull('deleted_at')
                 ->where('batch_no', $payload['batch_no'])->exists();
             if ($exists) {
                 throw ValidationException::withMessages(['batch_no' => "Batch number {$payload['batch_no']} already exists in this plant."]);
