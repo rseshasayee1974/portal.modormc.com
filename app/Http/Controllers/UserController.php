@@ -129,10 +129,8 @@ class UserController extends Controller
                     })->values();
             }
 
-            $plantsQuery = Plant::where('is_active', 1);
-            if ($activePlantId) {
-                $plantsQuery->where('id', $activePlantId);
-            }
+            $plantsQuery = Plant::where('is_active', 1)
+                ->whereKey($activePlantId ?? 0);
             $plants = $plantsQuery->get()->map(fn($p) => [
                 'value' => $p->id,
                 'label' => $p->name,

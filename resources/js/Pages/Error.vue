@@ -256,7 +256,7 @@ const sidebarItems = [
                     <!-- Help hint -->
                     <p class="erp-hint">
                         Need help? Contact
-                        <a href="mailto:support@modormines.com" class="erp-hint__link">support@modormines.com</a>
+                        <a href="mailto:support@modomines.com" class="erp-hint__link">support@modomines.com</a>
                     </p>
                 </div>
             </main>

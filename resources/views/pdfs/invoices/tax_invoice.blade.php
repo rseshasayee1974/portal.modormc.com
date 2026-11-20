@@ -307,18 +307,6 @@
         }
 
         .qr-cell {
-<<<<<<< HEAD
-            width: 40mm;
-            text-align: right;
-            padding-right: 6px;
-        }
-
-        .qr-img {
-            width: 36mm;
-            height: 36mm;
-            vertical-align: middle;
-=======
-            width: 70px;
             text-align: center;
             vertical-align: middle !important;
             padding: 4px 8px;
@@ -328,20 +316,6 @@
             display: block;
             width: 58px;
             height: 58px;
-            margin: 0 auto;
->>>>>>> 7f37449dc70fbca7f251a00b73ee70f38890f8d2
-        }
-
-        /* 3-Column Info Boxes */
-        .info-grid-table {
-            width: 100%;
-            border-collapse: collapse;
-            border-bottom: 1px solid #000;
-        }
-
-        .info-grid-table td {
-            width: 33.333%;
-            vertical-align: top;
             padding: 4px 6px;
             border-right: 1px solid #000;
             font-size: 7.5pt;

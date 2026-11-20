@@ -84,7 +84,7 @@ class SetEntityContext
 
                 if ($isSuspended) {
                     session()->forget(['active_entity_id', 'active_plant_id', 'gstin']);
-                    return redirect()->route('entity-context.index');
+                    return redirect()->route('entity-context.index')->with('error', 'This organization is suspended. Contact your administrator to restore access.');
                 }
             }
 
