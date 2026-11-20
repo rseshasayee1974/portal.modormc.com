@@ -83,13 +83,13 @@ class StorePatronRequest extends FormRequest
                 'nullable', 
                 'string', 
                 'max:100', 
-                \Illuminate\Validation\Rule::unique('mm_patrons')->where(fn($q) => $q->where('plant_id', session('active_plant_id'))->whereNull('deleted_at'))
+                \Illuminate\Validation\Rule::unique('mm_patrons')->where(fn($q) => $q->where('plant_id', session('active_plant_id')))
             ],
             'legal_name' => [       
                 'required', 
                 'string', 
                 'max:200', 
-                \Illuminate\Validation\Rule::unique('mm_patrons')->where(fn($q) => $q->where('plant_id', session('active_plant_id'))->whereNull('deleted_at'))
+                \Illuminate\Validation\Rule::unique('mm_patrons')->where(fn($q) => $q->where('plant_id', session('active_plant_id')))
             ],
             'debit_ledger_id' => 'nullable|exists:mm_ledgers,id',
             'credit_ledger_id' => 'nullable|exists:mm_ledgers,id',

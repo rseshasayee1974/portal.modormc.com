@@ -233,7 +233,8 @@ class Patron extends Model
         elseif (in_array('Vendor', $types)) $prefix = 'V';
         elseif (in_array('Transporter', $types)) $prefix = 'T';
 
-        $lastPatron = self::where('plant_id', $plantId)
+        $lastPatron = self::withTrashed()
+            ->where('plant_id', $plantId)
             ->where('code', 'like', $prefix . '%')
             ->orderBy('id', 'desc')
             ->first();
