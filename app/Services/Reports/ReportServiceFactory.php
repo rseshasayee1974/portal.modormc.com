@@ -26,6 +26,7 @@ class ReportServiceFactory
             'product_consolidated'  => ProductConsolidatedReportService::class,
             'customer_consolidated' => CustomerConsolidatedReportService::class,
             'customer_outstanding'  => CustomerOutstandingReportService::class,
+            'patron_credit_limit'   => PatronCreditLimitReportService::class,
             'overall'               => OverallReportService::class,
             'truck_consolidated'    => TruckConsolidatedReportService::class,
             'site_consolidated'     => SiteConsolidatedReportService::class,

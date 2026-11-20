@@ -121,6 +121,7 @@ class Patron extends Model
         'sales_executive_id',
         'debit_ledger_id',
         'credit_ledger_id',
+        'credit_limit',
         'operational_status',
         'pan_no',
         'gstin',
@@ -135,6 +136,7 @@ class Patron extends Model
     ];
 
     protected $casts = [
+        'credit_limit' => 'decimal:2',
         'status' => 'boolean',
         'displayed' => 'boolean',
         'is_system' => 'boolean',

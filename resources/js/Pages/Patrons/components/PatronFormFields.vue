@@ -141,6 +141,10 @@ defineProps<{
                 <BaseSelect label="Credit Ledger" v-model="form.credit_ledger_id" :options="creditLedgerOptions"
                     optionLabel="label" optionValue="value" filter clearable
                     placeholder="Use account defaults" :error="form.errors.credit_ledger_id" />
+                <BaseInput label="Credit Limit" v-model="form.credit_limit" type="number" :min="0" :step="0.01"
+                    placeholder="0.00" :error="form.errors.credit_limit" />
+                <BaseInput label="Used Credit" :model-value="Number(form.credit_used || 0).toFixed(2)" disabled />
+                <BaseInput label="Available Credit" :model-value="Number(form.credit_available || 0).toFixed(2)" disabled />
             </div>
         </section>
 

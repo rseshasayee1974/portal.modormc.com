@@ -35,7 +35,8 @@ class AttendanceReportService implements ReportServiceInterface
         $plant = $this->ctx->requirePlantId();
         $query = Attendance::withoutGlobalScope('plant_id')->where('plant_id', $plant)
             ->whereHas('personnel', fn ($q) => $q->withoutGlobalScope('plant_id')
-                ->where(fn ($scope) => $scope->where('plant_id', $plant)->orWhereNull('plant_id')))
+                ->where(fn ($scope) => $scope->where('plant_id', $plant)->orWhereNull('plant_id'))
+                ->where('employment_type', 'permanent'))
             ->with(['personnel' => fn ($q) => $q->withoutGlobalScope('plant_id')->with('department'), 'shift']);
         if (!empty($filters['start'])) $query->whereDate('attendance_date', '>=', Carbon::parse($filters['start'])->toDateString());
         if (!empty($filters['end'])) $query->whereDate('attendance_date', '<=', Carbon::parse($filters['end'])->toDateString());

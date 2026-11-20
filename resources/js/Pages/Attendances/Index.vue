@@ -35,6 +35,7 @@ interface Personnel {
     first_name: string;
     last_name: string | null;
     employee_code: string;
+    employment_type?: string | null;
     department_id?: number | null;
     designation_id?: number | null;
     department?: Department | null;
@@ -254,6 +255,7 @@ const filteredPersonnel = computed(() => {
 
     return props.personnel.filter(p => {
         if (!p) return false;
+        if (p.employment_type && p.employment_type !== 'permanent') return false;
 
         const matchesDept = deptId === null || deptId === undefined || p.department_id === deptId;
         if (!matchesDept) return false;

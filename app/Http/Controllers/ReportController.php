@@ -258,6 +258,7 @@ class ReportController extends Controller
             'PRODUCT_CONSOLIDATED'      => 'reports.product_consolidated_report',
             'CUSTOMER_CONSOLIDATED'     => 'reports.customer_consolidated_report',
             'CUSTOMER_OUTSTANDING'      => 'reports.customer_outstanding_report',
+            'PATRON_CREDIT_LIMIT'       => 'reports.generic_report',
             'OVERALL'                   => 'reports.overall_report',
             'TRUCK_CONSOLIDATED'        => 'reports.truck_consolidated_report',
             'SITE_CONSOLIDATED'         => 'reports.site_consolidated_report',
@@ -327,6 +328,17 @@ class ReportController extends Controller
             ];
         } elseif (str_contains(strtolower($type), 'machine_tracker')) {
             $extraParams = \App\Services\Reports\MachineTrackerReportService::pdfColumns($data);
+        } elseif (strtolower($type) === 'patron_credit_limit') {
+            $extraParams = [
+                'headers' => ['Patron Code', 'Patron Name', 'Credit Limit', 'Used Credit', 'Available Credit'],
+                'fields' => ['code', 'patron_name', 'credit_limit', 'used_credit', 'available_credit'],
+                'alignments' => ['left', 'left', 'right', 'right', 'right'],
+                'totals' => [
+                    'credit_limit' => $data['total_credit_limit'] ?? 0,
+                    'used_credit' => $data['total_used_credit'] ?? 0,
+                    'available_credit' => $data['total_available_credit'] ?? 0,
+                ],
+            ];
         } elseif (str_contains(strtolower($type), 'payroll_personnel')) {
             $extraParams = [
                 'headers'    => ['Emp Code', 'Employee Name', 'Department / Role', 'Month / Period', 'Attendance', 'Gross Pay', 'Deductions', 'Net Salary', 'Status'],

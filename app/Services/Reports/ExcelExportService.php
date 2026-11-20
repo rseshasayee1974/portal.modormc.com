@@ -932,6 +932,24 @@ class ExcelExportService
                         'rows' => $batchRows,
                     ];
                 }
+            } elseif ($type === 'patron_credit_limit') {
+                $title = 'PATRON CREDIT LIMIT REPORT';
+                $headersList = ['Patron Code', 'Patron Name', 'Credit Limit (₹)', 'Used Credit (₹)', 'Available Credit (₹)'];
+                foreach (($data['transactions'] ?? []) as $row) {
+                    $rows[] = [
+                        $row['code'] ?? '',
+                        $row['patron_name'] ?? '',
+                        (float) ($row['credit_limit'] ?? 0),
+                        (float) ($row['used_credit'] ?? 0),
+                        (float) ($row['available_credit'] ?? 0),
+                    ];
+                }
+                $totalRow = [
+                    'Total', '',
+                    (float) ($data['total_credit_limit'] ?? 0),
+                    (float) ($data['total_used_credit'] ?? 0),
+                    (float) ($data['total_available_credit'] ?? 0),
+                ];
             } elseif ($type === 'customer_outstanding') {
                 $title = "CUSTOMER OUTSTANDING & AGING REPORT";
                 $headersList = [

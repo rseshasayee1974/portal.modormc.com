@@ -29,13 +29,22 @@ class PatronController extends Controller
     public function index()
     {
         $this->authorizeModule('menu');
-         
+        $plantId = session('active_plant_id');
+        $creditBalances = app(\App\Services\Reports\CustomerOutstandingReportService::class)
+            ->creditBalancesForPlant($plantId ? (int) $plantId : null);
+
         return Inertia::render('Patrons/Index', [
             'patrons' => Patron::withoutGlobalScope('active_operational_status')
-                ->where('plant_id', session('active_plant_id'))
+                ->where('plant_id', $plantId)
                 ->with(['plant', 'debitLedger', 'creditLedger', 'contacts.addresses.state', 'bankAccounts'])
                 ->orderBy('legal_name')
-                ->get(),
+                ->get()->map(function (Patron $patron) use ($creditBalances) {
+                    $used = max(0, round((float) ($creditBalances[$patron->id] ?? 0), 2));
+                    $limit = (float) ($patron->credit_limit ?? 0);
+                    $patron->setAttribute('credit_used', $used);
+                    $patron->setAttribute('credit_available', max(0, round($limit - $used, 2)));
+                    return $patron;
+                }),
             'plants'   => ActivePlantsDropdown(),
             'debitLedgers' => $this->patronLedgerOptions('Sundry Debtors'),
             'creditLedgers' => $this->patronLedgerOptions('Sundry Creditors'),
@@ -160,6 +169,7 @@ class PatronController extends Controller
                 'patron_type', 'legal_name',
                 'sales_executive_id',
                 'debit_ledger_id', 'credit_ledger_id',
+                'credit_limit',
                 'operational_status', 'pan_no', 'gstin', 'aadhar_number',
                 'status', 'displayed',
             ]));

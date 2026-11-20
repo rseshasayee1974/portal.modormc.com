@@ -6,6 +6,7 @@ import Tag from 'primevue/tag';
 import type { Patron } from '../types';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import PatronRowEditPanel from './PatronRowEditPanel.vue';
+import { formatCurrency } from '@/Utils/formatters';
 
 const props = defineProps<{
     patrons: Patron[];
@@ -161,6 +162,17 @@ const onRowClick = (event: any) => {
                 </div>
             </template>
         </Column>
+
+        <!-- <Column header="Credit Limit">
+            <template #body="slotProps">
+                <div v-if="slotProps.data.credit_limit !== null && slotProps.data.credit_limit !== undefined" class="flex flex-col gap-1">
+                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200">{{ formatCurrency(slotProps.data.credit_limit) }}</span>
+                    <span class="text-[10px] text-slate-500">Used: {{ formatCurrency(slotProps.data.credit_used || 0) }}</span>
+                    <span class="text-[10px] text-emerald-700 dark:text-emerald-400">Available: {{ formatCurrency(slotProps.data.credit_available || 0) }}</span>
+                </div>
+                <span v-else class="text-slate-400 text-xs">Not set</span>
+            </template>
+        </Column> -->
 
         <Column field="operational_status" header="Status" sortable style="width: 140px">
             <template #body="slotProps">

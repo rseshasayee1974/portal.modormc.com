@@ -11,13 +11,17 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::table('mm_dispatches', function (Blueprint $table) {
-            $table->string('discount_tax_mode', 16)->default('after_tax');
-        });
+        if (!Schema::hasColumn('mm_dispatches', 'discount_tax_mode')) {
+            Schema::table('mm_dispatches', function (Blueprint $table) {
+                $table->string('discount_tax_mode', 16)->default('after_tax');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('mm_dispatches', fn (Blueprint $table) => $table->dropColumn('discount_tax_mode'));
+        if (Schema::hasColumn('mm_dispatches', 'discount_tax_mode')) {
+            Schema::table('mm_dispatches', fn (Blueprint $table) => $table->dropColumn('discount_tax_mode'));
+        }
     }
 };

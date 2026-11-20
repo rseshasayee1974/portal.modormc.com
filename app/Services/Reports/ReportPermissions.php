@@ -22,6 +22,7 @@ class ReportPermissions
         'quality_testing' => 'Quality Testing Report',
         'receipt' => 'Receipt Log',
         'customer_outstanding' => 'Customer Outstanding',
+        'patron_credit_limit' => 'Patron Credit Limit',
         'deleted_report' => 'Deleted Report',
         'bulk_documents' => 'Bulk Invoice / Bill Export',
         'inventory_stock' => 'Stock Status List',

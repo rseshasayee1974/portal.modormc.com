@@ -60,7 +60,7 @@
                                 $align = isset($alignments[$fIdx]) ? $alignments[$fIdx] : 'left';
                             @endphp
                             <td class="text-{{ $align }}">
-                                @if(is_numeric($val) && (str_contains(strtolower($field), 'amt') || str_contains(strtolower($field), 'amount') || str_contains(strtolower($field), 'price')))
+                                @if(is_numeric($val) && (str_contains(strtolower($field), 'amt') || str_contains(strtolower($field), 'amount') || str_contains(strtolower($field), 'price') || str_contains(strtolower($field), 'credit')))
                                     ₹ {{ number_format((float)$val, 2) }}
                                 @else
                                     {{ $val }}

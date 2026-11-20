@@ -12,9 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mm_machine_maintanence_request', function (Blueprint $table) {
-            $table->decimal('amount_untaxed', 17, 2)->default(0.00)->after('order_no');
-            $table->decimal('amount_tax', 17, 2)->default(0.00)->after('amount_untaxed');
-            $table->decimal('amount_total', 17, 2)->default(0.00)->after('rounding_value');
+            if (!Schema::hasColumn('mm_machine_maintanence_request', 'amount_untaxed')) {
+                $table->decimal('amount_untaxed', 17, 2)->default(0.00)->after('order_no');
+            }
+            if (!Schema::hasColumn('mm_machine_maintanence_request', 'amount_tax')) {
+                $table->decimal('amount_tax', 17, 2)->default(0.00)->after('amount_untaxed');
+            }
+            if (!Schema::hasColumn('mm_machine_maintanence_request', 'amount_total')) {
+                $table->decimal('amount_total', 17, 2)->default(0.00)->after('rounding_value');
+            }
         });
 
         Schema::table('mm_machine_maintanence_lines', function (Blueprint $table) {
@@ -28,8 +34,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('mm_machine_maintanence_request', function (Blueprint $table) {
-            $table->dropColumn(['amount_untaxed', 'amount_tax', 'amount_total']);
-        });
+        $columns = array_values(array_filter(
+            ['amount_untaxed', 'amount_tax', 'amount_total'],
+            fn ($column) => Schema::hasColumn('mm_machine_maintanence_request', $column)
+        ));
+        if ($columns) {
+            Schema::table('mm_machine_maintanence_request', fn (Blueprint $table) => $table->dropColumn($columns));
+        }
     }
 };

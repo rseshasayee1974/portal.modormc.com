@@ -49,6 +49,7 @@ import VoucherReport from './components/VoucherReport.vue';
 import QualityTestingReport from './components/QualityTestingReport.vue';
 import ExpenseReport from './components/ExpenseReport.vue';
 import CustomerOutstandingReport from './components/CustomerOutstandingReport.vue';
+import PatronCreditLimitReport from './components/PatronCreditLimitReport.vue';
 import OverallReport from './components/OverallReport.vue';
 import BulkDocumentReport from './components/BulkDocumentReport.vue';
 import DeletedReport from './components/DeletedReport.vue';
@@ -134,6 +135,7 @@ const reportIcons = {
     bulk_documents: DocumentDuplicateIcon,
     ledger: BookOpenIcon,
     customer_outstanding: ClockIcon,
+    patron_credit_limit: BanknotesIcon,
     patron: UserGroupIcon,
     expense: BanknotesIcon,
     payment: ArrowUpOnSquareIcon,
@@ -184,6 +186,7 @@ const reportCatalog = [
             { id: 'bulk_documents', name: 'Bulk Invoice / Bill Export', description: 'Filter invoices and bills and download one combined PDF, one document per page' },
             { id: 'ledger', name: 'General Ledger', description: 'Account balances, running ledgers and transaction history' },
             { id: 'customer_outstanding', name: 'Customer Outstanding Report', description: 'Customer receivables, billed vs received, outstanding balance and aging analysis' },
+            { id: 'patron_credit_limit', name: 'Patron Credit Limit Report', description: 'Credit limit, used credit and available credit by patron' },
             { id: 'patron', name: 'Patron Statement', description: 'Partner transactions, invoice status and balances' },
             { id: 'expense', name: 'Expense Report', description: 'Expense register with category totals, payment ledger, payee, made by and accounting status' },
             { id: 'payment', name: 'Payment Log', description: 'Cash outflow logs, paid vouchers and reference numbers' },
@@ -377,6 +380,7 @@ const getReportComponent = (type) => {
         case 'product_consolidated': return ProductConsolidatedReport;
         case 'customer_consolidated': return CustomerConsolidatedReport;
         case 'customer_outstanding': return CustomerOutstandingReport;
+        case 'patron_credit_limit': return PatronCreditLimitReport;
         case 'overall': return OverallReport;
         case 'truck_consolidated': return TruckConsolidatedReport;
         case 'site_consolidated': return SiteConsolidatedReport;
@@ -548,7 +552,7 @@ const reportGroups = computed(() => {
         `${report.name} ${report.description}`.toLowerCase().includes(query));
     const groups = activeModule.value?.id === 'accounting' ? [
         { name: 'Registers', ids: ['sales_register', 'purchase_register', 'credit_debit_note_register'] },
-        { name: 'Accounts & balances', ids: ['ledger', 'customer_outstanding', 'patron'] },
+        { name: 'Accounts & balances', ids: ['ledger', 'customer_outstanding', 'patron_credit_limit', 'patron'] },
         { name: 'Cash movements', ids: ['payment', 'receipt', 'expense'] },
         { name: 'Exports & audit', ids: ['bulk_documents', 'deleted_report'] },
     ] : [{ name: 'Available reports', ids: reports.map(report => report.id) }];

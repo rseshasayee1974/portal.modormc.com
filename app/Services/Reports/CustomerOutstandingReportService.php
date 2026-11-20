@@ -17,6 +17,37 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 {
     public function __construct(private readonly PlantContextService $ctx) {}
 
+    /** Current partner balance with payment records included even if their journal is missing. */
+    public function creditBalancesForPlant(?int $plantId): \Illuminate\Support\Collection
+    {
+        $balances = DB::table('mm_journal_entry_lines as l')
+            ->join('mm_journal_entries as e', 'e.id', '=', 'l.journal_entry_id')
+            ->where('l.plant_id', $plantId)
+            ->where('l.partner_type', 'Patron')->whereNotNull('l.partner_id')
+            ->whereNull('l.deleted_at')->whereNull('e.deleted_at')
+            ->where(fn ($q) => $q->whereNull('l.is_deleted')->orWhere('l.is_deleted', 0))
+            ->where(fn ($q) => $q->whereNull('e.is_deleted')->orWhere('e.is_deleted', 0))
+            // Payment rows are applied below from mm_payments, so exclude their journal lines to avoid double counting.
+            ->where(fn ($q) => $q->whereNull('e.ref_module')->orWhere('e.ref_module', '!=', 'payment'))
+            ->groupBy('l.partner_id')
+            ->selectRaw('l.partner_id, SUM(l.debit_amount - l.credit_amount) as balance')
+            ->pluck('balance', 'partner_id');
+
+        $paymentAdjustments = DB::table('mm_payments')
+            ->where('plant_id', $plantId)->whereNotNull('patron_id')->whereNull('deleted_at')
+            ->where(fn ($q) => $q->whereNull('status')->orWhereNotIn('status', ['cancelled', 'rejected', 'failed']))
+            ->whereIn('transaction_type', ['receipt', 'payment'])
+            ->groupBy('patron_id')
+            ->selectRaw("patron_id, SUM(CASE WHEN transaction_type = 'receipt' THEN -amount ELSE amount END) as balance_adjustment")
+            ->pluck('balance_adjustment', 'patron_id');
+
+        foreach ($paymentAdjustments as $patronId => $adjustment) {
+            $balances[$patronId] = (float) ($balances[$patronId] ?? 0) + (float) $adjustment;
+        }
+
+        return $balances;
+    }
+
     public function generate(array $params): array
     {
         $plantId  = $params['plant_id'] ?? $this->ctx->plantId() ?? session('active_plant_id');

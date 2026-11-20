@@ -26,10 +26,12 @@ class AttendanceController extends Controller
         return Inertia::render('Attendances/Index', [
             'attendances' => Attendance::with(['personnel.department', 'personnel.designation', 'shift'])
                 ->where('plant_id', $activePlantId)
+                ->whereHas('personnel', fn ($q) => $q->where('employment_type', 'permanent'))
                 ->orderBy('attendance_date', 'desc')
                 ->get(),
             'personnel' => Personnel::with(['department', 'designation'])
                 ->where('plant_id', $activePlantId)
+                ->where('employment_type', 'permanent')
                 ->get(),
             'departments' => Department::query()->get(['id', 'name', 'code']),
             'shifts' => Shift::get(['id', 'shift_name', 'start_time', 'end_time']),
@@ -210,12 +212,17 @@ class AttendanceController extends Controller
 
     private function personnelRule()
     {
-        return Rule::exists('mm_personnels', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at');
+        return Rule::exists('mm_personnels', 'id')
+            ->where('plant_id', session('active_plant_id'))
+            ->where('employment_type', 'permanent')
+            ->whereNull('deleted_at');
     }
 
     private function calculateAttendanceMetrics($personnelId, string $attendanceDate, ?string $checkIn, ?string $checkOut, string $status, ?int $shiftId = null): array
     {
-        $personnel = Personnel::where('plant_id', session('active_plant_id'))->findOrFail($personnelId);
+        $personnel = Personnel::where('plant_id', session('active_plant_id'))
+            ->where('employment_type', 'permanent')
+            ->findOrFail($personnelId);
         $service = app(\App\Services\AttendanceMetricsService::class);
         if (! $checkIn || ! in_array($status, ['present', 'on_duty', 'half_day'], true)) {
             return ['shift_id' => $shiftId] + $service->calculate($checkIn, $checkOut, [

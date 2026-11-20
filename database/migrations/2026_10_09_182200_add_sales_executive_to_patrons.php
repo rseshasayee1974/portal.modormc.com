@@ -11,14 +11,18 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::table('mm_patrons', function (Blueprint $table) {
-            $table->foreignId('sales_executive_id')->nullable()->default(null)
-                ->constrained('mm_personnels')->nullOnDelete();
-        });
+        if (!Schema::hasColumn('mm_patrons', 'sales_executive_id')) {
+            Schema::table('mm_patrons', function (Blueprint $table) {
+                $table->foreignId('sales_executive_id')->nullable()->default(null)
+                    ->constrained('mm_personnels')->nullOnDelete();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('mm_patrons', fn (Blueprint $table) => $table->dropConstrainedForeignId('sales_executive_id'));
+        if (Schema::hasColumn('mm_patrons', 'sales_executive_id')) {
+            Schema::table('mm_patrons', fn (Blueprint $table) => $table->dropConstrainedForeignId('sales_executive_id'));
+        }
     }
 };
