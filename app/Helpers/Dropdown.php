@@ -487,8 +487,8 @@ if (!function_exists('MixDesignsDropdown')) {
             return MixDesign::query()
                 ->where('plant_id', _activePlantId())
                 ->whereNull('deleted_at')
-                ->select('id', 'design_name as title', 'design_code as code', 'rate_per_qty as rate', 'unit_id')
-                ->with(['items.product', 'items.uom'])
+                ->select('id', 'design_name as title', 'design_code as code', 'rate_per_qty as rate', 'unit_id', 'concrete_grade_id')
+                ->with(['items.product', 'items.uom', 'concreteGrade:id,hsn_code'])
                 ->orderBy('design_name')
                 ->get();
         });
@@ -506,6 +506,7 @@ if (!function_exists('MixDesignsOptions')) {
             'value' => $d->id,
             'rate'  => $d->rate,
             'uom_id' => $d->unit_id,
+            'hsn_code' => $d->concreteGrade?->hsn_code,
         ]);
     }
 }

@@ -136,7 +136,7 @@ const mergeSelectedDispatches = () => {
                 mix_design_id: d.mixdesign_id,
                 uom_id: d.uom_id || d.mix_design?.unit_id || 1, 
                 item_name: d.mix_design?.design_name || 'RMC',
-                hsn_code: d.mix_design?.hsn_code || '0',
+                hsn_code: d.mix_design?.concrete_grade?.hsn_code || d.mix_design?.concreteGrade?.hsn_code || props.mixdesign.find(m => m.value === d.mixdesign_id)?.hsn_code || '',
                 tax_id: d.load_tax_id,
                 quantity: 0,
                 price_unit: rate,
@@ -292,6 +292,7 @@ const onMixDesignChange = (index: number) => {
     if (design) {
         item.item_id = item.mix_design_id;
         item.item_name = design.label;
+        item.hsn_code = design.hsn_code || '';
         item.price_unit = design.rate || 0;
         item.uom_id = design.uom_id || null;
     }
@@ -786,10 +787,11 @@ const taxOptions = computed(() => props.taxes);
                     <!-- Items Table Area -->
                     <div class="mt-2 border border-slate-100 rounded-sm shadow-sm overflow-hidden bg-white">
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse min-w-[900px]">
+                            <table class="w-full text-left border-collapse min-w-[1000px]">
                                 <thead class="bg-slate-50 border-b border-slate-100 uppercase tracking-tighter text-[10px] font-semibold text-slate-500">
                                     <tr>
                                         <th class="px-4 py-1" style="width: 250px;">Product / Service</th>
+                                        <th class="px-4 py-1 text-center" style="width: 120px;">HSN Code</th>
                                         <!-- <th class="px-4 py-1" style="width: 200px;">Description</th> -->
                                         <th class="px-4 py-1 text-center" style="width: 100px;">Qty</th>
                                         <th class="px-4 py-1 text-center" style="width: 100px;">UOM</th>
@@ -820,6 +822,9 @@ const taxOptions = computed(() => props.taxes);
                                         <!-- <td class="p-2">
                                             <BaseInput v-model="item.item_name" placeholder="Description" />
                                         </td> -->
+                                        <td class="p-2">
+                                            <BaseInput v-model="item.hsn_code" placeholder="HSN Code" :error="form.errors[`items.${index}.hsn_code`]" />
+                                        </td>
                                         
                                         <td class="p-2 text-center">
                                             <BaseInputNumber v-model="item.quantity" @input="item.quantity = $event.value; calculateTotals()" :minFractionDigits="2" size="small" :error="form.errors[`items.${index}.quantity`]" />
