@@ -83,6 +83,7 @@ const initialPatronForm = () => ({
     debit_ledger_id: (props.debitLedgers.find(ledger => ledger.title === 'Sundry Debtors')?.id ?? null) as number | null,
     credit_ledger_id: (props.creditLedgers.find(ledger => ledger.title === 'Sundry Creditors')?.id ?? null) as number | null,
     credit_limit: null as number | null,
+    due_date_days: null as number | null,
     credit_used: 0 as number,
     credit_available: 0 as number,
     sales_executive_id: null as number | null,
@@ -158,6 +159,7 @@ const populatePatronForm = (form: any, patron: Patron) => {
     form.debit_ledger_id = patron.debit_ledger_id ?? null;
     form.credit_ledger_id = patron.credit_ledger_id ?? null;
     form.credit_limit = patron.credit_limit == null ? null : Number(patron.credit_limit);
+    form.due_date_days = patron.due_date_days == null ? null : Number(patron.due_date_days);
     form.credit_used = Number(patron.credit_used ?? 0);
     form.credit_available = Number(patron.credit_available ?? 0);
     form.sales_executive_id = patron.sales_executive_id == null ? null : Number(patron.sales_executive_id);

@@ -18,7 +18,7 @@ class PayrollPersonnelReportService implements ReportServiceInterface
         $start = $params['start'] ?? null;
         $end = $params['end'] ?? null;
 
-        $query = Personnel::where(function ($q) use ($plantId) {
+        $query = Personnel::permanent()->where(function ($q) use ($plantId) {
                 $q->where('plant_id', $plantId)->orWhereNull('plant_id');
             })
             ->whereNull('deleted_at')

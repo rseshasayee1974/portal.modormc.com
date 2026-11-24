@@ -65,6 +65,11 @@ table.batch .label td { text-align: left; padding-top: 2px; }
 table.batch .rule td { padding: 0; height: 6px; border-top: 1.4px solid black; }
 table.batch .gap td { height: 10px; }
 table.batch tr { break-inside: avoid; }
+.moisture-calc { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 8pt; }
+.moisture-calc th, .moisture-calc td { border: .6px solid #777; padding: 3px 4px; text-align: right; }
+.moisture-calc th:first-child, .moisture-calc td:first-child { text-align: left; }
+.moisture-calc-title { margin: 12px 0 3px; font-weight: bold; }
+.moisture-calc-note { margin: 2px 0 6px; font-size: 7pt; }
 .note { font-size: 8pt; margin: 8px 0; }
 .toolbar { text-align: center; padding: 10px; }
 @media print { body { background: white; } .page { margin: 0; } .toolbar { display: none; } }
@@ -126,6 +131,35 @@ table.batch tr { break-inside: avoid; }
   <p class="note">No material readings are recorded for this batch.</p>
   @endif
   @if ($report['inferred_runs'])<p class="note">Stored load totals shown. Individual mixer-cycle readings are unavailable.</p>@endif
+  @if ($report['moisture_calculation']['available'])
+  <div class="moisture-calc-title">Moisture Correction and Target Correction</div>
+  <p class="moisture-calc-note">Per run ({{ number_format((float) $report['moisture_calculation']['run_size'], 3, '.', '') }} m³): correction = base target × (moisture content − water absorption) ÷ 100. Corrected water target = base water target − total aggregate correction.</p>
+  <table class="moisture-calc">
+    <thead><tr><th>Aggregate</th><th>Base Target (kg)</th><th>Moisture (%)</th><th>Water Absorption (%)</th><th>Correction (%)</th><th>Moisture Correction (kg)</th><th>Corrected Target (kg)</th></tr></thead>
+    <tbody>
+      @foreach ($report['moisture_calculation']['rows'] as $correction)
+      <tr>
+        <td>{{ $correction['material'] }}</td>
+        <td>{{ number_format($correction['base_target'], 3, '.', '') }}</td>
+        <td>{{ number_format($correction['moisture_percentage'], 2, '.', '') }}</td>
+        <td>{{ number_format($correction['water_absorption_percentage'], 2, '.', '') }}</td>
+        <td>{{ number_format($correction['correction_percentage'], 2, '.', '') }}</td>
+        <td>{{ number_format($correction['correction_kg'], 3, '.', '') }}</td>
+        <td>{{ number_format($correction['corrected_target'], 3, '.', '') }}</td>
+      </tr>
+      @endforeach
+    </tbody>
+  </table>
+  <p class="moisture-calc-note">
+    @if ($report['moisture_calculation']['complete'])
+      Total Water Correction: {{ number_format($report['moisture_calculation']['water_correction'], 3, '.', '') }} kg.
+      Base Water Target: {{ number_format($report['moisture_calculation']['base_water_target'], 3, '.', '') }} kg.
+      Corrected Water Target: {{ number_format($report['moisture_calculation']['corrected_water_target'], 3, '.', '') }} kg.
+    @else
+      Water correction is unavailable until moisture content and product water absorption are set for every recipe aggregate.
+    @endif
+  </p>
+  @endif
 </div>
 </body>
 </html>

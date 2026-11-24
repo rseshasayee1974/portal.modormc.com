@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
+use App\Models\Patron;
 use App\Models\Tax;
 use App\Models\Accounts;
 use App\Http\Requests\StoreInvoiceRequest;
@@ -67,7 +68,11 @@ class InvoiceController extends Controller
             'invoices' => $invoices->items(),
             'pagination' => ['total' => $invoices->total(), 'page' => $invoices->currentPage(), 'per_page' => 30],
             'registryFilters' => $filters,
-            'patrons' => fn () => toSelectOptions(PatronsDropdown(), 'legal_name'),
+            'patrons' => fn () => PatronsDropdown()->map(fn ($patron) => [
+                'label' => $patron->legal_name,
+                'value' => $patron->id,
+                'due_date_days' => $patron->due_date_days,
+            ])->values(),
             'taxes'   => fn () => Tax::forPlant($plantId)->ofTaxType('sales')->ofGroup(['GST', 'IGST'])->parentOnly()->where('status', 1)->with('children')->orderBy('tax_name')->get()->map(fn($t) => [
                 'label' => $t->tax_name,
                 'value' => $t->id,
@@ -119,11 +124,17 @@ class InvoiceController extends Controller
             }
             $validated['is_tax_inclusive'] = $isTaxInclusive;
 
+            $dueDate = $validated['due_date'] ?? null;
+            if (!$dueDate) {
+                $dueDays = Patron::where('plant_id', $plantId)->whereKey($validated['partner_id'])->value('due_date_days') ?? 0;
+                $dueDate = \Illuminate\Support\Carbon::parse($validated['invoice_date'])->addDays((int) $dueDays)->toDateString();
+            }
+
             // Ensure mandatory fields and defaults
             $invoice = Invoice::createWithItems(array_merge($validated, [
                 'plant_id'        => $plantId,
                 'status'          => Invoice::STATUS_APPROVED,
-                'due_date'        => $validated['due_date'] ?? $validated['invoice_date'],
+                'due_date'        => $dueDate,
                 'einvoice_status' => 0,
                 'created_by'      => Auth::id(),
             ]));

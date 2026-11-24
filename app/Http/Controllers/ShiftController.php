@@ -22,10 +22,10 @@ class ShiftController extends Controller
 
         return Inertia::render('Shifts/Index', [
             'shifts' => Shift::latest()->get(),
-            'personnel' => Personnel::where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code']),
+            'personnel' => Personnel::permanent()->where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code']),
             'employeeShifts' => EmployeeShift::with(['personnel', 'shift'])
                 ->whereHas('personnel', function ($q) use ($activePlantId) {
-                    $q->where('plant_id', $activePlantId);
+                    $q->permanent()->where('plant_id', $activePlantId);
                 })
                 ->latest()
                 ->get(),
@@ -82,7 +82,7 @@ class ShiftController extends Controller
         $this->authorizeModule('edit');
 
         $validated = $request->validate([
-            'personnel_id' => 'required|exists:mm_personnels,id',
+            'personnel_id' => ['required', Personnel::permanentEmployeeRule(session('active_plant_id'))],
             'shift_id' => 'required|exists:mm_shifts,id',
             'effective_from' => 'required|date',
             'effective_to' => 'nullable|date|after_or_equal:effective_from',

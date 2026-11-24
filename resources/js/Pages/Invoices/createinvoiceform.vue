@@ -76,6 +76,17 @@ const form = useForm({
     dispatch_ids: [] as number[]
 });
 
+const updateDueDateFromPatronTerms = () => {
+    if (!form.invoice_date) return;
+    const patron = props.patrons.find((option: any) => Number(option.value) === Number(form.partner_id));
+    const [year, month, day] = String(form.invoice_date).slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return;
+    const due = new Date(year, month - 1, day + (Number(patron?.due_date_days) || 0));
+    form.due_date = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
+};
+
+watch(() => [form.partner_id, form.invoice_date], updateDueDateFromPatronTerms, { immediate: true });
+
 const billingMode = ref('manual'); // 'manual' or 'dispatch'
 const dispatchFilters = ref({
     startDate: entityDaysAgo(30),
@@ -581,7 +592,7 @@ const taxOptions = computed(() => props.taxes);
                             />
                         </div>
 
-                        <div class="col-span-12 md:col-span-3">
+                        <div class="col-span-12 md:col-span-2">
                             <BaseSelect 
                                 v-model="form.account_id" 
                                 label="Ledger Account"
@@ -603,9 +614,12 @@ const taxOptions = computed(() => props.taxes);
                                 :error="form.errors.invoice_date"
                             />
                         </div>
+                        <div class="col-span-12 md:col-span-2">
+                            <BaseDatePicker v-model="form.due_date" label="Due Date" :error="form.errors.due_date" />
+                        </div>
 
                         <!-- Manual Invoice Number & Real-Time Axios Validation -->
-                        <div class="col-span-12 md:col-span-4">
+                        <div class="col-span-12 md:col-span-3">
                             <div class="flex flex-col justify-between h-full">
                                 <div class="flex items-center justify-between mb-1">
                                     <label class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">

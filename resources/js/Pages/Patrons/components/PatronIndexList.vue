@@ -163,6 +163,15 @@ const onRowClick = (event: any) => {
             </template>
         </Column>
 
+        <Column field="due_date_days" header="Payment Terms" style="width: 150px">
+            <template #body="slotProps">
+                <span v-if="slotProps.data.due_date_days" class="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    {{ slotProps.data.due_date_days }} days
+                </span>
+                <span v-else class="text-xs text-slate-400">Due on receipt</span>
+            </template>
+        </Column>
+
         <!-- <Column header="Credit Limit">
             <template #body="slotProps">
                 <div v-if="slotProps.data.credit_limit !== null && slotProps.data.credit_limit !== undefined" class="flex flex-col gap-1">

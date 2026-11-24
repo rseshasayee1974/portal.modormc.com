@@ -35,7 +35,7 @@ class RegisterReportColumns
         $add($sales ? 'invoice_date' : 'bill_date', 'Date', 'date');
         $add($sales ? 'customer_name' : 'supplier_name', $sales ? 'Customer' : 'Supplier');
         $add('gst_number', 'GSTIN');
-        $add('payment_mode', 'Type');
+        if ($sales) $add('payment_mode', 'Type');
         $add($sales ? 'invoice_no' : 'bill_no', $sales ? 'Invoice No' : 'Bill No');
         $add($sales ? 'bill_no' : 'po_number', $sales ? 'Bill No' : 'PO No');
         if ($view === 'detail') {

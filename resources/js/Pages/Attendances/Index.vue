@@ -255,7 +255,7 @@ const filteredPersonnel = computed(() => {
 
     return props.personnel.filter(p => {
         if (!p) return false;
-        if (p.employment_type && p.employment_type !== 'permanent') return false;
+        if (p.employment_type !== 'permanent') return false;
 
         const matchesDept = deptId === null || deptId === undefined || p.department_id === deptId;
         if (!matchesDept) return false;

@@ -23,7 +23,7 @@ class LeaveApplicationController extends Controller
         $activePlantId = session('active_plant_id');
         $currentYear = (int)date('Y');
 
-        $personnelList = Personnel::where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code']);
+        $personnelList = Personnel::permanent()->where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code']);
         $leaveTypesList = LeaveType::orderBy('name', 'asc')->get();
 
         // Ensure current year leave balances exist for plant personnel
@@ -38,7 +38,7 @@ class LeaveApplicationController extends Controller
         return Inertia::render('Leaves/Index', [
             'leaveApplications' => LeaveApplication::with(['personnel', 'leaveType', 'approver'])
                 ->whereHas('personnel', function ($q) use ($activePlantId) {
-                    $q->where('plant_id', $activePlantId);
+                    $q->permanent()->where('plant_id', $activePlantId);
                 })
                 ->latest()
                 ->get(),
@@ -47,7 +47,7 @@ class LeaveApplicationController extends Controller
             'statuses' => ['pending', 'approved', 'rejected', 'cancelled'],
             'leaveBalances' => EmployeeLeaveBalance::with(['personnel', 'leaveType'])
                 ->whereHas('personnel', function ($q) use ($activePlantId) {
-                    $q->where('plant_id', $activePlantId);
+                    $q->permanent()->where('plant_id', $activePlantId);
                 })
                 ->where('year', $currentYear)
                 ->get(),
@@ -59,7 +59,7 @@ class LeaveApplicationController extends Controller
         $this->authorizeModule('create');
 
         $validated = $request->validate([
-            'personnel_id' => 'required|exists:mm_personnels,id',
+            'personnel_id' => ['required', Personnel::permanentEmployeeRule(session('active_plant_id'))],
             'leave_type_id' => 'required|exists:mm_leave_types,id',
             'year' => 'required|integer|min:2000|max:2099',
             'opening_balance' => 'required|numeric|min:0',
@@ -96,7 +96,7 @@ class LeaveApplicationController extends Controller
         $this->authorizeModule('edit');
 
         $validated = $request->validate([
-            'personnel_id' => 'required|exists:mm_personnels,id',
+            'personnel_id' => ['required', Personnel::permanentEmployeeRule(session('active_plant_id'))],
             'leave_type_id' => 'required|exists:mm_leave_types,id',
             'year' => 'required|integer|min:2000|max:2099',
             'opening_balance' => 'required|numeric|min:0',
@@ -138,7 +138,7 @@ class LeaveApplicationController extends Controller
         $this->authorizeModule('create');
 
         $validated = $request->validate([
-            'personnel_id' => 'required|exists:mm_personnels,id',
+            'personnel_id' => ['required', Personnel::permanentEmployeeRule(session('active_plant_id'))],
             'leave_type_id' => 'required|exists:mm_leave_types,id',
             'from_date' => 'required|date',
             'to_date' => 'required|date|after_or_equal:from_date',
@@ -171,7 +171,7 @@ class LeaveApplicationController extends Controller
         $this->authorizeModule('edit');
 
         $validated = $request->validate([
-            'personnel_id' => 'required|exists:mm_personnels,id',
+            'personnel_id' => ['required', Personnel::permanentEmployeeRule(session('active_plant_id'))],
             'leave_type_id' => 'required|exists:mm_leave_types,id',
             'from_date' => 'required|date',
             'to_date' => 'required|date|after_or_equal:from_date',

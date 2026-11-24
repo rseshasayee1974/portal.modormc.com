@@ -122,6 +122,7 @@ class Patron extends Model
         'debit_ledger_id',
         'credit_ledger_id',
         'credit_limit',
+        'due_date_days',
         'operational_status',
         'pan_no',
         'gstin',
@@ -137,6 +138,7 @@ class Patron extends Model
 
     protected $casts = [
         'credit_limit' => 'decimal:2',
+        'due_date_days' => 'integer',
         'status' => 'boolean',
         'displayed' => 'boolean',
         'is_system' => 'boolean',

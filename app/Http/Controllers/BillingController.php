@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
+use App\Models\Patron;
 use App\Models\Tax;
 use App\Models\Accounts;
 use App\Http\Requests\StoreInvoiceRequest;
@@ -50,7 +51,11 @@ class BillingController extends Controller
                 ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))
                 ->latest()
                 ->get(),
-            'patrons' => toSelectOptions(PatronsDropdown(), 'legal_name'),
+            'patrons' => PatronsDropdown()->map(fn ($patron) => [
+                'label' => $patron->legal_name,
+                'value' => $patron->id,
+                'due_date_days' => $patron->due_date_days,
+            ])->values(),
             'taxes'   => Tax::forPlant($plantId)->ofTaxType('purchase')->ofGroup(['GST', 'IGST'])->parentOnly()->where('status', 1)->with('children')->orderBy('tax_name')->get()->map(fn($t) => [
                 'label' => $t->tax_name,
                 'value' => $t->id,
@@ -92,13 +97,19 @@ class BillingController extends Controller
                 ? implode(',', $validated['purchase_order_ids'])
                 : null;
 
+            $dueDate = $validated['due_date'] ?? null;
+            if (!$dueDate) {
+                $dueDays = Patron::where('plant_id', $plantId)->whereKey($validated['partner_id'])->value('due_date_days') ?? 0;
+                $dueDate = \Illuminate\Support\Carbon::parse($validated['invoice_date'])->addDays((int) $dueDays)->toDateString();
+            }
+
             $invoice = Invoice::createWithItems(array_merge($validated, [
                 'plant_id'        => $plantId,
                 'ref_id'          => $poIds,
                 'invoice_type'    => 'Bill',
                 'invoice_label'   => $poIds ? 'Purchase' : 'Manual',
                 'status'          => Invoice::STATUS_APPROVED,
-                'due_date'        => !empty($validated['due_date']) ? $validated['due_date'] : $validated['invoice_date'],
+                'due_date'        => $dueDate,
                 'einvoice_status' => 0,
                 'created_by'      => Auth::id(),
             ]));

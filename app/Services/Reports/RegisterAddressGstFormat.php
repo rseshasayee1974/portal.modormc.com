@@ -41,30 +41,23 @@ class RegisterAddressGstFormat
 
         // Batch lookups so addresses and delivery details do not add a query per item.
         foreach (array_chunk($sourceRows, 500) as $chunk) {
-            $ids = array_values(array_unique(array_column($chunk, 'document_id')));
-            $documents = $sales ? $this->salesDocuments($ids, $plantId) : $this->purchaseDocuments($ids, $plantId);
-            $parties = Patron::withoutGlobalScope('active_operational_status')->where('plant_id', $plantId)->whereIn('id', $documents->pluck('party_id')->filter())
+            $ids = array_values(array_unique(array_filter(array_column($chunk, 'document_id'), 'is_numeric')));
+            $documents = $sales ? $this->salesDocuments($ids, $plantId) : collect();
+            $partyIds = $documents->pluck('party_id')->merge(array_column($chunk, 'supplier_id'))->filter();
+            $parties = Patron::withoutGlobalScope('active_operational_status')->where('plant_id', $plantId)->whereIn('id', $partyIds)
                 ->with(['addresses.state', 'addresses.addressType', 'contacts.addresses.state', 'contacts.addresses.addressType'])
                 ->get()->keyBy('id');
-            $trucks = $sales ? collect() : DB::table('mm_purchase_order_history as history')
-                ->join('mm_machines as truck', function ($join) use ($plantId) {
-                    $join->on('truck.id', '=', 'history.truck_id')->where('truck.plant_id', $plantId)->whereNull('truck.deleted_at');
-                })->where('history.plant_id', $plantId)->whereIn('history.order_id', $ids)
-                ->whereNull('history.deleted_at')->orderBy('history.id')
-                ->get(['history.order_id', 'history.order_item_id', 'truck.registration'])
-                ->groupBy(fn ($row) => $row->order_id.':'.$row->order_item_id);
-
             foreach ($chunk as $row) {
                 $document = $documents->get($row['document_id']);
-                $party = $parties->get($document?->party_id);
+                $party = $parties->get($document?->party_id ?? $row['supplier_id'] ?? null);
                 $contact = $party?->contacts->filter(fn ($contact) => !$contact->plant_id || (int) $contact->plant_id === $plantId)
                     ->sortBy([['is_primary', 'desc'], ['id', 'asc']])->first();
                 $address = $this->preferredAddress($contact?->addresses ?? collect(), $plantId)
                     ?? $this->preferredAddress($party?->addresses ?? collect(), $plantId);
                 $roundoff = isset($seenDocuments[$row['document_id']]) ? 0.0 : ($sales
                     ? SalesRegisterService::resolveRoundOff($document?->roundoff, $document?->dispatch_roundoff, $document?->adjustment)
-                    : (float) ($document?->roundoff ?? 0));
-                $discount = isset($seenDocuments[$row['document_id']]) ? 0.0 : (float) ($document?->discount ?? 0);
+                    : (float) ($document?->roundoff ?? $row['roundoff'] ?? 0));
+                $discount = isset($seenDocuments[$row['document_id']]) ? 0.0 : (float) ($document?->discount ?? $row['discount'] ?? 0);
                 $seenDocuments[$row['document_id']] = true;
                 $shippingParts = $sales
                     ? [$document?->shipping_address_1, $document?->shipping_address_2, $document?->shipping_city]
@@ -82,7 +75,7 @@ class RegisterAddressGstFormat
                     'shipping_address_2' => $sales ? ($document?->shipping_address_2 ?? '') : ($plantAddress?->line_2 ?? ''),
                     'shipping_zipcode' => $sales ? ($document?->shipping_zipcode ?? '') : ($plantAddress?->zipcode ?? ''),
                     'payment_mode' => $sales ? ($row['payment_mode'] ?? '') : '',
-                    'truck' => $sales ? ($row['truck'] ?? '') : $trucks->get($row['document_id'].':'.$row['id'], collect())->pluck('registration')->unique()->implode(', '),
+                    'truck' => $row['truck'] ?? '',
                     'rate' => $row[$sales ? 'rate' : 'purchase_rate'],
                     'gross' => $row['net_amount'],
                     'tax_name' => $row['tax_name'] ?? $this->taxName($row['taxes'] ?? []),
@@ -110,12 +103,6 @@ class RegisterAddressGstFormat
                 'invoice.round_off as roundoff', 'dispatch.round_off as dispatch_roundoff', 'invoice.adjustment',
                 'invoice.discount_total as discount', 'site.name as shipping_name', 'site.site_address_1 as shipping_address_1',
                 'site.site_address_2 as shipping_address_2', 'site.city as shipping_city', 'site.zipcode as shipping_zipcode'])->keyBy('id');
-    }
-
-    private function purchaseDocuments(array $ids, int $plantId)
-    {
-        return DB::table('mm_purchase_orders')->where('plant_id', $plantId)->whereIn('id', $ids)->whereNull('deleted_at')
-            ->get(['id', 'vendor_id as party_id', 'rounding_value as roundoff', 'discount_amount as discount'])->keyBy('id');
     }
 
     private function preferredAddress($addresses, int $plantId)

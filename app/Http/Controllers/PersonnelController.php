@@ -25,7 +25,7 @@ class PersonnelController extends Controller
         $activePlantId = session('active_plant_id');
 
         return Inertia::render('Personnel/Index', [
-            'personnel' => Personnel::with(['user:id,is_otp_enabled', 'contacts', 'patrons:id', 'department:id,name', 'designation:id,name,plant_id', 'salaryStructures'])
+            'personnel' => Personnel::permanent()->with(['user:id,is_otp_enabled', 'contacts', 'patrons:id', 'department:id,name', 'designation:id,name,plant_id', 'salaryStructures'])
                 ->where('plant_id', $activePlantId)
                 ->latest()
                 ->get()->each(function (Personnel $employee) {
@@ -39,12 +39,12 @@ class PersonnelController extends Controller
                 ->get(['id', 'name', 'code']),
             'designations' => Designation::forWorkspace(auth()->user(), $activePlantId)->orderBy('name', 'asc')
                 ->get(['id', 'name', 'code']),
-            'managers' => Personnel::where('plant_id', $activePlantId)
+            'managers' => Personnel::permanent()->where('plant_id', $activePlantId)
                 ->where('status', 'active')
                 ->orderBy('first_name', 'asc')
                 ->get(['id', 'first_name', 'last_name', 'employee_code']),
             'states' => StateCodesDropdown('India'),
-            'employmentTypes' => ['permanent', 'contract', 'trainee', 'temporary', 'consultant'],
+            'employmentTypes' => ['permanent'],
             'genders' => ['male', 'female', 'other'],
             'statuses' => ['active', 'inactive', 'terminated', 'resigned', 'retired'],
             'contactTypes' => ['Phone', 'Email', 'Emergency Phone', 'WhatsApp'],
@@ -83,7 +83,7 @@ class PersonnelController extends Controller
             'joining_date' => 'nullable|date',
             'exit_date' => 'nullable|date',
             'gender' => 'nullable',
-            'employment_type' => 'required',
+            'employment_type' => 'required|in:permanent',
             'status' => 'required',
             'shift_start_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
             'shift_end_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
@@ -221,7 +221,7 @@ class PersonnelController extends Controller
             'joining_date' => 'nullable|date',
             'exit_date' => 'nullable|date',
             'gender' => 'nullable',
-            'employment_type' => 'required',
+            'employment_type' => 'required|in:permanent',
             'status' => 'required',
             'shift_start_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
             'shift_end_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],

@@ -81,6 +81,17 @@ const form = useForm({
     }))
 });
 
+const updateDueDateFromPatronTerms = () => {
+    if (!form.invoice_date) return;
+    const patron = props.patrons.find((option: any) => Number(option.value) === Number(form.partner_id));
+    const [year, month, day] = String(form.invoice_date).slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return;
+    const due = new Date(year, month - 1, day + (Number(patron?.due_date_days) || 0));
+    form.due_date = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
+};
+
+watch(() => [form.partner_id, form.invoice_date], updateDueDateFromPatronTerms);
+
 function createNewItem() {
     return {
         item_id: null,
@@ -332,11 +343,12 @@ const setupDemoCompliance = () => {
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 px-1">
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-4 px-1">
                     <BaseSelect v-model="form.partner_id" label="Partner / Customer" :options="patrons" optionLabel="label" optionValue="value" filter :error="form.errors.partner_id" required />
                     <BaseSelect v-model="form.account_id" label="Ledger Account" :options="accounts" optionLabel="label" optionValue="value" filter :error="form.errors.account_id" />
                     <BaseInput v-model="form.invoice_number" label="Invoice Number" :disabled="!canEditDocumentNumber || form.processing" :error="form.errors.invoice_number" />
                     <BaseDatePicker v-model="form.invoice_date" label="Invoice Date" required />
+                    <BaseDatePicker v-model="form.due_date" label="Due Date" :error="form.errors.due_date" />
                     <div class="flex flex-col justify-end pb-1.5">
                         <div class="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 h-10">
                             <input 

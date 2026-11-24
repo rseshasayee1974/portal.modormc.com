@@ -71,6 +71,17 @@ const form = useForm({
         total: 0
     }))
 });
+
+const updateDueDateFromPatronTerms = () => {
+    if (!form.invoice_date) return;
+    const patron = props.patrons.find((option: any) => Number(option.value) === Number(form.partner_id));
+    const [year, month, day] = String(form.invoice_date).slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return;
+    const due = new Date(year, month - 1, day + (Number(patron?.due_date_days) || 0));
+    form.due_date = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
+};
+
+watch(() => [form.partner_id, form.invoice_date], updateDueDateFromPatronTerms);
 console.log('items',props.invoice);
 function createNewItem() {
     return {
@@ -210,7 +221,7 @@ const invoiceTypeOptions = [
                  
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 px-1">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 px-1">
                 <BaseSelect v-model="form.partner_id" label="Partner / Customer" :options="patrons" optionLabel="label" optionValue="value" filter required />
                 <BaseSelect v-model="form.account_id" label="Ledger Account" :options="accounts" optionLabel="label" optionValue="value" filter />
                 <!-- <BaseSelect v-model="form.invoice_type" label="Document Type" :options="invoiceTypeOptions" optionLabel="label" optionValue="value" required /> -->

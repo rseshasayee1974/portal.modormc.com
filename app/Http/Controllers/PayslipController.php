@@ -32,12 +32,12 @@ class PayslipController extends Controller
         }
 
         return Inertia::render('Payroll/Index', [
-            'payslips' => Payslip::with(['personnel', 'payrollPeriod', 'items'])
+            'payslips' => Payslip::whereHas('personnel', fn ($q) => $q->permanent())->with(['personnel', 'payrollPeriod', 'items'])
                 ->where('plant_id', $activePlantId)
                 ->latest()
                 ->get(),
             'payrollPeriods' => PayrollPeriod::where('plant_id', $activePlantId)->get(),
-            'personnel' => Personnel::where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code']),
+            'personnel' => Personnel::permanent()->where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code']),
             'salaryComponents' => SalaryComponent::where('plant_id', $activePlantId)->get(),
             'statutoryConfigs' => StatutoryConfig::where('plant_id', $activePlantId)->get(),
             'statuses' => ['draft', 'approved', 'paid', 'rejected'],
@@ -50,7 +50,7 @@ class PayslipController extends Controller
 
         $validated = $request->validate([
             'payroll_period_id' => 'required|exists:mm_payroll_periods,id',
-            'personnel_id' => 'required|exists:mm_personnels,id',
+            'personnel_id' => ['required', Personnel::permanentEmployeeRule(session('active_plant_id'))],
             'payslip_no' => 'required|string|unique:mm_payslips,payslip_no',
             'working_days' => 'required|numeric|min:0',
             'present_days' => 'required|numeric|min:0',
@@ -92,7 +92,7 @@ class PayslipController extends Controller
 
         $validated = $request->validate([
             'payroll_period_id' => 'required|exists:mm_payroll_periods,id',
-            'personnel_id' => 'required|exists:mm_personnels,id',
+            'personnel_id' => ['required', Personnel::permanentEmployeeRule(session('active_plant_id'))],
             'payslip_no' => 'required|string|unique:mm_payslips,payslip_no,' . $payslip->id,
             'working_days' => 'required|numeric|min:0',
             'present_days' => 'required|numeric|min:0',
@@ -150,7 +150,7 @@ class PayslipController extends Controller
         $request->validate([
             'payroll_period_id' => 'required|exists:mm_payroll_periods,id',
             'personnel_ids'     => 'nullable|array',
-            'personnel_ids.*'   => 'exists:mm_personnels,id',
+            'personnel_ids.*'   => [Personnel::permanentEmployeeRule(session('active_plant_id'))],
         ]);
 
         try {
@@ -169,6 +169,7 @@ class PayslipController extends Controller
     public function show(Payslip $payslip)
     {
         $this->authorizeModule('show');
+        abort_unless($payslip->personnel()->permanent()->exists(), 404);
 
         $activePlantId = session('active_plant_id');
         if ($payslip->plant_id !== $activePlantId) {
@@ -240,7 +241,7 @@ class PayslipController extends Controller
         $activePlantId = session('active_plant_id');
         $period = PayrollPeriod::where('plant_id', $activePlantId)->findOrFail($request->payroll_period_id);
 
-        $payslips = Payslip::with(['personnel', 'items'])
+        $payslips = Payslip::whereHas('personnel', fn ($q) => $q->permanent())->with(['personnel', 'items'])
             ->where('payroll_period_id', $period->id)
             ->where('plant_id', $activePlantId)
             ->whereIn('status', ['approved', 'paid'])
@@ -358,7 +359,7 @@ class PayslipController extends Controller
         $activePlantId = session('active_plant_id');
         $period = PayrollPeriod::where('plant_id', $activePlantId)->findOrFail($request->payroll_period_id);
 
-        $payslips = Payslip::with(['personnel', 'items'])
+        $payslips = Payslip::whereHas('personnel', fn ($q) => $q->permanent())->with(['personnel', 'items'])
             ->where('payroll_period_id', $period->id)
             ->where('plant_id', $activePlantId)
             ->whereIn('status', ['approved', 'paid'])

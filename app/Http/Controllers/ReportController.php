@@ -78,7 +78,7 @@ class ReportController extends Controller
           ->orderBy('design_name')
           ->get(['id', 'design_name', 'design_code']);
 
-        $employees = \App\Models\Personnel::where(function ($q) use ($plantId) {
+        $employees = \App\Models\Personnel::permanent()->where(function ($q) use ($plantId) {
             $q->where('plant_id', $plantId)->orWhereNull('plant_id');
         })->whereNull('deleted_at')
           ->orderBy('first_name')

@@ -170,6 +170,7 @@ class PatronController extends Controller
                 'sales_executive_id',
                 'debit_ledger_id', 'credit_ledger_id',
                 'credit_limit',
+                'due_date_days',
                 'operational_status', 'pan_no', 'gstin', 'aadhar_number',
                 'status', 'displayed',
             ]));

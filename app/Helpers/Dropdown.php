@@ -123,12 +123,12 @@ if (!function_exists('PatronsDropdown')) {
      */
     function PatronsDropdown($patronTypes = null, $excludeId = null, $plantId = null)
     {
-        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, func_get_args(), function () use ($patronTypes, $excludeId, $plantId) {
+        return app(\App\Services\DropdownCache::class)->remember(__FUNCTION__, [...func_get_args(), 'due_date_days_v1'], function () use ($patronTypes, $excludeId, $plantId) {
             if ($plantId == null) {
                 $plantId = _activePlantId();
             }
             $query = Patron::where('plant_id', $plantId)
-                ->select('id', 'legal_name', 'plant_id', 'debit_ledger_id', 'credit_ledger_id', 'patron_type');
+                ->select('id', 'legal_name', 'plant_id', 'debit_ledger_id', 'credit_ledger_id', 'patron_type', 'due_date_days');
 
             if ($patronTypes !== null) {
                 $query->ofType($patronTypes);

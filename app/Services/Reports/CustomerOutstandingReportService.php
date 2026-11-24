@@ -193,7 +193,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             // Discount-module amounts always subtract, regardless of journal direction.
             $netOutstanding = round($openingBalance + $totalInvoiced - $totalPurchased + $totalDebitNote - $totalCreditNote + $totalPayment - $totalReceipt - $totalDiscount, 2);
 
-            $aging0to30    = 0.00;
+            $aging0to15    = 0.00;
+            $aging16to30   = 0.00;
             $aging31to60   = 0.00;
             $aging61to90   = 0.00;
             $aging90plus   = 0.00;
@@ -214,7 +215,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 if ($openingDays > 90) $aging90plus += $openingDue;
                 elseif ($openingDays > 60) $aging61to90 += $openingDue;
                 elseif ($openingDays > 30) $aging31to60 += $openingDue;
-                else $aging0to30 += $openingDue;
+                elseif ($openingDays > 15) $aging16to30 += $openingDue;
+                else $aging0to15 += $openingDue;
             }
 
             foreach ($custInvoices as $inv) {
@@ -242,7 +244,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                     $daysOverdue > 90 => 'aging_90_plus',
                     $daysOverdue > 60 => 'aging_61_90',
                     $daysOverdue > 30 => 'aging_31_60',
-                    default           => 'aging_0_30',
+                    $daysOverdue > 15 => 'aging_16_30',
+                    default           => 'aging_0_15',
                 };
 
                 $invItem = [
@@ -280,8 +283,10 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                         $aging61to90 += $invBal;
                     } elseif ($bracket === 'aging_31_60') {
                         $aging31to60 += $invBal;
+                    } elseif ($bracket === 'aging_16_30') {
+                        $aging16to30 += $invBal;
                     } else {
-                        $aging0to30  += $invBal;
+                        $aging0to15  += $invBal;
                     }
                 }
             }
@@ -290,7 +295,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             if ($netOutstanding <= 0) {
                 $unallocatedAdvance = abs($netOutstanding);
                 $finalOutstanding   = 0.00;
-                $aging0to30         = 0.00;
+                $aging0to15         = 0.00;
+                $aging16to30        = 0.00;
                 $aging31to60        = 0.00;
                 $aging61to90        = 0.00;
                 $aging90plus        = 0.00;
@@ -298,10 +304,10 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 $unallocatedAdvance = 0.00;
                 $finalOutstanding   = $netOutstanding;
 
-                // If customer has a net debit from extra payments/refunds without corresponding invoices, bucket in 0-30
-                $sumAging = round($aging0to30 + $aging31to60 + $aging61to90 + $aging90plus, 2);
+                // If customer has a net debit from extra payments/refunds without corresponding invoices, bucket in 0-15
+                $sumAging = round($aging0to15 + $aging16to30 + $aging31to60 + $aging61to90 + $aging90plus, 2);
                 if ($finalOutstanding > $sumAging) {
-                    $aging0to30 = round($aging0to30 + ($finalOutstanding - $sumAging), 2);
+                    $aging0to15 = round($aging0to15 + ($finalOutstanding - $sumAging), 2);
                 }
             }
 
@@ -372,7 +378,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'total_paid'          => $totalReceipt,
                 'total_outstanding'   => $finalOutstanding,
                 'unallocated_advance' => $unallocatedAdvance,
-                'aging_0_30'          => round($aging0to30, 2),
+                'aging_0_15'          => round($aging0to15, 2),
+                'aging_16_30'         => round($aging16to30, 2),
                 'aging_31_60'         => round($aging31to60, 2),
                 'aging_61_90'         => round($aging61to90, 2),
                 'aging_90_plus'       => round($aging90plus, 2),
@@ -399,7 +406,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $totalReceipt     = round(collect($customersList)->sum('total_receipt'), 2);
         $totalPayment     = round(collect($customersList)->sum('total_payment'), 2);
         $totalOutstanding = round(collect($customersList)->sum('total_outstanding'), 2);
-        $totalAging0to30  = round(collect($customersList)->sum('aging_0_30'), 2);
+        $totalAging0to15  = round(collect($customersList)->sum('aging_0_15'), 2);
+        $totalAging16to30 = round(collect($customersList)->sum('aging_16_30'), 2);
         $totalAging31to60 = round(collect($customersList)->sum('aging_31_60'), 2);
         $totalAging61to90 = round(collect($customersList)->sum('aging_61_90'), 2);
         $totalAging90Plus = round(collect($customersList)->sum('aging_90_plus'), 2);
@@ -427,7 +435,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'total_paid_amount'          => $totalReceipt,
             'total_outstanding_amount'   => $totalOutstanding,
             'total_amount'               => $totalOutstanding,
-            'aging_0_30'                 => $totalAging0to30,
+            'aging_0_15'                 => $totalAging0to15,
+            'aging_16_30'                => $totalAging16to30,
             'aging_31_60'                => $totalAging31to60,
             'aging_61_90'                => $totalAging61to90,
             'aging_90_plus'              => $totalAging90Plus,

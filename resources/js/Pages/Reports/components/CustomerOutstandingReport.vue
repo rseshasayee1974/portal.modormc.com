@@ -38,7 +38,7 @@ const filteredCustomers = computed(() => {
     if (statusFilter.value === 'all_outstanding') {
         list = list.filter(c => (c.total_outstanding || 0) > 0);
     } else if (statusFilter.value === 'overdue_only') {
-        list = list.filter(c => (c.aging_31_60 || 0) > 0 || (c.aging_61_90 || 0) > 0 || (c.aging_90_plus || 0) > 0);
+        list = list.filter(c => c.open_invoices?.some(invoice => invoice.is_overdue));
     } else if (statusFilter.value === 'critical_90') {
         list = list.filter(c => (c.aging_90_plus || 0) > 0);
     }
@@ -108,7 +108,8 @@ const summary = computed(() => ({
     totalInvoiced: props.reportData?.total_invoiced_amount ?? 0,
     totalReceipt: props.reportData?.total_receipt_amount ?? (props.reportData?.total_paid_amount ?? 0),
     totalPayment: props.reportData?.total_payment_amount ?? 0,
-    aging0to30: props.reportData?.aging_0_30 ?? 0,
+    aging0to15: props.reportData?.aging_0_15 ?? 0,
+    aging16to30: props.reportData?.aging_16_30 ?? 0,
     aging31to60: props.reportData?.aging_31_60 ?? 0,
     aging61to90: props.reportData?.aging_61_90 ?? 0,
     aging90Plus: props.reportData?.aging_90_plus ?? 0,
@@ -129,7 +130,8 @@ const filteredTotals = computed(() => {
         creditNote: list.reduce((acc, c) => acc + Number(c.total_credit_note || 0), 0),
         debitNote: list.reduce((acc, c) => acc + Number(c.total_debit_note || 0), 0),
         outstanding: list.reduce((acc, c) => acc + (c.total_outstanding || 0), 0),
-        aging0to30: list.reduce((acc, c) => acc + (c.aging_0_30 || 0), 0),
+        aging0to15: list.reduce((acc, c) => acc + (c.aging_0_15 || 0), 0),
+        aging16to30: list.reduce((acc, c) => acc + (c.aging_16_30 || 0), 0),
         aging31to60: list.reduce((acc, c) => acc + (c.aging_31_60 || 0), 0),
         aging61to90: list.reduce((acc, c) => acc + (c.aging_61_90 || 0), 0),
         aging90Plus: list.reduce((acc, c) => acc + (c.aging_90_plus || 0), 0),
@@ -238,18 +240,26 @@ const filteredTotals = computed(() => {
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <!-- 0-30 Days -->
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <!-- 0-15 Days -->
                     <div class="bg-blue-50/60 border border-blue-200/80 rounded-lg p-3">
                         <div class="flex items-center justify-between">
-                            <span class="text-[10px] font-bold uppercase text-blue-700 tracking-wider">0 - 30
+                            <span class="text-[10px] font-bold uppercase text-blue-700 tracking-wider">0 - 15
                                 Days</span>
                             <span
                                 class="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold">Current</span>
                         </div>
                         <div class="text-base font-bold text-blue-900 mt-1">
-                            {{ formatCurrency(summary.aging0to30) }}
+                            {{ formatCurrency(summary.aging0to15) }}
                         </div>
+                    </div>
+
+                    <div class="bg-sky-50/60 border border-sky-200/80 rounded-lg p-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold uppercase text-sky-700 tracking-wider">16 - 30 Days</span>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 font-semibold">Overdue</span>
+                        </div>
+                        <div class="text-base font-bold text-sky-900 mt-1">{{ formatCurrency(summary.aging16to30) }}</div>
                     </div>
 
                     <!-- 31-60 Days -->
@@ -349,7 +359,8 @@ const filteredTotals = computed(() => {
                                 <th class="py-3 px-3 text-right text-emerald-700">Credit Notes</th>
                                 <th class="py-3 px-3 text-right text-indigo-700">Debit Notes</th>
                                 <th class="py-3 px-3 text-right text-rose-700" width="11%">Outstanding Balance</th>
-                                <th class="py-3 px-3 text-right text-blue-700" width="5.5%">0-30d</th>
+                                <th class="py-3 px-3 text-right text-blue-700" width="5.5%">0-15d</th>
+                                <th class="py-3 px-3 text-right text-sky-700" width="5.5%">16-30d</th>
                                 <th class="py-3 px-3 text-right text-amber-700" width="5.5%">31-60d</th>
                                 <th class="py-3 px-3 text-right text-orange-700" width="5.5%">61-90d</th>
                                 <th class="py-3 px-3 text-right text-rose-700" width="5.5%">90+d</th>
@@ -389,7 +400,10 @@ const filteredTotals = computed(() => {
                                     {{ formatCurrency(c.total_outstanding) }}
                                 </td>
                                 <td class="py-3 px-3 text-right font-semibold text-blue-800 text-[11px]">
-                                    {{ c.aging_0_30 > 0 ? formatCurrency(c.aging_0_30) : '-' }}
+                                    {{ c.aging_0_15 > 0 ? formatCurrency(c.aging_0_15) : '-' }}
+                                </td>
+                                <td class="py-3 px-3 text-right font-semibold text-sky-800 text-[11px]">
+                                    {{ c.aging_16_30 > 0 ? formatCurrency(c.aging_16_30) : '-' }}
                                 </td>
                                 <td class="py-3 px-3 text-right font-semibold text-amber-800 text-[11px]">
                                     {{ c.aging_31_60 > 0 ? formatCurrency(c.aging_31_60) : '-' }}
@@ -411,7 +425,7 @@ const filteredTotals = computed(() => {
                             </tr>
 
                             <tr v-if="!paginatedCustomers.length">
-                                <td colspan="15" class="py-12 text-center text-slate-400">
+                                <td colspan="16" class="py-12 text-center text-slate-400">
                                     <CheckCircleIcon class="w-8 h-8 mx-auto text-emerald-400 mb-2" />
                                     No customer outstanding records found matching your filters.
                                 </td>
@@ -441,7 +455,10 @@ const filteredTotals = computed(() => {
                                     {{ formatCurrency(filteredTotals.outstanding) }}
                                 </td>
                                 <td class="py-3 px-3 text-right text-blue-900 text-[11px]">
-                                    {{ formatCurrency(filteredTotals.aging0to30) }}
+                                    {{ formatCurrency(filteredTotals.aging0to15) }}
+                                </td>
+                                <td class="py-3 px-3 text-right text-sky-900 text-[11px]">
+                                    {{ formatCurrency(filteredTotals.aging16to30) }}
                                 </td>
                                 <td class="py-3 px-3 text-right text-amber-900 text-[11px]">
                                     {{ formatCurrency(filteredTotals.aging31to60) }}

@@ -134,7 +134,7 @@ defineProps<{
 
         <section>
             <h3 class="text-xs font-bold uppercase text-slate-700 dark:text-slate-200 mb-4">Patron Ledgers</h3>
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-5">
+            <div class="grid grid-cols-1 md:grid-cols-6 gap-5">
                 <BaseSelect label="Debit Ledger" v-model="form.debit_ledger_id" :options="debitLedgerOptions"
                     optionLabel="label" optionValue="value" filter clearable
                     placeholder="Use account defaults" :error="form.errors.debit_ledger_id" />
@@ -143,6 +143,10 @@ defineProps<{
                     placeholder="Use account defaults" :error="form.errors.credit_ledger_id" />
                 <BaseInput label="Credit Limit" v-model="form.credit_limit" type="number" :min="0" :step="0.01"
                     placeholder="0.00" :error="form.errors.credit_limit" />
+                <BaseSelect label="Due Date Duration (Days)" v-model="form.due_date_days"
+                    :options="[{ label: '7 Days', value: 7 }, { label: '15 Days', value: 15 }, { label: '30 Days', value: 30 }]"
+                    optionLabel="label" optionValue="value" clearable placeholder="Due on receipt"
+                    :error="form.errors.due_date_days" />
                 <BaseInput label="Used Credit" :model-value="Number(form.credit_used || 0).toFixed(2)" disabled />
                 <BaseInput label="Available Credit" :model-value="Number(form.credit_available || 0).toFixed(2)" disabled />
             </div>

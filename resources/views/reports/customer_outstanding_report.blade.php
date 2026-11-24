@@ -492,8 +492,12 @@
                         {{ number_format($total_outstanding_amount ?? 0, 2) }}</strong>
                 </li>
                 <li>
-                    <span class="outstanding-summary-label">0-30 Days</span>
-                    <strong class="outstanding-summary-value">₹ {{ number_format($aging_0_30 ?? 0, 2) }}</strong>
+                    <span class="outstanding-summary-label">0-15 Days</span>
+                    <strong class="outstanding-summary-value">₹ {{ number_format($aging_0_15 ?? 0, 2) }}</strong>
+                </li>
+                <li>
+                    <span class="outstanding-summary-label">16-30 Days</span>
+                    <strong class="outstanding-summary-value">₹ {{ number_format($aging_16_30 ?? 0, 2) }}</strong>
                 </li>
                 <li>
                     <span class="outstanding-summary-label">31-60 Days</span>
@@ -534,9 +538,10 @@
                     <th class="text-right">Credit Notes</th>
                     <th class="text-right">Debit Notes</th>
                     <th width="8%" class="text-right">Balance Due (₹)</th>
-                    <th width="7%" class="text-right">0-30d (₹)</th>
-                    <th width="7%" class="text-right">30-60d (₹)</th>
-                    <th width="7%" class="text-right">60-90d (₹)</th>
+                    <th width="7%" class="text-right">0-15d (₹)</th>
+                    <th width="7%" class="text-right">16-30d (₹)</th>
+                    <th width="7%" class="text-right">31-60d (₹)</th>
+                    <th width="7%" class="text-right">61-90d (₹)</th>
                     <th width="7%" class="text-right">90+d (₹)</th>
                 </tr>
             </thead>
@@ -563,7 +568,10 @@
                             {{ number_format($row['total_outstanding'] ?? 0, 2) }}
                         </td>
                         <td class="text-right amount-cell nowrap" style="color: #1e40af;">
-                            {{ ($row['aging_0_30'] ?? 0) > 0 ? number_format($row['aging_0_30'], 2) : '-' }}
+                            {{ ($row['aging_0_15'] ?? 0) > 0 ? number_format($row['aging_0_15'], 2) : '-' }}
+                        </td>
+                        <td class="text-right amount-cell nowrap" style="color: #0369a1;">
+                            {{ ($row['aging_16_30'] ?? 0) > 0 ? number_format($row['aging_16_30'], 2) : '-' }}
                         </td>
                         <td class="text-right amount-cell nowrap" style="color: #b45309;">
                             {{ ($row['aging_31_60'] ?? 0) > 0 ? number_format($row['aging_31_60'], 2) : '-' }}
@@ -595,7 +603,9 @@
                     <td class="text-right amount-cell nowrap" style="color: #b91c1c;">&#8377;
                         {{ number_format($total_outstanding_amount ?? 0, 2) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #1e40af;">
-                        {{ number_format($aging_0_30 ?? 0, 2) }}</td>
+                        {{ number_format($aging_0_15 ?? 0, 2) }}</td>
+                    <td class="text-right amount-cell nowrap" style="color: #0369a1;">
+                        {{ number_format($aging_16_30 ?? 0, 2) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #b45309;">
                         {{ number_format($aging_31_60 ?? 0, 2) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #c2410c;">

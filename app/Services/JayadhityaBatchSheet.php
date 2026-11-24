@@ -120,6 +120,14 @@ class JayadhityaBatchSheet
         }
 
         $moistureRows = ['design' => [], 'consumption' => []];
+        $waterAbsorption = [];
+        foreach ($batch->materials as $material) {
+            $column = $productColumns[$material->product_id ?? 0] ?? null;
+            $percentage = $material->product?->moisture;
+            if ($column !== null && $percentage !== null && in_array($column, $groups['Aggregate'], true)) {
+                $waterAbsorption[$column] = (float) $percentage;
+            }
+        }
         $moistureReadings = $batch->relationLoaded('moistureContents') ? $batch->moistureContents
             : ($batch->exists ? $batch->moistureContents()->where('plant_id', $batch->plant_id)->get() : collect());
         foreach ($moistureReadings as $reading) {
@@ -137,6 +145,7 @@ class JayadhityaBatchSheet
         }
 
         $moistureDisplayRows = [];
+        $waterAbsorptionDisplayRow = [];
         if ($groups['Aggregate']) {
             foreach ($moistureRows as $type => $values) {
                 foreach ($columns as $column) {
@@ -144,10 +153,17 @@ class JayadhityaBatchSheet
                         ? number_format($values[$column] ?? 0, 2, '.', '') : '';
                 }
             }
+            foreach ($columns as $column) {
+                $waterAbsorptionDisplayRow[$column] = in_array($column, $groups['Aggregate'], true)
+                    && array_key_exists($column, $waterAbsorption)
+                    ? number_format($waterAbsorption[$column], 2, '.', '') : '';
+            }
         }
 
         return [
             'moisture_display_rows' => $moistureDisplayRows,
+            'water_absorption_display_row' => $waterAbsorptionDisplayRow,
+            'water_absorption' => $waterAbsorption,
             'product_aliases' => $productAliases,
             'precisions' => $precisions,
             'moisture_rows' => $moistureRows,
@@ -177,6 +193,7 @@ class JayadhityaBatchSheet
         $quantity = (float) $batch->batch_size;
         // With numbered runs, show the average mixer-run size separately from load volume.
         $data['run_size'] = $data['run_sizes'][0] ?? ($runCount > 0 ? $quantity / $runCount : $quantity);
+        $data['moisture_calculation'] = self::moistureCalculation($data, (float) $data['run_size']);
         $data['recipe_rows'] = [
             $data['recipe'] ?: null,
             $runCount > 0 ? array_map(function ($target, $column) use ($runCount) {
@@ -194,6 +211,57 @@ class JayadhityaBatchSheet
             : null;
 
         return $data;
+    }
+
+    private static function moistureCalculation(array $data, float $runSize): array
+    {
+        $rows = [];
+        $requiredAggregates = [];
+        $correctionTotal = 0.0;
+        $moisture = $data['moisture_rows']['consumption'] ?? [];
+        $absorption = $data['water_absorption'] ?? [];
+        $recipe = $data['recipe'] ?? [];
+
+        foreach (self::GROUPS['Aggregate'] as $column) {
+            $recipePerCubicMeter = (float) ($recipe[$column] ?? 0);
+            if ($recipePerCubicMeter <= 0) {
+                continue;
+            }
+            $requiredAggregates[] = $column;
+            if (!array_key_exists($column, $moisture) || !array_key_exists($column, $absorption)) {
+                continue;
+            }
+
+            $moisturePercentage = (float) $moisture[$column];
+            $absorptionPercentage = (float) $absorption[$column];
+            $baseTarget = $recipePerCubicMeter * $runSize;
+            $correction = $baseTarget * (($moisturePercentage - $absorptionPercentage) / 100);
+            $correctionTotal += $correction;
+            $rows[] = [
+                'material' => $data['labels'][$column] ?? $column,
+                'column' => $column,
+                'base_target' => $baseTarget,
+                'moisture_percentage' => $moisturePercentage,
+                'water_absorption_percentage' => $absorptionPercentage,
+                'correction_percentage' => $moisturePercentage - $absorptionPercentage,
+                'correction_kg' => $correction,
+                'corrected_target' => $baseTarget + $correction,
+            ];
+        }
+
+        $isComplete = count($requiredAggregates) > 0 && count($rows) === count($requiredAggregates);
+        $baseWaterTarget = array_key_exists('WATER', $recipe) ? (float) $recipe['WATER'] * $runSize : null;
+
+        return [
+            'available' => $rows !== [],
+            'complete' => $isComplete,
+            'run_size' => $runSize,
+            'rows' => $rows,
+            'water_correction' => $isComplete ? $correctionTotal : null,
+            'base_water_target' => $isComplete ? $baseWaterTarget : null,
+            'corrected_water_target' => $isComplete && $baseWaterTarget !== null
+                ? $baseWaterTarget - $correctionTotal : null,
+        ];
     }
 
     private static function column(string $name): ?string

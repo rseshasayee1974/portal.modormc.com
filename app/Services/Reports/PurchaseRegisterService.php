@@ -2,120 +2,64 @@
 
 namespace App\Services\Reports;
 
+use App\Models\InvoiceItem;
 use Illuminate\Database\Eloquent\Builder;
 
 class PurchaseRegisterService extends RegisterReportService
 {
     protected function reportType(): string { return 'purchase_register'; }
     protected function query(array $filters): Builder { return $this->repository->getPurchaseRegisterQuery($filters); }
-    protected function mapRow($item): array { return $this->mapPurchaseRow($item); }
+    protected function mapRow($item): array { return $this->mapBill($item); }
 
     public function buildReportFromQuery(Builder $query, array $filters = [], bool $allRows = true): array
     {
-        // Legacy exports may supply their own query instead of using the repository.
-        return parent::buildReportFromQuery((clone $query)->forPurchaseRegister(), $filters, $allRows);
+        $bills = (clone $query)->lazy(500)->map(fn ($item) => $this->mapRow($item));
+        if (!empty($filters['gst_type'])) {
+            $components = $filters['gst_type'] === 'inter' ? ['IGST'] : ['CGST', 'SGST', 'UTGST'];
+            $bills = $bills->filter(fn ($row) => collect($row['taxes'])->contains(
+                fn ($amount, $key) => $amount != 0 && in_array(explode('_', $key)[0], $components, true)));
+        }
+        $report = $this->buildFromRows($bills, $filters, $allRows);
+        $report['note'] = 'For saved bills, Net Amount includes bill-level adjustments and rounding on the first bill item.';
+        return $report;
     }
 
-    public function mapPurchaseRow($item): array
+    private function mapBill(InvoiceItem $item): array
     {
-        $order = $item->order;
-        $vendor = $order?->vendor;
+        $bill = $item->invoice;
         $taxes = [];
-        $qty = (float) $item->product_quantity;
-        $unitPrice = (float) $item->unit_price;
-        $subtotal = (float) $item->price_subtotal;
-        $amount = (float) $item->price_tax;
-        $rate = (float) ($item->tax?->tax_rate ?? 0);
-
-        // Recalculate if unit_price was updated from inward/bill but item line totals were not recomputed
-        if ($unitPrice > 0 && $qty > 0) {
-            $discountVal = (float) ($item->discount_amount ?? 0);
-            $subBefore = $qty * $unitPrice;
-            $lineDiscount = ($item->discount_type === '%') ? ($subBefore * $discountVal) / 100 : $discountVal;
-            $expectedSubtotal = max(0, $subBefore - $lineDiscount);
-            if ($order?->tax_inclusive && $rate > 0) {
-                $expectedSubtotal = round($expectedSubtotal / (1 + $rate / 100), 2);
-                $expectedTax = round(($subBefore - $lineDiscount) - $expectedSubtotal, 2);
-            } elseif ($rate > 0) {
-                $expectedTax = round($expectedSubtotal * $rate / 100, 2);
-            } else {
-                $expectedTax = 0;
-            }
-            if (abs($subtotal - $expectedSubtotal) > 0.05) {
-                $subtotal = $expectedSubtotal;
-                $amount = $expectedTax;
-            }
+        foreach ($item->orderTaxes as $split) {
+            if ((int) $split->order_id !== (int) $bill->id) continue;
+            $name = strtoupper(trim($split->name));
+            preg_match('/CGST|UTGST|UGST|SGST|IGST|TCS/', $name, $match);
+            $component = $match[0] ?? (str_replace('_', ' ', $name) ?: 'TAX');
+            $key = ($component === 'UGST' ? 'UTGST' : $component).'_'.number_format($split->rate, 2, '.', '');
+            $taxes[$key] = round(($taxes[$key] ?? 0) + $split->amount, 2);
         }
-
-        if ($rate <= 0 && $subtotal != 0) {
-            $rate = round($amount / $subtotal * 100, 2);
+        // Independently rounded GST halves can differ from the billed tax by one paisa.
+        $difference = round((float) $item->line_tax_amount - array_sum($taxes), 2);
+        if ($taxes && abs($difference) === 0.01) {
+            $last = array_key_last($taxes);
+            $taxes[$last] = round($taxes[$last] + $difference, 2);
         }
-        $group = strtoupper(trim($item->tax?->tax_group ?? ''));
-        $plantState = substr(trim($order?->plant?->gstin ?? ''), 0, 2);
-        $vendorState = substr(trim($vendor?->gstin ?? ''), 0, 2);
-        $inter = $plantState !== '' && $vendorState !== '' && $plantState !== $vendorState;
-        if ($amount != 0) {
-            // Explicit tax groups take precedence over the supplier's current state.
-            $type = match (true) {
-                str_contains($group, 'CGST') => 'CGST',
-                str_contains($group, 'UTGST'), str_contains($group, 'UGST') => 'UTGST',
-                str_contains($group, 'SGST') => 'SGST',
-                str_contains($group, 'IGST') => 'IGST',
-                $group !== '' && $group !== 'GST' => str_replace('_', ' ', $group),
-                $inter => 'IGST',
-                default => 'GST',
-            };
-            if ($type === 'GST') {
-                $halfRate = number_format($rate / 2, 2, '.', '');
-                $taxes['CGST_'.$halfRate] = round($amount / 2, 2);
-                // Preserve the stored tax total even when it contains an odd paisa.
-                $taxes['SGST_'.$halfRate] = round($amount - $taxes['CGST_'.$halfRate], 2);
-            } else {
-                $taxes[$type.'_'.number_format($rate, 2, '.', '')] = $amount;
-            }
-        }
-        $sum = fn ($types) => array_sum(array_filter($taxes, fn ($key) => in_array(explode('_', $key)[0], $types), ARRAY_FILTER_USE_KEY));
-
-        $bill = $order?->billingInvoice ?? $order?->bill;
-        $billNo = $order?->bill_number;
-        if (empty($billNo) && $bill) {
-            $billNo = $bill->full_number ?: $bill->invoice_number;
-        }
-        if (empty($billNo)) {
-            $billNo = $order?->po_number ?? '';
-        }
-
-        $rawBillDate = $order?->billed_date ?? $bill?->invoice_date ?? $order?->date_order ?? $order?->created_at;
-        $billDate = $rawBillDate instanceof \DateTimeInterface
-            ? $rawBillDate->format('Y-m-d')
-            : ($rawBillDate ? \Illuminate\Support\Carbon::parse($rawBillDate)->toDateString() : '');
-
+        $first = (int) $item->id === (int) $bill->items_min_id;
+        $adjustment = $first && $bill->total_amount !== null
+            ? round((float) $bill->total_amount - (float) $bill->items_sum_line_total, 2) : 0;
         return [
-            'id' => $item->id,
-            'document_id' => $item->order_id,
-            'bill_no' => $billNo,
-            'po_number' => $order?->po_number ?? '',
-            'bill_date' => $billDate,
-            'supplier_name' => $vendor?->legal_name ?? 'N/A',
-            'gst_number' => $vendor?->gstin ?? '',
-            'product_name' => $item->product?->title ?? $item->description ?? 'N/A',
-            'document_type' => 'Purchase',
-            'document_status' => $order?->state === 'billed' ? 'Billed' : ($order?->billing_status ?: ($order?->state ?? '')),
-            'created_by' => $order?->creator?->email ?? $order?->creator?->username ?? '',
-            'hsn_code' => $item->product?->hsn_code ?? $item->hsn_code ?? '',
+            'id' => 'bill-item-'.$item->id, 'document_id' => 'bill-'.$bill->id,
+            'supplier_id' => $bill->partner_id, 'bill_no' => $bill->full_number,
+            'bill_date' => $bill->invoice_date?->toDateString(), 'po_number' => $bill->ref_title ?? '',
+            'supplier_name' => $bill->partner?->legal_name ?? 'N/A', 'gst_number' => $bill->partner?->gstin ?? '',
+            'document_type' => 'Bill', 'document_status' => $bill->status,
+            'created_by' => $bill->creator?->email ?? $bill->creator?->username ?? '',
+            'product_name' => $item->item_name, 'hsn_code' => $item->hsn_code,
             'unit' => $item->uom?->unit_code ?: ($item->uom?->unit_name ?? ''),
-            'qty' => $qty,
-            'purchase_rate' => $unitPrice,
-            'taxable_amount' => $subtotal,
-            'tax_amount' => $amount,
-            'cgst' => round($sum(['CGST']), 2),
-            'sgst' => round($sum(['SGST']), 2),
-            'utgst' => round($sum(['UTGST']), 2),
-            'igst' => round($sum(['IGST']), 2),
-            'taxes' => $taxes,
-            'discount' => (float) ($order?->discount_amount ?? 0),
-            'roundoff' => (float) ($order?->rounding_value ?? 0),
-            'net_amount' => round($subtotal + $amount, 2),
+            'qty' => (float) $item->quantity, 'purchase_rate' => (float) $item->price_unit,
+            'taxable_amount' => (float) $item->subtotal, 'tax_amount' => (float) $item->line_tax_amount,
+            'net_amount' => round((float) $item->line_total + $adjustment, 2), 'taxes' => $taxes,
+            'discount' => (float) $bill->discount_total,
+            'roundoff' => $first ? (float) $bill->round_off : 0,
         ];
     }
+
 }

@@ -43,7 +43,7 @@ class PayslipApiController extends Controller
             ], 404);
         }
 
-        $query = Payslip::with(['payrollPeriod', 'items'])
+        $query = Payslip::whereHas('personnel', fn ($q) => $q->permanent())->with(['payrollPeriod', 'items'])
             ->where('personnel_id', $personnelId)
             ->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
             ->whereHas('payrollPeriod', function ($period) use ($request) {
@@ -87,7 +87,7 @@ class PayslipApiController extends Controller
             : $user->personnel?->id;
         abort_unless($personnelId, 404, 'No employee record found for the authenticated user.');
 
-        $payslip = Payslip::with(['personnel', 'payrollPeriod', 'items'])
+        $payslip = Payslip::whereHas('personnel', fn ($q) => $q->permanent())->with(['personnel', 'payrollPeriod', 'items'])
             ->where('personnel_id', $personnelId)
             ->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
             ->findOrFail($id);
@@ -132,7 +132,7 @@ class PayslipApiController extends Controller
 
         $period = PayrollPeriod::where('plant_id', $activePlantId)->findOrFail($request->payroll_period_id);
 
-        $payslips = Payslip::with(['personnel', 'items'])
+        $payslips = Payslip::whereHas('personnel', fn ($q) => $q->permanent())->with(['personnel', 'items'])
             ->where('payroll_period_id', $period->id)
             ->where('plant_id', $activePlantId)
             ->whereIn('status', ['approved', 'paid'])
@@ -263,7 +263,7 @@ class PayslipApiController extends Controller
 
         $period = PayrollPeriod::where('plant_id', $activePlantId)->findOrFail($request->payroll_period_id);
 
-        $payslips = Payslip::with(['personnel', 'items'])
+        $payslips = Payslip::whereHas('personnel', fn ($q) => $q->permanent())->with(['personnel', 'items'])
             ->where('payroll_period_id', $period->id)
             ->where('plant_id', $activePlantId)
             ->whereIn('status', ['approved', 'paid'])

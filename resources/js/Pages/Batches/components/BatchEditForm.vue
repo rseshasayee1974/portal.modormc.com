@@ -914,10 +914,13 @@ const moistureMaterialName = (productId: number) => {
 
 const actualMoisture = (material: BatchMaterial, saved?: MoistureReading) => Number(
     saved?.consumption_moisture_percentage
-    ?? props.batch?.material_display?.[material.product_id ?? '']?.moisture
-    ?? props.products.find((product: any) => Number(product.id) === Number(material.product_id))?.moisture
     ?? 0
 );
+
+const waterAbsorption = (productId: number) => {
+    const product = props.products.find((item: any) => Number(item.id) === productId);
+    return product?.moisture == null ? '-' : Number(product.moisture).toFixed(3).replace(/(\.\d{2})0$/, '$1');
+};
 
 const openMoistureDialog = () => {
     moistureDraft.value = moistureMaterials.value.map(material => {
@@ -1757,10 +1760,11 @@ console.log('test');
 
         <Dialog v-model:visible="showMoistureDialog" modal header="Aggregate Moisture (%)"
             :style="{ width: '32rem', maxWidth: '95vw' }">
-            <div class="grid grid-cols-[minmax(0,1fr)_5.5rem_6.5rem] items-center gap-x-3 gap-y-2 text-sm">
+            <div class="grid grid-cols-[minmax(0,1fr)_5.5rem_6.5rem_5.5rem] items-center gap-x-3 gap-y-2 text-sm">
                 <span></span>
                 <span class="text-center text-xs text-slate-500">Moisture Level</span>
                 <span class="text-center text-xs text-slate-500">Actual Moisture</span>
+                <span class="text-center text-xs text-slate-500">Water Absorption</span>
                 <template v-for="reading in moistureDraft" :key="reading.product_id">
                     <span class="text-slate-700">{{ moistureMaterialName(reading.product_id) }}</span>
                     <BaseInputNumber v-model="reading.design_moisture_percentage"
@@ -1771,6 +1775,7 @@ console.log('test');
                         :label="`${moistureMaterialName(reading.product_id)} consumption moisture percentage`"
                         fieldClass="[&_label]:sr-only" :min="0" :max="100" :minFractionDigits="0" :maxFractionDigits="3"
                         :disabled="isLocked" />
+                    <span class="text-center font-mono text-xs text-slate-600">{{ waterAbsorption(reading.product_id) }}</span>
                 </template>
             </div>
             <p v-if="!moistureDraft.length" class="py-3 text-sm text-slate-500">No aggregate materials in this batch.

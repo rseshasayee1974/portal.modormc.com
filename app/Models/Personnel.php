@@ -14,6 +14,17 @@ class Personnel extends Model
 
     protected $table = 'mm_personnels';
 
+    public function scopePermanent($query)
+    {
+        return $query->where('employment_type', 'permanent');
+    }
+
+    public static function permanentEmployeeRule($plantId)
+    {
+        return \Illuminate\Validation\Rule::exists('mm_personnels', 'id')
+            ->where('plant_id', $plantId)->where('employment_type', 'permanent')->whereNull('deleted_at');
+    }
+
     protected static function booted()
     {
         static::creating(function (Personnel $personnel) {

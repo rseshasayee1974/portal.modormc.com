@@ -29,13 +29,13 @@ class PayrollGenerationService
             ->where('source', 'mobile')->whereNotNull('check_in')->whereNull('check_out')
             ->whereDate('attendance_date', '>=', $period->from_date->toDateString())
             ->whereDate('attendance_date', '<=', $period->to_date->toDateString())
-            ->whereHas('personnel', fn ($q) => $q->withoutGlobalScope('plant_id')->where('plant_id', $plantId)->where('status', 'active'))
+            ->whereHas('personnel', fn ($q) => $q->permanent()->withoutGlobalScope('plant_id')->where('plant_id', $plantId)->where('status', 'active'))
             ->when($personnelIds, fn ($q) => $q->whereIn('personnel_id', $personnelIds))->exists();
         if ($openMobileAttendance) {
             throw new Exception('Close or correct open mobile attendance before generating payroll for this period.');
         }
 
-        $query = Personnel::withoutGlobalScope('plant_id')
+        $query = Personnel::permanent()->withoutGlobalScope('plant_id')
             
             ->with([
                 'salaryStructures' => function ($q) use ($period) {

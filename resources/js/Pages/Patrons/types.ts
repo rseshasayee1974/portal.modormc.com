@@ -15,6 +15,7 @@ export interface Patron {
     debit_ledger_id: number | null;
     credit_ledger_id: number | null;
     credit_limit?: number | null;
+    due_date_days?: number | null;
     credit_used?: number;
     credit_available?: number;
     sales_executive_id?: number | null;
