@@ -793,7 +793,7 @@ watch(reportType, () => {
     exportProgress.value = null;
 });
 
-watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, expenseCategoryId, qcCategory, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
+watch([selectedId, productId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, expenseCategoryId, qcCategory, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
     currentPage.value = 1;
     invalidateReport();
 });
@@ -825,7 +825,7 @@ const generateReport = async ({ manual = false, pagination = false } = {}) => {
             end_date: endDate.value,
             valuation_method: valuationMethod.value,
             truck_id: truckId.value,
-            product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
+            product_id: ['inventory_inward', 'stock_out', 'production_batch'].includes(reportType.value) ? productId.value : null,
             site_id: siteId.value,
             pump_vehicle_id: pumpVehicleId.value,
             driver_id: driverId.value,
@@ -943,7 +943,7 @@ const exportPdf = () => {
         voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
-            product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
+            product_id: ['inventory_inward', 'stock_out', 'production_batch'].includes(reportType.value) ? productId.value : null,
         site_id: siteId.value,
         pump_vehicle_id: pumpVehicleId.value,
         driver_id: driverId.value,
@@ -1011,7 +1011,7 @@ const exportExcel = () => {
         voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
-            product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
+            product_id: ['inventory_inward', 'stock_out', 'production_batch'].includes(reportType.value) ? productId.value : null,
         site_id: siteId.value,
         pump_vehicle_id: pumpVehicleId.value,
         driver_id: driverId.value,
@@ -1126,7 +1126,7 @@ const currentReportParams = computed(() => {
         payment_status: paymentStatus.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
-        product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
+        product_id: ['inventory_inward', 'stock_out', 'production_batch'].includes(reportType.value) ? productId.value : null,
         site_id: siteId.value,
         pump_vehicle_id: pumpVehicleId.value,
     };
@@ -1173,7 +1173,7 @@ const generateShareLink = async () => {
                 document_status: registerStatus.value,
                 payment_status: paymentStatus.value,
                 truck_id: truckId.value,
-            product_id: ['inventory_inward', 'stock_out'].includes(reportType.value) ? productId.value : null,
+            product_id: ['inventory_inward', 'stock_out', 'production_batch'].includes(reportType.value) ? productId.value : null,
                 site_id: siteId.value,
                 pump_vehicle_id: pumpVehicleId.value,
                 employee_id: selectedEmployeeId.value,
@@ -1454,7 +1454,7 @@ const shareEmail = () => {
                                             :placeholder="patronPlaceholder" filter showClear />
                                     </div>
 
-                                    <div v-if="['inventory_inward', 'stock_out'].includes(reportType)" class="lg:col-span-1">
+                                    <div v-if="['inventory_inward', 'stock_out', 'production_batch'].includes(reportType)" class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Product</span>
                                         <BaseSelect v-model="productId" :options="inwardProducts" optionLabel="title" optionValue="id"
                                             placeholder="All Products" filter showClear />
@@ -1520,7 +1520,7 @@ const shareEmail = () => {
                                             filter showClear />
                                     </div>
 
-                                    <div v-if="['batching_schedule', 'pump_boom_deployment'].includes(reportType)" class="lg:col-span-1">
+                                    <div v-if="['batching_schedule', 'pump_boom_deployment', 'site_consolidated', 'product_consolidated'].includes(reportType)" class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Unloading
                                             Site</span>
                                         <BaseSelect v-model="siteId" :options="sites || []" optionLabel="name"

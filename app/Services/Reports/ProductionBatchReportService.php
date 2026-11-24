@@ -16,6 +16,7 @@ class ProductionBatchReportService implements ReportServiceInterface
         $end         = $params['end'];
         $mixDesignId = $params['mix_design_id'] ?? null;
 
+        $productId = $params['product_id'] ?? null;
         $batchQuery = Batch::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->where('status', '!=', Batch::STATUS_CANCELLED)
@@ -23,7 +24,8 @@ class ProductionBatchReportService implements ReportServiceInterface
                 'operator' => fn($q) => $q->whereNull('deleted_at'),
                 'salesOrder' => fn($q) => $q->whereNull('deleted_at'),
                 'salesOrder.mixDesign' => fn($q) => $q->whereNull('deleted_at'),
-                'materials' => fn($q) => $q->whereNull('deleted_at'),
+                'materials' => fn($q) => $q->whereNull('deleted_at')
+                    ->when($productId, fn($items) => $items->where('product_id', $productId)),
                 'materials.product' => fn($q) => $q->whereNull('deleted_at')
             ])
             ->whereBetween('start_time', [
@@ -35,21 +37,26 @@ class ProductionBatchReportService implements ReportServiceInterface
             $batchQuery->whereHas('salesOrder', fn($soq) => $soq->where('mix_design_id', $mixDesignId));
         }
 
+        if ($productId) {
+            $batchQuery->whereHas('materials', fn($q) => $q->where('product_id', $productId));
+        }
+
         $batches = $batchQuery->get();
 
         $materialSummary = [];
         foreach ($batches as $batch) {
             foreach ($batch->materials as $mat) {
                 $matName = $mat->material_name ?: ($mat->product?->title ?? '');
-                if (!isset($materialSummary[$matName])) {
-                    $materialSummary[$matName] = [
+                $key = ($mat->product_id ?? $matName).'_'.($mat->uom_id ?? '');
+                if (!isset($materialSummary[$key])) {
+                    $materialSummary[$key] = [
                         'material_name' => $matName,
                         'target_qty'    => 0.0,
                         'actual_qty'    => 0.0,
                     ];
                 }
-                $materialSummary[$matName]['target_qty'] += (float)$mat->target_qty;
-                $materialSummary[$matName]['actual_qty'] += (float)$mat->actual_qty;
+                $materialSummary[$key]['target_qty'] += (float)$mat->target_qty;
+                $materialSummary[$key]['actual_qty'] += (float)$mat->actual_qty;
             }
         }
 

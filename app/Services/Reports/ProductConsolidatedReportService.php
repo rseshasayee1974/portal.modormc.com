@@ -61,10 +61,7 @@ class ProductConsolidatedReportService implements ReportServiceInterface
         }
 
         if ($mixDesignId) {
-            $query->where(function ($q) use ($mixDesignId) {
-                $q->where('d.mixdesign_id', $mixDesignId)
-                  ->orWhere('so.mix_design_id', $mixDesignId);
-            });
+            $query->whereRaw('COALESCE(d.mixdesign_id, so.mix_design_id) = ?', [$mixDesignId]);
         }
 
         if ($gradeId) {
@@ -73,6 +70,10 @@ class ProductConsolidatedReportService implements ReportServiceInterface
                   ->orWhere('m.concrete_grade_id', $gradeId)
                   ->orWhere('cg.id', $gradeId);
             });
+        }
+
+        if (!empty($params['site_id'])) {
+            $query->whereRaw('COALESCE(d.unload_site_id, so.site_id) = ?', [$params['site_id']]);
         }
 
         $dispatches = $query->select([
@@ -90,9 +91,9 @@ class ProductConsolidatedReportService implements ReportServiceInterface
             'd.empty_weight_truck',
             'd.loaded_weight_truck',
             'd.net_weight',
-            'd.unload_site_id',
+            DB::raw('COALESCE(d.unload_site_id, so.site_id) as unload_site_id'),
             'd.payment_mode',
-            'd.mixdesign_id',
+            DB::raw('COALESCE(d.mixdesign_id, so.mix_design_id) as mixdesign_id'),
             'b.id as batch_id',
             'b.batch_no',
             'b.batch_size',

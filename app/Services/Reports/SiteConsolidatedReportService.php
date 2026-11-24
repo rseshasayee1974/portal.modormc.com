@@ -50,6 +50,10 @@ class SiteConsolidatedReportService implements ReportServiceInterface
         $truckId  = $params['truck_id'] ?? null;
         $patronId = $params['patron_id'] ?? null;
 
+        if (!empty($params['mix_design_id'])) {
+            $query->whereRaw('COALESCE(d.mixdesign_id, so.mix_design_id) = ?', [$params['mix_design_id']]);
+        }
+
         if ($truckId) {
             $query->where('d.truck_id', $truckId);
         }
@@ -59,6 +63,10 @@ class SiteConsolidatedReportService implements ReportServiceInterface
                 $q->where('d.customer_id', $patronId)
                   ->orWhere('so.customer_id', $patronId);
             });
+        }
+
+        if (!empty($params['site_id'])) {
+            $query->whereRaw('COALESCE(d.unload_site_id, so.site_id) = ?', [$params['site_id']]);
         }
 
         $dispatches = $query->select([
@@ -76,7 +84,7 @@ class SiteConsolidatedReportService implements ReportServiceInterface
             'd.empty_weight_truck',
             'd.loaded_weight_truck',
             'd.net_weight',
-            'd.unload_site_id',
+            DB::raw('COALESCE(d.unload_site_id, so.site_id) as unload_site_id'),
             'b.id as batch_id',
             'b.batch_no',
             'b.batch_size',
