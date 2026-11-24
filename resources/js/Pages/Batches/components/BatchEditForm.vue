@@ -98,6 +98,7 @@ const blankMaterial = (): BatchMaterial => ({
 });
 
 const form = useForm({
+    customer_id: null as number | null,
     sales_order_id: props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null),
     batch_no: props.batch?.batch_no ?? null,
     batch_size: Number(props.batch?.batch_size ?? 1),
@@ -288,16 +289,10 @@ const isRestrictedFieldLocked = computed(() => {
     return isLocked.value;
 });
 
-const patronForm = useForm({ customer_id: null as number | null });
 const savedCustomerId = computed(() => props.batch?.dispatches?.[0]?.customer_id ?? props.batch?.sales_order?.customer?.id);
-watch(savedCustomerId, id => { patronForm.customer_id = id == null ? null : Number(id); }, { immediate: true });
-
-function savePatron() {
-    patronForm.put(route('batches.patron.update', props.batch.id), {
-        preserveScroll: true,
-        onSuccess: () => emit('saved', { batchId: props.batch.id, type: 'batching' }),
-    });
-}
+watch(() => [props.batch?.id, savedCustomerId.value], () => {
+    form.customer_id = savedCustomerId.value == null ? null : Number(savedCustomerId.value);
+}, { immediate: true });
 
 const salesOrderDetails = computed(() => {
     const wo = selectedSalesOrder.value;
@@ -917,17 +912,22 @@ const actualMoisture = (material: BatchMaterial, saved?: MoistureReading) => Num
     ?? 0
 );
 
-const waterAbsorption = (productId: number) => {
+const productMoisture = (productId: number): number | null => {
     const product = props.products.find((item: any) => Number(item.id) === productId);
-    return product?.moisture == null ? '-' : Number(product.moisture).toFixed(3).replace(/(\.\d{2})0$/, '$1');
+    const value = product?.moisture ?? props.batch?.material_display?.[productId]?.moisture;
+    return value == null ? null : Number(value);
 };
+
+const waterAbsorption = (productId: number) =>
+    productMoisture(productId)?.toFixed(3).replace(/(\.\d{2})0$/, '$1') ?? '-';
 
 const openMoistureDialog = () => {
     moistureDraft.value = moistureMaterials.value.map(material => {
         const saved = form.moisture_contents.find(reading => reading.product_id === Number(material.product_id));
         return {
-            product_id: Number(material.product_id), design_moisture_percentage: 0, measured_at: null, notes: '',
+            product_id: Number(material.product_id), measured_at: null, notes: '',
             ...saved,
+            design_moisture_percentage: productMoisture(Number(material.product_id)) ?? saved?.design_moisture_percentage ?? null,
             consumption_moisture_percentage: actualMoisture(material, saved),
         };
     });
@@ -940,7 +940,7 @@ const moistureValue = (material: BatchMaterial, type: 'design' | 'consumption'):
     if (type === 'consumption') {
         return actualMoisture(material, reading).toFixed(3).replace(/(\.\d{2})0$/, '$1');
     }
-    return Number(reading?.design_moisture_percentage ?? 0).toFixed(2);
+    return (productMoisture(Number(material.product_id)) ?? reading?.design_moisture_percentage)?.toFixed(3).replace(/(\.\d{2})0$/, '$1') ?? '-';
 };
 
 const applyMoistureReadings = async () => {
@@ -1087,8 +1087,9 @@ const submit = (onSuccessCallback?: () => void) => {
         const seconds = String(d.getSeconds()).padStart(2, '0');
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
-    form.transform((data) => ({
+    form.transform(({ customer_id, ...data }) => ({
         ...data,
+        ...(Number(customer_id) !== Number(savedCustomerId.value) ? { customer_id } : {}),
         batch_no: canEditBatchNo.value ? String(data.batch_no).trim().toUpperCase() : (props.batch?.batch_no ?? null),
         start_time: formatDateTime(data.start_time),
         end_time: formatDateTime(data.end_time),
@@ -1206,12 +1207,9 @@ console.log('test');
                             :error="form.errors.sales_order_id" />
                         <div v-if="page.props.is_context_administrator && props.batch?.dispatches?.length && !isLocked && can('BATCH.UPDATE')"
                             class="mt-3 space-y-2">
-                            <BaseSelect v-model="patronForm.customer_id" label="Batch Patron" :options="customers"
+                            <BaseSelect v-model="form.customer_id" label="Batch Patron" :options="customers"
                                 optionLabel="legal_name" optionValue="id" filter
-                                :error="patronForm.errors.customer_id" />
-                            <Button type="button" label="Update Patron" :loading="patronForm.processing"
-                                :disabled="!patronForm.customer_id || Number(patronForm.customer_id) === Number(savedCustomerId)"
-                                @click="savePatron" />
+                                :error="form.errors.customer_id" />
                         </div>
                     </div>
 
@@ -1770,7 +1768,7 @@ console.log('test');
                     <BaseInputNumber v-model="reading.design_moisture_percentage"
                         :label="`${moistureMaterialName(reading.product_id)} design moisture percentage`"
                         fieldClass="[&_label]:sr-only" :min="0" :max="100" :minFractionDigits="0" :maxFractionDigits="3"
-                        :disabled="isLocked" />
+                        :disabled="isLocked || productMoisture(reading.product_id) !== null" />
                     <BaseInputNumber v-model="reading.consumption_moisture_percentage"
                         :label="`${moistureMaterialName(reading.product_id)} consumption moisture percentage`"
                         fieldClass="[&_label]:sr-only" :min="0" :max="100" :minFractionDigits="0" :maxFractionDigits="3"

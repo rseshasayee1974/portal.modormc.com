@@ -72,6 +72,7 @@ class UpdateBatchRequest extends FormRequest
             }];
 
         return [
+            'customer_id' => ['sometimes', 'required', 'integer'],
             'sales_order_id' => ['nullable', 'integer', 'exists:mm_sales_orders,id'],
             'batch_no' => [
                 'required',

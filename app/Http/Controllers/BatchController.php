@@ -1276,30 +1276,33 @@ class BatchController extends Controller
         $this->authorizeModule('edit');
         abort_unless($request->user()->isContextAdministrator() && (int) $batch->plant_id === (int) session('active_plant_id'), 403);
         $data = $request->validate(['customer_id' => ['required', 'integer']]);
-        $customer = \App\Models\Patron::where('plant_id', $batch->plant_id)->ofType('Customer')->find($data['customer_id']);
+        DB::transaction(fn () => $this->saveDispatchPatron($batch, $data['customer_id']));
+
+        return back()->with('success', 'Batch patron updated.');
+    }
+
+    private function saveDispatchPatron(Batch $batch, int $customerId): void
+    {
+        $customer = \App\Models\Patron::where('plant_id', $batch->plant_id)->ofType('Customer')->find($customerId);
         if (!$customer) {
             throw ValidationException::withMessages(['customer_id' => 'Select a customer from this plant.']);
         }
 
-        DB::transaction(function () use ($batch, $customer) {
-            $batch = Batch::lockForUpdate()->findOrFail($batch->id);
-            $dispatches = $batch->dispatches()->where('plant_id', $batch->plant_id)->lockForUpdate()->get();
-            if ($dispatches->isEmpty()) {
-                throw ValidationException::withMessages(['customer_id' => 'This batch has no dispatch to update.']);
+        $batch = Batch::lockForUpdate()->findOrFail($batch->id);
+        $dispatches = $batch->dispatches()->where('plant_id', $batch->plant_id)->lockForUpdate()->get();
+        if ($dispatches->isEmpty()) {
+            throw ValidationException::withMessages(['customer_id' => 'This batch has no dispatch to update.']);
+        }
+        foreach ($dispatches as $dispatch) {
+            if ((int) $batch->status === Batch::STATUS_CANCELLED
+                || in_array($dispatch->dispatch_status, ['Cancelled', 'Invoiced'], true)
+                || $dispatch->status()->whereNotNull('invoice_id')->exists()) {
+                throw ValidationException::withMessages(['customer_id' => 'The patron is locked for an invoiced or cancelled batch.']);
             }
-            foreach ($dispatches as $dispatch) {
-                if ((int) $batch->status === Batch::STATUS_CANCELLED
-                    || in_array($dispatch->dispatch_status, ['Cancelled', 'Invoiced'], true)
-                    || $dispatch->status()->whereNotNull('invoice_id')->exists()) {
-                    throw ValidationException::withMessages(['customer_id' => 'The patron is locked for an invoiced or cancelled batch.']);
-                }
-                $dispatch->customer_id = $customer->id;
-                $dispatch->updated_by = auth()->id();
-                $dispatch->save();
-            }
-        });
-
-        return back()->with('success', 'Batch patron updated.');
+            $dispatch->customer_id = $customer->id;
+            $dispatch->updated_by = auth()->id();
+            $dispatch->save();
+        }
     }
 
     public function update(UpdateBatchRequest $request, Batch $batch)
@@ -1317,6 +1320,9 @@ class BatchController extends Controller
         $canEditBatchNo = BatchNumberAccess::allows($user);
 
         $payload = $request->validated();
+        if (isset($payload['customer_id'])) {
+            abort_unless($user->isContextAdministrator() && (int) $batch->plant_id === (int) session('active_plant_id'), 403);
+        }
         if (!$canEditBatchNo) {
             $payload['batch_no'] = $batch->batch_no;
         } elseif (isset($payload['batch_no']) && (string)$payload['batch_no'] !== (string)$batch->batch_no) {
@@ -1353,6 +1359,10 @@ class BatchController extends Controller
 
         try {
             DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto, $oldMaterials, $oldStatus) {
+                if (isset($payload['customer_id'])) {
+                    $this->saveDispatchPatron($batch, $payload['customer_id']);
+                    unset($payload['customer_id']);
+                }
                 $materials = $payload['materials'] ?? [];
                 $moistureContents = $payload['moisture_contents'] ?? null;
                 unset($payload['materials'], $payload['moisture_contents']);
