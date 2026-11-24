@@ -27,6 +27,7 @@ class BatchingDashboardController extends Controller
         return Inertia::render('Dashboard/BatchingDashboard', [
             'plants' => $plants,
             'activePlantId' => $plantId,
+            'reportPermissions' => app(\App\Services\Reports\ReportPermissions::class)->matrix(),
         ]);
     }
 

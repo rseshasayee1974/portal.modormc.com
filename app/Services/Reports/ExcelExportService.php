@@ -506,15 +506,10 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'inventory_stock') {
-                $headersList = ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock'];
-                foreach (($data['transactions'] ?? []) as $row) {
-                    $rows[] = [
-                        $row['date'] ?? '',
-                        $row['product_name'] ?? '',
-                        $row['uom'] ?? '',
-                        $row['opening_qty'] ?? 0,
-                        $row['quantity'] ?? 0,
-                    ];
+                $columns = InventoryStockReportService::columns();
+                $headersList = $columns['headers'];
+                foreach ($data['transactions'] as $row) {
+                    $rows[] = array_map(fn ($field) => $row[$field], $columns['fields']);
                 }
             } elseif ($type === 'inventory_inward') {
                 $headersList = ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Total Unit Price', 'Truck No'];

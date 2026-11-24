@@ -251,12 +251,7 @@ class QueueReportExportJob implements ShouldQueue
 
         $extraParams = [];
         if (str_contains(strtolower($type), 'inventory_stock')) {
-            $extraParams = [
-                'headers'    => ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock'],
-                'fields'     => ['date', 'product_name', 'uom', 'opening_qty', 'quantity'],
-                'alignments' => ['center', 'left', 'center', 'right', 'right'],
-                'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
-            ];
+            $extraParams = \App\Services\Reports\InventoryStockReportService::columns();
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = \App\Services\Reports\InventoryInwardReportService::pdfColumns($data);
         } elseif (strtolower($type) === 'stock_out') {
@@ -330,7 +325,7 @@ class QueueReportExportJob implements ShouldQueue
             $paperSize = 'a5';
         }
 
-        if (in_array(strtolower($type), ['attendance', 'expense'], true)) $orientation = 'landscape';
+        if (in_array(strtolower($type), ['attendance', 'expense', 'inventory_stock'], true)) $orientation = 'landscape';
         if (strtolower($type) === 'machine_tracker') {
             $paperSize = 'a3';
             $orientation = 'landscape';

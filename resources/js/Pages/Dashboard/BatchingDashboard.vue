@@ -28,7 +28,14 @@ import {
 const props = defineProps({
     plants: Array,
     activePlantId: Number,
+    reportPermissions: Object,
 });
+
+const productionReports = computed(() => [
+    { type: 'production_batch', label: 'Product-wise consumption' },
+    { type: 'product_consolidated', label: 'Mix design-wise dispatches' },
+    { type: 'site_consolidated', label: 'Unloading site-wise dispatches' },
+].filter(report => props.reportPermissions?.[report.type]?.view));
 
 const selectedPlant = ref(props.activePlantId);
 const loading = ref(true);
@@ -357,6 +364,13 @@ const donutChartOptions = computed(() => ({
                         </div>
                         <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Production Dashboard</h1>
                         <p class="text-xs sm:text-sm text-slate-500 mt-0.5 font-medium">Multi-module operational command center & dispatch monitoring</p>
+                        <nav v-if="productionReports.length" aria-label="Production reports" class="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                            <Link v-for="report in productionReports" :key="report.type"
+                                :href="route('reports.index', { type: report.type, start_date: startDate, end_date: endDate })"
+                                class="text-sm font-semibold text-blue-700 underline">
+                                {{ report.label }}
+                            </Link>
+                        </nav>
                     </div>
 
                     <!-- Unified Controls Toolbar -->
