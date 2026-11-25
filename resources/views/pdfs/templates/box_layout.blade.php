@@ -364,10 +364,10 @@
                     @if($showDesc) <td style="{{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $hasValue($item['description'] ?? null) ? $item['description'] : '' }}</td> @endif
                     @if($showPump) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? 'TM' }}</td> @endif
                     @if($showQty) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['qty_display'] ?? ((float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.')) }}</td> @endif
-                    @if($showUnit) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td> @endif
-                    @if($showDiscount) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ !empty($item['discount']) && $item['discount'] > 0 ? number_format($item['discount'], 2) : '' }}</td> @endif
-                    @if($showPump) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['pump_charge'] ?? 0, 2) }}</td> @endif
-                    <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['taxable_amount'] ?? ($item['qty'] * $item['unit_price']), 2) }}</td>
+                    @if($showUnit) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ \App\Services\PrintDataFormatter::money($item['unit_price']) }}</td> @endif
+                    @if($showDiscount) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ !empty($item['discount']) && $item['discount'] > 0 ? \App\Services\PrintDataFormatter::money($item['discount']) : '' }}</td> @endif
+                    @if($showPump) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ \App\Services\PrintDataFormatter::money($item['pump_charge'] ?? 0) }}</td> @endif
+                    <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ \App\Services\PrintDataFormatter::money($item['taxable_amount'] ?? ($item['qty'] * $item['unit_price'])) }}</td>
                     @if($showTax)
                         <td style="padding: 1px; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">
                             <table class="tax-subtable">
@@ -376,7 +376,7 @@
                                         <tr>
                                             <td style="width: 38%;">IGST@ {{ $formattedTaxRate }}%</td>
                                             <td style="width: 30%;">{{ $formattedTaxRate }}%</td>
-                                            <td style="width: 32%;">{{ number_format($itemTaxAmt, 2) }}</td>
+                                            <td style="width: 32%;">{{ \App\Services\PrintDataFormatter::money($itemTaxAmt) }}</td>
                                         </tr>
                                     @endif
                                 @else
@@ -384,21 +384,21 @@
                                         <tr>
                                             <td style="width: 38%;">CGST@ {{ $formattedHalfRate }}%</td>
                                             <td style="width: 30%;">{{ $formattedHalfRate }}%</td>
-                                            <td style="width: 32%;">{{ number_format($halfAmt, 2) }}</td>
+                                            <td style="width: 32%;">{{ \App\Services\PrintDataFormatter::money($halfAmt) }}</td>
                                         </tr>
                                     @endif
                                     @if(($pdfSettings['sgst'] ?? true) !== false)
                                         <tr>
                                             <td style="width: 38%;">SGST@ {{ $formattedHalfRate }}%</td>
                                             <td style="width: 30%;">{{ $formattedHalfRate }}%</td>
-                                            <td style="width: 32%;">{{ number_format($halfAmt, 2) }}</td>
+                                            <td style="width: 32%;">{{ \App\Services\PrintDataFormatter::money($halfAmt) }}</td>
                                         </tr>
                                     @endif
                                 @endif
                             </table>
                         </td>
                     @endif
-                    @if($showAmount) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['total'], 2) }}</td> @endif
+                    @if($showAmount) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ \App\Services\PrintDataFormatter::money($item['total']) }}</td> @endif
                 </tr>
                 @if ($hasRecipe)
                     <tr>
@@ -484,33 +484,33 @@
                     @if (!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)
                         <tr>
                             <td class="label-cell">Sub Total / Gross Amount</td>
-                            <td class="val-cell">{{ number_format($data['totals']['sub_total'], 2) }}</td>
+                            <td class="val-cell">{{ \App\Services\PrintDataFormatter::money($data['totals']['sub_total']) }}</td>
                         </tr>
                     @endif
                     @php $pumpChg = $data['totals']['pump_charge'] ?? $data['totals']['pump_charges'] ?? $data['totals']['pump_rate'] ?? 0; @endphp
                     @if ((($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) && $pumpChg > 0)
                         <tr>
                             <td class="label-cell">Pump Charge</td>
-                            <td class="val-cell">{{ number_format($pumpChg, 2) }}</td>
+                            <td class="val-cell">{{ \App\Services\PrintDataFormatter::money($pumpChg) }}</td>
                         </tr>
                     @endif
                     @if (($pdfSettings['discount'] ?? true) && !empty($data['totals']['discount']) && $data['totals']['discount'] > 0)
                         <tr>
                             <td class="label-cell" style="color: #dc2626;">Discount (-)</td>
-                            <td class="val-cell" style="color: #dc2626;">-{{ number_format($data['totals']['discount'], 2) }}</td>
+                            <td class="val-cell" style="color: #dc2626;">-{{ \App\Services\PrintDataFormatter::money($data['totals']['discount']) }}</td>
                         </tr>
                     @endif
                     @php $hireChg = $data['totals']['hire_charge'] ?? $data['totals']['transport_expenses'] ?? 0; @endphp
                     @if (($pdfSettings['hire_charge'] ?? true) && $hireChg > 0)
                         <tr>
                             <td class="label-cell">Hire Charge</td>
-                            <td class="val-cell">{{ number_format($hireChg, 2) }}</td>
+                            <td class="val-cell">{{ \App\Services\PrintDataFormatter::money($hireChg) }}</td>
                         </tr>
                     @endif
                     @if (($pdfSettings['pass_amount'] ?? true) && !empty($data['totals']['pass_amount']) && $data['totals']['pass_amount'] > 0)
                         <tr>
                             <td class="label-cell">Pass Amount</td>
-                            <td class="val-cell">{{ number_format($data['totals']['pass_amount'], 2) }}</td>
+                            <td class="val-cell">{{ \App\Services\PrintDataFormatter::money($data['totals']['pass_amount']) }}</td>
                         </tr>
                     @endif
                     @if (!empty($groupedTaxLines))
@@ -524,7 +524,7 @@
                             @if ($showTaxLine && ($tl['amount'] ?? 0) > 0)
                                 <tr>
                                     <td class="label-cell">{{ $tl['label'] }}</td>
-                                    <td class="val-cell">{{ number_format($tl['amount'], 2) }}</td>
+                                    <td class="val-cell">{{ \App\Services\PrintDataFormatter::money($tl['amount']) }}</td>
                                 </tr>
                             @endif
                         @endforeach
@@ -532,24 +532,24 @@
                     @if (($pdfSettings['shipping'] ?? true) && !empty($data['totals']['shipping']) && $data['totals']['shipping'] > 0)
                         <tr>
                             <td class="label-cell">Shipping</td>
-                            <td class="val-cell">{{ number_format($data['totals']['shipping'], 2) }}</td>
+                            <td class="val-cell">{{ \App\Services\PrintDataFormatter::money($data['totals']['shipping']) }}</td>
                         </tr>
                     @endif
                     @if (($pdfSettings['adjustment'] ?? true) && ($data['totals']['adjustment'] ?? 0) != 0)
                         <tr>
                             <td class="label-cell">Adjustment</td>
-                            <td class="val-cell">{{ $data['totals']['adjustment'] > 0 ? '+' : '' }}{{ number_format($data['totals']['adjustment'], 2) }}</td>
+                            <td class="val-cell">{{ $data['totals']['adjustment'] > 0 ? '+' : '' }}{{ \App\Services\PrintDataFormatter::money($data['totals']['adjustment']) }}</td>
                         </tr>
                     @endif
                     @if (($pdfSettings['round_off'] ?? true) && ($data['totals']['round_off'] ?? 0) != 0)
                         <tr>
                             <td class="label-cell">Rounding off</td>
-                            <td class="val-cell">{{ $data['totals']['round_off'] > 0 ? '+' : '' }}{{ number_format($data['totals']['round_off'], 2) }}</td>
+                            <td class="val-cell">{{ $data['totals']['round_off'] > 0 ? '+' : '' }}{{ \App\Services\PrintDataFormatter::money($data['totals']['round_off']) }}</td>
                         </tr>
                     @endif
                     <tr>
                         <td class="label-cell" style="font-weight: bold; font-size: 9pt;">Grand Total</td>
-                        <td class="val-cell" style="font-weight: bold; font-size: 9pt;">{{ number_format($data['totals']['grand_total'], 2) }}</td>
+                        <td class="val-cell" style="font-weight: bold; font-size: 9pt;">{{ \App\Services\PrintDataFormatter::money($data['totals']['grand_total']) }}</td>
                     </tr>
                 </table>
             </td>

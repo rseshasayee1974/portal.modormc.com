@@ -63,8 +63,8 @@
                     <td class="text-center">{{ number_format($item['trips_count']) }}</td>
                     <td class="text-right">{{ number_format($item['total_qty'], 2) }}</td>
                     <td class="text-right">{{ number_format($item['total_weight_tons'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['total_revenue'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['general_expenses'], 2) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($item['total_revenue']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($item['general_expenses']) }}</td>
                     <td class="alert-text">
                         @foreach($item['alerts'] as $alert)
                             <div>{{ $alert['message'] }}</div>
@@ -83,8 +83,8 @@
                     <td class="text-center font-bold">{{ number_format($sumTrips) }}</td>
                     <td class="text-right font-bold">{{ number_format($sumQty, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($sumWeight, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumRevenue, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumExpenses, 2) }}</td>
+                    <td class="text-right font-bold">₹{{ \App\Services\PrintDataFormatter::money($sumRevenue) }}</td>
+                    <td class="text-right font-bold">₹{{ \App\Services\PrintDataFormatter::money($sumExpenses) }}</td>
                     <td></td>
                 </tr>
             @endif

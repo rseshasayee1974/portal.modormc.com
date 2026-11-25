@@ -769,10 +769,10 @@
                             {{ number_format($qty, 2) }}
                         </td>
                         <td class="text-right">
-                            {{ number_format($unitPrice, 2) }}
+                            {{ \App\Services\PrintDataFormatter::money($unitPrice) }}
                         </td>
                         <td class="text-right">
-                            {{ number_format($taxable, 2) }}
+                            {{ \App\Services\PrintDataFormatter::money($taxable) }}
                         </td>
                         <td>
                             @if ($isIntra)
@@ -780,12 +780,12 @@
                                     <tr>
                                         <td class="font-bold">CGST@9%</td>
                                         <td class="text-center">9.00%</td>
-                                        <td class="text-right">{{ number_format($lineTax / 2, 2) }}</td>
+                                        <td class="text-right">{{ \App\Services\PrintDataFormatter::money($lineTax / 2) }}</td>
                                     </tr>
                                     <tr>
                                         <td class="font-bold">SGST@9%</td>
                                         <td class="text-center">9.00%</td>
-                                        <td class="text-right">{{ number_format($lineTax / 2, 2) }}</td>
+                                        <td class="text-right">{{ \App\Services\PrintDataFormatter::money($lineTax / 2) }}</td>
                                     </tr>
                                 </table>
                             @else
@@ -793,13 +793,13 @@
                                     <tr>
                                         <td class="font-bold">IGST@18%</td>
                                         <td class="text-center">18.00%</td>
-                                        <td class="text-right">{{ number_format($lineTax, 2) }}</td>
+                                        <td class="text-right">{{ \App\Services\PrintDataFormatter::money($lineTax) }}</td>
                                     </tr>
                                 </table>
                             @endif
                         </td>
                         <td class="text-right font-bold">
-                            {{ number_format(strtolower(trim((string) $inv?->invoice_label)) === 'manual' ? $taxable : $lineTotal, 2) }}
+                            {{ \App\Services\PrintDataFormatter::money(strtolower(trim((string) $inv?->invoice_label)) === 'manual' ? $taxable : $lineTotal) }}
                         </td>
                     </tr>
                 @empty
@@ -843,12 +843,12 @@
                         <tr>
                             <td class="text-right" style="width: 60%;">Rounding off</td>
                             <td class="text-right font-bold" style="width: 40%;">
-                                {{ number_format($roundOff, 2) }}</td>
+                                {{ \App\Services\PrintDataFormatter::money($roundOff) }}</td>
                         </tr>
                         <tr>
                             <td class="text-right font-bold">Grand Total</td>
                             <td class="text-right font-bold">
-                                {{ number_format($grandTotal, 2) }}</td>
+                                {{ \App\Services\PrintDataFormatter::money($grandTotal) }}</td>
                         </tr>
                     </table>
                 </td>

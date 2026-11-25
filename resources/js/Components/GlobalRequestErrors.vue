@@ -11,50 +11,39 @@ const props = defineProps({ initialPage: Object });
 const messages = ref([]);
 const removers = [];
 let interceptor;
-let dismissTimer;
+let failedRequest;
 
-function flatten(value) {
-    if (typeof value === 'string') return value.trim() ? [value] : [];
-    if (Array.isArray(value)) return value.flatMap(flatten);
-    if (value && typeof value === 'object') return Object.values(value).flatMap(flatten);
+function flatten(value, path = []) {
+    if (typeof value === 'string') {
+        const field = path.flatMap(key => key.split('.')).map(key => /^\d+$/.test(key)
+            ? String(Number(key) + 1)
+            : key.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')
+                .replace(/^./, letter => letter.toUpperCase())).join(' ');
+        return value.trim() ? [field ? field + ': ' + value : value] : [];
+    }
+    if (Array.isArray(value)) return value.flatMap(item => flatten(item, path));
+    if (value && typeof value === 'object') return Object.entries(value)
+        .flatMap(([key, item]) => flatten(item, [...path, key]));
     return [];
 }
 
-function show(value) {
-    const nextMessages = [...new Set(flatten(value))];
-    messages.value = nextMessages;
-
-    if (dismissTimer) {
-        window.clearTimeout(dismissTimer);
-        dismissTimer = undefined;
-    }
-
-    if (nextMessages.length) {
-        dismissTimer = window.setTimeout(() => {
-            messages.value = [];
-            dismissTimer = undefined;
-        }, 3000);
-    }
+function show(value, config) {
+    messages.value = [...new Set(flatten(value))];
+    failedRequest = config;
 }
 
-function showResponse(response) {
+function showResponse(response, config) {
     const status = response?.status;
-    // Keep server exception details and HTML error pages out of the UI.
-    if (status >= 500) {
-        show('The server could not complete your request. Please try again or contact your administrator.');
-    } else if (status === 401 || status === 419) {
-        show('Your session has expired. Please sign in again.');
-    } else {
-        const data = response?.data;
-        const errors = flatten(data?.errors);
-        show(errors.length ? errors : (typeof data?.message === 'string' ? data.message
-            : typeof data?.error === 'string' ? data.error
-            : status === 403 ? 'You do not have permission to perform this action.'
-            : status === 404 ? 'The requested record could not be found.'
-            : status === 422 ? 'Please check the form values and try again.'
-            : status === 429 ? 'Too many requests. Please wait a moment and try again.'
-            : 'The request could not be completed. Please check your connection and try again.'));
-    }
+    const data = response?.data;
+    const errors = flatten(data?.errors);
+    if (errors.length) return show(errors, config);
+    // Prefer the API's message and keep raw HTML and debug exceptions out of the page.
+    const detail = !data?.exception && !data?.trace &&
+        [data?.message, data?.error].find(value => typeof value === 'string' && value.trim());
+    let message = detail || (status ? status + ' ' + (response.statusText || 'Request failed')
+        : 'No response received. Check your connection and try again.');
+    if (data?.error_reference) message += ' (Reference ' + data.error_reference + ')';
+    show(message, config);
 }
 
 function showPageErrors(page) {
@@ -74,8 +63,12 @@ onMounted(() => {
             }
         }),
     );
-    interceptor = axios.interceptors.response.use(response => response, error => {
-        if (!axios.isCancel(error)) showResponse(error.response);
+    interceptor = axios.interceptors.response.use(response => {
+        if (failedRequest && failedRequest.method === response.config.method &&
+            failedRequest.url === response.config.url) show([]);
+        return response;
+    }, error => {
+        if (!axios.isCancel(error)) showResponse(error.response, error.config);
         return Promise.reject(error);
     });
 });
@@ -83,22 +76,14 @@ onMounted(() => {
 onUnmounted(() => {
     removers.forEach(remove => remove());
     if (interceptor !== undefined) axios.interceptors.response.eject(interceptor);
-    if (dismissTimer) window.clearTimeout(dismissTimer);
 });
 </script>
 
 <template>
-    <Teleport to="body">
-        <section v-if="messages.length" role="alert" aria-live="assertive" aria-atomic="true"
-            class="fixed inset-x-4 top-4 z-[100000] mx-auto max-w-xl rounded-xl border border-red-300 bg-white p-4 text-red-800 shadow-xl">
-            <div class="flex items-center justify-between gap-4">
-                <h2 class="font-semibold">Please check these errors</h2>
-                <button type="button" aria-label="Dismiss errors" @click="show([])"
-                    class="rounded px-2 py-1 text-sm font-medium hover:bg-red-50 focus:ring-2 focus:ring-red-500">Dismiss</button>
-            </div>
-            <ul class="mt-2 max-h-[45vh] list-disc space-y-1 overflow-y-auto break-words pl-5 text-sm">
-                <li v-for="message in messages" :key="message">{{ message }}</li>
-            </ul>
-        </section>
-    </Teleport>
+    <section v-if="messages.length" role="alert" aria-label="Request errors"
+        class="border-l-4 border-red-600 bg-red-50 px-4 py-2 text-sm text-red-900">
+        <ul class="mx-auto max-w-7xl space-y-1 break-words">
+            <li v-for="message in messages" :key="message">{{ message }}</li>
+        </ul>
+    </section>
 </template>

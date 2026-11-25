@@ -79,10 +79,10 @@
                 <td class="font-bold" style="color: #1d2d3e; text-transform: uppercase;">Opening Balance</td>
                 <td>---</td>
                 <td>---</td>
-                <td class="text-right font-bold">{{ $balance > 0 ? '₹ ' . number_format($balance, 2) : '---' }}</td>
-                <td class="text-right font-bold">{{ $balance < 0 ? '₹ ' . number_format(abs($balance), 2) : '---' }}</td>
+                <td class="text-right font-bold">{{ $balance > 0 ? '₹ ' . \App\Services\PrintDataFormatter::money($balance) : '---' }}</td>
+                <td class="text-right font-bold">{{ $balance < 0 ? '₹ ' . \App\Services\PrintDataFormatter::money(abs($balance)) : '---' }}</td>
                 <td class="text-right font-bold" style="color: #1d2d3e;">
-                    ₹ {{ number_format(abs($balance), 2) }}
+                    ₹ {{ \App\Services\PrintDataFormatter::money(abs($balance)) }}
                     {{-- <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small> --}}
                 </td>
             </tr>
@@ -100,10 +100,10 @@
                     </td>
                     <td><span class="badge-voucher">{{ $trx['voucher_type'] ?? 'JOURNAL' }}</span></td>
                     <td class="font-bold" style="color: #1e293b;">{{ $trx['voucher_no'] ?? '-' }}</td>
-                    <td class="text-right font-bold" style="color: #0f172a;">{{ ($trx['debit'] ?? 0) > 0 ? '₹ ' . number_format($trx['debit'], 2) : '---' }}</td>
-                    <td class="text-right font-bold" style="color: #0f172a;">{{ ($trx['credit'] ?? 0) > 0 ? '₹ ' . number_format($trx['credit'], 2) : '---' }}</td>
+                    <td class="text-right font-bold" style="color: #0f172a;">{{ ($trx['debit'] ?? 0) > 0 ? '₹ ' . \App\Services\PrintDataFormatter::money($trx['debit']) : '---' }}</td>
+                    <td class="text-right font-bold" style="color: #0f172a;">{{ ($trx['credit'] ?? 0) > 0 ? '₹ ' . \App\Services\PrintDataFormatter::money($trx['credit']) : '---' }}</td>
                     <td class="text-right font-bold" style="color: #0f172a; background-color: #f8fafc;">
-                        ₹ {{ number_format(abs($balance), 2) }}
+                        ₹ {{ \App\Services\PrintDataFormatter::money(abs($balance)) }}
                         {{-- <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small> --}}
                     </td>
                 </tr>
@@ -119,7 +119,7 @@
                     Net Closing Balance
                 </td>
                 <td colspan="3" class="text-right font-bold" style="padding: 10px 14px; font-size: 11pt; color: #ffffff;">
-                    ₹ {{ number_format(abs($balance), 2) }}
+                    ₹ {{ \App\Services\PrintDataFormatter::money(abs($balance)) }}
                     <span style="font-size: 8.5pt; text-transform: uppercase; opacity: 0.8; margin-left: 4px;">{{ $balance >= 0 ? 'Debit' : 'Credit' }}</span>
                 </td>
             </tr>

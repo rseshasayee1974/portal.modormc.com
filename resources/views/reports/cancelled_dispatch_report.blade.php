@@ -64,7 +64,7 @@
                     <td>{{ $row['grade_name'] ?? '-' }}</td>
                     <td>{{ $row['truck_no'] ?? '-' }}</td>
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_total'] ?? 0) }}</td>
                     <td>
                         <span style="font-size: 7pt;">Inv: {{ $row['invoice_number'] ?? '-' }}</span><br>
                         <span style="font-size: 7pt; color: #0284c7;">CN: {{ $row['credit_note_number'] ?? '-' }}</span>
@@ -97,7 +97,7 @@
                     <strong>Total Reversed Volume:</strong> {{ number_format($total_quantity ?? 0, 2) }} m³
                 </td>
                 <td style="width: 35%; text-align: right;">
-                    <strong>Total Reversed Value:</strong> ₹ {{ number_format($total_amount ?? 0, 2) }}
+                    <strong>Total Reversed Value:</strong> ₹ {{ \App\Services\PrintDataFormatter::money($total_amount ?? 0) }}
                 </td>
             </tr>
         </table>

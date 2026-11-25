@@ -57,6 +57,7 @@ import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import AIChatWidget from '@/Components/AI/AIChatWidget.vue';
 import OSAIChatDrawer from '@/Components/AI/OSAIChatDrawer.vue';
+import NotificationBell from '@/Components/Notifications/NotificationBell.vue';
 
 
 // Shared with module navigation so configured menu icons render consistently.
@@ -345,12 +346,7 @@ const mobileMenuOpen = ref(false);
 </div> -->
 
                             <!-- Notification Bell -->
-                            <!-- <button class="relative p-2 text-blue-200 hover:text-amber-300 transition-colors mr-1 sm:mr-2 focus:outline-none rounded-full">
-                                <BellIcon class="h-6 w-6 md:h-7 md:w-7" aria-hidden="true" />
-                                <span class="absolute top-1.5 right-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-500 rounded-full ring-2 ring-[#1e3a5f]">
-                                    0
-                                </span>
-                            </button> -->
+                            <NotificationBell v-if="$page.props.auth?.user" />
 
                             <!-- AI Chat Assistant Icon -->
                             <!-- <button

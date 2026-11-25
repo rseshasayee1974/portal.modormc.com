@@ -207,7 +207,7 @@
             </td>
             <td class="kpi-card danger" style="width: 25%;">
                 <span class="kpi-label">Total Monetary Value</span>
-                <span class="kpi-value">₹ {{ number_format($totalVal, 2) }}</span>
+                <span class="kpi-value">₹ {{ \App\Services\PrintDataFormatter::money($totalVal) }}</span>
             </td>
             <td class="kpi-card" style="width: 50%;">
                 <span class="kpi-label">Category Breakdown</span>
@@ -273,7 +273,7 @@
                         <span style="color: #475569;">{{ $row['deleted_by'] ?? 'System' }}</span>
                     </td>
                     <td class="text-right font-bold">
-                        {{ number_format($row['amount'] ?? 0, 2) }}
+                        {{ \App\Services\PrintDataFormatter::money($row['amount'] ?? 0) }}
                     </td>
                     <td style="color: #475569; font-size: 6.5pt;">
                         {{ $row['notes'] ?? '-' }}
@@ -299,7 +299,7 @@
                     <strong>Filtered Customer:</strong> {{ !empty($patron) ? $patron->legal_name : 'All Customers / Parties' }}
                 </td>
                 <td style="width: 30%; text-align: right;">
-                    <strong>Total Deleted Value:</strong> ₹ {{ number_format($totalVal, 2) }}
+                    <strong>Total Deleted Value:</strong> ₹ {{ \App\Services\PrintDataFormatter::money($totalVal) }}
                 </td>
             </tr>
         </table>

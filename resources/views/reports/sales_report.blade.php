@@ -96,9 +96,9 @@
                     <td class="text-right">{{ number_format($row['truck_empty'] ?? ($row['empty_weight'] ?? 0), 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? ($row['truck_loaded'] ?? 0), 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['netweight'] ?? ($row['net_weight'] ?? 0), 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_untaxed'], 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_tax'], 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'], 2) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_untaxed']) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_tax']) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($row['amount_total']) }}</td>
                 </tr>
             @endforeach
             
@@ -109,9 +109,9 @@
                 <td class="text-right font-bold">{{ number_format($total_truck_empty ?? collect($transactions)->sum('truck_empty'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_loaded_weight ?? collect($transactions)->sum('loaded_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_net_weight ?? collect($transactions)->sum('netweight'), 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_untaxed, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_tax, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_amount, 2) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_untaxed) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_tax) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_amount) }}</td>
             </tr>
         </tbody>
     </table>
@@ -155,9 +155,9 @@
                     <!-- <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_untaxed'] ?? 0) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_tax'] ?? 0) }}</td> -->
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($row['amount_total'] ?? 0) }}</td>
                 </tr>
             @endforeach
             
@@ -170,9 +170,9 @@
                 <!-- <td class="text-right font-bold">{{ number_format($total_product_truck_empty ?? collect($product_summary)->sum('truck_empty'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_product_loaded_weight ?? collect($product_summary)->sum('loaded_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_product_net_weight ?? collect($product_summary)->sum('netweight'), 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_product_untaxed, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_product_tax, 2) }}</td> -->
-                <td class="text-right font-bold">{{ number_format($total_product_amount, 2) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_product_untaxed) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_product_tax) }}</td> -->
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_product_amount) }}</td>
             </tr>
         </tbody>
     </table>
@@ -212,9 +212,9 @@
                     <!-- <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td> -->
-                    <!-- <td class="text-right">{{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_untaxed'] ?? 0) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_tax'] ?? 0) }}</td> -->
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($row['amount_total'] ?? 0) }}</td>
                 </tr>
             @endforeach
             
@@ -227,9 +227,9 @@
                 <!-- <td class="text-right font-bold">{{ number_format($total_party_truck_empty ?? collect($party_summary)->sum('truck_empty'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_party_loaded_weight ?? collect($party_summary)->sum('loaded_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_party_net_weight ?? collect($party_summary)->sum('netweight'), 2) }}</td> -->
-                <!-- <td class="text-right font-bold">{{ number_format($total_party_untaxed, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_party_tax, 2) }}</td> -->
-                <td class="text-right font-bold">{{ number_format($total_party_amount, 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_party_untaxed) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_party_tax) }}</td> -->
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_party_amount) }}</td>
             </tr>
         </tbody>
     </table>
@@ -270,9 +270,9 @@
                     <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td>
-                    <!-- <td class="text-right">{{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_untaxed'] ?? 0) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_tax'] ?? 0) }}</td> -->
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($row['amount_total'] ?? 0) }}</td>
                 </tr>
             @endforeach
             
@@ -285,9 +285,9 @@
                 <td class="text-right font-bold">{{ number_format($total_truck_empty ?? collect($truck_summary)->sum('truck_empty'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_truck_loaded_weight ?? collect($truck_summary)->sum('loaded_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_truck_net_weight ?? collect($truck_summary)->sum('netweight'), 2) }}</td>
-                <!-- <td class="text-right font-bold">{{ number_format($total_truck_untaxed ?? collect($truck_summary)->sum('amount_untaxed'), 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_truck_tax ?? collect($truck_summary)->sum('amount_tax'), 2) }}</td> -->
-                <td class="text-right font-bold">{{ number_format($total_truck_amount ?? collect($truck_summary)->sum('amount_total'), 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_truck_untaxed ?? collect($truck_summary)->sum('amount_untaxed')) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_truck_tax ?? collect($truck_summary)->sum('amount_tax')) }}</td> -->
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_truck_amount ?? collect($truck_summary)->sum('amount_total')) }}</td>
             </tr>
         </tbody>
     </table>
@@ -323,7 +323,7 @@
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
                     {{-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> --}}
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($row['amount_total'] ?? 0) }}</td>
                 </tr>
             @endforeach
             
@@ -333,7 +333,7 @@
                 <td class="text-center font-bold">{{ $total_site_trips ?? collect($site_summary)->sum('trips_count') }}</td>
                 {{-- <td class="text-right font-bold">{{ number_format($total_site_batch_size ?? collect($site_summary)->sum('batch_size'), 2) }}</td> --}}
                 <td class="text-right font-bold">{{ number_format($total_site_quantity ?? collect($site_summary)->sum('quantity'), 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_site_amount ?? collect($site_summary)->sum('amount_total'), 2) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_site_amount ?? collect($site_summary)->sum('amount_total')) }}</td>
             </tr>
         </tbody>
     </table>
@@ -364,7 +364,7 @@
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
                     <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($row['amount_total'] ?? 0) }}</td>
                 </tr>
             @endforeach
             
@@ -374,7 +374,7 @@
                 <td class="text-center font-bold">{{ $total_payment_mode_trips ?? collect($payment_mode_summary)->sum('trips_count') }}</td>
                 <!-- <td class="text-right font-bold">{{ number_format($total_payment_mode_batch_size ?? collect($payment_mode_summary)->sum('batch_size'), 2) }}</td> -->
                 <td class="text-right font-bold">{{ number_format($total_payment_mode_quantity ?? collect($payment_mode_summary)->sum('quantity'), 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_payment_mode_amount ?? collect($payment_mode_summary)->sum('amount_total'), 2) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_payment_mode_amount ?? collect($payment_mode_summary)->sum('amount_total')) }}</td>
             </tr>
         </tbody>
     </table>

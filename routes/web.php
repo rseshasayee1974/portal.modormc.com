@@ -263,6 +263,13 @@ Route::middleware([
         Route::post('/toggle-suspension', [EntityContextController::class, 'toggleSuspension'])->name('entity-context.toggle-suspension');
     });
 
+    // Role-wise Web Notifications
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/feed', [\App\Http\Controllers\WebNotificationController::class, 'index'])->name('feed');
+        Route::post('/read-all', [\App\Http\Controllers\WebNotificationController::class, 'readAll'])->name('read-all');
+        Route::post('/{id}/read', [\App\Http\Controllers\WebNotificationController::class, 'markAsRead'])->where('id', '.*')->name('read');
+    });
+
     // 2. Master Data (Definitions)
     Route::prefix('master')->group(function () {
         Route::resource('addresstypes', AddressTypeController::class);

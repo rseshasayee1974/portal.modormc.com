@@ -338,10 +338,10 @@
                     @endif
                 </td>
                 <td class="text-center nowrap font-bold" style="font-size: 7.5pt;">{{ $trx['type'] ?? ($trx['voucher_type'] ?? '') }}</td>
-                <td class="amount-cell">{!! str_replace('₹', '&#8377;', e($trx['invoice_bill_display'] ?? (isset($trx['debit']) && $trx['debit'] > 0 ? '&#8377; ' . number_format($trx['debit'], 2) : '0'))) !!}</td>
-                <td class="amount-cell">{!! str_replace('₹', '&#8377;', e($trx['receipt_payment_display'] ?? (isset($trx['credit']) && $trx['credit'] > 0 ? '(&#8377; ' . number_format($trx['credit'], 2) . ')' : '0'))) !!}</td>
+                <td class="amount-cell">{!! str_replace('₹', '&#8377;', e($trx['invoice_bill_display'] ?? (isset($trx['debit']) && $trx['debit'] > 0 ? '&#8377; ' . \App\Services\PrintDataFormatter::money($trx['debit']) : '0'))) !!}</td>
+                <td class="amount-cell">{!! str_replace('₹', '&#8377;', e($trx['receipt_payment_display'] ?? (isset($trx['credit']) && $trx['credit'] > 0 ? '(&#8377; ' . \App\Services\PrintDataFormatter::money($trx['credit']) . ')' : '0'))) !!}</td>
                 <td class="amount-cell">{!! str_replace('₹', '&#8377;', e($trx['discount_display'] ?? '0')) !!}</td>
-                <td class="amount-cell font-bold">{!! str_replace('₹', '&#8377;', e($trx['balance_display'] ?? (isset($trx['balance']) ? '&#8377; ' . number_format(abs($trx['balance']), 2) : '-'))) !!}</td>
+                <td class="amount-cell font-bold">{!! str_replace('₹', '&#8377;', e($trx['balance_display'] ?? (isset($trx['balance']) ? '&#8377; ' . \App\Services\PrintDataFormatter::money(abs($trx['balance'])) : '-'))) !!}</td>
             </tr>
         @empty
             <tr>

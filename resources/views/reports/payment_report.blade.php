@@ -92,7 +92,7 @@
                         <span class="badge-dr" style="font-size: 7.5pt;">{{ $trx['status'] ?? 'Paid' }}</span>
                     </td>
                     <td class="text-right font-bold" style="color: #0f172a; background-color: #f8fafc;">
-                        ₹ {{ number_format($amt, 2) }}
+                        ₹ {{ \App\Services\PrintDataFormatter::money($amt) }}
                     </td>
                 </tr>
             @empty
@@ -107,7 +107,7 @@
                     Total Payments ({{ count($rows) }} Vouchers)
                 </td>
                 <td class="text-right font-bold" style="padding: 10px 14px; font-size: 11pt; color: #ffffff;">
-                    ₹ {{ number_format($grandTotal, 2) }}
+                    ₹ {{ \App\Services\PrintDataFormatter::money($grandTotal) }}
                 </td>
             </tr>
         </tbody>

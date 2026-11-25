@@ -73,18 +73,18 @@
                     <td class="text-center">{{ \Carbon\Carbon::parse($row['date'])->format('d-m-Y') }}</td>
                     <td class="font-bold text-center">{{ $row['po_number'] }}</td>
                     <td>{{ $row['vendor_name'] }}</td>
-                    <td class="text-right">{{ number_format($row['amount_untaxed'], 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_tax'], 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'], 2) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_untaxed']) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_tax']) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($row['amount_total']) }}</td>
                 </tr>
             @endforeach
             
             <!-- Grand Totals -->
             <tr class="total-row">
                 <td colspan="4" class="text-center font-bold">Total Details</td>
-                <td class="text-right font-bold">{{ number_format($total_untaxed, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_tax, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_amount, 2) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_untaxed) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_tax) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_amount) }}</td>
             </tr>
         </tbody>
     </table>
@@ -114,10 +114,10 @@
                     <td class="font-bold">{{ $row['product_name'] }}</td>
                     <td class="text-center">{{ $row['uom'] }}</td>
                     <td class="text-right">{{ number_format($row['quantity'], 2) }}</td>
-                    <td class="text-right">{{ number_format($row['avg_rate'], 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_untaxed'], 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_tax'], 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'], 2) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['avg_rate']) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_untaxed']) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_tax']) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($row['amount_total']) }}</td>
                 </tr>
             @endforeach
             
@@ -126,9 +126,9 @@
                 <td colspan="3" class="text-center font-bold">Total Summary</td>
                 <td class="text-right font-bold">{{ number_format($total_quantity, 2) }}</td>
                 <td></td>
-                <td class="text-right font-bold">{{ number_format($total_product_untaxed, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_product_tax, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_product_amount, 2) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_product_untaxed) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_product_tax) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_product_amount) }}</td>
             </tr>
         </tbody>
     </table>

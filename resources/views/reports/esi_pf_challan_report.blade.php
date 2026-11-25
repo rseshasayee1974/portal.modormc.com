@@ -52,13 +52,13 @@
                     <td class="text-center">{{ $row['employee_code'] }}</td>
                     <td class="text-left">{{ $row['name'] }}</td>
                     <td class="text-center">{{ $row['uan'] }}</td>
-                    <td class="text-right">₹{{ number_format($row['gross_wages'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($row['epf_wages'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($row['eps_wages'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($row['employee_contribution'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($row['employer_eps_share'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($row['employer_epf_share'], 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($row['total_contribution'], 2) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($row['gross_wages']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($row['epf_wages']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($row['eps_wages']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($row['employee_contribution']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($row['employer_eps_share']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($row['employer_epf_share']) }}</td>
+                    <td class="text-right font-bold">₹{{ \App\Services\PrintDataFormatter::money($row['total_contribution']) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -69,13 +69,13 @@
             @if(count($pf) > 0)
                 <tr class="total-row">
                     <td colspan="3" class="text-center">Total Summary</td>
-                    <td class="text-right">₹{{ number_format($pf_totals['gross_wages'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($pf_totals['epf_wages'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($pf_totals['eps_wages'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($pf_totals['employee_contribution'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($pf_totals['employer_eps_share'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($pf_totals['employer_epf_share'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($pf_totals['total_contribution'], 2) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($pf_totals['gross_wages']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($pf_totals['epf_wages']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($pf_totals['eps_wages']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($pf_totals['employee_contribution']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($pf_totals['employer_eps_share']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($pf_totals['employer_epf_share']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($pf_totals['total_contribution']) }}</td>
                 </tr>
             @endif
         </tbody>
@@ -103,10 +103,10 @@
                     <td class="text-left">{{ $row['name'] }}</td>
                     <td class="text-center">{{ $row['esi_number'] }}</td>
                     <td class="text-center">{{ $row['days_worked'] }}</td>
-                    <td class="text-right">₹{{ number_format($row['gross_wages'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($row['employee_contribution'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($row['employer_contribution'], 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($row['total_contribution'], 2) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($row['gross_wages']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($row['employee_contribution']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($row['employer_contribution']) }}</td>
+                    <td class="text-right font-bold">₹{{ \App\Services\PrintDataFormatter::money($row['total_contribution']) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -118,10 +118,10 @@
                 <tr class="total-row">
                     <td colspan="3" class="text-center">Total Summary</td>
                     <td class="text-center">{{ $esi_totals['days_worked'] }}</td>
-                    <td class="text-right">₹{{ number_format($esi_totals['gross_wages'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($esi_totals['employee_contribution'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($esi_totals['employer_contribution'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($esi_totals['total_contribution'], 2) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($esi_totals['gross_wages']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($esi_totals['employee_contribution']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($esi_totals['employer_contribution']) }}</td>
+                    <td class="text-right">₹{{ \App\Services\PrintDataFormatter::money($esi_totals['total_contribution']) }}</td>
                 </tr>
             @endif
         </tbody>

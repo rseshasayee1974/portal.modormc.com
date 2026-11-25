@@ -53,7 +53,7 @@
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
                     {{-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> --}}
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($row['amount_total'] ?? 0) }}</td>
                 </tr>
             @endforeach
             
@@ -62,7 +62,7 @@
                 <td class="text-center font-bold">{{ $total_trips ?? collect($transactions ?? $items ?? [])->sum('trips_count') }}</td>
                 {{-- <td class="text-right font-bold">{{ number_format($total_batch_size ?? 0, 2) }}</td> --}}
                 <td class="text-right font-bold">{{ number_format($total_quantity ?? 0, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_amount ?? 0, 2) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_amount ?? 0) }}</td>
             </tr>
         </tbody>
     </table>
@@ -101,14 +101,14 @@
                     <td class="text-center font-bold" style="color: #4338ca;">{{ $trip['concrete_grade'] ?? $trip['mix_name'] ?? '-' }}</td>
                     <td class="text-right">{{ number_format($trip['batch_size'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($trip['delivered_qty'] ?? $trip['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($trip['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($trip['amount_total'] ?? 0) }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
                 <td colspan="7" class="text-center font-bold">Total Batch Dispatches ({{ count($batch_dispatches) }} Trips)</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('batch_size'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('delivered_qty'), 2) }}</td>
-                <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('amount_total'), 2) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money(collect($batch_dispatches)->sum('amount_total')) }}</td>
             </tr>
         </tbody>
     </table>

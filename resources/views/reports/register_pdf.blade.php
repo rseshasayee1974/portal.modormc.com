@@ -198,7 +198,7 @@
                         @endphp
                         <td class="{{ $col['align'] }}">
                             @if($isNum)
-                                {{ number_format((float)$val, 2) }}
+                                {{ \App\Services\PrintDataFormatter::money((float)$val) }}
                             @elseif($isDate && $val)
                                 {{ \Carbon\Carbon::parse($val)->format('d/m/Y') }}
                             @else
@@ -223,7 +223,7 @@
                             @if($index === 0)
                                 TOTAL
                             @elseif($totKey && isset($totals[$totKey]))
-                                {{ number_format((float)$totals[$totKey], 2) }}
+                                {{ \App\Services\PrintDataFormatter::money((float)$totals[$totKey]) }}
                             @endif
                         </td>
                     @endforeach

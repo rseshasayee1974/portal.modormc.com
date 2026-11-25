@@ -52,21 +52,21 @@ Created: 2026-11-04 15:00:20 Asia/Calcutta (UTC+05:30)
         <tbody>@forelse($data['items'] as $item)
             <tr><td>{{ $item['no'] }}</td><td>{{ $item['name'] }}<br><span class="muted">HSN: {{ $item['hsn'] }}</span></td>
                 <td class="amount">{{ rtrim(rtrim(number_format($item['qty'], 4, '.', ''), '0'), '.') }}<br>{{ $item['unit'] }}</td>
-                @foreach(['unit_price', 'discount', 'taxable_amount'] as $key)<td class="amount">{{ number_format($item[$key], 2) }}</td>@endforeach
-                <td class="amount">{{ number_format($item['tax_amount'], 2) }}<br><span class="muted">{{ $item['tax_label'] }}</span></td>
-                <td class="amount">{{ number_format($item['total'], 2) }}</td></tr>
+                @foreach(['unit_price', 'discount', 'taxable_amount'] as $key)<td class="amount">{{ \App\Services\PrintDataFormatter::money($item[$key]) }}</td>@endforeach
+                <td class="amount">{{ \App\Services\PrintDataFormatter::money($item['tax_amount']) }}<br><span class="muted">{{ $item['tax_label'] }}</span></td>
+                <td class="amount">{{ \App\Services\PrintDataFormatter::money($item['total']) }}</td></tr>
         @empty<tr><td colspan="8">No line items.</td></tr>@endforelse</tbody>
     </table>
     <table class="summary"><tr><td style="width:52%"><strong>Amount in words</strong><br>{{ $data['meta']['total_words'] }}<br><span class="muted">All amounts in INR.</span></td>
         <td><table>
-            <tr><td>Taxable Amount</td><td class="amount">{{ number_format($data['totals']['sub_total'], 2) }}</td></tr>
-            @if($data['totals']['discount'] != 0)<tr><td>Document Discount</td><td class="amount">{{ number_format($data['totals']['discount'], 2) }}</td></tr>@endif
-            @foreach($data['totals']['tax_lines'] as $tax)<tr><td>{{ $tax['label'] }}</td><td class="amount">{{ number_format($tax['amount'], 2) }}</td></tr>@endforeach
-            <tr><td>Total Tax</td><td class="amount">{{ number_format($data['totals']['tax_amount'], 2) }}</td></tr>
+            <tr><td>Taxable Amount</td><td class="amount">{{ \App\Services\PrintDataFormatter::money($data['totals']['sub_total']) }}</td></tr>
+            @if($data['totals']['discount'] != 0)<tr><td>Document Discount</td><td class="amount">{{ \App\Services\PrintDataFormatter::money($data['totals']['discount']) }}</td></tr>@endif
+            @foreach($data['totals']['tax_lines'] as $tax)<tr><td>{{ $tax['label'] }}</td><td class="amount">{{ \App\Services\PrintDataFormatter::money($tax['amount']) }}</td></tr>@endforeach
+            <tr><td>Total Tax</td><td class="amount">{{ \App\Services\PrintDataFormatter::money($data['totals']['tax_amount']) }}</td></tr>
             @foreach(['shipping' => 'Shipping Charges', 'adjustment' => 'Adjustment', 'round_off' => 'Round Off'] as $key => $label)
-                @if($data['totals'][$key] != 0)<tr><td>{{ $label }}</td><td class="amount">{{ number_format($data['totals'][$key], 2) }}</td></tr>@endif
+                @if($data['totals'][$key] != 0)<tr><td>{{ $label }}</td><td class="amount">{{ \App\Services\PrintDataFormatter::money($data['totals'][$key]) }}</td></tr>@endif
             @endforeach
-            <tr class="total"><td>Note Total</td><td class="amount">INR {{ number_format($data['totals']['grand_total'], 2) }}</td></tr>
+            <tr class="total"><td>Note Total</td><td class="amount">INR {{ \App\Services\PrintDataFormatter::money($data['totals']['grand_total']) }}</td></tr>
         </table></td></tr></table>
     <div class="signature">For {{ $data['company']['name'] }}<br><br><br>Authorised Signatory</div>
 </main>

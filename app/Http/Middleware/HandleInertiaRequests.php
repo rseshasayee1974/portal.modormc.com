@@ -65,8 +65,6 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
-        $menus = [];
-
         $activePlantId = session('active_plant_id');
         $activePlant   = null;
         if ($activePlantId) {
@@ -122,7 +120,8 @@ class HandleInertiaRequests extends Middleware
             $tenantPermissions = $user ? $user->getAllPermissions()->pluck('name') : collect();
         }
 
-        if ($user) {
+        $menus = function () use ($user, $tenantPermissions, $contextFullAccess) {
+            if (!$user) return [];
             $isSuper = $user->isSystemAdmin();
             $reportPermissions = app(\App\Services\Reports\ReportPermissions::class)->matrix();
             $reportMenuAllowed = function ($item) use ($reportPermissions) {
@@ -132,16 +131,12 @@ class HandleInertiaRequests extends Middleware
                 return $reportPermissions[$id]['view'] ?? false;
             };
             $permissionIndex = array_fill_keys($tenantPermissions->map(fn ($permission) => strtolower($permission))->all(), true);
-            $parentsWithChildren = array_fill_keys(\App\Models\Menu::where('menutype', 2)->distinct()->pluck('parent_id')->all(), true);
-            $masterMenuIds = array_fill_keys(\App\Models\Menu::where('menutype', 1)
-                ->get()->filter(fn ($item) => strtolower((string) $item->permission_name) === 'master.all')
-                ->pluck('id')->all(), true);
-
             $navFields = ['id', 'parent_id', 'title', 'alias', 'link', 'icon', 'ordering', 'permission_name'];
-            $sideNav = \App\Models\Menu::where('menutype', 2)
-                ->where('published', true)
-                ->orderBy('ordering')
-                ->get()->each->setVisible($navFields)
+            $parentsWithChildren = $contextFullAccess || $isSuper ? [] : array_fill_keys(\App\Models\Menu::where('menutype', 2)->distinct()->pluck('parent_id')->all(), true);
+            $masterMenuIds = $contextFullAccess || $isSuper ? [] : array_fill_keys(\App\Models\Menu::where('menutype', 1)
+                ->whereRaw('LOWER(permission_name) = ?', ['master.all'])->pluck('id')->all(), true);
+            $sideNav = \App\Models\Menu::where('menutype', 2)->where('published', true)
+                ->orderBy('ordering')->get()->each->setVisible($navFields)
                 ->filter(function ($item) use ($isSuper, $permissionIndex, $reportMenuAllowed, $contextFullAccess, $masterMenuIds) {
                    
                     if ($isSuper) return true;
@@ -157,10 +152,8 @@ class HandleInertiaRequests extends Middleware
                 ->values()
                 ->groupBy('parent_id');
 
-            $topNav = \App\Models\Menu::where('menutype', 1)
-                ->where('published', true)
-                ->orderBy('ordering')
-                ->get()->each->setVisible($navFields)
+            $topNav = \App\Models\Menu::where('menutype', 1)->where('published', true)
+                ->orderBy('ordering')->get()->each->setVisible($navFields)
                 ->filter(function ($item) use ($isSuper, $permissionIndex, $parentsWithChildren, $sideNav, $reportPermissions, $contextFullAccess) {
                     if ($isSuper) return true;
                     if (strtolower(trim((string) $item->alias)) === 'report') {
@@ -199,11 +192,11 @@ class HandleInertiaRequests extends Middleware
                 })
                 ->values();
 
-            $menus = [
+            return [
                 'top_nav' => $topNav,
                 'sidebar_nav' => $sideNav,
             ];
-        }
+        };
 
         return [
             ...parent::share($request),

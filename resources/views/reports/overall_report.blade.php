@@ -54,12 +54,12 @@
     <table class="summary-table">
         <thead><tr><th>Summary Metric</th><th class="summary-amount">Amount / Quantity</th><th>Summary Metric</th><th class="summary-amount">Amount / Quantity</th></tr></thead>
         <tbody>
-            <tr><td>Daily Billed Sales</td><td class="summary-amount">₹ {{ number_format($executive_summary['sales_revenue'] ?? 0, 2) }}</td><td>Total Collections</td><td class="summary-amount">₹ {{ number_format($executive_summary['total_receipts'] ?? 0, 2) }}</td></tr>
-            <tr><td>Payments Made</td><td class="summary-amount">₹ {{ number_format($executive_summary['total_payments'] ?? 0, 2) }}</td><td>Net Cash Flow</td><td class="summary-amount">₹ {{ number_format($executive_summary['net_cash_flow'] ?? 0, 2) }}</td></tr>
+            <tr><td>Daily Billed Sales</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['sales_revenue'] ?? 0) }}</td><td>Total Collections</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['total_receipts'] ?? 0) }}</td></tr>
+            <tr><td>Payments Made</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['total_payments'] ?? 0) }}</td><td>Net Cash Flow</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['net_cash_flow'] ?? 0) }}</td></tr>
             <tr><td>Dispatched Volume</td><td class="summary-amount">{{ number_format($executive_summary['total_dispatched_volume'] ?? 0, 2) }} m³</td><td>Batches Mixed</td><td class="summary-amount">{{ number_format($executive_summary['total_batches_count'] ?? 0) }} Batches</td></tr>
-            <tr><td>Cash Collections</td><td class="summary-amount">₹ {{ number_format($executive_summary['cash_receipts'] ?? 0, 2) }}</td><td>Bank / Online Collections</td><td class="summary-amount">₹ {{ number_format($executive_summary['bank_receipts'] ?? 0, 2) }}</td></tr>
-            <tr><td>Pending Credit Balance</td><td class="summary-amount">₹ {{ number_format($executive_summary['credit_sales_amount'] ?? 0, 2) }}</td><td>Pump Charges Billed</td><td class="summary-amount">₹ {{ number_format($executive_summary['pump_charges_earned'] ?? 0, 2) }}</td></tr>
-            <tr><td>Hire / Shipping Charges</td><td class="summary-amount">₹ {{ number_format($executive_summary['hire_charges_billed'] ?? 0, 2) }}</td><td>Net GST Liability</td><td class="summary-amount">₹ {{ number_format($executive_summary['net_gst_payable'] ?? 0, 2) }}</td></tr>
+            <tr><td>Cash Collections</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['cash_receipts'] ?? 0) }}</td><td>Bank / Online Collections</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['bank_receipts'] ?? 0) }}</td></tr>
+            <tr><td>Pending Credit Balance</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['credit_sales_amount'] ?? 0) }}</td><td>Pump Charges Billed</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['pump_charges_earned'] ?? 0) }}</td></tr>
+            <tr><td>Hire / Shipping Charges</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['hire_charges_billed'] ?? 0) }}</td><td>Net GST Liability</td><td class="summary-amount">₹ {{ \App\Services\PrintDataFormatter::money($executive_summary['net_gst_payable'] ?? 0) }}</td></tr>
         </tbody>
     </table>
 
@@ -94,7 +94,7 @@
                     <td style="color: #475569;">{{ $d['driver_name'] }}</td>
                     <td class="text-right" style="font-weight: bold;">{{ number_format($d['delivered_qty'], 2) }}</td>
                     <td class="text-right">{{ number_format($d['net_weight'], 2) }}</td>
-                    <td class="text-right" style="font-weight: bold;">{{ number_format($d['total_amount'], 2) }}</td>
+                    <td class="text-right" style="font-weight: bold;">{{ \App\Services\PrintDataFormatter::money($d['total_amount']) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -105,7 +105,7 @@
                 <td colspan="6" class="text-center uppercase">Total Dispatches</td>
                 <td class="text-right">{{ number_format($dispatches['delivered_qty'] ?? 0, 2) }}</td>
                 <td class="text-right">{{ number_format($dispatches['net_weight'] ?? 0, 2) }}</td>
-                <td class="text-right">₹ {{ number_format($dispatches['total_value'] ?? 0, 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($dispatches['total_value'] ?? 0) }}</td>
             </tr>
         </tbody>
     </table>
@@ -113,7 +113,7 @@
     <!-- Section 2: Invoicing & Compliance -->
     <div class="section-header">
         <h3 class="section-title">2. Invoicing, Billing & Compliance ({{ count($invoicing['list'] ?? []) }} Invoices)</h3>
-        <span class="section-sub">Total Billed: ₹ {{ number_format($invoicing['sales_total_billed'] ?? 0, 2) }} | Pending Credit: ₹ {{ number_format($invoicing['sales_balance_due'] ?? 0, 2) }}</span>
+        <span class="section-sub">Total Billed: ₹ {{ \App\Services\PrintDataFormatter::money($invoicing['sales_total_billed'] ?? 0) }} | Pending Credit: ₹ {{ \App\Services\PrintDataFormatter::money($invoicing['sales_balance_due'] ?? 0) }}</span>
     </div>
 
     <table class="data-table">
@@ -136,12 +136,12 @@
                     <td style="font-weight: bold; color: #0284c7;">{{ $inv['invoice_no'] }}</td>
                     <td style="font-weight: bold; color: #0f172a;">{{ $inv['customer_name'] }}</td>
                     <td style="color: #64748b;">{{ $inv['gstin'] }}</td>
-                    <td class="text-right">{{ number_format($inv['subtotal'], 2) }}</td>
-                    <td class="text-right">{{ number_format($inv['tax_amount'], 2) }}</td>
-                    <td class="text-right" style="font-weight: bold;">{{ number_format($inv['total_amount'], 2) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($inv['subtotal']) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($inv['tax_amount']) }}</td>
+                    <td class="text-right" style="font-weight: bold;">{{ \App\Services\PrintDataFormatter::money($inv['total_amount']) }}</td>
                     <td class="text-center">
                         @if($inv['balance_amount'] > 0)
-                            <span class="badge badge-danger">Due: ₹ {{ number_format($inv['balance_amount'], 2) }}</span>
+                            <span class="badge badge-danger">Due: ₹ {{ \App\Services\PrintDataFormatter::money($inv['balance_amount']) }}</span>
                         @else
                             <span class="badge badge-success">Paid</span>
                         @endif
@@ -154,10 +154,10 @@
             @endforelse
             <tr class="total-row">
                 <td colspan="4" class="text-center uppercase">Total Invoiced</td>
-                <td class="text-right">{{ number_format($invoicing['sales_subtotal'] ?? 0, 2) }}</td>
-                <td class="text-right">{{ number_format($invoicing['sales_tax_amount'] ?? 0, 2) }}</td>
-                <td class="text-right">₹ {{ number_format($invoicing['sales_total_billed'] ?? 0, 2) }}</td>
-                <td class="text-center" style="color: #b91c1c;">Due: ₹ {{ number_format($invoicing['sales_balance_due'] ?? 0, 2) }}</td>
+                <td class="text-right">{{ \App\Services\PrintDataFormatter::money($invoicing['sales_subtotal'] ?? 0) }}</td>
+                <td class="text-right">{{ \App\Services\PrintDataFormatter::money($invoicing['sales_tax_amount'] ?? 0) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($invoicing['sales_total_billed'] ?? 0) }}</td>
+                <td class="text-center" style="color: #b91c1c;">Due: ₹ {{ \App\Services\PrintDataFormatter::money($invoicing['sales_balance_due'] ?? 0) }}</td>
             </tr>
         </tbody>
     </table>
@@ -165,7 +165,7 @@
     <!-- Section 3: Cash Flow Day Book & Tax Breakdown -->
     <!-- Receipts flow into the remaining page space. -->
                 <div class="section-header">
-                    <h3 class="section-title">3A. Collections & Receipts (₹ {{ number_format($cash_flow['total_receipts'] ?? 0, 2) }})</h3>
+                    <h3 class="section-title">3A. Collections & Receipts (₹ {{ \App\Services\PrintDataFormatter::money($cash_flow['total_receipts'] ?? 0) }})</h3>
                 </div>
                 <table class="data-table">
                     <thead>
@@ -182,7 +182,7 @@
                                 <td style="font-weight: bold;">{{ $r['voucher_no'] }}</td>
                                 <td>{{ $r['customer'] }}</td>
                                 <td>{{ $r['mode'] }}</td>
-                                <td class="text-right" style="font-weight: bold; color: #166534;">{{ number_format($r['amount'], 2) }}</td>
+                                <td class="text-right" style="font-weight: bold; color: #166534;">{{ \App\Services\PrintDataFormatter::money($r['amount']) }}</td>
                             </tr>
                         @empty
                             <tr>
@@ -193,7 +193,7 @@
                 </table>
     <!-- Payments follow receipts without a forced page break. -->
                 <div class="section-header">
-                    <h3 class="section-title">3B. Outflows & Payments (₹ {{ number_format($cash_flow['total_payments'] ?? 0, 2) }})</h3>
+                    <h3 class="section-title">3B. Outflows & Payments (₹ {{ \App\Services\PrintDataFormatter::money($cash_flow['total_payments'] ?? 0) }})</h3>
                 </div>
                 <table class="data-table">
                     <thead>
@@ -210,7 +210,7 @@
                                 <td style="font-weight: bold;">{{ $p['voucher_no'] }}</td>
                                 <td>{{ $p['beneficiary'] }}</td>
                                 <td>{{ $p['mode'] }}</td>
-                                <td class="text-right" style="font-weight: bold; color: #9a3412;">{{ number_format($p['amount'], 2) }}</td>
+                                <td class="text-right" style="font-weight: bold; color: #9a3412;">{{ \App\Services\PrintDataFormatter::money($p['amount']) }}</td>
                             </tr>
                         @empty
                             <tr>

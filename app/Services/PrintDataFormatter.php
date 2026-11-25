@@ -33,6 +33,14 @@ use Throwable;
 
 class PrintDataFormatter
 {
+    public static function money($amount): string
+    {
+        [$whole, $paise] = explode('.', number_format((float) $amount, 2, '.', ''));
+        $whole = preg_replace('/\B(?=(?:\d{2})*\d{3}$)/', ',', $whole);
+
+        return $whole . '.' . $paise;
+    }
+
     // =========================================================================
     //  1. SCHEMA & BASE DEFAULTS
     // =========================================================================

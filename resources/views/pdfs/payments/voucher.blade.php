@@ -77,7 +77,7 @@ Created: 2026-10-13 10:14:46 Asia/Calcutta (UTC+05:30)
                     <div class="amount-label">{{ $receipt ? 'Amount Received' : 'Amount Paid' }}</div>
                     <div style="margin-top: 4px;"><span class="status">{{ ucfirst((string)$payment->status) }}</span></div>
                 </td>
-                <td class="right" style="width: 65%;"><div class="amount-value">₹ {{ number_format((float)$payment->amount, 2) }}</div></td>
+                <td class="right" style="width: 65%;"><div class="amount-value">₹ {{ \App\Services\PrintDataFormatter::money((float)$payment->amount) }}</div></td>
             </tr>
         </table>
     </div>
@@ -99,7 +99,7 @@ Created: 2026-10-13 10:14:46 Asia/Calcutta (UTC+05:30)
             <thead><tr><th style="width: 10%">S/No</th><th>Document Number</th><th class="right" style="width: 32%">Allocated Amount</th></tr></thead>
             <tbody>
                 @foreach($payment->allocations as $allocation)
-                    <tr><td>{{ $loop->iteration }}</td><td>{{ $allocation->invoice?->full_number ?: '#'.$allocation->invoice_id }}</td><td class="right">₹ {{ number_format((float)$allocation->amount, 2) }}</td></tr>
+                    <tr><td>{{ $loop->iteration }}</td><td>{{ $allocation->invoice?->full_number ?: '#'.$allocation->invoice_id }}</td><td class="right">₹ {{ \App\Services\PrintDataFormatter::money((float)$allocation->amount) }}</td></tr>
                 @endforeach
             </tbody>
         </table>

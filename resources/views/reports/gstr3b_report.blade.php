@@ -40,38 +40,38 @@
         <tbody>
             <tr>
                 <td>(a) Outward Taxable Supplies (other than zero rated, nil rated, exempted)</td>
-                <td class="text-right">₹ {{ number_format($table31['a']['taxable'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['a']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['a']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['a']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['a']['taxable']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['a']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['a']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['a']['sgst']) }}</td>
             </tr>
             <tr>
                 <td>(b) Outward Taxable Supplies (zero rated / exports)</td>
-                <td class="text-right">₹ {{ number_format($table31['b']['taxable'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['b']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['b']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['b']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['b']['taxable']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['b']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['b']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['b']['sgst']) }}</td>
             </tr>
             <tr>
                 <td>(c) Other Outward Supplies (nil rated, exempted)</td>
-                <td class="text-right">₹ {{ number_format($table31['c']['taxable'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['c']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['c']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['c']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['c']['taxable']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['c']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['c']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['c']['sgst']) }}</td>
             </tr>
             <tr>
                 <td>(d) Inward Supplies (liable to reverse charge)</td>
-                <td class="text-right">₹ {{ number_format($table31['d']['taxable'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['d']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['d']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['d']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['d']['taxable']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['d']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['d']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['d']['sgst']) }}</td>
             </tr>
             <tr>
                 <td>(e) Non-GST Outward Supplies</td>
-                <td class="text-right">₹ {{ number_format($table31['e']['taxable'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['e']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['e']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table31['e']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['e']['taxable']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['e']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['e']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table31['e']['sgst']) }}</td>
             </tr>
         </tbody>
     </table>
@@ -93,33 +93,33 @@
             </tr>
             <tr>
                 <td style="padding-left: 20px;">(1) Import of goods</td>
-                <td class="text-right">₹ {{ number_format($table4['import_goods']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['import_goods']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['import_goods']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['import_goods']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['import_goods']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['import_goods']['sgst']) }}</td>
             </tr>
             <tr>
                 <td style="padding-left: 20px;">(2) Import of services</td>
-                <td class="text-right">₹ {{ number_format($table4['import_services']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['import_services']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['import_services']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['import_services']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['import_services']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['import_services']['sgst']) }}</td>
             </tr>
             <tr>
                 <td style="padding-left: 20px;">(3) Inward supplies liable to reverse charge (other than 1 & 2 above)</td>
-                <td class="text-right">₹ {{ number_format($table4['reverse_charge']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['reverse_charge']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['reverse_charge']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['reverse_charge']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['reverse_charge']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['reverse_charge']['sgst']) }}</td>
             </tr>
             <tr>
                 <td style="padding-left: 20px;">(4) Inward supplies from Input Service Distributor (ISD)</td>
-                <td class="text-right">₹ {{ number_format($table4['isd_itc']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['isd_itc']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['isd_itc']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['isd_itc']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['isd_itc']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['isd_itc']['sgst']) }}</td>
             </tr>
             <tr class="font-bold">
                 <td style="padding-left: 20px;">(5) All other ITC (Purchase Bills Input Tax Credit)</td>
-                <td class="text-right">₹ {{ number_format($table4['other_itc']['igst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['other_itc']['cgst'], 2) }}</td>
-                <td class="text-right">₹ {{ number_format($table4['other_itc']['sgst'], 2) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['other_itc']['igst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['other_itc']['cgst']) }}</td>
+                <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($table4['other_itc']['sgst']) }}</td>
             </tr>
         </tbody>
     </table>

@@ -369,7 +369,7 @@
                     </span>
                 </td>
                 <td class="text-center">{{ $item->uom->unit_code }}</td>
-                <td class="text-right">{{ number_format($item->unit_price, 2) }}</td>
+                <td class="text-right">{{ \App\Services\PrintDataFormatter::money($item->unit_price) }}</td>
                 <td class="text-center" style="font-size:9.5px;">
                     @if($item->tax && $item->tax->tax_group === 'GST')
                         {{ (float)$item->tax->tax_rate / 2 }}% CGST<br>
@@ -382,13 +382,13 @@
                 </td>
                 <td class="text-right" style="font-size:9.5px;">
                     @if($item->tax && $item->tax->tax_group === 'GST')
-                        {{ number_format($item->price_tax / 2, 2) }}<br>
-                        {{ number_format($item->price_tax / 2, 2) }}
+                        {{ \App\Services\PrintDataFormatter::money($item->price_tax / 2) }}<br>
+                        {{ \App\Services\PrintDataFormatter::money($item->price_tax / 2) }}
                     @else
-                        {{ number_format($item->price_tax ?? 0, 2) }}
+                        {{ \App\Services\PrintDataFormatter::money($item->price_tax ?? 0) }}
                     @endif
                 </td>
-                <td class="text-right bold">{{ number_format($item->price_total, 2) }}</td>
+                <td class="text-right bold">{{ \App\Services\PrintDataFormatter::money($item->price_total) }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -413,7 +413,7 @@
             <table class="breakdown-table">
                 <tr>
                     <td class="bt-label">Untaxed Sub Total</td>
-                    <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ number_format($order->amount_untaxed, 2) }}</td>
+                    <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ \App\Services\PrintDataFormatter::money($order->amount_untaxed) }}</td>
                 </tr>
 
                 @php
@@ -429,16 +429,16 @@
                     @if($group === 'GST')
                         <tr>
                             <td class="bt-label">CGST</td>
-                            <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ number_format($amt / 2, 2) }}</td>
+                            <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ \App\Services\PrintDataFormatter::money($amt / 2) }}</td>
                         </tr>
                         <tr>
                             <td class="bt-label">SGST</td>
-                            <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ number_format($amt / 2, 2) }}</td>
+                            <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ \App\Services\PrintDataFormatter::money($amt / 2) }}</td>
                         </tr>
                     @else
                         <tr>
                             <td class="bt-label">{{ $group }}</td>
-                            <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ number_format($amt, 2) }}</td>
+                            <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ \App\Services\PrintDataFormatter::money($amt) }}</td>
                         </tr>
                     @endif
                 @endforeach
@@ -446,23 +446,23 @@
                 @if($order->shipping_charges > 0)
                     <tr>
                         <td class="bt-label">Shipping / Freight (+)</td>
-                        <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ number_format($order->shipping_charges, 2) }}</td>
+                        <td class="bt-val">{{ $order->currency->currency_symbol ?? '₹' }} {{ \App\Services\PrintDataFormatter::money($order->shipping_charges) }}</td>
                     </tr>
                 @endif
                 @if($order->discount_amount > 0)
                     <tr>
                         <td class="bt-label red">Discount (-)</td>
-                        <td class="bt-val red">{{ $order->currency->currency_symbol ?? '₹' }} {{ number_format($order->discount_amount, 2) }}</td>
+                        <td class="bt-val red">{{ $order->currency->currency_symbol ?? '₹' }} {{ \App\Services\PrintDataFormatter::money($order->discount_amount) }}</td>
                     </tr>
                 @endif
 
                 <tr class="bt-total-row">
                     <td class="bt-label bold">Total ({{ $order->currency->currency_code ?? 'INR' }})</td>
-                    <td class="bt-val bold">{{ $order->currency->currency_symbol ?? '₹' }} {{ number_format($order->amount_total, 2) }}</td>
+                    <td class="bt-val bold">{{ $order->currency->currency_symbol ?? '₹' }} {{ \App\Services\PrintDataFormatter::money($order->amount_total) }}</td>
                 </tr>
                 <tr class="bt-balance-row">
                     <td class="bt-label bold">Net Payable</td>
-                    <td class="bt-val bold">{{ $order->currency->currency_symbol ?? '₹' }} {{ number_format($order->amount_total, 2) }}</td>
+                    <td class="bt-val bold">{{ $order->currency->currency_symbol ?? '₹' }} {{ \App\Services\PrintDataFormatter::money($order->amount_total) }}</td>
                 </tr>
             </table>
         </div>

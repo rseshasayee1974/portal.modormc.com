@@ -7,7 +7,7 @@ Created: 2026-10-25 19:52:48 Asia/Calcutta (UTC+05:30)
 
 return [
     'enabled' => env('PRODUCTION_READ_CACHE_ENABLED', env('APP_ENV') !== 'testing'),
-    'store' => env('PRODUCTION_READ_CACHE_STORE', 'redis'),
+    'store' => env('PRODUCTION_READ_CACHE_STORE', env('APP_ENV') === 'local' ? env('CACHE_STORE', 'file') : 'redis'),
     'ttl' => 15,
     'schedule_ttl' => 10,
     'inward_ttl' => 30,

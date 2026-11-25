@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -8,10 +9,11 @@ import Tag from 'primevue/tag';
 import ProductEditForm from './ProductEditForm.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 
-const { can, isSuperAdmin, isAdmin, isSassOwner } = usePermissions();
+const { can } = usePermissions();
 
-const isSystemAdmin = computed(() => {
-    return Boolean(isSuperAdmin.value || isAdmin.value || isSassOwner.value);
+const page = usePage();
+const isContextAdministrator = computed(() => {
+    return Boolean(page.props.is_context_administrator);
 });
 
 interface Product {
@@ -142,10 +144,10 @@ const watchFilters = watch([filters, filterCategory], () => {
             <Column v-if="can('PRODUCT.delete')" header="Action" headerClass="center-heading" bodyClass="center-value">
                 <template #body="{ data }">
                     <BaseDeleteButton :url="route('products.destroy', data.id)"
-                        :title="data.is_in_use && isSystemAdmin ? 'Force Delete Product?' : 'Delete product?'" :text="data.is_in_use && isSystemAdmin
+                        :title="data.is_in_use && isContextAdministrator ? 'Force Delete Product?' : 'Delete product?'" :text="data.is_in_use && isContextAdministrator
                             ? 'Warning: This product is used in an active mix design associated with a batch. Deleting it will affect related production records.'
                             : `${data.title} will be permanently removed.`"
-                        :disabled="Boolean(data.is_in_use && !isSystemAdmin)" />
+                        :disabled="Boolean(data.is_in_use && !isContextAdministrator)" />
                 </template>
             </Column>
 

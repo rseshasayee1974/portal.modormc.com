@@ -127,7 +127,7 @@
                         </span>
                     </td>
                     <td style="text-align: center;">{{ $item->uom->unit_code }}</td>
-                    <td style="text-align: right;">{{ number_format($item->unit_price, 2) }}</td>
+                    <td style="text-align: right;">{{ \App\Services\PrintDataFormatter::money($item->unit_price) }}</td>
                     <td style="text-align: center; font-size: 9px;">
                         @if($item->tax && $item->tax->tax_group === 'GST')
                             {{ (float)$item->tax->tax_rate / 2 }}% CGST<br>
@@ -138,13 +138,13 @@
                     </td>
                     <td style="text-align: right;">
                         @if($item->tax && $item->tax->tax_group === 'GST')
-                            {{ number_format($item->price_tax / 2, 2) }}<br>
-                            {{ number_format($item->price_tax / 2, 2) }}
+                            {{ \App\Services\PrintDataFormatter::money($item->price_tax / 2) }}<br>
+                            {{ \App\Services\PrintDataFormatter::money($item->price_tax / 2) }}
                         @else
-                            {{ number_format($item->price_tax, 2) }}
+                            {{ \App\Services\PrintDataFormatter::money($item->price_tax) }}
                         @endif
                     </td>
-                    <td style="text-align: right; font-weight: 800; color: #111;">{{ number_format($item->price_total, 2) }}</td>
+                    <td style="text-align: right; font-weight: 800; color: #111;">{{ \App\Services\PrintDataFormatter::money($item->price_total) }}</td>
                 </tr>
                 @endforeach
             </tbody>
@@ -154,7 +154,7 @@
         <div class="totals-container">
             <div class="tot-row">
                 <div class="tot-lbl">Subtotal (Untaxed):</div>
-                <div class="tot-val">{{ number_format($order->amount_untaxed, 2) }}</div>
+                <div class="tot-val">{{ \App\Services\PrintDataFormatter::money($order->amount_untaxed) }}</div>
             </div>
             
             @php
@@ -170,34 +170,34 @@
                 @if($group === 'GST')
                     <div class="tot-row">
                         <div class="tot-lbl">CGST (Splitted):</div>
-                        <div class="tot-val">{{ number_format($amount / 2, 2) }}</div>
+                        <div class="tot-val">{{ \App\Services\PrintDataFormatter::money($amount / 2) }}</div>
                     </div>
                     <div class="tot-row">
                         <div class="tot-lbl">SGST (Splitted):</div>
-                        <div class="tot-val">{{ number_format($amount / 2, 2) }}</div>
+                        <div class="tot-val">{{ \App\Services\PrintDataFormatter::money($amount / 2) }}</div>
                     </div>
                 @else
                     <div class="tot-row">
                         <div class="tot-lbl">{{ $group }}:</div>
-                        <div class="tot-val">{{ number_format($amount, 2) }}</div>
+                        <div class="tot-val">{{ \App\Services\PrintDataFormatter::money($amount) }}</div>
                     </div>
                 @endif
             @endforeach
             @if($order->shipping_charges > 0)
             <div class="tot-row">
                 <div class="tot-lbl">Freight & Logistics (+):</div>
-                <div class="tot-val">{{ number_format($order->shipping_charges, 2) }}</div>
+                <div class="tot-val">{{ \App\Services\PrintDataFormatter::money($order->shipping_charges) }}</div>
             </div>
             @endif
             @if($order->discount_amount > 0)
             <div class="tot-row">
                 <div class="tot-lbl">Adjusted Discount (-):</div>
-                <div class="tot-val" style="color: #e74c3c;">{{ number_format($order->discount_amount, 2) }}</div>
+                <div class="tot-val" style="color: #e74c3c;">{{ \App\Services\PrintDataFormatter::money($order->discount_amount) }}</div>
             </div>
             @endif
             <div class="tot-row">
                 <div class="tot-lbl final-amount">Net Payable Amount ({{ $order->currency->currency_code }}):</div>
-                <div class="tot-val final-amount">{{ number_format($order->amount_total, 2) }}</div>
+                <div class="tot-val final-amount">{{ \App\Services\PrintDataFormatter::money($order->amount_total) }}</div>
             </div>
             <div class="tot-row" style="background: #fdfdfd;">
                 <div class="tot-lbl" style="border-right: none; text-align: left; padding-right: 10px; width: 20%; border-bottom: none; color: #555;">Amount in Words:</div>

@@ -52,21 +52,21 @@
                         <td>{{ $row['customer_name'] }}</td>
                         <td>{{ $row['invoice_no'] }}</td>
                         <td class="text-center">{{ $row['invoice_date'] }}</td>
-                        <td class="text-right">₹ {{ number_format($row['invoice_value'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['taxable_value'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['cgst'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['sgst'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['igst'], 2) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['invoice_value']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['taxable_value']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['cgst']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['sgst']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['igst']) }}</td>
                         <td class="text-center">{{ $row['place_of_supply'] }}</td>
                     </tr>
                 @endforeach
                 <tr class="total-row">
                     <td colspan="5" class="text-right">Total:</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2b)->sum('invoice_value'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2b)->sum('taxable_value'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2b)->sum('cgst'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2b)->sum('sgst'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2b)->sum('igst'), 2) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2b)->sum('invoice_value')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2b)->sum('taxable_value')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2b)->sum('cgst')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2b)->sum('sgst')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2b)->sum('igst')) }}</td>
                     <td></td>
                 </tr>
             @else
@@ -98,21 +98,21 @@
                         <td class="text-center">{{ $index + 1 }}</td>
                         <td>{{ $row['invoice_no'] }}</td>
                         <td class="text-center">{{ $row['invoice_date'] }}</td>
-                        <td class="text-right">₹ {{ number_format($row['invoice_value'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['taxable_value'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['cgst'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['sgst'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['igst'], 2) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['invoice_value']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['taxable_value']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['cgst']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['sgst']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['igst']) }}</td>
                         <td class="text-center">{{ $row['place_of_supply'] }}</td>
                     </tr>
                 @endforeach
                 <tr class="total-row">
                     <td colspan="3" class="text-right">Total:</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2c)->sum('invoice_value'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2c)->sum('taxable_value'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2c)->sum('cgst'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2c)->sum('sgst'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($b2c)->sum('igst'), 2) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2c)->sum('invoice_value')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2c)->sum('taxable_value')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2c)->sum('cgst')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2c)->sum('sgst')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($b2c)->sum('igst')) }}</td>
                     <td></td>
                 </tr>
             @else
@@ -149,20 +149,20 @@
                         <td>{{ $row['note_no'] }}</td>
                         <td class="text-center">{{ $row['note_date'] }}</td>
                         <td class="text-center">{{ $row['note_type'] }}</td>
-                        <td class="text-right">₹ {{ number_format($row['note_value'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['taxable_value'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['cgst'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['sgst'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['igst'], 2) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['note_value']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['taxable_value']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['cgst']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['sgst']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['igst']) }}</td>
                     </tr>
                 @endforeach
                 <tr class="total-row">
                     <td colspan="6" class="text-right">Total:</td>
-                    <td class="text-right">₹ {{ number_format(collect($cdnr)->sum('note_value'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($cdnr)->sum('taxable_value'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($cdnr)->sum('cgst'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($cdnr)->sum('sgst'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($cdnr)->sum('igst'), 2) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($cdnr)->sum('note_value')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($cdnr)->sum('taxable_value')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($cdnr)->sum('cgst')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($cdnr)->sum('sgst')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($cdnr)->sum('igst')) }}</td>
                 </tr>
             @else
                 <tr><td colspan="11" class="text-center">No Credit/Debit Notes found.</td></tr>
@@ -192,16 +192,16 @@
                         <td class="text-center">{{ $row['export_type'] }}</td>
                         <td>{{ $row['invoice_no'] }}</td>
                         <td class="text-center">{{ $row['invoice_date'] }}</td>
-                        <td class="text-right">₹ {{ number_format($row['invoice_value'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['taxable_value'], 2) }}</td>
-                        <td class="text-right">₹ {{ number_format($row['igst'], 2) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['invoice_value']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['taxable_value']) }}</td>
+                        <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money($row['igst']) }}</td>
                     </tr>
                 @endforeach
                 <tr class="total-row">
                     <td colspan="4" class="text-right">Total:</td>
-                    <td class="text-right">₹ {{ number_format(collect($exp)->sum('invoice_value'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($exp)->sum('taxable_value'), 2) }}</td>
-                    <td class="text-right">₹ {{ number_format(collect($exp)->sum('igst'), 2) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($exp)->sum('invoice_value')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($exp)->sum('taxable_value')) }}</td>
+                    <td class="text-right">₹ {{ \App\Services\PrintDataFormatter::money(collect($exp)->sum('igst')) }}</td>
                 </tr>
             @else
                 <tr><td colspan="7" class="text-center">No Export Supplies found.</td></tr>

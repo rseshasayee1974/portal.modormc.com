@@ -59,14 +59,14 @@
                 <tr>
                     <td class="text-center font-bold">{{ $item['registration'] }}</td>
                     <td>{{ $item['vehicle_model'] }}</td>
-                    <td class="text-right">{{ number_format($item['trip_revenue'], 2) }}</td>
-                    <td class="text-right">{{ number_format($item['trip_cost'], 2) }}</td>
-                    <td class="text-right">{{ number_format($item['fuel_expenses'], 2) }}</td>
-                    <td class="text-right">{{ number_format($item['maintenance_expenses'], 2) }}</td>
-                    <td class="text-right">{{ number_format($item['other_expenses'], 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($item['total_cost'], 2) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($item['trip_revenue']) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($item['trip_cost']) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($item['fuel_expenses']) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($item['maintenance_expenses']) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($item['other_expenses']) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($item['total_cost']) }}</td>
                     <td class="text-right @if($item['net_profit'] >= 0) profit-text @else loss-text @endif">
-                        {{ number_format($item['net_profit'], 2) }}
+                        {{ \App\Services\PrintDataFormatter::money($item['net_profit']) }}
                     </td>
                     <td class="text-right font-bold @if($item['margin_pct'] >= 0) profit-text @else loss-text @endif">
                         {{ number_format($item['margin_pct'], 2) }}%
@@ -86,9 +86,9 @@
                     <td colspan="2" class="text-center font-bold">TOTAL</td>
                     <td class="text-right font-bold">{{ number_format($sumRevenue, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($sumTripCost, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($sumFuel, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($sumMaint, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($sumOther, 2) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($sumFuel) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($sumMaint) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($sumOther) }}</td>
                     <td class="text-right font-bold">{{ number_format($sumTotalCost, 2) }}</td>
                     <td class="text-right font-bold @if($sumNetProfit >= 0) profit-text @else loss-text @endif">
                         {{ number_format($sumNetProfit, 2) }}

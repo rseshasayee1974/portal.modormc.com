@@ -59,7 +59,6 @@ const props = withDefaults(
         products?: any[];
         loading_sites?: any[];
         unloading_sites?: any[];
-        deliveryCustomerPos?: any[];
         uoms?: any[];
         statuses?: { label: string; value: number }[];
         schemaWarning?: string | null;
@@ -89,7 +88,6 @@ const props = withDefaults(
         products: () => [],
         loading_sites: () => [],
         unloading_sites: () => [],
-        deliveryCustomerPos: () => [],
         uoms: () => [],
         statuses: () => [],
         nextBatchNo: 1,
@@ -1936,7 +1934,7 @@ console.log(
                                         <DeliveryReferencesForm
                                             v-for="trip in detailedBatches[slotProps.data.id]?.dispatches || []" :key="trip.id"
                                             :trip="trip" :order="detailedBatches[slotProps.data.id].sales_order"
-                                            :sites="unloading_sites" :purchase-orders="deliveryCustomerPos"
+                                            :sites="unloading_sites" :purchase-orders="detailedBatches[slotProps.data.id].deliveryCustomerPos || []"
                                             :show-trip="detailedBatches[slotProps.data.id].dispatches.length > 1"
                                             @saved="refreshBatchRow(slotProps.data.id)"
                                         />

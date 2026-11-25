@@ -489,27 +489,27 @@
                 <li class="outstanding-summary-alert">
                     <span class="outstanding-summary-label">Total Outstanding</span>
                     <strong class="outstanding-summary-value">₹
-                        {{ number_format($total_outstanding_amount ?? 0, 2) }}</strong>
+                        {{ \App\Services\PrintDataFormatter::money($total_outstanding_amount ?? 0) }}</strong>
                 </li>
                 <li>
                     <span class="outstanding-summary-label">0-15 Days</span>
-                    <strong class="outstanding-summary-value">₹ {{ number_format($aging_0_15 ?? 0, 2) }}</strong>
+                    <strong class="outstanding-summary-value">₹ {{ \App\Services\PrintDataFormatter::money($aging_0_15 ?? 0) }}</strong>
                 </li>
                 <li>
                     <span class="outstanding-summary-label">16-30 Days</span>
-                    <strong class="outstanding-summary-value">₹ {{ number_format($aging_16_30 ?? 0, 2) }}</strong>
+                    <strong class="outstanding-summary-value">₹ {{ \App\Services\PrintDataFormatter::money($aging_16_30 ?? 0) }}</strong>
                 </li>
                 <li>
                     <span class="outstanding-summary-label">31-60 Days</span>
-                    <strong class="outstanding-summary-value">₹ {{ number_format($aging_31_60 ?? 0, 2) }}</strong>
+                    <strong class="outstanding-summary-value">₹ {{ \App\Services\PrintDataFormatter::money($aging_31_60 ?? 0) }}</strong>
                 </li>
                 <li>
                     <span class="outstanding-summary-label">61-90 Days</span>
-                    <strong class="outstanding-summary-value">₹ {{ number_format($aging_61_90 ?? 0, 2) }}</strong>
+                    <strong class="outstanding-summary-value">₹ {{ \App\Services\PrintDataFormatter::money($aging_61_90 ?? 0) }}</strong>
                 </li>
                 <li class="outstanding-summary-alert">
                     <span class="outstanding-summary-label">90+ Days</span>
-                    <strong class="outstanding-summary-value">₹ {{ number_format($aging_90_plus ?? 0, 2) }}</strong>
+                    <strong class="outstanding-summary-value">₹ {{ \App\Services\PrintDataFormatter::money($aging_90_plus ?? 0) }}</strong>
                 </li>
                 <li>
                     <span class="outstanding-summary-label">Open Invoices</span>
@@ -553,35 +553,35 @@
                         <td style="font-weight: bold; color: #0f172a;">{{ $row['customer_name'] ?? '-' }}</td>
                         <td class="nowrap">{{ $row['phone'] ?? '-' }}</td>
                         <td style="color: #64748b;">{{ $row['gstin'] ?? '-' }}</td>
-                        <td class="text-right amount-cell nowrap">{{ number_format($row['total_invoiced'] ?? 0, 2) }}
+                        <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($row['total_invoiced'] ?? 0) }}
                         </td>
                         <td class="text-right amount-cell nowrap" style="color: #166534;">
-                            {{ number_format($row['total_receipt'] ?? ($row['total_paid'] ?? 0), 2) }}</td>
+                            {{ \App\Services\PrintDataFormatter::money($row['total_receipt'] ?? ($row['total_paid'] ?? 0)) }}</td>
                         <td class="text-right amount-cell nowrap" style="color: #0284c7;">
-                            {{ number_format($row['total_payment'] ?? 0, 2) }}</td>
-                        <td class="text-right amount-cell nowrap">{{ number_format($row['total_discount'] ?? 0, 2) }}
+                            {{ \App\Services\PrintDataFormatter::money($row['total_payment'] ?? 0) }}</td>
+                        <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($row['total_discount'] ?? 0) }}
                         </td>
-                        <td class="text-right amount-cell nowrap">{{ number_format($row['total_credit_note'] ?? 0, 2) }}</td>
-                        <td class="text-right amount-cell nowrap">{{ number_format($row['total_debit_note'] ?? 0, 2) }}</td>
+                        <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($row['total_credit_note'] ?? 0) }}</td>
+                        <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($row['total_debit_note'] ?? 0) }}</td>
                         <td class="text-right amount-cell nowrap"
                             style="font-weight: bold; color: {{ ($row['total_outstanding'] ?? 0) > 0 ? '#b91c1c' : '#334155' }};">
-                            {{ number_format($row['total_outstanding'] ?? 0, 2) }}
+                            {{ \App\Services\PrintDataFormatter::money($row['total_outstanding'] ?? 0) }}
                         </td>
                         <td class="text-right amount-cell nowrap" style="color: #1e40af;">
-                            {{ ($row['aging_0_15'] ?? 0) > 0 ? number_format($row['aging_0_15'], 2) : '-' }}
+                            {{ ($row['aging_0_15'] ?? 0) > 0 ? \App\Services\PrintDataFormatter::money($row['aging_0_15']) : '-' }}
                         </td>
                         <td class="text-right amount-cell nowrap" style="color: #0369a1;">
-                            {{ ($row['aging_16_30'] ?? 0) > 0 ? number_format($row['aging_16_30'], 2) : '-' }}
+                            {{ ($row['aging_16_30'] ?? 0) > 0 ? \App\Services\PrintDataFormatter::money($row['aging_16_30']) : '-' }}
                         </td>
                         <td class="text-right amount-cell nowrap" style="color: #b45309;">
-                            {{ ($row['aging_31_60'] ?? 0) > 0 ? number_format($row['aging_31_60'], 2) : '-' }}
+                            {{ ($row['aging_31_60'] ?? 0) > 0 ? \App\Services\PrintDataFormatter::money($row['aging_31_60']) : '-' }}
                         </td>
                         <td class="text-right amount-cell nowrap" style="color: #c2410c;">
-                            {{ ($row['aging_61_90'] ?? 0) > 0 ? number_format($row['aging_61_90'], 2) : '-' }}
+                            {{ ($row['aging_61_90'] ?? 0) > 0 ? \App\Services\PrintDataFormatter::money($row['aging_61_90']) : '-' }}
                         </td>
                         <td class="text-right amount-cell nowrap"
                             style="color: {{ ($row['aging_90_plus'] ?? 0) > 0 ? '#be123c' : '#94a3b8' }}; font-weight: bold;">
-                            {{ ($row['aging_90_plus'] ?? 0) > 0 ? number_format($row['aging_90_plus'], 2) : '-' }}
+                            {{ ($row['aging_90_plus'] ?? 0) > 0 ? \App\Services\PrintDataFormatter::money($row['aging_90_plus']) : '-' }}
                         </td>
                     </tr>
                 @empty
@@ -593,25 +593,25 @@
 
                 <tr class="total-row">
                     <td colspan="4" class="text-center uppercase">Total Outstanding Receivables</td>
-                    <td class="text-right amount-cell nowrap">{{ number_format($total_invoiced_amount ?? 0, 2) }}</td>
+                    <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($total_invoiced_amount ?? 0) }}</td>
                     <td class="text-right amount-cell nowrap">
-                        {{ number_format($total_receipt_amount ?? ($total_paid_amount ?? 0), 2) }}</td>
-                    <td class="text-right amount-cell nowrap">{{ number_format($total_payment_amount ?? 0, 2) }}</td>
-                    <td class="text-right amount-cell nowrap">{{ number_format($total_discount_amount ?? 0, 2) }}</td>
-                    <td class="text-right amount-cell nowrap">{{ number_format($total_credit_note_amount ?? 0, 2) }}</td>
-                    <td class="text-right amount-cell nowrap">{{ number_format($total_debit_note_amount ?? 0, 2) }}</td>
+                        {{ \App\Services\PrintDataFormatter::money($total_receipt_amount ?? ($total_paid_amount ?? 0)) }}</td>
+                    <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($total_payment_amount ?? 0) }}</td>
+                    <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($total_discount_amount ?? 0) }}</td>
+                    <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($total_credit_note_amount ?? 0) }}</td>
+                    <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($total_debit_note_amount ?? 0) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #b91c1c;">&#8377;
-                        {{ number_format($total_outstanding_amount ?? 0, 2) }}</td>
+                        {{ \App\Services\PrintDataFormatter::money($total_outstanding_amount ?? 0) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #1e40af;">
-                        {{ number_format($aging_0_15 ?? 0, 2) }}</td>
+                        {{ \App\Services\PrintDataFormatter::money($aging_0_15 ?? 0) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #0369a1;">
-                        {{ number_format($aging_16_30 ?? 0, 2) }}</td>
+                        {{ \App\Services\PrintDataFormatter::money($aging_16_30 ?? 0) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #b45309;">
-                        {{ number_format($aging_31_60 ?? 0, 2) }}</td>
+                        {{ \App\Services\PrintDataFormatter::money($aging_31_60 ?? 0) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #c2410c;">
-                        {{ number_format($aging_61_90 ?? 0, 2) }}</td>
+                        {{ \App\Services\PrintDataFormatter::money($aging_61_90 ?? 0) }}</td>
                     <td class="text-right amount-cell nowrap" style="color: #be123c;">&#8377;
-                        {{ number_format($aging_90_plus ?? 0, 2) }}</td>
+                        {{ \App\Services\PrintDataFormatter::money($aging_90_plus ?? 0) }}</td>
                 </tr>
             </tbody>
         </table>

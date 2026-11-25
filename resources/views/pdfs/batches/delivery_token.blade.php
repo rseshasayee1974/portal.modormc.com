@@ -363,10 +363,10 @@
                             </td>
                             <td class="text-right font-mono" style="font-weight: bold;">{{ number_format($qty, 2) }}</td>
                             <td>{{ $dispatch->uom?->unit_code ?? 'CBM' }}</td>
-                            <td class="text-right font-mono">₹ {{ number_format($rate, 2) }}</td>
+                            <td class="text-right font-mono">₹ {{ \App\Services\PrintDataFormatter::money($rate) }}</td>
                             <td class="text-right font-mono">{{ $taxRate > 0 ? $taxRate . '%' : '-' }}</td>
-                            <td class="text-right font-mono">₹ {{ number_format($taxAmount, 2) }}</td>
-                            <td class="text-right font-mono" style="font-weight: bold;">₹ {{ number_format($totalAmount, 2) }}</td>
+                            <td class="text-right font-mono">₹ {{ \App\Services\PrintDataFormatter::money($taxAmount) }}</td>
+                            <td class="text-right font-mono" style="font-weight: bold;">₹ {{ \App\Services\PrintDataFormatter::money($totalAmount) }}</td>
                         </tr>
                     @endif
 
@@ -387,41 +387,41 @@
                         <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
                             <tr>
                                 <td style="padding: 4px 0; color: #64748b; font-weight: bold; width: 50%;">Sub Total:</td>
-                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ number_format($dispatch->load_untax_amount, 2) }}</td>
+                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ \App\Services\PrintDataFormatter::money($dispatch->load_untax_amount) }}</td>
                             </tr>
                             @if($dispatch->discount_amount > 0)
                             <tr>
                                 <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Discount:</td>
-                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #dc2626;">- ₹ {{ number_format($dispatch->discount_amount, 2) }}</td>
+                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #dc2626;">- ₹ {{ \App\Services\PrintDataFormatter::money($dispatch->discount_amount) }}</td>
                             </tr>
                             @endif
                             @if($dispatch->load_tax_amount > 0)
                             <tr>
                                 <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Tax ({{ $dispatch->loadTax?->name ?? 'GST' }}):</td>
-                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ number_format($dispatch->load_tax_amount, 2) }}</td>
+                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ \App\Services\PrintDataFormatter::money($dispatch->load_tax_amount) }}</td>
                             </tr>
                             @endif
                             @if($dispatch->transport_expenses > 0)
                             <tr>
                                 <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Transport Charges:</td>
-                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ number_format($dispatch->transport_expenses, 2) }}</td>
+                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ \App\Services\PrintDataFormatter::money($dispatch->transport_expenses) }}</td>
                             </tr>
                             @endif
                             @if($dispatch->adjustment_amount != 0)
                             <tr>
                                 <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Adjustment:</td>
-                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ number_format($dispatch->adjustment_amount, 2) }}</td>
+                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ \App\Services\PrintDataFormatter::money($dispatch->adjustment_amount) }}</td>
                             </tr>
                             @endif
                             @if($dispatch->round_off != 0)
                             <tr>
                                 <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Round Off:</td>
-                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ number_format($dispatch->round_off, 2) }}</td>
+                                <td class="text-right" style="padding: 4px 0; font-weight: bold; color: #0f172a;">₹ {{ \App\Services\PrintDataFormatter::money($dispatch->round_off) }}</td>
                             </tr>
                             @endif
                             <tr style="border-top: 1.5px solid #cbd5e1; font-size: 13px;">
                                 <td style="padding: 8px 0 0 0; color: #4f46e5; font-weight: 800; text-transform: uppercase;">Total Amount:</td>
-                                <td class="text-right" style="padding: 8px 0 0 0; font-weight: 900; color: #312e81;">₹ {{ number_format($dispatch->load_total_amount, 2) }}</td>
+                                <td class="text-right" style="padding: 8px 0 0 0; font-weight: 900; color: #312e81;">₹ {{ \App\Services\PrintDataFormatter::money($dispatch->load_total_amount) }}</td>
                             </tr>
                         </table>
                     </div>

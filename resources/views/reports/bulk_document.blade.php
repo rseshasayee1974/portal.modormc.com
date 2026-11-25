@@ -24,7 +24,7 @@ td, th { padding: 2mm; vertical-align: top; }
     $bill = in_array(strtolower($invoice->invoice_type), ['bill', 'purchase'], true);
     $plant = $invoice->plant;
     $party = $invoice->partner;
-    $money = fn($n) => number_format((float) $n, 2);
+    $money = fn($n) => \App\Services\PrintDataFormatter::money((float) $n);
     $address = fn($a) => $a ? implode(', ', array_filter([$a->line_1, $a->line_2, $a->city, $a->zipcode])) : '';
     $discount = $invoice->global_discount_type === '%'
         ? (float)$invoice->subtotal * (float)$invoice->global_discount / 100

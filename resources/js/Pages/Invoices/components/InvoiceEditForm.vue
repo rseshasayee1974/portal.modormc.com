@@ -449,9 +449,9 @@ const setupDemoCompliance = () => {
                                         </div>
                                     </td>
                                     <td class="p-2 text-sm text-right font-black text-slate-700">
-                                        <div>{{ (form.is_tax_inclusive ? item.total : item.subtotal).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</div>
+                                        <div>{{ (form.is_tax_inclusive ? item.total : item.subtotal).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
                                         <div v-if="form.is_tax_inclusive && item.tax_amount > 0" class="text-[9px] font-normal text-slate-400">
-                                            Taxable: {{ item.subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }} | Tax: {{ item.tax_amount.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
+                                            Taxable: {{ item.subtotal.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} | Tax: {{ item.tax_amount.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                         </div>
                                     </td>
                                     <td class="p-2 text-center text-red-400">
@@ -499,11 +499,11 @@ const setupDemoCompliance = () => {
                             </div>
                             <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
                                 <span>Subtotal (Untaxed Base)</span>
-                                <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                                <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                             </div>
                             <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
                                 <span>Tax Amount ({{ form.is_tax_inclusive ? 'Extracted' : '+' }})</span>
-                                <span class="text-slate-900">{{ form.amount_tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                                <span class="text-slate-900">{{ form.amount_tax.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                             </div>
                             <div class="flex justify-between items-center gap-4">
                                 <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Global Discount (-)</span>
@@ -532,7 +532,7 @@ const setupDemoCompliance = () => {
                                 <div class="text-right flex items-baseline gap-1">
                                     <span class="text-xs text-indigo-700 font-black">₹</span>
                                     <span class="text-3xl font-black text-slate-800 tracking-tight">
-                                        {{ form.amount_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}
+                                        {{ form.amount_total.toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                     </span>
                                 </div>
                             </div>

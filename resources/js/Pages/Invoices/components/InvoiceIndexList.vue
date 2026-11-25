@@ -330,11 +330,11 @@ const formatDate = (dateString: string) => {
                 <template #body="slotProps">
                     <div class="flex flex-col items-end">
                         <span class="text-sm text-slate-800">₹ {{
-                            Number(slotProps.data.total_amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 })
+                            Number(slotProps.data.total_amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         }}</span>
                         <div class="flex gap-1 mt-1">
                             <Tag v-if="Number(slotProps.data.shipping_charges) > 0"
-                                :value="`Ship: ₹ ${Number(slotProps.data.shipping_charges).toLocaleString(APP_LOCALE)}`"
+                                :value="`Ship: ₹ ${Number(slotProps.data.shipping_charges).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`"
                                 class="!bg-slate-50 !text-slate-500 !text-[8px] font-black" />
                             <Tag v-if="slotProps.data.tax_amount > 0" :value="`GST Incl.`"
                                 class="!bg-emerald-50 !text-emerald-600 !text-[8px] font-black" />

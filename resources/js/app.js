@@ -54,9 +54,9 @@ createInertiaApp({
 
         application = createApp({
             render: () => h('div', [
+                h(GlobalRequestErrors, { initialPage: props.initialPage }),
                 h(App, props),
-                h(GlobalLoader),
-                h(GlobalRequestErrors, { initialPage: props.initialPage })
+                h(GlobalLoader)
             ])
         })
             .use(plugin)

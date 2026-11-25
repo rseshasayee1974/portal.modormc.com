@@ -228,16 +228,16 @@ public function update(Request $request, Product $product)
 
         // Handle attempt to modify restricted fields
         if (!empty($detectedRestrictedChanges)) {
-            $isSystemAdmin = auth()->user()?->isSystemAdmin();
+            $isContextAdministrator = auth()->user()?->isContextAdministrator();
 
-            // Block non-system admin users
-            if (!$isSystemAdmin) {
+            // Block users without administrator access
+            if (!$isContextAdministrator) {
                 throw ValidationException::withMessages([
                     'product' => ['Status and Tax configurations cannot be modified because this product is used in an active mix design or batch.'],
                 ]);
             }
 
-            // Provide a warning to system admins
+            // Provide a warning to administrators
             $warning = 'Warning: You modified restricted fields (status/tax) on a product linked to an active mix design or batch. This may affect production records.';
         }
     }
@@ -270,10 +270,10 @@ public function update(Request $request, Product $product)
         $this->authorizeModule('delete');
 
         $isRestricted = $product->isRestrictedFromModification();
-        $isSystemAdmin = auth()->user()?->isSystemAdmin();
+        $isContextAdministrator = auth()->user()?->isContextAdministrator();
 
         if ($isRestricted) {
-            if (!$isSystemAdmin) {
+            if (!$isContextAdministrator) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'product' => ['This product cannot be deleted because it is used in an active mix design associated with a batch.'],
                 ]);

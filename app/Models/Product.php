@@ -35,9 +35,9 @@ class Product extends Model
 
         static::updating(function (Product $product) {
             $user = auth()->user();
-            $isSystemAdmin = $user && $user->isSystemAdmin();
+            $isContextAdministrator = $user && $user->isContextAdministrator();
 
-            if ($product->isRestrictedFromModification() && !$isSystemAdmin) {
+            if ($product->isRestrictedFromModification() && !$isContextAdministrator) {
                 $dirtyFields = array_keys($product->getDirty());
                 $exemptedFields = ['title', 'alias', 'category_id', 'hsn_code', 'material_code', 'updated_at', 'updated_by'];
                 
@@ -85,9 +85,9 @@ class Product extends Model
 
         static::deleting(function (Product $product) {
             $user = auth()->user();
-            $isSystemAdmin = $user && $user->isSystemAdmin();
+            $isContextAdministrator = $user && $user->isContextAdministrator();
 
-            if ($product->isRestrictedFromModification() && !$isSystemAdmin) {
+            if ($product->isRestrictedFromModification() && !$isContextAdministrator) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'product' => ['This product cannot be deleted because it is used in an active mix design associated with a batch.'],
                 ]);

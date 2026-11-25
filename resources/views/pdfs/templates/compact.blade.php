@@ -407,7 +407,7 @@
                         @if ($pdfSettings['show_pump_charges'] ?? true)
                             <td class="text-left" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? '-' }}</td>
                             <td class="text-right" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
-                                {{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}
+                                {{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? \App\Services\PrintDataFormatter::money($item['pump_charge']) : '-' }}
                             </td>
                         @endif
                         @if ($pdfSettings['qty'] ?? true)
@@ -416,10 +416,10 @@
                         @if ($pdfSettings['unit'] ?? true)
                             <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['unit'] }}</td>
                         @endif
-                        <td class="text-right" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td>
+                        <td class="text-right" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ \App\Services\PrintDataFormatter::money($item['unit_price']) }}</td>
                         @if ($pdfSettings['discount'] ?? false)
                             <td class="text-right muted" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
-                                {{ !empty($item['discount']) && $item['discount'] > 0 ? number_format($item['discount'], 2) : '-' }}
+                                {{ !empty($item['discount']) && $item['discount'] > 0 ? \App\Services\PrintDataFormatter::money($item['discount']) : '-' }}
                             </td>
                         @endif
                         @if ($pdfSettings['tax_rate'] ?? true)
@@ -429,12 +429,12 @@
                         @endif
                         @if ($pdfSettings['tax_amount'] ?? true)
                             <td class="text-right muted" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
-                                {{ $item['tax_amount'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? number_format($item['tax_amount'], 2) : '-' }}
+                                {{ $item['tax_amount'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? \App\Services\PrintDataFormatter::money($item['tax_amount']) : '-' }}
                             </td>
                         @endif
                         @if ($pdfSettings['amount'] ?? true)
                             <td class="text-right" style="vertical-align: middle; font-weight: 800; font-size: 12.5px; color: #2563eb; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
-                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($item['total'], 2) }}
+                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($item['total']) }}
                             </td>
                         @endif
                     </tr>
@@ -515,7 +515,7 @@
                     <tr>
                         <td class="tc-label">Sub Total</td>
                         <td class="tc-val">
-                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['sub_total'], 2) }}
+                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($data['totals']['sub_total']) }}
                         </td>
                     </tr>
                 @endif
@@ -526,7 +526,7 @@
                     <tr>
                         <td class="tc-label">Concrete Pump Charges</td>
                         <td class="tc-val">
-                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($pumpChg, 2) }}
+                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($pumpChg) }}
                         </td>
                     </tr>
                 @endif
@@ -534,7 +534,7 @@
                     <tr>
                         <td class="tc-label" style="color:#ef4444;">Discount (-)</td>
                         <td class="tc-val" style="color:#ef4444;">
-                            -<span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['discount'], 2) }}
+                            -<span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($data['totals']['discount']) }}
                         </td>
                     </tr>
                 @endif
@@ -543,7 +543,7 @@
                     <tr>
                         <td class="tc-label">Hire Charge</td>
                         <td class="tc-val">
-                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($hireChg, 2) }}
+                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($hireChg) }}
                         </td>
                     </tr>
                 @endif
@@ -551,7 +551,7 @@
                     <tr>
                         <td class="tc-label">Pass Amount</td>
                         <td class="tc-val">
-                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['pass_amount'], 2) }}
+                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($data['totals']['pass_amount']) }}
                         </td>
                     </tr>
                 @endif
@@ -572,7 +572,7 @@
                         <tr>
                             <td class="tc-label">{{ $tl['label'] }}</td>
                             <td class="tc-val">
-                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($tl['amount'], 2) }}
+                                <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($tl['amount']) }}
                             </td>
                         </tr>
                     @endif
@@ -581,7 +581,7 @@
                     <tr>
                         <td class="tc-label">Shipping</td>
                         <td class="tc-val">
-                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['shipping'], 2) }}
+                            <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($data['totals']['shipping']) }}
                         </td>
                     </tr>
                 @endif
@@ -589,7 +589,7 @@
                     <tr>
                         <td class="tc-label">Adjustment</td>
                         <td class="tc-val">
-                            {{ $data['totals']['adjustment'] > 0 ? '+' : '' }}<span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['adjustment'], 2) }}
+                            {{ $data['totals']['adjustment'] > 0 ? '+' : '' }}<span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($data['totals']['adjustment']) }}
                         </td>
                     </tr>
                 @endif
@@ -597,14 +597,14 @@
                     <tr>
                         <td class="tc-label">Round Off</td>
                         <td class="tc-val">
-                            {{ $data['totals']['round_off'] > 0 ? '+' : '' }}<span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['round_off'], 2) }}
+                            {{ $data['totals']['round_off'] > 0 ? '+' : '' }}<span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($data['totals']['round_off']) }}
                         </td>
                     </tr>
                 @endif
                 <tr class="tc-grand">
                     <td class="tc-label" style="font-weight:bold;">Total</td>
                     <td class="tc-val" style="font-weight:bold;">
-                        <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ number_format($data['totals']['grand_total'], 2) }}
+                        <span style="font-family: 'DejaVu Sans', sans-serif;">{!! $data['meta']['currency_symbol'] ?? '&#8377;' !!}</span>{{ \App\Services\PrintDataFormatter::money($data['totals']['grand_total']) }}
                     </td>
                 </tr>
             </table>

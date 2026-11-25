@@ -324,9 +324,9 @@
     <table class="info-section ytd-section" style="margin-top: 8px;">
         <tr>
             <td class="info-hdr">FY Gross to Date</td>
-            <td class="info-val bold">&#8377;{{ number_format($yearToDate['gross'] ?? 0, 2) }}</td>
+            <td class="info-val bold">&#8377;{{ \App\Services\PrintDataFormatter::money($yearToDate['gross'] ?? 0) }}</td>
             <td class="info-hdr">FY TDS to Date</td>
-            <td class="info-val bold text-red">&#8377;{{ number_format($yearToDate['tds'] ?? 0, 2) }}</td>
+            <td class="info-val bold text-red">&#8377;{{ \App\Services\PrintDataFormatter::money($yearToDate['tds'] ?? 0) }}</td>
         </tr>
     </table>
 
@@ -352,12 +352,12 @@
                         @php $item = $earnings->get($i); @endphp
                         <tr>
                             <td>{!! $item ? e($item->component_name) : '&nbsp;' !!}</td>
-                            <td class="text-right bold">{{ $item ? number_format($item->amount, 2) : '' }}</td>
+                            <td class="text-right bold">{{ $item ? \App\Services\PrintDataFormatter::money($item->amount) : '' }}</td>
                         </tr>
                     @endfor
                     <tr class="total-row">
                         <td>Total Earnings (Gross)</td>
-                        <td class="text-right bold">&#8377;{{ number_format($payslip->total_earnings, 2) }}</td>
+                        <td class="text-right bold">&#8377;{{ \App\Services\PrintDataFormatter::money($payslip->total_earnings) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -377,12 +377,12 @@
                         @php $item = $deductions->get($i); @endphp
                         <tr>
                             <td>{!! $item ? e($item->component_name) : '&nbsp;' !!}</td>
-                            <td class="text-right bold text-red">{{ $item ? number_format($item->amount, 2) : '' }}</td>
+                            <td class="text-right bold text-red">{{ $item ? \App\Services\PrintDataFormatter::money($item->amount) : '' }}</td>
                         </tr>
                     @endfor
                     <tr class="total-row">
                         <td>Total Deductions</td>
-                        <td class="text-right bold text-red">&#8377;{{ number_format($payslip->total_deductions, 2) }}</td>
+                        <td class="text-right bold text-red">&#8377;{{ \App\Services\PrintDataFormatter::money($payslip->total_deductions) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -398,7 +398,7 @@
             </div>
         </div>
         <div class="banner-right">
-            <div class="net-pay-val">&#8377;{{ number_format($payslip->net_salary, 2) }}</div>
+            <div class="net-pay-val">&#8377;{{ \App\Services\PrintDataFormatter::money($payslip->net_salary) }}</div>
         </div>
     </div>
 

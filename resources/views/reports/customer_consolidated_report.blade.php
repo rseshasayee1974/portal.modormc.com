@@ -80,7 +80,7 @@
                     <td class="text-right font-bold">{{ number_format($trip['empty_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($trip['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($trip['net_weight'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($trip['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($trip['amount_total'] ?? 0) }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
@@ -89,7 +89,7 @@
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('empty_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('loaded_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('net_weight'), 2) }}</td>
-                <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('amount_total'), 2) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money(collect($batch_dispatches)->sum('amount_total')) }}</td>
             </tr>
         </tbody>
     </table>
@@ -126,9 +126,9 @@
                     <!-- <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td> -->
-                    <!-- <td class="text-right">{{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
-                    <td class="text-right">{{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
-                    <td class="text-right font-bold amount-cell nowrap">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_untaxed'] ?? 0) }}</td>
+                    <td class="text-right">{{ \App\Services\PrintDataFormatter::money($row['amount_tax'] ?? 0) }}</td> -->
+                    <td class="text-right font-bold amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($row['amount_total'] ?? 0) }}</td>
                 </tr>
             @endforeach
             
@@ -140,9 +140,9 @@
                 <!-- <td class="text-right font-bold">{{ number_format($total_truck_empty ?? 0, 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_loaded_weight ?? 0, 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_net_weight ?? 0, 2) }}</td> -->
-                <!-- <td class="text-right font-bold">{{ number_format($total_untaxed ?? 0, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_tax ?? 0, 2) }}</td> -->
-                <td class="text-right font-bold amount-cell nowrap">{{ number_format($total_amount ?? 0, 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_untaxed ?? 0) }}</td>
+                <td class="text-right font-bold">{{ \App\Services\PrintDataFormatter::money($total_tax ?? 0) }}</td> -->
+                <td class="text-right font-bold amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($total_amount ?? 0) }}</td>
             </tr>
         </tbody>
     </table>

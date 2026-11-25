@@ -174,11 +174,11 @@ const printInvoice = (data: any) => {
             <Column field="total_amount" header="Total Amount" sortable class="text-right font-black">
                 <template #body="slotProps">
                     <div class="flex flex-col items-end">
-                        <span class="text-sm text-slate-800">₹ {{ Number(slotProps.data.total_amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2 }) }}</span>
+                        <span class="text-sm text-slate-800">₹ {{ Number(slotProps.data.total_amount).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
                         <div class="flex gap-1 mt-1">
                              <Tag 
                                 v-if="Number(slotProps.data.shipping_charges) > 0"
-                                :value="`Ship: ₹ ${Number(slotProps.data.shipping_charges).toLocaleString(APP_LOCALE)}`"
+                                :value="`Ship: ₹ ${Number(slotProps.data.shipping_charges).toLocaleString(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`"
                                 class="!bg-slate-50 !text-slate-500 !text-[8px] font-black"
                             />
                             <Tag 

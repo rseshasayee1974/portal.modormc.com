@@ -314,7 +314,8 @@ class BatchController extends Controller
             'B' => Batch::nextSeriesNumber((int) $activePlantId, 'B')['next_number'],
             'P' => Batch::nextSeriesNumber((int) $activePlantId, 'P')['next_number'],
         ];
-        $nextBatchNo = $nextBatchNumbers[CustomSetting::batchSeriesSettings($activePlantId)['default_series']];
+        $batchSeriesSettings = CustomSetting::batchSeriesSettings($activePlantId, $batchingSettings);
+        $nextBatchNo = $nextBatchNumbers[$batchSeriesSettings['default_series']];
 
             // return response()->json([
             //     'batches' => $batches,
@@ -345,9 +346,6 @@ class BatchController extends Controller
             'transporters'      => PatronsDropdown('Transporter'),
             'loading_sites'     => SitesDropdown('loading'),
             'unloading_sites'   => SitesDropdown(),
-            'deliveryCustomerPos' => auth()->user()->isContextAdministrator()
-                ? \App\Models\CustomerPO::where('plant_id', $activePlantId)->orderByDesc('id')->get(['id', 'patron_id', 'reference', 'customer_po_reference'])
-                : [],
             'drivers'           => DriversDropdown(),
             'operators'         => OperatorsDropdown(),
             'sales_executives'  => PersonnelDropdown('','Sales Executive'),
@@ -364,8 +362,8 @@ class BatchController extends Controller
             'sales_ledgers'     => toSelectOptions(LedgersDropdown('REVENUE'), 'title', 'id'),
             'nextBatchNo'       => $nextBatchNo ?: 1,
             'nextBatchNumbers'  => $nextBatchNumbers,
-            'batchSeriesSettings' => CustomSetting::batchSeriesSettings($activePlantId, $batchingSettings),
-            'batchingSettings'  => CustomSetting::getForModule($activePlantId, 'batching'),
+            'batchSeriesSettings' => $batchSeriesSettings,
+            'batchingSettings'  => $batchingSettings,
             'concretePumpOptions' => ConcretePumpOptions(),
         ]);
     }
@@ -1204,6 +1202,11 @@ class BatchController extends Controller
             'moisture_contents' => \App\Models\BatchMoistureContent::where('batch_id', $batchRow->id)
                 ->where('plant_id', $activePlantId)->orderBy('id')->get(),
             'dispatches' => $mappedDispatches,
+            'deliveryCustomerPos' => $primaryDispatch && $batchRow->customer_id && $request->user()->isContextAdministrator()
+                ? \App\Models\CustomerPO::where('plant_id', $activePlantId)
+                    ->where('patron_id', $batchRow->customer_id)->orderByDesc('id')
+                    ->get(['id', 'patron_id', 'reference', 'customer_po_reference'])
+                : [],
             'dispatch' => $primaryDispatch,
             'load_total_amount' => (float)($primaryDispatch['load_total_amount'] ?? 0),
             'customer_id' => $primaryDispatch['customer_id'] ?? $batchRow->customer_id,
