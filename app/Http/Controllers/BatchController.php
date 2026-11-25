@@ -13,6 +13,7 @@ use App\Models\Quantity;
 use App\Models\SalesOrder;
 use App\Models\Dispatch;
 use App\Models\Plant;
+use App\Services\BatchMoisture\PlantCalculations;
 use App\Models\CustomSetting;
 use App\Models\ConcreteBatchingSchedule;
 use App\Support\BatchNumberAccess;
@@ -453,6 +454,7 @@ class BatchController extends Controller
                 ]));
                 $batch = Batch::create($batchData);
                 $this->syncMaterials($batch, $materialsData);
+                $this->syncEnteredActualQuantities($batch, $materialsData);
                 if (array_key_exists('moisture_contents', $payload)) {
                     app(\App\Services\BatchMoistureService::class)->sync($batch, $payload['moisture_contents']);
                 }
@@ -667,6 +669,45 @@ class BatchController extends Controller
             $this->broadcastBatchChange('BatchUpdated', $batch);
             return false;
         }
+    }
+
+    public function consumption(Batch $batch)
+    {
+        $this->authorizeModule('edit');
+        abort_unless((int) $batch->plant_id === (int) session('active_plant_id'), 403);
+        $plant = $batch->plant;
+        $order = $batch->salesOrder;
+        $day = $batch->start_time ?? $batch->created_at;
+        $url = trim((string) $plant?->scheduler_api_url);
+        if (!$plant?->code || !$plant->plant_type || !preg_match('~/production__Order__data/?$~i', $url)) {
+            return response()->json(['message' => 'This plant has no configured Schwing consumption connection. Check its scheduler URL, plant code and plant type.'], 422);
+        }
+        if (!$day || !$order || (int) $order->plant_id !== (int) $plant->id) {
+            return response()->json(['message' => 'A production date and linked sales order are required to retrieve readings.'], 422);
+        }
+
+        $client = Http::acceptJson()->connectTimeout(4)->timeout(12)->withoutRedirecting();
+        try {
+            if ($token = $this->getSchedulerToken($plant)) $client = $client->withToken($token);
+            $response = $client->post(preg_replace('~/production__Order__data/?$~i', '/Consumption__Data', $url), [
+                'json_type' => 'Batchwise Material Cons', 'plant_sl' => $plant->code,
+                'plant_type' => $plant->plant_type, 'start_date' => $day->copy()->startOfDay()->toDateTimeString(),
+                'end_date' => ($batch->end_time ?? $day)->copy()->endOfDay()->toDateTimeString(),
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $error) {
+            return response()->json(['message' => 'The mixer connection did not respond. Check the plant connection and retry.'], 502);
+        }
+        if (!$response->successful() || (string) $response->json('json_status') === '0' || !is_array($response->json('data'))) {
+            return response()->json(['message' => 'The mixer did not return valid consumption data. Check the plant connection and credentials.'], 502);
+        }
+        $matches = collect($response->json('data'))->filter(fn ($row) => is_array($row)
+            && (string) ($row['order_no'] ?? '') === (string) $order->order_no
+            && (string) ($row['batch_no'] ?? '') === (string) $batch->batch_no);
+        if ($matches->count() > 1) {
+            return response()->json(['message' => 'The mixer returned multiple records for this batch and order. Check the batch number.'], 422);
+        }
+        $materials = $matches->first()['mat'] ?? [];
+        return response()->json(['mat' => $materials, 'message' => "No mixer readings found for batch {$batch->batch_no}, order {$order->order_no}."]);
     }
 
     public function syncToScheduler(Batch $batch)
@@ -1167,9 +1208,13 @@ class BatchController extends Controller
             ?? ($autoCarryPump ? ($latestDispatchWithPump?->concrete_pump ?? $latestDispatch?->concrete_pump ?? $batchRow->so_concrete_pump) : null)
             ?? null;
 
+        $activePlant = Plant::find($activePlantId);
         $responseData = [
             'id' => $batchRow->id,
             'encrypted_id' => encrypt($batchRow->id),
+            'mixer_capacity' => (float) ($activePlant?->mixer_capacity ?: 1.25),
+            'calculation_profile' => PlantCalculations::profile($activePlant),
+            'modomines_moisture' => PlantCalculations::moistureFormula($activePlant) === \App\Services\BatchMoisture\Modomines::class,
             'plant_id' => $batchRow->plant_id,
             'sales_order_id' => $batchRow->sales_order_id,
             'batch_no' => $batchRow->batch_no,
@@ -1196,17 +1241,14 @@ class BatchController extends Controller
             'loaded_weight_truck' => (float)($primaryDispatch['loaded_weight_truck'] ?? 0),
             'net_weight' => (float)($primaryDispatch['net_weight'] ?? 0),
             'materials' => $materials,
+            'entered_actual_quantities' => DB::table('mm_batch_material_actuals')
+                ->where('batch_id', $batchId)->pluck('actual_qty', 'product_id'),
             'material_display' => $materials->filter(fn ($material) => $material['product_id'])->mapWithKeys(fn ($material) => [
                 $material['product_id'] => $material['batch_display'],
             ]),
             'moisture_contents' => \App\Models\BatchMoistureContent::where('batch_id', $batchRow->id)
                 ->where('plant_id', $activePlantId)->orderBy('id')->get(),
             'dispatches' => $mappedDispatches,
-            'deliveryCustomerPos' => $primaryDispatch && $batchRow->customer_id && $request->user()->isContextAdministrator()
-                ? \App\Models\CustomerPO::where('plant_id', $activePlantId)
-                    ->where('patron_id', $batchRow->customer_id)->orderByDesc('id')
-                    ->get(['id', 'patron_id', 'reference', 'customer_po_reference'])
-                : [],
             'dispatch' => $primaryDispatch,
             'load_total_amount' => (float)($primaryDispatch['load_total_amount'] ?? 0),
             'customer_id' => $primaryDispatch['customer_id'] ?? $batchRow->customer_id,
@@ -1316,15 +1358,48 @@ class BatchController extends Controller
         }
     }
 
+    public function previewMoisture(Request $request, Batch $batch)
+    {
+        $this->authorizeModule('edit');
+        abort_unless((int) $batch->plant_id === (int) session('active_plant_id'), 403);
+        $formula = PlantCalculations::moistureFormula($batch->plant);
+        abort_unless($formula, 403);
+        $data = $request->validate(\App\Services\BatchMoistureService::rules($batch->plant_id));
+        return response()->json(['targets' => $formula::targets($batch, $data['moisture_contents'] ?? [])]);
+    }
+
+    private function saveDeliveryReferences(Batch $batch, array $references): void
+    {
+        foreach ($references as $reference) {
+            $trip = $batch->dispatches()->where('plant_id', $batch->plant_id)
+                ->lockForUpdate()->find($reference['dispatch_id']);
+            if (!$trip) {
+                throw ValidationException::withMessages(['delivery_references' => 'Select a dispatch belonging to this batch.']);
+            }
+            $trip->applyDeliveryReferences($reference, auth()->id());
+        }
+    }
+
     public function update(UpdateBatchRequest $request, Batch $batch)
     {
+        if ($request->has('delivery_references')) {
+            abort_unless($request->user()->isContextAdministrator() && (int) $batch->plant_id === (int) session('active_plant_id'), 403);
+            $this->authorizeModule('update', 'dispatch');
+        }
+        if ($request->isDeliveryReferencesOnly()) {
+            DB::transaction(fn () => $this->saveDeliveryReferences($batch, $request->validated()['delivery_references']));
+            return redirect()->back()->with('success', 'Delivery references updated.');
+        }
         \App\Support\DocumentNumberAccess::validate($request, 'BATCH', 'batch_no', $batch);
         $this->authorizeModule('edit');
 
         if ($request->isMoistureOnly()) {
             abort_unless((int) $batch->plant_id === (int) session('active_plant_id'), 403);
-            app(\App\Services\BatchMoistureService::class)->sync($batch, $request->validated()['moisture_contents']);
-            return response()->json(['success' => true, 'moisture_contents' => $batch->moistureContents()->get()]);
+            if (PlantCalculations::moistureFormula($batch->plant)) {
+                abort_if((int) $batch->status === Batch::STATUS_CANCELLED || $batch->dispatches()->whereHas('status', fn ($q) => $q->whereNotNull('invoice_id'))->exists(), 422, 'This batch is locked.');
+            }
+            $targets = app(\App\Services\BatchMoistureService::class)->sync($batch, $request->validated()['moisture_contents']);
+            return response()->json(['success' => true, 'moisture_contents' => $batch->moistureContents()->get(), 'targets' => $targets]);
         }
 
         $user = auth()->user();
@@ -1374,6 +1449,10 @@ class BatchController extends Controller
                     $this->saveDispatchPatron($batch, $payload['customer_id']);
                     unset($payload['customer_id']);
                 }
+                if (isset($payload['delivery_references'])) {
+                    $this->saveDeliveryReferences($batch, $payload['delivery_references']);
+                    unset($payload['delivery_references']);
+                }
                 $materials = $payload['materials'] ?? [];
                 $moistureContents = $payload['moisture_contents'] ?? null;
                 unset($payload['materials'], $payload['moisture_contents']);
@@ -1413,8 +1492,12 @@ class BatchController extends Controller
             $batch->save();
             
             $this->syncMaterials($batch, $materials);
+            $this->syncEnteredActualQuantities($batch, $materials);
+            if ($moistureContents === null && PlantCalculations::moistureFormula($batch->plant)) {
+                $moistureContents = $batch->moistureContents()->get()->toArray();
+            }
             if ($moistureContents !== null) {
-                app(\App\Services\BatchMoistureService::class)->sync($batch, $moistureContents);
+                app(\App\Services\BatchMoistureService::class)->sync($batch, $moistureContents, saveCalculatedActuals: false);
             }
             
             // 2. Apply new consumption only if now dispatched/completed
@@ -1976,6 +2059,31 @@ class BatchController extends Controller
     private function prepareBatchSheetData(Batch $batch): array
     {
         return $batch->getReportData();
+    }
+
+    private function syncEnteredActualQuantities(Batch $batch, array $materials): void
+    {
+        $actuals = DB::table('mm_batch_material_actuals')->where('batch_id', $batch->id);
+        (clone $actuals)->whereNotIn('product_id', $batch->materials()->reorder()->select('product_id')->whereNotNull('product_id'))->delete();
+
+        foreach (collect($materials)->whereNotNull('product_id')->groupBy('product_id') as $productId => $rows) {
+            $submitted = $rows->filter(fn ($row) => array_key_exists('entered_actual_qty', $row));
+            if ($submitted->isEmpty()) {
+                continue;
+            }
+            $quantities = $submitted->pluck('entered_actual_qty')->filter(fn ($qty) => $qty !== null);
+            if ($quantities->isEmpty()) {
+                (clone $actuals)->where('product_id', $productId)->delete();
+                continue;
+            }
+            DB::table('mm_batch_material_actuals')->upsert([[
+                'batch_id' => $batch->id,
+                'product_id' => $productId,
+                'actual_qty' => round($quantities->sum(), 3),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]], ['batch_id', 'product_id'], ['actual_qty', 'updated_at']);
+        }
     }
 
     private function syncMaterials(Batch $batch, array $materials): void

@@ -48,7 +48,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
   .logo { display: flex; align-items: flex-start; min-height: 44px; }
   #logoR { justify-content: flex-end; }
   .logo img { max-width: 150px; max-height: 60px; object-fit: contain; }
-  .logo.sm img { max-width: 100px; max-height: 36px; }
+  .logo.sm img { width: 150px; height: 54px; max-width: 100%; object-position: left center; }
   .plant { display: grid; grid-template-columns: 1fr 1fr; text-align: center; gap: 20px; font-size: 18px; line-height: 26px; margin-top: 22px; padding-bottom: 2px; border-bottom: 1px solid #000; }
   .plant span.v { font-weight: 400; }
 
@@ -72,11 +72,6 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
   table.b tr.recipe-label td { color: #333; font-size: 12px; font-weight: 400; border: 0; padding: 2px 2px 0; line-height: 15px; }
   table.b tr.data td { padding: 4px 3px; line-height: 19px; }
   table.b tr.note td { text-align: right; font-weight: 700; font-size: 14.5px; line-height: 20px; padding: 4px 2px 1px; }
-  table.moisture-calc { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
-  table.moisture-calc th, table.moisture-calc td { border: .6px solid #777; padding: 4px 5px; text-align: right; }
-  table.moisture-calc th:first-child, table.moisture-calc td:first-child { text-align: left; }
-  .moisture-calc-title { margin: 12px 0 3px; font-size: 14px; font-weight: 700; }
-  .moisture-calc-note { margin: 2px 0 6px; font-size: 10px; }
   .foot { margin-top: auto; padding-top: 28px; display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: end; font-weight: 700; font-size: 13px; }
   .foot-brand { display: flex; flex-direction: column; align-items: flex-start; }
   .foot-caption { font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; color: #333; line-height: 0.3; }
@@ -171,35 +166,6 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
     </tbody>
     @endif
   </table>
-  @if ($report['moisture_calculation']['available'])
-  <div class="moisture-calc-title">Moisture Correction and Target Correction</div>
-  <p class="moisture-calc-note">Per run ({{ number_format((float) $report['moisture_calculation']['run_size'], 3, '.', '') }} m³): correction = base target × (moisture content − water absorption) ÷ 100. Corrected water target = base water target − total aggregate correction.</p>
-  <table class="moisture-calc">
-    <thead><tr><th>Aggregate</th><th>Base Target (kg)</th><th>Moisture (%)</th><th>Water Absorption (%)</th><th>Correction (%)</th><th>Moisture Correction (kg)</th><th>Corrected Target (kg)</th></tr></thead>
-    <tbody>
-      @foreach ($report['moisture_calculation']['rows'] as $correction)
-      <tr>
-        <td>{{ $correction['material'] }}</td>
-        <td>{{ number_format($correction['base_target'], 3, '.', '') }}</td>
-        <td>{{ number_format($correction['moisture_percentage'], 2, '.', '') }}</td>
-        <td>{{ number_format($correction['water_absorption_percentage'], 2, '.', '') }}</td>
-        <td>{{ number_format($correction['correction_percentage'], 2, '.', '') }}</td>
-        <td>{{ number_format($correction['correction_kg'], 3, '.', '') }}</td>
-        <td>{{ number_format($correction['corrected_target'], 3, '.', '') }}</td>
-      </tr>
-      @endforeach
-    </tbody>
-  </table>
-  <p class="moisture-calc-note">
-    @if ($report['moisture_calculation']['complete'])
-      Total Water Correction: {{ number_format($report['moisture_calculation']['water_correction'], 3, '.', '') }} kg.
-      Base Water Target: {{ number_format($report['moisture_calculation']['base_water_target'], 3, '.', '') }} kg.
-      Corrected Water Target: {{ number_format($report['moisture_calculation']['corrected_water_target'], 3, '.', '') }} kg.
-    @else
-      Water correction is unavailable until moisture content and product water absorption are set for every recipe aggregate.
-    @endif
-  </p>
-  @endif
   </div></div>
   <div class="foot">
     <div class="foot-brand">

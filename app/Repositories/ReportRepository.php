@@ -97,6 +97,10 @@ class ReportRepository
             });
         }
 
+        if (!empty($filters['ledger_id'])) {
+            $query->where('mm_invoices.account_id', $filters['ledger_id']);
+        }
+
         // Filter: Customer (partner_id)
         if (!empty($filters['customer_id'])) {
             $query->where(function ($q) use ($filters) {
@@ -214,6 +218,7 @@ class ReportRepository
             $query->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('bill'))
                 ->where('plant_id', $filters['plant_id'])
                 ->whereBetween('invoice_date', [$filters['from_date'], $filters['to_date'].' 23:59:59'])
+                ->when($filters['ledger_id'] ?? null, fn ($q, $id) => $q->where('account_id', $id))
                 ->when($filters['supplier_id'] ?? null, fn ($q, $id) => $q->where('partner_id', $id));
             $status = $filters['document_status'] ?? 'active';
             if ($status !== 'all') {

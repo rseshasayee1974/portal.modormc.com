@@ -879,6 +879,28 @@ class PatronStatementBillTest extends TestCase
         $this->assertEquals(0, $document->round_off);
     }
 
+    public function test_vendor_bill_and_partial_payment_references_appear_in_statement(): void
+    {
+        $this->bill->updateQuietly(['ref_title' => 'PO-481']);
+        $payment = \App\Models\Payment::withoutEvents(fn () => \App\Models\Payment::factory()->create([
+            'plant_id' => $this->plant->id, 'patron_id' => $this->patron->id, 'ledger_id' => $this->ledger->id,
+            'transaction_type' => 'payment', 'transaction_date' => '2026-10-09', 'amount' => 350,
+            'status' => 'completed',
+        ]));
+        $payment->allocations()->create(['invoice_id' => $this->bill->id, 'amount' => 200]);
+
+        $report = $this->statement();
+        $rows = collect($report['transactions']);
+        $this->assertStringContainsString('Against: PO-481', $rows->firstWhere('type', 'BILL')['details']);
+        $reference = 'Against bill: ' . $this->bill->full_number . ' - ₹ 200.00';
+        $this->assertStringContainsString($reference, $rows->firstWhere('type', 'PMT')['details']);
+        $this->assertEquals(350, $report['account_summary']['amount_paid']);
+        $this->assertEquals(-26590, $report['balance_due']);
+        $sheet = app(\App\Services\Reports\ExcelExportService::class)
+            ->generateExcelReport('customer_outstanding', '2026-10-07', '2026-10-31', $report)->getActiveSheet();
+        $this->assertStringContainsString($reference, collect($sheet->toArray())->flatten()->implode("\n"));
+    }
+
     public function test_bill_is_a_purchase_document_and_is_counted_once(): void
     {
         $report = $this->statement();

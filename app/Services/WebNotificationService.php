@@ -352,16 +352,22 @@ class WebNotificationService
         $items = collect();
         foreach ($sources as $src) {
             $config = self::MODULE_CONFIG[$src['key']];
-            if (! $this->canAccess($context, $config['permission']) || ! Schema::hasTable($src['table'])) {
+            if (! $this->canAccess($context, $config['permission'])) {
                 continue;
             }
 
-            $cols = ['id', $src['ref'] . ' as ref_val', 'created_at', 'updated_at'];
-            if ($src['prefix']) {
-                $cols[] = $src['prefix'] . ' as prefix_val';
+            $columns = Schema::getColumnListing($src['table']);
+            if (array_diff(['id', 'plant_id', 'created_at', 'updated_at', 'deleted_at'], $columns)) {
+                continue;
             }
-            if ($src['status']) {
-                $cols[] = $src['status'] . ' as status_val';
+
+            $cols = ['id', 'created_at', 'updated_at'];
+            $status = $src['key'] === 'dispatch' && in_array('dispatch_status', $columns, true)
+                ? 'dispatch_status' : $src['status'];
+            foreach (['ref_val' => $src['ref'], 'prefix_val' => $src['prefix'], 'status_val' => $status] as $alias => $column) {
+                if (in_array($column, $columns, true)) {
+                    $cols[] = $column . ' as ' . $alias;
+                }
             }
 
             $rows = DB::table($src['table'])

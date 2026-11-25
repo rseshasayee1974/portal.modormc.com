@@ -452,6 +452,7 @@ class ReportController extends Controller
         $filters = $request->validate([
             'page' => 'nullable|integer|min:1',
             'register_view' => 'nullable|in:summary,detail',
+            'ledger_id' => 'nullable|integer|min:1',
             'excel_format' => 'nullable|in:standard,address_gst',
             'document_status' => 'nullable|in:active,all,cancelled',
             'from_date'      => 'required|date',
@@ -496,6 +497,7 @@ class ReportController extends Controller
         $filters = $request->validate([
             'page' => 'nullable|integer|min:1',
             'register_view' => 'nullable|in:summary,detail',
+            'ledger_id' => 'nullable|integer|min:1',
             'excel_format' => 'nullable|in:standard,address_gst',
             'document_status' => 'nullable|in:active,all,cancelled',
             'from_date'   => 'required|date',

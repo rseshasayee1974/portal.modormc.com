@@ -285,6 +285,21 @@
         .outstanding-summary-alert {
             color: #b91c1c;
         }
+        .aging-table,
+        .ledger-table {
+            table-layout: fixed;
+        }
+
+        .aging-table th, .aging-table td,
+        .ledger-table th, .ledger-table td {
+            white-space: normal !important;
+            overflow-wrap: break-word;
+            padding: 4px 2px;
+        }
+
+        .aging-table th, .aging-table td {
+            font-size: 6.5pt;
+        }
     </style>
 </head>
 
@@ -398,14 +413,14 @@
             <thead>
                 <tr>
                     <th style="width: 4%;" class="text-center">S/No</th>
-                    <th style="width: 8%;" class="nowrap">Date</th>
-                    <th style="width: 10%;">Transactions</th>
-                    <th style="width: 20%;">Details</th>
-                    <th style="width: 14%;" class="text-center nowrap">Type</th>
-                    <th style="width: 11%;" class="text-right nowrap">Invoice/(Bill)</th>
-                    <th style="width: 11%;" class="text-right nowrap">(Receipt)/<br>Payment</th>
-                    <th style="width: 4%;" class="text-right nowrap">Discount</th>
-                    <th style="width: 18%;" class="text-right nowrap">Balance</th>
+                    <th style="width: 9%;" class="nowrap">Date</th>
+                    <th style="width: 11%;">Transactions</th>
+                    <th style="width: 18%;">Details</th>
+                    <th style="width: 10%;" class="text-center nowrap">Type</th>
+                    <th style="width: 12%;" class="text-right nowrap">Invoice/(Bill)</th>
+                    <th style="width: 12%;" class="text-right nowrap">(Receipt)/<br>Payment</th>
+                    <th style="width: 11%;" class="text-right nowrap">Discount</th>
+                    <th style="width: 13%;" class="text-right nowrap">Balance</th>
                 </tr>
             </thead>
             <tbody>
@@ -523,26 +538,25 @@
             </h3>
         </div>
 
-        <table class="data-table">
+        <table class="data-table aging-table">
             <thead>
                 <tr>
-                    <th width="3%" class="text-center">#</th>
-                    {{-- <th width="7%">Code</th> --}}
-                    <th width="3%">Customer</th>
-                    <th width="9%">Mobile Number</th>
-                    <th width="9%">GSTIN</th>
-                    <th width="8%" class="text-right">Invoiced</th>
-                    <th width="8%" class="text-right">Receipts</th>
-                    <th width="8%" class="text-right">Payments</th>
-                    <th width="5%" class="text-right">Discount</th>
-                    <th class="text-right">Credit Notes</th>
-                    <th class="text-right">Debit Notes</th>
-                    <th width="8%" class="text-right">Balance Due (₹)</th>
-                    <th width="7%" class="text-right">0-15d (₹)</th>
-                    <th width="7%" class="text-right">16-30d (₹)</th>
-                    <th width="7%" class="text-right">31-60d (₹)</th>
-                    <th width="7%" class="text-right">61-90d (₹)</th>
-                    <th width="7%" class="text-right">90+d (₹)</th>
+                    <th width="2%" class="text-center">#</th>
+                    <th width="11%">Customer</th>
+                    <th width="7%">Mobile Number</th>
+                    <th width="8%">GSTIN</th>
+                    <th width="6%" class="text-right">Invoiced</th>
+                    <th width="6%" class="text-right">Receipts</th>
+                    <th width="6%" class="text-right">Payments</th>
+                    <th width="6%" class="text-right">Discount</th>
+                    <th width="6%" class="text-right">Credit Notes</th>
+                    <th width="6%" class="text-right">Debit Notes</th>
+                    <th width="6%" class="text-right">Balance Due (₹)</th>
+                    <th width="6%" class="text-right">0-15d (₹)</th>
+                    <th width="6%" class="text-right">16-30d (₹)</th>
+                    <th width="6%" class="text-right">31-60d (₹)</th>
+                    <th width="6%" class="text-right">61-90d (₹)</th>
+                    <th width="6%" class="text-right">90+d (₹)</th>
                 </tr>
             </thead>
             <tbody>
@@ -550,7 +564,11 @@
                     <tr>
                         <td class="text-center">{{ $idx + 1 }}</td>
                         {{-- <td style="font-weight: bold; color: #475569;">{{ $row['customer_code'] ?? '-' }}</td> --}}
-                        <td style="font-weight: bold; color: #0f172a;">{{ $row['customer_name'] ?? '-' }}</td>
+                        <td style="font-weight: bold; color: #0f172a;">{{ $row['customer_name'] ?? '-' }}
+                            @if (!empty($row['total_purchased']))
+                                <div>Vendor bills: ₹ {{ \App\Services\PrintDataFormatter::money($row['total_purchased']) }}</div>
+                            @endif
+                        </td>
                         <td class="nowrap">{{ $row['phone'] ?? '-' }}</td>
                         <td style="color: #64748b;">{{ $row['gstin'] ?? '-' }}</td>
                         <td class="text-right amount-cell nowrap">{{ \App\Services\PrintDataFormatter::money($row['total_invoiced'] ?? 0) }}
@@ -586,7 +604,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="15" class="text-center" style="padding: 15px; color: #94a3b8;">No customer
+                        <td colspan="16" class="text-center" style="padding: 15px; color: #94a3b8;">No customer
                             outstanding balances found.</td>
                     </tr>
                 @endforelse

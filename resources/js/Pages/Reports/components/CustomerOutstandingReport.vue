@@ -378,6 +378,9 @@ const filteredTotals = computed(() => {
                                 </td>
                                 <td class="py-3 px-3 font-bold text-slate-800">
                                     <div>{{ c.customer_name }}</div>
+                                    <div v-if="c.total_purchased" class="text-[10px] font-normal text-slate-600">
+                                        Vendor bills: {{ formatCurrency(c.total_purchased) }}
+                                    </div>
                                     <div class="text-[10px] text-slate-400 font-normal flex items-center gap-2 mt-0.5">
                                         <span v-if="c.gstin && c.gstin !== '-'">GST: {{ c.gstin }}</span>
                                         <span v-if="c.phone && c.phone !== '-'">Ph: {{ c.phone }}</span>

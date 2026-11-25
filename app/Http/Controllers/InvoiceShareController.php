@@ -254,7 +254,7 @@ class InvoiceShareController extends Controller
         $templateKey = PrintDataFormatter::resolveTemplateKey('invoices', $invoice->plant_id);
         $view = PrintDataFormatter::resolveView($templateKey);
 
-        $pdf = Pdf::loadView($view, ['data' => $data]);
+        $pdf = Pdf::loadView($view, ['data' => $data, 'is_pdf' => true]);
         
         $safeDocNo = str_replace(['/', '\\'], '-', $data['doc_no']);
         $filename = Str::slug($data['doc_title'] . '_' . $safeDocNo) . '.pdf';
@@ -361,6 +361,7 @@ class InvoiceShareController extends Controller
                 'to_date'        => $end,
                 'start_date'     => $start,
                 'end_date'       => $end,
+                'ledger_id'      => $params['ledger_id'] ?? null,
                 'customer_id'    => $params['patron_id'] ?? $params['customer_id'] ?? null,
                 'supplier_id'    => $params['patron_id'] ?? $params['supplier_id'] ?? null,
                 'gst_type'       => $params['gst_type'] ?? null,

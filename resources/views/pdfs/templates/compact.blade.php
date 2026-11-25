@@ -204,6 +204,7 @@
 </head>
 
 <body>
+    @includeWhen($data['is_sales_invoice'] ?? false, 'pdfs.partials._invoice_page_footer', ['document' => $data['invoice'] ?? null])
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
 @include('pdfs.partials._brand_header')
@@ -676,7 +677,7 @@
             </div>
         @endif
 
-        @if ($pdfSettings['signature'] ?? true)
+        @if (!($data['is_sales_invoice'] ?? false) && ($pdfSettings['signature'] ?? true))
             <div
                 style="text-align:right;padding:5px 10px;border-top:1px solid #ccc;font-size:9px;color:#333;min-height:40px">
                 @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))
@@ -699,7 +700,7 @@
             </div>
         @endif
 
-        @include('pdfs.partials._footer')
+        @include(($data['is_sales_invoice'] ?? false) ? 'pdfs.partials._invoice_closing' : 'pdfs.partials._footer', ['document' => $data['invoice'] ?? null])
     </div>
 </body>
 

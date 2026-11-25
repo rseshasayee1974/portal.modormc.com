@@ -9,18 +9,30 @@ namespace App\Http\Controllers;
 use App\Services\WebNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class WebNotificationController extends Controller
 {
     public function __construct(private WebNotificationService $service) {}
 
+    public function page(Request $request): Response
+    {
+        return Inertia::render('Notifications/Index', ['feed' => fn () => $this->feed($request)]);
+    }
+
     public function index(Request $request): JsonResponse
+    {
+        return response()->json($this->feed($request));
+    }
+
+    private function feed(Request $request): array
     {
         $user = $request->user();
         $entityId = session('active_entity_id') ? (int) session('active_entity_id') : null;
         $plantId = session('active_plant_id') ? (int) session('active_plant_id') : null;
 
-        return response()->json($this->service->feed($user, $entityId, $plantId));
+        return $this->service->feed($user, $entityId, $plantId);
     }
 
     public function markAsRead(Request $request, string $id): JsonResponse

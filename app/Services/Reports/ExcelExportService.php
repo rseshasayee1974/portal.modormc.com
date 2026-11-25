@@ -949,6 +949,13 @@ class ExcelExportService
                     (float) ($data['total_used_credit'] ?? 0),
                     (float) ($data['total_available_credit'] ?? 0),
                 ];
+            } elseif ($type === 'customer_outstanding' && !empty($data['is_single_patron'])) {
+                $title = 'CUSTOMER OUTSTANDING STATEMENT';
+                $headersList = ['Date', 'Transaction', 'Details', 'Type', 'Invoice / Bill', 'Receipt / Payment', 'Discount', 'Balance'];
+                foreach ($data['transactions'] as $row) {
+                    $rows[] = [$row['date'], $row['transactions'], str_replace("\n", ' | ', $row['details']), $row['type'],
+                        $row['invoice_bill_display'], $row['receipt_payment_display'], $row['discount_display'], $row['balance_display']];
+                }
             } elseif ($type === 'customer_outstanding') {
                 $title = "CUSTOMER OUTSTANDING & AGING REPORT";
                 $headersList = [
@@ -968,7 +975,7 @@ class ExcelExportService
                     '31-60 Days (₹)',
                     '61-90 Days (₹)',
                     '90+ Days (₹)',
-                    'Open Invoices'
+                    'Open Invoices', 'Vendor Bills (₹)'
                 ];
                 foreach (($data['transactions'] ?? $data['customer_summary'] ?? []) as $i => $row) {
                     $rows[] = [
@@ -989,6 +996,7 @@ class ExcelExportService
                         (float)($row['aging_61_90'] ?? 0),
                         (float)($row['aging_90_plus'] ?? 0),
                         (int)($row['open_invoices_count'] ?? 0),
+                        (float)($row['total_purchased'] ?? 0),
                     ];
                 }
                 $totalRow = [
@@ -1005,6 +1013,7 @@ class ExcelExportService
                     (float)($data['aging_61_90'] ?? 0),
                     (float)($data['aging_90_plus'] ?? 0),
                     (int)($data['total_open_invoices'] ?? 0),
+                    collect($data['transactions'] ?? $data['customer_summary'] ?? [])->sum('total_purchased'),
                 ];
 
                 $extraSections['tables'] = [];
@@ -1246,19 +1255,20 @@ class ExcelExportService
                 }
             } elseif ($type === 'site_consolidated') {
                 $title = "UNLOAD SITE CONSOLIDATED REPORT";
-                $headersList = ['#', 'Unload Site Name', 'Customer / Party', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'];
+                $headersList = ['#', 'Unload Site Name', 'Customer / Party', 'Mix Design', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'];
                 foreach (($data['transactions'] ?? $data['items'] ?? []) as $i => $row) {
                     $rows[] = [
                         $i + 1,
                         $row['site_name'] ?? '',
                         $row['customer_name'] ?? '-',
+                        $row['mix_name'] ?? '-',
                         (int)($row['trips_count'] ?? 1),
                         (float)($row['quantity'] ?? 0),
                         (float)($row['amount_total'] ?? 0),
                     ];
                 }
                 $totalRow = [
-                    '', 'Total Site Volume', '',
+                    '', 'Total Site Volume', '', '',
                     (int)($data['total_trips'] ?? 0),
                     (float)($data['total_quantity'] ?? 0),
                     (float)($data['total_amount'] ?? 0),
@@ -1459,7 +1469,7 @@ class ExcelExportService
                     }
                     $extraSections['tables'][] = [
                         'title' => 'UNLOAD SITE CONSOLIDATED SUMMARY',
-                        'headers' => ['#', 'Unload Site Name', 'Customer / Party', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'],
+                        'headers' => ['#', 'Unload Site Name', 'Customer / Party', 'Mix Design', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'],
                         'rows' => $siteRows,
                     ];
                 }

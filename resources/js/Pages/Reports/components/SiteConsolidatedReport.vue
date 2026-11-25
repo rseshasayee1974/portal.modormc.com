@@ -30,7 +30,7 @@ const formatQuantity = (val) => {
         <div>
             <div class="px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-t border-b-0 font-bold text-xs text-slate-700 uppercase flex items-center justify-between">
                 <span>Unload Site Consolidated Summary</span>
-                <span class="text-slate-400 font-normal normal-case">Consolidated by delivery/unloading destination site with batch size and delivered volume</span>
+                <span class="text-slate-400 font-normal normal-case">Trips, delivered quantity and amount by unloading point, party and mix design</span>
             </div>
 
             <div class="overflow-x-auto border border-slate-200 rounded-b">
@@ -38,8 +38,9 @@ const formatQuantity = (val) => {
                     <thead>
                         <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
                             <th class="py-3 px-3 text-center" width="5%">#</th>
-                            <th class="py-3 px-3" width="28%">Unload Site Name</th>
-                            <th class="py-3 px-3" width="23%">Customer / Party</th>
+                            <th class="py-3 px-3" width="21%">Unload Site Name</th>
+                            <th class="py-3 px-3" width="21%">Customer / Party</th>
+                            <th class="py-3 px-3" width="20%">Mix Design</th>
                             <th class="py-3 px-3 text-center" width="10%">Trips</th>
                             <!-- <th class="py-3 px-3 text-right" width="11%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="11%">Delivered Qty</th>
@@ -51,6 +52,7 @@ const formatQuantity = (val) => {
                             <td class="py-2.5 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                             <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.site_name }}</td>
                             <td class="py-2.5 px-3 text-slate-600">{{ row.customer_name || '-' }}</td>
+                            <td class="py-2.5 px-3 text-slate-600">{{ row.mix_name || '-' }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
                             <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
@@ -60,7 +62,7 @@ const formatQuantity = (val) => {
                             <td colspan="7" class="py-8 text-center text-slate-400">No site dispatch records found for selected period</td>
                         </tr>
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
-                            <td colspan="3" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Total Site Volume</td>
+                            <td colspan="4" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Total Site Volume</td>
                             <td class="py-3 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.total_trips }}</td>
                             <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_batch_size) }}</td> -->
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_quantity) }}</td>

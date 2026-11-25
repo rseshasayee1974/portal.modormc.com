@@ -846,6 +846,7 @@ const generateReport = async ({ manual = false, pagination = false } = {}) => {
             params = {
                 from_date: startDate.value,
                 to_date: endDate.value,
+                ledger_id: selectedId.value,
                 customer_id: patronId.value,
                 gst_type: gstType.value,
                 register_view: registerView.value,
@@ -858,6 +859,7 @@ const generateReport = async ({ manual = false, pagination = false } = {}) => {
             params = {
                 from_date: startDate.value,
                 to_date: endDate.value,
+                ledger_id: selectedId.value,
                 supplier_id: patronId.value,
                 gst_type: gstType.value,
                 register_view: registerView.value,
@@ -963,6 +965,7 @@ const exportPdf = () => {
         url = route('reports.sales-register', {
             from_date: startDate.value,
             to_date: endDate.value,
+            ledger_id: selectedId.value,
             customer_id: patronId.value,
             gst_type: gstType.value,
             register_view: registerView.value,
@@ -974,6 +977,7 @@ const exportPdf = () => {
         url = route('reports.purchase-register', {
             from_date: startDate.value,
             to_date: endDate.value,
+            ledger_id: selectedId.value,
             supplier_id: patronId.value,
             gst_type: gstType.value,
             register_view: registerView.value,
@@ -1032,6 +1036,7 @@ const exportExcel = () => {
         url = route('reports.sales-register', {
             from_date: startDate.value,
             to_date: endDate.value,
+            ledger_id: selectedId.value,
             customer_id: patronId.value,
             gst_type: gstType.value,
             register_view: excelView,
@@ -1044,6 +1049,7 @@ const exportExcel = () => {
         url = route('reports.purchase-register', {
             from_date: startDate.value,
             to_date: endDate.value,
+            ledger_id: selectedId.value,
             supplier_id: patronId.value,
             gst_type: gstType.value,
             register_view: excelView,
@@ -1122,6 +1128,7 @@ const currentReportParams = computed(() => {
         expense_type_id: reportType.value === 'expense' ? expenseCategoryId.value : null,
         qc_category: reportType.value === 'quality_testing' ? qcCategory.value : null,
         id: selectedId.value,
+        ledger_id: ['sales_register', 'purchase_register'].includes(reportType.value) ? selectedId.value : undefined,
         patron_id: patronId.value,
         voucher_type_filter: ledgerVoucherFilter.value,
         gst_type: gstType.value,
@@ -1168,6 +1175,7 @@ const generateShareLink = async () => {
             report_params: {
                 type: reportType.value,
                 id: selectedId.value,
+                ledger_id: ['sales_register', 'purchase_register'].includes(reportType.value) ? selectedId.value : undefined,
                 patron_id: patronId.value,
                 start_date: startDate.value,
                 end_date: endDate.value,
@@ -1422,7 +1430,7 @@ const shareEmail = () => {
                             <div v-show="!isFiltersCollapsed" class="p-5">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
                                     <!-- Target Dropdown (Ledger / Bank & Cash Account) -->
-                                    <div v-if="['ledger', 'payment', 'receipt', 'expense'].includes(reportType)"
+                                    <div v-if="['ledger', 'payment', 'receipt', 'expense', 'sales_register', 'purchase_register'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                             {{ ['payment', 'receipt'].includes(reportType) ? 'Bank / Cash Account' :

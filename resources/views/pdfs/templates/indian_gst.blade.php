@@ -76,6 +76,7 @@
     </style>
 </head>
 <body>
+    @includeWhen($data['is_sales_invoice'] ?? false, 'pdfs.partials._invoice_page_footer', ['document' => $data['invoice'] ?? null])
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
 @include('pdfs.partials._brand_header')
@@ -524,6 +525,7 @@
                 Certificate that the goods on which the GST tax has been charged have not been exempted under the GST Tax Act or the rules made thereunder and the amount charged on Account of GST Tax on these goods are not more than that what is payable under the provisions of the relevant Act or the Rules made thereunder<br>
                 <strong style="margin-top: 6px; display: inline-block;">E. & O. E.</strong>
             </td>
+            @unless ($data['is_sales_invoice'] ?? false)
             <td class="footer-sig-cust">
                 Customer Signature
             </td>
@@ -540,10 +542,11 @@
                 <div style="font-size: 8pt; margin-bottom: 20px;">For <strong>{{ strtoupper($data['company']['name']) }}</strong></div>
                 <div>Authorised Signatory</div>
             </td>
+            @endunless
         </tr>
     </table>
 
-    @include('pdfs.partials._footer')
+    @include(($data['is_sales_invoice'] ?? false) ? 'pdfs.partials._invoice_closing' : 'pdfs.partials._footer', ['document' => $data['invoice'] ?? null])
 </div>
 </body>
 </html>

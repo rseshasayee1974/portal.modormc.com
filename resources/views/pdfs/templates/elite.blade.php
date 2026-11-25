@@ -252,6 +252,7 @@
 </head>
 
 <body>
+    @includeWhen($data['is_sales_invoice'] ?? false, 'pdfs.partials._invoice_page_footer', ['document' => $data['invoice'] ?? null])
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
 @include('pdfs.partials._brand_header')
@@ -633,7 +634,7 @@
                         Grand Total <strong>Rs. {{ $cleanGrandWords }}</strong>
                     </div>
                 @endif
-                @if (($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
+                @if (!($data['is_sales_invoice'] ?? false) && ($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
                     <div class="small muted" style="margin-top:8px;">Notes</div>
                     <div class="customer-notes-content" style="font-size:11px">{{ $data['meta']['notes'] }}</div>
                 @endif
@@ -739,7 +740,7 @@
                 </table>
             </div>
         </div>
-        @elseif (($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
+        @elseif (!($data['is_sales_invoice'] ?? false) && ($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
             <div style="padding: 10px 16px; border-top: 1px solid #e2e8f0;">
                 <div class="small muted" style="margin-bottom:4px;">Notes</div>
                 <div class="customer-notes-content" style="font-size:11px">{{ $data['meta']['notes'] }}</div>
@@ -765,7 +766,7 @@
 
         {{-- SIGNATURE --}}
         @if ($pdfSettings['signature'] ?? true)
-            <div style="min-height:90px;padding:10px 12px;border-bottom:1px solid #cbd5e1;position:relative;">
+            <div style="min-height:{{ ($data['is_sales_invoice'] ?? false) ? '0' : '90px' }};padding:10px 12px;border-bottom:1px solid #cbd5e1;position:relative;">
                 <table style="width:100%; border-collapse: collapse; border: none; margin: 0; padding: 0;">
                     <tr>
                         <td style="width: 50%; vertical-align: bottom; border: none; text-align: left; padding: 0;">
@@ -808,6 +809,7 @@
                                 </div>
                             @endif
                         </td>
+                        @unless ($data['is_sales_invoice'] ?? false)
                         <td style="width: 50%; vertical-align: bottom; border: none; text-align: right; padding: 0;">
                             <div
                                 style="margin-top:20px; display: inline-block; text-align: center; position: relative;">
@@ -840,12 +842,13 @@
                                 </span>
                             </div>
                         </td>
+                        @endunless
                     </tr>
                 </table>
             </div>
         @endif
 
-        @include('pdfs.partials._footer')
+        @include(($data['is_sales_invoice'] ?? false) ? 'pdfs.partials._invoice_closing' : 'pdfs.partials._footer', ['document' => $data['invoice'] ?? null])
     </div>
 </body>
 

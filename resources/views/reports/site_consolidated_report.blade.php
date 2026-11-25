@@ -17,7 +17,7 @@
                 <div class="address-box" style="margin-top: 5px;">
                     <span class="address-title">Report Focus:</span>
                     <span class="address-name">Unload Site Consolidated Overview</span>
-                    <span>Consolidated dispatch summary grouped by delivery & unloading site destinations</span>
+                    <span>Consolidated dispatch summary by unloading point, party and mix design</span>
                 </div>
             </td>
             
@@ -36,8 +36,9 @@
         <thead>
             <tr>
                 <th width="5%">#</th>
-                <th width="26%">Unload Site Name</th>
-                <th width="23%">Customer / Party</th>
+                <th width="21%">Unload Site Name</th>
+                <th width="20%">Customer / Party</th>
+                <th width="20%">Mix Design</th>
                 <th width="10%">Trips</th>
                 {{-- <th width="12%">Batch Size</th> --}}
                 <th width="12%">Delivered Qty</th>
@@ -50,6 +51,7 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td class="font-bold">{{ $row['site_name'] }}</td>
                     <td>{{ $row['customer_name'] ?? '-' }}</td>
+                    <td>{{ $row['mix_name'] ?? '-' }}</td>
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
                     {{-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> --}}
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
@@ -58,7 +60,7 @@
             @endforeach
             
             <tr class="total-row">
-                <td colspan="3" class="text-center font-bold">Total Site Volume</td>
+                <td colspan="4" class="text-center font-bold">Total Site Volume</td>
                 <td class="text-center font-bold">{{ $total_trips ?? collect($transactions ?? $items ?? [])->sum('trips_count') }}</td>
                 {{-- <td class="text-right font-bold">{{ number_format($total_batch_size ?? 0, 2) }}</td> --}}
                 <td class="text-right font-bold">{{ number_format($total_quantity ?? 0, 2) }}</td>

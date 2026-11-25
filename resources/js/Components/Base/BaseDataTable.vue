@@ -70,6 +70,7 @@ const props = withDefaults(
         // Toolbar Props
         showSearch?: boolean;
         showAdvancedFilter?: boolean;
+        showDateFilters?: boolean;
         heading?: string;
         headingIcon?: string;
 
@@ -115,6 +116,7 @@ const props = withDefaults(
         showSerial: false,
         showSearch: false,
         showAdvancedFilter: true,
+        showDateFilters: true,
         heading: "",
         headingIcon: '',
         showExport: false,
@@ -415,7 +417,7 @@ const toggleFilterPopover = (event: any) => {
                     <span class="text-sm font-bold text-slate-800 uppercase tracking-wider">Advanced Filters</span>
                 </div>
 
-                <div class="flex flex-col gap-4">
+                <div v-if="showDateFilters" class="flex flex-col gap-4">
                     <div class="grid grid-cols-2 gap-3">
                         <div class="flex flex-col gap-1.5">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">From

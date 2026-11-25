@@ -8,6 +8,7 @@ Created: 2026-11-02 11:26:14 Asia/Calcutta (UTC+05:30)
 namespace App\Services;
 
 use App\Models\Batch;
+use App\Services\BatchMoisture\PlantCalculations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -29,11 +30,11 @@ class BatchMoistureService
         ];
     }
 
-    public function sync(Batch $batch, array $readings): void
+    public function sync(Batch $batch, array $readings, bool $saveCalculatedActuals = true): array
     {
-        DB::transaction(function () use ($batch, $readings) {
+        return DB::transaction(function () use ($batch, $readings, $saveCalculatedActuals) {
             // Serialize updates so only one active reading exists per batch/product.
-            Batch::whereKey($batch->id)->lockForUpdate()->firstOrFail();
+            $batch = Batch::whereKey($batch->id)->lockForUpdate()->firstOrFail();
             $materials = $batch->materials()->where('plant_id', $batch->plant_id)->reorder()->get()->keyBy('product_id');
             foreach ($readings as $index => $reading) {
                 if (! $materials->has($reading['product_id'])) {
@@ -42,6 +43,22 @@ class BatchMoistureService
             }
 
             $existing = $batch->moistureContents()->where('plant_id', $batch->plant_id)->get();
+            $targets = [];
+            $formula = ($readings || $existing->isNotEmpty()) ? PlantCalculations::moistureFormula($batch->plant) : null;
+            if ($formula) {
+                $targets = $formula::targets($batch, $readings);
+                if ($saveCalculatedActuals && $targets) {
+                    $now = now();
+                    $actuals = collect($targets)->groupBy('product_id')->map(fn ($runs, $productId) => [
+                        'batch_id' => $batch->id,
+                        'product_id' => $productId,
+                        'actual_qty' => round($runs->sum('target'), 3),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ])->values()->all();
+                    DB::table('mm_batch_material_actuals')->upsert($actuals, ['batch_id', 'product_id'], ['actual_qty', 'updated_at']);
+                }
+            }
             $byProduct = $existing->keyBy('product_id');
             $retained = [];
             foreach ($readings as $reading) {
@@ -66,6 +83,7 @@ class BatchMoistureService
             }
             // Use model deletes so deleted_by and the audit observer run for each row.
             $existing->whereNotIn('id', $retained)->each->delete();
+            return $targets;
         });
     }
 }

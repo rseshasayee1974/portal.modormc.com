@@ -202,6 +202,31 @@ class Dispatch extends Model
             ? (float) $this->delivered_qty : (float) ($this->batch?->batch_size ?? $this->delivered_qty);
     }
 
+    public function applyDeliveryReferences(array $values, int $userId): void
+    {
+        $plantId = $this->plant_id;
+        $order = array_key_exists('customer_po_id', $values)
+            ? $this->salesOrder()->where('plant_id', $plantId)->lockForUpdate()->first()
+            : null;
+        if (array_key_exists('customer_po_id', $values) && !$order) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['customer_po_id' => 'A linked sales order is required to update the customer PO.']);
+        }
+        $changes = \Illuminate\Support\Facades\Validator::make($values, [
+            'unload_site_id' => ['sometimes', 'required', 'integer', \Illuminate\Validation\Rule::exists('mm_sites', 'id')->where('plant_id', $plantId)->whereNull('deleted_at')],
+            'customer_po_id' => ['sometimes', 'required', 'integer', \Illuminate\Validation\Rule::exists('mm_customer_pos', 'id')->where('plant_id', $plantId)->where('patron_id', $order?->customer_id)->whereNull('deleted_at')],
+        ])->validate();
+        if (isset($changes['customer_po_id'])) {
+            $order->update(['customer_po_id' => $changes['customer_po_id'], 'updated_by' => $userId]);
+        }
+        if (isset($changes['unload_site_id'])) {
+            $this->unload_site_id = $changes['unload_site_id'];
+        }
+        if ($this->isDirty()) {
+            $this->updated_by = $userId;
+            $this->save();
+        }
+    }
+
     public function correctDeliveredQuantity(?float $quantity): void
     {
         $this->correctingDeliveredQuantity = true;

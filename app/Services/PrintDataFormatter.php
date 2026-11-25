@@ -1196,6 +1196,7 @@ class PrintDataFormatter
         $data['invoice']    = $invoice;
         $data['settings']   = self::getCustomSettings($invoice->plant_id, $isPurchaseBill ? 'purchase_bills' : 'invoices');
         $data['is_purchase_bill'] = $isPurchaseBill;
+        $data['is_sales_invoice'] = \App\Support\InvoiceClassification::normalizeInvoiceType($invoice->invoice_type) === 'Invoice';
         if ($isPurchaseBill) {
             foreach (['show_pump_charges', 'pump_rates', 'show_recipe_details', 'show_carrier_driver', 'show_customer_ref', 'show_einvoice_details'] as $setting) {
                 $data['settings']['pdf'][$setting] = false;

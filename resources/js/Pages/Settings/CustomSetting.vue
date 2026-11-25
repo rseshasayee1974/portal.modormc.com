@@ -40,6 +40,7 @@ const savedSettings = () => ({
             Number(props.batchingSettings?.batch_series_enabled ?? 1) === 1,
         default_batch_series:
             props.batchingSettings?.default_batch_series || "NONE",
+        moisture_profile: props.batchingSettings?.moisture_profile || 'auto',
         batch_sheet_driver: props.batchingSettings?.batch_sheet_driver || "",
         new_weight:
             props.batchingSettings?.new_weight !== undefined
@@ -644,6 +645,13 @@ const submit = () => {
                                             class="w-full text-xs font-medium"
                                         />
                                     </div>
+                                </div>
+
+                                <div class="setting-field min-w-0 flex flex-col gap-3">
+                                    <label for="moisture-profile" class="text-xs font-bold text-slate-800">Moisture correction</label>
+                                    <Dropdown inputId="moisture-profile" v-model="form.settings.moisture_profile"
+                                        :options="[{ label: 'Match plant name or code', value: 'auto' }, { label: 'Modomines', value: 'modomines' }, { label: 'Record readings only', value: 'readings_only' }]"
+                                        optionLabel="label" optionValue="value" />
                                 </div>
 
                                 <!-- batch_sheet_driver -->

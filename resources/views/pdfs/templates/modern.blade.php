@@ -248,6 +248,7 @@
 </head>
 
 <body>
+    @includeWhen($data['is_sales_invoice'] ?? false, 'pdfs.partials._invoice_page_footer', ['document' => $data['invoice'] ?? null])
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
 @include('pdfs.partials._brand_header')
@@ -721,7 +722,7 @@
         </div>
         @endif
 
-        @if (($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
+        @if (!($data['is_sales_invoice'] ?? false) && ($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
             <div class="bottom-section">
                 <div class="section-label">Notes</div>
                 <div class="customer-notes-content">{{ $data['meta']['notes'] }}</div>
@@ -744,7 +745,7 @@
         @endif
 
         @if ($pdfSettings['signature'] ?? true)
-            <div style="min-height:80px;padding:10px 18px;border-top:1px solid #ccc;">
+            <div style="min-height:{{ ($data['is_sales_invoice'] ?? false) ? '0' : '80px' }};padding:10px 18px;border-top:1px solid #ccc;">
                 <table style="width:100%; border-collapse: collapse; border: none; margin: 0; padding: 0;">
                     <tr>
                         <td style="width: 50%; vertical-align: bottom; border: none; text-align: left; padding: 0;">
@@ -773,6 +774,7 @@
                                 </div>
                             @endif
                         </td>
+                        @unless ($data['is_sales_invoice'] ?? false)
                         <td style="width: 50%; vertical-align: bottom; border: none; text-align: right; padding: 0;">
                             <div
                                 style="margin-top:20px; display: inline-block; text-align: center; position: relative;">
@@ -804,12 +806,13 @@
                                         {{ $data['company']['name'] }}</span></span>
                             </div>
                         </td>
+                        @endunless
                     </tr>
                 </table>
             </div>
         @endif
 
-        @include('pdfs.partials._footer')
+        @include(($data['is_sales_invoice'] ?? false) ? 'pdfs.partials._invoice_closing' : 'pdfs.partials._footer', ['document' => $data['invoice'] ?? null])
     </div>
 </body>
 

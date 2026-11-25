@@ -103,6 +103,7 @@ class StoreBatchRequest extends FormRequest
             'materials' => ['nullable', 'array'],
             'materials.*.product_id' => ['nullable', 'integer', 'exists:mm_products,id'],
             'materials.*.material_name' => ['nullable', 'string', 'max:255'],
+            'materials.*.entered_actual_qty' => ['sometimes', 'nullable', 'numeric', 'between:0,9999999.999', 'decimal:0,3'],
             'materials.*.target_qty' => ['required', 'numeric', 'gte:0'],
             'materials.*.actual_qty' => ['nullable', 'numeric', 'gte:0'],   
             'materials.*.deviation_quantity' => ['nullable', 'numeric'],

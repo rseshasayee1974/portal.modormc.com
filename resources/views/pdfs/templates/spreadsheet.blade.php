@@ -182,6 +182,7 @@
 </head>
 
 <body>
+    @includeWhen($data['is_sales_invoice'] ?? false, 'pdfs.partials._invoice_page_footer', ['document' => $data['invoice'] ?? null])
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
 @include('pdfs.partials._brand_header')
@@ -623,6 +624,7 @@
                     style="max-height:70px;max-width:70px;object-fit:contain;border:1px solid #cbd5e1;padding:2px;background:#fff;" />
             </div>
         @endif
+        @unless ($data['is_sales_invoice'] ?? false)
         <div
             style="text-align:right;padding:8px 14px;border-top:1px solid #ccc;font-size:10px;min-height:60px;color:#333">
             @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))
@@ -642,7 +644,8 @@
             @endif
             Authorized Signatory — {{ $data['company']['name'] }}
         </div>
-        @include('pdfs.partials._footer')
+        @endunless
+        @include(($data['is_sales_invoice'] ?? false) ? 'pdfs.partials._invoice_closing' : 'pdfs.partials._footer', ['document' => $data['invoice'] ?? null])
     </div>
 </body>
 

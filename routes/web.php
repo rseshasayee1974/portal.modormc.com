@@ -265,6 +265,7 @@ Route::middleware([
 
     // Role-wise Web Notifications
     Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\WebNotificationController::class, 'page'])->name('index');
         Route::get('/feed', [\App\Http\Controllers\WebNotificationController::class, 'index'])->name('feed');
         Route::post('/read-all', [\App\Http\Controllers\WebNotificationController::class, 'readAll'])->name('read-all');
         Route::post('/{id}/read', [\App\Http\Controllers\WebNotificationController::class, 'markAsRead'])->where('id', '.*')->name('read');
@@ -425,6 +426,7 @@ Route::middleware([
             ->withoutMiddleware(TitleCaseInputs::class)->name('batches.trip-options.store');
         Route::post('batches/truck-empty-weight', [BatchController::class, 'storeTruckEmptyWeight'])->name('batches.store-truck-empty-weight');
         Route::resource('batches', BatchController::class);
+        Route::post('batches/{batch}/moisture-preview', [BatchController::class, 'previewMoisture'])->name('batches.moisture-preview');
         Route::put('batches/{batch}/patron', [BatchController::class, 'updatePatron'])->name('batches.patron.update');
         Route::post('batches/{batch}/send-email', [BatchController::class, 'sendEmail'])->name('batches.send-email');
         Route::get('batches/{batchId}/report', [BatchController::class, 'report'])->name('batches.report');
@@ -437,6 +439,7 @@ Route::middleware([
         Route::get('batches/{batch}/delivery-token/download', [BatchController::class, 'downloadDeliveryTokenPdf'])->name('batches.delivery-token.download');
         Route::get('batches/{batch}/gate-pass', [BatchController::class, 'gatePass'])->name('batches.gate-pass');
         Route::get('batches/{batch}/gate-pass/download', [BatchController::class, 'downloadGatePassPdf'])->name('batches.gate-pass.download');
+        Route::get('batches/{batch}/consumption', [BatchController::class, 'consumption'])->name('batches.consumption');
         Route::post('batches/{batch}/sync', [BatchController::class, 'syncToScheduler'])->name('batches.sync');
         Route::post('batches/ocr', [BatchOcrController::class, 'process'])->name('batches.ocr');
         Route::prefix('api/batch-sheets')->group(function () {

@@ -602,6 +602,14 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             ->orderBy('id', 'asc')
             ->get();
 
+        $purchaseBills = $periodInvoices->filter(fn ($invoice) =>
+            in_array($invoice->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true)
+            && strtolower((string) $invoice->invoice_label) === 'purchase');
+        $purchaseOrders = PurchaseOrder::query()->where('vendor_id', $patronId)
+            ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
+            ->whereIn('id', $purchaseBills->pluck('ref_id')->filter())
+            ->get(['id', 'po_number', 'ref_no', 'bill_number'])->keyBy('id');
+
         $dispatchIds = $periodInvoices->filter(fn ($invoice) => strtolower((string) $invoice->invoice_label) === 'dispatch')
             ->pluck('ref_id')->filter()->values();
         $statementDispatches = \App\Models\Dispatch::query()
@@ -660,6 +668,11 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             return !str_contains($type, 'receipt') && in_array($type, ['payment', 'pmt']);
         });
 
+        $paymentsList->load(['allocations.invoice' => fn ($query) => $query
+            ->where('partner_id', $patronId)
+            ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
+            ->whereIn('invoice_type', \App\Support\InvoiceClassification::aliases('Bill'))]);
+
         $amountReceived = round((float)$receiptsList->sum('amount'), 2);
         $amountPaid     = round((float)$paymentsList->sum('amount'), 2);
 
@@ -685,6 +698,17 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $invNum   = $inv->full_number ?: ('INV-' . $inv->id);
             $details  = $invNum;
             $detailLines = [['text' => $invNum, 'bold' => false]];
+            if ($isBill) {
+                $order = strtolower((string) $inv->invoice_label) === 'purchase' ? $purchaseOrders->get($inv->ref_id) : null;
+                $references = ['Against' => $inv->ref_title ?: ($order?->po_number ?: $order?->ref_no),
+                    'Vendor bill' => $order?->bill_number];
+                foreach ($references as $labelText => $value) {
+                    if (blank($value)) continue;
+                    $text = $labelText . ': ' . $value;
+                    $details .= "\n" . $text;
+                    $detailLines[] = ['text' => $text, 'bold' => false];
+                }
+            }
             if (!$isBill && !$isNote) {
                 $descriptions = $inv->items->map(function ($item) {
                     // Prefer the description saved when the dispatch was invoiced.
@@ -780,6 +804,12 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $pAmt    = round((float)($p->amount ?? 0), 2);
             $pmtNum  = $p->reference ?: ('PMT-' . $p->id);
             $details = $pmtNum;
+            foreach ($p->allocations as $allocation) {
+                if ($bill = $allocation->invoice) {
+                    $details .= "\nAgainst bill: " . $bill->full_number . ' - ₹ '
+                        . number_format((float) $allocation->amount, 2);
+                }
+            }
             if ($p->ledger?->title) {
                 $details .= "\n" . $p->ledger->title;
             }

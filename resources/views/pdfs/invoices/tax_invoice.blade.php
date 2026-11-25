@@ -17,6 +17,7 @@
 
     $plant =
         $inv?->plant ?? \App\Models\Plant::with(['entity.bankAccounts', 'addresses'])->find(session('active_plant_id'));
+    $isSalesInvoice = \App\Support\InvoiceClassification::normalizeInvoiceType($inv?->invoice_type) === 'Invoice';
     $entity = $plant?->entity;
     $partner = $inv?->partner;
 
@@ -580,6 +581,7 @@
 </head>
 
 <body>
+    @includeWhen($isSalesInvoice, 'pdfs.partials._invoice_page_footer', ['document' => $inv])
 
     <!-- Web Print Actions Toolbar -->
     @unless ($is_pdf ?? false)
@@ -898,6 +900,7 @@
                     <div style="font-weight: bold; margin-top: 4px;">E. & O. E.</div>
                 </td>
 
+                @unless ($isSalesInvoice)
                 <!-- Customer Signature -->
                 <td class="cust-sign-cell">
                     <div class="sign-space"></div>
@@ -910,8 +913,10 @@
                     <div class="sign-space"></div>
                     <strong>Authorised Signatory</strong>
                 </td>
+                @endunless
             </tr>
         </table>
+        @includeWhen($isSalesInvoice, 'pdfs.partials._invoice_closing', ['document' => $inv])
 
     </div>
 

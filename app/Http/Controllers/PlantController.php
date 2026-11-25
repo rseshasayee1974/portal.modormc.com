@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Services\DashboardPlantAccess;
 use App\Services\PlantInitializationService;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
@@ -38,7 +39,9 @@ class PlantController extends Controller
         $user = Auth::user();
         $isSuperUser = $user && $user->hasFullAccess();
 
-        if ($isSuperUser) {
+        $canViewAllPlants = app(DashboardPlantAccess::class)->canViewAllPlants($user);
+
+        if ($isSuperUser || $canViewAllPlants) {
             $allowedEntityIds = Entity::pluck('id')->toArray();
         } else {
             $allowedEntityIds = $user->entityUsers()->pluck('entity_id')->toArray();
@@ -46,7 +49,7 @@ class PlantController extends Controller
 
         $query = Plant::query()
             ->whereIn('entity_id', $allowedEntityIds)
-            ->when(session('active_plant_id'), fn ($plants, $plantId) => $plants->whereKey($plantId))
+            ->when(!$canViewAllPlants && session('active_plant_id'), fn ($plants) => $plants->whereKey(session('active_plant_id')))
             ->with(['addresses.addressType', 'addresses.state', 'contacts.contactType', 'entity:id,legal_name']);
 
         if ($isSuperUser) {

@@ -46,6 +46,13 @@ class BatchMoistureContentTest extends TestCase
                 $table->softDeletes();
             });
         }
+        Schema::create('mm_custom_settings', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('plant_id');
+            $table->string('module_name');
+            $table->json('settings')->nullable();
+            $table->softDeletes();
+        });
         Schema::create('mm_inventory_audit_logs', function (Blueprint $table) {
             $table->id();
             foreach (['plant_id', 'transaction_type', 'action_type', 'reference_type', 'reference_id',

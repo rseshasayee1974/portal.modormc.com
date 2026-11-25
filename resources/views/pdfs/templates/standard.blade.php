@@ -260,6 +260,7 @@
 </head>
 
 <body>
+    @includeWhen($data['is_sales_invoice'] ?? false, 'pdfs.partials._invoice_page_footer', ['document' => $data['invoice'] ?? null])
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
 @include('pdfs.partials._brand_header')
@@ -615,7 +616,7 @@
         @endphp
         <div class="totals-split">
             <div class="totals-left">
-                @if (($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
+                @if (!($data['is_sales_invoice'] ?? false) && ($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
                     <div class="small muted" style="margin-bottom:6px">Notes</div>
                     <div class="customer-notes-content" style="margin-bottom:8px;font-size:11px">{{ $data['meta']['notes'] }}</div>
                 @endif
@@ -747,7 +748,7 @@
                 </table>
             </div>
         </div>
-        @elseif (($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
+        @elseif (!($data['is_sales_invoice'] ?? false) && ($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
             <div style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0;">
                 <div class="small muted" style="margin-bottom:6px">Notes</div>
                 <div class="customer-notes-content" style="margin-bottom:8px;font-size:11px">{{ $data['meta']['notes'] }}</div>
@@ -774,7 +775,7 @@
 
         {{-- SIGNATURE --}}
         @if ($pdfSettings['signature'] ?? true)
-            <div class="sig-section" style="min-height:80px">
+            <div class="sig-section" style="min-height:{{ ($data['is_sales_invoice'] ?? false) ? '0' : '80px' }}">
                 <div class="sig-left">
                     @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
                         <div style="margin-bottom: 8px; font-size: 10px; color: #334155;">
@@ -808,6 +809,7 @@
                         </div>
                     @endif
                 </div>
+                @unless ($data['is_sales_invoice'] ?? false)
                 <div class="sig-right" style="padding-bottom:10px; position: relative;">
                     @if (!empty($data['company']['seal_sign_path']))
                         @php
@@ -832,10 +834,11 @@
                     <div class="sig-line">Authorized Signatory<br><span class="small muted">For
                             {{ $data['company']['name'] }}</span></div>
                 </div>
+                @endunless
             </div>
         @endif
 
-        @include('pdfs.partials._footer')
+        @include(($data['is_sales_invoice'] ?? false) ? 'pdfs.partials._invoice_closing' : 'pdfs.partials._footer', ['document' => $data['invoice'] ?? null])
     </div>
 </body>
 

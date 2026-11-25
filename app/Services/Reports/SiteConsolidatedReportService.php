@@ -19,15 +19,12 @@ class SiteConsolidatedReportService implements ReportServiceInterface
         $query = DB::table('mm_dispatches as d')
             ->leftJoin('mm_batches as b', 'b.id', '=', 'd.batch_id')
             ->leftJoin('mm_sales_orders as so', 'so.id', '=', 'd.sales_order_id')
-            ->leftJoin('mm_patrons as dp', 'dp.id', '=', 'd.customer_id')
-            ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
-            ->leftJoin('mm_sites as ds_site', 'ds_site.id', '=', 'd.unload_site_id')
-            ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
+            ->leftJoin('mm_patrons as p', 'p.id', '=', DB::raw('COALESCE(NULLIF(d.customer_id, 0), so.customer_id)'))
+            ->leftJoin('mm_sites as s', 's.id', '=', DB::raw('COALESCE(NULLIF(d.unload_site_id, 0), so.site_id)'))
             ->leftJoin('mm_machines as t', 't.id', '=', 'd.truck_id')
             ->leftJoin('mm_personnels as drv', 'drv.id', '=', 'd.driver_id')
-            ->leftJoin('mm_mix_designs as dm', 'dm.id', '=', 'd.mixdesign_id')
-            ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
-            ->leftJoin('mm_concrete_grades as cg', 'cg.id', '=', DB::raw('COALESCE(dm.concrete_grade_id, m.concrete_grade_id)'))
+            ->leftJoin('mm_mix_designs as m', 'm.id', '=', DB::raw('COALESCE(NULLIF(d.mixdesign_id, 0), so.mix_design_id)'))
+            ->leftJoin('mm_concrete_grades as cg', 'cg.id', '=', 'm.concrete_grade_id')
             ->leftJoin('mm_invoices as inv', function ($join) {
                 $join->on('inv.id', '=', DB::raw('(SELECT invoice_id FROM mm_dispatch_statuses WHERE dispatch_id = d.id AND deleted_at IS NULL LIMIT 1)'))
                      ->whereNull('inv.deleted_at');
@@ -51,7 +48,7 @@ class SiteConsolidatedReportService implements ReportServiceInterface
         $patronId = $params['patron_id'] ?? null;
 
         if (!empty($params['mix_design_id'])) {
-            $query->whereRaw('COALESCE(d.mixdesign_id, so.mix_design_id) = ?', [$params['mix_design_id']]);
+            $query->whereRaw('COALESCE(NULLIF(d.mixdesign_id, 0), so.mix_design_id) = ?', [$params['mix_design_id']]);
         }
 
         if ($truckId) {
@@ -59,14 +56,11 @@ class SiteConsolidatedReportService implements ReportServiceInterface
         }
 
         if ($patronId) {
-            $query->where(function ($q) use ($patronId) {
-                $q->where('d.customer_id', $patronId)
-                  ->orWhere('so.customer_id', $patronId);
-            });
+            $query->whereRaw('COALESCE(NULLIF(d.customer_id, 0), so.customer_id) = ?', [$patronId]);
         }
 
         if (!empty($params['site_id'])) {
-            $query->whereRaw('COALESCE(d.unload_site_id, so.site_id) = ?', [$params['site_id']]);
+            $query->whereRaw('COALESCE(NULLIF(d.unload_site_id, 0), so.site_id) = ?', [$params['site_id']]);
         }
 
         $dispatches = $query->select([
@@ -84,20 +78,22 @@ class SiteConsolidatedReportService implements ReportServiceInterface
             'd.empty_weight_truck',
             'd.loaded_weight_truck',
             'd.net_weight',
-            DB::raw('COALESCE(d.unload_site_id, so.site_id) as unload_site_id'),
+            DB::raw('COALESCE(NULLIF(d.unload_site_id, 0), so.site_id) as unload_site_id'),
+            DB::raw('COALESCE(NULLIF(d.customer_id, 0), so.customer_id) as customer_id'),
+            DB::raw('COALESCE(NULLIF(d.mixdesign_id, 0), so.mix_design_id) as mix_design_id'),
             'b.id as batch_id',
             'b.batch_no',
             'b.batch_size',
             't.registration as truck_no',
-            DB::raw('COALESCE(dp.legal_name, p.legal_name, "N/A") as customer_name'),
+            DB::raw('COALESCE(p.legal_name, "N/A") as customer_name'),
             DB::raw('TRIM(CONCAT(COALESCE(drv.first_name, ""), " ", COALESCE(drv.last_name, ""))) as driver_name'),
-            DB::raw('COALESCE(ds_site.name, s.name, "Unknown Site") as site_name'),
-            DB::raw('COALESCE(dm.design_name, m.design_name, "Standard Mix") as mix_name'),
-            DB::raw('COALESCE(cg.name, dm.design_type, m.design_type, "Standard Grade") as concrete_grade'),
+            DB::raw('COALESCE(s.name, "Unknown Site") as site_name'),
+            DB::raw('COALESCE(NULLIF(m.design_name, ""), cg.name, "Unknown Mix") as mix_name'),
+            DB::raw('COALESCE(cg.name, m.design_type, "Standard Grade") as concrete_grade'),
         ])->get();
 
         $consolidated = $dispatches->groupBy(function ($d) {
-            return $d->unload_site_id ?: ($d->site_name ?: 'Unknown Site');
+            return implode(':', [$d->unload_site_id, $d->customer_id, $d->mix_design_id]);
         })->map(function ($items) {
             $first        = $items->first();
             $totalQty     = (float)$items->sum('delivered_qty');
@@ -113,6 +109,7 @@ class SiteConsolidatedReportService implements ReportServiceInterface
                 'site_id'        => $first->unload_site_id ?? null,
                 'site_name'      => $first->site_name ?: 'Unknown Site',
                 'customer_name'  => $first->customer_name ?: '-',
+                'mix_name'       => $first->mix_name,
                 'trips_count'    => $items->count(),
                 'batch_size'     => $batchSize,
                 'quantity'       => $totalQty,
@@ -125,7 +122,7 @@ class SiteConsolidatedReportService implements ReportServiceInterface
                 'amount_tax'     => $tax,
                 'amount_total'   => $total,
             ];
-        })->values()->sortBy('site_name')->values();
+        })->sortBy([['site_name', 'asc'], ['customer_name', 'asc'], ['mix_name', 'asc']])->values();
 
         // Detailed itemized batching / trip list
         $batchDispatches = $dispatches->map(function ($d, $idx) {

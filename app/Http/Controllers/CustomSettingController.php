@@ -107,6 +107,7 @@ class CustomSettingController extends Controller
             'settings.dispatch_discount_tax_mode' => ['sometimes', 'in:before_tax,after_tax'],
             'settings.invoice_quantity_basis' => ['sometimes', 'in:batch_size,delivered_qty'],
             'settings.show_delivered_qty' => ['sometimes', 'boolean'],
+            'settings.moisture_profile' => ['sometimes', 'in:auto,modomines,readings_only'],
             'settings.batch_sheet_driver' => ['sometimes', 'nullable', 'string', \Illuminate\Validation\Rule::in(
                 array_keys(app(\App\Services\BatchSheet\Drivers\PlantDriverRegistry::class)->getDrivers())
             )],

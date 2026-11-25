@@ -282,26 +282,7 @@ class DispatchController extends Controller
 
         DB::transaction(function () use ($dispatch, $request, $plantId) {
             $trip = Dispatch::where('plant_id', $plantId)->lockForUpdate()->findOrFail($dispatch->id);
-            $order = $request->has('customer_po_id')
-                ? $trip->salesOrder()->where('plant_id', $plantId)->lockForUpdate()->first()
-                : null;
-            if ($request->has('customer_po_id') && !$order) {
-                throw \Illuminate\Validation\ValidationException::withMessages(['customer_po_id' => 'A linked sales order is required to update the customer PO.']);
-            }
-            $changes = $request->validate([
-                'unload_site_id' => ['sometimes', 'required', 'integer', \Illuminate\Validation\Rule::exists('mm_sites', 'id')->where('plant_id', $plantId)->whereNull('deleted_at')],
-                'customer_po_id' => ['sometimes', 'required', 'integer', \Illuminate\Validation\Rule::exists('mm_customer_pos', 'id')->where('plant_id', $plantId)->where('patron_id', $order?->customer_id)->whereNull('deleted_at')],
-            ]);
-            if (isset($changes['customer_po_id'])) {
-                $order->update(['customer_po_id' => $changes['customer_po_id'], 'updated_by' => $request->user()->id]);
-            }
-            if (isset($changes['unload_site_id'])) {
-                $trip->unload_site_id = $changes['unload_site_id'];
-            }
-            if ($trip->isDirty()) {
-                $trip->updated_by = $request->user()->id;
-                $trip->save();
-            }
+            $trip->applyDeliveryReferences($request->only('customer_po_id', 'unload_site_id'), $request->user()->id);
         });
         return response()->noContent();
     }

@@ -38,6 +38,11 @@ class UpdateBatchRequest extends FormRequest
         return true;
     }
 
+    public function isDeliveryReferencesOnly(): bool
+    {
+        return array_keys($this->all()) === ['delivery_references'];
+    }
+
     public function isMoistureOnly(): bool
     {
         return array_keys($this->all()) === ['moisture_contents'];
@@ -45,6 +50,12 @@ class UpdateBatchRequest extends FormRequest
 
     public function rules(): array
     {
+        $referenceRules = [
+            'delivery_references' => ['sometimes', 'array', 'min:1'],
+            'delivery_references.*' => ['array:dispatch_id,unload_site_id,customer_po_id'],
+            'delivery_references.*.dispatch_id' => ['required', 'integer', 'distinct'],
+        ];
+        if ($this->isDeliveryReferencesOnly()) return $referenceRules;
         if ($this->isMoistureOnly()) {
             return \App\Services\BatchMoistureService::rules((int) session('active_plant_id'));
         }
@@ -72,6 +83,7 @@ class UpdateBatchRequest extends FormRequest
             }];
 
         return [
+            ...$referenceRules,
             'customer_id' => ['sometimes', 'required', 'integer'],
             'sales_order_id' => ['nullable', 'integer', 'exists:mm_sales_orders,id'],
             'batch_no' => [
@@ -108,6 +120,7 @@ class UpdateBatchRequest extends FormRequest
             'materials.*.id' => ['nullable', 'integer', 'exists:mm_batch_materials,id'],
             'materials.*.product_id' => ['nullable', 'integer', 'exists:mm_products,id'],
             'materials.*.material_name' => ['nullable', 'string', 'max:255'],
+            'materials.*.entered_actual_qty' => ['sometimes', 'nullable', 'numeric', 'between:0,9999999.999', 'decimal:0,3'],
             'materials.*.target_qty' => ['required', 'numeric', 'gte:0'],
             'materials.*.actual_qty' => ['required', 'numeric', 'gte:0'],
             'materials.*.runs' => ['sometimes', 'array', 'min:1', 'max:1000'],
@@ -119,7 +132,7 @@ class UpdateBatchRequest extends FormRequest
 
     public function withValidator($validator)
     {
-        if ($this->isMoistureOnly()) return;
+        if ($this->isMoistureOnly() || $this->isDeliveryReferencesOnly()) return;
         $validator->after(function ($validator) {
             $materials = $this->input('materials', []);
             foreach (is_array($materials) ? $materials : [] as $index => $material) {

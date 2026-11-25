@@ -63,7 +63,9 @@ trait AuthorizesModule
         $plural   = strtoupper(\Illuminate\Support\Str::plural($module));
         
         $permissionSingular = "{$singular}.{$mappedAction}";
-        $permissionPlural   = "{$plural}.{$mappedAction}";
+        $permissions = $permissionSingular === 'PLANT.VIEW'
+            ? [$permissionSingular]
+            : [$permissionSingular, "{$plural}.{$mappedAction}"];
 
         $tenantPermissions = collect();
         if ($activeRole) {
@@ -75,15 +77,12 @@ trait AuthorizesModule
 
         $upperTenantPermissions = $tenantPermissions->map(fn($p) => strtoupper($p));
 
-        $hasPermission = $upperTenantPermissions->contains(strtoupper($permissionSingular))
-            || $upperTenantPermissions->contains(strtoupper($permissionPlural))
-            || (!$activeEntityId && (
-                \Illuminate\Support\Facades\Gate::allows($permissionSingular)
-                || \Illuminate\Support\Facades\Gate::allows($permissionPlural)
-            ));
+        $hasPermission = collect($permissions)->contains(fn ($permission) =>
+            $upperTenantPermissions->contains($permission) || (!$activeEntityId && Gate::allows($permission))
+        );
 
         if (!$hasPermission) {
-            abort(403, "Access Denied: You do not have the required permission ({$permissionPlural}) for the {$module} module.");
+            abort(403, "Access Denied: You do not have the required permission ({$permissionSingular}) for the {$module} module.");
         }
     }
 }
