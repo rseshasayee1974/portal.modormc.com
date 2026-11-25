@@ -113,14 +113,14 @@ onUnmounted(() => clearInterval(timer));
                             <Tag :value="data.is_read ? 'Read' : 'Unread'" :severity="data.is_read ? 'secondary' : 'info'" rounded />
                         </template>
                     </Column>
-                    <Column header="Actions">
+                    <!-- <Column header="Actions">
                         <template #body="{ data }">
                             <Button :icon="data.url ? 'pi pi-eye' : 'pi pi-check'" severity="secondary" text rounded
                                 :aria-label="data.url ? 'Open ' + data.title : 'Mark ' + data.title + ' as read'"
                                 :title="data.url ? 'Open notification' : 'Mark as read'"
                                 :disabled="busy || (!data.url && data.is_read)" @click="markRead(data)" />
                         </template>
-                    </Column>
+                    </Column> -->
                     <template #empty>{{ filters.global.value || category !== 'all' ? 'No matching notifications' : 'No notifications' }}</template>
                 </BaseDataTable>
             </div>
