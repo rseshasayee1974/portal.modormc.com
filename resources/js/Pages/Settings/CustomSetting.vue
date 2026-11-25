@@ -396,95 +396,9 @@ const submit = () => {
 
                 <!-- Grouped settings with six fields per desktop row across both panels. -->
                 <div
-                    class="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-6 items-start"
+                    class="grid grid-cols-1  gap-6 items-start"
                 >
-                    <aside
-                        class="lg:sticky lg:top-6 rounded-2xl border border-slate-200 bg-white p-3"
-                    >
-                        <p
-                            class="px-3 pt-2 pb-3 text-[10px] font-bold tracking-[0.16em] uppercase text-slate-400"
-                        >
-                            Plant preferences
-                        </p>
-                        <nav
-                            aria-label="Settings sections"
-                            class="flex gap-1 overflow-x-auto lg:flex-col"
-                        >
-                            <a
-                                href="#settings-batching"
-                                class="settings-nav-link"
-                                ><i class="pi pi-box" aria-hidden="true"></i
-                                ><span>Batching</span
-                                ><i
-                                    class="pi pi-angle-right ml-auto text-[10px]"
-                                    aria-hidden="true"
-                                ></i
-                            ></a>
-                            <a
-                                href="#settings-weighbridge"
-                                class="settings-nav-link"
-                                ><i class="pi pi-camera" aria-hidden="true"></i
-                                ><span>Weighbridge &amp; Camera</span
-                                ><i
-                                    class="pi pi-angle-right ml-auto text-[10px]"
-                                    aria-hidden="true"
-                                ></i
-                            ></a>
-                            <a
-                                href="#settings-numbering"
-                                class="settings-nav-link"
-                                ><i class="pi pi-hashtag" aria-hidden="true"></i
-                                ><span>Document Numbering</span
-                                ><i
-                                    class="pi pi-angle-right ml-auto text-[10px]"
-                                    aria-hidden="true"
-                                ></i
-                            ></a>
-                            <a
-                                href="#settings-quotation"
-                                class="settings-nav-link"
-                                ><i
-                                    class="pi pi-file-edit"
-                                    aria-hidden="true"
-                                ></i
-                                ><span>Quotations &amp; Sales</span
-                                ><i
-                                    class="pi pi-angle-right ml-auto text-[10px]"
-                                    aria-hidden="true"
-                                ></i
-                            ></a>
-                            <a
-                                href="#settings-printing"
-                                class="settings-nav-link"
-                                ><i class="pi pi-print" aria-hidden="true"></i
-                                ><span>Printing &amp; Delivery</span
-                                ><i
-                                    class="pi pi-angle-right ml-auto text-[10px]"
-                                    aria-hidden="true"
-                                ></i
-                            ></a>
-                            <a href="#settings-custom" class="settings-nav-link"
-                                ><i
-                                    class="pi pi-sliders-h"
-                                    aria-hidden="true"
-                                ></i
-                                ><span>Appearance &amp; Custom</span
-                                ><i
-                                    class="pi pi-angle-right ml-auto text-[10px]"
-                                    aria-hidden="true"
-                                ></i
-                            ></a>
-                        </nav>
-                        <p
-                            class="hidden lg:block mt-4 border-t border-slate-100 px-3 pt-4 pb-2 text-xs leading-relaxed text-slate-500"
-                        >
-                            Changes apply to
-                            <strong class="font-medium text-slate-700">{{
-                                plantName
-                            }}</strong
-                            >. Save when you are finished.
-                        </p>
-                    </aside>
+                  
                     <div class="settings-panels min-w-0 space-y-6">
                         <!-- TAB 1: BATCHING -->
                         <section
@@ -569,7 +483,7 @@ const submit = () => {
                                     >
                                         <span
                                             class="text-xs font-bold text-slate-800"
-                                            >Show Batch Series Selection</span
+                                            >Show Batch Series </span
                                         >
                                         <code
                                             class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200/60 font-mono"
