@@ -451,6 +451,7 @@ Route::middleware([
         Route::post('dispatches/{dispatch}/whatsapp-send', [DispatchController::class, 'sendWhatsApp'])->name('dispatches.whatsapp-send');
         Route::resource('dispatches', DispatchController::class);
         Route::patch('dispatches/{dispatch}/delivered-quantity', [DispatchController::class, 'updateDeliveredQuantity'])->name('dispatches.delivered-quantity');
+        Route::patch('dispatches/{dispatch}/delivery-references', [DispatchController::class, 'updateDeliveryReferences'])->name('dispatches.delivery-references');
 
         Route::resource('partyrates', PartyRateController::class)->except(['create', 'edit', 'show']);
         Route::get('pumprates/resolve', [PumpRateController::class, 'resolve'])->name('pumprates.resolve');

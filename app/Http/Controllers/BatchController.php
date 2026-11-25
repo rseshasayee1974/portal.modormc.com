@@ -345,6 +345,9 @@ class BatchController extends Controller
             'transporters'      => PatronsDropdown('Transporter'),
             'loading_sites'     => SitesDropdown('loading'),
             'unloading_sites'   => SitesDropdown(),
+            'deliveryCustomerPos' => auth()->user()->isContextAdministrator()
+                ? \App\Models\CustomerPO::where('plant_id', $activePlantId)->orderByDesc('id')->get(['id', 'patron_id', 'reference', 'customer_po_reference'])
+                : [],
             'drivers'           => DriversDropdown(),
             'operators'         => OperatorsDropdown(),
             'sales_executives'  => PersonnelDropdown('','Sales Executive'),
@@ -758,6 +761,7 @@ class BatchController extends Controller
                 // Sales Order
                 'so.prefix as so_prefix',
                 'so.order_no as so_order_no',
+                'so.customer_po_id as so_customer_po_id',
                 'so.total_qty as so_total_qty',
                 'so.produced_qty as so_produced_qty',
                 'so.rate as so_rate',
@@ -887,8 +891,9 @@ class BatchController extends Controller
                 });
         }
 
-        $dispatches = app(\App\Services\ProductionReadCache::class)->remember('dispatch-grid', $activePlantId, ['batch_id' => $batchId, 'patron' => 1], function () use ($batchId, $activePlantId) {
+        $dispatches = app(\App\Services\ProductionReadCache::class)->remember('dispatch-grid', $activePlantId, ['batch_id' => $batchId, 'delivery_references' => 1], function () use ($batchId, $activePlantId) {
             return DB::table('mm_dispatches as d')
+                ->leftJoin('mm_sites as delivery_site', 'delivery_site.id', '=', 'd.unload_site_id')
                 ->leftJoin('mm_patrons as customer', 'customer.id', '=', 'd.customer_id')
                 ->leftJoin('mm_machines as t', 't.id', '=', 'd.truck_id')
                 ->leftJoin('mm_patrons as tr', 'tr.id', '=', 'd.transport_id')
@@ -915,6 +920,7 @@ class BatchController extends Controller
                     'customer.legal_name as dispatch_customer_name',
                     'd.mixdesign_id',
                     'd.unload_site_id',
+                    'delivery_site.name as unload_site_name',
                     'd.load_site_id',
                     'd.uom_id',
                     'd.truck_id',
@@ -1029,6 +1035,7 @@ class BatchController extends Controller
                 'customer' => ['id' => $d->customer_id, 'legal_name' => $d->dispatch_customer_name],
                 'mixdesign_id' => $d->mixdesign_id,
                 'unload_site_id' => $d->unload_site_id,
+                'unload_site_name' => $d->unload_site_name,
                 'load_site_id' => $d->load_site_id,
                 'uom_id' => $d->uom_id,
                 'truck_id' => $d->truck_id,
@@ -1202,8 +1209,8 @@ class BatchController extends Controller
             'customer_id' => $primaryDispatch['customer_id'] ?? $batchRow->customer_id,
             'customer_name' => $primaryDispatch['customer']['legal_name'] ?? $batchRow->customer_legal_name,
             'customer_mobile' => $batchRow->customer_mobile,
-            'site_id' => $batchRow->site_id,
-            'site_name' => $batchRow->site_name,
+            'site_id' => $primaryDispatch['unload_site_id'] ?? $batchRow->site_id,
+            'site_name' => $primaryDispatch['unload_site_name'] ?? $batchRow->site_name,
             'mix_design_id' => $batchRow->mix_design_id,
             'mix_design_name' => $batchRow->mix_design_name,
             'mix_design_code' => $batchRow->mix_design_code,
@@ -1221,6 +1228,7 @@ class BatchController extends Controller
                 'id' => $batchRow->sales_order_id,
                 'prefix' => $batchRow->so_prefix,
                 'order_no' => $batchRow->so_order_no,
+                'customer_po_id' => $batchRow->so_customer_po_id,
                 'full_number' => ($batchRow->so_prefix ?? '') . ($batchRow->so_order_no ?? ''),
                 'produced_qty' => (float)($batchRow->so_produced_qty ?? 0),
                 'total_qty' => (float)($batchRow->so_total_qty ?? 0),

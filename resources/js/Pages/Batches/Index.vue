@@ -16,6 +16,7 @@ import { useInvoiceActions } from "./useInvoiceActions";
 import { canGenerateEInvoice, hasActiveEInvoice, plantHasEwayBill, useEInvoiceCancellation } from "@/Composables/useEInvoiceGeneration";
 import BatchCreateForm from "./components/BatchCreateForm.vue";
 import BatchEditForm from "./components/BatchEditForm.vue";
+import DeliveryReferencesForm from "./components/DeliveryReferencesForm.vue";
 import DispatchSection from "./components/DispatchSection.vue";
 import TabView from "primevue/tabview";
 import TabPanel from "primevue/tabpanel";
@@ -58,6 +59,7 @@ const props = withDefaults(
         products?: any[];
         loading_sites?: any[];
         unloading_sites?: any[];
+        deliveryCustomerPos?: any[];
         uoms?: any[];
         statuses?: { label: string; value: number }[];
         schemaWarning?: string | null;
@@ -87,6 +89,7 @@ const props = withDefaults(
         products: () => [],
         loading_sites: () => [],
         unloading_sites: () => [],
+        deliveryCustomerPos: () => [],
         uoms: () => [],
         statuses: () => [],
         nextBatchNo: 1,
@@ -1929,6 +1932,15 @@ console.log(
                                 <!-- Unified Tabbed Layout for Batch Edit & Dispatch -->
                                 <div
                                     class="relative bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <template v-if="page.props.is_context_administrator && can('DISPATCH.UPDATE')">
+                                        <DeliveryReferencesForm
+                                            v-for="trip in detailedBatches[slotProps.data.id]?.dispatches || []" :key="trip.id"
+                                            :trip="trip" :order="detailedBatches[slotProps.data.id].sales_order"
+                                            :sites="unloading_sites" :purchase-orders="deliveryCustomerPos"
+                                            :show-trip="detailedBatches[slotProps.data.id].dispatches.length > 1"
+                                            @saved="refreshBatchRow(slotProps.data.id)"
+                                        />
+                                    </template>
                                     <TabView :activeIndex="getBatchActiveTab(slotProps.data.id)
                                         " @update:activeIndex="
                                             (val) =>

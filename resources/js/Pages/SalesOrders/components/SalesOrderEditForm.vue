@@ -77,7 +77,7 @@ const filteredStatuses = computed(() => {
         return backupStatuses;
     }
 
-    return props.statuses.filter(status => [1, 2, 4].includes(Number(status.value)));
+    return props.statuses.filter(status => [1, 2, 4, Number(props.salesOrder?.status)].includes(Number(status.value)));
 });
 
 const hasActiveData = computed(() => {
@@ -87,6 +87,7 @@ const hasActiveData = computed(() => {
 });
 
 const isLocked = computed(() => {
+    if (props.salesOrder?.produced_qty != null && Number(props.salesOrder.produced_qty) === 0) return false;
     const status = Number(props.salesOrder?.status);
     const batched = Number(props.salesOrder?.batches_count) > 0 || Number(props.salesOrder?.dispatches_count) > 0;
     if (batched && page.props.is_context_administrator) return false;

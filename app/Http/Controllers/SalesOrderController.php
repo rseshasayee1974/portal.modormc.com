@@ -182,7 +182,8 @@ class SalesOrderController extends Controller
 
         DB::transaction(function () use ($payload, $salesorder) {
             $salesorder = SalesOrder::lockForUpdate()->findOrFail($salesorder->id);
-            if ($salesorder->batches()->withTrashed()->exists() || $salesorder->dispatches()->exists()) {
+            $zeroProduction = $salesorder->produced_qty !== null && (float) $salesorder->produced_qty === 0.0;
+            if (!$zeroProduction && ($salesorder->batches()->withTrashed()->exists() || $salesorder->dispatches()->exists())) {
                 abort_unless(auth()->user()->isContextAdministrator(), 403, 'Only an administrator can edit this order after batching.');
             }
             $salesorder->update($payload);

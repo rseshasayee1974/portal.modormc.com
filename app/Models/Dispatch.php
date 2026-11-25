@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use App\Traits\PlantScoping;
 use App\Traits\TracksModelChanges;
 
@@ -272,9 +273,9 @@ class Dispatch extends Model
         return $this->belongsTo(SalesOrder::class, 'sales_order_id');
     }
 
-    public function customerPO(): BelongsTo
+    public function customerPO(): HasOneThrough
     {
-        return $this->belongsTo(CustomerPO::class, 'customer_po_id');
+        return $this->hasOneThrough(CustomerPO::class, SalesOrder::class, 'id', 'id', 'sales_order_id', 'customer_po_id');
     }
 
     public function batch(): BelongsTo
