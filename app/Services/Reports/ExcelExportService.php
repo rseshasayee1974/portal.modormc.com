@@ -506,7 +506,11 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'inventory_stock') {
-                $columns = InventoryStockReportService::columns();
+                $columns = $data['columns'];
+                if (count($columns['fields']) === 3) {
+                    $title = 'Current Stock List';
+                    $period = 'As of '.now()->format('d-m-Y H:i');
+                }
                 $headersList = $columns['headers'];
                 foreach ($data['transactions'] as $row) {
                     $rows[] = array_map(fn ($field) => $row[$field], $columns['fields']);

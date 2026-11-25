@@ -133,6 +133,7 @@ class QueueReportExportJob implements ShouldQueue
                     'id'               => $this->filters['id'] ?? null,
                     'patron_id'        => $this->filters['patron_id'] ?? null,
                     'voucher_type'     => strtoupper($this->type),
+                    'stock_view' => $this->filters['stock_view'] ?? 'movement',
                     'valuation_method' => $this->filters['valuation_method'] ?? 'FIFO',
                     'consolidation'    => $this->filters['consolidation'] ?? 'po',
                     'truck_id'           => $this->filters['truck_id'] ?? null,
@@ -251,7 +252,7 @@ class QueueReportExportJob implements ShouldQueue
 
         $extraParams = [];
         if (str_contains(strtolower($type), 'inventory_stock')) {
-            $extraParams = \App\Services\Reports\InventoryStockReportService::columns();
+            $extraParams = $data['columns'];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = \App\Services\Reports\InventoryInwardReportService::pdfColumns($data);
         } elseif (strtolower($type) === 'stock_out') {

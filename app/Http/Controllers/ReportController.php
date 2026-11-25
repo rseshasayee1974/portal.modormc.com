@@ -118,6 +118,7 @@ class ReportController extends Controller
             'mixDesigns'       => $mixDesigns,
             'reportPermissions' => $reportPermissions,
             'filters' => [
+                'stock_view' => $request->input('stock_view', 'movement'),
                 'type'       => $request->input('type'),
                 'module'     => $request->input('module'),
                 'register_view' => $request->input('register_view', 'summary'),
@@ -184,6 +185,7 @@ class ReportController extends Controller
                 'id'                  => $id,
                 'patron_id'           => $patronId,
                 'voucher_type'        => strtoupper($type),
+                'stock_view' => $request->input('stock_view', 'movement'),
                 'valuation_method'    => $request->input('valuation_method', 'FIFO'),
                 'consolidation'       => $request->input('consolidation', 'po'),
                 'plant_id'            => session('active_plant_id'),
@@ -301,7 +303,7 @@ class ReportController extends Controller
 
         $extraParams = [];
         if (str_contains(strtolower($type), 'inventory_stock')) {
-            $extraParams = \App\Services\Reports\InventoryStockReportService::columns();
+            $extraParams = $data['columns'];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = \App\Services\Reports\InventoryInwardReportService::pdfColumns($data);
         } elseif (strtolower($type) === 'batching_schedule') {

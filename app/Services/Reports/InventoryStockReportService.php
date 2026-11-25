@@ -23,6 +23,22 @@ class InventoryStockReportService implements ReportServiceInterface
     public function generate(array $params): array
     {
         $plantId = $this->ctx->requirePlantId();
+        if (($params['stock_view'] ?? '') === 'current') {
+            $rows = DB::table('mm_quantity as q')
+                ->leftJoin('mm_products as p', 'p.id', '=', 'q.product_id')
+                ->leftJoin('mm_product_units as u', 'u.id', '=', 'q.uom_id')
+                ->where('q.plant_id', $plantId)->whereNull('q.deleted_at')
+                ->groupBy('q.product_id', 'q.uom_id', 'p.title', 'u.unit_code', 'u.unit_name')
+                ->orderBy('p.title')->orderBy('q.uom_id')
+                ->selectRaw("COALESCE(p.title, 'N/A') AS product_name, COALESCE(u.unit_code, u.unit_name, 'N/A') AS uom, SUM(q.quantity) AS quantity")
+                ->get()->map(fn ($row) => (array) $row);
+
+            return ['transactions' => $rows, 'opening_balance' => 0, 'columns' => [
+                'headers' => ['Product', 'UOM', 'Current Stock'],
+                'fields' => ['product_name', 'uom', 'quantity'],
+                'alignments' => ['left', 'center', 'right'], 'totals' => [],
+            ]];
+        }
         $start = $params['start'];
         $end = $params['end'];
         if (strlen($end) === 10) $end .= ' 23:59:59';
@@ -68,6 +84,6 @@ class InventoryStockReportService implements ReportServiceInterface
 
     public function targetName(array $params): string
     {
-        return 'Stock Level Inventory Report';
+        return ($params['stock_view'] ?? '') === 'current' ? 'Current Stock List' : 'Stock Level Inventory Report';
     }
 }

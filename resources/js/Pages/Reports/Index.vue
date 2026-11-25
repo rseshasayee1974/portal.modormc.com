@@ -340,6 +340,7 @@ const gstType = ref(null);
 const paymentStatus = ref(null);
 const currentPage = ref(1);
 
+const stockView = ref(props.filters.stock_view === 'current' ? 'current' : 'movement');
 const valuationMethod = ref('FIFO');
 const valuationMethodOptions = [
     { label: 'FIFO (First-In, First-Out)', value: 'FIFO' },
@@ -793,7 +794,7 @@ watch(reportType, () => {
     exportProgress.value = null;
 });
 
-watch([selectedId, productId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, expenseCategoryId, qcCategory, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
+watch([selectedId, productId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, stockView, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, expenseCategoryId, qcCategory, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
     currentPage.value = 1;
     invalidateReport();
 });
@@ -823,6 +824,7 @@ const generateReport = async ({ manual = false, pagination = false } = {}) => {
             mix_design_id: mixDesignId.value,
             start_date: startDate.value,
             end_date: endDate.value,
+            stock_view: reportType.value === 'inventory_stock' ? stockView.value : undefined,
             valuation_method: valuationMethod.value,
             truck_id: truckId.value,
             product_id: ['inventory_inward', 'stock_out', 'production_batch'].includes(reportType.value) ? productId.value : null,
@@ -941,6 +943,7 @@ const exportPdf = () => {
         start_date: startDate.value,
         end_date: endDate.value,
         voucher_type_filter: ledgerVoucherFilter.value,
+        stock_view: reportType.value === 'inventory_stock' ? stockView.value : undefined,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
             product_id: ['inventory_inward', 'stock_out', 'production_batch'].includes(reportType.value) ? productId.value : null,
@@ -1009,6 +1012,7 @@ const exportExcel = () => {
         start_date: startDate.value,
         end_date: endDate.value,
         voucher_type_filter: ledgerVoucherFilter.value,
+        stock_view: reportType.value === 'inventory_stock' ? stockView.value : undefined,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
             product_id: ['inventory_inward', 'stock_out', 'production_batch'].includes(reportType.value) ? productId.value : null,
@@ -1124,6 +1128,7 @@ const currentReportParams = computed(() => {
         register_view: registerView.value,
         document_status: registerStatus.value,
         payment_status: paymentStatus.value,
+        stock_view: reportType.value === 'inventory_stock' ? stockView.value : undefined,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
         product_id: ['inventory_inward', 'stock_out', 'production_batch'].includes(reportType.value) ? productId.value : null,
@@ -1167,6 +1172,7 @@ const generateShareLink = async () => {
                 start_date: startDate.value,
                 end_date: endDate.value,
                 voucher_type_filter: ledgerVoucherFilter.value,
+                stock_view: reportType.value === 'inventory_stock' ? stockView.value : undefined,
                 valuation_method: valuationMethod.value,
                 gst_type: gstType.value,
                 register_view: registerView.value,
@@ -1454,6 +1460,11 @@ const shareEmail = () => {
                                             :placeholder="patronPlaceholder" filter showClear />
                                     </div>
 
+                                    <div v-if="reportType === 'inventory_stock'" class="lg:col-span-1">
+                                        <BaseSelect v-model="stockView" label="Stock view"
+                                            :options="[{ name: 'Stock movements', id: 'movement' }, { name: 'Current stock list', id: 'current' }]"
+                                            optionLabel="name" optionValue="id" />
+                                    </div>
                                     <div v-if="['inventory_inward', 'stock_out', 'production_batch'].includes(reportType)" class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Product</span>
                                         <BaseSelect v-model="productId" :options="inwardProducts" optionLabel="title" optionValue="id"

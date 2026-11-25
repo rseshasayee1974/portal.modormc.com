@@ -423,6 +423,7 @@ class InvoiceShareController extends Controller
             'id'               => $params['id'] ?? null,
             'patron_id'        => $params['patron_id'] ?? $params['customer_id'] ?? $params['supplier_id'] ?? null,
             'voucher_type'     => strtoupper($type),
+            'stock_view' => $params['stock_view'] ?? 'movement',
             'valuation_method' => $params['valuation_method'] ?? 'FIFO',
             'truck_id'         => $params['truck_id'] ?? null,
             'site_id'          => $params['site_id'] ?? null,
@@ -472,7 +473,7 @@ class InvoiceShareController extends Controller
 
         $extraParams = [];
         if (str_contains(strtolower($type), 'inventory_stock')) {
-            $extraParams = \App\Services\Reports\InventoryStockReportService::columns();
+            $extraParams = $data['columns'];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = \App\Services\Reports\InventoryInwardReportService::pdfColumns($data);
         } elseif (strtolower($type) === 'batching_schedule') {

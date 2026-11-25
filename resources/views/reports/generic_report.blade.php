@@ -5,6 +5,13 @@
     <title>{{ $target_name ?? 'Report' }}</title>
     <style>
         {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/generic_report.css')) ? file_get_contents(public_path('css/reports/generic_report.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
+        @if(strtolower($type ?? '') === 'machine_tracker')
+            .data-table th.serial-number, .data-table td.serial-number {
+                width: 7px;
+                padding-left: 0;
+                padding-right: 0;
+            }
+        @endif
     </style>
 </head>
 <body>
@@ -43,7 +50,7 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th width="5%">#</th>
+                <th class="serial-number" @if(strtolower($type ?? '') !== 'machine_tracker') width="5%" @endif>#</th>
                 @foreach($headers as $header)
                     <th>{{ $header }}</th>
                 @endforeach
@@ -53,7 +60,7 @@
             @if(count($transactions) > 0)
                 @foreach($transactions as $index => $row)
                     <tr>
-                        <td class="text-center">{{ $index + 1 }}</td>
+                        <td class="text-center serial-number">{{ $index + 1 }}</td>
                         @foreach($fields as $fIdx => $field)
                             @php
                                 $val = $row[$field] ?? '';
