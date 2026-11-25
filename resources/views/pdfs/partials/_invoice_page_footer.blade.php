@@ -4,7 +4,13 @@ Created: 2026-11-25 12:42:18 Asia/Calcutta (UTC+05:30)
 --}}
 @php
     $copyright = ($document->plant?->name ?? $data['company']['name'] ?? config('app.name')) . ' - Copyright ' . now()->year;
+    $footerText = blank($data['company']['seal_sign_path'] ?? null) && blank($document->plant?->seal_sign_path)
+        ? 'This is a computer-generated invoice and does not require a signature.   |   ' . $copyright
+        : $copyright;
 @endphp
+@if ($previewRow ?? false)
+    <div class="invoice-preview-footer" style="background: #eee; color: #475569; padding: 3mm 5mm; font: 8pt sans-serif; text-align: left;">{{ $footerText }}</div>
+@else
 <style>
     @page { margin-bottom: 19mm !important; }
     @if ($is_pdf ?? false)
@@ -24,7 +30,7 @@ Created: 2026-11-25 12:42:18 Asia/Calcutta (UTC+05:30)
         @media print {
             @page {
                 @bottom-center {
-                    content: "{!! str_replace(['\\', '"', '<', "\r", "\n"], ['\\\\', '\\"', '\\3c ', ' ', ' '], $copyright) !!}";
+                    content: "{!! str_replace(['\\', '"', '<', "\r", "\n"], ['\\\\', '\\"', '\\3c ', ' ', ' '], $footerText) !!}";
                     width: 100%;
                     height: 9mm;
                     padding-left: 5mm;
@@ -39,5 +45,6 @@ Created: 2026-11-25 12:42:18 Asia/Calcutta (UTC+05:30)
     @endif
 </style>
 @if ($is_pdf ?? false)
-    <div class="invoice-page-footer">{{ $copyright }}</div>
+    <div class="invoice-page-footer">{{ $footerText }}</div>
+@endif
 @endif
