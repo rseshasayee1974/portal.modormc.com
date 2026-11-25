@@ -64,6 +64,7 @@ const stateOptions = [
     { label: 'Draft', value: 0 },
     { label: 'Confirmed', value: 1 },
     { label: 'Completed', value: 2 },
+    { label: 'Canceled', value: 3 },
 ];
 
 const formatDate = (date: string | null) => {
@@ -84,6 +85,8 @@ const getStatusLabel = (status: number) => {
             return 'Confirmed';
         case 2:
             return 'Completed';
+        case 3:
+            return 'Canceled';
         default:
             return 'Unknown';
     }
@@ -98,7 +101,7 @@ const getStatusSeverity = (status: number) => {
         case 2:
             return 'info';
         case 3:
-            return 'success';
+            return 'danger';
         default:
             return 'secondary';
     }
@@ -533,7 +536,7 @@ watch(() => props.customerPOs, () => {
                         <i class="pi pi-pencil mr-2 text-amber-500 font-bold"></i>
                         {{ expandedRows[activeCustomerPO.id] ? 'Collapse Edit Form' : 'Edit Customer PO' }}
                     </button>
-                    <button v-if="!isCustomerPOCompleted(activeCustomerPO)"
+                    <button v-if="Number(activeCustomerPO.status) !== 3 && !isCustomerPOCompleted(activeCustomerPO)"
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                         @click="convertToSalesOrder(activeCustomerPO); closeAllMenus();">
                         <i class="pi pi-cog mr-2 text-indigo-500 font-bold"></i>

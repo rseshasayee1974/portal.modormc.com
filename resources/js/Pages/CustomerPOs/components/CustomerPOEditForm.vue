@@ -679,7 +679,8 @@ const performSubmit = (customerPOId: any) => {
                 <BaseSelect v-model="form.status" :options="[
                     { label: 'Draft', value: 0 },
                     { label: 'Confirmed', value: 1 },
-                    { label: 'Completed', value: 2 }
+                    { label: 'Completed', value: 2 },
+                    { label: 'Canceled', value: 3 }
                 ]" optionLabel="label" optionValue="value" label="Status" placeholder="Select Status"
                     :error="form.errors.status" />
             </div>

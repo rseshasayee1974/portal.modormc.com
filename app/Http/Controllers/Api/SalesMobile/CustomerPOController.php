@@ -184,7 +184,7 @@ class CustomerPOController extends Controller
                 'adjustment' => 'sometimes|required|numeric|between:-99999999,99999999',
                 'sales_executive_id' => ['nullable', 'integer', $exists('mm_personnels')],
                 'is_tax_inclusive' => 'sometimes|required|boolean',
-                'status' => ['sometimes', 'required', 'integer', Rule::in([CustomerPO::STATUS_DRAFT, CustomerPO::STATUS_CONFIRMED, CustomerPO::STATUS_COMPLETED])],
+                'status' => ['sometimes', 'required', 'integer', Rule::in([CustomerPO::STATUS_DRAFT, CustomerPO::STATUS_CONFIRMED, CustomerPO::STATUS_COMPLETED, CustomerPO::STATUS_CANCELED])],
                 'total_qty' => 'sometimes|required|numeric|between:0.001,99999900',
                 'items' => 'sometimes|required|array|min:1|max:100',
                 'items.*' => 'required|array:id,mix_design_id,quantity,rate,tax_id,concrete_pump,pump_rate,untaxed_amount,tax_amount,amount_total',
@@ -199,7 +199,7 @@ class CustomerPOController extends Controller
                 'items.*.tax_amount' => 'sometimes|nullable|numeric|min:0',
                 'items.*.amount_total' => 'sometimes|nullable|numeric|min:0',
             ], [
-                'status.in' => 'Status must be 0 (Draft), 1 (Confirmed), or 2 (Completed).',
+                'status.in' => 'Status must be 0 (Draft), 1 (Confirmed), 2 (Completed), or 3 (Canceled).',
                 'reference.unique' => 'This customer PO reference is already used in the selected plant.',
                 'items.*.id.exists' => 'The selected item does not belong to this customer PO or has been deleted.',
                 'items.*.id.distinct' => 'Each customer PO item ID must appear only once.',
@@ -319,6 +319,7 @@ class CustomerPOController extends Controller
         return DB::transaction(function () use ($request, $customer_po) {
             Plant::whereKey(Access::plantId())->lockForUpdate()->firstOrFail();
             $po = Access::customerPOs()->lockForUpdate()->findOrFail($customer_po);
+            abort_if((int) $po->status === CustomerPO::STATUS_CANCELED, 422, 'A canceled customer PO cannot be converted.');
             abort_if((int) $po->status === CustomerPO::STATUS_COMPLETED, 422, 'Customer PO is completed.');
             $data = $request->validate([
                 'items' => 'required|array|min:1|max:100',

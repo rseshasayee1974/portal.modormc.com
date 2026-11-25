@@ -67,6 +67,7 @@ class CustomerPOController extends Controller
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
             // 'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
             'is_tax_inclusive' => 'nullable|boolean',
+            'status' => 'nullable|integer|in:0,1,2,3',
             'order_date' => 'required|date',
             'notes' => 'nullable|string',
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
@@ -96,9 +97,9 @@ class CustomerPOController extends Controller
         $plantId = session('active_plant_id') ?: 1;
         $validated['plant_id'] = $plantId;
         
-        $validated['status'] = empty($validated['quotation_id']) 
-            ? CustomerPO::STATUS_DRAFT 
-            : CustomerPO::STATUS_CONFIRMED;
+        if ((int) ($validated['status'] ?? 0) !== CustomerPO::STATUS_CANCELED) {
+            $validated['status'] = empty($validated['quotation_id']) ? CustomerPO::STATUS_DRAFT : CustomerPO::STATUS_CONFIRMED;
+        }
 
         $user = auth()->user();
         $validated['converted_by_user_id'] = $user->id;
@@ -275,7 +276,7 @@ class CustomerPOController extends Controller
             'pump_rate' => 'nullable|numeric|min:0',
             'is_tax_inclusive' => 'nullable|boolean',
             'order_date' => 'required|date',
-            'status' => 'required|integer|in:0,1,2',
+            'status' => 'required|integer|in:0,1,2,3',
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
             'quantity' => 'nullable|numeric|min:0.001',
             'rate' => 'nullable|numeric|min:0',
@@ -563,6 +564,8 @@ class CustomerPOController extends Controller
             
             DB::transaction(function () use ($customerPO, $validated) {
                 Plant::whereKey($customerPO->plant_id)->lockForUpdate()->firstOrFail();
+                $customerPO = CustomerPO::lockForUpdate()->findOrFail($customerPO->id);
+                abort_if($customerPO->status === CustomerPO::STATUS_CANCELED, 422, 'A canceled customer PO cannot be converted.');
                 if ((int)$customerPO->status === CustomerPO::STATUS_DRAFT) {
                     $customerPO->update(['status' => CustomerPO::STATUS_CONFIRMED]);
                 }
@@ -614,6 +617,8 @@ class CustomerPOController extends Controller
             
             DB::transaction(function () use ($customerPO, $validated) {
                 Plant::whereKey($customerPO->plant_id)->lockForUpdate()->firstOrFail();
+                $customerPO = CustomerPO::lockForUpdate()->findOrFail($customerPO->id);
+                abort_if($customerPO->status === CustomerPO::STATUS_CANCELED, 422, 'A canceled customer PO cannot be converted.');
                 if ((int)$customerPO->status === CustomerPO::STATUS_DRAFT) {
                     $customerPO->update(['status' => CustomerPO::STATUS_CONFIRMED]);
                 }
