@@ -139,6 +139,7 @@ class Batch extends Model
     }
 
     protected $casts = [
+        'posted_stock' => 'array',
         'batch_size' => 'decimal:2',
         'start_time' => 'datetime',
         'end_time' => 'datetime',

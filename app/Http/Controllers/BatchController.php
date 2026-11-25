@@ -7,9 +7,10 @@ use App\Http\Requests\StoreBatchRequest;
 use App\Http\Requests\UpdateBatchRequest;
 use App\Models\Batch;
 use App\Models\BatchMaterial;
+use App\Models\BatchMaterialActual;
 use App\Models\Image;
 use App\Models\Product;
-use App\Models\Quantity;
+use App\Services\BatchStock;
 use App\Models\SalesOrder;
 use App\Models\Dispatch;
 use App\Models\Plant;
@@ -459,14 +460,8 @@ class BatchController extends Controller
                     app(\App\Services\BatchMoistureService::class)->sync($batch, $payload['moisture_contents']);
                 }
                 
-                $batchingSettings = \App\Models\CustomSetting::getForModule($activePlantId, 'batching');
-                $withStock = filter_var($batchingSettings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN);
+                BatchStock::reconcile($batch, [], (int) $batch->status);
 
-                if ($withStock && in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                    $this->checkStock($batch, $materialsData);
-                    $this->adjustStock($batch, $materialsData);
-                }
-                
                 $salesOrder->refreshProduction();
 
                 if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
@@ -1241,8 +1236,8 @@ class BatchController extends Controller
             'loaded_weight_truck' => (float)($primaryDispatch['loaded_weight_truck'] ?? 0),
             'net_weight' => (float)($primaryDispatch['net_weight'] ?? 0),
             'materials' => $materials,
-            'entered_actual_quantities' => DB::table('mm_batch_material_actuals')
-                ->where('batch_id', $batchId)->pluck('actual_qty', 'product_id'),
+            'entered_actual_quantities' => BatchMaterialActual::where('batch_id', $batchId)
+                ->orderBy('id')->pluck('actual_qty', 'product_id'),
             'material_display' => $materials->filter(fn ($material) => $material['product_id'])->mapWithKeys(fn ($material) => [
                 $material['product_id'] => $material['batch_display'],
             ]),
@@ -1440,11 +1435,11 @@ class BatchController extends Controller
         $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
         unset($payload['empty_weight_photo'], $payload['loaded_weight_photo']);
 
-        $oldMaterials = $batch->materials()->get()->toArray();
-        $oldStatus = $batch->status;
-
         try {
-            DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto, $oldMaterials, $oldStatus) {
+            DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto) {
+                $batch = Batch::whereKey($batch->id)->lockForUpdate()->firstOrFail();
+                $oldStatus = $batch->status;
+                $previousStock = BatchStock::previous($batch);
                 if (isset($payload['customer_id'])) {
                     $this->saveDispatchPatron($batch, $payload['customer_id']);
                     unset($payload['customer_id']);
@@ -1453,6 +1448,7 @@ class BatchController extends Controller
                     $this->saveDeliveryReferences($batch, $payload['delivery_references']);
                     unset($payload['delivery_references']);
                 }
+                $replaceMaterials = array_key_exists('materials', $payload);
                 $materials = $payload['materials'] ?? [];
                 $moistureContents = $payload['moisture_contents'] ?? null;
                 unset($payload['materials'], $payload['moisture_contents']);
@@ -1472,39 +1468,23 @@ class BatchController extends Controller
                 }
                 $payload['status'] = $newStatus;
 
-                $batchingSettings = \App\Models\CustomSetting::getForModule($batch->plant_id, 'batching');
-                $withStock = filter_var($batchingSettings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN);
+                $batch->fill($payload);
+                $batch->updated_by = auth()->id();
+                $batch->updated_at = now();
+                $batch->save();
 
-                if ($withStock && in_array($newStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                    $wasDeducted = in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]);
-                    $this->checkStock($batch, $materials, $oldMaterials, $wasDeducted);
+                if ($replaceMaterials) {
+                    $this->syncMaterials($batch, $materials);
+                    $this->syncEnteredActualQuantities($batch, $materials);
                 }
-
-                // Revert old consumption only if it was previously deducted
-                if ($withStock && in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                    $this->adjustStock($batch, $oldMaterials, true);
+                if ($replaceMaterials && $moistureContents === null && PlantCalculations::moistureFormula($batch->plant)) {
+                    $moistureContents = $batch->moistureContents()->get()->toArray();
                 }
-
-            $batch->fill($payload);
-            
-            $batch->updated_by = auth()->id();
-            $batch->updated_at = now();
-            $batch->save();
-            
-            $this->syncMaterials($batch, $materials);
-            $this->syncEnteredActualQuantities($batch, $materials);
-            if ($moistureContents === null && PlantCalculations::moistureFormula($batch->plant)) {
-                $moistureContents = $batch->moistureContents()->get()->toArray();
-            }
-            if ($moistureContents !== null) {
-                app(\App\Services\BatchMoistureService::class)->sync($batch, $moistureContents, saveCalculatedActuals: false);
-            }
-            
-            // 2. Apply new consumption only if now dispatched/completed
-            if ($withStock && in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                $this->adjustStock($batch, $materials);
-            }
-            $batch->salesOrder->refreshProduction();
+                if ($moistureContents !== null) {
+                    app(\App\Services\BatchMoistureService::class)->sync($batch, $moistureContents, saveCalculatedActuals: false);
+                }
+                BatchStock::reconcile($batch, $previousStock, (int) $batch->status);
+                $batch->salesOrder->refreshProduction();
 
                 if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) && 
                     $oldStatus != $batch->status) {
@@ -1582,15 +1562,7 @@ class BatchController extends Controller
             $dispatched = in_array((int) $batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED], true)
                 || $batch->dispatches()->whereNotIn('dispatch_status', ['Draft', 'Loading', 'Cancelled'])->exists();
             abort_if($dispatched && !$this->canDeleteDispatchedBatches(), 403, 'Deleting a dispatched or completed batch requires administrator access in the selected plant.');
-            $materials = $batch->materials()->get()->toArray();
-            
-            $batchingSettings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id ?? session('active_plant_id'), 'batching');
-            $withStock = filter_var($batchingSettings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN);
-
-            // Revert stock only if it was previously deducted
-            if ($withStock && in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                $this->adjustStock($batch, $materials, true);
-            }
+            BatchStock::reconcile($batch, BatchStock::previous($batch), Batch::STATUS_CANCELLED);
 
             // Set audit fields before deletion
             $batch->deleted_by = auth()->id();
@@ -1599,6 +1571,7 @@ class BatchController extends Controller
             // All three models use SoftDeletes; retain rows and deletion audit data.
             $batch->materials()->update(['deleted_by' => auth()->id()]);
             $batch->materials()->delete();
+            BatchMaterialActual::where('batch_id', $batch->id)->get()->each->delete();
             
             foreach ($batch->dispatches as $dispatch) {
                 $dispatch->deleted_by = auth()->id();
@@ -2063,8 +2036,8 @@ class BatchController extends Controller
 
     private function syncEnteredActualQuantities(Batch $batch, array $materials): void
     {
-        $actuals = DB::table('mm_batch_material_actuals')->where('batch_id', $batch->id);
-        (clone $actuals)->whereNotIn('product_id', $batch->materials()->reorder()->select('product_id')->whereNotNull('product_id'))->delete();
+        $actuals = BatchMaterialActual::where('batch_id', $batch->id);
+        (clone $actuals)->whereNotIn('product_id', $batch->materials()->reorder()->select('product_id')->whereNotNull('product_id'))->get()->each->delete();
 
         foreach (collect($materials)->whereNotNull('product_id')->groupBy('product_id') as $productId => $rows) {
             $submitted = $rows->filter(fn ($row) => array_key_exists('entered_actual_qty', $row));
@@ -2073,16 +2046,10 @@ class BatchController extends Controller
             }
             $quantities = $submitted->pluck('entered_actual_qty')->filter(fn ($qty) => $qty !== null);
             if ($quantities->isEmpty()) {
-                (clone $actuals)->where('product_id', $productId)->delete();
+                (clone $actuals)->where('product_id', $productId)->get()->each->delete();
                 continue;
             }
-            DB::table('mm_batch_material_actuals')->upsert([[
-                'batch_id' => $batch->id,
-                'product_id' => $productId,
-                'actual_qty' => round($quantities->sum(), 3),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]], ['batch_id', 'product_id'], ['actual_qty', 'updated_at']);
+            BatchMaterialActual::record($batch, (int) $productId, $quantities->sum());
         }
     }
 
@@ -2178,11 +2145,7 @@ class BatchController extends Controller
             }
         }
         if (!in_array((int) $batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED], true)) {
-            $materials = $batch->materials()->get()->toArray();
-            if (filter_var($settings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN)) {
-                $this->checkStock($batch, $materials);
-                $this->adjustStock($batch, $materials);
-            }
+            BatchStock::reconcile($batch, BatchStock::previous($batch), Batch::STATUS_DISPATCHED);
             $batch->update(['status' => Batch::STATUS_DISPATCHED, 'updated_by' => auth()->id()]);
             $batch->salesOrder?->refreshProduction();
             session()->flash('dispatched_batch_id', $batch->id);
@@ -2190,143 +2153,6 @@ class BatchController extends Controller
         // Save again after the batch transition so its load-time rule sees the final status.
         $dispatch->save();
         $this->broadcastBatchChange('BatchUpdated', $batch);
-    }
-
-    private function checkStock(Batch $batch, array $newMaterials, array $oldMaterials = [], bool $wasDeducted = false): void
-    {
-        $plantId = $batch->salesOrder->plant_id ?? session('active_plant_id');
-
-        // 1. Aggregate new quantities required (grouped by product_id and uom_id)
-        $newAggregated = [];
-        foreach ($newMaterials as $item) {
-            if (empty($item['product_id']) || (float)($item['actual_qty'] ?? 0) <= 0) continue;
-            $uomId = $item['uom_id'] ?? null;
-            $key = $item['product_id'] . '_' . $uomId;
-            if (!isset($newAggregated[$key])) {
-                $newAggregated[$key] = [
-                    'product_id' => $item['product_id'],
-                    'uom_id' => $uomId,
-                    'actual_qty' => 0
-                ];
-            }
-            $newAggregated[$key]['actual_qty'] += (float)$item['actual_qty'];
-        }
-
-        if (empty($newAggregated)) {
-            return;
-        }
-
-        // 2. Aggregate old quantities that were deducted (grouped by product_id and uom_id)
-        $oldAggregated = [];
-        if ($wasDeducted) {
-            foreach ($oldMaterials as $item) {
-                if (empty($item['product_id']) || (float)($item['actual_qty'] ?? 0) <= 0) continue;
-                $uomId = $item['uom_id'] ?? null;
-                $key = $item['product_id'] . '_' . $uomId;
-                if (!isset($oldAggregated[$key])) {
-                    $oldAggregated[$key] = 0;
-                }
-                $oldAggregated[$key] += (float)$item['actual_qty'];
-            }
-        }
-
-        // 3. Fetch current stock levels from the database for the required products
-        $productIds = collect($newAggregated)->pluck('product_id')->toArray();
-        $quantityRecords = !empty($productIds) ? Quantity::query()->where('plant_id', $plantId)
-            ->whereIn('product_id', $productIds)
-            ->get()
-            ->keyBy(function ($q) {
-                return $q->product_id . '_' . $q->uom_id;
-            }) : collect();
-
-        // 4. Validate for each product
-        $errors = [];
-        foreach ($newAggregated as $key => $item) {
-            $quantityRecord = $quantityRecords->get($key);
-            $currentStock = $quantityRecord ? (float)$quantityRecord->quantity : 0.0;
-            
-            // Add back the old quantity if it was previously deducted, because it will be reverted
-            $oldQty = $oldAggregated[$key] ?? 0.0;
-            $availableStock = $currentStock + $oldQty;
-            
-            $requiredQty = (float)$item['actual_qty'];
-
-            if ($availableStock < $requiredQty) {
-                $productName = '';
-                if ($quantityRecord && $quantityRecord->relationLoaded('product') && $quantityRecord->product) {
-                    $productName = $quantityRecord->product->title;
-                } else {
-                    $product = Product::find($item['product_id']);
-                    $productName = $product ? $product->title : "Product #{$item['product_id']}";
-                }
-                $errors[] = "Insufficient stock for '{$productName}'. Available: " . number_format($availableStock, 2) . ", Required: " . number_format($requiredQty, 2);
-            }
-        }
-
-        if (!empty($errors)) {
-            throw ValidationException::withMessages([
-                'materials' => $errors
-            ]);
-        }
-    }
-
-    private function adjustStock(Batch $batch, array $materials, bool $isReverting = false): void
-    {
-        $userId = auth()->id();
-        $date = $batch->created_at ? $batch->created_at->toDateString() : now()->toDateString();
-        $plantId = $batch->salesOrder->plant_id ?? session('active_plant_id');
-
-        // Aggregate adjustments by product and uom to reduce time complexity and DB operations
-        $aggregated = [];
-        foreach ($materials as $item) {
-            if (empty($item['product_id']) || (float)($item['actual_qty'] ?? 0) <= 0) continue;
-            $key = $item['product_id'] . '_' . $item['uom_id'];
-            if (!isset($aggregated[$key])) {
-                $aggregated[$key] = [
-                    'product_id' => $item['product_id'],
-                    'uom_id' => $item['uom_id'],
-                    'actual_qty' => 0
-                ];
-            }
-            $aggregated[$key]['actual_qty'] += (float)$item['actual_qty'];
-        }
-
-        $productIds = collect($aggregated)->pluck('product_id')->toArray();
-        
-        // Use query() to prevent IDE 'Not enough arguments' warning on where()
-        $quantityRecords = !empty($productIds) ? Quantity::query()->where('plant_id', $plantId)
-            ->whereIn('product_id', $productIds)
-            ->get()
-            ->keyBy(function ($q) {
-                return $q->product_id . '_' . $q->uom_id;
-            }) : collect();
-
-        foreach ($aggregated as $key => $item) {
-            $quantityRecord = $quantityRecords->get($key);
-            
-            if (!$quantityRecord) {
-                $quantityRecord = new Quantity([
-                    'plant_id' => $plantId,
-                    'product_id' => $item['product_id'],
-                    'uom_id' => $item['uom_id']
-                ]);
-                $quantityRecord->opening_quantity = 0;
-                $quantityRecord->created_by = $userId;
-                $quantityRecord->status = 1;
-                $quantityRecord->quantity = 0;
-            }
-
-            $adjustment = (float)$item['actual_qty'];
-            
-            if ($isReverting) {
-                $quantityRecord->quantity += $adjustment;
-            } else {
-                $quantityRecord->quantity -= $adjustment;
-            }
-
-            $quantityRecord->updated_by = $userId;
-            $quantityRecord->save();
-        }
     }
 
     private function storeBatchImage(Batch $batch, ?string $base64Data, string $type): void

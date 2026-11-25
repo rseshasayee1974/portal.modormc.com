@@ -583,6 +583,10 @@ class ConcreteBatchingScheduleController extends Controller
         }
 
         return DB::transaction(function () use ($schedule) {
+            $schedule = ConcreteBatchingSchedule::whereKey($schedule->id)->lockForUpdate()->firstOrFail();
+            if ($schedule->dispatch_id) {
+                return response()->json(['success' => false, 'message' => 'Dispatch ticket already exists for this trip slot.'], 422);
+            }
             $plantId = $schedule->plant_id;
             $dispatchDetails = Dispatch::nextDocumentNumber($plantId, $schedule->salesOrder?->customer_id, $schedule->batch);
             $salesOrder = $schedule->salesOrder;
@@ -621,7 +625,10 @@ class ConcreteBatchingScheduleController extends Controller
             ]);
 
             if ($schedule->batch_id) {
-                Batch::where('id', $schedule->batch_id)->update(['status' => Batch::STATUS_DISPATCHED]);
+                $batch = Batch::where('plant_id', $plantId)->whereKey($schedule->batch_id)->lockForUpdate()->firstOrFail();
+                abort_if((int) $batch->status === Batch::STATUS_CANCELLED, 422, 'A cancelled batch cannot be dispatched.');
+                \App\Services\BatchStock::reconcile($batch, \App\Services\BatchStock::previous($batch), Batch::STATUS_DISPATCHED);
+                $batch->update(['status' => Batch::STATUS_DISPATCHED]);
             }
 
             if ($salesOrder) {

@@ -277,6 +277,8 @@ class BatchSheetUploadController extends Controller
 
         try {
             DB::transaction(function () use ($upload, $header, $materials) {
+                $upload = BatchSheetUpload::whereKey($upload->id)->lockForUpdate()->firstOrFail();
+                if ($upload->batch_id) return;
                 $batchDate = $header['batch_date'] ?? ($upload->parsed_json['header_fields']['batch_date'] ?? now()->toDateString());
                 $time = fn ($key) => !empty($header[$key])
                     ? \Carbon\Carbon::parse($header[$key])->setDateFrom(\Carbon\Carbon::parse($batchDate))->format('Y-m-d H:i:s') : null;
@@ -359,6 +361,8 @@ class BatchSheetUploadController extends Controller
                     }
                 }
 
+                \App\Services\BatchStock::reconcile($batch, [], Batch::STATUS_COMPLETED);
+
                 // 3. Create Dispatch Trip Record
                 $number = Dispatch::nextDocumentNumber($upload->plant_id, $header['customer_id'] ?? null, $batch);
 
@@ -407,6 +411,8 @@ class BatchSheetUploadController extends Controller
                 'message' => 'Batch sheet data saved and trip generated successfully.'
             ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error("BatchSheetUploadController@saveToDatabase failed: " . $e->getMessage());
             return response()->json(['error' => 'Failed to save batch sheet: ' . $e->getMessage()], 500);

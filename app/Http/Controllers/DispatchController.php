@@ -493,6 +493,10 @@ class DispatchController extends Controller
         ]);
 
         return DB::transaction(function () use ($dispatch, $request) {
+            $dispatch = Dispatch::whereKey($dispatch->id)->lockForUpdate()->firstOrFail();
+            if ($dispatch->dispatch_status === 'Cancelled') {
+                throw \Illuminate\Validation\ValidationException::withMessages(['error' => 'This dispatch has already been cancelled.']);
+            }
             $notes = trim((string)$request->input('notes'));
             $result = $dispatch->cancel($notes, auth()->id());
 

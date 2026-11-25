@@ -520,6 +520,11 @@ class Dispatch extends Model
         $userId = $userId ?? \Illuminate\Support\Facades\Auth::id() ?? 1;
         $now = now();
 
+        $batch = $this->batch()->lockForUpdate()->first();
+        if ($batch) {
+            \App\Services\BatchStock::reconcile($batch, \App\Services\BatchStock::previous($batch), Batch::STATUS_CANCELLED);
+        }
+
         // 1. Update Dispatch Status & Cancellation info
         $this->update([
             'dispatch_status' => 'Cancelled',
@@ -529,9 +534,9 @@ class Dispatch extends Model
         ]);
 
         // 2. Update linked Batch status to STATUS_CANCELLED (5)
-        if ($this->batch) {
-            $this->batch->update([
-                'status' => \App\Models\Batch::STATUS_CANCELLED,
+        if ($batch) {
+            $batch->update([
+                'status' => Batch::STATUS_CANCELLED,
             ]);
         }
 

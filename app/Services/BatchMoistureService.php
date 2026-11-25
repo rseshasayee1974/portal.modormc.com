@@ -8,6 +8,7 @@ Created: 2026-11-02 11:26:14 Asia/Calcutta (UTC+05:30)
 namespace App\Services;
 
 use App\Models\Batch;
+use App\Models\BatchMaterialActual;
 use App\Services\BatchMoisture\PlantCalculations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -48,15 +49,9 @@ class BatchMoistureService
             if ($formula) {
                 $targets = $formula::targets($batch, $readings);
                 if ($saveCalculatedActuals && $targets) {
-                    $now = now();
-                    $actuals = collect($targets)->groupBy('product_id')->map(fn ($runs, $productId) => [
-                        'batch_id' => $batch->id,
-                        'product_id' => $productId,
-                        'actual_qty' => round($runs->sum('target'), 3),
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ])->values()->all();
-                    DB::table('mm_batch_material_actuals')->upsert($actuals, ['batch_id', 'product_id'], ['actual_qty', 'updated_at']);
+                    foreach (collect($targets)->groupBy('product_id') as $productId => $runs) {
+                        BatchMaterialActual::record($batch, (int) $productId, $runs->sum('target'));
+                    }
                 }
             }
             $byProduct = $existing->keyBy('product_id');
