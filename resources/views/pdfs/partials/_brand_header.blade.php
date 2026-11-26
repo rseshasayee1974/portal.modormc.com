@@ -3,7 +3,7 @@ Author: ragul-onemodo
 Created: 2026-10-13 12:33:34 Asia/Calcutta (UTC+05:30)
 -->
 @php
-    $printBrand = \App\Services\PrintBrandHeader::resolve(get_defined_vars());
+    $printBrand = $reportBrand ?? \App\Services\PrintBrandHeader::resolve(get_defined_vars());
     $invoiceBrandHeader = !empty($brandInvoiceTitle);
     $logoSize = 'max-width:100%; max-height:' . (!empty($compactBrandHeader) ? '32' : '45') . 'px; width:auto; height:auto;';
     if ($invoiceBrandHeader && $printBrand['logo']) {

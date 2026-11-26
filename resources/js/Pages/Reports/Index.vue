@@ -49,6 +49,7 @@ import VoucherReport from './components/VoucherReport.vue';
 import QualityTestingReport from './components/QualityTestingReport.vue';
 import ExpenseReport from './components/ExpenseReport.vue';
 import CustomerOutstandingReport from './components/CustomerOutstandingReport.vue';
+import InvoiceWiseAgingReport from './components/InvoiceWiseAgingReport.vue';
 import PatronCreditLimitReport from './components/PatronCreditLimitReport.vue';
 import OverallReport from './components/OverallReport.vue';
 import BulkDocumentReport from './components/BulkDocumentReport.vue';
@@ -135,6 +136,7 @@ const reportIcons = {
     bulk_documents: DocumentDuplicateIcon,
     ledger: BookOpenIcon,
     customer_outstanding: ClockIcon,
+    invoice_wise_aging: ClockIcon,
     patron_credit_limit: BanknotesIcon,
     patron: UserGroupIcon,
     expense: BanknotesIcon,
@@ -186,6 +188,7 @@ const reportCatalog = [
             { id: 'bulk_documents', name: 'Bulk Invoice / Bill Export', description: 'Filter invoices and bills and download one combined PDF, one document per page' },
             { id: 'ledger', name: 'General Ledger', description: 'Account balances, running ledgers and transaction history' },
             { id: 'customer_outstanding', name: 'Customer Outstanding Report', description: 'Customer receivables, billed vs received, outstanding balance and aging analysis' },
+            { id: 'invoice_wise_aging', name: 'Invoice-wise Aging Report', description: 'Open invoices and days overdue for a selected patron as of a date' },
             { id: 'patron_credit_limit', name: 'Patron Credit Limit Report', description: 'Credit limit, used credit and available credit by patron' },
             { id: 'patron', name: 'Patron Statement', description: 'Partner transactions, invoice status and balances' },
             { id: 'expense', name: 'Expense Report', description: 'Expense register with category totals, payment ledger, payee, made by and accounting status' },
@@ -314,15 +317,16 @@ const endDate = ref(props.filters.end_date);
 const isFiltersCollapsed = ref(false);
 const loading = ref(false);
 const reportData = ref(null);
-const canExecuteReport = computed(() => reportType.value !== 'ledger' || !!(selectedId.value || patronId.value));
+const needsPatron = computed(() => reportType.value === 'invoice_wise_aging' && !patronId.value);
+const canExecuteReport = computed(() => !needsPatron.value && (reportType.value !== 'ledger' || !!(selectedId.value || patronId.value)));
 
 const defaultRegisterView = (type) => type === 'sales_register' && !hasReportPermission(type, 'view', 'detail') ? 'summary' : 'detail';
 const registerView = ref(['summary', 'detail'].includes(initialSelection.registerView)
     && hasReportPermission(reportType.value, 'view', initialSelection.registerView)
     ? initialSelection.registerView : defaultRegisterView(reportType.value));
-const canExportReport = computed(() => hasReportPermission(reportType.value, 'export', registerView.value));
-const canShareReport = computed(() => hasReportPermission(reportType.value, 'share', registerView.value));
-const canScheduleReport = computed(() => hasReportPermission(reportType.value, 'schedule', registerView.value));
+const canExportReport = computed(() => !needsPatron.value && hasReportPermission(reportType.value, 'export', registerView.value));
+const canShareReport = computed(() => !needsPatron.value && hasReportPermission(reportType.value, 'share', registerView.value));
+const canScheduleReport = computed(() => !needsPatron.value && hasReportPermission(reportType.value, 'schedule', registerView.value));
 const registerExcelFormat = ref('standard');
 const registerExcelFormatOptions = computed(() => [
     { label: 'Standard register', value: 'standard' },
@@ -381,6 +385,7 @@ const getReportComponent = (type) => {
         case 'product_consolidated': return ProductConsolidatedReport;
         case 'customer_consolidated': return CustomerConsolidatedReport;
         case 'customer_outstanding': return CustomerOutstandingReport;
+        case 'invoice_wise_aging': return InvoiceWiseAgingReport;
         case 'patron_credit_limit': return PatronCreditLimitReport;
         case 'overall': return OverallReport;
         case 'truck_consolidated': return TruckConsolidatedReport;
@@ -553,7 +558,7 @@ const reportGroups = computed(() => {
         `${report.name} ${report.description}`.toLowerCase().includes(query));
     const groups = activeModule.value?.id === 'accounting' ? [
         { name: 'Registers', ids: ['sales_register', 'purchase_register', 'credit_debit_note_register'] },
-        { name: 'Accounts & balances', ids: ['ledger', 'customer_outstanding', 'patron_credit_limit', 'patron'] },
+        { name: 'Accounts & balances', ids: ['ledger', 'customer_outstanding', 'invoice_wise_aging', 'patron_credit_limit', 'patron'] },
         { name: 'Cash movements', ids: ['payment', 'receipt', 'expense'] },
         { name: 'Exports & audit', ids: ['bulk_documents', 'deleted_report'] },
     ] : [{ name: 'Available reports', ids: reports.map(report => report.id) }];
@@ -571,6 +576,7 @@ const isSupplierReport = computed(() => {
 });
 
 const patronLabel = computed(() => {
+    if (reportType.value === 'invoice_wise_aging') return 'Patron (required)';
     if (reportType.value === 'expense') return 'Select Payee';
     if (reportType.value === 'inventory_inward') return 'Select Customer / Supplier';
     if (isCustomerReport.value) return 'Select Customer';
@@ -579,6 +585,7 @@ const patronLabel = computed(() => {
 });
 
 const patronPlaceholder = computed(() => {
+    if (reportType.value === 'invoice_wise_aging') return 'Select a patron';
     if (reportType.value === 'expense') return '-- All Payees --';
     if (reportType.value === 'inventory_inward') return '-- All Customers / Suppliers --';
     if (isCustomerReport.value) return '-- All Customers --';
@@ -592,6 +599,7 @@ const patronOptions = computed(() => {
         const types = Array.isArray(patron.patron_type) ? patron.patron_type : [patron.patron_type];
         return types.includes('Customer');
     });
+    if (reportType.value === 'invoice_wise_aging') return list;
     const allLabel = patronPlaceholder.value;
     return [
         {
@@ -1457,12 +1465,12 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Patron / Customer Dropdown -->
-                                    <div v-if="['expense', 'credit_debit_note_register', 'customer_receipt_payment', 'overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'stock_out', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
+                                    <div v-if="['expense', 'credit_debit_note_register', 'customer_receipt_payment', 'overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'stock_out', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'invoice_wise_aging', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                             {{ patronLabel }}
                                         </span>
-                                        <BaseSelect v-model="patronId" :options="patronOptions" optionLabel="legal_name"
+                                        <BaseSelect v-model="patronId" :required="reportType === 'invoice_wise_aging'" :options="patronOptions" optionLabel="legal_name"
                                             optionValue="id"
                                             :filterFields="['legal_name', 'email', 'phone', 'contact_person']"
                                             :placeholder="patronPlaceholder" filter showClear />
@@ -1616,8 +1624,12 @@ const shareEmail = () => {
                                             showClear />
                                     </div>
 
+                                    <div v-if="reportType === 'invoice_wise_aging'">
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">As of date</span>
+                                        <BaseDatePicker v-model="endDate" fluid placeholder="Select date" />
+                                    </div>
                                     <!-- Date & Time Range -->
-                                    <div class="lg:col-span-2 grid grid-cols-2 gap-4">
+                                    <div v-else class="lg:col-span-2 grid grid-cols-2 gap-4">
                                         <div>
                                             <span class="text-[11px] font-bold text-slate-500 block mb-1">Start Date &
                                                 Time</span>

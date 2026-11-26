@@ -25,6 +25,7 @@ class ReportServiceFactory
             'credit_debit_note_register' => CreditDebitNoteRegisterService::class,
             'product_consolidated'  => ProductConsolidatedReportService::class,
             'customer_consolidated' => CustomerConsolidatedReportService::class,
+            'invoice_wise_aging'    => InvoiceWiseAgingReportService::class,
             'customer_outstanding'  => CustomerOutstandingReportService::class,
             'patron_credit_limit'   => PatronCreditLimitReportService::class,
             'overall'               => OverallReportService::class,

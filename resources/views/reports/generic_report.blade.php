@@ -15,7 +15,13 @@
     </style>
 </head>
 <body>
-@include('pdfs.partials._brand_header')
+@if(strtolower($type ?? '') === 'invoice_wise_aging')
+    @include('pdfs.partials._brand_header', ['reportBrand' => $plant_details + [
+        'logo' => 'data:image/png;base64,' . base64_encode(file_get_contents(public_path('assets/modormc_logo_v1.png')))
+    ]])
+@else
+    @include('pdfs.partials._brand_header')
+@endif
 
 
     <!-- Subtle Diagonal Watermark -->
@@ -36,14 +42,17 @@
             </td>
             
             <td style="width: 48%; text-align: right;">
-                
             </td>
         </tr>
     </table>
 
     <!-- Statement Title Bar -->
     <div class="statement-title-container">
-        <h2 class="statement-title">{{ $target_name }} (Period: {{ $start }} - {{ $end }})</h2>
+        @if(strtolower($type ?? '') === 'invoice_wise_aging')
+            <h2 class="statement-title">Invoice-wise Aging as of {{ $as_of }}</h2>
+        @else
+            <h2 class="statement-title">{{ $target_name }} (Period: {{ $start }} - {{ $end }})</h2>
+        @endif
     </div>
 
     <!-- Statement Table -->

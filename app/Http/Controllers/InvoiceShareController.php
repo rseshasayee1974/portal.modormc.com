@@ -36,6 +36,9 @@ class InvoiceShareController extends Controller
         $reportParams = $request->input('report_params');
         if ($docType === 'report') {
             app(\App\Services\Reports\ReportPermissions::class)->authorize((string) ($reportParams['type'] ?? ''), 'share', $reportParams ?? []);
+            if (($reportParams['type'] ?? null) === 'invoice_wise_aging') {
+                $request->validate(['report_params.patron_id' => \App\Services\Reports\InvoiceWiseAgingReportService::patronRules(session('active_plant_id'))]);
+            }
         }
 
         // Determine expiration timestamp
@@ -301,7 +304,7 @@ class InvoiceShareController extends Controller
 
         $pdfData = $this->compileReportData($link);
 
-        $landscapeTypes = ['inventory_stock', 'expense', 'batching_schedule', 'sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl', 'silo_stock_valuation', 'gstr1', 'gstr3b'];
+        $landscapeTypes = ['invoice_wise_aging', 'inventory_stock', 'expense', 'batching_schedule', 'sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl', 'silo_stock_valuation', 'gstr1', 'gstr3b'];
         $isOutstandingSummary = strtolower($pdfData['type']) === 'customer_outstanding'
             && empty($pdfData['pdfData']['is_single_patron']);
         $orientation = in_array(strtolower($pdfData['type']), $landscapeTypes) || $isOutstandingSummary ? 'landscape' : 'portrait';
@@ -440,6 +443,7 @@ class InvoiceShareController extends Controller
 
         $viewMap = [
             'EXPENSE' => 'reports.generic_report',
+            'INVOICE_WISE_AGING' => 'reports.generic_report',
             'QUALITY_TESTING' => 'reports.generic_report',
             'LEDGER'               => 'reports.ledger_report',
             'PATRON'               => 'reports.patron_report',
@@ -473,7 +477,9 @@ class InvoiceShareController extends Controller
         }
 
         $extraParams = [];
-        if (str_contains(strtolower($type), 'inventory_stock')) {
+        if (strtolower($type) === 'invoice_wise_aging') {
+            $extraParams = $data['columns'];
+        } elseif (str_contains(strtolower($type), 'inventory_stock')) {
             $extraParams = $data['columns'];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = \App\Services\Reports\InventoryInwardReportService::pdfColumns($data);

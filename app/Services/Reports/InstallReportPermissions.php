@@ -46,6 +46,15 @@ class InstallReportPermissions
     public static function syncMenus(): void
     {
         if (!Schema::hasTable('mm_menus')) return;
+        $reportsMenu = DB::table('mm_menus')->where('alias', 'report')->value('id');
+        if ($reportsMenu && !DB::table('mm_menus')->where('alias', 'invoice-wise-aging')->exists()) {
+            \App\Models\Menu::create([
+                'alias' => 'invoice-wise-aging', 'title' => 'Invoice-wise Aging Report',
+                'link' => 'reports/report?type=invoice_wise_aging', 'menutype' => 2,
+                'icon' => 'DocumentChartBarIcon', 'parent_id' => $reportsMenu, 'published' => 1,
+                'level' => 1, 'ordering' => 4, 'permission_name' => ReportPermissions::name('invoice_wise_aging', 'VIEW'),
+            ]);
+        }
         foreach (DB::table('mm_menus')->where('link', 'like', '%reports/%')->get() as $menu) {
             $path = trim(parse_url($menu->link, PHP_URL_PATH) ?? '', '/');
             parse_str(parse_url($menu->link, PHP_URL_QUERY) ?? '', $params);

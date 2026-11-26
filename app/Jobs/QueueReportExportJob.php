@@ -197,6 +197,7 @@ class QueueReportExportJob implements ShouldQueue
     {
         $viewMap = [
             'EXPENSE' => 'reports.generic_report',
+            'INVOICE_WISE_AGING' => 'reports.generic_report',
             'QUALITY_TESTING' => 'reports.generic_report',
             'LEDGER'                    => 'reports.ledger_report',
             'PATRON'                    => 'reports.patron_report',
@@ -251,7 +252,9 @@ class QueueReportExportJob implements ShouldQueue
         }
 
         $extraParams = [];
-        if (str_contains(strtolower($type), 'inventory_stock')) {
+        if (strtolower($type) === 'invoice_wise_aging') {
+            $extraParams = $data['columns'];
+        } elseif (str_contains(strtolower($type), 'inventory_stock')) {
             $extraParams = $data['columns'];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = \App\Services\Reports\InventoryInwardReportService::pdfColumns($data);
@@ -326,7 +329,7 @@ class QueueReportExportJob implements ShouldQueue
             $paperSize = 'a5';
         }
 
-        if (in_array(strtolower($type), ['attendance', 'expense', 'inventory_stock'], true)) $orientation = 'landscape';
+        if (in_array(strtolower($type), ['attendance', 'expense', 'inventory_stock', 'invoice_wise_aging'], true)) $orientation = 'landscape';
         if (strtolower($type) === 'machine_tracker') {
             $paperSize = 'a3';
             $orientation = 'landscape';

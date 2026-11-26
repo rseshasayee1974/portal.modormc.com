@@ -59,6 +59,11 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             return $this->generateSinglePatronStatement((int)$patronId, $plantId, $start, $end, $params);
         }
 
+        return $this->agingSummary($plantId, null, $start, $end, now()->startOfDay());
+    }
+
+    public function agingSummary(?int $plantId, ?int $patronId, ?string $start, ?string $end, Carbon $today): array
+    {
         $invoiceQuery = $this->commercialDocumentQuery($plantId);
 
         if ($plantId) {
@@ -110,6 +115,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
         // Discount-module records are authoritative, including records without a journal.
         $discounts = $this->discountQuery($plantId)
+            ->when($patronId, fn ($q) => $q->where('partner_id', $patronId))
             ->when($end, fn($q) => $q->where('date', '<=', substr($end, 0, 10)))->get();
         $discountsByCustomer = $discounts->groupBy('partner_id');
 
@@ -155,7 +161,6 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             return in_array($type, ['payment', 'pmt']) || (!str_contains($type, 'receipt') && $type === 'payment');
         })->groupBy('patron_id');
 
-        $today = now()->startOfDay();
         $allOpenInvoices = [];
         $allReceiptsList = [];
         $allPaymentsList = [];

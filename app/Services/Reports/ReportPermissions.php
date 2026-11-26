@@ -21,6 +21,7 @@ class ReportPermissions
         'expense' => 'Expense Report',
         'quality_testing' => 'Quality Testing Report',
         'receipt' => 'Receipt Log',
+        'invoice_wise_aging' => 'Invoice-wise Aging',
         'customer_outstanding' => 'Customer Outstanding',
         'patron_credit_limit' => 'Patron Credit Limit',
         'deleted_report' => 'Deleted Report',

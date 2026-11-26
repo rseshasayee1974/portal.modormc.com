@@ -931,6 +931,15 @@ class ExcelExportService
                         'rows' => $batchRows,
                     ];
                 }
+            } elseif ($type === 'invoice_wise_aging') {
+                $title = 'Invoice-wise Aging - '.$data['patron_name'];
+                $period = 'As of '.$data['as_of'];
+                $headersList = $data['columns']['headers'];
+                foreach ($data['transactions'] as $row) {
+                    $rows[] = array_map(fn ($field) => $row[$field], $data['columns']['fields']);
+                }
+                $totalRow = array_map(fn ($field) => $data['columns']['totals'][$field] ?? '', $data['columns']['fields']);
+                $totalRow[0] = 'Total';
             } elseif ($type === 'patron_credit_limit') {
                 $title = 'PATRON CREDIT LIMIT REPORT';
                 $headersList = ['Patron Code', 'Patron Name', 'Credit Limit (₹)', 'Used Credit (₹)', 'Available Credit (₹)'];
@@ -1764,7 +1773,26 @@ class ExcelExportService
             }
         }
 
-        return $this->export($title, $period, $headersList, $rows, $totalRow, $extraSections);
+        $workbook = $this->export($title, $period, $headersList, $rows, $totalRow, $extraSections);
+        if ($type === 'invoice_wise_aging') {
+            $sheet = $workbook->getActiveSheet();
+            $plant = $data['plant_details'];
+            $details = array_filter([$plant['name'], $plant['address'], $plant['gstin'] ? 'GSTIN: '.$plant['gstin'] : '']);
+            $sheet->mergeCells('E3:'.$sheet->getHighestColumn().'3');
+            $sheet->setCellValueExplicit('E3', implode("\n", $details), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->getStyle('E3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)
+                ->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+            $sheet->getRowDimension(3)->setRowHeight(max(36, (count($details) + 1) * 16));
+            $logo = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
+            $logo->setName('ModoRMC');
+            $logo->setPath(public_path('assets/modormc_logo_v1.png'));
+            $logo->setCoordinates('A3');
+            $logo->setOffsetY(4);
+            $logo->setHeight(32);
+            $logo->setWorksheet($sheet);
+        }
+
+        return $workbook;
     }
 
     /**

@@ -145,6 +145,12 @@ class ReportController extends Controller
         ]);
         $isExport = in_array(strtolower((string) $request->input('export')), ['excel', 'pdf'], true);
         $this->authorizeReport($type, $isExport ? 'export' : 'view', $request->all());
+        if ($type === 'invoice_wise_aging') {
+            $request->validate([
+                'patron_id' => \App\Services\Reports\InvoiceWiseAgingReportService::patronRules(session('active_plant_id')),
+                'end_date' => 'nullable|date',
+            ]);
+        }
         try {
             $export   = $request->input('export');
             $type     = $request->input('type');
@@ -251,6 +257,7 @@ class ReportController extends Controller
     {
         $viewMap = [
             'EXPENSE' => 'reports.generic_report',
+            'INVOICE_WISE_AGING' => 'reports.generic_report',
             'QUALITY_TESTING' => 'reports.generic_report',
             'LEDGER'                    => 'reports.ledger_report',
             'PATRON'                    => 'reports.patron_report',
@@ -302,7 +309,9 @@ class ReportController extends Controller
         }
 
         $extraParams = [];
-        if (str_contains(strtolower($type), 'inventory_stock')) {
+        if (strtolower($type) === 'invoice_wise_aging') {
+            $extraParams = $data['columns'];
+        } elseif (str_contains(strtolower($type), 'inventory_stock')) {
             $extraParams = $data['columns'];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = \App\Services\Reports\InventoryInwardReportService::pdfColumns($data);
@@ -375,7 +384,7 @@ class ReportController extends Controller
 
         $css = $this->getReportCss($type);
 
-        if (in_array(strtolower($type), ['attendance', 'expense', 'inventory_stock'], true)) $orientation = 'landscape';
+        if (in_array(strtolower($type), ['attendance', 'expense', 'inventory_stock', 'invoice_wise_aging'], true)) $orientation = 'landscape';
         if (strtolower($type) === 'machine_tracker') {
             $paperSize = 'a3';
             $orientation = 'landscape';
@@ -643,6 +652,9 @@ class ReportController extends Controller
      */
     public function storeSchedule(Request $request)
     {
+        if ($request->input('report_type') === 'invoice_wise_aging') {
+            $request->validate(['report_params.patron_id' => \App\Services\Reports\InvoiceWiseAgingReportService::patronRules(session('active_plant_id'))]);
+        }
         $this->authorizeReport((string) $request->input('report_type'), 'schedule', (array) $request->input('report_params', []));
         $plantId = session('active_plant_id');
         $data = $request->validate([
