@@ -475,7 +475,7 @@
                 <td style="width: 45%; text-align: right; vertical-align: top;">
                     <div class="address-box">
                         <span class="address-title">Customer Filter:</span>
-                        <span class="address-name">All Active Customers</span>
+                        <span class="address-name">{{ $patron?->legal_name ?? 'All Active Customers' }}</span>
                         <span>Party-wise Outstanding Balances & Aging</span><br>
                         <span style="font-size: 7.5pt; color: #64748b; margin-top: 4px; display: inline-block;">
                             Generated: {{ $generated_at ?? now()->format('d/m/Y h:i A') }}

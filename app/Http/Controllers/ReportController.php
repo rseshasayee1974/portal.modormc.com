@@ -145,6 +145,13 @@ class ReportController extends Controller
         ]);
         $isExport = in_array(strtolower((string) $request->input('export')), ['excel', 'pdf'], true);
         $this->authorizeReport($type, $isExport ? 'export' : 'view', $request->all());
+        if ($type === 'customer_outstanding' && $request->filled('outstanding_group')) {
+            $request->validate([
+                'outstanding_group' => 'in:customer,vendor,invoice,bill',
+                'end_date' => 'nullable|date',
+                'patron_id' => ['nullable', 'integer', Rule::exists('mm_patrons', 'id')->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')],
+            ]);
+        }
         if ($type === 'invoice_wise_aging') {
             $request->validate([
                 'patron_id' => \App\Services\Reports\InvoiceWiseAgingReportService::patronRules(session('active_plant_id')),
@@ -209,6 +216,7 @@ class ReportController extends Controller
                 'grade_id'            => $request->input('grade_id'),
                 'mix_design_id'       => $request->input('mix_design_id'),
                 'voucher_type_filter' => $request->input('voucher_type_filter'),
+                'outstanding_group'   => $request->input('outstanding_group'),
                 'register_view'       => $request->input('register_view', 'detail'),
                 'excel_format'        => $request->input('excel_format', 'standard'),
                 'document_status'     => $request->input('document_status', 'active'),
@@ -309,7 +317,8 @@ class ReportController extends Controller
         }
 
         $extraParams = [];
-        if (strtolower($type) === 'invoice_wise_aging') {
+        if (strtolower($type) === 'invoice_wise_aging' || !empty($data['outstanding_group'])) {
+            $view = 'reports.generic_report';
             $extraParams = $data['columns'];
         } elseif (str_contains(strtolower($type), 'inventory_stock')) {
             $extraParams = $data['columns'];

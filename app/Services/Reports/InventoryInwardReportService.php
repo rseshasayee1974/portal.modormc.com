@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Models\InvoiceItem;
 use App\Models\PurchaseOrderHistory;
 use App\Services\PlantContextService;
 use Illuminate\Support\Facades\Schema;
@@ -37,6 +38,7 @@ class InventoryInwardReportService implements ReportServiceInterface
                 'order' => fn($q) => $q->whereNull('deleted_at'),
                 'order.vendor' => fn($q) => $q->whereNull('deleted_at'),
                 'product' => fn($q) => $q->whereNull('deleted_at'),
+                'item.tax' => fn ($q) => $q->withTrashed(),
                 'uom',
                 'conversionUom',
                 'truck' => fn($q) => $q->whereNull('deleted_at')
@@ -77,6 +79,19 @@ class InventoryInwardReportService implements ReportServiceInterface
                 ? ($unitPrice * $convQty) 
                 : ($unitPrice * $recvQty);
 
+            $item = $i->item;
+            $discount = (float) ($item?->discount_amount ?? 0);
+            if ($item && $item->discount_type !== '%' && (float) $item->product_quantity > 0) {
+                $discount *= $recvQty / (float) $item->product_quantity;
+            }
+            $line = new InvoiceItem([
+                'quantity' => $convQty > 0 ? $convQty : $recvQty,
+                'price_unit' => $unitPrice,
+                'discount_type' => $item?->discount_type,
+                'discount' => $discount,
+            ]);
+            $line->compute((float) ($item?->tax?->tax_rate ?? 0), (bool) $i->order?->tax_inclusive);
+
             $totalQty += $recvQty;
             $totalConvQty += $convQty;
             $grandTotalUnitPrice += $totalUnitPrice;
@@ -93,6 +108,9 @@ class InventoryInwardReportService implements ReportServiceInterface
                 'conversion_uom' => $i->conversionUom?->unit_code ?? $i->conversionUom?->unit_name ?? $i->uom?->unit_code ?? $i->uom?->unit_name ?? '',
                 'conversion_quantity_display' => trim(number_format($convQty, 4, '.', '') . ' ' . ($i->conversionUom?->unit_code ?? $i->conversionUom?->unit_name ?? $i->uom?->unit_code ?? $i->uom?->unit_name ?? '')),
                 'unit_price'       => number_format($unitPrice, 2, '.', ''),
+                'subtotal'         => $line->subtotal,
+                'tax_amount'       => $line->line_tax_amount,
+                'total_amount'     => $line->line_total,
                 'total_unit_price' => number_format($totalUnitPrice, 2, '.', ''),
                 'truck_no'     => $i->truck->registration ?? 'N/A',
                 'truck_loaded' => (float)$i->truck_loaded,
@@ -105,6 +123,9 @@ class InventoryInwardReportService implements ReportServiceInterface
             'total_quantity'             => (float) $totalQty,
             'conversion_quantity_total'  => (float) $totalConvQty,
             'total_unit_price'           => (float) $grandTotalUnitPrice,
+            'subtotal'                   => round($transactions->sum('subtotal'), 2),
+            'tax_amount'                 => round($transactions->sum('tax_amount'), 2),
+            'total_amount'               => round($transactions->sum('total_amount'), 2),
             'total_unit_prices'          => (float) $grandTotalUnitPrice,
             'opening_balance'            => 0,
         ];
@@ -118,13 +139,15 @@ class InventoryInwardReportService implements ReportServiceInterface
     public static function pdfColumns(array $data): array
     {
         return [
-            'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Total Unit Price', 'Truck No'],
-            'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'conversion_quantity_display', 'unit_price', 'total_unit_price', 'truck_no'],
-            'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'right', 'right', 'right', 'center'],
+            'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Subtotal', 'Tax Amount', 'Total Amount', 'Truck No'],
+            'fields'     => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'conversion_quantity_display', 'unit_price', 'subtotal', 'tax_amount', 'total_amount', 'truck_no'],
+            'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'center'],
             'totals'     => [
-                'quantity'                    => number_format((float) ($data['total_quantity'] ?? 0), 2, '.', ''),
+                'quantity'                    => (float) ($data['total_quantity'] ?? 0),
                 'conversion_quantity_display' => number_format((float) ($data['conversion_quantity_total'] ?? 0), 4, '.', ''),
-                'total_unit_price'            => (float) ($data['total_unit_price'] ?? $data['total_unit_prices'] ?? 0),
+                'subtotal'                    => number_format($data['subtotal'], 2, '.', ''),
+                'tax_amount'                  => $data['tax_amount'],
+                'total_amount'                => $data['total_amount'],
             ]
         ];
     }

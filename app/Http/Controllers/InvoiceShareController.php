@@ -426,6 +426,7 @@ class InvoiceShareController extends Controller
             'end'              => $end,
             'id'               => $params['id'] ?? null,
             'patron_id'        => $params['patron_id'] ?? $params['customer_id'] ?? $params['supplier_id'] ?? null,
+            'outstanding_group' => $params['outstanding_group'] ?? null,
             'voucher_type'     => strtoupper($type),
             'stock_view' => $params['stock_view'] ?? 'movement',
             'valuation_method' => $params['valuation_method'] ?? 'FIFO',
@@ -443,6 +444,7 @@ class InvoiceShareController extends Controller
 
         $viewMap = [
             'EXPENSE' => 'reports.generic_report',
+            'CUSTOMER_OUTSTANDING' => 'reports.customer_outstanding_report',
             'INVOICE_WISE_AGING' => 'reports.generic_report',
             'QUALITY_TESTING' => 'reports.generic_report',
             'LEDGER'               => 'reports.ledger_report',
@@ -477,7 +479,8 @@ class InvoiceShareController extends Controller
         }
 
         $extraParams = [];
-        if (strtolower($type) === 'invoice_wise_aging') {
+        if (strtolower($type) === 'invoice_wise_aging' || !empty($data['outstanding_group'])) {
+            $view = 'reports.generic_report';
             $extraParams = $data['columns'];
         } elseif (str_contains(strtolower($type), 'inventory_stock')) {
             $extraParams = $data['columns'];

@@ -86,6 +86,38 @@ class PatronStatementBillTest extends TestCase
         $this->assertSame('CNL', $data['ewaybill_detail']['ewaybill_status']);
     }
 
+    public function test_grouped_outstanding_keeps_sales_and_purchases_separate_for_a_shared_patron(): void
+    {
+        $party = Patron::factory()->create(['plant_id' => $this->plant->id]);
+        foreach (['Invoice' => 1000, 'Bill' => 700] as $type => $amount) {
+            Invoice::withoutEvents(fn () => Invoice::factory()->create([
+                'plant_id' => $this->plant->id, 'partner_id' => $party->id,
+                'invoice_type' => $type, 'invoice_date' => '2026-10-01', 'due_date' => '2026-10-05',
+                'total_amount' => $amount, 'status' => Invoice::STATUS_APPROVED,
+            ]));
+        }
+        foreach (['receipt' => 200, 'payment' => 300] as $type => $amount) {
+            Payment::withoutEvents(fn () => Payment::factory()->create([
+                'plant_id' => $this->plant->id, 'patron_id' => $party->id, 'ledger_id' => $this->ledger->id,
+                'transaction_type' => $type, 'transaction_date' => '2026-10-10', 'amount' => $amount, 'status' => 'completed',
+            ]));
+        }
+
+        $service = app(CustomerOutstandingReportService::class);
+        $params = ['plant_id' => $this->plant->id, 'patron_id' => $party->id, 'end' => '2026-10-21'];
+        foreach (['customer' => 800, 'vendor' => 400, 'invoice' => 800, 'bill' => 400] as $group => $balance) {
+            $data = $service->generate($params + ['outstanding_group' => $group]);
+            $this->assertCount(1, $data['transactions']);
+            $row = $data['transactions'][0];
+            $this->assertEquals($balance, $row['total_outstanding'] ?? $row['balance_amount']);
+            $this->assertEquals($balance, $row['aging_16_30'] ?? $row['aging_16_30_amount']);
+            if ($group !== 'customer') {
+                $this->assertEquals(0, $row['aging_0_15_amount']);
+                $this->assertEquals($balance, $data['columns']['totals']['balance_amount']);
+            }
+        }
+    }
+
     private function statement(string $start = '2026-10-07'): array
     {
         return app(CustomerOutstandingReportService::class)->generateSinglePatronStatement(

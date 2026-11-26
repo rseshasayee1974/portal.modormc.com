@@ -298,6 +298,14 @@ const selectedModuleId = ref(initialSelection.module);
 const reportType = ref(initialSelection.type);
 const selectedId = ref(null);
 const patronId = ref(null);
+const outstandingGroup = ref('customer');
+const viewingStatement = ref(false);
+const outstandingGroups = [
+    { label: 'Customer-wise', value: 'customer' }, { label: 'Vendor-wise', value: 'vendor' },
+    { label: 'Invoice-wise', value: 'invoice' }, { label: 'Bill-wise', value: 'bill' },
+];
+const outstandingGroupParam = computed(() => reportType.value === 'customer_outstanding' && !viewingStatement.value
+    ? outstandingGroup.value : undefined);
 const truckId = ref(null);
 const productId = ref(null);
 const siteId = ref(null);
@@ -384,7 +392,7 @@ const getReportComponent = (type) => {
         case 'credit_debit_note_register': return CreditDebitNoteRegister;
         case 'product_consolidated': return ProductConsolidatedReport;
         case 'customer_consolidated': return CustomerConsolidatedReport;
-        case 'customer_outstanding': return CustomerOutstandingReport;
+        case 'customer_outstanding': return reportData.value?.outstanding_group ? InvoiceWiseAgingReport : CustomerOutstandingReport;
         case 'invoice_wise_aging': return InvoiceWiseAgingReport;
         case 'patron_credit_limit': return PatronCreditLimitReport;
         case 'overall': return OverallReport;
@@ -426,6 +434,7 @@ const handleViewStatement = (id) => {
     isNavigatingToStatement.value = true;
     selectedModuleId.value = 'accounting';
     reportType.value = 'customer_outstanding';
+    viewingStatement.value = true;
     patronId.value = id;
     currentPage.value = 1;
     invalidateReport();
@@ -435,12 +444,14 @@ const handleViewStatement = (id) => {
 };
 
 const handleSelectPatron = (id) => {
+    viewingStatement.value = true;
     patronId.value = id;
     currentPage.value = 1;
     invalidateReport();
 };
 
 const handleClearPatron = () => {
+    viewingStatement.value = false;
     if (returnReportContext.value) {
         isNavigatingToStatement.value = true;
         selectedModuleId.value = returnReportContext.value.moduleId;
@@ -576,6 +587,7 @@ const isSupplierReport = computed(() => {
 });
 
 const patronLabel = computed(() => {
+    if (reportType.value === 'customer_outstanding') return 'Patron';
     if (reportType.value === 'invoice_wise_aging') return 'Patron (required)';
     if (reportType.value === 'expense') return 'Select Payee';
     if (reportType.value === 'inventory_inward') return 'Select Customer / Supplier';
@@ -585,6 +597,7 @@ const patronLabel = computed(() => {
 });
 
 const patronPlaceholder = computed(() => {
+    if (reportType.value === 'customer_outstanding') return 'All patrons';
     if (reportType.value === 'invoice_wise_aging') return 'Select a patron';
     if (reportType.value === 'expense') return '-- All Payees --';
     if (reportType.value === 'inventory_inward') return '-- All Customers / Suppliers --';
@@ -773,6 +786,8 @@ watch(selectedModuleId, (newModuleId) => {
 watch(reportType, () => {
     invalidateReport();
     if (isNavigatingToStatement.value) return;
+    viewingStatement.value = false;
+    outstandingGroup.value = 'customer';
     if (['sales_register', 'purchase_register'].includes(reportType.value)) {
         registerView.value = defaultRegisterView(reportType.value);
     }
@@ -802,7 +817,7 @@ watch(reportType, () => {
     exportProgress.value = null;
 });
 
-watch([selectedId, productId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, stockView, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, expenseCategoryId, qcCategory, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
+watch([outstandingGroup, viewingStatement, selectedId, productId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, registerView, registerStatus, stockView, valuationMethod, truckId, siteId, pumpVehicleId, driverId, salesExecutiveId, selectedEmployeeId, expenseCategoryId, qcCategory, attendanceStatus, ledgerVoucherFilter, selectedMonth], () => {
     currentPage.value = 1;
     invalidateReport();
 });
@@ -828,6 +843,7 @@ const generateReport = async ({ manual = false, pagination = false } = {}) => {
         let params = {
             type: reportType.value,
             id: selectedId.value,
+            outstanding_group: outstandingGroupParam.value,
             patron_id: patronId.value,
             mix_design_id: mixDesignId.value,
             start_date: startDate.value,
@@ -948,6 +964,7 @@ const exportPdf = () => {
     let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
+        outstanding_group: outstandingGroupParam.value,
         patron_id: patronId.value,
         mix_design_id: mixDesignId.value,
         start_date: startDate.value,
@@ -1019,6 +1036,7 @@ const exportExcel = () => {
     let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
+        outstanding_group: outstandingGroupParam.value,
         patron_id: patronId.value,
         mix_design_id: mixDesignId.value,
         start_date: startDate.value,
@@ -1137,6 +1155,7 @@ const currentReportParams = computed(() => {
         qc_category: reportType.value === 'quality_testing' ? qcCategory.value : null,
         id: selectedId.value,
         ledger_id: ['sales_register', 'purchase_register'].includes(reportType.value) ? selectedId.value : undefined,
+        outstanding_group: outstandingGroupParam.value,
         patron_id: patronId.value,
         voucher_type_filter: ledgerVoucherFilter.value,
         gst_type: gstType.value,
@@ -1184,6 +1203,7 @@ const generateShareLink = async () => {
                 type: reportType.value,
                 id: selectedId.value,
                 ledger_id: ['sales_register', 'purchase_register'].includes(reportType.value) ? selectedId.value : undefined,
+                outstanding_group: outstandingGroupParam.value,
                 patron_id: patronId.value,
                 start_date: startDate.value,
                 end_date: endDate.value,
@@ -1464,6 +1484,11 @@ const shareEmail = () => {
                                             optionLabel="label" optionValue="value" placeholder="All Vouchers" />
                                     </div>
 
+                                    <div v-if="reportType === 'customer_outstanding'" class="lg:col-span-1">
+                                        <BaseSelect v-model="outstandingGroup" required label="Group by" :options="outstandingGroups"
+                                            optionLabel="label" optionValue="value" :showClear="false"
+                                            @change="viewingStatement = false" />
+                                    </div>
                                     <!-- Patron / Customer Dropdown -->
                                     <div v-if="['expense', 'credit_debit_note_register', 'customer_receipt_payment', 'overall', 'ledger', 'patron', 'sales', 'purchase', 'inventory_inward', 'stock_out', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'invoice_wise_aging', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch', 'deleted', 'deleted_report'].includes(reportType)"
                                         class="lg:col-span-1">
@@ -1624,7 +1649,7 @@ const shareEmail = () => {
                                             showClear />
                                     </div>
 
-                                    <div v-if="reportType === 'invoice_wise_aging'">
+                                    <div v-if="reportType === 'invoice_wise_aging' || outstandingGroupParam">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">As of date</span>
                                         <BaseDatePicker v-model="endDate" fluid placeholder="Select date" />
                                     </div>

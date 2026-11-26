@@ -252,7 +252,8 @@ class QueueReportExportJob implements ShouldQueue
         }
 
         $extraParams = [];
-        if (strtolower($type) === 'invoice_wise_aging') {
+        if (strtolower($type) === 'invoice_wise_aging' || !empty($data['outstanding_group'])) {
+            $view = 'reports.generic_report';
             $extraParams = $data['columns'];
         } elseif (str_contains(strtolower($type), 'inventory_stock')) {
             $extraParams = $data['columns'];

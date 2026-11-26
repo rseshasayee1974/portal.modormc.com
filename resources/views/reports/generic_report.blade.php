@@ -48,7 +48,9 @@
 
     <!-- Statement Title Bar -->
     <div class="statement-title-container">
-        @if(strtolower($type ?? '') === 'invoice_wise_aging')
+        @if(!empty($outstanding_group))
+            <h2 class="statement-title">{{ ucfirst($outstanding_group) }}-wise Outstanding as of {{ $as_of }}</h2>
+        @elseif(strtolower($type ?? '') === 'invoice_wise_aging')
             <h2 class="statement-title">Invoice-wise Aging as of {{ $as_of }}</h2>
         @else
             <h2 class="statement-title">{{ $target_name }} (Period: {{ $start }} - {{ $end }})</h2>

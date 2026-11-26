@@ -30,9 +30,9 @@ const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: '
                             {{ field.endsWith('_amount') && invoice[field] != null ? currency.format(invoice[field]) : invoice[field] }}
                         </td>
                     </tr>
-                    <tr v-if="!reportData.transactions.length"><td :colspan="reportData.columns.fields.length" class="p-4 text-center">No open invoices as of this date.</td></tr>
+                    <tr v-if="!reportData.transactions.length"><td :colspan="reportData.columns.fields.length" class="p-4 text-center">No open {{ reportData.outstanding_group === 'bill' ? 'bills' : reportData.outstanding_group === 'vendor' ? 'vendor balances' : 'invoices' }} as of this date.</td></tr>
                 </tbody>
-                <tfoot><tr class="font-semibold"><th colspan="6" class="p-2">Total outstanding</th>
+                <tfoot><tr class="font-semibold"><th :colspan="reportData.columns.fields.indexOf('balance_amount')" class="p-2">Total outstanding</th>
                     <td v-for="(amount, field) in reportData.columns.totals" :key="field" class="p-2 text-right tabular-nums">{{ currency.format(amount) }}</td>
                 </tr></tfoot>
             </table>

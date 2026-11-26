@@ -516,7 +516,7 @@ class ExcelExportService
                     $rows[] = array_map(fn ($field) => $row[$field], $columns['fields']);
                 }
             } elseif ($type === 'inventory_inward') {
-                $headersList = ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Conversion Quantity', 'Unit Price', 'Total Unit Price', 'Truck No'];
+                $headersList = InventoryInwardReportService::pdfColumns($data)['headers'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
                         $row['date'] ?? '',
@@ -527,7 +527,9 @@ class ExcelExportService
                         $row['quantity'] ?? 0,
                         $row['conversion_quantity_display'] ?? '',
                         is_numeric($row['unit_price'] ?? null) ? (float) $row['unit_price'] : ($row['unit_price'] ?? 0),
-                        is_numeric($row['total_unit_price'] ?? null) ? (float) $row['total_unit_price'] : ($row['total_unit_price'] ?? 0),
+                        (float) $row['subtotal'],
+                        (float) $row['tax_amount'],
+                        (float) $row['total_amount'],
                         $row['truck_no'] ?? ''
                     ];
                 }
@@ -540,7 +542,9 @@ class ExcelExportService
                     (float) ($data['total_quantity'] ?? 0),
                     (float) ($data['conversion_quantity_total'] ?? 0),
                     '',
-                    (float) ($data['total_unit_price'] ?? $data['total_unit_prices'] ?? 0),
+                    $data['subtotal'],
+                    $data['tax_amount'],
+                    $data['total_amount'],
                     ''
                 ];
             } elseif ($type === 'stock_out') {
@@ -931,8 +935,9 @@ class ExcelExportService
                         'rows' => $batchRows,
                     ];
                 }
-            } elseif ($type === 'invoice_wise_aging') {
-                $title = 'Invoice-wise Aging - '.$data['patron_name'];
+            } elseif ($type === 'invoice_wise_aging' || ($type === 'customer_outstanding' && !empty($data['outstanding_group']))) {
+                $heading = empty($data['outstanding_group']) ? 'Invoice-wise Aging' : ucfirst($data['outstanding_group']).'-wise Outstanding';
+                $title = $heading.' - '.$data['patron_name'];
                 $period = 'As of '.$data['as_of'];
                 $headersList = $data['columns']['headers'];
                 foreach ($data['transactions'] as $row) {
@@ -966,7 +971,13 @@ class ExcelExportService
                         $row['invoice_bill_display'], $row['receipt_payment_display'], $row['discount_display'], $row['balance_display']];
                 }
             } elseif ($type === 'customer_outstanding') {
-                $title = "CUSTOMER OUTSTANDING & AGING REPORT";
+                $title = 'Customer Outstanding & Aging Report';
+                if (!empty($data['patron'])) {
+                    $title .= ' - '.$data['patron']->legal_name;
+                }
+                if (empty($data['filters']['start']) && !empty($data['filters']['end'])) {
+                    $period = 'As of '.\Carbon\Carbon::parse($data['filters']['end'])->format('d/m/Y');
+                }
                 $headersList = [
                     '#',
                     'Customer Code',

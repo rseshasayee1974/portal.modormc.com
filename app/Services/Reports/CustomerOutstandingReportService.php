@@ -55,6 +55,21 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $start    = $params['start'] ?? null;
         $end      = $params['end'] ?? null;
 
+        $group = $params['outstanding_group'] ?? null;
+        if ($group !== null) {
+            abort_unless($plantId && in_array($group, ['customer', 'vendor', 'invoice', 'bill'], true), 422);
+            if ($patronId !== null) {
+                validator($params, ['patron_id' => InvoiceWiseAgingReportService::patronRules($plantId)])->validate();
+            }
+            $asOf = Carbon::parse($end ?? now())->startOfDay();
+            $vendor = in_array($group, ['vendor', 'bill'], true);
+            $summary = $this->agingSummary($plantId, $patronId, null, $asOf->toDateString(), $asOf, $vendor ? 'purchase' : 'sale');
+            if ($group === 'customer') {
+                return $summary;
+            }
+            return InvoiceWiseAgingReportService::formatSummary($summary, $asOf, $group);
+        }
+
         if ($patronId) {
             return $this->generateSinglePatronStatement((int)$patronId, $plantId, $start, $end, $params);
         }
@@ -62,7 +77,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         return $this->agingSummary($plantId, null, $start, $end, now()->startOfDay());
     }
 
-    public function agingSummary(?int $plantId, ?int $patronId, ?string $start, ?string $end, Carbon $today): array
+    public function agingSummary(?int $plantId, ?int $patronId, ?string $start, ?string $end, Carbon $today, ?string $side = null): array
     {
         $invoiceQuery = $this->commercialDocumentQuery($plantId);
 
@@ -84,7 +99,12 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
         $invoices = $documents->filter(fn ($document) => in_array($document->invoice_type, \App\Support\InvoiceClassification::aliases('Invoice'), true));
         $billsByCustomer = $documents->filter(fn ($document) => in_array($document->invoice_type, \App\Support\InvoiceClassification::aliases('Bill'), true))->groupBy('partner_id');
-        $notesByCustomer = $documents->whereIn('invoice_type', ['credit_note', 'debit_note'])->groupBy('partner_id');
+        $notes = $documents->whereIn('invoice_type', ['credit_note', 'debit_note']);
+        if ($side !== null) {
+            $notes->loadMissing('sourceDocument:id,invoice_type');
+            $notes = $notes->filter(fn ($note) => ($note->accountingModule() === 'Purchase') === ($side === 'purchase'));
+        }
+        $notesByCustomer = $notes->groupBy('partner_id');
 
         // 2. Fetch all Payments and Receipts from mm_payments where deleted_at IS NULL
         $paymentQuery = \App\Models\Payment::query()
@@ -115,6 +135,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
         // Discount-module records are authoritative, including records without a journal.
         $discounts = $this->discountQuery($plantId)
+            ->when($side === 'purchase', fn ($q) => $q->where('primary_type', 'Purchase'))
+            ->when($side === 'sale', fn ($q) => $q->where(fn ($type) => $type->whereNull('primary_type')->orWhere('primary_type', '!=', 'Purchase')))
             ->when($patronId, fn ($q) => $q->where('partner_id', $patronId))
             ->when($end, fn($q) => $q->where('date', '<=', substr($end, 0, 10)))->get();
         $discountsByCustomer = $discounts->groupBy('partner_id');
@@ -129,6 +151,15 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             ->when($plantId,fn($q)=>$q->where('l.plant_id',$plantId)->where('e.plant_id',$plantId))
             ->when($patronId,fn($q)=>$q->where('l.partner_id',$patronId))
             ->when($end,fn($q)=>$q->where('e.voucher_date','<=',substr($end,0,10)))
+            ->when($side !== null, function ($query) use ($side) {
+                // Older opening entries may have no distinct receivable and payable ledger.
+                $query->join('mm_patrons as p', 'p.id', '=', 'l.partner_id')
+                    ->whereRaw("CASE
+                        WHEN l.account_id = p.debit_ledger_id AND (p.credit_ledger_id IS NULL OR p.credit_ledger_id != l.account_id) THEN 'sale'
+                        WHEN l.account_id = p.credit_ledger_id AND (p.debit_ledger_id IS NULL OR p.debit_ledger_id != l.account_id) THEN 'purchase'
+                        WHEN l.credit_amount > l.debit_amount THEN 'purchase'
+                        ELSE 'sale' END = ?", [$side]);
+            })
             ->groupBy('l.partner_id')
             ->selectRaw('l.partner_id, SUM(l.debit_amount-l.credit_amount) as balance, MIN(e.voucher_date) as opening_date')
             ->get()->keyBy('partner_id');
@@ -145,6 +176,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         // 4. Load Customer Master Details (whereNull('deleted_at'))
         $allPatrons = Patron::with(['contacts:id,patron_id,name,mobile,alt_mobile,landline,email,is_primary'])
             ->whereNull('deleted_at')
+            ->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
             ->whereIn('id', $allPatronIds)
             ->get()
             ->keyBy('id');
@@ -197,6 +229,19 @@ class CustomerOutstandingReportService implements ReportServiceInterface
 
             // Discount-module amounts always subtract, regardless of journal direction.
             $netOutstanding = round($openingBalance + $totalInvoiced - $totalPurchased + $totalDebitNote - $totalCreditNote + $totalPayment - $totalReceipt - $totalDiscount, 2);
+
+            if ($side !== null) {
+                $vendor = $side === 'purchase';
+                $openingBalance = $vendor ? -$openingBalance : $openingBalance;
+                $settlements = $vendor
+                    ? $totalPayment + $totalDiscount + $totalDebitNote - $totalCreditNote
+                    : $totalReceipt + $totalDiscount + $totalCreditNote - $totalDebitNote;
+                $netCollections = max(0, round($settlements + max(0, -$openingBalance), 2));
+                $netOutstanding = round($openingBalance + ($vendor ? $totalPurchased : $totalInvoiced) - $settlements, 2);
+                if ($vendor) {
+                    $custInvoices = $billsByCustomer->get($cId, collect());
+                }
+            }
 
             $aging0to15    = 0.00;
             $aging16to30   = 0.00;
@@ -420,7 +465,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $customersWithBal = collect($customersList)->where('total_outstanding', '>', 0)->count();
 
         $plant = $plantId ? Plant::with(['addresses.state'])->whereNull('deleted_at')->find($plantId) : null;
-        $patron = $patronId ? Patron::with(['addresses'])->whereNull('deleted_at')->find($patronId) : null;
+        $patron = $patronId ? Patron::with(['addresses'])->where('plant_id', $plantId)->whereNull('deleted_at')->find($patronId) : null;
 
         return [
             'transactions'               => $customersList,
@@ -1080,6 +1125,6 @@ class CustomerOutstandingReportService implements ReportServiceInterface
     {
         return isset($params['patron_id']) && $params['patron_id']
             ? (Patron::whereNull('deleted_at')->find($params['patron_id'])?->legal_name ?? 'Customer Outstanding Report')
-            : 'All Customers Outstanding Report';
+            : (in_array($params['outstanding_group'] ?? null, ['vendor', 'bill'], true) ? 'All Vendors Outstanding Report' : 'All Customers Outstanding Report');
     }
 }

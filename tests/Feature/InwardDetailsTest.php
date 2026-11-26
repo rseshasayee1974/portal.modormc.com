@@ -178,6 +178,25 @@ class InwardDetailsTest extends TestCase
         $this->assertSame(10.0, $report['total_quantity']);
     }
 
+    public function test_inward_report_separates_tax_for_partial_and_converted_receipts(): void
+    {
+        $tax = \App\Models\Tax::factory()->create(['plant_id' => $this->plant->id, 'tax_rate' => 18]);
+        $this->item->update(['tax_id' => $tax->id, 'discount_type' => '%', 'discount_amount' => 10]);
+        $this->inward->update(['unit_price' => 100, 'conversion_quantity' => 2, 'received_date' => '2026-10-03 09:00:00']);
+        $service = app(\App\Services\Reports\InventoryInwardReportService::class);
+        $range = ['start' => '2026-10-03', 'end' => '2026-10-03'];
+        foreach ([[false, 180, 32.40, 212.40], [true, 152.54, 27.46, 180]] as [$inclusive, $subtotal, $taxAmount, $total]) {
+            $this->item->order->update(['tax_inclusive' => $inclusive]);
+            $report = $service->generate($range);
+            foreach (['subtotal' => $subtotal, 'tax_amount' => $taxAmount, 'total_amount' => $total] as $field => $expected) {
+                $this->assertEquals($expected, $report['transactions']->sole()[$field]);
+                $this->assertEquals($expected, $report[$field]);
+            }
+        }
+        $this->item->update(['tax_id' => null]);
+        $this->assertEquals(0, $service->generate($range)['tax_amount']);
+    }
+
     public function test_inward_report_date_only_and_exact_second_boundaries_are_consistent(): void
     {
         $this->inward->forceFill(['received_date' => '2026-10-03 23:59:59', 'created_at' => '2026-10-04 09:00:00'])->save();
@@ -276,6 +295,8 @@ class InwardDetailsTest extends TestCase
             $cells = json_encode($workbook->getActiveSheet()->toArray());
             $this->assertStringContainsString('INW-EDIT', $cells);
             $this->assertStringContainsString('Conversion Quantity', $cells);
+            $this->assertStringContainsString('Subtotal', $cells);
+            $this->assertStringContainsString('Tax Amount', $cells);
             $this->assertStringContainsString('3.1256 CFT', $cells);
             $this->assertStringNotContainsString('INW-EXCLUDED', $cells);
             $this->assertStringNotContainsString('INW-PRODUCT-EXCLUDED', $cells);
@@ -296,6 +317,8 @@ class InwardDetailsTest extends TestCase
                 $this->assertSame(10.0, $data['total_quantity']);
                 $this->assertSame(10.0, $data['totals']['quantity']);
                 $this->assertContains('Conversion Quantity', $data['headers']);
+                $this->assertContains('tax_amount', $data['fields']);
+                $this->assertEquals($data['subtotal'] + $data['tax_amount'], $data['totals']['total_amount']);
                 $this->assertContains('conversion_quantity_display', $data['fields']);
                 $this->assertSame('3.1256 CFT', collect($data['transactions'])->first()['conversion_quantity_display']);
                 return true;
