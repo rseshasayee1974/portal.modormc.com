@@ -889,18 +889,20 @@
         </table>
 
         <!-- 9. Bottom Declaration, Customer Sign & Authorized Signatory -->
+        @php
+            $declaration = 'Certificate that the goods on which the GST tax has been charged have not been exempted under the GST Tax Act or the rules made thereunder and the amount charged on Account of GST Tax on these goods are not more than that what is payable under the provisions of the relevant Act or the Rules made thereunder.';
+        @endphp
+        @if ($isSalesInvoice)
+            @include('pdfs.partials._invoice_closing', ['document' => $inv, 'declaration' => $declaration])
+        @else
         <table class="declaration-table">
             <tr>
                 <!-- Declaration Text -->
                 <td class="dec-text-cell">
-                    Certificate that the goods on which the GST tax has been charged have not been exempted under the
-                    GST Tax Act or the rules made thereunder and the amount charged on Account of GST Tax on these goods
-                    are not more than that what is payable under the provisions of the relevant Act or the Rules made
-                    thereunder.
+                    {{ $declaration }}
                     <div style="font-weight: bold; margin-top: 4px;">E. & O. E.</div>
                 </td>
 
-                @unless ($isSalesInvoice)
                 <!-- Customer Signature -->
                 <td class="cust-sign-cell">
                     <div class="sign-space"></div>
@@ -913,10 +915,9 @@
                     <div class="sign-space"></div>
                     <strong>Authorised Signatory</strong>
                 </td>
-                @endunless
             </tr>
         </table>
-        @includeWhen($isSalesInvoice, 'pdfs.partials._invoice_closing', ['document' => $inv])
+        @endif
 
     </div>
 

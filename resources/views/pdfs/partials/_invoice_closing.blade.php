@@ -14,7 +14,7 @@ Created: 2026-11-25 12:42:18 Asia/Calcutta (UTC+05:30)
         @endforeach
     </div>
 @endif
-@if ($pdfSettings['signature'] ?? true)
+@if (($pdfSettings['signature'] ?? true) || isset($declaration))
     @php
         $seal = ($data['company']['seal_sign_path'] ?? null) ?: $document->plant?->seal_sign_path;
         $sealSrc = null;
@@ -27,15 +27,20 @@ Created: 2026-11-25 12:42:18 Asia/Calcutta (UTC+05:30)
     @endphp
     <table style="width: 100%; border-collapse: collapse; page-break-inside: avoid; font: 9pt sans-serif;">
         <tr>
-            <td style="width: 50%; height: 56pt; vertical-align: bottom; padding: 6pt; text-align: center;">
+            @isset($declaration)
+                <td class="dec-text-cell">{{ $declaration }}<div>E. &amp; O. E.</div></td>
+            @endisset
+            @if ($pdfSettings['signature'] ?? true)
+            <td style="height: 30pt; vertical-align: bottom; padding: 3pt; text-align: center; width: {{ isset($declaration) ? 25 : 50 }}%;">
                 <strong>Customer Signature</strong>
             </td>
-            <td style="width: 50%; height: 56pt; vertical-align: bottom; padding: 6pt; text-align: center;">
+            <td style="vertical-align: bottom; padding: 3pt; text-align: center;">
                 @if ($sealSrc)
                     <div><img src="{{ $sealSrc }}" alt="Company seal and signature" style="max-height: 42pt; max-width: 110pt;"></div>
                 @endif
                 <strong>Authorized Signatory</strong>
             </td>
+            @endif
         </tr>
     </table>
 @endif

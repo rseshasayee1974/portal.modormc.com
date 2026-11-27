@@ -12,15 +12,15 @@ Created: 2026-11-25 12:42:18 Asia/Calcutta (UTC+05:30)
     <div class="invoice-preview-footer" style="background: #eee; color: #475569; padding: 3mm 5mm; font: 8pt sans-serif; text-align: left;">{{ $footerText }}</div>
 @else
 <style>
-    @page { margin-bottom: 19mm !important; }
+    @page { margin-bottom: 13mm !important; }
     @if ($is_pdf ?? false)
-        html { margin-bottom: 19mm !important; }
+        html { margin-bottom: 13mm !important; }
         .invoice-page-footer {
             position: fixed;
-            bottom: -13mm;
+            bottom: -10mm;
             left: 0;
             right: 0;
-            padding: 3mm 5mm;
+            padding: 2mm 5mm;
             background: #eee;
             color: #475569;
             font: 8pt sans-serif;

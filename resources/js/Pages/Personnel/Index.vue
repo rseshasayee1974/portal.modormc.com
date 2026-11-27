@@ -86,21 +86,13 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
-const searchQuery = ref('');
+const filters = ref({ global: { value: '', matchMode: 'contains' } });
+const first = ref(0);
+const matchCount = ref(0);
+watch(() => filters.value.global.value, () => { first.value = 0; });
 const activeTabCreate = ref('details');
 const activeTabEdit = ref('details');
 const expandedRows = ref<Record<number, boolean>>({});
-
-const filteredPersonnel = computed(() => {
-    if (!searchQuery.value) return props.personnel;
-    const q = searchQuery.value.toLowerCase();
-    return props.personnel.filter((p: Personnel) => 
-        p.first_name.toLowerCase().includes(q) ||
-        (p.last_name && p.last_name.toLowerCase().includes(q)) ||
-        p.employee_code.toLowerCase().includes(q) ||
-        (p.email && p.email.toLowerCase().includes(q))
-    );
-});
 
 const getInitialForm = () => ({
     address: { state_id: null as number | null, city: '', zipcode: '', line_1: '', line_2: '' },
@@ -368,7 +360,11 @@ watch(
                     <!-- Personnel Directory -->
                     <div class="bg-white dark:bg-slate-900 rounded-xl">
                         <BaseDataTable 
-                            :value="filteredPersonnel" 
+                            :value="personnel"
+                            v-model:filters="filters"
+                            v-model:first="first"
+                            :globalFilterFields="['employee_code', 'full_name', 'first_name', 'last_name', 'department.name', 'designation.name', 'status', 'employment_type', 'email', 'mobile']"
+                            @filter="matchCount = $event.filteredValue.length"
                             v-model:expandedRows="expandedRows"
                             dataKey="id"
                             stripedRows 
@@ -377,14 +373,14 @@ watch(
                             showSearch showSerial
                             paginator
                             :rows="30" 
-                            :totalRecords="filteredPersonnel.length"
+                            :totalRecords="filters.global.value ? matchCount : personnel.length"
                             class="p-datatable-sm"
                             showExport
                             exportFilename="personnel-directory"
                         >
                             <template #toolbar>
                                 <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
-                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ filteredPersonnel.length }} total personnel</span>
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ personnel.length }} total personnel</span>
                                 </div>
                             </template>
 
