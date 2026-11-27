@@ -1371,6 +1371,8 @@ class ExcelExportService
                     'Dispatch / Batch',
                     'Invoice Details',
                     'Customer / Site',
+                    'Mix Design Name',
+                    'Concrete Grade',
                     'Qty (m³)',
                     'Empty Wt (T)',
                     'Loaded Wt (T)',
@@ -1394,6 +1396,8 @@ class ExcelExportService
                         $dispatchBatch,
                         $invoiceDetails,
                         $customerSite,
+                        $row['mix_design_name'] ?? 'N/A',
+                        $row['concrete_grade'] ?? 'N/A',
                         (float)($row['quantity'] ?? 0),
                         (float)($row['truck_empty'] ?? $row['empty_weight'] ?? 0),
                         (float)($row['loaded_weight'] ?? $row['truck_loaded'] ?? 0),
@@ -1405,7 +1409,7 @@ class ExcelExportService
                 }
 
                 $totalRow = [
-                    '', 'Total Sales', '', '', '',
+                    '', 'Total Sales', '', '', '', '', '',
                     (float)($data['total_quantity'] ?? collect($data['transactions'] ?? [])->sum('quantity')),
                     (float)($data['total_truck_empty'] ?? collect($data['transactions'] ?? [])->sum(fn($r) => $r['truck_empty'] ?? $r['empty_weight'] ?? 0)),
                     (float)($data['total_loaded_weight'] ?? collect($data['transactions'] ?? [])->sum(fn($r) => $r['loaded_weight'] ?? $r['truck_loaded'] ?? 0)),

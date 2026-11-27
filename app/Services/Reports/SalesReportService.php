@@ -26,8 +26,7 @@ class SalesReportService implements ReportServiceInterface
             ->leftJoin('mm_sales_orders as so', 'so.id', '=', 'd.sales_order_id')
             ->leftJoin('mm_patrons as dp', 'dp.id', '=', 'd.customer_id')
             ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
-            ->leftJoin('mm_sites as ds_site', 'ds_site.id', '=', 'd.unload_site_id')
-            ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
+            ->leftJoin('mm_sites as s', 's.id', '=', DB::raw('COALESCE(NULLIF(d.unload_site_id, 0), so.site_id)'))
             ->leftJoin('mm_mix_designs as dm', 'dm.id', '=', 'd.mixdesign_id')
             ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
             ->leftJoin('mm_concrete_grades as cg', 'cg.id', '=', DB::raw('COALESCE(dm.concrete_grade_id, m.concrete_grade_id)'))
@@ -60,6 +59,10 @@ class SalesReportService implements ReportServiceInterface
             });
 
         $query->whereBetween('d.dispatch_time', [$start, $end]);
+
+        if (!empty($params['site_id'])) {
+            $query->where('s.id', $params['site_id']);
+        }
 
         // Filter by customer/party if requested
         if ($patronId) {
@@ -106,7 +109,7 @@ class SalesReportService implements ReportServiceInterface
             'd.loaded_weight_truck',
             'd.net_weight',
             'd.customer_id',
-            'd.unload_site_id',
+            's.id as unload_site_id',
             'd.mixdesign_id',
             'd.created_at as dispatch_created_at',
             'd.updated_at as dispatch_updated_at',
@@ -116,7 +119,7 @@ class SalesReportService implements ReportServiceInterface
             'b.shift',
             'b.start_time as batch_start_time',
             DB::raw('COALESCE(dp.legal_name, p.legal_name) as customer_name'),
-            DB::raw('COALESCE(ds_site.name, s.name) as site_name'),
+            's.name as site_name',
             DB::raw('COALESCE(dm.design_name, m.design_name) as mix_name'),
             DB::raw('COALESCE(cg.name, dm.design_type, m.design_type, "N/A") as concrete_grade'),
             DB::raw('COALESCE(u.unit_code, u.unit_name, "m³") as uom'),

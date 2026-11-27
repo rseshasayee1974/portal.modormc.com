@@ -114,7 +114,7 @@ table {
     background-color: #ffffff;
 }
 
-/* Keep all twelve dispatch columns inside the printable page width. */
+/* Keep dispatch columns inside the printable page width. */
 .dispatch-details-table {
     table-layout: fixed;
 }

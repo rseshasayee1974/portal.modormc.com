@@ -1561,9 +1561,10 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Truck Dropdown -->
-                                    <div v-if="['machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver', 'batching_schedule', 'stock_out'].includes(reportType)"
+                                    <div v-if="['sales', 'machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver', 'batching_schedule', 'stock_out'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">{{
+                                            reportType === 'sales' ? 'Truck Number' :
                                             ['machine_summary', 'vehicle_pl'].includes(reportType) ? 'Select Machine' :
                                                 'Select Truck / Vehicle' }}</span>
                                         <BaseSelect v-model="truckId" :options="truckOptions" optionLabel="registration"
@@ -1572,11 +1573,12 @@ const shareEmail = () => {
                                             filter showClear />
                                     </div>
 
-                                    <div v-if="['batching_schedule', 'pump_boom_deployment', 'site_consolidated', 'product_consolidated'].includes(reportType)" class="lg:col-span-1">
+                                    <div v-if="['overall', 'sales', 'batching_schedule', 'pump_boom_deployment', 'site_consolidated', 'product_consolidated'].includes(reportType)" class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Unloading
                                             Site</span>
                                         <BaseSelect v-model="siteId" :options="sites || []" optionLabel="name"
                                             optionValue="id" placeholder="All Unloading Sites" filter showClear />
+                                        <small v-if="reportType === 'overall' && siteId">Cash flow, purchase bills and inwards use plant-wide data.</small>
                                     </div>
                                     <div v-if="['batching_schedule', 'pump_boom_deployment'].includes(reportType)" class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Pump</span>

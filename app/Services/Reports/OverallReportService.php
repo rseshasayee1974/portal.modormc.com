@@ -27,6 +27,15 @@ class OverallReportService implements ReportServiceInterface
         $plantId = $params['plant_id'] ?? $this->ctx->plantId() ?? session('active_plant_id');
 
         $customerId = $params['patron_id'] ?? $params['customer_id'] ?? null;
+        $siteId = $params['site_id'] ?? null;
+        $siteDispatches = null;
+        if ($siteId) {
+            $siteDispatches = DB::table('mm_dispatches as d')
+                ->leftJoin('mm_sales_orders as so', 'so.id', '=', 'd.sales_order_id')
+                ->whereNull('d.deleted_at')
+                ->when($plantId, fn ($q) => $q->where('d.plant_id', $plantId))
+                ->whereRaw('COALESCE(NULLIF(d.unload_site_id, 0), so.site_id) = ?', [$siteId]);
+        }
 
         // Parse date boundaries (defaults to today)
         $start = !empty($params['start']) 
@@ -53,6 +62,11 @@ class OverallReportService implements ReportServiceInterface
                 ->with(['salesOrder.mixDesign:id,design_name,design_type'])
                 ->whereNull('deleted_at');
             if ($plantId) $batchQuery->where('plant_id', $plantId);
+            if ($siteId) {
+                $batchQuery->where(fn ($q) => $q->whereIn('id', (clone $siteDispatches)->select('d.batch_id'))
+                    ->orWhere(fn ($unassigned) => $unassigned->whereDoesntHave('dispatches')
+                        ->whereHas('salesOrder', fn ($order) => $order->where('site_id', $siteId))));
+            }
             if ($customerId) $batchQuery->whereHas('salesOrder', fn ($q) => $q->where('customer_id', $customerId));
             $batchQuery->whereBetween('created_at', [$start, $end]);
 
@@ -110,6 +124,9 @@ class OverallReportService implements ReportServiceInterface
                       ->orWhere('dispatch_status', '!=', 'Cancelled');
                 });
             if ($plantId) $dispatchQuery->where('plant_id', $plantId);
+            if ($siteId) {
+                $dispatchQuery->whereIn('id', (clone $siteDispatches)->select('d.id'))->with('salesOrder.site:id,name');
+            }
             if ($customerId) $dispatchQuery->where('customer_id', $customerId);
             $dispatchQuery->where(function ($q) use ($start, $end) {
                 $q->whereBetween('dispatch_time', [$start, $end])
@@ -137,7 +154,7 @@ class OverallReportService implements ReportServiceInterface
                     'id'             => $d->id,
                     'batch_number'   => $d->batch?->batch_no ?? '-',
                     'customer_name'  => $d->customer?->legal_name ?? '',
-                    'site_name'      => $d->unloadSite?->name ?? '',
+                    'site_name'      => $d->unloadSite?->name ?? ($d->relationLoaded('salesOrder') ? $d->salesOrder?->site?->name : ''),
                     'truck_no'       => $truckReg,
                     'driver_name'    => $driverName,
                     'delivered_qty'  => (float)$d->delivered_qty,
@@ -162,6 +179,7 @@ class OverallReportService implements ReportServiceInterface
             if (Schema::hasTable('mm_pump_boom_deployment_schedule')) {
                 $pumpQuery = PumpBoomDeploymentSchedule::query()->whereNull('deleted_at');
                 if ($plantId) $pumpQuery->where('plant_id', $plantId);
+                if ($siteId) $pumpQuery->where('site_id', $siteId);
             if ($customerId) $pumpQuery->whereHas('site', fn ($q) => $q->where(fn ($site) => $site->whereJsonContains('patron_id', (int) $customerId)->orWhereJsonContains('patron_id', (string) $customerId)));
                 $pumpQuery->whereBetween('schedule_date', [$startDateOnly, $endDateOnly]);
 
@@ -198,6 +216,7 @@ class OverallReportService implements ReportServiceInterface
         try {
             $quoteQuery = Quotation::query()->whereNull('deleted_at');
             if ($plantId) $quoteQuery->where('plant_id', $plantId);
+            if ($siteId) $quoteQuery->where('site_id', $siteId);
             if ($customerId) $quoteQuery->where('patron_id', $customerId);
             $quoteQuery->where(function ($q) use ($start, $end, $startDateOnly, $endDateOnly) {
                 $q->whereBetween('quote_date', [$startDateOnly, $endDateOnly])
@@ -227,6 +246,7 @@ class OverallReportService implements ReportServiceInterface
         try {
             $soQuery = SalesOrder::query()->whereNull('deleted_at');
             if ($plantId) $soQuery->where('plant_id', $plantId);
+            if ($siteId) $soQuery->where('site_id', $siteId);
             if ($customerId) $soQuery->where('customer_id', $customerId);
             $soQuery->where(function ($q) use ($start, $end) {
                 $q->whereBetween('created_at', [$start, $end])
@@ -290,6 +310,11 @@ class OverallReportService implements ReportServiceInterface
                     $q->whereNull('status')->orWhere('status', '!=', 'Cancelled');
                 });
             if ($plantId) $salesInvQuery->where('plant_id', $plantId);
+            if ($siteId) {
+                $salesInvQuery->whereIn('id', (clone $siteDispatches)
+                    ->join('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
+                    ->whereNull('ds.deleted_at')->select('ds.invoice_id'));
+            }
             if ($customerId) $salesInvQuery->where('partner_id', $customerId);
             $salesInvQuery->whereBetween('invoice_date', [$startDateOnly, $endDateOnly]);
 
@@ -558,6 +583,7 @@ class OverallReportService implements ReportServiceInterface
                 'end_date'   => $endDateOnly,
                 'plant_id'   => $plantId,
                 'customer_id' => $customerId,
+                'site_id' => $siteId,
             ],
             'executive_summary'  => $executiveSummary,
             'operations'         => [

@@ -101,6 +101,8 @@ const visiblePages = computed(() => {
                             <th class="py-3 px-3 text-center" width="10%">Invoice Details</th>
                             <!-- <th class="py-3 px-3 text-center" width="10%">E-Invoice Reference</th> -->
                             <th class="py-3 px-3" width="14%">Customer / Site</th>
+                            <th class="py-3 px-3 min-w-[140px]">Mix Design Name</th>
+                            <th class="py-3 px-3 min-w-[100px]">Concrete Grade</th>
                             <th class="py-3 px-3 text-right" width="6%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="6%">Empty Wt</th>
                             <th class="py-3 px-3 text-right" width="6%">Loaded Wt</th>
@@ -136,6 +138,8 @@ const visiblePages = computed(() => {
                                 <span class="font-medium text-slate-800">{{ row.customer_name }}</span>
                                 <span v-if="row.site_name && row.site_name !== 'N/A'" class="text-[10px] text-slate-400 block font-normal">{{ row.site_name }}</span>
                             </td>
+                            <td class="py-3 px-3">{{ row.mix_design_name || 'N/A' }}</td>
+                            <td class="py-3 px-3">{{ row.concrete_grade || 'N/A' }}</td>
                             <td class="py-3 px-3 text-right font-bold text-slate-800">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-3 px-3 text-right text-slate-600">{{ formatQuantity(row.truck_empty ?? row.empty_weight) }}</td>
                             <td class="py-3 px-3 text-right text-slate-600">{{ formatQuantity(row.loaded_weight ?? row.truck_loaded) }}</td>
@@ -145,10 +149,10 @@ const visiblePages = computed(() => {
                             <td class="py-3 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
                         <tr v-if="!paginatedTransactions?.length">
-                            <td colspan="12" class="py-4 text-center text-slate-400">No dispatches found for selected period</td>
+                            <td colspan="14" class="py-4 text-center text-slate-400">No dispatches found for selected period</td>
                         </tr>
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
-                            <td colspan="5" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Sales</td>
+                            <td colspan="7" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Sales</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_quantity) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_truck_empty) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_loaded_weight) }}</td>

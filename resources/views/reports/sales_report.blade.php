@@ -58,14 +58,16 @@
         <thead>
             <tr>
                 <th width="3%">#</th>
-                <th width="8%">Date</th>
-                <th width="11%">Dispatch / Batch</th>
-                <th width="11%">Invoice Details</th>
-                <th width="17%">Customer / Site</th>
-                <th width="6%">Qty (m³)</th>
-                <th width="6%">Empty Wt (T)</th>
-                <th width="6%">Loaded Wt (T)</th>
-                <th width="6%">Net Wt (T)</th>
+                <th width="7%">Date</th>
+                <th width="8%">Dispatch / Batch</th>
+                <th width="8%">Invoice Details</th>
+                <th width="12%">Customer / Site</th>
+                <th width="10%">Mix Design Name</th>
+                <th width="6%">Concrete Grade</th>
+                <th width="5%">Qty (m³)</th>
+                <th width="5%">Empty Wt (T)</th>
+                <th width="5%">Loaded Wt (T)</th>
+                <th width="5%">Net Wt (T)</th>
                 <th width="9%">Taxable Amt (₹)</th>
                 <th width="8%">Tax Amt (₹)</th>
                 <th width="9%">Total Amt (₹)</th>
@@ -92,6 +94,8 @@
                             <br><small style="color: #64748b;">{{ $row['site_name'] }}</small>
                         @endif
                     </td>
+                    <td>{{ $row['mix_design_name'] ?? 'N/A' }}</td>
+                    <td>{{ $row['concrete_grade'] ?? 'N/A' }}</td>
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['truck_empty'] ?? ($row['empty_weight'] ?? 0), 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? ($row['truck_loaded'] ?? 0), 2) }}</td>
@@ -104,7 +108,7 @@
             
             <!-- Grand Totals -->
             <tr class="total-row">
-                <td colspan="5" class="text-center font-bold">Total Sales</td>
+                <td colspan="7" class="text-center font-bold">Total Sales</td>
                 <td class="text-right font-bold">{{ number_format($total_quantity ?? collect($transactions)->sum('quantity'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_truck_empty ?? collect($transactions)->sum('truck_empty'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_loaded_weight ?? collect($transactions)->sum('loaded_weight'), 2) }}</td>

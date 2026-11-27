@@ -51,5 +51,20 @@ class OverallReportDispatchTest extends TestCase
         $html = view('reports.overall_report', $report)->render();
         $this->assertStringContainsString('Total Dispatched: 8.50 m³ | Net Weight: 17.00 T', $html);
         $this->assertStringContainsString('1,700.00', $html);
+
+        DB::statement('ALTER TABLE mm_dispatches ADD COLUMN sales_order_id INTEGER');
+        DB::statement('CREATE TABLE mm_sales_orders (id INTEGER PRIMARY KEY, site_id INTEGER, deleted_at TEXT)');
+        DB::statement('CREATE TABLE mm_sites (id INTEGER PRIMARY KEY, name TEXT, deleted_at TEXT)');
+        DB::table('mm_sites')->insert([['id' => 1, 'name' => 'North'], ['id' => 2, 'name' => 'South']]);
+        DB::table('mm_sales_orders')->insert(['id' => 1, 'site_id' => 1]);
+        DB::table('mm_dispatches')->update(['sales_order_id' => 1]);
+        DB::table('mm_dispatches')->where('id', 2)->update(['unload_site_id' => 2]);
+        $params = ['plant_id' => 1, 'start' => '2026-11-06', 'end' => '2026-11-06'];
+        $north = app(OverallReportService::class)->generate($params + ['site_id' => 1]);
+        $south = app(OverallReportService::class)->generate($params + ['site_id' => 2]);
+        $this->assertEqualsCanonicalizing([1, 3], array_column($north['dispatches']['list'], 'id'));
+        $this->assertSame('North', $north['dispatches']['list'][0]['site_name']);
+        $this->assertSame([2], array_column($south['dispatches']['list'], 'id'));
+        $this->assertSame(2.5, $south['executive_summary']['total_dispatched_volume']);
     }
 }
