@@ -32,6 +32,7 @@ class Modomines
                 trim($category?->name.' '.$category?->parent?->name))['group'];
             if (!in_array($group, ['Aggregate', 'Water / Ice'], true)) continue;
             $rate = (float) $recipe?->get($id)?->sum('actual_quantity');
+            if ($rate === 0.0 && (float) $rows->sum('target_qty') === 0.0) continue;
             if ($rate <= 0) $fail("A positive SSD mix design quantity is required for {$row->material_name}.");
             if ($group === 'Water / Ice') {
                 if ($water !== null) $fail('The Modomines formula requires a single water dosing material.');

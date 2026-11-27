@@ -979,7 +979,8 @@ const moistureMaterialsForCalculation = computed(() => {
         const productId = Number(item.product_id);
         const reading = readings.get(productId);
         return {
-            productId, group: materialDisplay(item)?.group, designRate: rates.get(productId) ?? 0,
+            productId, name: item.material_name || 'Product ' + productId, batchTarget: Number(item.target_qty ?? 0),
+            group: materialDisplay(item)?.group, designRate: rates.get(productId) ?? 0,
             moisture: reading?.consumption_moisture_percentage ?? 0,
             absorption: reading?.design_moisture_percentage ?? 0,
         };
@@ -988,13 +989,15 @@ const moistureMaterialsForCalculation = computed(() => {
 
 const fullRunQuantities = computed(() => {
     const materials = moistureMaterialsForCalculation.value;
-    return materials && moistureTargets(materials, mixerCapacity.value, mixerCapacity.value);
+    return materials && moistureTargets(materials, mixerCapacity.value, mixerCapacity.value).targets;
 });
 
-const correctedBatchQuantities = computed(() => {
+const batchMoistureResult = computed(() => {
     const materials = moistureMaterialsForCalculation.value;
     return materials && moistureTargets(materials, Number(form.batch_size), mixerCapacity.value);
 });
+
+const correctedBatchQuantities = computed(() => batchMoistureResult.value?.targets);
 
 const actualInputQuantity = (item: BatchMaterial) => {
     const id = Number(item.product_id);
@@ -1735,9 +1738,9 @@ console.log('test');
                                                             :disabled="isLocked || form.processing || (!props.batch?.modomines_moisture && row.field === 'design_moisture_percentage' && productMoisture(Number(item.product_id)) !== null)" />
                                                     </td>
                                                 </tr>
-                                                <tr v-if="moistureMaterialsForCalculation && (!correctedBatchQuantities?.size || runSizes.length !== numberOfRuns)">
+                                                <tr v-if="moistureMaterialsForCalculation && (batchMoistureResult?.error || runSizes.length !== numberOfRuns)">
                                                     <td :colspan="form.materials.length + 1" role="status" class="px-4 py-2 text-sm text-amber-800">
-                                                        {{ runSizes.length !== numberOfRuns ? 'Check the batch volume, stored run count and mixer capacity.' : 'Check the aggregate recipe quantities and water dose before generating run values.' }}
+                                                        {{ runSizes.length !== numberOfRuns ? 'Check the batch volume, stored run count and mixer capacity.' : batchMoistureResult?.error }}
                                                     </td>
                                                 </tr>
                                                 <!-- Recipe Targets Summary -->
