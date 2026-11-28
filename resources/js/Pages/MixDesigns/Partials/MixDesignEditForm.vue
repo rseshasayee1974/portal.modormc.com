@@ -70,7 +70,6 @@ const form = useForm({
             actual_quantity: parseFloat(item.actual_quantity || 0),
             cross_quantity: parseFloat(item.cross_quantity || 0),
             variation_quantity: parseFloat(item.variation_quantity || 0),
-            used_in_batching: item.used_in_batching ?? false,
     }))
 });
 

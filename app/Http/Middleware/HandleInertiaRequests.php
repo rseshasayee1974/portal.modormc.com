@@ -40,17 +40,19 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
         $activeEntityId = session('active_entity_id');
+        $systemAdmin = $user?->isSystemAdmin() ?? false;
+        $assignment = null;
+        $assignmentPlantId = session('active_plant_id');
         $activeEntity = null;
         if ($user && $activeEntityId) {
             $entity = Entity::find($activeEntityId);
-            $systemAdmin = $user->isSystemAdmin();
+            if (!$systemAdmin && !($entity?->is_suspended)) {
+                $assignment = EntityUser::forContext($user->id, (int) $activeEntityId, $assignmentPlantId);
+            }
             if ($entity && $entity->is_suspended && !$systemAdmin) {
                 session()->forget(['active_entity_id', 'active_plant_id']);
                 $activeEntityId = null;
             } elseif ($entity) {
-                $assignment = $systemAdmin ? null : EntityUser::forContext(
-                    $user->id, (int) $activeEntityId, session('active_plant_id')
-                );
                 if ($systemAdmin || $assignment) {
                     $activeEntity = [
                         'entity_id' => $entity->id,
@@ -95,15 +97,18 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
-        $plantsCount = $user && $activeEntityId
+        $plantsCount = fn () => $user && $activeEntityId
             ? app(\App\Services\DashboardPlantAccess::class)->query($user)->where('entity_id', $activeEntityId)->count()
             : 0;
 
         // Determine Tenant-Specific Role and Permissions or user - specific roles of the logged in user
-        $activeRole = null;
-        if ($user && !$user->isSystemAdmin() && $activeEntityId) {
-            $activeRole = EntityUser::forContext($user->id, (int) $activeEntityId, $activePlantId ? (int) $activePlantId : null)?->role;
+        if ($user && !$systemAdmin && $activeEntityId && $assignmentPlantId !== $activePlantId) {
+            $assignment = EntityUser::forContext($user->id, (int) $activeEntityId, $activePlantId);
         }
+        $activeRole = $assignment?->role;
+        $contextAdministrator = $activeEntityId
+            ? ($systemAdmin || ($activeRole?->isAdministrator() ?? false))
+            : ($user?->isContextAdministrator() ?? false);
 
         $contextFullAccess = $user && ($user->hasFullAccess() || ($activeRole?->grantsFullAccess() ?? false));
 
@@ -231,8 +236,8 @@ class HandleInertiaRequests extends Middleware
             'gstin'            => fn () => session('gstin', $activePlant['gstin'] ?? null),
             'mixer_capacity'   => fn () => session('mixer_capacity', $activePlant['mixer_capacity'] ?? 1.25),
             'has_full_access'  => (bool) $contextFullAccess,
-            'is_context_administrator' => $user?->isContextAdministrator() ?? false,
-            'can_choose_invoice_copy' => $user?->canChooseInvoiceCopy() ?? false,
+            'is_context_administrator' => $contextAdministrator,
+            'can_choose_invoice_copy' => $contextAdministrator,
             'user_role'        => $tenantRoleName,
             'user_code'        => $tenantRoleCode,
             'user_permissions' => $tenantPermissions,

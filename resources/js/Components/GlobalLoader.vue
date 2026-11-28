@@ -1,6 +1,6 @@
 <template>
     <Transition name="fade">
-        <div v-if="isVisible" class="global-loader">
+        <div v-if="isGlobalLoading || pendingVisits > 0" class="global-loader" role="status">
             <div class="loader-content">
                 <template v-if="loaderImage">
                     <img :src="loaderImage" class="custom-loader-img" alt="Loading..." />
@@ -17,25 +17,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { onUnmounted, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { isGlobalLoading } from '@/Utils/loadingState';
 const loaderImage = null; // Can be linked to a setting later
+const pendingVisits = ref(0);
 
-const isInertiaLoading = ref(false);
-const isVisible = computed(() => isInertiaLoading.value || isGlobalLoading.value);
-let timeout = null;
-
-router.on('start', () => {
-    // Show loader only if it takes more than 150ms to prevent flickering on fast loads
-    timeout = setTimeout(() => {
-        isInertiaLoading.value = true;
-    }, 150);
+const removeStart = router.on('start', ({ detail: { visit } }) => {
+    if (visit.showProgress && !visit.prefetch) pendingVisits.value++;
+});
+const removeFinish = router.on('finish', ({ detail: { visit } }) => {
+    if (visit.showProgress && !visit.prefetch) pendingVisits.value = Math.max(0, pendingVisits.value - 1);
 });
 
-router.on('finish', (event) => {
-    clearTimeout(timeout);
-    isInertiaLoading.value = false;
+onUnmounted(() => {
+    removeStart();
+    removeFinish();
 });
 </script>
 

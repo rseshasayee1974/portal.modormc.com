@@ -7,6 +7,8 @@ import Toast from 'primevue/toast';
 import SampleForm from './SampleForm.vue';
 
 defineProps<{
+    directory: { page: number; total: number; entries: any[] };
+    filters: { age?: number; status?: string; search?: string };
     supportedTestAges?: number[];
     additionalSamples?: any[];
     concreteGrades?: any[];
@@ -34,7 +36,7 @@ const onSampleSaved = () => { formKey.value++; };
         <Toast />
 
         <div class="samples-workspace w-full min-w-0 mx-auto px-3 py-3 sm:px-5">
-            <SampleForm :key="formKey" :supportedTestAges="supportedTestAges" embedded :concreteGrades="concreteGrades" :materials="materials"
+            <SampleForm :key="formKey" :directory="directory" :filters="filters" :supportedTestAges="supportedTestAges" embedded :concreteGrades="concreteGrades" :materials="materials"
                 :customers="customers" :dispatches="dispatches" :batches="batches" :salesOrders="salesOrders"
                 :usedBatchIds="usedBatchIds" :usedDispatchIds="usedDispatchIds" :testTypes="testTypes"
                 :personnels="personnels" :additionalSamples="additionalSamples" @saved="onSampleSaved" />

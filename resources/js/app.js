@@ -4,7 +4,6 @@ import '../css/base.css';
 import { createApp, h } from 'vue';
 import { createInertiaApp, router } from '@inertiajs/vue3';
 import { installUserPresence } from '@/Services/userPresence';
-import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { createPinia } from 'pinia';
 import GlobalLoader from '@/Components/GlobalLoader.vue';
@@ -40,22 +39,23 @@ const appName = 'Modormc';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
-    async resolve(name) {
-        const [component] = await Promise.all([
-            resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
-            name === 'Auth/Login' ? undefined : ensureApplicationUI(),
-        ]);
-        return component;
-    },
+    pages: './Pages',
     async setup({ el, App, props, plugin }) {
         installUserPresence(props.initialPage.props.presence, router);
         scheduleServiceWorker(props.initialPage);
         const pinia = createPinia();
+        const resolveComponent = async (name, page) => {
+            const [component] = await Promise.all([
+                props.resolveComponent(name, page),
+                name === 'Auth/Login' ? undefined : ensureApplicationUI(),
+            ]);
+            return component;
+        };
 
         application = createApp({
             render: () => h('div', [
                 h(GlobalRequestErrors, { initialPage: props.initialPage }),
-                h(App, props),
+                h(App, { ...props, resolveComponent }),
                 h(GlobalLoader)
             ])
         })
@@ -66,16 +66,12 @@ createInertiaApp({
         if (props.initialPage.component !== 'Auth/Login') await ensureApplicationUI();
         return application.mount(el);
     },
-    progress: {
-        color: '#fbbf24',
-        showSpinner: true,
-        includeCSS: true,
-    },
+    progress: false,
 });
 
 router.on('navigate', event => scheduleServiceWorker(event.detail.page));
 
-router.on('invalid', (event) => {
+router.on('httpException', (event) => {
     const response = event.detail.response;
     if (response && [401, 419].includes(response.status)) {
         event.preventDefault();
@@ -87,7 +83,7 @@ router.on('invalid', (event) => {
         return;
     }
 
-    const url = response?.request?.responseURL || response?.config?.url;
+    const url = response?.headers['content-location'];
     if (url && (url.includes('/token') || url.includes('/dispatch-token') || url.includes('/delivery-token')) && !url.includes('/download')) {
         event.preventDefault();
         window.dispatchEvent(new CustomEvent('show-batch-token', { detail: { url } }));

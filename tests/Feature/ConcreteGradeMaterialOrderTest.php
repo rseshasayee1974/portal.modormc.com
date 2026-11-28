@@ -128,6 +128,42 @@ class ConcreteGradeMaterialOrderTest extends TestCase
         };
     }
 
+    public function test_registry_serialization_skips_per_ingredient_and_per_customer_usage_queries(): void
+    {
+        session(['active_plant_id' => 1]);
+        DB::statement('ALTER TABLE mm_products ADD COLUMN title TEXT');
+        DB::statement('ALTER TABLE mm_products ADD COLUMN plant_id INTEGER DEFAULT 1');
+        DB::statement('ALTER TABLE mm_products ADD COLUMN deleted_at TEXT');
+        DB::statement('ALTER TABLE mm_product_units ADD COLUMN deleted_at TEXT');
+        DB::statement('ALTER TABLE mm_batches ADD COLUMN status INTEGER DEFAULT 1');
+        DB::statement("CREATE TABLE mm_patrons (id INTEGER PRIMARY KEY, plant_id INTEGER, legal_name TEXT, operational_status TEXT DEFAULT 'active', deleted_at TEXT)");
+        DB::statement('CREATE TABLE mm_purchase_orders (id INTEGER PRIMARY KEY, plant_id INTEGER, vendor_id INTEGER, deleted_at TEXT)');
+        DB::statement('CREATE TABLE mm_custom_settings (plant_id INTEGER, module_name TEXT, settings TEXT, deleted_at TEXT)');
+        DB::table('mm_patrons')->insert(['id' => 1, 'plant_id' => 1, 'legal_name' => 'Customer']);
+        DB::table('mm_mix_designs')->update(['partner_id' => 1, 'unit_id' => 1]);
+        DB::table('mm_products')->where('id', 20)->update(['title' => 'Aggregate']);
+        $customer = \App\Models\Patron::firstOrFail();
+        $this->partialMock(\App\Services\DropdownCache::class)->shouldReceive('remember')
+            ->andReturnUsing(fn ($name) => match ($name) {
+                'Productunit' => collect([['id' => 1, 'unit_code' => 'CBM']]),
+                'PatronsDropdown' => collect([$customer]),
+                'ProductsDropdown' => collect(),
+            });
+
+        $request = request();
+        $request->headers->set('X-Inertia', 'true');
+        DB::enableQueryLog();
+        $props = $this->mixController()->index()->toResponse($request)->getData(true)['props'];
+        $queries = collect(DB::getQueryLog())->pluck('query')->implode("\n");
+        $this->assertStringNotContainsString('mm_batch_materials', $queries);
+        $this->assertStringNotContainsString('mm_purchase_orders', $queries);
+        $this->assertSame('Customer', $props['partners'][0]['legal_name']);
+        $this->assertSame('Customer', $props['mixDesigns'][0]['partner']['legal_name']);
+        $items = $props['mixDesigns'][0]['items'];
+        $this->assertSame([20, 30, 10, 40], array_column($items, 'product_id'));
+        $this->assertSame('Aggregate', $items[0]['product']['title']);
+    }
+
     public function test_mix_items_save_grade_defaults_and_custom_order_and_can_update_independently(): void
     {
         session(['active_plant_id' => 1]);

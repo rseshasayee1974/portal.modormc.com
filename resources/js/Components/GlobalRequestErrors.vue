@@ -56,7 +56,7 @@ onMounted(() => {
         router.on('start', () => show([])),
         router.on('error', event => show(event.detail.errors)),
         router.on('success', event => showPageErrors(event.detail.page)),
-        router.on('invalid', event => {
+        router.on('httpException', event => {
             if (event.detail.response?.status >= 400) {
                 event.preventDefault();
                 showResponse(event.detail.response);

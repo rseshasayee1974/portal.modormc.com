@@ -520,6 +520,8 @@ Route::middleware([
         });
 
         // Operations
+        Route::get('sample-sources', [QCSampleController::class, 'sources'])->name('quality.samples.sources');
+        Route::get('samples/{sample}/test-summary', [QCSampleController::class, 'testSummary'])->name('quality.samples.test-summary');
         Route::resource('samples', QCSampleController::class)->except('show')->names('quality.samples');
 
         Route::prefix('tests')->group(function () {

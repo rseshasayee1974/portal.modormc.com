@@ -34,15 +34,23 @@ class MixDesignController extends Controller
         $defaultUomId = $this->resolveDefaultUomId($plantId, $units);
 
         return Inertia::render('MixDesigns/Index', [
-            'mixDesigns' => MixDesign::where('plant_id', '=', $plantId)
-                ->with(['partner', 'items.product', 'items.uom', 'unit'])
+            'mixDesigns' => fn () => MixDesign::where('plant_id', '=', $plantId)
+                ->with(['partner:id,legal_name', 'items.product:id,title'])
                 ->latest()
-                ->get(),
-            'partners'  => PatronsDropdown(['Customer']),
+                ->get()
+                ->each(function (MixDesign $design) {
+                    $design->partner?->setVisible(['id', 'legal_name']);
+                    foreach ($design->items as $item) {
+                        $item->setVisible(['id', 'product_id', 'product', 'display_order', 'uom_id',
+                            'rate', 'actual_quantity', 'cross_quantity', 'variation_quantity']);
+                        $item->product?->setVisible(['id', 'title']);
+                    }
+                }),
+            'partners'  => fn () => PatronsDropdown(['Customer'])->map->only(['id', 'legal_name']),
             'units' => $units,
-            'products' => ProductsDropdown('Purchase'),
+            'products' => fn () => ProductsDropdown('Purchase')->map->only(['id', 'title']),
             'defaultUomId' => $defaultUomId,
-            'designTypes' => ConcreteGrade::query()->where('plant_id', '=', $plantId)->select(['id', 'name'])->get(),
+            'designTypes' => fn () => ConcreteGrade::query()->where('plant_id', '=', $plantId)->select(['id', 'name'])->get(),
         ]);
     }
 

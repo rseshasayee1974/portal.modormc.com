@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { usePermissions } from '@/Composables/usePermissions';
 import { entityToday, entityLocaleDate, entityAddDays } from '@/Utils/entityDateTime';
-import { useForm, Link } from '@inertiajs/vue3';
-import { ref, computed, watch, nextTick } from 'vue';
+import { useForm, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseField from '@/Components/Base/BaseField.vue';
@@ -16,6 +17,8 @@ import Popover from 'primevue/popover';
 import Button from 'primevue/button';
 
 const props = defineProps<{
+    directory?: { page: number; total: number; entries: any[] };
+    filters?: { age?: number; status?: string; search?: string };
     supportedTestAges?: number[];
     sample?: any;
     additionalSamples?: any[];
@@ -42,7 +45,11 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
-const initialOrder = (props.salesOrders || []).find(o => o.batches?.some((b: any) => b.id == props.sample?.batch_id) || o.dispatches?.some((d: any) => d.id == props.sample?.dispatch_id));
+const initialOrder = props.sample && (props.salesOrders || []).find(order =>
+    order.dispatches?.some((dispatch: any) =>
+        dispatch.id == props.sample.dispatch_id ||
+        (props.sample.batch_id != null && dispatch.batch_id == props.sample.batch_id)) ||
+    (props.sample.batch?.sales_order_id != null && order.id == props.sample.batch.sales_order_id));
 const initialDispatch = initialOrder?.dispatches?.find((dispatch: any) => dispatch.id == props.sample?.dispatch_id)
     || initialOrder?.dispatches?.find((dispatch: any) => dispatch.batch_id == props.sample?.batch_id);
 const initialKey = initialDispatch ? `dispatch:${initialDispatch.id}` : null;
@@ -117,7 +124,31 @@ const statusOptions = [
 ];
 const loadSearch = ref('');
 const tableFirst = ref(0);
-watch([ageFilter, statusFilter, loadSearch], () => { tableFirst.value = 0; });
+watch(() => [props.directory, props.filters], () => {
+    ageFilter.value = props.filters?.age ? Number(props.filters.age) : null;
+    statusFilter.value = props.filters?.status || 'All';
+    loadSearch.value = props.filters?.search || '';
+    tableFirst.value = ((props.directory?.page || 1) - 1) * 30;
+}, { immediate: true });
+let searchTimer: ReturnType<typeof setTimeout>;
+let cancelVisit: (() => void) | undefined;
+function loadPage(page: number, delay = 0) {
+    clearTimeout(searchTimer);
+    cancelVisit?.();
+    searchTimer = setTimeout(() => {
+        router.get(route('quality.samples.index'), {
+            page, search: loadSearch.value.trim() || undefined, age: ageFilter.value ?? undefined,
+            status: statusFilter.value === 'All' ? undefined : statusFilter.value,
+        }, {
+            only: ['directory', 'filters', 'salesOrders', 'additionalSamples'], preserveScroll: true, preserveState: true,
+            replace: delay > 0, showProgress: false,
+            onCancelToken: token => { cancelVisit = () => token.cancel(); },
+            onFinish: () => { cancelVisit = undefined; },
+            onSuccess: () => { closeEditor(); },
+        });
+    }, delay);
+}
+onUnmounted(() => { clearTimeout(searchTimer); cancelVisit?.(); });
 const ageOptions = computed(() => [
     { label: 'All ages', value: null },
     ...supportedTestAges.value.map(age => ({ label: `${age} ${age === 1 ? 'day' : 'days'}`, value: age })),
@@ -133,9 +164,9 @@ const currentAge = (value?: string) => {
 };
 const isDispatched = (dispatch: any) => dispatch?.dispatch_time && dispatch?.dispatch_no
     && !['Draft', 'Loading', 'Cancelled'].includes(dispatch.dispatch_status);
-const productionRows = computed(() => [...(props.salesOrders || []).flatMap(order =>
+const sourceRows = (orders: any[] = [], samples: any[] = []) => [...orders.flatMap(order =>
     (order.dispatches || []).filter(isDispatched).map((dispatch: any) => {
-        const batch = (order.batches || []).find((batch: any) => batch.id == dispatch.batch_id) || dispatch.batch;
+        const batch = dispatch.batch;
         const sample = dispatch.quality_sample || batch?.quality_sample;
         const key = `dispatch:${dispatch.id}`;
         return {
@@ -144,33 +175,24 @@ const productionRows = computed(() => [...(props.salesOrders || []).flatMap(orde
             cancelled: Number(batch?.status) === 5,
         };
     })
-), ...(props.additionalSamples || []).map(sample => ({
+), ...samples.map(sample => ({
     key: `sample:${sample.id}`, sample, batch: sample.batch,
     dispatch: sample.dispatch || {},
     order: { customer: sample.customer, site: { name: sample.site_name } },
     age: currentAge(sample.dispatch?.dispatch_time),
     cancelled: Number(sample.batch?.status) === 5 || sample.dispatch?.dispatch_status === 'Cancelled',
-}))]);
-const filteredSources = computed(() => productionRows.value.filter((row: any) => {
-    const age = ageFilter.value;
-    if (row.sample) return true;
-    if (row.cancelled || !isDispatched(row.dispatch) || !supportedTestAges.value.includes(row.age)) return false;
-    if (age !== null && row.age !== age) return false;
-    return true;
-}));
-const filteredRows = computed(() => filteredSources.value.flatMap((row: any) => {
-    const tests = row.sample?.tests || [];
-    return tests.length ? tests.map((test: any) => ({ ...row, sourceKey: row.key, key: `${row.key}:test:${test.id}`, test })) : [{ ...row, sourceKey: row.key, test: null }];
-}).filter((row: any) => {
-    if (ageFilter.value !== null && Number(row.test?.age_days ?? row.age) !== ageFilter.value) return false;
-    if (statusFilter.value !== 'All' && (row.test?.overall_status || (row.sample ? 'pending' : 'not_sampled')) !== statusFilter.value) return false;
-    const search = loadSearch.value.trim().toLowerCase();
-    return !search || [row.order.order_no, row.order.customer?.legal_name, row.order.site?.name,
-    row.batch?.batch_no, row.dispatch.dispatch_no, invoiceNumber(row), row.sample?.sample_no,
-    row.sample?.truck_no, row.sample?.source_location, row.sample?.concrete_grade?.name,
-    row.sample?.material?.title, row.test?.test_no, row.test?.tester?.username]
-        .some(value => String(value || '').toLowerCase().includes(search));
-}));
+}))];
+const productionRows = computed(() => sourceRows(props.salesOrders, props.additionalSamples));
+const filteredRows = computed(() => {
+    const sources = new Map(productionRows.value.map(row => [row.key, row]));
+    return (props.directory?.entries || []).flatMap(entry => {
+        const sourceKey = entry.dispatch_id ? `dispatch:${entry.dispatch_id}` : `sample:${entry.sample_id}`;
+        const source = sources.get(sourceKey);
+        if (!source) return [];
+        const test = source.sample?.tests?.find((item: any) => item.id == entry.test_id);
+        return [{ ...source, sourceKey, key: test ? `${sourceKey}:test:${test.id}` : sourceKey, test }];
+    });
+});
 const invoiceNumber = (row: any) => row.dispatch?.invoice_status?.invoice?.invoice_number || row.dispatch?.invoice_status?.invoice_number || 'Not invoiced';
 const fieldTechnician = (row: any) => personnelOptions.value.find(person => person.value == row.sample?.tested_by)?.label
     || [row.sample?.tester?.first_name, row.sample?.tester?.last_name].filter(Boolean).join(' ') || '-';
@@ -185,7 +207,6 @@ const editorElement = ref<HTMLElement | null>(null);
 const editorTarget = computed(() => editing.value && !props.isEditing ? formTarget.value : createTarget.value);
 const activeRowKey = computed(() => editing.value ? editorSource.value?.key : null);
 const expandedRows = computed(() => activeRowKey.value ? { [activeRowKey.value]: true } : {});
-const tableRows = ref(30);
 const defaults = form.data();
 const preferredTestType = () => (props.testTypes || []).find(type => /compressive/i.test(type.name))?.id || props.testTypes?.[0]?.id || null;
 form.test_type_id = preferredTestType();
@@ -197,7 +218,41 @@ watch(ageOptionsForTest, options => {
     const valid = form.schedule_milestones.filter(age => options.some(option => option.value === age));
     form.schedule_milestones = valid.length ? valid : options.length ? [options[0].value] : [];
 }, { immediate: true });
-const sourceOptions = computed(() => productionRows.value.filter(row => !row.cancelled).map(row => ({
+const pickerRows = ref<any[] | null>(null);
+const pickerPage = ref(1);
+const pickerTotal = ref(0);
+const pickerSearch = ref('');
+const pickerError = ref('');
+let pickerRequest: AbortController | undefined;
+let pickerTimer: ReturnType<typeof setTimeout>;
+function findSources(page: number, delay = 0) {
+    clearTimeout(pickerTimer);
+    pickerRequest?.abort();
+    pickerTimer = setTimeout(async () => {
+        const request = new AbortController();
+        pickerRequest = request;
+        pickerError.value = '';
+        try {
+            const { data } = await axios.get(route('quality.samples.sources'), {
+                params: { search: pickerSearch.value.trim(), page }, signal: request.signal,
+            });
+            if (request.signal.aborted) return;
+            pickerRows.value = sourceRows(data.salesOrders, data.additionalSamples);
+            pickerPage.value = data.directory.page;
+            pickerTotal.value = data.directory.total;
+        } catch {
+            if (!request.signal.aborted) pickerError.value = 'Could not load sources. Please try again.';
+        }
+    }, delay);
+}
+onUnmounted(() => { clearTimeout(pickerTimer); pickerRequest?.abort(); });
+const selectableSources = computed(() => {
+    const rows = pickerRows.value ?? productionRows.value;
+    const selected = editorSource.value;
+    return selected && !rows.some(row => row.key === sourceKey.value)
+        ? [{ ...selected, key: sourceKey.value }, ...rows] : rows;
+});
+const sourceOptions = computed(() => selectableSources.value.filter(row => !row.cancelled).map(row => ({
     value: row.key,
     label: 'DP-' + (row.dispatch?.dispatch_no || row.sample?.sample_no || '') + ' (' + (row.order?.customer?.legal_name || '') + ')',
 })));
@@ -217,8 +272,28 @@ const readOnlySampleFields = computed(() => [
     { label: 'Specimens per load', value: form.specimen_count, icon: 'pi pi-th-large' },
     { label: 'Sample quantity', value: form.sample_quantity, icon: 'pi pi-box' },
 ]);
-const existingTest = computed(() => !editing.value && existingSample.value?.tests?.find((test: any) => test.test_type_id == form.test_type_id && form.schedule_milestones.includes(Number(test.age_days))));
-const laboratoryTests = computed(() => (editingSample.value?.tests || []).filter((test: any) => supportedTestAges.value.includes(Number(test.age_days))));
+const sampleTests = ref<any[]>([]);
+const testsLoading = ref(false);
+const testsError = ref('');
+const testsRetry = ref(0);
+watch([() => editingSample.value?.id, testsRetry], async ([id], _, onCleanup) => {
+    sampleTests.value = editingSample.value?.tests || [];
+    testsError.value = '';
+    testsLoading.value = !!(props.directory && id);
+    if (!testsLoading.value) return;
+    const request = new AbortController();
+    onCleanup(() => request.abort());
+    try {
+        const { data } = await axios.get(route('quality.samples.test-summary', id), { signal: request.signal });
+        if (!request.signal.aborted) sampleTests.value = data;
+    } catch {
+        if (!request.signal.aborted) testsError.value = 'Could not load the test history. Retry';
+    } finally {
+        if (!request.signal.aborted) testsLoading.value = false;
+    }
+}, { immediate: true });
+const existingTest = computed(() => !editing.value && sampleTests.value.find(test => test.test_type_id == form.test_type_id && form.schedule_milestones.includes(Number(test.age_days))));
+const laboratoryTests = computed(() => sampleTests.value.filter(test => supportedTestAges.value.includes(Number(test.age_days))));
 const milestoneError = computed(() => Object.entries(form.errors).find(([key]) => key === 'schedule_milestones' || key.startsWith('schedule_milestones.') || key === 'age_days')?.[1]);
 const scheduledDate = computed(() => {
     const origin = editorSource.value?.dispatch.dispatch_time || editingSample.value?.dispatch?.dispatch_time || form.sample_date;
@@ -261,7 +336,7 @@ const loadSource = (row?: any) => {
     form.truck_no = row.sample?.truck_no || row.dispatch.truck?.registration || '';
 };
 watch(sourceKey, key => {
-    if (!editing.value) loadSource(productionRows.value.find(row => row.key === key));
+    if (!editing.value) loadSource(selectableSources.value.find(row => row.key === key));
 });
 const scrollToForm = async () => {
     await nextTick();
@@ -271,6 +346,7 @@ const openCreateTest = (row?: any) => {
     formMode.value = 'create';
     sourceKey.value = row?.sourceKey || row?.key || null;
     loadSource(row);
+    if (props.directory) { pickerSearch.value = ''; findSources(1); }
     void scrollToForm();
 };
 const openEditor = (row: any) => {
@@ -281,8 +357,6 @@ const openEditor = (row: any) => {
         statusFilter.value = 'All';
         loadSearch.value = '';
     }
-    const index = filteredRows.value.findIndex((entry: any) => entry.key === row.key);
-    if (index >= 0) tableFirst.value = Math.floor(index / tableRows.value) * tableRows.value;
     void scrollToForm();
 };
 const closeEditor = () => {
@@ -327,6 +401,7 @@ const statusClass = (row: any) => ({
     retest: 'bg-tangerine-50 text-tangerine-700 dark:bg-tangerine-900/40 dark:text-tangerine-300',
 } as Record<string, string>)[row.test?.overall_status as string] || 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
 const submit = () => {
+    if (testsLoading.value || testsError.value) return;
     const success = () => emit('saved');
     if (editing.value) {
         form.transform(data => {
@@ -351,20 +426,20 @@ const submit = () => {
         <div ref="createTarget" class="min-w-0"></div>
 
         <div v-if="!isEditing" class="min-w-0">
-            <BaseDataTable :value="filteredRows" dataKey="key" :paginator="true" :rows="tableRows"
-                :rowsPerPageOptions="[30, 50, 100]" :first="tableFirst"
-                @page="tableFirst = $event.first; tableRows = $event.rows" :stripedRows="true"
+            <BaseDataTable :value="filteredRows" dataKey="key" paginator lazy :rows="30" :totalRecords="directory?.total ?? 0"
+                :rowsPerPageOptions="[30]" :first="tableFirst"
+                @page="loadPage($event.page + 1)" :stripedRows="true"
                 :expandedRows="expandedRows" :expandOnRowClick="false"
                 :rowClass="(row: any) => [row.cancelled ? 'opacity-60' : '', row.key === activeRowKey ? 'qc-active-row' : ''].join(' ')"
                 :showAdvancedFilter="false" heading="Concrete Test Directory" headingIcon="ListBulletIcon" showSerial
                 class="qc-production-table">
                 <template #toolbar>
                     <div class="flex flex-wrap items-center gap-3">
-                        <BaseInput v-model="loadSearch" placeholder="Search dispatch, sample or customer"
+                        <BaseInput v-model="loadSearch" :maxlength="200" @update:modelValue="loadPage(1, 300)" placeholder="Search dispatch, sample or customer"
                             aria-label="Search concrete tests" class="w-full sm:w-64" />
-                        <BaseSelect v-model="ageFilter" :options="ageOptions" optionLabel="label" optionValue="value"
+                        <BaseSelect v-model="ageFilter" @update:modelValue="loadPage(1)" :options="ageOptions" optionLabel="label" optionValue="value"
                             placeholder="Test age" aria-label="Filter test age" class="w-36" />
-                        <BaseSelect v-model="statusFilter" :options="statusOptions" optionLabel="label"
+                        <BaseSelect v-model="statusFilter" @update:modelValue="loadPage(1)" :options="statusOptions" optionLabel="label"
                             optionValue="value" aria-label="Filter status" class="w-36" />
                         <!-- <BaseButton type="button" v-if="canCreateTests" label="New test" icon="pi pi-plus" @click="openCreateTest()" /> -->
                     </div>
@@ -503,14 +578,24 @@ const submit = () => {
                 </div>
                 <form @submit.prevent="submit"
                     class="space-y-6 border-t border-slate-100 p-4 sm:p-6 dark:border-slate-800">
+                    <p v-if="testsLoading" role="status">Loading test history…</p>
+                    <button v-if="testsError" type="button" @click="testsRetry++">{{ testsError }}</button>
 
                     <div class="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
                         <!-- Left Column: Stacked vertically to match the height of Load Details & prevent text cutoff -->
                         <div v-if="!editing"
                             class="flex flex-col justify-between gap-4 sm:grid sm:grid-cols-3 lg:flex lg:col-span-4 lg:flex-col">
+                            <BaseInput v-if="directory" v-model="pickerSearch" :maxlength="200" placeholder="Find a load or sample"
+                                aria-label="Search all load and sample sources" @update:modelValue="findSources(1, 300)" />
                             <BaseSelect v-model="sourceKey" label="Load / Sample" required :options="sourceOptions"
-                                optionLabel="label" optionValue="value" filter placeholder="Select a load or sample"
+                                optionLabel="label" optionValue="value" :filter="!directory" placeholder="Select a load or sample"
                                 :error="form.errors.source_keys || form.errors.sample_id" />
+                            <div v-if="pickerTotal > 30" class="flex items-center gap-3">
+                                <button type="button" :disabled="pickerPage <= 1" @click="findSources(pickerPage - 1)">Previous sources</button>
+                                <span>{{ pickerPage }} / {{ Math.ceil(pickerTotal / 30) }}</span>
+                                <button type="button" :disabled="pickerPage * 30 >= pickerTotal" @click="findSources(pickerPage + 1)">Next sources</button>
+                            </div>
+                            <button v-if="pickerError" type="button" @click="findSources(pickerPage)">{{ pickerError }}</button>
                             <BaseSelect v-model="form.test_type_id" label="Test type" required
                                 :options="testTypeOptions" optionLabel="label" optionValue="value"
                                 :error="form.errors.test_type_id || form.errors.test_type_ids" />
@@ -657,7 +742,7 @@ const submit = () => {
                         <BaseButton type="button" :label="editing ? 'Cancel' : 'Reset'" severity="secondary"
                             @click="closeEditor" />
                         <BaseButton type="submit" :label="editing ? 'Save sample' : 'Save & enter results'"
-                            :loading="form.processing" />
+                            :disabled="testsLoading || !!testsError" :loading="form.processing" />
                     </div>
                 </form>
             </section>

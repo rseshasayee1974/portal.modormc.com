@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
+import inertia from '@inertiajs/vite';
 
 import { visualizer } from 'rollup-plugin-visualizer';
 
@@ -10,6 +11,7 @@ export default defineConfig({
             input: 'resources/js/app.js',
             refresh: true,
         }),
+        inertia({ ssr: false }),
         vue({
             template: {
                 transformAssetUrls: {
@@ -34,7 +36,7 @@ export default defineConfig({
                 pure_funcs: ['console.log'],
                 passes: 3
             },
-            output: {
+            format: {
                 comments: false
             }
         },

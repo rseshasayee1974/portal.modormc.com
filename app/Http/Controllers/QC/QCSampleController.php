@@ -8,9 +8,6 @@ use App\Models\QC\QcSample;
 use App\Models\QC\QcTest;
 use App\Models\QC\QcTestType;
 use App\Models\ConcreteGrade;
-use App\Models\Product;
-use App\Models\Patron;
-use App\Models\PurchaseOrderHistory;
 use App\Models\Batch;
 use App\Models\Dispatch;
 use App\Models\Personnel;
@@ -18,6 +15,7 @@ use App\Models\SalesOrder;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
 use App\Services\PlantContextService;
+use App\Services\QualitySampleDirectory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -32,92 +30,38 @@ class QCSampleController extends Controller
         $this->authorizeModule('menu');
 
         $ctx = app(PlantContextService::class);
-        $plantId = $ctx->plantId();
-
-        $query = QcSample::with([
-            'material',
-            'concreteGrade',
-            'customer',
-            'batch',
-            'dispatch.truck',
-            'dispatch.mixDesign.concreteGrade',
-            'sampler',
-            'tester',
-            'tests.testType'
+        $plantId = $ctx->requirePlantId();
+        $filters = $request->validate([
+            'page' => 'sometimes|integer|min:1',
+            'search' => 'nullable|string|max:200',
+            'age' => 'nullable|integer|between:1,36500',
+            'status' => ['nullable', Rule::in(['All', 'not_sampled', 'pending', 'pass', 'fail', 'hold', 'retest'])],
         ]);
-
-        if ($plantId) {
-            $query->where('plant_id', $plantId);
-        }
-
-        if ($request->search) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('sample_no', 'like', "%{$search}%")
-                  ->orWhere('source_location', 'like', "%{$search}%")
-                  ->orWhere('truck_no', 'like', "%{$search}%")
-                  ->orWhere('site_name', 'like', "%{$search}%")
-                  ->orWhereHas('batch', fn($b) => $b->where('batch_no', 'like', "%{$search}%"))
-                  ->orWhereHas('dispatch', fn($d) => $d->where('dispatch_no', 'like', "%{$search}%"))
-                  ->orWhereHas('concreteGrade', fn($cg) => $cg->where('name', 'like', "%{$search}%"))
-                  ->orWhereHas('material', fn($m) => $m->where('title', 'like', "%{$search}%"))
-                  ->orWhereHas('customer', fn($c) => $c->where('legal_name', 'like', "%{$search}%"));
-            });
-        }
-
-        if ($request->status && $request->status !== 'All') {
-            $query->where('status', $request->status);
-        }
-
-        $allowedSorts = ['sample_no', 'sample_date', 'status', 'id'];
-        $sort = in_array($request->input('sort'), $allowedSorts, true) ? $request->input('sort') : 'id';
-        $direction = $request->input('direction') === 'asc' ? 'asc' : 'desc';
-        $perPage = in_array($request->integer('per_page'), [10, 20, 30, 50, 100], true) ? $request->integer('per_page') : 20;
-        $query->orderBy($sort, $direction);
-        if ($sort !== 'id') $query->orderBy('id', $direction);
-        $samples = $query->paginate($perPage)->withQueryString();
-
-        $concreteGrades = ConcreteGrade::where('status', true)->get(['id', 'name']);
-
-        $materials = Product::query();
-        if ($plantId) {
-            $materials->where('plant_id', $plantId);
-        }
-        $materials = $materials->where('status', true)->get(['id', 'title', 'code', 'material_code']);
-
-        $customers = Patron::where('status', true)->get(['id', 'legal_name', 'code']);
-
-        $dispatches = Dispatch::with(['customer:id,legal_name', 'unloadSite:id,name', 'truck:id,registration', 'mixDesign.concreteGrade:id,name'])
-            ->whereNotNull('dispatch_no')
-            ->orderBy('id', 'desc')
-            ->limit(60)
-            ->get(['id', 'dispatch_no', 'customer_id', 'unload_site_id', 'truck_id', 'batch_id', 'mixdesign_id', 'delivered_qty', 'dispatch_time']);
-
-        $testTypesQuery = QcTestType::with('parameters')->where('is_active', true);
-        if ($plantId) {
-            $testTypesQuery->where(function ($q) use ($plantId) {
-                $q->where('plant_id', $plantId)
-                  ->orWhereNull('plant_id');
-            });
-        }
-        $testTypes = $testTypesQuery->get(['id', 'name', 'code', 'category', 'material_type']);
-
-        return Inertia::render('Quality/Samples/Index', [
-            ...$this->samplingOptions($plantId),
-            'samples' => $samples,
-            'concreteGrades' => $concreteGrades,
-            'materials' => $materials,
-            'customers' => $customers,
-            'dispatches' => $dispatches,
-            'testTypes' => $testTypes,
-            'filters' => $request->only(['search', 'status', 'sort', 'direction']),
-        ]);
+        return Inertia::render('Quality/Samples/Index', $this->samplingOptions($plantId, $filters));
     }
 
     public function create()
     {
         $this->authorizeModule('create');
         return redirect()->route('quality.samples.index');
+    }
+
+    public function sources(Request $request)
+    {
+        $this->authorizeModule('menu');
+        $plantId = app(PlantContextService::class)->requirePlantId();
+        $filters = $request->validate(['page' => 'sometimes|integer|min:1', 'search' => 'nullable|string|max:200']);
+        $options = $this->samplingOptions($plantId, $filters, true);
+        return response()->json(\Illuminate\Support\Arr::only($options, ['directory', 'salesOrders', 'additionalSamples']));
+    }
+
+    public function testSummary(QcSample $sample)
+    {
+        $this->authorizeModule('menu');
+        abort_unless((int) $sample->plant_id === app(PlantContextService::class)->requirePlantId(), 404);
+        return response()->json($sample->tests()->orderBy('id')->get([
+            'id', 'test_type_id', 'test_no', 'age_days', 'overall_status', 'scheduled_date', 'test_date',
+        ]));
     }
 
     public function edit(QcSample $sample)
@@ -129,48 +73,9 @@ class QCSampleController extends Controller
         abort_if($plantId && (int) $sample->plant_id !== (int) $plantId, 404);
         $sample->load(['tests.testType', 'concreteGrade', 'material', 'customer', 'batch', 'dispatch', 'tester']);
 
-        $concreteGrades = ConcreteGrade::where('status', true)->get(['id', 'name']);
-
-        $materials = Product::query();
-        if ($plantId) {
-            $materials->where('plant_id', $plantId);
-        }
-        $materials = $materials->where('status', true)->get(['id', 'title', 'code', 'material_code']);
-
-        $customers = Patron::where('status', true)->get(['id', 'legal_name', 'code']);
-
-        $dispatches = Dispatch::with(['customer:id,legal_name', 'unloadSite:id,name', 'truck:id,registration', 'mixDesign.concreteGrade:id,name'])
-            ->whereNotNull('dispatch_no')
-            ->orderBy('id', 'desc')
-            ->limit(60)
-            ->get(['id', 'dispatch_no', 'customer_id', 'unload_site_id', 'truck_id', 'batch_id', 'mixdesign_id', 'delivered_qty', 'dispatch_time']);
-
-        ['salesOrders' => $salesOrders, 'batches' => $batches,
-            'usedBatchIds' => $usedBatchIds, 'usedDispatchIds' => $usedDispatchIds,
-            'personnels' => $personnels] = $this->samplingOptions($plantId);
-
-        $testTypesQuery = QcTestType::with('parameters')->where('is_active', true);
-        if ($plantId) {
-            $testTypesQuery->where(function ($q) use ($plantId) {
-                $q->where('plant_id', $plantId)
-                  ->orWhereNull('plant_id');
-            });
-        }
-        $testTypes = $testTypesQuery->get(['id', 'name', 'code', 'category', 'material_type']);
-
         return Inertia::render('Quality/Samples/Edit', [
-            'supportedTestAges' => [7, 15, 28],
+            ...$this->samplingOptions($plantId),
             'sample' => $sample,
-            'concreteGrades' => $concreteGrades,
-            'materials' => $materials,
-            'customers' => $customers,
-            'dispatches' => $dispatches,
-            'batches' => $batches,
-            'salesOrders' => $salesOrders,
-            'usedBatchIds' => $usedBatchIds,
-            'usedDispatchIds' => $usedDispatchIds,
-            'testTypes' => $testTypes,
-            'personnels' => $personnels,
         ]);
     }
 
@@ -491,56 +396,94 @@ class QCSampleController extends Controller
         return redirect()->route('quality.samples.index')->with('success', 'Concrete Sample details updated.');
     }
 
-    private function samplingOptions(?int $plantId): array
+    private function samplingOptions(?int $plantId, ?array $filters = null, bool $sourcePicker = false): array
     {
+        $testTypes = QcTestType::with('parameters')->where('is_active', true)
+            ->when($plantId, fn ($q) => $q->where(fn ($scope) => $scope->where('plant_id', $plantId)->orWhereNull('plant_id')))
+            ->get(['id', 'name', 'code', 'category', 'material_type']);
+        $supportedTestAges = [7, 15, 28];
+        foreach ($testTypes->flatMap->parameters as $parameter) {
+            if ((string) $parameter->is_active === '0' || $parameter->is_active === false) continue;
+            $age = null;
+            foreach ([$parameter->name, $parameter->code, $parameter->default_value] as $value) {
+                if (preg_match('/(?:^|\D)(\d+)\s*[-_]?\s*(?:days?|d)\b/i', (string) $value, $match)) {
+                    $age = (int) $match[1];
+                    break;
+                }
+            }
+            if ($age === null && preg_match('/\bage\b|days?|^d$/i', "$parameter->name $parameter->code $parameter->unit")) {
+                $age = filter_var($parameter->default_value, FILTER_VALIDATE_INT);
+            }
+            if ($age > 0 && $age <= 36500) $supportedTestAges[] = $age;
+        }
+        $supportedTestAges = array_values(array_unique($supportedTestAges));
+        $directory = $filters === null ? null : app(QualitySampleDirectory::class)->page(
+            $plantId, $filters, $supportedTestAges, request()->attributes->get('entity_timezone', 'Asia/Kolkata'), $sourcePicker
+        );
+        $entries = $directory['entries'] ?? null;
         $dispatched = fn ($q) => $q->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
             ->whereNotNull('dispatch_time')->whereNotNull('dispatch_no')
             ->whereNotIn('dispatch_status', ['Draft', 'Loading', 'Cancelled']);
+        // Avoid computing pricing, usage and tax attributes when only display labels are needed.
+        $labels = static fn (string $columns) => static fn ($query) => $query
+            ->select(explode(',', $columns))->afterQuery(fn ($models) => $models->withoutAppends());
+
         $salesOrders = SalesOrder::with([
-            'customer:id,legal_name', 'site:id,name', 'mixDesign.concreteGrade',
-            'batches.dispatches.customer', 'batches.dispatches.unloadSite',
-            'batches.dispatches.truck', 'batches.dispatches.mixDesign.concreteGrade',
-            'batches.dispatches.invoiceStatus.invoice', 'dispatches.batch',
-            'dispatches.customer', 'dispatches.unloadSite', 'dispatches.truck',
-            'dispatches.mixDesign.concreteGrade', 'dispatches.invoiceStatus.invoice',
-        ])->when($plantId, fn($q) => $q->where('plant_id', $plantId))
-        ->whereHas('dispatches', $dispatched)
-        ->latest()->get();
-        $batches = $salesOrders->flatMap->batches;
+            'customer' => $labels('id,legal_name'),
+            'site' => $labels('id,name'),
+            'mixDesign' => $labels('id,concrete_grade_id'),
+            'mixDesign.concreteGrade:id,name',
+            'dispatches' => function ($query) use ($entries, $labels) {
+                $labels('id,sales_order_id,batch_id,dispatch_no,dispatch_time,dispatch_status,truck_id,unload_site_id,mixdesign_id')($query);
+                if ($entries !== null) $query->whereKey($entries->pluck('dispatch_id')->filter()->unique()->all());
+            },
+            'dispatches.batch' => $labels('id,batch_no,status'),
+            'dispatches.unloadSite' => $labels('id,name'),
+            'dispatches.truck' => $labels('id,registration'),
+            'dispatches.mixDesign' => $labels('id,concrete_grade_id'),
+            'dispatches.mixDesign.concreteGrade:id,name',
+            'dispatches.invoiceStatus:id,dispatch_id,invoice_id,invoice_number',
+            'dispatches.invoiceStatus.invoice' => $labels('id,invoice_number'),
+        ])->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
+            ->when($entries !== null, fn ($q) => $q->whereKey($entries->pluck('order_id')->filter()->unique()->all()),
+                fn ($q) => $q->whereHas('dispatches', $dispatched))
+            ->latest()->get(['id', 'order_no', 'customer_id', 'site_id', 'mix_design_id'])->withoutAppends();
         $sourceSamples = QcSample::with([
+            'tests' => fn ($q) => $q->select(['id', 'sample_id', 'test_type_id', 'test_no', 'age_days',
+                'overall_status', 'scheduled_date', 'test_date', 'evaluated_at', 'tested_by'])
+                ->when($entries !== null, fn ($q) => $q->whereKey($entries->pluck('test_id')->filter()->unique()->all())),
             'tests.tester:id,username', 'tester:id,first_name,last_name,employee_code',
-            'concreteGrade', 'material', 'customer', 'batch', 'dispatch',
-        ])
-            ->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
-            ->get();
+            'concreteGrade:id,name', 'material' => $labels('id,title'),
+            'customer' => $labels('id,legal_name'), 'batch' => $labels('id,batch_no,status'),
+            'dispatch' => $labels('id,dispatch_no,dispatch_time,dispatch_status'),
+        ])->when($plantId, fn ($q) => $q->where('plant_id', $plantId))
+            ->when($entries !== null, fn ($q) => $q->whereKey($entries->pluck('sample_id')->filter()->unique()->all()))->get();
         $samplesByBatch = $sourceSamples->whereNotNull('batch_id')->keyBy('batch_id');
         $samplesByDispatch = $sourceSamples->whereNotNull('dispatch_id')->keyBy('dispatch_id');
+        $pageSamples = $entries?->pluck('sample_id', 'dispatch_id');
+        $samplesById = $sourceSamples->keyBy('id');
         $representedSampleIds = [];
+        $timezone = request()->attributes->get('entity_timezone', 'Asia/Kolkata');
+        $today = now($timezone)->startOfDay();
         foreach ($salesOrders as $order) {
-            foreach ($order->batches as $batch) {
-                $batch->setRelation('qualitySample', $samplesByBatch->get($batch->id));
-            }
             foreach ($order->dispatches as $dispatch) {
-                $timezone = request()->attributes->get('entity_timezone', 'Asia/Kolkata');
                 $dispatchAge = $dispatch->dispatch_time
                     ? (int) \Carbon\Carbon::parse($dispatch->dispatch_time)->timezone($timezone)->startOfDay()
-                        ->diffInDays(now($timezone)->startOfDay(), false)
+                        ->diffInDays($today, false)
                     : null;
                 $dispatch->setAttribute('qc_due_age', in_array($dispatchAge, [7, 15, 28], true) ? $dispatchAge : null);
-                $sample = $samplesByDispatch->get($dispatch->id) ?? $samplesByBatch->get($dispatch->batch_id);
+                $sample = $entries === null
+                    ? ($samplesByDispatch->get($dispatch->id) ?? $samplesByBatch->get($dispatch->batch_id))
+                    : $samplesById->get($pageSamples->get($dispatch->id));
                 $dispatch->setRelation('qualitySample', $sample);
                 if ($sample && $dispatch->dispatch_time && $dispatch->dispatch_no
                     && !in_array($dispatch->dispatch_status, ['Draft', 'Loading', 'Cancelled'], true)) {
-                    $representedSampleIds[] = $sample->id;
+                    $representedSampleIds[$sample->id] = true;
                 }
             }
         }
-        $additionalSamples = $sourceSamples->whereNotIn('id', $representedSampleIds)->values();
-        $usedBatchIds = QcSample::where('plant_id', $plantId)->whereNotNull('batch_id')
-            ->pluck('batch_id')->all();
-        $usedDispatchIds = QcSample::where('plant_id', $plantId)->whereNotNull('dispatch_id')
-            ->pluck('dispatch_id')->all();
-
+        $additionalSamples = $sourceSamples->reject(fn ($sample) => isset($representedSampleIds[$sample->id]))->values();
+        if ($sourcePicker) return compact('directory', 'salesOrders', 'additionalSamples');
         $personnels = Personnel::whereNull('deleted_at')
             ->when($plantId, fn($q) => $q->where(fn($sq) => $sq->where('plant_id', $plantId)->orWhereNull('plant_id')))
             ->orderBy('first_name')
@@ -554,9 +497,8 @@ class QCSampleController extends Controller
                 'value' => $p->id,
             ]);
 
-        $supportedTestAges = [7, 15, 28];
-
-        return compact('supportedTestAges', 'salesOrders', 'batches', 'usedBatchIds', 'usedDispatchIds', 'personnels', 'additionalSamples');
+        $concreteGrades = ConcreteGrade::where('status', true)->get(['id', 'name']);
+        return compact('supportedTestAges', 'salesOrders', 'personnels', 'additionalSamples', 'concreteGrades', 'testTypes', 'directory', 'filters');
     }
 
     private function resolveSources(array $input, int $plantId, ?QcSample $sample = null): array

@@ -1699,11 +1699,11 @@ class BatchController extends Controller
 
         $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
 
-        return view('pdfs.batches.batching_token', [
+        return response()->view('pdfs.batches.batching_token', [
             'batch'     => $batch,
             'isPreview' => true,
             'settings'  => $settings,
-        ]);
+        ])->header('Content-Location', route('batches.token', $batch, false));
     }
 
     public function downloadTokenPdf(Batch $batch)
@@ -1813,11 +1813,11 @@ class BatchController extends Controller
 
         $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
 
-        return view('pdfs.batches.dispatch_token', [
+        return response()->view('pdfs.batches.dispatch_token', [
             'batch' => $batch,
             'isPreview' => true,
             'settings' => $settings,
-        ]);
+        ])->header('Content-Location', route('batches.dispatch-token', $batch, false));
     }
 
     public function downloadDispatchTokenPdf(Batch $batch)
@@ -1892,11 +1892,11 @@ class BatchController extends Controller
         $this->ensurePlantScope($batch->salesOrder);
 
         $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
-        return view('pdfs.batches.delivery_token', [
+        return response()->view('pdfs.batches.delivery_token', [
             'batch' => $batch,
             'isPreview' => true,
             'settings' => $settings,
-        ]);
+        ])->header('Content-Location', route('batches.delivery-token', $batch, false));
     }
 
     public function downloadDeliveryTokenPdf(Batch $batch)
