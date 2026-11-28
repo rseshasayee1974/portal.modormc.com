@@ -387,9 +387,6 @@ class ReportController extends Controller
         if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PUMP_BOOM_DEPLOYMENT', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER', 'CREDIT_DEBIT_NOTE_REGISTER', 'INVENTORY_INWARD']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
             $orientation = 'landscape';
         }
-        if (strtoupper($type) === 'INVENTORY_INWARD') {
-            $paperSize = 'a5';
-        }
 
         $css = $this->getReportCss($type);
 

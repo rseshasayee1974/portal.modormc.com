@@ -213,7 +213,7 @@ class BillingController extends Controller
             // The Invoice model's 'deleted' hook also handles cleanup tasks.
             $invoice->delete();
 
-            return redirect()->back()->with('success', 'Bill voided successfully and associated Purchase Order has been reset.');
+            return redirect()->back()->with('success', $invoice->ref_id ? 'Bill voided successfully and associated Purchase Order has been reset.' : 'Bill voided successfully.');
         });
     }
 }

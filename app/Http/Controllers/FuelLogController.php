@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\FuelLog;
-use App\Models\Machine;
+use App\Models\Invoice;
+use App\Models\Patron;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use App\Models\Personnel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -26,7 +29,12 @@ class FuelLogController extends Controller
 
         $activePlantId = session('active_plant_id');
 
-        $query = FuelLog::with(['machine', 'driver'])
+        $query = FuelLog::with(['machine', 'driver', 'vendor:id,legal_name', 'invoice:id,prefix,invoice_number,invoice_date,account_id', 'invoice.account:id,title',
+            'invoice.postedBillJournals' => fn ($query) => $query->where('plant_id', $activePlantId)->select('id', 'ref_id'),
+            'invoice.postedBillJournals.lines' => fn ($query) => $query->where('plant_id', $activePlantId)
+                ->select('id', 'journal_entry_id', 'account_id', 'debit_amount', 'credit_amount')->orderBy('id'),
+            'invoice.postedBillJournals.lines.ledger:id,title',
+        ])
             ->where('plant_id', $activePlantId);
 
         // Search/Filters
@@ -60,6 +68,9 @@ class FuelLogController extends Controller
         }
 
         $fuelLogs = $query->latest('log_date')->get();
+        foreach ($fuelLogs as $log) {
+            $log->invoice?->setAppends(['full_number', 'encrypted_id']);
+        }
 
         // Optimized dropdown data
         $machines = MachinesDropdown(); // Helper from Dropdown.php
@@ -82,9 +93,15 @@ class FuelLogController extends Controller
 //     'drivers' => $drivers,
 //     'paymentMethods' => $paymentMethods
 // ]);
+        $canGenerateBill = $this->canBill('create');
+
         return Inertia::render('FuelLogs/Index', [
             'fuelLogs' => $fuelLogs,
             'machines' => $machines,
+            'vendors' => toSelectOptions(VendorsDropdown('Vendor'), 'legal_name'),
+            'canGenerateBill' => $canGenerateBill,
+            'canDeleteBill' => $this->canBill('delete'),
+            'accounts' => $canGenerateBill ? toSelectOptions(LedgersDropdown('EXPENSE'), 'title') : [],
             'drivers' => $drivers,
             'paymentMethods' => $paymentMethods,
             'filters' => $request->only(['search', 'machine_id', 'start_date', 'end_date'])
@@ -100,6 +117,9 @@ class FuelLogController extends Controller
 
         $validated = $request->validate([
             'machine_id' => 'required|exists:mm_machines,id',
+            'vendor_id' => ['required', 'integer', Rule::exists('mm_patrons', 'id')
+                ->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')
+                ->where(fn ($query) => $query->whereJsonContains('patron_type', 'Vendor'))],
             'driver_id' => 'nullable|exists:mm_personnels,id',
             'log_date' => 'required|date',
             'quantity' => 'required|numeric|min:0.01',
@@ -134,6 +154,7 @@ class FuelLogController extends Controller
                 ->first();
 
             if ($latestLog && $validated['odometer_reading'] < $latestLog->odometer_reading) {
+                DB::rollBack();
                 return redirect()->back()->withErrors([
                     'odometer_reading' => "Odometer reading cannot be less than previous reading ({$latestLog->odometer_reading} km) recorded on " . $latestLog->log_date->format('Y-m-d H:i')
                 ])->withInput();
@@ -145,13 +166,14 @@ class FuelLogController extends Controller
                 'entity_id' => $activeEntityId,
                 'plant_id' => $activePlantId,
                 'machine_id' => $validated['machine_id'],
-                'driver_id' => $validated['driver_id'],
+                'vendor_id' => $validated['vendor_id'],
+                'driver_id' => $validated['driver_id'] ?? null,
                 'log_date' => date('Y-m-d H:i:s', strtotime($validated['log_date'])),
                 'quantity' => $validated['quantity'],
                 'rate_per_liter' => $validated['rate_per_liter'],
                 'total_amount' => $totalAmount,
                 'odometer_reading' => $validated['odometer_reading'],
-                'hourmeter_reading' => $validated['hourmeter_reading'],
+                'hourmeter_reading' => $validated['hourmeter_reading'] ?? null,
                 'pump_name' => $validated['pump_name'],
                 'bill_no' => $validated['bill_no'],
                 'payment_method' => $validated['payment_method'],
@@ -176,8 +198,18 @@ class FuelLogController extends Controller
     {
         $this->authorizeModule('edit');
 
+        $generateBill = $request->boolean('generate_bill');
+        if ($generateBill) {
+            $this->authorizeModule('create', 'billing');
+        }
         $validated = $request->validate([
+            'generate_bill' => ['sometimes', 'boolean'],
+            'bill_date' => [Rule::requiredIf($generateBill), 'nullable', 'date_format:Y-m-d'],
+            'account_id' => [Rule::requiredIf($generateBill), 'nullable', 'integer', Rule::in(LedgersDropdown('EXPENSE')->pluck('id'))],
             'machine_id' => 'required|exists:mm_machines,id',
+            'vendor_id' => ['required', 'integer', Rule::exists('mm_patrons', 'id')
+                ->where('plant_id', session('active_plant_id'))->whereNull('deleted_at')
+                ->where(fn ($query) => $query->whereJsonContains('patron_type', 'Vendor'))],
             'driver_id' => 'nullable|exists:mm_personnels,id',
             'log_date' => 'required|date',
             'quantity' => 'required|numeric|min:0.01',
@@ -192,27 +224,15 @@ class FuelLogController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        $uploadedPath = null;
         DB::beginTransaction();
         try {
             $userId = auth()->id();
 
-            // Handle attachment upload and deletion
-            $attachmentPath = $fuelLog->attachment_path;
-            if ($request->input('delete_attachment') == true) {
-                if ($fuelLog->attachment_path) {
-                    Storage::disk('public')->delete($fuelLog->attachment_path);
-                }
-                $attachmentPath = null;
-            }
-
-            if ($request->hasFile('attachment')) {
-                // Delete old one if exists
-                if ($fuelLog->attachment_path) {
-                    Storage::disk('public')->delete($fuelLog->attachment_path);
-                }
-                $file = $request->file('attachment');
-                $targetDir = "fuel_receipts/plant_{$fuelLog->plant_id}";
-                $attachmentPath = $file->store($targetDir, 'public');
+            $fuelLog = $this->lockedLog($fuelLog);
+            if ($fuelLog->invoice()->exists()) {
+                DB::rollBack();
+                return back()->withErrors(['error' => 'This fuel entry already has a bill.']);
             }
 
             // Odometer validation: warning if odometer reading is less than previous for the vehicle
@@ -223,6 +243,7 @@ class FuelLogController extends Controller
                 ->first();
 
             if ($latestLog && $validated['odometer_reading'] < $latestLog->odometer_reading) {
+                DB::rollBack();
                 return redirect()->back()->withErrors([
                     'odometer_reading' => "Odometer reading cannot be less than previous reading ({$latestLog->odometer_reading} km) recorded on " . $latestLog->log_date->format('Y-m-d H:i')
                 ])->withInput();
@@ -231,29 +252,111 @@ class FuelLogController extends Controller
             $totalAmount = $validated['quantity'] * $validated['rate_per_liter'];
 
             $fuelLog->update([
+                ...\Illuminate\Support\Arr::only($validated, ['bill_date', 'account_id']),
                 'machine_id' => $validated['machine_id'],
-                'driver_id' => $validated['driver_id'],
+                'vendor_id' => $validated['vendor_id'],
+                'driver_id' => $validated['driver_id'] ?? null,
                 'log_date' => date('Y-m-d H:i:s', strtotime($validated['log_date'])),
                 'quantity' => $validated['quantity'],
                 'rate_per_liter' => $validated['rate_per_liter'],
                 'total_amount' => $totalAmount,
                 'odometer_reading' => $validated['odometer_reading'],
-                'hourmeter_reading' => $validated['hourmeter_reading'],
+                'hourmeter_reading' => $validated['hourmeter_reading'] ?? null,
                 'pump_name' => $validated['pump_name'],
                 'bill_no' => $validated['bill_no'],
                 'payment_method' => $validated['payment_method'],
-                'attachment_path' => $attachmentPath,
                 'notes' => $validated['notes'],
                 'updated_by' => $userId
             ]);
 
+            $invoice = $generateBill ? $this->createFuelBill($fuelLog, $fuelLog->account_id, $fuelLog->bill_date) : null;
+            if ($request->hasFile('attachment') || $request->boolean('delete_attachment')) {
+                $originalPath = $fuelLog->attachment_path;
+                $uploadedPath = $request->file('attachment')?->store("fuel_receipts/plant_{$fuelLog->plant_id}", 'public');
+                $fuelLog->update(['attachment_path' => $uploadedPath]);
+                if ($originalPath) {
+                    DB::afterCommit(fn () => Storage::disk('public')->delete($originalPath));
+                }
+            }
             DB::commit();
-            return redirect()->back()->with('success', 'Fuel transaction updated successfully.');
+            return back()->with('success', $invoice ? "Fuel bill {$invoice->full_number} generated." : 'Fuel transaction updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($uploadedPath) Storage::disk('public')->delete($uploadedPath);
+            if ($e instanceof ValidationException) throw $e;
             Log::error('Fuel log update error: ' . $e->getMessage());
             return redirect()->back()->withErrors(['error' => 'Failed to update refueling transaction: ' . $e->getMessage()]);
         }
+    }
+
+    private function canBill(string $action): bool
+    {
+        try {
+            $this->authorizeModule($action, 'billing');
+            return true;
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            if ($e->getStatusCode() !== 403) throw $e;
+            return false;
+        }
+    }
+
+    private function lockedLog(FuelLog $log): FuelLog
+    {
+        return FuelLog::where('plant_id', session('active_plant_id'))->whereKey($log->id)->lockForUpdate()->firstOrFail();
+    }
+
+    public function generateBill(Request $request, FuelLog $fuelLog)
+    {
+        $this->authorizeModule('menu');
+        $this->authorizeModule('create', 'billing');
+        $invoice = DB::transaction(function () use ($fuelLog, $request) {
+            $log = $this->lockedLog($fuelLog);
+            if ($log->invoice) return $log->invoice;
+
+            $request->mergeIfMissing([
+                'account_id' => $log->account_id,
+                'bill_date' => $log->bill_date ?? $log->log_date->toDateString(),
+            ]);
+            $data = $request->validate([
+                'account_id' => ['required', 'integer', Rule::in(LedgersDropdown('EXPENSE')->pluck('id'))],
+                'bill_date' => ['required', 'date_format:Y-m-d'],
+            ]);
+            return $this->createFuelBill($log, $data['account_id'], $data['bill_date']);
+        });
+
+        return back()->with('success', "Fuel bill {$invoice->full_number} is available in Billing.");
+    }
+
+    private function createFuelBill(FuelLog $log, int $accountId, string $billDate): Invoice
+    {
+        $vendor = Patron::where('plant_id', $log->plant_id)->ofType('Vendor')->find($log->vendor_id);
+        if (!$vendor) {
+            throw ValidationException::withMessages(['vendor_id' => 'Save a vendor on the fuel entry before generating its bill.']);
+        }
+
+        $invoice = Invoice::createWithItems([
+            'plant_id' => $log->plant_id,
+            'partner_id' => $vendor->id,
+            'account_id' => $accountId,
+            'round_off' => round(round((float) $log->total_amount) - (float) $log->total_amount, 2),
+            'invoice_type' => 'Bill',
+            'invoice_label' => 'Manual',
+            'ref_title' => "Fuel entry #{$log->id}",
+            'notes' => $log->bill_no ? "Fuel receipt: {$log->bill_no}" : null,
+            'invoice_date' => $billDate,
+            'due_date' => \Illuminate\Support\Carbon::parse($billDate)->addDays((int) $vendor->due_date_days)->toDateString(),
+            'status' => Invoice::STATUS_APPROVED,
+            'created_by' => auth()->id(),
+            'items' => [[
+                'item_name' => "Fuel (litres) - entry #{$log->id}",
+                'quantity' => $log->quantity,
+                'price_unit' => $log->rate_per_liter,
+            ]],
+        ]);
+        $invoice->postToAccounting();
+        $log->update(['invoice_id' => $invoice->id, 'bill_date' => $billDate, 'account_id' => $accountId]);
+
+        return $invoice;
     }
 
     /**
@@ -266,12 +369,18 @@ class FuelLogController extends Controller
         try {
             $userId = auth()->id();
 
-            // Soft delete
-            $fuelLog->update(['deleted_by' => $userId]);
-            $fuelLog->delete();
+            DB::transaction(function () use ($fuelLog, $userId) {
+                $fuelLog = $this->lockedLog($fuelLog);
+                if ($fuelLog->invoice()->exists()) {
+                    throw ValidationException::withMessages(['error' => 'This fuel entry already has a bill.']);
+                }
+                $fuelLog->update(['deleted_by' => $userId]);
+                $fuelLog->delete();
+            });
 
             return redirect()->back()->with('success', 'Refuel transaction record deleted successfully.');
         } catch (\Exception $e) {
+            if ($e instanceof ValidationException) throw $e;
             Log::error('Fuel log delete error: ' . $e->getMessage());
             return redirect()->back()->withErrors(['error' => 'Failed to delete refuel transaction record.']);
         }

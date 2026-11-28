@@ -5,7 +5,13 @@
     <title>{{ $target_name ?? 'Report' }}</title>
     <style>
         {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/generic_report.css')) ? file_get_contents(public_path('css/reports/generic_report.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
-        @if(strtolower($type ?? '') === 'machine_tracker')
+        @if(strtolower($type ?? '') === 'inventory_inward')
+            .data-table { table-layout: fixed; }
+            .data-table th, .data-table td {
+                padding: 3px 2px;
+                word-wrap: break-word;
+            }
+        @elseif(strtolower($type ?? '') === 'machine_tracker')
             .data-table th.serial-number, .data-table td.serial-number {
                 width: 7px;
                 padding-left: 0;

@@ -7,11 +7,13 @@ use App\Models\PersonnelContact;
 use App\Models\Patron;
 use App\Models\Department;
 use App\Models\Designation;
+use App\Services\PlantContextService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PersonnelController extends Controller
 {
@@ -22,7 +24,7 @@ class PersonnelController extends Controller
     {
         $this->authorizeModule('menu');
         
-        $activePlantId = session('active_plant_id');
+        $activePlantId = app(PlantContextService::class)->requirePlantId();
 
         return Inertia::render('Personnel/Index', [
             'personnel' => Personnel::permanent()->with(['user:id,is_otp_enabled', 'contacts', 'patrons:id', 'department:id,name', 'designation:id,name,plant_id', 'salaryStructures'])
@@ -67,7 +69,7 @@ class PersonnelController extends Controller
     {
         $this->authorizeModule('create');
         
-        $activePlantId = session('active_plant_id');
+        $activePlantId = app(PlantContextService::class)->requirePlantId();
 
         $validated = $request->validate([
             ...self::ADDRESS_RULES,
@@ -115,7 +117,21 @@ class PersonnelController extends Controller
             'salary_structures.*.effective_to' => 'nullable|date',
         ]);
 
-        DB::transaction(function () use ($validated, $activePlantId) {
+        $employeeName = trim($validated['first_name'] . ' ' . ($validated['last_name'] ?? ''));
+        if (mb_strlen($employeeName) > 191) {
+            throw ValidationException::withMessages(['first_name' => 'The full employee name must be 191 characters or fewer.']);
+        }
+        DB::transaction(function () use ($validated, $activePlantId, $employeeName) {
+            // Serialize personnel creation within a plant before generating its next employee code.
+            DB::table('mm_plants')->where('id', $activePlantId)->lockForUpdate()->first(['id']);
+            if (DB::table('mm_patrons')->where('plant_id', $activePlantId)->where('legal_name', $employeeName)->exists()) {
+                throw ValidationException::withMessages([
+                    'first_name' => 'A patron with this full name already exists in this plant. Check the employee name and existing patron record.',
+                ]);
+            }
+            if (!empty($validated['employee_code']) && Personnel::where('plant_id', $activePlantId)->where('employee_code', $validated['employee_code'])->exists()) {
+                throw ValidationException::withMessages(['employee_code' => 'This employee code is already in use in this plant.']);
+            }
             $personnelData = collect($validated)->except(['address', 'contacts', 'patron_ids', 'salary_structures'])->toArray();
             
             // Convert empty strings to null for unique or nullable columns
@@ -174,7 +190,7 @@ class PersonnelController extends Controller
             $employeePatron = Patron::create([
                 'plant_id' => $personnel->plant_id,
                 'patron_type' => ['Employee'],
-                'legal_name' => $personnel->full_name,
+                'legal_name' => $employeeName,
                 'pan_no' => $personnel->pan,
                 'aadhar_number' => $personnel->aadhaar,
                 'operational_status' => 'active',

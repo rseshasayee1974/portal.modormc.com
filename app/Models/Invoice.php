@@ -686,6 +686,12 @@ class Invoice extends Model implements Postable
         return $this->belongsTo(Plant::class);
     }
 
+    public function postedBillJournals()
+    {
+        return $this->hasMany(JournalEntry::class, 'ref_id')
+            ->where('ref_module', 'bill')->where('is_status', 'POSTED');
+    }
+
     public function account()
     {
         return $this->belongsTo(Ledger::class, 'account_id');

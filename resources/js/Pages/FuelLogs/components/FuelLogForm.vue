@@ -17,6 +17,7 @@ const props = defineProps<{
     form: any;
     machineOptions: any[];
     driverOptions: any[];
+    vendors: any[];
     paymentMethodOptions: any[];
     calculatedTotal: string;
     attachmentFile: File | null;
@@ -58,38 +59,41 @@ const clearFile = () => {
         <div class="py-1">
             <form @submit.prevent="submit" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <div class="col-span-12 md:col-span-4 field-group">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Machine / Vehicle *</label>
+                    <div class="col-span-12 md:col-span-3 field-group">
+                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest block">Machine / Vehicle *</label>
                         <BaseSelect v-model="form.machine_id" :options="machineOptions" optionLabel="label" optionValue="value" placeholder="Select Vehicle" :error="form.errors.machine_id" filter />
                     </div>
-                    <div class="col-span-12 md:col-span-4 field-group">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Driver</label>
+                    <div class="col-span-12 md:col-span-3 field-group">
+                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest block">Driver</label>
                         <BaseSelect v-model="form.driver_id" :options="driverOptions" optionLabel="label" optionValue="value" placeholder="Select Driver" :error="form.errors.driver_id" filter />
                     </div>
-                    <div class="col-span-12 md:col-span-4 field-group">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Date & Time *</label>
+                    <div class="col-span-12 md:col-span-3 field-group">
+                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest block">Date & Time *</label>
                         <BaseDatePicker v-model="form.log_date" showTime hourFormat="24" placeholder="Select Date & Time" :error="form.errors.log_date" />
                     </div>
 
                     <div class="col-span-6 md:col-span-3 field-group">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Quantity (Liters) *</label>
+                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest block">Quantity (Liters) *</label>
                         <BaseInputNumber v-model="form.quantity" placeholder="0.00" :minFractionDigits="2" :maxFractionDigits="2" :error="form.errors.quantity" />
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Rate / Liter *</label>
+                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest block">Rate / Liter *</label>
                         <BaseInputNumber v-model="form.rate_per_liter" placeholder="0.00" :minFractionDigits="2" :maxFractionDigits="2" :error="form.errors.rate_per_liter" />
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
                         <BaseInput :modelValue="calculatedTotal" label="Calculated Total Amount" disabled class="font-bold text-indigo-650 bg-slate-50 border-slate-100" />
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Odometer Reading (Km) *</label>
+                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest block">Odometer Reading (Km) *</label>
                         <BaseInputNumber v-model="form.odometer_reading" placeholder="0" :error="form.errors.odometer_reading" />
                     </div>
 
                     <div class="col-span-6 md:col-span-3 field-group">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Hourmeter (if applicable)</label>
+                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest block">Hourmeter (if applicable)</label>
                         <BaseInputNumber v-model="form.hourmeter_reading" placeholder="0" :error="form.errors.hourmeter_reading" />
+                    </div>
+                    <div class="col-span-12 md:col-span-3 field-group">
+                        <BaseSelect v-model="form.vendor_id" label="Vendor" required :options="vendors" optionLabel="label" optionValue="value" placeholder="Select vendor" :error="form.errors.vendor_id" filter />
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
                         <BaseInput v-model="form.pump_name" label="Fuel Pump / Station" placeholder="Pump station name" :error="form.errors.pump_name" />
@@ -98,16 +102,16 @@ const clearFile = () => {
                         <BaseInput v-model="form.bill_no" label="Bill / Receipt No" placeholder="Enter receipt number" :error="form.errors.bill_no" />
                     </div>
                     <div class="col-span-6 md:col-span-3 field-group">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Payment Method</label>
+                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest block">Payment Method</label>
                         <BaseSelect v-model="form.payment_method" :options="paymentMethodOptions" optionLabel="label" optionValue="value" :error="form.errors.payment_method" />
                     </div>
 
-                    <div class="col-span-12 md:col-span-8 field-group">
+                    <div class="col-span-12 md:col-span-4 field-group">
                         <BaseInput v-model="form.notes" label="Notes" placeholder="Additional refueling details..." :error="form.errors.notes" />
                     </div>
                     
                     <div class="col-span-12 md:col-span-4 field-group flex flex-col justify-end">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest mb-1.5 block">Receipt Attachment</label>
+                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest block">Receipt Attachment</label>
                         <div class="flex items-center gap-3">
                             <input type="file" ref="fileInput" @change="handleFileChange" accept="image/*" class="hidden" />
                             

@@ -181,9 +181,9 @@ const handlePrimaryToggle = (index: number, val: any) => {
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Current
-                                        Status</label>
+                                        Status <span class="text-red-500">*</span></label>
                                     <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label"
-                                        optionValue="value" placeholder="Current Status" class="w-full" />
+                                        optionValue="value" placeholder="Current Status" class="w-full" :error="form.errors.status" />
                                 </div>
                             </div>
                         </div>
@@ -227,7 +227,7 @@ const handlePrimaryToggle = (index: number, val: any) => {
                                         Type
                                         <span class="text-red-500">*</span></label>
                                     <BaseSelect v-model="form.employment_type" :options="employmentTypeOptions"
-                                        optionLabel="label" optionValue="value" placeholder="Select Type"
+                                        optionLabel="label" optionValue="value" placeholder="Select Type" :error="form.errors.employment_type"
                                         class="w-full" />
                                 </div>
                                 <div class="flex flex-col gap-2">

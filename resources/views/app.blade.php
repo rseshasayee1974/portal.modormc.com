@@ -23,7 +23,7 @@
     @inertiaHead
 </head>
 
-<body class="font-sans antialiased">
+<body class="form-fields font-sans antialiased">
     @inertia
 
 </body>

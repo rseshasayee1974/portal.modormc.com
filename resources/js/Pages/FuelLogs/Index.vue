@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { APP_LOCALE } from '@/Utils/locale';
-import { entityLocaleDateTime, entityCalendarDate, calendarDateTimeString, entityInstant } from '@/Utils/entityDateTime';
-import { ref, computed, watch } from 'vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { entityLocaleDateTime, entityToday, entityCalendarDate, calendarDateString, calendarDateTimeString, entityInstant } from '@/Utils/entityDateTime';
+import { ref, computed, watch, onMounted } from 'vue';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import Swal2 from 'sweetalert2';
@@ -17,6 +17,7 @@ import Column from 'primevue/column';
 import { SwatchIcon, PaperClipIcon, XMarkIcon, ArrowTopRightOnSquareIcon } from '@heroicons/vue/24/outline';
 
 const page = usePage();
+const journalAmount = new Intl.NumberFormat(APP_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface Machine {
     id: number;
@@ -35,6 +36,21 @@ interface FuelLog {
     entity_id: number;
     machine_id: number;
     driver_id: number | null;
+    vendor_id: number | null;
+    vendor?: { legal_name: string };
+    invoice?: {
+        full_number: string;
+        encrypted_id: string;
+        invoice_date: string;
+        account_id: number;
+        account?: { id: number; title: string };
+        posted_bill_journals?: { id: number; lines: {
+            id: number; account_id: number; ledger?: { title: string };
+            debit_amount: string; credit_amount: string;
+        }[] }[];
+    };
+    account_id: number | null;
+    bill_date: string | null;
     log_date: string;
     quantity: number;
     rate_per_liter: number;
@@ -54,6 +70,10 @@ const props = defineProps<{
     fuelLogs: FuelLog[];
     machines: any[];
     drivers: any[];
+    vendors: { label: string; value: number }[];
+    accounts: { label: string; value: number }[];
+    canGenerateBill: boolean;
+    canDeleteBill?: boolean;
     paymentMethods: any[];
 }>();
 
@@ -64,6 +84,20 @@ const filters = ref({
 
 const editingId = ref<number | null>(null);
 const expandedRows = ref<Record<number, boolean>>({});
+const loadingJournals = ref(false);
+const refreshJournals = () => {
+    if (loadingJournals.value) return;
+    loadingJournals.value = true;
+    router.reload({
+        only: ['fuelLogs'],
+        onFinish: () => { loadingJournals.value = false; },
+    });
+};
+onMounted(() => {
+    if (props.fuelLogs.some(log => log.invoice && !Array.isArray(log.invoice.posted_bill_journals))) {
+        refreshJournals();
+    }
+});
 
 // Upload receipt state
 const attachmentFile = ref<File | null>(null);
@@ -89,6 +123,7 @@ console.log('paymentMethodOptions',paymentMethodOptions.value);
 const getInitialForm = () => ({
     machine_id: null as number | null,
     driver_id: null as number | null,
+    vendor_id: null as number | null,
     log_date: entityCalendarDate(),
     quantity: 0,
     rate_per_liter: 0,
@@ -102,7 +137,11 @@ const getInitialForm = () => ({
 });
 
 const createForm = useForm(getInitialForm());
-const editForm = useForm(getInitialForm());
+const editForm = useForm({
+    ...getInitialForm(),
+    account_id: null as number | null,
+    bill_date: '',
+});
 
 // Auto calculated totals
 const createCalculatedTotal = computed(() => {
@@ -132,6 +171,10 @@ watch(expandedRows, (newVal) => {
         if (log) {
             editingId.value = log.id;
             editForm.machine_id = log.machine_id;
+            editForm.clearErrors();
+            editForm.vendor_id = log.vendor_id;
+            editForm.account_id = log.invoice?.account_id ?? log.account_id;
+            editForm.bill_date = log.invoice?.invoice_date ? entityToday(log.invoice.invoice_date) : (log.bill_date ?? calendarDateString(entityCalendarDate(log.log_date)));
             editForm.driver_id = log.driver_id;
             editForm.log_date = log.log_date ? entityCalendarDate(log.log_date) : entityCalendarDate();
             editForm.quantity = Number(log.quantity);
@@ -168,6 +211,7 @@ const resetEditForm = () => {
 const submitCreate = () => {
     const formData = new FormData();
     formData.append('machine_id', String(createForm.machine_id || ''));
+    formData.append('vendor_id', String(createForm.vendor_id ?? ''));
     formData.append('driver_id', String(createForm.driver_id || ''));
     formData.append('log_date', createForm.log_date ? calendarDateTimeString(createForm.log_date) : '');
     formData.append('quantity', String(createForm.quantity || 0));
@@ -195,10 +239,11 @@ const submitCreate = () => {
     });
 };
 
-const submitEdit = () => {
+const submitEdit = (generateBill = false) => {
     if (editingId.value) {
         const formData = new FormData();
         formData.append('machine_id', String(editForm.machine_id || ''));
+        formData.append('vendor_id', String(editForm.vendor_id ?? ''));
         formData.append('driver_id', String(editForm.driver_id || ''));
         formData.append('log_date', editForm.log_date ? calendarDateTimeString(editForm.log_date) : '');
         formData.append('quantity', String(editForm.quantity || 0));
@@ -212,6 +257,11 @@ const submitEdit = () => {
         formData.append('payment_method', editForm.payment_method || '');
         formData.append('notes', editForm.notes || '');
         formData.append('delete_attachment', editForm.delete_attachment ? '1' : '0');
+        if (props.canGenerateBill) {
+            formData.append('account_id', String(editForm.account_id ?? ''));
+            formData.append('bill_date', editForm.bill_date || '');
+            formData.append('generate_bill', generateBill ? '1' : '0');
+        }
         formData.append('_method', 'PUT');
 
         if (attachmentFile.value) {
@@ -222,8 +272,52 @@ const submitEdit = () => {
             forceFormData: true,
             onSuccess: () => {
                 resetEditForm();
-                Swal2.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Refuel log updated successfully', showConfirmButton: false, timer: 1500 });
+
             }
+        });
+    }
+};
+
+const billForm = useForm({});
+const generateBill = (log: FuelLog) => {
+    if (editingId.value === log.id) {
+        submitEdit(true);
+        return;
+    }
+    if (!log.account_id || !log.bill_date || !log.vendor_id) {
+        expandedRows.value = { [log.id]: true };
+        return;
+    }
+    billForm.post(route('fuel-logs.generate-bill', log.id), {
+        preserveScroll: true,
+        onSuccess: resetEditForm,
+        onError: errors => Swal2.fire('Bill could not be generated', Object.values(errors).join(' '), 'error'),
+    });
+};
+
+type FuelBill = NonNullable<FuelLog['invoice']>;
+const printBillUrl = (bill: FuelBill) => route('print.document', {
+    module: 'billings', id: bill.encrypted_id, action: 'view',
+});
+
+const deleteBill = async (log: FuelLog) => {
+    const bill = log.invoice;
+    if (!bill) return;
+    const result = await Swal2.fire({
+        title: 'Delete bill?',
+        text: 'Bill ' + bill.full_number + ' will be voided. The fuel entry will remain in Refueling History.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete bill',
+        confirmButtonColor: '#dc2626',
+    });
+    if (result.isConfirmed) {
+        billForm.delete(route('billings.destroy', bill.encrypted_id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                expandedRows.value = { [log.id]: true };
+            },
+            onError: errors => Swal2.fire('Bill could not be deleted', Object.values(errors).join(' '), 'error'),
         });
     }
 };
@@ -288,7 +382,7 @@ watch(() => page.props.flash, (flash: any) => {
                         <FuelLogForm 
                             :form="createForm"
                             :machineOptions="machineOptions"
-                            :driverOptions="driverOptions"
+                            :driverOptions="driverOptions" :vendors="vendors"
                             :paymentMethodOptions="paymentMethodOptions"
                             :calculatedTotal="createCalculatedTotal"
                             :attachmentFile="attachmentFile"
@@ -317,13 +411,24 @@ watch(() => page.props.flash, (flash: any) => {
                             class="p-datatable-sm"
                             showExport
                             exportFilename="fuel-logs-report"
-                            :globalFilterFields="['machine.registration', 'driver.first_name', 'driver.last_name', 'pump_name', 'bill_no', 'payment_method']"
+                            :globalFilterFields="['machine.registration', 'driver.first_name', 'driver.last_name', 'vendor.legal_name', 'invoice.full_number', 'pump_name', 'bill_no', 'payment_method']"
                         >
                             <template #toolbar>
                                 <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
                                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ fuelLogs.length }} refuels</span>
                                 </div>
                             </template>
+
+                            <!-- <Column headerStyle="width: 2.5rem">
+                                <template #body="{ data }">
+                                    <button type="button" class="p-2"
+                                        :aria-label="data.invoice ? 'Toggle bill details' : 'Toggle fuel entry editor'"
+                                        :aria-expanded="!!expandedRows[data.id]"
+                                        @click.stop="startEdit(data)">
+                                        <i :class="expandedRows[data.id] ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" aria-hidden="true"></i>
+                                    </button>
+                                </template>
+                            </Column> -->
 
                             <!-- Log Date -->
                             <Column header="Date & Time" sortable field="log_date">
@@ -372,7 +477,7 @@ watch(() => page.props.flash, (flash: any) => {
                             </Column>
 
                             <!-- Odometer details -->
-                            <Column header="Odometer">
+                            <!-- <Column header="Odometer">
                                 <template #body="slotProps">
                                     <div class="flex flex-col text-xs font-mono">
                                         <span class="text-slate-700 dark:text-slate-200">{{ Number(slotProps.data.odometer_reading).toLocaleString(APP_LOCALE) }} Km</span>
@@ -381,14 +486,20 @@ watch(() => page.props.flash, (flash: any) => {
                                         </span>
                                     </div>
                                 </template>
-                            </Column>
+                            </Column> -->
 
                             <!-- Pump / Station & Bill No -->
-                            <Column header="Station & Bill">
+                            <Column header="Vendor / Station &amp; Bill">
                                 <template #body="slotProps">
                                     <div class="flex flex-col text-xs font-semibold">
+                                        <span>{{ slotProps.data.vendor?.legal_name || 'Vendor unassigned' }}</span>
+                                        <!-- <a v-if="slotProps.data.invoice"
+                                            :href="printBillUrl(slotProps.data.invoice)"
+                                            target="_blank" rel="noopener" class="text-indigo-600 underline" @click.stop>
+                                            Bill {{ slotProps.data.invoice.full_number }}
+                                        </a>
                                         <span class="text-slate-650 dark:text-slate-300 truncate max-w-[120px]">{{ slotProps.data.pump_name || '—' }}</span>
-                                        <span class="text-[9px] font-mono text-slate-400">Bill: {{ slotProps.data.bill_no || 'N/A' }}</span>
+                                        <span class="text-[9px] font-mono text-slate-400">Receipt: {{ slotProps.data.bill_no || 'N/A' }}</span> -->
                                     </div>
                                 </template>
                             </Column>
@@ -415,13 +526,31 @@ watch(() => page.props.flash, (flash: any) => {
                             <!-- Actions -->
                             <Column header="Actions" alignFrozen="right" frozen>
                                 <template #body="slotProps">
-                                    <div class="flex justify-end gap-2">
+                                    <div v-if="slotProps.data.invoice" class="flex justify-end gap-3 whitespace-nowrap text-xs font-semibold">
+                                        <a :href="printBillUrl(slotProps.data.invoice)" target="_blank" rel="noopener"
+                                            class="inline-flex items-center gap-1.5 text-indigo-600 hover:underline" @click.stop>
+                                            <i class="pi pi-print" aria-hidden="true"></i> Print bill
+                                        </a>
+                                        <button v-if="canDeleteBill" type="button" :disabled="billForm.processing"
+                                            class="inline-flex items-center gap-1.5 text-red-600 hover:underline disabled:opacity-50"
+                                            @click.stop="deleteBill(slotProps.data)">
+                                            <i class="pi pi-trash" aria-hidden="true"></i> Delete bill
+                                        </button>
+                                    </div>
+                                    <div v-else class="flex justify-end gap-2">
+                                        <button v-if="canGenerateBill" type="button"
+                                            class="text-xs font-semibold text-indigo-600 disabled:opacity-50"
+                                            :disabled="billForm.processing || editForm.processing"
+                                            title="Generate fuel bill"
+                                            @click="generateBill(slotProps.data)">
+                                            Generate bill
+                                        </button>
                                         <button
-                                            @click="startEdit(slotProps.data)"
-                                            class="flex items-center justify-center w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-650 hover:bg-indigo-100 transition-all active:scale-95"
-                                            title="Modify"
+                                            type="button" @click.stop="startEdit(slotProps.data)"
+                                            class="inline-flex items-center gap-1.5 px-2 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-650 hover:bg-indigo-100 text-xs font-semibold"
+                                            :aria-expanded="!!expandedRows[slotProps.data.id]"
                                         >
-                                            <i class="pi pi-pencil text-xs"></i>
+                                            <i class="pi pi-pencil text-xs" aria-hidden="true"></i> Edit
                                         </button>
                                         <button
                                             @click="deleteLog(slotProps.data.id)"
@@ -436,20 +565,73 @@ watch(() => page.props.flash, (flash: any) => {
 
                             <!-- Row Expansion for Editing -->
                             <template #expansion="slotProps">
-                                <div class="p-6 border rounded-xl bg-slate-50/50 dark:bg-slate-800/50">
-                                    <FuelLogEditForm 
+                                <div class="p-2 ">
+                                    <dl v-if="slotProps.data.invoice"
+                                        class="grid grid-cols-1 gap-x-8 gap-y-3 border-b border-slate-200 px-2 pb-3 pt-2 text-left text-sm font-medium text-slate-800 dark:border-slate-700 dark:text-slate-100 sm:grid-cols-3 sm:max-w-3xl">
+                                        <div class="min-w-0">
+                                            <dt class="text-xs text-slate-500 dark:text-slate-400">Bill number</dt>
+                                            <dd class="mt-1">
+                                                <a :href="printBillUrl(slotProps.data.invoice)" target="_blank" rel="noopener"
+                                                    class="break-all font-semibold text-indigo-600 underline underline-offset-2 dark:text-indigo-400">{{ slotProps.data.invoice.full_number }}</a>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs text-slate-500 dark:text-slate-400">Bill date</dt>
+                                            <dd class="mt-1 tabular-nums">{{ slotProps.data.bill_date || entityToday(slotProps.data.invoice.invoice_date) }}</dd>
+                                        </div>
+                                        <div v-if="slotProps.data.bill_no" class="min-w-0">
+                                            <dt class="text-xs text-slate-500 dark:text-slate-400">Receipt number</dt>
+                                            <dd class="mt-1 break-all">{{ slotProps.data.bill_no }}</dd>
+                                        </div>
+                                    </dl>
+                                    
+                                    <FuelLogEditForm
+                                        :read-only="!!slotProps.data.invoice"
                                         :form="editForm"
                                         :logId="slotProps.data.id"
                                         :machineOptions="machineOptions"
-                                        :driverOptions="driverOptions"
+                                        :driverOptions="driverOptions" :vendors="vendors"
                                         :paymentMethodOptions="paymentMethodOptions"
                                         :calculatedTotal="editCalculatedTotal"
                                         :attachmentFile="attachmentFile"
                                         :resetForm="resetEditForm"
-                                        :submit="submitEdit"
+                                        :submit="() => submitEdit()"
+                                        :accounts="slotProps.data.invoice?.account ? [{ value: slotProps.data.invoice.account.id, label: slotProps.data.invoice.account.title }] : accounts"
+                                        :canGenerateBill="canGenerateBill"
+                                        @generate-bill="submitEdit(true)"
                                         @file-change="handleFileChange"
                                         @clear-file="clearFile"
                                     />
+                                    <div v-if="slotProps.data.invoice" class="my-3 w-full max-w-3xl overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-950">
+                                        <table class="w-full border-collapse text-left text-sm text-slate-800 dark:text-slate-100">
+                                            <caption class="border-b border-indigo-100 bg-indigo-50 px-4 py-3 text-left font-semibold text-indigo-950 dark:border-slate-700 dark:bg-slate-800 dark:text-indigo-100">
+                                                <i class="pi pi-book mr-2 text-indigo-600 dark:text-indigo-300" aria-hidden="true"></i>Posted journal entries
+                                            </caption>
+                                            <thead class="bg-slate-50 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                                                <tr>
+                                                    <th scope="col" class="px-4 py-2.5">Ledger</th>
+                                                    <th scope="col" class="whitespace-nowrap border-l border-slate-200 px-4 py-2.5 text-right dark:border-slate-700">Debit (₹)</th>
+                                                    <th scope="col" class="whitespace-nowrap border-l border-slate-200 px-4 py-2.5 text-right dark:border-slate-700">Credit (₹)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody v-for="journal in slotProps.data.invoice.posted_bill_journals" :key="journal.id">
+                                                <tr v-for="line in journal.lines" :key="line.id" class="border-t border-slate-200 dark:border-slate-700">
+                                                    <td class="px-4 py-2.5">{{ line.ledger?.title || ('Ledger #' + line.account_id) }}</td>
+                                                    <td class="whitespace-nowrap border-l border-slate-200 px-4 py-2.5 text-right dark:border-slate-700 tabular-nums">{{ journalAmount.format(line.debit_amount) }}</td>
+                                                    <td class="whitespace-nowrap border-l border-slate-200 px-4 py-2.5 text-right dark:border-slate-700 tabular-nums">{{ journalAmount.format(line.credit_amount) }}</td>
+                                                </tr>
+                                            </tbody>
+                                            <tbody v-if="!Array.isArray(slotProps.data.invoice.posted_bill_journals)">
+                                                <tr><td colspan="3" class="border-t border-slate-200 px-4 py-3 dark:border-slate-700">
+                                                    <span v-if="loadingJournals">Loading journal entries…</span>
+                                                    <button v-else type="button" class="text-indigo-600 underline" @click.stop="refreshJournals">Load journal entries</button>
+                                                </td></tr>
+                                            </tbody>
+                                            <tbody v-else-if="slotProps.data.invoice.posted_bill_journals.length === 0">
+                                                <tr><td colspan="3" class="border-t border-slate-200 px-4 py-3 dark:border-slate-700">No posted journal entries.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </template>
 

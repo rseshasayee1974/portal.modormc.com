@@ -145,47 +145,43 @@ const formatTimeStr = (val: any): string | null => {
 
 const createForm = useForm(getInitialForm());
 const submitCreate = () => {
-    // Client-side validation
-    let hasContactError = false;
-    let hasSalaryError = false;
+    createForm.clearErrors();
     const errors: Record<string, string> = {};
+    if (!createForm.first_name?.trim()) errors.first_name = 'Enter the first name.';
+    if (!createForm.status) errors.status = 'Select the current status.';
+    if (!createForm.department_id) errors.department_id = 'Select a department.';
+    if (!createForm.designation_id) errors.designation_id = 'Select a designation.';
+    if (!createForm.employment_type) errors.employment_type = 'Select an employment type.';
 
     (createForm.contacts || []).forEach((contact: any, index: number) => {
         if (!contact.contact_type) {
             errors[`contacts.${index}.contact_type`] = 'The contact type field is required.';
-            hasContactError = true;
         }
-        if (!contact.contact_value) {
+        if (!contact.contact_value?.trim()) {
             errors[`contacts.${index}.contact_value`] = 'The contact detail field is required.';
-            hasContactError = true;
         }
     });
 
     (createForm.salary_structures || []).forEach((struct: any, index: number) => {
         if (!struct.salary_component_id) {
             errors[`salary_structures.${index}.salary_component_id`] = 'The salary component field is required.';
-            hasSalaryError = true;
         }
-        if (struct.amount === null || struct.amount === undefined || struct.amount === '') {
+        if (String(struct.amount ?? '').trim() === '') {
             errors[`salary_structures.${index}.amount`] = 'The amount field is required.';
-            hasSalaryError = true;
-        } else if (isNaN(Number(struct.amount)) || Number(struct.amount) < 0) {
-            errors[`salary_structures.${index}.amount`] = 'The amount must be a positive number.';
-            hasSalaryError = true;
+        } else if (!Number.isFinite(Number(struct.amount)) || Number(struct.amount) < 0) {
+            errors[`salary_structures.${index}.amount`] = 'Enter zero or a positive amount.';
         }
         if (!struct.effective_from) {
             errors[`salary_structures.${index}.effective_from`] = 'The effective from date is required.';
-            hasSalaryError = true;
         }
     });
 
     if (Object.keys(errors).length > 0) {
         createForm.setError(errors);
-        if (hasContactError) {
-            activeTabCreate.value = 'contacts';
-        } else if (hasSalaryError) {
-            activeTabCreate.value = 'salary_structure';
-        }
+        if (errors.first_name || errors.status) activeTabCreate.value = 'details';
+        else if (errors.department_id || errors.designation_id || errors.employment_type) activeTabCreate.value = 'employment';
+        else if (Object.keys(errors).some(key => key.startsWith('salary_structures.'))) activeTabCreate.value = 'salary_structure';
+        else activeTabCreate.value = 'contacts';
         return;
     }
 

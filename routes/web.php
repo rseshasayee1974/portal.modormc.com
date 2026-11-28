@@ -553,6 +553,7 @@ Route::middleware([
         Route::resource('machine-trackers', MachineTrackerController::class);
 
         Route::resource('drivers', DriverController::class);
+        Route::post('fuel-logs/{fuelLog}/generate-bill', [FuelLogController::class, 'generateBill'])->name('fuel-logs.generate-bill');
         Route::resource('fuel-logs', FuelLogController::class);
 
         // GPS Tracking & Geofences

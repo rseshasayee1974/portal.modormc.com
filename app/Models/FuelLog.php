@@ -19,6 +19,10 @@ class FuelLog extends Model
         'plant_id',
         'machine_id',
         'driver_id',
+        'vendor_id',
+        'invoice_id',
+        'bill_date',
+        'account_id',
         'log_date',
         'quantity',
         'rate_per_liter',
@@ -66,6 +70,16 @@ class FuelLog extends Model
     public function machine()
     {
         return $this->belongsTo(Machine::class, 'machine_id');
+    }
+
+    public function vendor()
+    {
+        return $this->belongsTo(Patron::class, 'vendor_id');
+    }
+
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
     }
 
     public function driver()

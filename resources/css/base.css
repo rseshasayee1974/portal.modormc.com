@@ -3,3 +3,25 @@ Created: 2026-10-23 17:34:05 Asia/Calcutta (UTC+05:30) */
 
 /* Share resets once; route styles must not reset another page after navigation. */
 @tailwind base;
+
+.form-fields {
+    --form-field-height: 36px;
+}
+
+/* Layered important sizing takes precedence over page-specific field styles. */
+@layer form-field-sizing {
+    .form-fields :where(
+        input:not([type]),
+        input:is([type="text"], [type="number"], [type="search"], [type="email"],
+            [type="password"], [type="tel"], [type="url"], [type="date"],
+            [type="datetime-local"], [type="month"], [type="time"], [type="week"]),
+        select:not([multiple]):is(:not([size]), [size="0"], [size="1"]),
+        .p-select, .p-multiselect, .p-inputnumber, .p-password,
+        .p-datepicker:has(> .p-datepicker-input),
+        .p-autocomplete:has(> input)
+    ):not(.p-hidden-accessible *, .sr-only, [hidden]) {
+        box-sizing: border-box !important;
+        height: var(--form-field-height) !important;
+        min-height: var(--form-field-height) !important;
+    }
+}
