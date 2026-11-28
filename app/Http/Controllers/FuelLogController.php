@@ -97,6 +97,7 @@ class FuelLogController extends Controller
 
         return Inertia::render('FuelLogs/Index', [
             'fuelLogs' => $fuelLogs,
+            'canViewReport' => app(\App\Services\Reports\ReportPermissions::class)->allows('fuel_log'),
             'machines' => $machines,
             'vendors' => toSelectOptions(VendorsDropdown('Vendor'), 'legal_name'),
             'canGenerateBill' => $canGenerateBill,

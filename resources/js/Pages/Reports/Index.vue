@@ -21,6 +21,7 @@ import InventoryStockReport from './components/InventoryStockReport.vue';
 import InventoryInwardReport from './components/InventoryInwardReport.vue';
 import StockOutReport from './components/StockOutReport.vue';
 import ProductionBatchReport from './components/ProductionBatchReport.vue';
+import FuelLogReport from './components/FuelLogReport.vue';
 import BatchingScheduleReport from './components/BatchingScheduleReport.vue';
 import PumpBoomDeploymentReport from './components/PumpBoomDeploymentReport.vue';
 import MachinesListReport from './components/MachinesListReport.vue';
@@ -163,6 +164,7 @@ const reportIcons = {
     pump_boom_deployment: WrenchScrewdriverIcon,
     production_batch: Cog6ToothIcon,
     machines_list: TruckIcon,
+    fuel_log: ClipboardDocumentListIcon,
     machine_tracker: ClipboardDocumentListIcon,
     machine_summary: ChartBarIcon,
     vehicle_pl: CurrencyRupeeIcon,
@@ -235,6 +237,7 @@ const reportCatalog = [
         name: 'Fleet & Machinery',
         reports: [
             { id: 'machines_list', name: 'Machine Fleet Inventory', description: 'Active fleet list, mixer capacities and vehicle specs' },
+            { id: 'fuel_log', name: 'Fuel Log Report', description: 'Refueling entries by machine and driver, with fuel quantities, costs and bill numbers' },
             { id: 'machine_tracker', name: 'Machine Tracker Log Sheet', description: 'Daily machine runtime, odometer, hourmeter, EB units, fuel logs, and costs' },
             { id: 'driver', name: 'Driver Trip Report', description: 'Driver transit mixer trips, volume, and vehicle weights' },
             { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
@@ -381,6 +384,7 @@ const getReportComponent = (type) => {
         case 'batching_schedule': return BatchingScheduleReport;
         case 'pump_boom_deployment': return PumpBoomDeploymentReport;
         case 'machines_list': return MachinesListReport;
+        case 'fuel_log': return FuelLogReport;
         case 'machine_tracker': return MachineTrackerReport;
         case 'machine_summary': return MachineSummaryReport;
         case 'vehicle_pl': return VehiclePLReport;
@@ -657,7 +661,7 @@ const mixDesignOptions = computed(() => {
 const truckOptions = computed(() => {
     const list = props.machines || [];
     return [
-        { id: null, registration: ['machine_summary', 'vehicle_pl'].includes(reportType.value) ? '-- All Machines --' : '-- All Trucks / Vehicles --' },
+        { id: null, registration: ['machine_summary', 'vehicle_pl', 'fuel_log'].includes(reportType.value) ? '-- All Machines --' : '-- All Trucks / Vehicles --' },
         ...list
     ];
 });
@@ -1441,7 +1445,7 @@ const shareEmail = () => {
                                         <span v-if="loading"
                                             class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                         <ArrowPathIcon v-else class="w-3.5 h-3.5" />
-                                        <span>Execute Query</span>
+                                        <span>{{ reportType === 'fuel_log' ? 'Run report' : 'Execute Query' }}</span>
                                     </button>
                                     <!-- Toggle Button -->
                                     <button type="button" @click="isFiltersCollapsed = !isFiltersCollapsed"
@@ -1561,15 +1565,15 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Truck Dropdown -->
-                                    <div v-if="['sales', 'machine_summary', 'vehicle_pl', 'machines_list', 'machine_tracker', 'truck_consolidated', 'driver', 'batching_schedule', 'stock_out'].includes(reportType)"
+                                    <div v-if="['sales', 'machine_summary', 'vehicle_pl', 'machines_list', 'fuel_log', 'machine_tracker', 'truck_consolidated', 'driver', 'batching_schedule', 'stock_out'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">{{
                                             reportType === 'sales' ? 'Truck Number' :
-                                            ['machine_summary', 'vehicle_pl'].includes(reportType) ? 'Select Machine' :
+                                            ['machine_summary', 'vehicle_pl', 'fuel_log'].includes(reportType) ? 'Select Machine' :
                                                 'Select Truck / Vehicle' }}</span>
                                         <BaseSelect v-model="truckId" :options="truckOptions" optionLabel="registration"
                                             optionValue="id"
-                                            :placeholder="['machine_summary', 'vehicle_pl'].includes(reportType) ? 'All Machines' : 'All Trucks'"
+                                            :placeholder="['machine_summary', 'vehicle_pl', 'fuel_log'].includes(reportType) ? 'All Machines' : 'All Trucks'"
                                             filter showClear />
                                     </div>
 
@@ -1588,7 +1592,7 @@ const shareEmail = () => {
                                     </div>
 
                                     <!-- Driver Dropdown -->
-                                    <div v-if="['driver', 'machine_tracker'].includes(reportType)"
+                                    <div v-if="['driver', 'fuel_log', 'machine_tracker'].includes(reportType)"
                                         class="lg:col-span-1">
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Driver /
                                             Operator</span>
@@ -1758,7 +1762,7 @@ const shareEmail = () => {
                                             <span v-if="loading"
                                                 class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                             <ArrowPathIcon v-else class="w-3.5 h-3.5" />
-                                            Execute Query
+                                            {{ reportType === 'fuel_log' ? 'Run report' : 'Execute Query' }}
                                         </button>
                                     </div>
                                 </div>
@@ -1825,9 +1829,13 @@ const shareEmail = () => {
                             class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-200">
 
                             <div
-                                class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                                <span class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Statement Result
-                                    Grid</span>
+                                class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-2 justify-between items-center">
+                                <h3 v-if="reportType === 'fuel_log'" class="text-base font-semibold text-slate-900">Refueling summary</h3>
+                                <span v-else class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Statement Result Grid</span>
+                                <div v-if="reportType === 'fuel_log' && isFiltersCollapsed && canExportReport" class="flex gap-2">
+                                    <button type="button" @click="exportPdf" :disabled="isExporting" class="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50">{{ isExporting && currentExportType === 'pdf' ? 'Exporting…' : 'Export PDF' }}</button>
+                                    <button type="button" @click="exportExcel" :disabled="isExporting" class="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50">{{ isExporting && currentExportType === 'excel' ? 'Exporting…' : 'Export Excel' }}</button>
+                                </div>
                                 <!-- <div class="flex items-center gap-2">
                                 <span class="lg:hidden text-[9px] bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Swipe ➡️</span>
                                 <button 
@@ -1860,10 +1868,10 @@ const shareEmail = () => {
                                 class="w-14 h-14 bg-slate-50 border border-slate-200 rounded flex items-center justify-center mb-5 text-slate-400">
                                 <component :is="getReportIcon(reportType)" class="h-7 w-7" aria-hidden="true" />
                             </div>
-                            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-widest">Execute Query
-                                Statement</h3>
+                            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-widest">{{ reportType === 'fuel_log' ? 'Run the fuel log report' : 'Execute Query Statement' }}</h3>
                             <p class="text-slate-400 max-w-xs mx-auto mt-2 text-[11px] leading-relaxed">
-                                <template v-if="reportType === 'ledger'">Select a patron or account ledger, then click Execute Query to load the statement.</template>
+                                <template v-if="reportType === 'fuel_log'">Choose a date range and select Run report to see refueling entries.</template>
+                                <template v-else-if="reportType === 'ledger'">Select a patron or account ledger, then click Execute Query to load the statement.</template>
                                 <template v-else>Choose a report from the master list catalog pane, set smart filter query scopes, and click Execute to load database rows.</template>
                             </p>
                         </div>

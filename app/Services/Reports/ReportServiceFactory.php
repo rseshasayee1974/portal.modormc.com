@@ -43,6 +43,7 @@ class ReportServiceFactory
             'batching_schedule'    => BatchingScheduleReportService::class,
             'pump_boom_deployment' => PumpBoomDeploymentReportService::class,
             'machines_list'        => MachinesListReportService::class,
+            'fuel_log'             => FuelLogReportService::class,
             'machine_tracker'     => MachineTrackerReportService::class,
             'attendance'           => AttendanceReportService::class,
             'payroll_personnel'    => PayrollPersonnelReportService::class,

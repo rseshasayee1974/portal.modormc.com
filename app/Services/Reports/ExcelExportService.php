@@ -154,7 +154,16 @@ class ExcelExportService
                     }
                 }
 
-                $sheet->fromArray($formattedRow, null, "A{$currentRow}", true);
+                if ($extraSections['typed_rows'] ?? false) {
+                    foreach ($rVal as $index => $value) {
+                        if ($value === null || $value === '') continue;
+                        $sheet->setCellValueExplicit([1 + $index, $currentRow], $value, is_string($value)
+                            ? \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
+                            : \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                    }
+                } else {
+                    $sheet->fromArray($formattedRow, null, "A{$currentRow}", true);
+                }
                 if ($rIdx % 2 === 1) {
                     $sheet->getStyle("A{$currentRow}:{$maxColLetter}{$currentRow}")->applyFromArray([
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']]
@@ -552,6 +561,15 @@ class ExcelExportService
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [$row['date'] ?? '', $row['reference_number'] ?? '', $row['bill_number'] ?? '', $row['billed_date'] ?? '', $row['voucher_name'] ?? '', $row['partner_name'] ?? '', $row['product_name'] ?? '', $row['quantity'] ?? 0, $row['uom'] ?? '', $row['no_items_issued'] ?? 0, $row['unit_price'] ?? 0, $row['discount_amount'] ?? 0, $row['untaxed_amount'] ?? 0, $row['tax_rate'] ?? 0, $row['tax_amount'] ?? 0, $row['total_amount'] ?? 0, $row['issued_to'] ?? '', $row['vehicle_no'] ?? '', $row['changed_km'] ?? '', $row['notes'] ?? ''];
                 }
+            } elseif ($type === 'fuel_log') {
+                $fields = array_keys(FuelLogReportService::COLUMNS);
+                $headersList = array_values(FuelLogReportService::COLUMNS);
+                $extraSections['typed_rows'] = true;
+                foreach ($data['transactions'] as $row) {
+                    $rows[] = array_map(fn ($key) => isset($row[$key]) && in_array($key, ['quantity', 'rate', 'amount', 'odometer', 'hours'], true)
+                        ? (float) $row[$key] : $row[$key], $fields);
+                }
+                $totalRow = array_map(fn ($key) => $key === 'date' ? 'Total' : (isset($data['totals'][$key]) ? (float) $data['totals'][$key] : ''), $fields);
             } elseif ($type === 'batching_schedule') {
                 $columns = BatchingScheduleReportService::COLUMNS;
                 $headersList = array_values($columns);

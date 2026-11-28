@@ -72,6 +72,7 @@ const props = defineProps<{
     drivers: any[];
     vendors: { label: string; value: number }[];
     accounts: { label: string; value: number }[];
+    canViewReport: boolean;
     canGenerateBill: boolean;
     canDeleteBill?: boolean;
     paymentMethods: any[];
@@ -414,6 +415,7 @@ watch(() => page.props.flash, (flash: any) => {
                             :globalFilterFields="['machine.registration', 'driver.first_name', 'driver.last_name', 'vendor.legal_name', 'invoice.full_number', 'pump_name', 'bill_no', 'payment_method']"
                         >
                             <template #toolbar>
+                                <a v-if="canViewReport" :href="route('reports.index', { type: 'fuel_log' })" class="text-sm font-semibold text-indigo-700 hover:underline">Fuel Log Report</a>
                                 <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
                                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ fuelLogs.length }} refuels</span>
                                 </div>

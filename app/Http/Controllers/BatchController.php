@@ -1207,7 +1207,7 @@ class BatchController extends Controller
         $responseData = [
             'id' => $batchRow->id,
             'encrypted_id' => encrypt($batchRow->id),
-            'mixer_capacity' => (float) ($activePlant?->mixer_capacity ?: 1.25),
+            'mixer_capacity' => $activePlant?->mixer_capacity ? (float) $activePlant->mixer_capacity : null,
             'calculation_profile' => PlantCalculations::profile($activePlant),
             'modomines_moisture' => PlantCalculations::moistureFormula($activePlant) === \App\Services\BatchMoisture\Modomines::class,
             'plant_id' => $batchRow->plant_id,

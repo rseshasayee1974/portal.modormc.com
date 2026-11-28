@@ -46,6 +46,7 @@ class ReportPermissions
         'batching_schedule' => 'Batching Schedule Report',
         'pump_boom_deployment' => 'Pump & Boom Deployment Report',
         'machines_list' => 'Machine Fleet Inventory',
+        'fuel_log' => 'Fuel Log Report',
         'machine_tracker' => 'Machine Tracker Log Sheet',
         'machine_summary' => 'Machine Summary Report',
         'vehicle_pl' => 'Vehicle Profit and Loss',

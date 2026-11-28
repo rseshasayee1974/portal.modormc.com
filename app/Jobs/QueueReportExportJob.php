@@ -222,6 +222,7 @@ class QueueReportExportJob implements ShouldQueue
             'INVENTORY_INWARD'     => 'reports.generic_report',
             'STOCK_OUT'            => 'reports.generic_report',
             'PRODUCTION_BATCH'     => 'reports.generic_report',
+            'FUEL_LOG'             => 'reports.generic_report',
             'BATCHING_SCHEDULE'    => 'reports.generic_report',
             'PUMP_BOOM_DEPLOYMENT' => 'reports.generic_report',
             'MACHINES_LIST'        => 'reports.generic_report',
@@ -266,6 +267,8 @@ class QueueReportExportJob implements ShouldQueue
                 'alignments' => ['center', 'center', 'left', 'right', 'right', 'right', 'right', 'left'],
                 'totals' => ['quantity' => $data['total_quantity'] ?? 0, 'tax_amount' => $data['total_tax_amount'] ?? 0, 'total_amount' => $data['total_amount'] ?? 0],
             ];
+        } elseif (strtolower($type) === 'fuel_log') {
+            $extraParams = \App\Services\Reports\FuelLogReportService::pdfColumns($data);
         } elseif (strtolower($type) === 'batching_schedule') {
             $extraParams = \App\Services\Reports\BatchingScheduleReportService::pdfColumns($data);
         } elseif (strtolower($type) === 'pump_boom_deployment') {
@@ -323,7 +326,7 @@ class QueueReportExportJob implements ShouldQueue
 
         $paperSize = 'a4';
         $orientation = 'portrait';
-        if (in_array(strtoupper($type), ['SALES', 'BATCHING_SCHEDULE', 'PUMP_BOOM_DEPLOYMENT', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER', 'CREDIT_DEBIT_NOTE_REGISTER', 'INVENTORY_INWARD', 'STOCK_OUT']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
+        if (in_array(strtoupper($type), ['SALES', 'FUEL_LOG', 'BATCHING_SCHEDULE', 'PUMP_BOOM_DEPLOYMENT', 'PAYROLL_PERSONNEL', 'SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER', 'MACHINE_TRACKER', 'CREDIT_DEBIT_NOTE_REGISTER', 'INVENTORY_INWARD', 'STOCK_OUT']) || (strtoupper($type) === 'CUSTOMER_OUTSTANDING' && empty($data['is_single_patron']))) {
             $orientation = 'landscape';
         }
         if (strtoupper($type) === 'INVENTORY_INWARD') {
