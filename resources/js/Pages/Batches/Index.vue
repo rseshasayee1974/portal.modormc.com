@@ -538,16 +538,62 @@ const closeAllMenus = () => {
     }
 };
 
-const printBatchSheet = (id: number | string) => {
-    const url = new URL(route("batches.report", id), window.location.origin);
-    url.searchParams.set("print", "1");
-    window.open(url.toString(), "_blank", "noopener,noreferrer");
+// Export the formatted cells, including unsaved display-only inputs, without submitting the editor.
+const exportBatch = ref<any>(null);
+const exportingSheet = ref(false);
+const batchSheetAction = async (batch: any, action: 'download' | 'print' | 'preview') => {
+    if (exportingSheet.value) return;
+    exportingSheet.value = true;
+    const target = action === 'download' ? '_self' : 'batch-sheet-' + Number(batch.id);
+    const preview = action === 'download' ? null : window.open('', target);
+    if (preview) preview.opener = null;
+    try {
+        const findTable = () => document.querySelector<HTMLTableElement>(`table[data-batch-materials="${Number(batch.id)}"]`);
+        let table = findTable();
+        if (!table) {
+            const { data } = await axios.get(route('batches.show', batch.id));
+            exportBatch.value = data;
+            await nextTick();
+            table = findTable();
+        }
+        const form = document.createElement('form');
+        form.target = target;
+        form.method = 'post';
+        form.action = route(action === 'download' ? 'batches.download' : 'batches.report', batch.encrypted_id || batch.id);
+        const add = (name: string, value: string) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            form.append(input);
+        };
+        add('_token', document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')!.content);
+        if (action === 'print') add('print', '1');
+        if (table) {
+            const headers = Array.from(table.tHead!.rows[1].cells);
+            const materials = headers.slice(1).map(cell => ({ id: cell.dataset.productId, target: cell.dataset.target || '0' }));
+            const columns = headers.map(cell =>
+                (cell.querySelector('.p-select-label')?.textContent ?? cell.textContent ?? '').trim());
+            const rows = Array.from(table.tBodies[0].rows, row => Array.from(row.cells, cell =>
+                cell.querySelector<HTMLInputElement>('input:not([type="hidden"])')?.value ??
+                (cell.textContent ?? '').trim().replace(/\s+/g, ' ')));
+            add('materials_display', JSON.stringify({ columns, materials, rows, runSize: table.dataset.runSize, productionQty: table.dataset.productionQty }));
+        }
+        document.body.append(form);
+        form.submit();
+        form.remove();
+    } catch {
+        preview?.close();
+        Swal.fire('Batch sheet unavailable', 'The material rows could not be loaded. Please retry.', 'error');
+    } finally {
+        exportBatch.value = null;
+        exportingSheet.value = false;
+    }
 };
 
 const {
     destroy,
     canDeleteBatch,
-    downloadPdf,
     retrySync,
     statusSeverity,
     statusLabel,
@@ -1579,16 +1625,7 @@ console.log(
                                                     can('BATCH.BATCH_SHEET')
                                                 " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
-                                                        router.get(
-                                                            route(
-                                                                'batches.report',
-                                                                slotProps.data
-                                                                    .encrypted_id ||
-                                                                slotProps
-                                                                    .data
-                                                                    .id,
-                                                            ),
-                                                        );
+                                                        batchSheetAction(slotProps.data, 'preview');
                                                     activeMenuId = null;
                                                     ">
                                                     <i class="pi pi-eye mr-2 text-indigo-500 font-bold"></i>
@@ -1599,12 +1636,7 @@ console.log(
                                                 " type="button"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
-                                                        printBatchSheet(
-                                                            slotProps.data
-                                                                .encrypted_id ||
-                                                            slotProps.data
-                                                                .id,
-                                                        );
+                                                        batchSheetAction(slotProps.data, 'print');
                                                     activeMenuId = null;
                                                     ">
                                                     <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
@@ -1615,12 +1647,7 @@ console.log(
                                                     can('BATCH.EXPORT')
                                                 " class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                     @click="
-                                                        downloadPdf(
-                                                            slotProps.data
-                                                                .encrypted_id ||
-                                                            slotProps.data
-                                                                .id,
-                                                        );
+                                                        batchSheetAction(slotProps.data, 'download');
                                                     activeMenuId = null;
                                                     ">
                                                     <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
@@ -1961,7 +1988,7 @@ console.log(
                                                 </div>
                                             </template>
                                             <div class="bg-slate-50/20">
-                                                <BatchEditForm v-if="
+                                                <BatchEditForm @download-sheet="batchSheetAction($event, 'download')" v-if="
                                                     detailedBatches[
                                                     slotProps.data.id
                                                     ]
@@ -2233,9 +2260,7 @@ console.log(
                         <button v-if="can('BATCH.BATCH_SHEET')" type="button"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="
-                                printBatchSheet(
-                                    activeBatch.encrypted_id || activeBatch.id,
-                                );
+                                batchSheetAction(activeBatch, 'print');
                             closeAllMenus();
                             ">
                             <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
@@ -2244,9 +2269,7 @@ console.log(
                         <button v-if="can('BATCH.PDF') || can('BATCH.EXPORT')"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="
-                                downloadPdf(
-                                    activeBatch.encrypted_id || activeBatch.id,
-                                );
+                                batchSheetAction(activeBatch, 'download');
                             closeAllMenus();
                             ">
                             <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
@@ -2744,6 +2767,10 @@ console.log(
                     @cancel="invoiceDialogVisible = false" />
             </form>
         </Dialog>
+        <div v-if="exportBatch" hidden>
+            <BatchEditForm :batch="exportBatch" :products="products" :salesOrders="salesOrders" :uoms="uoms"
+                :trucks="trucks" :drivers="drivers" :customers="customers" :statuses="statuses" />
+        </div>
     </AppLayout>
 </template>
 

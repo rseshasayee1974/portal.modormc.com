@@ -1619,6 +1619,7 @@ class BatchController extends Controller
         return view('pdfs.batches.batch_sheet', [
             'batch' => $batch,
             'sheet' => $sheet,
+            'materialsDisplay' => $this->batchSheetDisplay(),
             'isPreview' => true,
         ]);
     }
@@ -1651,7 +1652,7 @@ class BatchController extends Controller
             $batch->batch_no ?? $batch->id
         );
         $filename = \Illuminate\Support\Str::slug($batch->plant?->name ?? $batch->salesOrder?->plant?->name ?? 'plant').'-'.$filename;
-        $html = view('pdfs.batches.batch_sheet', ['batch' => $batch, 'isPreview' => false])->render();
+        $html = view('pdfs.batches.batch_sheet', ['batch' => $batch, 'materialsDisplay' => $this->batchSheetDisplay(), 'isPreview' => false])->render();
         $bytes = app(\App\Services\BatchSheetBrowserPdf::class)->render($html);
 
         return response()->streamDownload(static function () use ($bytes) {
@@ -2007,6 +2008,29 @@ class BatchController extends Controller
 
         $filename = sprintf('gate-pass-%s.pdf', $batch->batch_no ?? $batch->id);
         return $pdf->download($filename);
+    }
+
+    private function batchSheetDisplay(): ?array
+    {
+        $request = request();
+        if (!$request->isMethod('post') || !$request->has('materials_display')) return null;
+
+        $request->validate(['materials_display' => ['required', 'string', 'json', 'max:524288']]);
+        $display = json_decode($request->input('materials_display'), true);
+        return validator(['display' => $display], [
+            'display' => ['required', 'array:columns,rows,materials,runSize,productionQty'],
+            'display.materials' => ['sometimes', 'list', 'max:100'],
+            'display.materials.*' => ['array:id,target'],
+            'display.materials.*.id' => ['nullable', 'integer'],
+            'display.materials.*.target' => ['required', 'numeric'],
+            'display.runSize' => ['required', 'numeric', 'gt:0'],
+            'display.productionQty' => ['required', 'numeric', 'min:0'],
+            'display.columns' => ['required', 'list', 'min:2', 'max:101'],
+            'display.columns.*' => ['string', 'max:255'],
+            'display.rows' => ['required', 'list', 'max:1000'],
+            'display.rows.*' => ['required', 'list', 'max:101'],
+            'display.rows.*.*' => ['string', 'max:512'],
+        ])->validate()['display'];
     }
 
     private function resolveBatchSheetBatch(Batch $batch): Batch

@@ -144,6 +144,8 @@ class JayadhityaBatchSheet
             }
         }
 
+        // Use the batch's saved absorption before the current product default.
+        $waterAbsorption = $moistureRows['design'] + $waterAbsorption;
         $moistureDisplayRows = [];
         $waterAbsorptionDisplayRow = [];
         if ($groups['Aggregate']) {
@@ -183,9 +185,13 @@ class JayadhityaBatchSheet
         ];
     }
 
-    public static function layoutData(Batch $batch): array
+    public static function layoutData(Batch $batch, ?array $display = null): array
     {
         $data = self::data($batch);
+        $data['with_this_load'] = self::withThisLoad($batch);
+        if ($display !== null) {
+            return self::editorLayout($batch, $data, $display);
+        }
         $numberedRuns = ! $data['inferred_runs'] && $data['runs'] && ! array_key_exists('Stored totals', $data['runs']);
         $runCount = $numberedRuns ? count($data['runs']) : 0;
         // Material columns and run rows follow stored consumption, without fixed slot limits.
@@ -202,14 +208,77 @@ class JayadhityaBatchSheet
             }, $data['targets'], array_keys($data['targets'])) : ($quantity > 0 ? array_map(fn ($target) => $target / $quantity, $data['targets']) : null),
         ];
         if ($runCount > 0) $data['recipe_rows'][1] = array_combine(array_keys($data['targets']), $data['recipe_rows'][1]);
-        $data['with_this_load'] = $batch->exists && $batch->sales_order_id && $batch->plant_id
+        return $data;
+    }
+
+    private static function withThisLoad(Batch $batch)
+    {
+        return $batch->exists && $batch->sales_order_id && $batch->plant_id
             ? Batch::withoutPlantScope()->where('plant_id', $batch->plant_id)
                 ->where('sales_order_id', $batch->sales_order_id)
                 ->where('id', '<=', $batch->id)
                 ->whereIn('status', [Batch::STATUS_LOADING, Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])
                 ->sum('batch_size')
             : null;
+    }
 
+    private static function editorLayout(Batch $batch, array $data, array $display): array
+    {
+        $materials = $batch->materials->keyBy('product_id');
+        $storedTargets = $data['targets'];
+        foreach (['columns', 'labels', 'group_spans', 'targets', 'actuals', 'runs', 'product_aliases', 'recipe', 'moisture_display_rows', 'moisture_labels'] as $key) {
+            $data[$key] = [];
+        }
+        $data['moisture_rows'] = ['consumption' => [], 'design' => []];
+        foreach (array_slice($display['columns'], 1) as $index => $name) {
+            $meta = $display['materials'][$index] ?? [];
+            $material = $materials->get($meta['id'] ?? null);
+            $source = preg_replace('/\s*[-–—]?\s*Run\s*[-–—]?\s*\d+\s*$/iu', '', $material?->material_name ?? $name);
+            $column = self::column($source) ?? $source;
+            if (in_array($column, $data['columns'], true)) $column .= ' #'.$index;
+            $alias = $material?->product?->alias;
+            if ($alias) $data['product_aliases'][$column] = $alias;
+            $data['columns'][] = $column;
+            $data['labels'][$column] = $alias ?: mb_strtoupper($name);
+            $data['targets'][$column] = (float) ($meta['target'] ?? $storedTargets[$column] ?? 0);
+            $group = self::materialDisplay($source, (string) $material?->product?->category?->name)['group'];
+            $last = array_key_last($data['group_spans']);
+            if ($last !== null && $data['group_spans'][$last]['name'] === $group) {
+                $data['group_spans'][$last]['span']++;
+            } else {
+                $data['group_spans'][] = ['name' => $group, 'span' => 1];
+            }
+        }
+
+        $data['recipe_rows'] = [[], []];
+        foreach ($display['rows'] as $row) {
+            $label = $row[0];
+            if (preg_match('/^(Total Recipe Targets|Total Set Actual Weight): ([\\d,.]+) KGS$/i', $label, $match)) {
+                $key = $match[1] === 'Total Recipe Targets' ? 'editor_target_mass' : 'editor_actual_mass';
+                $data[$key] = (float) str_replace(',', '', $match[2]);
+            }
+            if (count($row) !== count($data['columns']) + 1) continue;
+            $values = array_combine($data['columns'], array_slice($row, 1));
+            if ($label === 'Target Qty per CBM') {
+                $data['recipe'] = $data['recipe_rows'][0] = $values;
+            } elseif (str_starts_with($label, 'Actual Qty per ')) {
+                $data['recipe_rows'][1] = $values;
+            } elseif (preg_match('/^Run \d+ Actual$/', $label)) {
+                $data['runs'][] = $values;
+            } elseif ($label === 'Total Actual') {
+                $data['actuals'] = $values;
+            } elseif (str_contains(strtolower($label), 'moisture')) {
+                $type = in_array($label, ['Consumption Moisture (%)', 'Default moisture (%)'], true) ? 'consumption' : 'design';
+                $data['moisture_labels'][$type] = $label;
+                $data['moisture_display_rows'][$type] = $values;
+                $data['moisture_rows'][$type] = array_filter($values, 'is_numeric');
+            }
+        }
+        $data['inferred_runs'] = !$data['runs'];
+        $data['total_target'] = $data['editor_target_mass'] ?? array_sum($data['targets']);
+        $data['total_actual'] = $data['editor_actual_mass'] ?? array_sum(array_map('floatval', $data['actuals']));
+        $data['difference'] = $data['total_target'] ? ($data['total_actual'] - $data['total_target']) / $data['total_target'] * 100 : 0;
+        $data['run_size'] = $display['runSize'];
         return $data;
     }
 
@@ -222,7 +291,7 @@ class JayadhityaBatchSheet
         $absorption = $data['water_absorption'] ?? [];
         $recipe = $data['recipe'] ?? [];
 
-        foreach (self::GROUPS['Aggregate'] as $column) {
+        foreach ($data['groups']['Aggregate'] ?? [] as $column) {
             $recipePerCubicMeter = (float) ($recipe[$column] ?? 0);
             if ($recipePerCubicMeter <= 0) {
                 continue;
@@ -235,7 +304,9 @@ class JayadhityaBatchSheet
             $moisturePercentage = (float) $moisture[$column];
             $absorptionPercentage = (float) $absorption[$column];
             $baseTarget = $recipePerCubicMeter * $runSize;
-            $correction = $baseTarget * (($moisturePercentage - $absorptionPercentage) / 100);
+            $fraction = ($moisturePercentage - $absorptionPercentage) / 100;
+            // Workbook row 9 uses design kg/m�; row 11 uses the scaled run weight.
+            $correction = $recipePerCubicMeter * $fraction;
             $correctionTotal += $correction;
             $rows[] = [
                 'material' => $data['labels'][$column] ?? $column,
@@ -245,7 +316,7 @@ class JayadhityaBatchSheet
                 'water_absorption_percentage' => $absorptionPercentage,
                 'correction_percentage' => $moisturePercentage - $absorptionPercentage,
                 'correction_kg' => $correction,
-                'corrected_target' => $baseTarget + $correction,
+                'corrected_target' => $baseTarget * (1 + $fraction),
             ];
         }
 

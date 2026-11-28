@@ -6,7 +6,6 @@ import Swal from 'sweetalert2';
  *
  * Handles batch-level CRUD actions and utility helpers:
  *  - destroy        : Confirm + delete a batch record
- *  - downloadPdf    : Download the batch PDF report
  *  - retrySync      : Retry syncing a failed batch to the scheduler
  *  - statusSeverity : Map a status code to a PrimeVue Tag severity string
  *  - statusLabel    : Resolve a status code to its human-readable label
@@ -57,21 +56,6 @@ export function useBatchActions(props: { statuses: { label: string; value: numbe
                 },
             });
         });
-    };
-
-    // ── Download PDF ─────────────────────────────────────────────────────────
-    /**
-     * Uses the anchor-click technique to avoid popup-blocker issues.
-     */
-    const downloadPdf = (id: number | string) => {
-        const url = route('batches.download', id);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', '');
-        link.setAttribute('target', '_blank');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     };
 
     // ── Retry Scheduler Sync ─────────────────────────────────────────────────
@@ -127,7 +111,6 @@ export function useBatchActions(props: { statuses: { label: string; value: numbe
     return {
         canDeleteBatch,
         destroy,
-        downloadPdf,
         retrySync,
         statusSeverity,
         statusLabel,

@@ -22,9 +22,9 @@ class JayadhityaPlant2787BatchSheet
         return $driver === JayadhityaPlant2787Driver::CODE || ($driver === '' && (string) $plant?->code === '2787');
     }
 
-    public static function data(Batch $batch): array
+    public static function data(Batch $batch, ?array $display = null): array
     {
-        $report = JayadhityaBatchSheet::layoutData($batch);
+        $report = JayadhityaBatchSheet::layoutData($batch, $display);
         $slots = $groups = [];
         $offset = 0;
         $moisture = $report['moisture_rows']['consumption'];
@@ -70,6 +70,7 @@ class JayadhityaPlant2787BatchSheet
                 if ($column === 'MS') return '';
 
                 $value = $values[$column] ?? ($standard ? 0 : null);
+                if (is_string($value)) return $value;
                 return $value === null ? '-' : number_format($value, $report['precisions'][$column] ?? (str_starts_with($column, 'ADMIX') ? 2 : 0), '.', '');
             }, $slots);
         };

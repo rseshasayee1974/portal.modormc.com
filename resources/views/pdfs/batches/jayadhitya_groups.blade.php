@@ -3,7 +3,7 @@ Author: ragul-onemodo
 Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
 -->
 @php
-    $report = \App\Services\JayadhityaBatchSheet::layoutData($batch);
+    $report = \App\Services\JayadhityaBatchSheet::layoutData($batch, $materialsDisplay ?? null);
     $order = $batch->relationLoaded('workOrder') && !$batch->relationLoaded('salesOrder') ? $batch->workOrder : $batch->salesOrder;
     $plant = $batch->plant ?? $order?->plant;
     $mix = $order?->mixDesign;
@@ -12,7 +12,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
     $batchDate = $batch->start_time ?? $batch->created_at;
     $value = fn ($value) => $value !== null && $value !== '' ? $value : '-';
     $precision = $report['precisions'];
-    $format = fn ($value, $column = null) => $value === null ? '-' : number_format((float) $value, $precision[$column] ?? 0, '.', '');
+    $format = fn ($value, $column = null) => is_string($value) ? $value : ($value === null ? '-' : number_format((float) $value, $precision[$column] ?? 0, '.', ''));
     $formatDecimal = fn ($value) => is_numeric($value) ? number_format((float) $value, 2, '.', '') : $value;
     $formatPercentage = fn ($value) => $formatDecimal($value) ?? '-';
     $plantSerial = (new \App\Services\BatchSheet\Drivers\JayadhityaGroupsPlant739Driver)->getPlantSerial();
@@ -23,7 +23,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
         ['Truck No', $dispatch?->truck?->registration], ['Truck Driver', trim(($driver?->first_name ?? '').' '.($driver?->last_name ?? ''))],
         ['Adj / Manual Qty', $formatDecimal($batch->manual_qty ?? null)]];
     $right = [['Mixer Capacity', $formatDecimal($plant?->mixer_capacity)],
-        ['Batch Size', $report['run_size'] === null ? null : number_format((float) $report['run_size'], 3, '.', '')], ['Production Qty', $formatDecimal($batch->batch_size)],
+        ['Batch Size', $formatDecimal($materialsDisplay['runSize'] ?? $report['run_size'])], ['Production Qty', $formatDecimal($materialsDisplay['productionQty'] ?? $batch->batch_size)],
         ['Order No', $formatDecimal($order?->order_no)], ['Ordered Qty', $formatDecimal($order?->total_qty)],
         ['With This Load', $formatDecimal($report['with_this_load'])]];
     $brand = \App\Services\PrintBrandHeader::resolve(['plant' => $plant, 'batchSheetBrand' => true]);
@@ -122,10 +122,10 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
       <tr class="data" data-row="recipe">@foreach ($report['columns'] as $column)<td class="{{ $loop->last ? 'sil' : 'num' }}">{{ $format($row === null ? null : ($row[$column] ?? 0), $column) }}</td>@endforeach</tr>
     @endforeach
     @php
-      $recipeMass = $report['recipe'] ? $formatDecimal(array_sum($report['recipe'])) : '-';
+      $recipeMass = $formatDecimal($report['editor_target_mass'] ?? ($report['recipe'] ? array_sum(array_map('floatval', $report['recipe'])) : '-'));
       $moistureColumns = $columnCount;
       foreach (array_reverse($report['columns']) as $column) {
-          if (trim((string) ($report['moisture_display_rows']['consumption'][$column] ?? '')) !== '') {
+          if (trim((string) ($report['moisture_display_rows']['design'][$column] ?? '')) !== '') {
               break;
           }
           $moistureColumns--;
@@ -133,12 +133,12 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
       $inlineRecipeMass = $report['moisture_display_rows'] && $moistureColumns < $columnCount;
     @endphp
     @if ($report['moisture_display_rows'])
-      @foreach (['design' => 'Design Moisture (%)', 'consumption' => 'Consumption Moisture (%)'] as $type => $description)
+      @foreach (($report['moisture_labels'] ?? ['consumption' => 'Consumption Moisture (%)', 'design' => 'Design Moisture (%)']) as $type => $description)
         <tr class="data moisture" data-row="moisture-{{ $type }}" aria-label="{{ $description }}" title="{{ $description }}">
-          @foreach ($type === 'consumption' && $inlineRecipeMass ? array_slice($report['columns'], 0, $moistureColumns) : $report['columns'] as $column)
+          @foreach ($loop->last && $inlineRecipeMass ? array_slice($report['columns'], 0, $moistureColumns) : $report['columns'] as $column)
             <td>{{ $report['moisture_display_rows'][$type][$column] }}</td>
           @endforeach
-          @if ($type === 'consumption' && $inlineRecipeMass)
+          @if ($loop->last && $inlineRecipeMass)
             <td colspan="{{ $columnCount - $moistureColumns }}" style="text-align:right; font-weight:bold">Mass of Recipe Targets in kg : {{ $recipeMass }}</td>
           @endif
         </tr>
@@ -159,7 +159,7 @@ Created: 2026-10-31 09:25:14 Asia/Calcutta (UTC+05:30)
     <tr class="note top"><td colspan="{{ $columnCount }}">Mass of Total Actual Weight in kg : {{ $formatDecimal($report['total_actual']) }}</td></tr>
     <tr class="label"><td colspan="{{ $columnCount }}">Difference in Percentage</td></tr>
     <tr class="data">@foreach ($report['columns'] as $column)
-      @php $target = $report['targets'][$column] ?? 0; $actual = $report['actuals'][$column] ?? 0; @endphp
+      @php $target = $report['targets'][$column] ?? 0; $actual = (float) ($report['actuals'][$column] ?? 0); @endphp
       <td class="{{ $loop->last ? 'sil' : 'num' }}">{{ $formatPercentage($target != 0 ? ($actual - $target) / $target * 100 : 0) }}</td>
     @endforeach</tr>
     <tr class="note top"><td colspan="{{ $columnCount }}">Total Mass Difference in Percentage : {{ $formatPercentage($report['difference']) }}</td></tr>

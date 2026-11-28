@@ -90,6 +90,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
     (e: 'saved', payload?: { batchId: number, type: 'batching' | 'dispatch' }): void;
     (e: 'cancel'): void;
+    (e: 'download-sheet', batch: any): void;
 }>();
 
 
@@ -946,7 +947,8 @@ const productMoisture = (productId: number): number | null => {
 
 type MoistureField = 'design_moisture_percentage' | 'consumption_moisture_percentage';
 const moistureRows = computed(() => props.batch?.modomines_moisture ? [
-    { label: 'Water Absorption (%)', field: 'design_moisture_percentage' },
+    { label: 'Default moisture (%)', field: 'consumption_moisture_percentage' },
+    { label: 'Moisture (%)', field: 'design_moisture_percentage' },
 ] as const : [
     { label: 'Design Moisture (%)', field: 'design_moisture_percentage' },
     { label: 'Consumption Moisture (%)', field: 'consumption_moisture_percentage' },
@@ -986,6 +988,27 @@ const moistureMaterialsForCalculation = computed(() => {
         };
     });
 });
+
+const zeroMoisturePreview = computed(() => {
+    const materials = moistureMaterialsForCalculation.value;
+    const aggregate = materials?.find(item => item.group === 'Aggregate' && /\b12\s*mm\b/i.test(item.name));
+    if (!materials || !aggregate || !aggregate.moisture || aggregate.moisture !== productMoisture(aggregate.productId)) return null;
+
+    const preview = materials.map(item => item === aggregate ? { ...item, moisture: 0 } : item);
+    const result = moistureTargets(preview, mixerCapacity.value, mixerCapacity.value);
+    const water = materials.find(item => item.group === 'Water / Ice' && result.targets.has(item.productId));
+    if (result.error || !water || !result.targets.has(aggregate.productId)) return null;
+    return new Map([
+        [aggregate.productId, result.targets.get(aggregate.productId)!],
+        [water.productId, result.targets.get(water.productId)!],
+    ]);
+});
+
+// These editable values belong to the screen only. Saving and run generation use form.materials.
+const displayRunQuantities = ref<Record<number, number | null>>({});
+watch([() => props.batch?.id, zeroMoisturePreview], ([, quantities]) => {
+    displayRunQuantities.value = Object.fromEntries(quantities ?? []);
+}, { immediate: true });
 
 const fullRunQuantities = computed(() => {
     const materials = moistureMaterialsForCalculation.value;
@@ -1371,7 +1394,7 @@ console.log('test');
                                     <div class="flex items-end gap-2">
                                         <div class="flex-1">
                                             <BaseInputNumber v-model="form.empty_weight_truck" :minFractionDigits="0"
-                                                :maxFractionDigits="3" :disabled="isLocked" label="Empty Weight"
+                                                :maxFractionDigits="2" :disabled="isLocked" label="Empty Weight"
                                                 :required="isWeightMandatory" :error="form.errors.empty_weight_truck" />
                                         </div>
                                     </div>
@@ -1380,7 +1403,7 @@ console.log('test');
                                     <div class="flex items-end gap-2">
                                         <div class="flex-1">
                                             <BaseInputNumber v-model="form.loaded_weight_truck" :minFractionDigits="0"
-                                                :maxFractionDigits="3"
+                                                :maxFractionDigits="2"
                                                 :disabled="isLocked || customSettings?.batching?.manual_weight === 0"
                                                 label="Full Weight" :required="isWeightMandatory"
                                                 :error="form.errors.loaded_weight_truck" />
@@ -1438,7 +1461,7 @@ console.log('test');
                                 </div>
                                 <div>
                                     <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (mÂ³)"
-                                        :minFractionDigits="2" :maxFractionDigits="3" :min="0.01" :disabled="isLocked"
+                                        :minFractionDigits="2" :maxFractionDigits="2" :min="0.01" :disabled="isLocked"
                                         :error="form.errors.batch_size" />
                                 </div>
                                 <div>
@@ -1484,7 +1507,7 @@ console.log('test');
                                                 Qty</span>
                                             <div class="text-xs font-black text-cyan-700 mt-0.5">
                                                 {{ (Number(item.cross_quantity || item.quantity || 0) *
-                                                    form.batch_size).toFixed(3) }}
+                                                    form.batch_size).toFixed(2) }}
                                                 <span class="text-[9px] font-normal text-slate-400 ml-0.5">{{
                                                     item.uom?.unit_code || 'KGS'
                                                 }}</span>
@@ -1573,6 +1596,9 @@ console.log('test');
                                         </div>
                                     </Transition>
 
+                                    <Button v-if="can('BATCH.PDF') || can('BATCH.EXPORT')" type="button" label="Download Batch Sheet"
+                                        icon="pi pi-download" size="small" outlined @click="emit('download-sheet', batch)" />
+
                                     <!-- View/Download Batch Sheet -->
                                     <Button v-if="(sheetUrl || props.batch?.sheet_url) && isUploadFetchEnabled"
                                         label="View Sheet" icon="pi pi-eye" size="small" severity="help" outlined
@@ -1655,7 +1681,7 @@ console.log('test');
                                 <div v-else class="grid grid-cols-1">
                                     <div
                                         class="overflow-auto max-h-[620px] min-w-0 border border-slate-200 rounded-xl shadow-sm bg-white">
-                                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                                        <table :data-batch-materials="batch.id" :data-run-size="mixerCapacity" :data-production-qty="form.batch_size" class="w-full text-left border-collapse whitespace-nowrap">
                                             <thead class="sticky top-0 z-20">
                                                 <tr class="bg-slate-900 text-white">
                                                     <th class="p-0" :colspan="form.materials.length + 1">
@@ -1669,7 +1695,7 @@ console.log('test');
                                                     <th
                                                         class="border-r border-slate-200 px-4 py-3 font-bold uppercase w-48 bg-slate-100 text-[10px] text-slate-500 tracking-wider sticky left-0 z-30 shadow-[1px_0_0_0_#e2e8f0]">
                                                         Product</th>
-                                                    <th v-for="(item, index) in form.materials" :key="index"
+                                                    <th v-for="(item, index) in form.materials" :key="index" :data-product-id="item.product_id" :data-target="item.target_qty"
                                                         class="border-r border-slate-200 px-3 py-2 min-w-[180px] bg-slate-50">
                                                         <div class="flex items-center gap-1.5">
                                                             <BaseSelect v-model="form.materials[index].product_id"
@@ -1699,8 +1725,8 @@ console.log('test');
                                                         <BaseInputNumber :modelValue="calculations.quantityPerCbm(item.target_qty, form.batch_size)"
                                                             @update:modelValue="item.target_qty = calculations.batchQuantityFromRate($event ?? 0, form.batch_size)"
                                                             :disabled="isLocked || !(form.batch_size > 0)"
-                                                            :minFractionDigits="0"
-                                                            :maxFractionDigits="0" size="small"
+                                                            :minFractionDigits="isAdmixture(item) ? 2 : 0"
+                                                            :maxFractionDigits="isAdmixture(item) ? 2 : 0" size="small"
                                                             :fluid="true"
                                                             :error="form.errors[`materials.${index}.target_qty`]"
                                                             class="!text-[11px] !font-bold text-center" />
@@ -1712,11 +1738,17 @@ console.log('test');
                                                         Actual Qty per {{ mixerCapacity }} m³ run</td>
                                                     <td v-for="(item, index) in form.materials" :key="index"
                                                         class="border-r border-slate-200 px-3 py-2 bg-white">
-                                                        <BaseInputNumber :modelValue="actualInputQuantity(item)"
+                                                        <BaseInputNumber v-if="zeroMoisturePreview?.has(Number(item.product_id))"
+                                                            v-model="displayRunQuantities[Number(item.product_id)]"
+                                                            :min="0" fluid size="small" :maxFractionDigits="0"
+                                                            :label="item.material_name + ' actual quantity per run'"
+                                                            fieldClass="[&_label]:sr-only"
+                                                            class="!text-[11px] !font-bold text-center" />
+                                                        <BaseInputNumber v-else :modelValue="actualInputQuantity(item) ?? (isAdmixture(item) ? 0 : null)"
                                                             @update:modelValue="updateActualQuantity(item, $event)"
                                                             :min="0" :disabled="isLocked || !(form.batch_size > 0)"
-                                                            :minFractionDigits="runPrecision(item)"
-                                                            :maxFractionDigits="runPrecision(item)" size="small"
+                                                            :minFractionDigits="Math.min(runPrecision(item), 2)"
+                                                            :maxFractionDigits="Math.min(runPrecision(item), 2)" size="small"
                                                             :fluid="true"
                                                             :error="form.errors[`materials.${index}.entered_actual_qty`]"
                                                             class="!text-[11px] !font-bold text-center" />
@@ -1728,13 +1760,17 @@ console.log('test');
                                                     </th>
                                                     <td v-for="(item, index) in form.materials" :key="index"
                                                         class="border-r border-slate-200 px-3 py-2">
-                                                        <BaseInputNumber v-if="item.product_id && materialDisplay(item)?.supports_moisture"
+                                                        <span v-if="props.batch?.modomines_moisture && row.field === 'consumption_moisture_percentage' && materialDisplay(item)?.supports_moisture"
+                                                            class="block text-center text-xs tabular-nums">
+                                                            {{ inlineReadings.find(r => r.product_id === Number(item.product_id))?.consumption_moisture_percentage.toFixed(2) }}
+                                                        </span>
+                                                        <BaseInputNumber v-else-if="item.product_id && materialDisplay(item)?.supports_moisture"
                                                             :modelValue="inlineReadings.find(r => r.product_id === Number(item.product_id))?.[row.field]"
                                                             @input="updateMoisture(Number(item.product_id), row.field, $event.value)"
                                                             @update:modelValue="updateMoisture(Number(item.product_id), row.field, $event)"
                                                             :label="(item.material_name || 'Material') + ' ' + row.label"
                                                             fieldClass="[&_label]:sr-only" size="small" fluid
-                                                            :min="0" :max="100" :minFractionDigits="2" :maxFractionDigits="3"
+                                                            :min="0" :max="100" :minFractionDigits="2" :maxFractionDigits="2"
                                                             :disabled="isLocked || form.processing || (!props.batch?.modomines_moisture && row.field === 'design_moisture_percentage' && productMoisture(Number(item.product_id)) !== null)" />
                                                     </td>
                                                 </tr>
@@ -1773,8 +1809,8 @@ console.log('test');
                                                             :modelValue="form.materials[index].runs?.[runIdx - 1]"
                                                             @update:modelValue="setMeasuredRun(item, runIdx - 1, $event == null ? null : Number($event))"
                                                             :disabled="isLocked"
-                                                            :minFractionDigits="runPrecision(item)"
-                                                            :maxFractionDigits="runPrecision(item)" size="small"
+                                                            :minFractionDigits="Math.min(runPrecision(item), 2)"
+                                                            :maxFractionDigits="Math.min(runPrecision(item), 2)" size="small"
                                                             :fluid="true"
                                                             class="!text-[11px] !font-bold text-center bg-cyan-50/10 focus:bg-cyan-50/30" />
                                                     </td>
@@ -1786,7 +1822,7 @@ console.log('test');
                                                         Total Actual</td>
                                                     <td v-for="(item, index) in form.materials" :key="index"
                                                         class="border-r border-slate-200 px-3 py-2 font-black text-center text-xs text-slate-800 bg-white">
-                                                        {{ calculations.productionTotalActual(actualInputQuantity(item), form.batch_size, mixerCapacity).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: materialPrecision(item), maximumFractionDigits: 3 }) }}
+                                                        {{ calculations.productionTotalActual(actualInputQuantity(item), form.batch_size, mixerCapacity).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: Math.min(materialPrecision(item), 2), maximumFractionDigits: 2 }) }}
                                                     </td>
                                                 </tr>
                                                 <!-- Deviation Row -->
@@ -1798,7 +1834,7 @@ console.log('test');
                                                         class="border-r border-slate-200 px-3 py-2.5 font-black text-center text-xs bg-white"
                                                         :class="displayedDeviation(item) > 0 ? '!text-rose-600 !bg-rose-50/30' : displayedDeviation(item) < 0 ? '!text-emerald-600 !bg-emerald-50/30' : '!text-slate-500 !bg-slate-50/10'">
                                                         {{ displayedDeviation(item) > 0 ? '+' : '' }}{{
-                                                            displayedDeviation(item).toFixed(materialPrecision(item)) }}
+                                                            calculations.deviation(item).toFixed(Math.min(materialPrecision(item), 2)) }}
                                                     </td>
                                                 </tr>
                                                 <!-- Actual Set Weight Summary -->

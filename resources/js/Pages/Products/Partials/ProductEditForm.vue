@@ -187,7 +187,7 @@ const submit = () => {
                 :error="form.errorFor('opening_quantity')" />
         </div>
         <div class="field-group">
-            <BaseInput v-model="form.moisture" label="Water Absorption (%)" type="number" min="0" max="100" step="0.001"
+            <BaseInput v-model="form.moisture" label="Moisture (%)" type="number" min="0" max="100" step="0.001"
                 :error="form.errorFor('moisture')" :disabled="!can('PRODUCT.update')" />
         </div>
     </div>

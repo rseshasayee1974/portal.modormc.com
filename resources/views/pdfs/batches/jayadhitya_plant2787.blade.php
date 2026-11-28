@@ -3,7 +3,7 @@ Author: ragul-onemodo
 Created: 2026-11-02 16:46:39 Asia/Calcutta (UTC+05:30)
 -->
 @php
-    $report = \App\Services\JayadhityaPlant2787BatchSheet::data($batch);
+    $report = \App\Services\JayadhityaPlant2787BatchSheet::data($batch, $materialsDisplay ?? null);
     $order = $batch->relationLoaded('workOrder') && !$batch->relationLoaded('salesOrder') ? $batch->workOrder : $batch->salesOrder;
     $plant = $batch->plant ?? $order?->plant;
     $mix = $order?->mixDesign;
@@ -16,10 +16,10 @@ Created: 2026-11-02 16:46:39 Asia/Calcutta (UTC+05:30)
         ['Site', $order?->site?->name], ['Recipe Code', $mix?->design_code], ['Recipe Name', $mix?->design_name],
         ['Truck Number', $dispatch?->truck?->registration], ['Truck Driver', trim(($driver?->first_name ?? '').' '.($driver?->last_name ?? ''))],
         ['Order Number', $order?->full_number ?: $order?->order_no], ['Batcher Name', $batch->operator?->full_name]];
-    $right = [['Ordered Quantity', $order?->total_qty, 'M3'], ['Production Quantity', $batch->batch_size, 'M3'],
+    $right = [['Ordered Quantity', $order?->total_qty, 'M3'], ['Production Quantity', $materialsDisplay['productionQty'] ?? $batch->batch_size, 'M3'],
         ['Adj/Manual Quantity', null, 'M3'], ['With This Load', $report['with_this_load'], 'M3'],
         ['Mixer Capacity', $plant?->mixer_capacity, 'M3'],
-        ['Batch Size', $report['inferred_runs'] ? null : $report['run_size'], 'M3'],
+        ['Batch Size', $materialsDisplay['runSize'] ?? ($report['inferred_runs'] ? null : $report['run_size']), 'M3'],
         ['Net Wt From W.Bridge', $dispatch?->net_weight, 'Kg']];
 
 @endphp
@@ -125,7 +125,7 @@ table.batch tr { break-inside: avoid; }
   @else
   <p class="note">No material readings are recorded for this batch.</p>
   @endif
-  @if ($report['inferred_runs'])<p class="note">Stored load totals shown. Individual mixer-cycle readings are unavailable.</p>@endif
+  @if (!isset($materialsDisplay) && $report['inferred_runs'])<p class="note">Stored load totals shown. Individual mixer-cycle readings are unavailable.</p>@endif
 </div>
 </body>
 </html>

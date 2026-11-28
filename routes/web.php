@@ -429,8 +429,8 @@ Route::middleware([
         Route::post('batches/{batch}/moisture-preview', [BatchController::class, 'previewMoisture'])->name('batches.moisture-preview');
         Route::put('batches/{batch}/patron', [BatchController::class, 'updatePatron'])->name('batches.patron.update');
         Route::post('batches/{batch}/send-email', [BatchController::class, 'sendEmail'])->name('batches.send-email');
-        Route::get('batches/{batchId}/report', [BatchController::class, 'report'])->name('batches.report');
-        Route::get('batches/{batchId}/download', [BatchController::class, 'downloadPdf'])->name('batches.download');
+        Route::match(['get', 'post'], 'batches/{batchId}/report', [BatchController::class, 'report'])->name('batches.report');
+        Route::match(['get', 'post'], 'batches/{batchId}/download', [BatchController::class, 'downloadPdf'])->name('batches.download');
         Route::get('batches/{batch}/token', [BatchController::class, 'token'])->name('batches.token');
         Route::get('batches/{batch}/token/download', [BatchController::class, 'downloadTokenPdf'])->name('batches.token.download');
         Route::get('batches/{batch}/dispatch-token', [BatchController::class, 'dispatchToken'])->name('batches.dispatch-token');

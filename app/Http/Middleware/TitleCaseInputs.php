@@ -114,6 +114,7 @@ class TitleCaseInputs
         'order_date',
 
         // JSON / binary / file fields
+        'materials_display',
         'logo',
         'logo_file',
         'photo',
