@@ -931,10 +931,12 @@ const displayedRunSize = computed(() => {
     return numberOfRuns.value > 0 ? Number((form.batch_size / numberOfRuns.value).toFixed(3)) : 0;
 });
 
+const targetNumber = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 6 });
 const liveRun = computed(() => {
     const size = displayedRunSize.value;
     const readings = new Map(inlineReadings.value.map(row => [row.product_id, row]));
     const quantities = new Map<number, number>();
+    const steps = new Map<number, string[]>();
     const displayOnly = new Set<number>();
     const materials = form.materials.filter(item => item.product_id).map(item => {
         const productId = Number(item.product_id);
@@ -947,14 +949,43 @@ const liveRun = computed(() => {
         let moisture = enteredMoisture > 0 ? defaultMoisture : 0;
         if (props.batch?.modomines_moisture && group === 'Aggregate' && /\b12\s*mm\b/i.test(item.material_name)
             && defaultMoisture > 0 && defaultMoisture === productMoisture(productId)) {
-            moisture = 0;
+            if (defaultMoisture !== enteredMoisture) moisture = 0;
             displayOnly.add(productId);
         }
-        quantities.set(productId, designRate * size);
+        const scaledTarget = designRate * size;
+        quantities.set(productId, scaledTarget);
+        steps.set(productId, [`${targetNumber.format(designRate)} kg/m³ × ${size} m³ = ${targetNumber.format(scaledTarget)} kg`]);
+        if (displayOnly.has(productId) && enteredMoisture > 0 && moisture !== defaultMoisture) {
+            steps.get(productId)!.push('12MM display uses 0% default moisture.');
+        }
         return { productId, name: item.material_name, batchTarget: item.target_qty, group, designRate, moisture, absorption };
     });
     if (props.batch?.modomines_moisture && form.moisture_contents.length) {
-        const corrected = moistureTargets(materials, size, size);
+        const corrections = new Map<number, number>();
+        const corrected = moistureTargets(materials, size, size, (id, delta) => corrections.set(id, delta));
+        const fmt = targetNumber.format;
+        for (const item of materials) {
+            const lines = steps.get(item.productId)!;
+            const base = quantities.get(item.productId)!;
+            const delta = corrections.get(item.productId);
+            if (!corrected.targets.has(item.productId)) {
+                if (corrected.error && ['Aggregate', 'Water / Ice'].includes(item.group)) lines.push(corrected.error);
+                continue;
+            }
+            if (delta !== undefined && item.absorption > 0) {
+                const difference = item.moisture - item.absorption;
+                lines.push(`${fmt(item.moisture)}% − ${fmt(item.absorption)}% = ${fmt(difference)} percentage points`,
+                    `${fmt(base)} × ${fmt(difference)}% = ${fmt(delta)} kg`,
+                    `${fmt(base)} ${delta < 0 ? '−' : '+'} ${fmt(Math.abs(delta))} = ${fmt(base + delta)} kg`);
+            } else if (item.group === 'Water / Ice') {
+                const terms = [...corrections.values()];
+                const sum = terms.reduce((total, value) => total + value, 0);
+                lines.push(`Aggregate correction: ${terms.map(v => v < 0 ? '(' + fmt(v) + ')' : fmt(v)).join(' + ') || '0'} = ${fmt(sum)} kg`,
+                    `${fmt(base)} ${sum < 0 ? '+' : '−'} ${fmt(Math.abs(sum))} = ${fmt(base - sum)} kg`);
+            } else if (item.group === 'Aggregate') {
+                lines.push('Moisture correction: 0 kg');
+            }
+        }
         for (const [id, quantity] of corrected.targets) quantities.set(id, quantity);
         if (displayOnly.size) {
             for (const item of materials) {
@@ -962,7 +993,7 @@ const liveRun = computed(() => {
             }
         }
     }
-    return { quantities, displayOnly };
+    return { quantities, displayOnly, steps };
 });
 
 const displayRunQuantities = ref<Record<number, number | null>>({});
@@ -1706,6 +1737,12 @@ console.log('test');
                                                             :fluid="true"
                                                             :error="form.errors[`materials.${index}.entered_actual_qty`]"
                                                             class="!text-[11px] !font-bold text-center" />
+                                                        <div v-if="item.product_id && displayedRunSize > 0" class="mt-2 max-w-72 whitespace-normal rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs leading-5 tabular-nums text-slate-600">
+                                                            <p class="font-medium text-slate-800">Target scaled to run size</p>
+                                                            <p v-for="(line, step) in liveRun.steps.get(Number(item.product_id))" :key="step">{{ line }}</p>
+                                                            <p class="font-semibold text-slate-800">Calculated per run: {{ liveRun.quantities.get(Number(item.product_id))?.toLocaleString('en-IN', { minimumFractionDigits: Math.min(runPrecision(item), 2), maximumFractionDigits: Math.min(runPrecision(item), 2) }) }} kg</p>
+                                                            <p v-if="displayRunQuantities[Number(item.product_id)] !== liveRun.quantities.get(Number(item.product_id))">Actual quantity manually edited.</p>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                                 <tr v-for="row in moistureRows" :key="row.field" :class="props.batch?.modomines_moisture ? 'bg-amber-50' : 'bg-cyan-50/30'">

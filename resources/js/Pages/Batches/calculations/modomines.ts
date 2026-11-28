@@ -16,7 +16,8 @@ type DosingMaterial = {
 };
 
 // Calculate each run from the SSD recipe, then add the rounded run targets as on save.
-export function moistureTargets(materials: DosingMaterial[], volume: number, capacity: number) {
+export function moistureTargets(materials: DosingMaterial[], volume: number, capacity: number,
+    onAggregateCorrection?: (productId: number, correction: number) => void) {
     const totals = new Map<number, number>();
     const fail = (error: string) => ({ targets: new Map<number, number>(), error });
     if (!(volume > 0 && Number.isFinite(volume))) return fail('Enter a positive production quantity.');
@@ -43,6 +44,7 @@ export function moistureTargets(materials: DosingMaterial[], volume: number, cap
             const designWeight = item.designRate * runVolume;
              
             const correction = designWeight * (item.moisture - item.absorption) / 100;
+            onAggregateCorrection?.(item.productId, correction);
             waterCorrection += correction;
             addQuantity(item.productId, designWeight + correction);
         }
