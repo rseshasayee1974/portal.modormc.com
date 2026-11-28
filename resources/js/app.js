@@ -3,6 +3,7 @@ import '../css/base.css';
 
 import { createApp, h } from 'vue';
 import { createInertiaApp, router } from '@inertiajs/vue3';
+import { parsePage } from '@inertiajs/core/json';
 import { installUserPresence } from '@/Services/userPresence';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { createPinia } from 'pinia';
@@ -37,7 +38,12 @@ async function ensureApplicationUI() {
 
 const appName = 'Modormc';
 
+// Cached Laravel views can still carry the initial page on the root element.
+const legacyPage = !document.querySelector('script[data-page="app"][type="application/json"]')
+    && document.getElementById('app')?.getAttribute('data-page');
+
 createInertiaApp({
+    page: legacyPage ? parsePage(legacyPage) : undefined,
     title: (title) => `${title} - ${appName}`,
     pages: './Pages',
     async setup({ el, App, props, plugin }) {
